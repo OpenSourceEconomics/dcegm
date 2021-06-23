@@ -1,0 +1,22 @@
+name: dcegm
+
+channels:
+  - defaults
+  - conda-forge
+
+dependencies:
+  - python >= 3.6
+  - pip
+
+  - jupyterlab
+  - nb_conda_kernels
+  - nb_black
+
+  - numpy 
+  - pandas
+  - scipy
+
+  - matplotlib
+
+  - black
+  - flake8
