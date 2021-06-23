@@ -75,6 +75,31 @@ def solve_egm(
 
     # Start backwards induction from second to last period (T - 1)
     for period in range(n_periods - 2, -1, -1):
+
+        # Note: In the DC-EGM retirement model with two states
+        # (0 = "retirement" and 1 = "working") ``state`` denotes both the
+        # STATE INDICATOR and the INDEX of the ``policy`` and ``value`` arrays.
+        # In fact, in the retirement model, ``states`` dual roles coincide.
+        # Meaning, for the "retirement" state, denotes both the state indicator
+        # and the index. ``state``'s role as an indicator becomes apparent when
+        # subtracting the disutility of work (denoted by ``delta``) from the
+        # agent's utility function via `` - state * delta``, which is unequal to 0
+        # when then agent is working,
+        # see :func:`~dcgm.egm_step.get_current_period_value`.
+        # In the EGM consumption-savings model, however, there is no discrete
+        # choice to make so that ``state`` is - always - set to 1 ("working").
+        # Consequently, ``state``'s roles as indicator and index do not overlap
+        # anymore, i.e. the state indicator is 1, but the corresponding index
+        # in the ``policy`` and ``value`` arrays is 0!
+        # To account for this discrepancy, several one-liners have been put in place
+        # to set ``state`` = 0 when it needs to take on the role as an index;
+        # see :func:`~dcgm.consumption_savings_model.compute_value_function` and
+        # :func:`~dcgm.egm_step.call_egm_step`.
+        # Similarly, when we loop over choices, in the consumption-savings model
+        # with no discrete choice here, one-liners are in place to keep the
+        # existing for-loop structure. In Practice, ``choice_range`` = [1] in
+        # this case, see :func:`~dcgm.call_egm_step.get_next_period_value` and
+        # :func:`~dcgm.call_egm_step.solve_final_period`.
         for state in choice_range:
             policy, value = call_egm_step(
                 period,
