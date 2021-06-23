@@ -239,12 +239,11 @@ def compute_value_function(
     value_function = np.full(next_period_wealth.shape, np.nan)
 
     # Mark credit constrained region
-    # Credit constrain lies between first (M_{t+1} = 0)
+    # Credit constraint lies between first (M_{t+1} = 0)
     # and second point (A_{t+1} = 0)
-    # page number? --> Look up in paper for economic intuition!!
-
-    constrained_region = next_period_wealth < value[next_period, state_index, 0, 1]
-    # Last dim denotes grid point j+1
+    constrained_region = (
+        next_period_wealth < value[next_period, state_index, 0, 1]
+    )  # Last dim denotes grid point j=1
 
     # Calculate t+1 value function in constrained region
     value_function[constrained_region] = (

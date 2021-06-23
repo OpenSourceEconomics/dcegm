@@ -37,7 +37,7 @@ def call_egm_step(
             the value function. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
         savings_grid (np.ndarray): Array of length n_wealth_grid denoting the
             exogenous savings grid.
-        quad_points_normal (np.ndarray): Array of length n_quad_stochastic
+        quad_points_normal (np.ndarray): Array of length (n_quad_stochastic,)
             containing (normally distributed) stochastic components.
         quad_weights (np.ndarray): Weights associated with the quadrature points.
             Will be used for integration over the stochastic income component
@@ -64,7 +64,6 @@ def call_egm_step(
 
         - policy (np.ndarray): Array storing levels of optimal consumption policy.
         - value (np.ndarray): Array Value function.
-        - expected_value (np.ndarray): Array of expected values of length.
     """
     # 1) Policy: Current period consumption
     matrix_next_period_wealth = compute_next_period_wealth_matrix(
@@ -328,9 +327,8 @@ def get_expected_value(
             choice-specific value function.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth)
         next_period_wealth (np.ndarray):
-        quad_weights (np.ndarray): Weights associated with the quadrature points
-            of length n_quad_stochastic. Will be used for integration
-            over the stochastic income component in the Euler equation.
+        quad_weights (np.ndarray): Weights associated with the stochastic
+            quadrature points of length (n_quad_stochastic,).
 
     Returns:
         expected_value (np.ndarray): Array of current period's expected value of
@@ -358,7 +356,7 @@ def adjust_first_elements(
         value (np.array): Multi-dimensional array of choice-specific values of the
             value function. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
         expected_value (np.ndarray): Array of current period's expected value of
-            next_period. Length n_grid_wealth.
+            next_period. Length (n_grid_wealth,).
         options (dict): Options dictionary.
 
     Returns:

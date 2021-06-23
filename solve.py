@@ -41,10 +41,6 @@ def solve_egm(
             period wealth matrix which is an array of all possible next period
             marginal wealths with shape (n_quad_stochastic, n_grid_wealth).
 
-        n_periods (int): Number of time periods.
-        n_gridpoints (int): Number of exogenous points in the savings grid.
-        max_wealth (int or float): Upper bound on wealth.
-
     Returns:
         policy (np.array): Multi-dimensional array of choice-specific
             consumption policy. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
@@ -58,7 +54,7 @@ def solve_egm(
     n_quad_points = options["quadrature_points_stochastic"]
 
     # If only one state, i.e. no discrete choices to make,
-    # set choice_range to integer; 1 = "working".
+    # set choice_range to 1 = "working".
     choice_range = [1] if n_choices < 2 else range(n_choices)
 
     savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
@@ -108,7 +104,7 @@ def _create_multi_dim_arrays(options: Dict[str, int]) -> Tuple[np.ndarray, np.nd
     since we want to set the first positon (j=0) to M_t = 0 for all time periods.
 
     Args:
-        options(Dict[str, int]):
+        options (dict): Options dictionary.
 
     Returns:
         (Tuple): Tuple containing
