@@ -31,7 +31,7 @@ def call_egm_step(
     Args:
         period (int): Current period t.
         state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
-        policy (np.array): Multi-dimensional array of choice-specific
+        policy (np.ndarray): Multi-dimensional array of choice-specific
             consumption policy. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
         value (np.ndarray): Multi-dimensional array of choice-specific values of the
             the value function. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
@@ -137,7 +137,7 @@ def get_next_period_consumption(
 
     Args:
         period (int): Current period t.
-        policy (np.array): Multi-dimensional array of choice-specific consumption
+        policy (np.ndarray): Multi-dimensional array of choice-specific consumption
             policy. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
         matrix_next_period_wealth (np.ndarray): Array of all possible next period
             wealths with shape (n_quad_stochastic, n_grid_wealth).
@@ -233,7 +233,7 @@ def get_next_period_value(
 
     Args:
         period (int): Current period t.
-        value (np.array): Multi-dimensional array of choice-specific values of the
+        value (np.ndarray): Multi-dimensional array of choice-specific values of the
             the value function. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
         matrix_next_period_wealth (np.ndarray): Array of all possible next period
             wealths with shape (n_quad_stochastic, n_grid_wealth).
@@ -352,9 +352,9 @@ def adjust_first_elements(
     """Adjusts first elements of endogenous wealth grid, policy and value function.
 
     Args:
-        policy (np.array): Multi-dimensional array of choice-specific
+        policy (np.ndarray): Multi-dimensional array of choice-specific
             consumption policy. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
-        value (np.array): Multi-dimensional array of choice-specific values of the
+        value (np.ndarray): Multi-dimensional array of choice-specific values of the
             value function. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
         expected_value (np.ndarray): Array of current period's expected value of
             next_period. Shape (n_grid_wealth,).
@@ -362,10 +362,10 @@ def adjust_first_elements(
 
     Returns:
         (tuple): Tuple containing:
-        - policy (np.array): Multi-dimensional array of choice-specific
+        - policy (np.ndarray): Multi-dimensional array of choice-specific
             consumption policy. The first elements in the endogenous wealth
             grid (last dimension) have been adjusted.
-        - value (np.array): Multi-dimensional array of choice-specific values of
+        - value (np.ndarray): Multi-dimensional array of choice-specific values of
             the value function. The first elements in the endogenous wealth
             grid (last dimension) have been adjusted.
 
@@ -401,9 +401,9 @@ def solve_final_period(
     """Computes solution to final period for consumption policy and value function.
 
     Args:
-        policy (np.array): Multi-dimensional array of choice-specific
+        policy (np.ndarray): Multi-dimensional array of choice-specific
             consumption policy. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
-        value (np.array): Multi-dimensional array of choice-specific values of the
+        value (np.ndarray): Multi-dimensional array of choice-specific values of the
             the value function. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
         savings_grid (np.ndarray): Array of shape (n_wealth_grid,) denoting the
             exogenous savings grid.
@@ -414,9 +414,9 @@ def solve_final_period(
 
     Returns:
         (tuple): Tuple containing:
-        - policy (np.array): Multi-dimensional array of choice-specific
+        - policy (np.ndarray): Multi-dimensional array of choice-specific
             consumption policy with solution for final period.
-        - value (np.array): Multi-dimensional array of choice-specific values of
+        - value (np.ndarray): Multi-dimensional array of choice-specific values of
             the value function with solution for final period.
 
         Both arrays have shape (n_periods, n_choices, 2, n_grid_wealth + 1).

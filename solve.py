@@ -42,9 +42,9 @@ def solve_egm(
             marginal wealths with shape (n_quad_stochastic, n_grid_wealth).
 
     Returns:
-        policy (np.array): Multi-dimensional array of choice-specific
+        policy (np.ndarray): Multi-dimensional array of choice-specific
             consumption policy. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
-        value (np.array): Multi-dimensional array of choice-specific values of the
+        value (np.ndarray): Multi-dimensional array of choice-specific values of the
             the value function. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
     """
     max_wealth = params.loc[("assets", "max_wealth"), "value"]
