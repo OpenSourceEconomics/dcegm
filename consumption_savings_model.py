@@ -22,7 +22,7 @@ def utility_func_crra(
 
     Returns:
         utility (np.ndarray): Array of agent's utility in the current period
-            with length (n_grid_wealth,).
+            with shape (n_grid_wealth,).
     """
     theta = params.loc[("utility_function", "theta"), "value"]
 
@@ -50,7 +50,7 @@ def marginal_utility_crra(
 
     Returns:
         marginal_utility (np.ndarray): Marginal utility of CRRA consumption
-            function with length (n_grid_wealth,).
+            function with shape (n_grid_wealth,).
     """
     theta = params.loc[("utility_function", "theta"), "value"]
     marginal_utility = current_consumption ** (-theta)
@@ -141,9 +141,9 @@ def compute_next_period_wealth_matrix(
     Args:
         period (int): Current period t.
         state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
-        savings_grid (np.ndarray): Array of length n_grid_wealth denoting the
+        savings_grid (np.ndarray): Array of shape n_grid_wealth denoting the
             exogenous savings grid.
-        quad_points (np.ndarray): Array of length n_quad_stochastic
+        quad_points (np.ndarray): Array of shape (n_quad_stochastic,)
             containing (normally distributed) stochastic components.
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].

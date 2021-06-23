@@ -35,13 +35,13 @@ def call_egm_step(
             consumption policy. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
         value (np.ndarray): Multi-dimensional array of choice-specific values of the
             the value function. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
-        savings_grid (np.ndarray): Array of length n_wealth_grid denoting the
+        savings_grid (np.ndarray): Array of shape n_wealth_grid denoting the
             exogenous savings grid.
-        quad_points_normal (np.ndarray): Array of length (n_quad_stochastic,)
+        quad_points_normal (np.ndarray): Array of shape (n_quad_stochastic,)
             containing (normally distributed) stochastic components.
         quad_weights (np.ndarray): Weights associated with the quadrature points.
             Will be used for integration over the stochastic income component
-            in the Euler equation below. Also of length (n_quad_stochastic,).
+            in the Euler equation below. Also of shape (n_quad_stochastic,).
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
@@ -144,7 +144,7 @@ def get_next_period_consumption(
 
     Returns:
         next_period_consumption_interp (np.ndarray): Array of next period
-            consumption of length (n_grid_wealth,).
+            consumption of shape (n_grid_wealth,).
     """
     next_period_wealth = policy[period + 1, 0, 0, :]
     next_period_consumption = policy[period + 1, 0, 1, :]
@@ -170,7 +170,7 @@ def get_current_period_consumption(
 
     Args:
         rhs_euler (np.ndarray): Right-hand side of the Euler equation.
-            Shape (quad_weights.T, n_grid_wealth).
+            Shape (n_grid_wealth,).
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
         inv_marginal_utility_func (callable): Inverse of the marginal utility
@@ -195,18 +195,18 @@ def get_rhs_euler(
 
     Args:
         next_period_marginal_utility (np.ndarray): Array of next period's
-            marginal utility of length (n_grid_wealth,).
+            marginal utility of shape (n_grid_wealth,).
         matrix_next_period_wealth(np.ndarray): Array of all possible next
             period wealths. Shape (n_quad_stochastic, n_wealth_grid).
         matrix_marginal_wealth(np.ndarray): Array of marginal next period wealths.
             Shape (n_quad_stochastic, n_wealth_grid).
         quad_weights (np.ndarray): Weights associated with the quadrature points
-            of length (n_quad_stochastic,). Used for integration over the
+            of shape (n_quad_stochastic,). Used for integration over the
             stochastic income component in the Euler equation.
 
     Returns:
         rhs_euler (np.ndarray): Right-hand side of the Euler equation.
-            Shape (quad_weights.T, n_grid_wealth).
+            Shape (n_grid_wealth,).
     """
     next_period_marginal_utility = next_period_marginal_utility.reshape(
         matrix_next_period_wealth.shape, order="F"
@@ -294,16 +294,16 @@ def get_current_period_value(
 
     Args:
         current_period_utility (np.ndarray): Array of current period utility
-            of length (n_grid_wealth,).
+            of shape (n_grid_wealth,).
         expected_value (np.ndarray): Array of current period's expected value of
-            next_period. Length (n_grid_wealth,).
+            next_period. Shape (n_grid_wealth,).
         state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
 
     Returns:
         current_period_value (np.ndarray): Array of current period value
-            function of length n_grid_wealth.
+            function of shape n_grid_wealth.
     """
     delta = params.loc[("delta", "delta"), "value"]  # disutility of work
     beta = params.loc[("beta", "beta"), "value"]  # discount factor
@@ -317,7 +317,7 @@ def get_current_period_value(
 
 def get_expected_value(
     next_period_value: np.ndarray,
-    next_period_wealth: np.ndarray,
+    matrix_next_period_wealth: np.ndarray,
     quad_weights: np.ndarray,
 ) -> np.ndarray:
     """Computes the expected value of the next period.
@@ -326,17 +326,18 @@ def get_expected_value(
         next_period_value (np.ndarray): Array containing values of next period
             choice-specific value function.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth)
-        next_period_wealth (np.ndarray):
+        matrix_next_period_wealth (np.ndarray): Array of all possible next period
+            wealths with shape (n_quad_stochastic, n_grid_wealth).
         quad_weights (np.ndarray): Weights associated with the stochastic
-            quadrature points of length (n_quad_stochastic,).
+            quadrature points of shape (n_quad_stochastic,).
 
     Returns:
         expected_value (np.ndarray): Array of current period's expected value of
-            next_period. Length (n_grid_wealth,).
+            next_period. Shape (n_grid_wealth,).
     """
     expected_value = np.dot(
         quad_weights.T,
-        next_period_value[0, :].reshape(next_period_wealth.shape, order="F"),
+        next_period_value[0, :].reshape(matrix_next_period_wealth.shape, order="F"),
     )
 
     return expected_value
@@ -356,11 +357,11 @@ def adjust_first_elements(
         value (np.array): Multi-dimensional array of choice-specific values of the
             value function. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
         expected_value (np.ndarray): Array of current period's expected value of
-            next_period. Length (n_grid_wealth,).
+            next_period. Shape (n_grid_wealth,).
         options (dict): Options dictionary.
 
     Returns:
-        (tupple): Tuple containing:
+        (tuple): Tuple containing:
         - policy (np.array): Multi-dimensional array of choice-specific
             consumption policy. The first elements in the endogenous wealth
             grid (last dimension) have been adjusted.
@@ -404,7 +405,7 @@ def solve_final_period(
             consumption policy. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
         value (np.array): Multi-dimensional array of choice-specific values of the
             the value function. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
-        savings_grid (np.ndarray): Array of length (n_wealth_grid,) denoting the
+        savings_grid (np.ndarray): Array of shape (n_wealth_grid,) denoting the
             exogenous savings grid.
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].

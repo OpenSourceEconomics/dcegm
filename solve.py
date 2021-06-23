@@ -33,7 +33,7 @@ def solve_egm(
         inv_marginal_utility_func (callable): Inverse of the marginal utility
             function.
         compute_value_function (callable): Function to compute the agent's value
-            function, which is an array of length n_grid_wealth.
+            function, which is an array of shape (n_grid_wealth,).
         compute_next_period_wealth_matrix (callable): Function to compute next
             period wealth matrix which is an array of all possible next period
             wealths with shape (n_quad_stochastic, n_grid_wealth).
