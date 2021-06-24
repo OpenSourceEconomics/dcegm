@@ -120,8 +120,7 @@ def call_egm_step(
 
     value[period, state_index, 0, 1:] = endog_wealth_grid
     value[period, state_index, 1, 1:] = current_period_value
-
-    policy, value = adjust_first_elements(policy, value, expected_value, options)
+    value[period, state_index, 1, 0] = expected_value[0]
 
     return policy, value
 
@@ -343,13 +342,12 @@ def get_expected_value(
     return expected_value
 
 
-def adjust_first_elements(
+def set_first_elements_to_zero(
     policy: np.ndarray,
     value: np.ndarray,
-    expected_value: np.ndarray,
     options: Dict[str, int],
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Adjusts first elements of endogenous wealth grid, policy and value function.
+    """Sets first elements of endogenous wealth grid and consumption policy to zero.
 
     Args:
         policy (np.ndarray): Multi-dimensional array of choice-specific
@@ -374,18 +372,15 @@ def adjust_first_elements(
     n_periods = options["n_periods"]
     n_choices = options["n_discrete_choices"]
 
-    # Add point M_0 = 0 to the endogenous wealth gird in both
-    # policy and value function
+    # Add point M_0 = 0 to the endogenous wealth grid in both the
+    # policy and value function arrays
     for period in range(n_periods):
         for state in range(n_choices):
-            policy[period, state, 0, 0] = 0.00
-            value[period, state, 0, 0] = 0.00
+            policy[period, state, 0, 0] = 0
+            value[period, state, 0, 0] = 0
 
             # Add corresponding consumption point c(M=0, d) = 0
-            policy[period, state, 1, 0] = 0.00
-
-            # Set v(M, d) to expected value for M = 0
-            value[period, state, 1, 0] = expected_value[0]
+            policy[period, state, 1, 0] = 0
 
     return policy, value
 

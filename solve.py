@@ -7,7 +7,7 @@ import pandas as pd
 from scipy.stats import norm
 from scipy.special.orthogonal import roots_sh_legendre
 
-from egm_step import call_egm_step, solve_final_period
+from egm_step import call_egm_step, set_first_elements_to_zero, solve_final_period
 
 
 def solve_egm(
@@ -67,8 +67,7 @@ def solve_egm(
 
     # Empty containers for consumption policy and value function
     policy, value = _create_multi_dim_arrays(options)
-
-    # Determine consumption policy and value function for final period T
+    policy, value = set_first_elements_to_zero(policy, value, options)
     policy, value = solve_final_period(
         policy, value, savings_grid, params, options, utility_func
     )
