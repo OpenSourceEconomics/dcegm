@@ -7,7 +7,7 @@ import pandas as pd
 from scipy.stats import norm
 from scipy.special.orthogonal import roots_sh_legendre
 
-from egm_step import call_egm_step, set_first_elements_to_zero, solve_final_period
+from src.egm_step import call_egm_step, set_first_elements_to_zero, solve_final_period
 
 
 def solve_egm(
