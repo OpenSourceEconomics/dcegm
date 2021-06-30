@@ -20,9 +20,10 @@ def call_egm_step(
     params: pd.DataFrame,
     options: Dict[str, int],
     utility_func: Callable,
-    marginal_utility_func: Callable,
     inv_marginal_utility_func: Callable,
     compute_value_function: Callable,
+    compute_expected_value: Callable,
+    compute_next_period_marginal_utility: Callable,
     compute_next_period_wealth_matrix: Callable,
     compute_next_period_marg_wealth_matrix: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -46,12 +47,16 @@ def call_egm_step(
             form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
         utility_func (callable): The agent's utility function.
-        marginal_utility_func (callable): Marginal utility function.
         inv_marginal_utility_func (callable): Inverse of the marginal utility
             function.
-        compute_value_function (callable): Function to compute the agent's next-period
-            value function, which is an array of shape
-            (n_choices, n_quad_stochastic * n_grid_wealth).
+        compute_value_function (callable): Function to compute the agent's 
+            next-period value function, which is an array of shape 
+            (n_quad_points * n_grid_wealth,).
+        compute_expected_value (callable): Function to compute the agent's
+            expected value, which is an array of shape (n_grid_wealth,).
+        compute_next_period_marginal_utilty (callable): Function to compute the
+            the marginal utility of the next period, which is an array of
+            shape (n_grid_wealth,).
         compute_next_period_wealth_matrix (callable): Function to compute next
             period wealth matrix which is an array of all possible next period
             wealths with shape (n_quad_stochastic, n_grid_wealth).
@@ -71,11 +76,23 @@ def call_egm_step(
     )
     matrix_marginal_wealth = compute_next_period_marg_wealth_matrix(params, options)
 
-    next_period_consumption = get_next_period_consumption(
-        period, policy, matrix_next_period_wealth
+    next_period_value = get_next_period_value(
+        period,
+        value,
+        matrix_next_period_wealth,
+        params,
+        options,
+        utility_func,
+        compute_value_function,
     )
-    next_period_marginal_utility = marginal_utility_func(
-        next_period_consumption, params
+    next_period_marginal_utility = compute_next_period_marginal_utility(
+        period,
+        state,
+        policy,
+        matrix_next_period_wealth,
+        next_period_value,
+        params,
+        options,
     )
 
     # RHS of Euler Eq., p. 337 IJRS (2017)
@@ -91,19 +108,16 @@ def call_egm_step(
     )
 
     # 2) Value function: Current period value
-    next_period_value = get_next_period_value(
-        period,
-        value,
+    current_period_utility = utility_func(current_period_consumption, params)
+    expected_value = compute_expected_value(
+        next_period_value,
         matrix_next_period_wealth,
+        quad_weights,
+        state,
         params,
         options,
-        utility_func,
-        compute_value_function,
     )
-    current_period_utility = utility_func(current_period_consumption, params)
-    expected_value = get_expected_value(
-        next_period_value, matrix_next_period_wealth, quad_weights
-    )
+
     current_period_value = get_current_period_value(
         current_period_utility, expected_value, state, params
     )
@@ -112,7 +126,7 @@ def call_egm_step(
     endog_wealth_grid = savings_grid + current_period_consumption
 
     # 4) Update policy and consumption function
-    # If no discrete choices to make, only one state, i.e. one column with index = 0
+    # If no discrete alternatives, only one state, i.e. one column with index = 0
     state_index = 0 if options["n_discrete_choices"] < 2 else state
 
     policy[period, state_index, 0, 1:] = endog_wealth_grid
@@ -123,65 +137,6 @@ def call_egm_step(
     value[period, state_index, 1, 0] = expected_value[0]
 
     return policy, value
-
-
-def get_next_period_consumption(
-    period: int,
-    policy: np.ndarray,
-    matrix_next_period_wealth: np.ndarray,
-) -> np.ndarray:
-    """Computes consumption in the next period via linear interpolation.
-
-    Extrapolate lineary in wealth regions to larger than max_wealth.
-
-    Args:
-        period (int): Current period t.
-        policy (np.ndarray): Multi-dimensional array of choice-specific consumption
-            policy. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
-        matrix_next_period_wealth (np.ndarray): Array of all possible next period
-            wealths with shape (n_quad_stochastic, n_grid_wealth).
-
-    Returns:
-        next_period_consumption_interp (np.ndarray): Array of next period
-            consumption of shape (n_grid_wealth,).
-    """
-    next_period_wealth = policy[period + 1, 0, 0, :]
-    next_period_consumption = policy[period + 1, 0, 1, :]
-
-    interpolation_func = interpolate.interp1d(
-        next_period_wealth,
-        next_period_consumption,
-        bounds_error=False,
-        fill_value="extrapolate",
-        kind="linear",
-    )
-    next_period_consumption_interp = interpolation_func(
-        matrix_next_period_wealth
-    ).flatten("F")
-
-    return next_period_consumption_interp
-
-
-def get_current_period_consumption(
-    rhs_euler: np.ndarray, params: pd.DataFrame, inv_marginal_utility_func: Callable
-) -> np.ndarray:
-    """Computes consumption in the current period.
-
-    Args:
-        rhs_euler (np.ndarray): Right-hand side of the Euler equation.
-            Shape (n_grid_wealth,).
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
-        inv_marginal_utility_func (callable): Inverse of the marginal utility
-            function.
-
-    Returns:
-        current_period_consumption (np.ndarray):
-    """
-    beta = params.loc[("beta", "beta"), "value"]
-    current_period_consumption = inv_marginal_utility_func(beta * rhs_euler, params)
-
-    return current_period_consumption
 
 
 def get_rhs_euler(
@@ -217,6 +172,28 @@ def get_rhs_euler(
     )
 
     return rhs_euler
+
+
+def get_current_period_consumption(
+    rhs_euler: np.ndarray, params: pd.DataFrame, inv_marginal_utility_func: Callable
+) -> np.ndarray:
+    """Computes consumption in the current period.
+
+    Args:
+        rhs_euler (np.ndarray): Right-hand side of the Euler equation.
+            Shape (n_grid_wealth,).
+        params (pd.DataFrame): Model parameters indexed with multi-index of the
+            form ("category", "name") and two columns ["value", "comment"].
+        inv_marginal_utility_func (callable): Inverse of the marginal utility
+            function.
+
+    Returns:
+        current_period_consumption (np.ndarray):
+    """
+    beta = params.loc[("beta", "beta"), "value"]
+    current_period_consumption = inv_marginal_utility_func(beta * rhs_euler, params)
+
+    return current_period_consumption
 
 
 def get_next_period_value(
@@ -263,10 +240,7 @@ def get_next_period_value(
     for index, state in enumerate(choice_range):
         if period + 1 == n_periods - 1:  # Final period
             next_period_value[index, :] = (
-                utility_func(
-                    matrix_next_period_wealth,
-                    params,
-                ).flatten("F")
+                utility_func(matrix_next_period_wealth, params,).flatten("F")
                 - delta * state
             )
         else:
@@ -343,9 +317,7 @@ def get_expected_value(
 
 
 def set_first_elements_to_zero(
-    policy: np.ndarray,
-    value: np.ndarray,
-    options: Dict[str, int],
+    policy: np.ndarray, value: np.ndarray, options: Dict[str, int],
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Sets first elements of endogenous wealth grid and consumption policy to zero.
 

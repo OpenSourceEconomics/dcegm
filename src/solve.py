@@ -14,9 +14,10 @@ def solve_egm(
     params: pd.DataFrame,
     options: Dict[str, int],
     utility_func: Callable,
-    marginal_utility_func: Callable,
     inv_marginal_utility_func: Callable,
     compute_value_function: Callable,
+    compute_expected_value: Callable,
+    compute_next_period_marginal_utility: Callable,
     compute_next_period_wealth_matrix: Callable,
     compute_next_period_marg_wealth_matrix: Callable,
 ):
@@ -29,11 +30,16 @@ def solve_egm(
             form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
         utility_func (callable): The agent's utility function.
-        marginal_utility_func (callable): Marginal utility function.
         inv_marginal_utility_func (callable): Inverse of the marginal utility
             function.
         compute_value_function (callable): Function to compute the agent's value
-            function, which is an array of shape (n_grid_wealth,).
+            function, which is an array of shape 
+            (n_quad_stochastic * n_grid_wealth,).
+        compute_expected_value (callable): Function to compute the agent's
+            expected value, which is an array of shape (n_grid_wealth,).
+        compute_next_period_marginal_utilty (callable): Function to compute the
+            the marginal utility of the next period, which is an array of
+            shape (n_grid_wealth,).
         compute_next_period_wealth_matrix (callable): Function to compute next
             period wealth matrix which is an array of all possible next period
             wealths with shape (n_quad_stochastic, n_grid_wealth).
@@ -111,9 +117,10 @@ def solve_egm(
                 params,
                 options,
                 utility_func,
-                marginal_utility_func,
                 inv_marginal_utility_func,
                 compute_value_function,
+                compute_expected_value,
+                compute_next_period_marginal_utility,
                 compute_next_period_wealth_matrix,
                 compute_next_period_marg_wealth_matrix,
             )
