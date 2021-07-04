@@ -80,11 +80,11 @@ def call_egm_step(
     Returns:
         (tuple) Tuple containing:
         
-        policy (List(np.ndarray)): Nested list of np.ndarrays storing the
+        - policy (List(np.ndarray)): Nested list of np.ndarrays storing the
             choice-specific consumption policies. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*]. 
 
-        value (List(np.ndarray)): Nested list of np.ndarrays storing the
+        - value (List(np.ndarray)): Nested list of np.ndarrays storing the
             choice-specific value functions. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*].
     """
