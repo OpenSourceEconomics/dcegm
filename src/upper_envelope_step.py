@@ -24,13 +24,13 @@ def call_upper_envelope_step(
 
     Calculates the upper envelope over the overlapping segments of the
     decision-specific value functions, which in fact are value "correspondences"
-    in this case, that are produced from different solutions. The dominated grid
+    in this case, where multiple solutions are detected. The dominated grid
     points are then eliminated from the endogenous wealth grid.
 
     Discrete choices introduce kinks and non-concave regions in the value
     function that lead to discontinuities in the policy function of the
     continuous (consumption) choice. In particular, the value function has a
-    non-concave region where the decision-specific value of function of the
+    non-concave region where the decision-specific values of the
     alternative discrete choices (e.g. continued work or retirement) cross.
     These are referred to as "primary" kinks.
     As a result, multiple local optima for consumption emerge and the Euler
@@ -43,7 +43,7 @@ def call_upper_envelope_step(
     in earlier periods of the life cycle. 
     These discontinuities in consumption rules in period t are caused by the
     worker’s anticipation of landing exactly at the kink points in the
-    subsequent periods t +1 , t + 2, ..., T under the optimal consumption policy.
+    subsequent periods t + 1, t + 2, ..., T under the optimal consumption policy.
 
     
     Args:
@@ -70,21 +70,17 @@ def call_upper_envelope_step(
     Returns:
         (tuple) Tuple containing:
         
-        - policy_refined (List(np.ndarray)): Nested list of np.ndarrays storing the
-            *refined* choice-specific consumption policies, which means that 
-            suboptimal points have been removed from the endogenous wealth grid and
-            the corresponding consumption points. Furthermore, kink points and the 
-            corresponding interpolated values for consumption have been added.
-            Dimensions of the list are:
-            [n_periods][n_discrete_choices][2][*n_endog_wealth_grid*].
+        - policy_refined (np.ndarray): Worker's *refined* (consumption) policy 
+            function of the current period, where suboptimal points have been dropped 
+            and the kink points along with the corresponding interpolated values of 
+            the policy function have been added. Shape (2, *n_grid_refined*), where 
+            *n_grid_refined* is the length of the *refined* endogenous wealth grid.
 
-        - value_refined (List(np.ndarray)): Nested list of np.ndarrays storing the
-            *refined* choice-specific value functions, which means that 
-            suboptimal points have been removed from the endogenous wealth grid and
-            the value function "correspondence". Furthermore, kink points and the 
-            corresponding interpolated values of the value function have been added.
-            Dimensions of the list are:
-            [n_periods][n_discrete_choices][2][*n_endog_wealth_grid*].
+        - value_refined (np.ndarray): Worker's *refined* value function of the 
+            current period, where suboptimal points have been dropped and the kink 
+            points along with the corresponding interpolated values of the value 
+            function have been added. Shape (2, *n_grid_refined*), where 
+            *n_grid_refined* is the length of the *refined* endogenous wealth grid.
     """
     policy = copy.deepcopy(policy[period][1])  # state == 1 "working"
     value = copy.deepcopy(value[period][1])
