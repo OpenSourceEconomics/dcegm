@@ -1,6 +1,6 @@
-"""Interface for solving a consumption-savings model via the Endogenous Grid Method."""
-from typing import Callable, Dict, List, Tuple
+"""Interface for the DC-EGM algorithm."""
 import copy
+from typing import Callable, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd

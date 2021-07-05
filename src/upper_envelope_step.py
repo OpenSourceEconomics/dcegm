@@ -1,5 +1,5 @@
+"""Implementation of the Upper Envelope algorithm."""
 import copy
-
 from typing import Any, Callable, Dict, List, Tuple, Union
 
 import numpy as np
