@@ -1,6 +1,6 @@
 """Implementation of the EGM algorithm."""
 import copy
-from typing import Callable, Dict, Tuple
+from typing import Callable, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -31,23 +31,30 @@ def call_egm_step(
     Args:
         period (int): Current period t.
         state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
-        policy (List(np.ndarray)): Nested list of np.ndarrays storing the
+        policy (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific consumption policies. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*], where 
             *n_endog_wealth_grid* is of variable length depending on the number of 
-            concurrent local optima for consumption. The arrays are initialized to
-            *endog_wealth_grid* = n_grid_wealth + 1.
-            Position [0, :] of the array contains the endogenous grid over wealth M, 
-            and [1, :] stores corresponding value of the (consumption) policy 
-            function c(M, d).    
-        value (List(np.ndarray)): Nested list of np.ndarrays storing the
+            concurrent local optima for consumption. The arrays have shape
+            [2, *n_endog_wealth_grid*] and are initialized to
+            *endog_wealth_grid* = n_grid_wealth + 1. We include one additional
+            grid point to the left of the endogenous wealth grid, which we set
+            to zero (that's why we have n_grid_wealth + 1 initial points). 
+            Position [0, :] of the arrays contain the endogenous grid over wealth M, 
+            and [1, :] stores the corresponding value of the (consumption) policy 
+            function c(M, d), for each time period and each discrete choice. 
+        value (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific value functions. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*], where 
             *n_endog_wealth_grid* is of variable length depending on the number of 
-            kinks and non-concave regions. The arrays are initialized to
-            have *endog_wealth_grid* = n_grid_wealth + 1.
+            kinks and non-concave regions. The arrays have shape
+            [2, *n_endog_wealth_grid*] and are initialized to
+            *endog_wealth_grid* = n_grid_wealth + 1. We include one additional
+            grid point to the left of the endogenous wealth grid, which we set
+            to zero (that's why we have n_grid_wealth + 1 initial points). 
             Position [0, :] of the array contains the endogenous grid over wealth M, 
-            and [1, :] stores corresponding value of the value function v(M, d).
+            and [1, :] stores the corresponding value of the value function v(M, d),
+            for each time period and each discrete choice. 
         savings_grid (np.ndarray): Array of shape n_wealth_grid denoting the
             exogenous savings grid.
         quad_points_normal (np.ndarray): Array of shape (n_quad_stochastic,)
@@ -77,13 +84,12 @@ def call_egm_step(
             marginal wealths with shape (n_quad_stochastic, n_grid_wealth).
 
     Returns:
-        (tuple) Tuple containing:
+        (tuple) Tuple containing
         
-        - policy (List(np.ndarray)): Nested list of np.ndarrays storing the
+        - policy (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific consumption policies. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*]. 
-
-        - value (List(np.ndarray)): Nested list of np.ndarrays storing the
+        - value (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific value functions. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*].
     """
@@ -216,7 +222,7 @@ def get_current_period_consumption(
 
 def get_next_period_value(
     period: int,
-    value: np.ndarray,
+    value: List[np.ndarray],
     matrix_next_period_wealth: np.ndarray,
     params: pd.DataFrame,
     options: Dict[str, int],
@@ -227,8 +233,18 @@ def get_next_period_value(
 
     Args:
         period (int): Current period t.
-        value (np.ndarray): Multi-dimensional array of choice-specific values of the
-            the value function. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
+        value (List[np.ndarray]): Nested list of np.ndarrays storing the
+            choice-specific value functions. Dimensions of the list are:
+            [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*], where 
+            *n_endog_wealth_grid* is of variable length depending on the number of 
+            kinks and non-concave regions. The arrays have shape
+            [2, *n_endog_wealth_grid*] and are initialized to
+            *endog_wealth_grid* = n_grid_wealth + 1. We include one additional
+            grid point to the left of the endogenous wealth grid, which we set
+            to zero (that's why we have n_grid_wealth + 1 initial points). 
+            Position [0, :] of the array contains the endogenous grid over wealth M, 
+            and [1, :] stores the corresponding value of the value function v(M, d),
+            for each time period and each discrete choice. 
         matrix_next_period_wealth (np.ndarray): Array of all possible next period
             wealths with shape (n_quad_stochastic, n_grid_wealth).
         params (pd.DataFrame): Model parameters indexed with multi-index of the
