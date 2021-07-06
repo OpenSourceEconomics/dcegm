@@ -44,31 +44,37 @@ def call_upper_envelope_step(
     These discontinuities in consumption rules in period t are caused by the
     worker’s anticipation of landing exactly at the kink points in the
     subsequent periods t + 1, t + 2, ..., T under the optimal consumption policy.
-
     
     Args:
-        policy (List(np.ndarray)): Nested list of np.ndarrays storing the
+        policy (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific consumption policies. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*], where 
             *n_endog_wealth_grid* is of variable length depending on the number of 
             concurrent local optima for consumption. In the case where the consumption
             policy function has no discontinuities, i.e. only one solution to the 
             Euler equation exists, we have *n_endog_wealth_grid* = n_grid_wealth + 1.
-        value (List(np.ndarray)): Nested list of np.ndarrays storing the
+            The arrays have shape [2, *n_endog_wealth_grid*].
+            Position [0, :] of the arrays contain the endogenous grid over wealth M, 
+            and [1, :] stores the corresponding value of the (consumption) policy 
+            function c(M, d), for each time period and each discrete choice.  
+        value (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific value functions. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*], where 
             *n_endog_wealth_grid* is of variable length depending on the number of 
             kinks and non-concave regions. In the case where the value function
             has no non-concavities, we have *n_endog_wealth_grid* = n_grid_wealth + 1.
+            The arrays have shape [2, *n_endog_wealth_grid*].
+            Position [0, :] of the array contains the endogenous grid over wealth M, 
+            and [1, :] stores the corresponding value of the value function v(M, d),
+            for each time period and each discrete choice.
         period (int): Current period t.
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
         utility_func (callable): The agent's utility function.
         
-    
     Returns:
-        (tuple) Tuple containing:
+        (tuple) Tuple containing
         
         - policy_refined (np.ndarray): Worker's *refined* (consumption) policy 
             function of the current period, where suboptimal points have been dropped 
