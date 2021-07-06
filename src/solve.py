@@ -75,7 +75,8 @@ def solve_dcegm(
             grid point to the left of the endogenous wealth grid, which will be 
             set to zero (that's why we have n_grid_wealth + 1 initial points). 
             Position [0, :] of the array contains the endogenous grid over wealth M, 
-            and [1, :] stores the corresponding value of the value function v(M, d).
+            and [1, :] stores the corresponding value of the value function v(M, d),
+            for each time period and each discrete choice.  
     """
     max_wealth = params.loc[("assets", "max_wealth"), "value"]
     n_periods = options["n_periods"]
@@ -196,7 +197,8 @@ def set_first_elements_to_zero(
             grid point to the left of the endogenous wealth grid, which will be 
             set to zero (that's why we have n_grid_wealth + 1 initial points). 
             Position [0, :] of the array contains the endogenous grid over wealth M, 
-            and [1, :] stores the corresponding value of the value function v(M, d).
+            and [1, :] stores the corresponding value of the value function v(M, d),
+            for each time period and each discrete choice. 
 
     Returns:
         (tuple): Tuple containing
@@ -258,7 +260,8 @@ def solve_final_period(
             grid point to the left of the endogenous wealth grid, which we set
             to zero (that's why we have n_grid_wealth + 1 initial points). 
             Position [0, :] of the array contains the endogenous grid over wealth M, 
-            and [1, :] stores the corresponding value of the value function v(M, d).
+            and [1, :] stores the corresponding value of the value function v(M, d),
+            for each time period and each discrete choice. 
         savings_grid (np.ndarray): Array of shape (n_wealth_grid,) denoting the
             exogenous savings grid.
         params (pd.DataFrame): Model parameters indexed with multi-index of the
@@ -343,7 +346,8 @@ def _create_multi_dim_lists(
             grid point to the left of the endogenous wealth grid, which will be 
             set to zero (that's why we have n_grid_wealth + 1 initial points). 
             Position [0, :] of the array contains the endogenous grid over wealth M, 
-            and [1, :] stores the corresponding value of the value function v(M, d).
+            and [1, :] stores the corresponding value of the value function v(M, d),
+            for each time period and each discrete choice. 
     """
     n_grid_wealth = options["grid_points_wealth"]
     n_periods = options["n_periods"]
