@@ -22,8 +22,8 @@ def solve_dcegm(
     compute_next_period_marginal_utility: Callable,
     compute_next_period_wealth_matrix: Callable,
     compute_next_period_marg_wealth_matrix: Callable,
-):
-    """Solves a prototypical consumption-savings model using the EGM algorithm.
+) -> Tuple[List[np.ndarray, List[np.ndarray]]:
+    """Solves a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
     EGM stands for Endogenous Grid Method.
 
@@ -35,25 +35,47 @@ def solve_dcegm(
         inv_marginal_utility_func (callable): Inverse of the marginal utility
             function.
         compute_value_function (callable): Function to compute the agent's value
-            function, which is an array of shape 
+            function, which is an np.ndarray of shape 
             (n_quad_stochastic * n_grid_wealth,).
         compute_expected_value (callable): Function to compute the agent's
-            expected value, which is an array of shape (n_grid_wealth,).
+            expected value, which is an np.ndarray of shape (n_grid_wealth,).
         compute_next_period_marginal_utilty (callable): Function to compute the
-            the marginal utility of the next period, which is an array of
-            shape (n_grid_wealth,).
+            marginal utility of the next period, which is an np.ndarray of shape
+            (n_grid_wealth,).
         compute_next_period_wealth_matrix (callable): Function to compute next
             period wealth matrix which is an array of all possible next period
             wealths with shape (n_quad_stochastic, n_grid_wealth).
-        compute_next_period_marg_wealth_matrix (callable): Function to compute next
-            period wealth matrix which is an array of all possible next period
-            marginal wealths with shape (n_quad_stochastic, n_grid_wealth).
+        compute_next_period_marg_wealth_matrix (callable): Function to compute 
+            next period's wealth matrix, which is an np.ndarray of shape 
+            (n_quad_stochastic, n_grid_wealth) containing all possible 
+            next period marginal wealths with shape.
 
     Returns:
-        policy (np.ndarray): Multi-dimensional array of choice-specific
-            consumption policy. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
-        value (np.ndarray): Multi-dimensional array of choice-specific values of the
-            the value function. Shape (n_periods, n_choices, 2, n_grid_wealth + 1).
+        (tuple): Tuple containing
+        
+        - policy (List[np.ndarray]): Nested list of np.ndarrays storing the
+            choice-specific consumption policies. Dimensions of the list are:
+            [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*], where 
+            *n_endog_wealth_grid* is of variable length depending on the number of 
+            concurrent local optima for consumption. The arrays have shape
+            [2, *n_endog_wealth_grid*] and are initialized to
+            *endog_wealth_grid* = n_grid_wealth + 1. We include one additional
+            grid point to the left of the endogenous wealth grid, which will be 
+            set to zero (that's why we have n_grid_wealth + 1 initial points). 
+            Position [0, :] of the arrays contain the endogenous grid over wealth M, 
+            and [1, :] stores the corresponding value of the (consumption) policy 
+            function c(M, d), for each time period and each discrete choice.    
+        - value (List[np.ndarray]): Nested list of np.ndarrays storing the
+            choice-specific value functions. Dimensions of the list are:
+            [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*], where 
+            *n_endog_wealth_grid* is of variable length depending on the number of 
+            kinks and non-concave regions. The arrays have shape
+            [2, *n_endog_wealth_grid*] and are initialized to
+            *endog_wealth_grid* = n_grid_wealth + 1. We include one additional
+            grid point to the left of the endogenous wealth grid, which will be 
+            set to zero (that's why we have n_grid_wealth + 1 initial points). 
+            Position [0, :] of the array contains the endogenous grid over wealth M, 
+            and [1, :] stores the corresponding value of the value function v(M, d).
     """
     max_wealth = params.loc[("assets", "max_wealth"), "value"]
     n_periods = options["n_periods"]
@@ -152,32 +174,38 @@ def set_first_elements_to_zero(
     """Sets first elements in endogenous wealth grid and consumption policy to zero.
 
     Args:
-        policy (List(np.ndarray)): Nested list of np.ndarrays storing the
+        policy (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific consumption policies. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*], where 
             *n_endog_wealth_grid* is of variable length depending on the number of 
-            concurrent local optima for consumption. The arrays are initialized to
-            *endog_wealth_grid* = n_grid_wealth + 1.
-            Position [0, :] of the array contains the endogenous grid over wealth M, 
-            and [1, :] stores corresponding value of the (consumption) policy 
-            function c(M, d).    
-        value (List(np.ndarray)): Nested list of np.ndarrays storing the
+            concurrent local optima for consumption. The arrays have shape
+            [2, *n_endog_wealth_grid*] and are initialized to
+            *endog_wealth_grid* = n_grid_wealth + 1. We include one additional
+            grid point to the left of the endogenous wealth grid, which will be 
+            set to zero (that's why we have n_grid_wealth + 1 initial points). 
+            Position [0, :] of the arrays contain the endogenous grid over wealth M, 
+            and [1, :] stores the corresponding value of the (consumption) policy 
+            function c(M, d), for each time period and each discrete choice. 
+        value (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific value functions. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*], where 
             *n_endog_wealth_grid* is of variable length depending on the number of 
-            kinks and non-concave regions. The arrays are initialized to
-            have *endog_wealth_grid* = n_grid_wealth + 1.
+            kinks and non-concave regions. The arrays have shape
+            [2, *n_endog_wealth_grid*] and are initialized to
+            *endog_wealth_grid* = n_grid_wealth + 1. We include one additional
+            grid point to the left of the endogenous wealth grid, which will be 
+            set to zero (that's why we have n_grid_wealth + 1 initial points). 
             Position [0, :] of the array contains the endogenous grid over wealth M, 
-            and [1, :] stores corresponding value of the value function v(M, d).
+            and [1, :] stores the corresponding value of the value function v(M, d).
 
     Returns:
-        (tuple): Tuple containing:
+        (tuple): Tuple containing
 
-        - policy (List(np.ndarray)): Nested list of np.ndarrays storing the
+        - policy (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific consumption policies. The first element in the 
             endogenous wealth grid and and the first element in the policy function
             are set to zero.
-        - value (List(np.ndarray)): Nested list of np.ndarrays storing the
+        - value (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific value functions. The first element in the endogenous
             wealth grid is set to zero.
     """
@@ -208,23 +236,29 @@ def solve_final_period(
     """Computes solution to final period for consumption policy and value function.
 
     Args:
-        policy (List(np.ndarray)): Nested list of np.ndarrays storing the
+        policy (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific consumption policies. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*], where 
             *n_endog_wealth_grid* is of variable length depending on the number of 
-            concurrent local optima for consumption. The arrays are initialized to
-            *endog_wealth_grid* = n_grid_wealth + 1.
-            Position [0, :] of the array contains the endogenous grid over wealth M, 
-            and [1, :] stores corresponding value of the (consumption) policy 
-            function c(M, d).    
-        value (List(np.ndarray)): Nested list of np.ndarrays storing the
+            concurrent local optima for consumption. The arrays have shape
+            [2, *n_endog_wealth_grid*] and are initialized to
+            *endog_wealth_grid* = n_grid_wealth + 1. We include one additional
+            grid point to the left of the endogenous wealth grid, which we set
+            to zero (that's why we have n_grid_wealth + 1 initial points). 
+            Position [0, :] of the arrays contain the endogenous grid over wealth M, 
+            and [1, :] stores the corresponding value of the (consumption) policy 
+            function c(M, d), for each time period and each discrete choice. 
+        value (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific value functions. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*], where 
             *n_endog_wealth_grid* is of variable length depending on the number of 
-            kinks and non-concave regions. The arrays are initialized to
-            have *endog_wealth_grid* = n_grid_wealth + 1.
+            kinks and non-concave regions. The arrays have shape
+            [2, *n_endog_wealth_grid*] and are initialized to
+            *endog_wealth_grid* = n_grid_wealth + 1. We include one additional
+            grid point to the left of the endogenous wealth grid, which we set
+            to zero (that's why we have n_grid_wealth + 1 initial points). 
             Position [0, :] of the array contains the endogenous grid over wealth M, 
-            and [1, :] stores corresponding value of the value function v(M, d).
+            and [1, :] stores the corresponding value of the value function v(M, d).
         savings_grid (np.ndarray): Array of shape (n_wealth_grid,) denoting the
             exogenous savings grid.
         params (pd.DataFrame): Model parameters indexed with multi-index of the
@@ -233,12 +267,12 @@ def solve_final_period(
         utility_func (callable): The agent's utility function.
 
     Returns:
-        (tuple): Tuple containing:
+        (tuple): Tuple containing
 
-        - policy (List(np.ndarray)): Nested list of np.ndarrays storing the
+        - policy (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific consumption policies with the solution for the final 
             period included.
-        - value (List(np.ndarray)): Nested list of np.ndarrays storing the
+        - value (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific value functions with the solution for the final period
             included.
     """
@@ -284,26 +318,32 @@ def _create_multi_dim_lists(
     Args:
         options (dict): Options dictionary.
 
-    Returns:
-        (Tuple): Tuple containing
-
-        - policy (List(np.ndarray)): Nested list of np.ndarrays storing the
+     Returns:
+        (tuple): Tuple containing
+        
+        - policy (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific consumption policies. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*], where 
             *n_endog_wealth_grid* is of variable length depending on the number of 
-            concurrent local optima for consumption. The arrays are initialized to
-            *endog_wealth_grid* = n_grid_wealth + 1.
-            Position [0, :] of the array contains the endogenous grid over wealth M, 
-            and [1, :] stores corresponding value of the (consumption) policy 
-            function c(M, d).    
-        - value (List(np.ndarray)): Nested list of np.ndarrays storing the
+            concurrent local optima for consumption. The arrays have shape
+            [2, *n_endog_wealth_grid*] and are initialized to
+            *endog_wealth_grid* = n_grid_wealth + 1. We include one additional
+            grid point to the left of the endogenous wealth grid, which will be 
+            set to zero (that's why we have n_grid_wealth + 1 initial points). 
+            Position [0, :] of the arrays contain the endogenous grid over wealth M, 
+            and [1, :] stores the corresponding value of the (consumption) policy 
+            function c(M, d), for each time period and each discrete choice. 
+        - value (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific value functions. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*], where 
             *n_endog_wealth_grid* is of variable length depending on the number of 
-            kinks and non-concave regions. The arrays are initialized to
-            have *endog_wealth_grid* = n_grid_wealth + 1.
+            kinks and non-concave regions. The arrays have shape
+            [2, *n_endog_wealth_grid*] and are initialized to
+            *endog_wealth_grid* = n_grid_wealth + 1. We include one additional
+            grid point to the left of the endogenous wealth grid, which will be 
+            set to zero (that's why we have n_grid_wealth + 1 initial points). 
             Position [0, :] of the array contains the endogenous grid over wealth M, 
-            and [1, :] stores corresponding value of the value function v(M, d).
+            and [1, :] stores the corresponding value of the value function v(M, d).
     """
     n_grid_wealth = options["grid_points_wealth"]
     n_periods = options["n_periods"]
