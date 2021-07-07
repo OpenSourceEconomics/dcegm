@@ -79,6 +79,18 @@ def solve_dcegm(
     n_grid_wealth = options["grid_points_wealth"]
     n_quad_points = options["quadrature_points_stochastic"]
 
+    # ! Move outside later
+    utility_functions = {
+        "utility": utility_func,
+        "inverse_marginal_utility": inv_marginal_utility_func,
+        "next_period_marginal_utility": compute_next_period_marginal_utility,
+    }
+    value_function_computations = {
+        "next_period_value": compute_next_period_value,
+        "current_period_value": compute_current_period_value,
+        "expected_value": compute_expected_value,
+    }
+
     # If only one state, i.e. no discrete choices to make,
     # set choice_range to 1 = "working".
     choice_range = [1] if n_choices < 2 else range(n_choices)
@@ -90,6 +102,12 @@ def solve_dcegm(
     # integrates over [-1, 1].
     quad_points, quad_weights = roots_sh_legendre(n_quad_points)
     quad_points_normal = norm.ppf(quad_points)
+
+    exogenous_grid = {
+        "savings": savings_grid,
+        "quadrature_points": quad_points_normal,
+        "quadrature_weights": quad_weights,
+    }
 
     # Create nested lists for consumption policy and value function.
     # We cannot use multi-dim np.ndarrays here, since the length of
@@ -133,28 +151,22 @@ def solve_dcegm(
                 state,
                 policy,
                 value,
-                savings_grid,
-                quad_points_normal,
-                quad_weights,
-                params,
-                options,
-                utility_func,
-                inv_marginal_utility_func,
-                compute_next_period_marginal_utility,
-                compute_next_period_value,
-                compute_current_period_value,
-                compute_expected_value,
+                params=params,
+                options=options,
+                exogenous_grid=exogenous_grid,
+                utility_functions=utility_functions,
+                value_function_computations=value_function_computations,
             )
 
             if state == 1 and n_choices > 1:
                 policy_refined, value_refined = do_upper_envelope_step(
+                    period,
                     policy,
                     value,
-                    expected_value,
-                    period,
-                    params,
-                    options,
-                    utility_func,
+                    expected_value=expected_value,
+                    params=params,
+                    options=options,
+                    utility_func=utility_functions["utility"],
                 )
 
                 policy[period][state] = policy_refined
