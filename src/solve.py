@@ -8,8 +8,8 @@ import pandas as pd
 from scipy.stats import norm
 from scipy.special.orthogonal import roots_sh_legendre
 
-from src.egm_step import call_egm_step
-from src.upper_envelope_step import call_upper_envelope_step
+from src.egm_step import do_egm_step
+from src.upper_envelope_step import do_upper_envelope_step
 
 
 def solve_dcegm(
@@ -20,9 +20,7 @@ def solve_dcegm(
     compute_value_function: Callable,
     compute_expected_value: Callable,
     compute_next_period_marginal_utility: Callable,
-    compute_next_period_wealth_matrix: Callable,
-    compute_next_period_marg_wealth_matrix: Callable,
-) -> Tuple[List[np.ndarray, List[np.ndarray]]:
+) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Solves a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
     EGM stands for Endogenous Grid Method.
@@ -42,13 +40,6 @@ def solve_dcegm(
         compute_next_period_marginal_utilty (callable): Function to compute the
             marginal utility of the next period, which is an np.ndarray of shape
             (n_grid_wealth,).
-        compute_next_period_wealth_matrix (callable): Function to compute next
-            period wealth matrix which is an array of all possible next period
-            wealths with shape (n_quad_stochastic, n_grid_wealth).
-        compute_next_period_marg_wealth_matrix (callable): Function to compute 
-            next period's wealth matrix, which is an np.ndarray of shape 
-            (n_quad_stochastic, n_grid_wealth) containing all possible 
-            next period marginal wealths with shape.
 
     Returns:
         (tuple): Tuple containing
@@ -133,7 +124,7 @@ def solve_dcegm(
         # this case, see :func:`~dcgm.call_egm_step.get_next_period_value` and
         # :func:`~dcgm.solve.solve_final_period`.
         for state in choice_range:
-            policy, value, expected_value = call_egm_step(
+            policy, value, expected_value = do_egm_step(
                 period,
                 state,
                 policy,
@@ -148,12 +139,10 @@ def solve_dcegm(
                 compute_value_function,
                 compute_expected_value,
                 compute_next_period_marginal_utility,
-                compute_next_period_wealth_matrix,
-                compute_next_period_marg_wealth_matrix,
             )
 
             if state == 1 and n_choices > 1:
-                policy_refined, value_refined = call_upper_envelope_step(
+                policy_refined, value_refined = do_upper_envelope_step(
                     policy,
                     value,
                     expected_value,
