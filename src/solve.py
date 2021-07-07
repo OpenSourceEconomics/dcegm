@@ -17,10 +17,10 @@ def solve_dcegm(
     options: Dict[str, int],
     utility_func: Callable,
     inv_marginal_utility_func: Callable,
-    compute_value_function: Callable,
-    compute_expected_value: Callable,
     compute_next_period_marginal_utility: Callable,
-    compute_current_period_consumption: Callable,
+    compute_next_period_value: Callable,
+    compute_current_period_value: Callable,
+    compute_expected_value: Callable,
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Solves a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
@@ -140,10 +140,10 @@ def solve_dcegm(
                 options,
                 utility_func,
                 inv_marginal_utility_func,
-                compute_value_function,
-                compute_expected_value,
                 compute_next_period_marginal_utility,
-                compute_current_period_consumption,
+                compute_next_period_value,
+                compute_current_period_value,
+                compute_expected_value,
             )
 
             if state == 1 and n_choices > 1:
