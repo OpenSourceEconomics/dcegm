@@ -74,14 +74,87 @@ def inverse_marginal_utility_crra(
     return inverse_marginal_utility
 
 
+def compute_current_period_consumption(
+    next_period_marginal_utility: np.ndarray,
+    matrix_next_period_wealth: np.ndarray,
+    matrix_marginal_wealth: np.ndarray,
+    quad_weights: np.ndarray,
+    params: pd.DataFrame,
+    inv_marginal_utility_func: Callable,
+) -> np.ndarray:
+    """Computes consumption in the current period.
+
+    Args:
+        rhs_euler (np.ndarray): Right-hand side of the Euler equation.
+            Shape (n_grid_wealth,).
+        params (pd.DataFrame): Model parameters indexed with multi-index of the
+            form ("category", "name") and two columns ["value", "comment"].
+        inv_marginal_utility_func (callable): Inverse of the marginal utility
+            function.
+
+    Returns:
+        current_period_consumption (np.ndarray): Consumption in the current
+            period. Array of shape (n_grid_wealth,).
+    """
+    beta = params.loc[("beta", "beta"), "value"]
+
+    # RHS of Euler Eq., p. 337 IJRS (2017)
+    # Integrate out uncertainty over stochastic income y
+    rhs_euler = _get_rhs_euler(
+        next_period_marginal_utility,
+        matrix_next_period_wealth,
+        matrix_marginal_wealth,
+        quad_weights,
+    )
+
+    current_period_consumption = inv_marginal_utility_func(beta * rhs_euler, params)
+
+    return current_period_consumption
+
+
+def _get_rhs_euler(
+    next_period_marginal_utility: np.ndarray,
+    matrix_next_period_wealth: np.ndarray,
+    matrix_marginal_wealth: np.ndarray,
+    quad_weights: np.ndarray,
+) -> np.ndarray:
+    """Computes the right-hand side of the Euler equation, p. 337 IJRS (2017).
+
+    Args:
+        next_period_marginal_utility (np.ndarray): Array of next period's
+            marginal utility of shape (n_quad_stochastic * n_grid_wealth,).
+        matrix_next_period_wealth(np.ndarray): Array of all possible next
+            period wealths. Shape (n_quad_stochastic, n_wealth_grid).
+        matrix_marginal_wealth(np.ndarray): Array of marginal next period wealths.
+            Shape (n_quad_stochastic, n_wealth_grid).
+        quad_weights (np.ndarray): Weights associated with the quadrature points
+            of shape (n_quad_stochastic,). Used for integration over the
+            stochastic income component in the Euler equation.
+
+    Returns:
+        rhs_euler (np.ndarray): Right-hand side of the Euler equation.
+            Shape (n_grid_wealth,).
+    """
+    next_period_marginal_utility = next_period_marginal_utility.reshape(
+        matrix_next_period_wealth.shape, order="F"
+    )
+
+    rhs_euler = np.dot(
+        quad_weights.T,
+        np.multiply(next_period_marginal_utility, matrix_marginal_wealth),
+    )
+
+    return rhs_euler
+
+
 def compute_value_function(
-    value: List[np.ndarray],
-    next_period_wealth_matrix: np.ndarray,
     next_period: int,
     state: int,
-    utility_function: Callable,
+    value: List[np.ndarray],
+    next_period_wealth_matrix: np.ndarray,
     params: pd.DataFrame,
     options: Dict[str, int],
+    utility_function: Callable,
 ) -> np.ndarray:
     """Computes the value function of the next period t+1.
 
@@ -90,6 +163,8 @@ def compute_value_function(
     where the observed wealth exceeds the maximum wealth level.
 
     Args:
+        next_period (int): Next period, t+1.
+        state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
         value (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific value functions. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*], where 
@@ -104,12 +179,10 @@ def compute_value_function(
             for each time period and each discrete choice.
         next_period_wealth_matrix (np.ndarray): Array of of all possible next
             period wealths. Shape (n_quad_stochastic, n_grid_wealth).
-        next_period (int): Next period, t+1.
-        state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
-        uility_func (callable): Utility function.
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
+        uility_func (callable): Utility function.
 
     Returns:
         value_function (np.ndarray): Value function. Array of shape
@@ -219,16 +292,17 @@ def compute_next_period_marginal_utility(
 
 
 def compute_expected_value(
+    state: int,
     next_period_value: np.ndarray,
     matrix_next_period_wealth: np.ndarray,
     quad_weights: np.ndarray,
-    state: int,
     params: pd.DataFrame,
     options: Dict[str, int],
 ) -> np.ndarray:
     """Computes the expected value of the next period.
 
     Args:
+        state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
         next_period_value (np.ndarray): Array containing values of next period
             choice-specific value function.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
@@ -236,7 +310,6 @@ def compute_expected_value(
             wealths with shape (n_quad_stochastic, n_grid_wealth).
         quad_weights (np.ndarray): Weights associated with the stochastic
             quadrature points of shape (n_quad_stochastic,).
-        state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.

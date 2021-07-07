@@ -23,6 +23,7 @@ def do_egm_step(
     compute_value_function: Callable,
     compute_expected_value: Callable,
     compute_next_period_marginal_utility: Callable,
+    compute_current_period_consumption: Callable,
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Calls the Endogenous Grid Method (EGM step).
 
@@ -74,6 +75,10 @@ def do_egm_step(
         compute_next_period_marginal_utilty (callable): Function to compute the
             the marginal utility of the next period, which is an array of
             shape (n_grid_wealth,).
+        compute_current_period_consumption (callable): Function to compute the
+            consumption in the current period, which is an array of shape
+            (n_grid_wealth,).
+
 
     Returns:
         (tuple) Tuple containing
@@ -109,26 +114,22 @@ def do_egm_step(
         params,
         options,
     )
-
-    # RHS of Euler Eq., p. 337 IJRS (2017)
-    # Integrate out uncertainty over stochastic income y
-    rhs_euler = get_rhs_euler(
+    current_period_consumption = compute_current_period_consumption(
         next_period_marginal_utility,
         matrix_next_period_wealth,
         matrix_marginal_wealth,
         quad_weights,
-    )
-    current_period_consumption = get_current_period_consumption(
-        rhs_euler, params, inv_marginal_utility_func
+        params,
+        inv_marginal_utility_func,
     )
 
     # 2) Value function: Current period value
     current_period_utility = utility_func(current_period_consumption, params)
     expected_value = compute_expected_value(
+        state,
         next_period_value,
         matrix_next_period_wealth,
         quad_weights,
-        state,
         params,
         options,
     )
@@ -271,64 +272,6 @@ def compute_next_period_marg_wealth_matrix(
     return marginal_wealth
 
 
-def get_rhs_euler(
-    next_period_marginal_utility: np.ndarray,
-    matrix_next_period_wealth: np.ndarray,
-    matrix_marginal_wealth: np.ndarray,
-    quad_weights: np.ndarray,
-) -> np.ndarray:
-    """Computes the right-hand side of the Euler equation, p. 337 IJRS (2017).
-
-    Args:
-        next_period_marginal_utility (np.ndarray): Array of next period's
-            marginal utility of shape (n_quad_stochastic * n_grid_wealth,).
-        matrix_next_period_wealth(np.ndarray): Array of all possible next
-            period wealths. Shape (n_quad_stochastic, n_wealth_grid).
-        matrix_marginal_wealth(np.ndarray): Array of marginal next period wealths.
-            Shape (n_quad_stochastic, n_wealth_grid).
-        quad_weights (np.ndarray): Weights associated with the quadrature points
-            of shape (n_quad_stochastic,). Used for integration over the
-            stochastic income component in the Euler equation.
-
-    Returns:
-        rhs_euler (np.ndarray): Right-hand side of the Euler equation.
-            Shape (n_grid_wealth,).
-    """
-    next_period_marginal_utility = next_period_marginal_utility.reshape(
-        matrix_next_period_wealth.shape, order="F"
-    )
-
-    rhs_euler = np.dot(
-        quad_weights.T,
-        np.multiply(next_period_marginal_utility, matrix_marginal_wealth),
-    )
-
-    return rhs_euler
-
-
-def get_current_period_consumption(
-    rhs_euler: np.ndarray, params: pd.DataFrame, inv_marginal_utility_func: Callable
-) -> np.ndarray:
-    """Computes consumption in the current period.
-
-    Args:
-        rhs_euler (np.ndarray): Right-hand side of the Euler equation.
-            Shape (n_grid_wealth,).
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
-        inv_marginal_utility_func (callable): Inverse of the marginal utility
-            function.
-
-    Returns:
-        current_period_consumption (np.ndarray): Consumption in the current
-            period. Array of shape (n_grid_wealth,).
-    """
-    beta = params.loc[("beta", "beta"), "value"]
-    current_period_consumption = inv_marginal_utility_func(beta * rhs_euler, params)
-
-    return current_period_consumption
-
-
 def get_next_period_value(
     period: int,
     value: List[np.ndarray],
@@ -388,13 +331,13 @@ def get_next_period_value(
             )
         else:
             next_period_value[index, :] = compute_value_function(
-                value,
-                matrix_next_period_wealth,
                 period + 1,
                 state,
-                utility_func,
+                value,
+                matrix_next_period_wealth,
                 params,
                 options,
+                utility_func,
             )
 
     return next_period_value

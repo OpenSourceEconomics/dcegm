@@ -20,6 +20,7 @@ def solve_dcegm(
     compute_value_function: Callable,
     compute_expected_value: Callable,
     compute_next_period_marginal_utility: Callable,
+    compute_current_period_consumption: Callable,
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Solves a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
@@ -39,6 +40,9 @@ def solve_dcegm(
             expected value, which is an np.ndarray of shape (n_grid_wealth,).
         compute_next_period_marginal_utilty (callable): Function to compute the
             marginal utility of the next period, which is an np.ndarray of shape
+            (n_grid_wealth,).
+        compute_current_period_consumption (callable): Function to compute the
+            consumption in the current period, which is an array of shape
             (n_grid_wealth,).
 
     Returns:
@@ -139,6 +143,7 @@ def solve_dcegm(
                 compute_value_function,
                 compute_expected_value,
                 compute_next_period_marginal_utility,
+                compute_current_period_consumption,
             )
 
             if state == 1 and n_choices > 1:
