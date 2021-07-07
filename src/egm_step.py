@@ -17,7 +17,7 @@ def do_egm_step(
     options: Dict[str, int],
     exogenous_grid: Dict[str, np.ndarray],
     utility_functions: Dict[str, callable],
-    value_function_computations: Dict[str, callable],
+    compute_expected_value: Callable,
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
 
@@ -84,18 +84,7 @@ def do_egm_step(
             choice-specific value functions. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*].
     """
-    # Unpack functions
-    compute_next_period_marginal_utility = utility_functions[
-        "next_period_marginal_utility"
-    ]
-    (
-        compute_next_period_value,
-        compute_current_period_value,
-        compute_expected_value,
-    ) = _unpack_functions_value_computations(value_function_computations)
-
-    # 1) Policy: Current period consumption
-    matrix_next_period_wealth = get_next_period_wealth_matrix(
+    next_period_wealth, next_period_marginal_wealth = get_next_period_wealth_matrices(
         period,
         state,
         params=params,
@@ -103,42 +92,34 @@ def do_egm_step(
         savings=exogenous_grid["savings"],
         quad_points=exogenous_grid["quadrature_points"],
     )
-    matrix_marginal_wealth = get_next_period_marg_wealth_matrix(params, options)
 
-    next_period_consumption = get_next_period_consumption(
-        period, policy, matrix_next_period_wealth, options
-    )
-
-    next_period_value = compute_next_period_value(
+    next_period_value, expected_value = get_next_period_and_expected_value(
         period,
+        state,
         value,
-        matrix_next_period_wealth,
-        params,
-        options,
-        utility_functions["utility"],
-    )
-    next_period_marginal_utility = compute_next_period_marginal_utility(
-        state, next_period_consumption, next_period_value, params, options,
-    )
-    current_period_consumption = get_current_period_consumption(
-        next_period_marginal_utility,
-        matrix_next_period_wealth,
-        matrix_marginal_wealth,
-        params,
-        exogenous_grid["quadrature_weights"],
-        utility_functions["inverse_marginal_utility"],
+        next_period_wealth,
+        quad_weights=exogenous_grid["quadrature_weights"],
+        params=params,
+        options=options,
+        utility_func=utility_functions["utility"],
+        compute_expected_value=compute_expected_value,
     )
 
-    # 2) Value function: Current period value
-    # current_period_utility = utility_func(current_period_consumption, params)
-    expected_value = compute_expected_value(
+    # 1) Policy: Current period consumption
+    endog_wealth_grid, current_period_consumption = map_exog_to_endog_grid(
+        period,
         state,
-        next_period_value,
-        matrix_next_period_wealth,
-        exogenous_grid["quadrature_weights"],
-        params,
-        options,
+        policy,
+        matrix_next_period_wealth=next_period_wealth,
+        matrix_marginal_wealth=next_period_marginal_wealth,
+        next_period_value=next_period_value,
+        params=params,
+        options=options,
+        exogenous_grid=exogenous_grid,
+        utility_functions=utility_functions,
     )
+
+    # 2) Value function
     current_period_value = compute_current_period_value(
         state,
         current_period_consumption,
@@ -147,10 +128,7 @@ def do_egm_step(
         utility_functions["utility"],
     )
 
-    # 3) Endogenous wealth grid
-    endog_wealth_grid = exogenous_grid["savings"] + current_period_consumption
-
-    # 4) Update policy and consumption function
+    # 3) Update policy and value function
     # If no discrete alternatives; only one state, i.e. one column with index = 0
     state_index = 0 if options["n_discrete_choices"] < 2 else state
 
@@ -164,14 +142,14 @@ def do_egm_step(
     return policy, value, expected_value
 
 
-def get_next_period_wealth_matrix(
+def get_next_period_wealth_matrices(
     period: int,
     state: int,
     params: pd.DataFrame,
     options: Dict[str, int],
     savings: np.ndarray,
     quad_points: np.ndarray,
-) -> float:
+) -> Tuple[np.ndarray, np.ndarray]:
     """Computes all possible levels of next period wealth M_(t+1)
 
     Args:
@@ -212,30 +190,275 @@ def get_next_period_wealth_matrix(
         consump_floor = params.loc[consump_floor_index, "value"]
         next_period_wealth[next_period_wealth < consump_floor] = consump_floor
 
-    return next_period_wealth
+    next_period_marginal_wealth = np.full((n_quad_stochastic, n_grid_wealth), (1 + r))
+
+    return next_period_wealth, next_period_marginal_wealth
 
 
-def get_next_period_marg_wealth_matrix(
-    params: pd.DataFrame, options: Dict[str, int]
+def compute_next_period_value(
+    period: int,
+    value: List[np.ndarray],
+    matrix_next_period_wealth: np.ndarray,
+    params: pd.DataFrame,
+    options: Dict[str, int],
+    utility_func: Callable,
 ) -> np.ndarray:
-    """Computes marginal next period wealth.
+    """Computes the next-period (choice-specific) value function.
 
     Args:
+        period (int): Current period t.
+        value (List[np.ndarray]): Nested list of np.ndarrays storing the
+            choice-specific value functions. Dimensions of the list are:
+            [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*], where 
+            *n_endog_wealth_grid* is of variable length depending on the number of 
+            kinks and non-concave regions. The arrays have shape
+            [2, *n_endog_wealth_grid*] and are initialized to
+            *endog_wealth_grid* = n_grid_wealth + 1. We include one additional
+            grid point to the left of the endogenous wealth grid, which we set
+            to zero (that's why we have n_grid_wealth + 1 initial points). 
+            Position [0, :] of the array contains the endogenous grid over wealth M, 
+            and [1, :] stores the corresponding value of the value function v(M, d),
+            for each time period and each discrete choice. 
+        matrix_next_period_wealth (np.ndarray): Array of all possible next period
+            wealths with shape (n_quad_stochastic, n_grid_wealth).
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
+        utility_func (callable): The agent's utility function.
+        compute_value_function (callable): Function to compute the agent's value
+            function, which is an array of shape
+            (n_choices, n_quad_stochastic * n_grid_wealth).
 
     Returns:
-        marginal_wealth (np.ndarray):  Array of all possible next period
-            marginal wealths. Shape (n_quad_stochastic, n_grid_wealth).
+        next_period_value (np.ndarray): Array containing values of next period
+            choice-specific value function.
+            Shape (n_choices, n_quad_stochastic * n_grid_wealth).
     """
-    n_grid_wealth = options["grid_points_wealth"]
-    n_quad_stochastic = options["quadrature_points_stochastic"]
-    r = params.loc[("assets", "interest_rate"), "value"]
+    delta = params.loc[("delta", "delta"), "value"]
+    n_periods, n_choices = options["n_periods"], options["n_discrete_choices"]
 
-    marginal_wealth = np.full((n_quad_stochastic, n_grid_wealth), (1 + r))
+    choice_range = [1] if n_choices < 2 else range(n_choices)
 
-    return marginal_wealth
+    next_period_value = np.empty(
+        (
+            n_choices,
+            matrix_next_period_wealth.shape[0] * matrix_next_period_wealth.shape[1],
+        )
+    )
+
+    for index, state in enumerate(choice_range):
+        if period + 1 == n_periods - 1:  # Final period
+            next_period_value[index, :] = (
+                utility_func(matrix_next_period_wealth, params,).flatten("F")
+                - delta * state
+            )
+        else:
+            next_period_value[index, :] = _calc_value_function(
+                period + 1,
+                state,
+                value,
+                matrix_next_period_wealth,
+                params,
+                options,
+                utility_func,
+            )
+
+    return next_period_value
+
+
+def _calc_value_function(
+    next_period: int,
+    state: int,
+    value: List[np.ndarray],
+    next_period_wealth_matrix: np.ndarray,
+    params: pd.DataFrame,
+    options: Dict[str, int],
+    utility_function: Callable,
+) -> np.ndarray:
+    """Computes the value function of the next period t+1.
+
+    Take into account credit-constrained regions.
+    Use interpolation in non-constrained region and apply extrapolation
+    where the observed wealth exceeds the maximum wealth level.
+
+    Args:
+        next_period (int): Next period, t+1.
+        state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
+        value (List[np.ndarray]): Nested list of np.ndarrays storing the
+            choice-specific value functions. Dimensions of the list are:
+            [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*], where 
+            *n_endog_wealth_grid* is of variable length depending on the number of 
+            kinks and non-concave regions. The arrays have shape
+            [2, *n_endog_wealth_grid*] and are initialized to
+            *endog_wealth_grid* = n_grid_wealth + 1. We include one additional
+            grid point to the left of the endogenous wealth grid, which we set
+            to zero (that's why we have n_grid_wealth + 1 initial points). 
+            Position [0, :] of the array contains the endogenous grid over wealth M, 
+            and [1, :] stores the corresponding value of the value function v(M, d),
+            for each time period and each discrete choice.
+        next_period_wealth_matrix (np.ndarray): Array of of all possible next
+            period wealths. Shape (n_quad_stochastic, n_grid_wealth).
+        params (pd.DataFrame): Model parameters indexed with multi-index of the
+            form ("category", "name") and two columns ["value", "comment"].
+        options (dict): Options dictionary.
+        uility_func (callable): Utility function.
+
+    Returns:
+        value_function (np.ndarray): Value function. Array of shape
+            (n_quad_stochastic * n_grid_wealth,).
+    """
+    delta = params.loc[("delta", "delta"), "value"]
+    beta = params.loc[("beta", "beta"), "value"]
+
+    # If only one state, i.e. no discrete choices to make,
+    # set state index to 0
+    state_index = 0 if options["n_discrete_choices"] < 2 else state
+
+    next_period_wealth = next_period_wealth_matrix.flatten("F")
+
+    value_function = np.full(next_period_wealth.shape, np.nan)
+
+    # Mark credit constrained region
+    constrained_region = (
+        next_period_wealth < value[next_period][state_index][0, 1]
+    )  # Last dim denotes grid point j=1
+
+    # Calculate t+1 value function in constrained region
+    value_function[constrained_region] = (
+        utility_function(next_period_wealth[constrained_region], params)
+        - state * delta
+        + beta * value[next_period][state_index][1, 0]
+    )
+
+    # Calculate t+1 value function in non-constrained region
+    # via inter- and extrapolation
+    value_function_interp = interpolate.interp1d(
+        x=value[next_period][state_index][0, :],  # endogenous wealth grid
+        y=value[next_period][state_index][1, :],  # value_function
+        bounds_error=False,
+        fill_value="extrapolate",
+        kind="linear",
+    )
+    value_function[~constrained_region] = value_function_interp(
+        next_period_wealth[~constrained_region]
+    )
+
+    return value_function
+
+
+def compute_current_period_value(
+    state: int,
+    current_period_consumption: np.ndarray,
+    expected_value: np.ndarray,
+    params: pd.DataFrame,
+    utility_func: Callable,
+) -> np.ndarray:
+    """Computes value of the current period.
+
+    Args:
+        state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
+        current_period_utility (np.ndarray): Array of current period utility
+            of shape (n_grid_wealth,).
+        expected_value (np.ndarray): Array of current period's expected value of
+            next_period. Shape (n_grid_wealth,).
+        params (pd.DataFrame): Model parameters indexed with multi-index of the
+            form ("category", "name") and two columns ["value", "comment"].
+
+    Returns:
+        current_period_value (np.ndarray): Array of current period value
+            function of shape n_grid_wealth.
+    """
+    delta = params.loc[("delta", "delta"), "value"]  # disutility of work
+    beta = params.loc[("beta", "beta"), "value"]  # discount factor
+
+    current_period_utility = utility_func(current_period_consumption, params)
+
+    current_period_value = (
+        current_period_utility - delta * state + beta * expected_value
+    )
+
+    return current_period_value
+
+
+def get_next_period_and_expected_value(
+    period: int,
+    state: int,
+    value: np.ndarray,
+    matrix_next_period_wealth: np.ndarray,
+    quad_weights: np.ndarray,
+    params: pd.DataFrame,
+    options: Dict[str, int],
+    # utility_functions: Dict[str, callable],
+    # value_function_computations: Dict[str, callable],
+    utility_func: Callable,
+    compute_expected_value: Callable,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    
+    """
+    # utility_func = utility_functions["utility"]
+    # compute_next_period_value = value_function_computations["next_period_value"]
+    # compute_expected_value = value_function_computations["expected_value"]
+
+    next_period_value = compute_next_period_value(
+        period,
+        value,
+        matrix_next_period_wealth,
+        params,
+        options,
+        utility_func=utility_func,
+    )
+    expected_value = compute_expected_value(
+        state,
+        next_period_value,
+        matrix_next_period_wealth,
+        quad_weights,
+        params,
+        options,
+    )
+
+    return next_period_value, expected_value
+
+
+def map_exog_to_endog_grid(
+    period: int,
+    state: int,
+    policy: List[np.ndarray],
+    matrix_next_period_wealth: np.ndarray,
+    matrix_marginal_wealth: np.ndarray,
+    next_period_value: np.ndarray,
+    params: pd.DataFrame,
+    options: Dict[str, int],
+    exogenous_grid: Dict[str, np.ndarray],
+    utility_functions: Dict[str, callable],
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+
+    """
+    savings_grid = exogenous_grid["savings"]
+    quad_weights = exogenous_grid["quadrature_weights"]
+    compute_next_period_marginal_utility = utility_functions[
+        "next_period_marginal_utility"
+    ]
+
+    next_period_consumption = get_next_period_consumption(
+        period, policy, matrix_next_period_wealth, options
+    )
+    next_period_marginal_utility = compute_next_period_marginal_utility(
+        state, next_period_consumption, next_period_value, params, options,
+    )
+    current_period_consumption = get_current_period_consumption(
+        next_period_marginal_utility,
+        matrix_next_period_wealth,
+        matrix_marginal_wealth,
+        params,
+        quad_weights,
+        utility_functions["inverse_marginal_utility"],
+    )
+
+    endog_wealth_grid = savings_grid + current_period_consumption
+
+    return endog_wealth_grid, current_period_consumption
 
 
 def get_next_period_consumption(
@@ -444,14 +667,3 @@ def _calc_rhs_euler(
     )
 
     return rhs_euler
-
-
-def _unpack_functions_value_computations(
-    value_function_computations: Dict[str, callable]
-) -> Tuple[callable, callable, callable]:
-    """Unpack functions for computation of next, current, and expected value."""
-    next_value = value_function_computations["next_period_value"]
-    current_value = value_function_computations["current_period_value"]
-    expected_value = value_function_computations["expected_value"]
-
-    return next_value, current_value, expected_value

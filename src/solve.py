@@ -15,11 +15,7 @@ from src.upper_envelope_step import do_upper_envelope_step
 def solve_dcegm(
     params: pd.DataFrame,
     options: Dict[str, int],
-    utility_func: Callable,
-    inv_marginal_utility_func: Callable,
-    compute_next_period_marginal_utility: Callable,
-    compute_next_period_value: Callable,
-    compute_current_period_value: Callable,
+    utility_functions: Dict[str, callable],
     compute_expected_value: Callable,
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Solves a discrete-continuous life-cycle model using the DC-EGM algorithm.
@@ -79,18 +75,6 @@ def solve_dcegm(
     n_grid_wealth = options["grid_points_wealth"]
     n_quad_points = options["quadrature_points_stochastic"]
 
-    # ! Move outside later
-    utility_functions = {
-        "utility": utility_func,
-        "inverse_marginal_utility": inv_marginal_utility_func,
-        "next_period_marginal_utility": compute_next_period_marginal_utility,
-    }
-    value_function_computations = {
-        "next_period_value": compute_next_period_value,
-        "current_period_value": compute_current_period_value,
-        "expected_value": compute_expected_value,
-    }
-
     # If only one state, i.e. no discrete choices to make,
     # set choice_range to 1 = "working".
     choice_range = [1] if n_choices < 2 else range(n_choices)
@@ -102,7 +86,6 @@ def solve_dcegm(
     # integrates over [-1, 1].
     quad_points, quad_weights = roots_sh_legendre(n_quad_points)
     quad_points_normal = norm.ppf(quad_points)
-
     exogenous_grid = {
         "savings": savings_grid,
         "quadrature_points": quad_points_normal,
@@ -115,7 +98,12 @@ def solve_dcegm(
     policy, value = _create_multi_dim_lists(options)
     policy, value = set_first_elements_to_zero(policy, value, options)
     policy, value = solve_final_period(
-        policy, value, savings_grid, params, options, utility_func
+        policy,
+        value,
+        savings_grid=savings_grid,
+        params=params,
+        options=options,
+        utility_func=utility_functions["utility"],
     )
 
     # Start backwards induction from second to last period (T - 1)
@@ -155,7 +143,7 @@ def solve_dcegm(
                 options=options,
                 exogenous_grid=exogenous_grid,
                 utility_functions=utility_functions,
-                value_function_computations=value_function_computations,
+                compute_expected_value=compute_expected_value,
             )
 
             if state == 1 and n_choices > 1:
