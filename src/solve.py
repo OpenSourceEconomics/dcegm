@@ -26,22 +26,13 @@ def solve_dcegm(
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
-        utility_func (callable): The agent's utility function.
-        inv_marginal_utility_func (callable): Inverse of the marginal utility
-            function.
-        compute_value_function (callable): Function to compute the agent's value
-            function, which is an np.ndarray of shape 
-            (n_quad_stochastic * n_grid_wealth,).
+        utility_functions (Dict[str, callable]): Dictionary of three user-supplied
+            functions for computation of (i) utility, (ii) inverse marginal utility, 
+            and (iii) next period marginal utility.
         compute_expected_value (callable): Function to compute the agent's
             expected value, which is an np.ndarray of shape (n_grid_wealth,).
-        compute_next_period_marginal_utilty (callable): Function to compute the
-            marginal utility of the next period, which is an np.ndarray of shape
-            (n_grid_wealth,).
-        compute_current_period_consumption (callable): Function to compute the
-            consumption in the current period, which is an array of shape
-            (n_grid_wealth,).
-
-    Returns:
+            
+     Returns:
         (tuple): Tuple containing
         
         - policy (List[np.ndarray]): Nested list of np.ndarrays storing the
