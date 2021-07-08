@@ -8,21 +8,16 @@ import pandas as pd
 from scipy.stats import norm
 from scipy.special.orthogonal import roots_sh_legendre
 
-from src.egm_step import call_egm_step
-from src.upper_envelope_step import call_upper_envelope_step
+from src.egm_step import do_egm_step
+from src.upper_envelope_step import do_upper_envelope_step
 
 
 def solve_dcegm(
     params: pd.DataFrame,
     options: Dict[str, int],
-    utility_func: Callable,
-    inv_marginal_utility_func: Callable,
-    compute_value_function: Callable,
+    utility_functions: Dict[str, callable],
     compute_expected_value: Callable,
-    compute_next_period_marginal_utility: Callable,
-    compute_next_period_wealth_matrix: Callable,
-    compute_next_period_marg_wealth_matrix: Callable,
-) -> Tuple[List[np.ndarray, List[np.ndarray]]:
+) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Solves a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
     EGM stands for Endogenous Grid Method.
@@ -31,26 +26,13 @@ def solve_dcegm(
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
-        utility_func (callable): The agent's utility function.
-        inv_marginal_utility_func (callable): Inverse of the marginal utility
-            function.
-        compute_value_function (callable): Function to compute the agent's value
-            function, which is an np.ndarray of shape 
-            (n_quad_stochastic * n_grid_wealth,).
+        utility_functions (Dict[str, callable]): Dictionary of three user-supplied
+            functions for computation of (i) utility, (ii) inverse marginal utility, 
+            and (iii) next period marginal utility.
         compute_expected_value (callable): Function to compute the agent's
             expected value, which is an np.ndarray of shape (n_grid_wealth,).
-        compute_next_period_marginal_utilty (callable): Function to compute the
-            marginal utility of the next period, which is an np.ndarray of shape
-            (n_grid_wealth,).
-        compute_next_period_wealth_matrix (callable): Function to compute next
-            period wealth matrix which is an array of all possible next period
-            wealths with shape (n_quad_stochastic, n_grid_wealth).
-        compute_next_period_marg_wealth_matrix (callable): Function to compute 
-            next period's wealth matrix, which is an np.ndarray of shape 
-            (n_quad_stochastic, n_grid_wealth) containing all possible 
-            next period marginal wealths with shape.
-
-    Returns:
+            
+     Returns:
         (tuple): Tuple containing
         
         - policy (List[np.ndarray]): Nested list of np.ndarrays storing the
@@ -95,6 +77,11 @@ def solve_dcegm(
     # integrates over [-1, 1].
     quad_points, quad_weights = roots_sh_legendre(n_quad_points)
     quad_points_normal = norm.ppf(quad_points)
+    exogenous_grid = {
+        "savings": savings_grid,
+        "quadrature_points": quad_points_normal,
+        "quadrature_weights": quad_weights,
+    }
 
     # Create nested lists for consumption policy and value function.
     # We cannot use multi-dim np.ndarrays here, since the length of
@@ -102,7 +89,12 @@ def solve_dcegm(
     policy, value = _create_multi_dim_lists(options)
     policy, value = set_first_elements_to_zero(policy, value, options)
     policy, value = solve_final_period(
-        policy, value, savings_grid, params, options, utility_func
+        policy,
+        value,
+        savings_grid=savings_grid,
+        params=params,
+        options=options,
+        utility_func=utility_functions["utility"],
     )
 
     # Start backwards induction from second to last period (T - 1)
@@ -133,34 +125,27 @@ def solve_dcegm(
         # this case, see :func:`~dcgm.call_egm_step.get_next_period_value` and
         # :func:`~dcgm.solve.solve_final_period`.
         for state in choice_range:
-            policy, value, expected_value = call_egm_step(
+            policy, value, expected_value = do_egm_step(
                 period,
                 state,
                 policy,
                 value,
-                savings_grid,
-                quad_points_normal,
-                quad_weights,
-                params,
-                options,
-                utility_func,
-                inv_marginal_utility_func,
-                compute_value_function,
-                compute_expected_value,
-                compute_next_period_marginal_utility,
-                compute_next_period_wealth_matrix,
-                compute_next_period_marg_wealth_matrix,
+                params=params,
+                options=options,
+                exogenous_grid=exogenous_grid,
+                utility_functions=utility_functions,
+                compute_expected_value=compute_expected_value,
             )
 
             if state == 1 and n_choices > 1:
-                policy_refined, value_refined = call_upper_envelope_step(
+                policy_refined, value_refined = do_upper_envelope_step(
+                    period,
                     policy,
                     value,
-                    expected_value,
-                    period,
-                    params,
-                    options,
-                    utility_func,
+                    expected_value=expected_value,
+                    params=params,
+                    options=options,
+                    utility_func=utility_functions["utility"],
                 )
 
                 policy[period][state] = policy_refined
