@@ -351,34 +351,6 @@ def map_exog_to_endog_grid(
     return endog_wealth_grid, current_period_consumption
 
 
-def get_expected_value(
-    next_period_value: np.ndarray,
-    matrix_next_period_wealth: np.ndarray,
-    quad_weights: np.ndarray,
-) -> np.ndarray:
-    """Computes the expected value of the next period.
-
-    Args:
-        next_period_value (np.ndarray): Array containing values of next period
-            choice-specific value function.
-            Shape (n_choices, n_quad_stochastic * n_grid_wealth)
-        matrix_next_period_wealth (np.ndarray): Array of all possible next period
-            wealths with shape (n_quad_stochastic, n_grid_wealth).
-        quad_weights (np.ndarray): Weights associated with the stochastic
-            quadrature points of shape (n_quad_stochastic,).
-
-    Returns:
-        expected_value (np.ndarray): Array of current period's expected value of
-            next_period. Shape (n_grid_wealth,).
-    """
-    expected_value = np.dot(
-        quad_weights.T,
-        next_period_value[0, :].reshape(matrix_next_period_wealth.shape, order="F"),
-    )
-
-    return expected_value
-
-
 def get_current_period_value(
     state: int,
     current_period_consumption: np.ndarray,
