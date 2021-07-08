@@ -216,7 +216,7 @@ def _calc_next_period_choice_probs(
         col_max = np.amax(next_period_value, axis=0)
         next_period_value_ = next_period_value - col_max
 
-        # eq. (15), p. 334
+        # Eq. (15), p. 334 IJRS (2017
         prob_working = np.exp(next_period_value_[state, :] / lambda_) / np.sum(
             np.exp(next_period_value_ / lambda_), axis=0
         )
@@ -246,7 +246,7 @@ def _calc_logsum(next_period_value: np.ndarray, lambda_: float) -> np.ndarray:
     col_max = np.amax(next_period_value, axis=0)
     next_period_value_ = next_period_value - col_max
 
-    # eq. (14), p. 334
+    # Eq. (14), p. 334 IJRS (2017
     logsum = col_max + lambda_ * np.log(
         np.sum(np.exp((next_period_value_) / lambda_), axis=0)
     )
