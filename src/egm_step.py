@@ -60,13 +60,6 @@ def do_egm_step(
         compute_expected_value (callable): Function to compute the agent's
             expected value, which is an np.ndarray of shape (n_grid_wealth,).
 
-
-        quad_points_normal (np.ndarray): Array of shape (n_quad_stochastic,)
-            containing (normally distributed) stochastic components.
-        quad_weights (np.ndarray): Weights associated with the quadrature points.
-            Will be used for integration over the stochastic income component
-            in the Euler equation below. Also of shape (n_quad_stochastic,).
-
     Returns:
         (tuple) Tuple containing
         
