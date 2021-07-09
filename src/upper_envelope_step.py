@@ -12,7 +12,6 @@ eps = 2.2204e-16
 
 
 def do_upper_envelope_step(
-    period: int,
     policy: List[np.ndarray],
     value: List[np.ndarray],
     *,
@@ -47,7 +46,6 @@ def do_upper_envelope_step(
     subsequent periods t + 1, t + 2, ..., T under the optimal consumption policy.
     
     Args:
-        period (int): Current period t.
         policy (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific consumption policies. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*], where 
@@ -89,8 +87,8 @@ def do_upper_envelope_step(
             function have been added. Shape (2, *n_grid_refined*), where 
             *n_grid_refined* is the length of the *refined* endogenous wealth grid.
     """
-    policy = copy.deepcopy(policy[period][1])  # state == 1 "working"
-    value = copy.deepcopy(value[period][1])
+    policy = copy.deepcopy(policy)  # state == 1 "working"
+    value = copy.deepcopy(value)
 
     min_wealth_grid = np.min(value[0, 1:])
 

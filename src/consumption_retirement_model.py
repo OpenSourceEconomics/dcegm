@@ -1,5 +1,5 @@
 """Model specific utility, wealth, and value functions."""
-from typing import Dict, List
+from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -150,20 +150,9 @@ def compute_next_period_marginal_utility(
     Args:
         period (int): Current period t.
         state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
-        policy (List[np.ndarray]): Nested list of np.ndarrays storing the
-            choice-specific consumption policies. Dimensions of the list are:
-            [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*], where 
-            *n_endog_wealth_grid* is of variable length depending on the number of 
-            concurrent local optima for consumption. The arrays have shape
-            [2, *n_endog_wealth_grid*] and are initialized to
-            *endog_wealth_grid* = n_grid_wealth + 1. We include one additional
-            grid point to the left of the endogenous wealth grid, which we set
-            to zero (that's why we have n_grid_wealth + 1 initial points). 
-            Position [0, :] of the arrays contain the endogenous grid over wealth M, 
-            and [1, :] stores the corresponding value of the (consumption) policy 
-            function c(M, d), for each time period and each discrete choice.
-        matrix_next_period_wealth (np.ndarray): Array of all possible next period
-            wealths with shape (n_quad_stochastic, n_grid_wealth).
+        next_period_consumption (np.ndarray): Array of next period consumption 
+            of shape (n_choices, n_quad_stochastic * n_grid_wealth). Contains 
+            interpolated values.
         next_period_value (np.ndarray): Array containing values of next period
             choice-specific value function.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).

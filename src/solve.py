@@ -96,7 +96,7 @@ def solve_dcegm(
         savings_grid=savings_grid,
         params=params,
         options=options,
-        utility_func=utility_functions["utility"],
+        value_func=value_functions["final_period"],
     )
 
     # Start backwards induction from second to last period (T - 1)
@@ -139,11 +139,10 @@ def solve_dcegm(
                 value_functions=value_functions,
             )
 
-            if state == 1 and n_choices > 1:
+            if state >= 1 and n_choices > 1:
                 policy_refined, value_refined = do_upper_envelope_step(
-                    period,
-                    policy,
-                    value,
+                    policy[period][state],
+                    value[period][state],
                     expected_value=expected_value,
                     params=params,
                     options=options,
@@ -220,7 +219,7 @@ def solve_final_period(
     savings_grid: np.ndarray,
     params: pd.DataFrame,
     options: Dict[str, int],
-    utility_func: Callable,
+    value_func: Callable,
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Computes solution to final period for consumption policy and value function.
 
@@ -254,7 +253,7 @@ def solve_final_period(
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
-        utility_func (callable): The agent's utility function.
+        value_func (callable): The agent's value function in the final period.
 
     Returns:
         (tuple): Tuple containing
@@ -266,27 +265,26 @@ def solve_final_period(
             choice-specific value functions with the solution for the final period
             included.
     """
-    delta = params.loc[("delta", "delta"), "value"]
     n_periods = options["n_periods"]
     n_choices = options["n_discrete_choices"]
     choice_range = [1] if n_choices < 2 else range(n_choices)
 
-    # In last period, nothing is saved for the next period (since there is none),
+    # In last period, nothing is saved for the next period (since there is none).
     # Hence, everything is consumed, c_T(M, d) = M
-    for index, state in enumerate(choice_range):
-        policy[n_periods - 1][index][0, 1:] = copy.deepcopy(savings_grid)  # M
-        policy[n_periods - 1][index][1, 1:] = copy.deepcopy(
-            policy[n_periods - 1][index][0, 1:]
+    for state_index, state in enumerate(choice_range):
+        policy[n_periods - 1][state_index][0, 1:] = copy.deepcopy(savings_grid)  # M
+        policy[n_periods - 1][state_index][1, 1:] = copy.deepcopy(
+            policy[n_periods - 1][state_index][0, 1:]
         )  # c(M, d)
 
-        value[n_periods - 1][index][0, 2:] = (
-            utility_func(policy[n_periods - 1][index][0, 2:], params) - delta * state
+        value[n_periods - 1][state_index][0, 2:] = value_func(
+            state, policy[n_periods - 1][state_index][0, 2:], params
         )
-        value[n_periods - 1][index][1, 2:] = (
-            utility_func(policy[n_periods - 1][index][1, 2:], params) - delta * state
+        value[n_periods - 1][state_index][1, 2:] = value_func(
+            state, policy[n_periods - 1][state_index][1, 2:], params
         )
 
-        value[n_periods - 1][index][:, 2] = 0
+        value[n_periods - 1][state_index][:, 2] = 0
 
     return policy, value
 
