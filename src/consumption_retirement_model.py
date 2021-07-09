@@ -5,6 +5,67 @@ import numpy as np
 import pandas as pd
 
 
+def compute_value_function(
+    state: int,
+    current_consumption: np.ndarray,
+    next_period_value: np.ndarray,
+    params: pd.DataFrame,
+) -> np.ndarray:
+    """Computes the agent's value function in the current (not her final) period.
+    
+    Args:
+        state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
+        current_consumption (np.ndarray): Level of the agent's consumption in the
+            current period. Array of (i) shape (n_quad_stochastic * n_grid_wealth,)
+            when called by :func:`~dcgm.call_egm_step.get_next_period_value`, or
+            (ii) of shape (n_grid_wealth,) when called by
+            :func:`~dcgm.call_egm_step.get_current_period_value`.
+        next_period_value (np.ndarray): Array containing values of next period
+            choice-specific value function.
+            Shape (n_choices, n_quad_stochastic * n_grid_wealth).
+        params (pd.DataFrame): Model parameters indexed with multi-index of the
+            form ("category", "name") and two columns ["value", "comment"].
+
+    Returns:
+        value (np.ndarray): Values of the value function in the current (not the
+            final) period. Array of shape (i) (n_quad_stochastic * n_grid_wealth,) or 
+            (ii) (n_grid_wealth,), depending on where :func:`compute_value_function`
+            is called (see above).
+    """
+    delta = params.loc[("delta", "delta"), "value"]
+    beta = params.loc[("beta", "beta"), "value"]
+
+    utility = utility_func_crra(current_consumption, params)
+    value = utility - state * delta + beta * next_period_value
+
+    return value
+
+
+def compute_value_function_final_period(
+    state: int, current_consumption: np.ndarray, params: pd.DataFrame,
+) -> np.ndarray:
+    """Computes the agent's value function in the final period of her life cycle.
+    
+    Args:
+        state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
+        current_consumption (np.ndarray): Level of the agent's consumption in the
+            current period. Array of shape (n_quad_stochastic * n_grid_wealth,).
+        params (pd.DataFrame): Model parameters indexed with multi-index of the
+            form ("category", "name") and two columns ["value", "comment"].
+
+    Returns:
+        value_function_final_period (np.ndarray): Values of the value function
+            in the agent's final period. Array of shape 
+            (n_quad_stochastic * n_grid_wealth,).
+    """
+    delta = params.loc[("delta", "delta"), "value"]
+
+    utility = utility_func_crra(current_consumption, params,).flatten("F")
+    value_final_period = utility - state * delta
+
+    return value_final_period
+
+
 def utility_func_crra(
     current_consumption: np.ndarray, params: pd.DataFrame
 ) -> np.ndarray:
@@ -137,8 +198,8 @@ def compute_next_period_marginal_utility(
 
 def compute_expected_value(
     state: int,
-    next_period_value: np.ndarray,
     matrix_next_period_wealth: np.ndarray,
+    next_period_value: np.ndarray,
     quad_weights: np.ndarray,
     params: pd.DataFrame,
     options: Dict[str, int],
@@ -147,11 +208,11 @@ def compute_expected_value(
 
     Args:
         state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
+        matrix_next_period_wealth (np.ndarray): Array of all possible next period
+            wealths with shape (n_quad_stochastic, n_grid_wealth).
         next_period_value (np.ndarray): Array containing values of next period
             choice-specific value function.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
-        matrix_next_period_wealth (np.ndarray): Array of all possible next period
-            wealths with shape (n_quad_stochastic, n_grid_wealth).
         quad_weights (np.ndarray): Weights associated with the stochastic
             quadrature points of shape (n_quad_stochastic,).
         params (pd.DataFrame): Model parameters indexed with multi-index of the
@@ -159,8 +220,8 @@ def compute_expected_value(
         options (dict): Options dictionary.
 
     Returns:
-        expected_value (np.ndarray): Array of current period's expected value of
-            next_period. Shape (n_grid_wealth,).
+        expected_value (np.ndarray): Expected value of next period. Array of
+            shape (n_grid_wealth,).
     """
     # Taste shock (scale) parameter
     lambda_ = params.loc[("shocks", "lambda"), "value"]
