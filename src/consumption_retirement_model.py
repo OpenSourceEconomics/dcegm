@@ -72,8 +72,8 @@ def utility_func_crra(
     """Computes the agent's current utility based on a CRRA utility function.
 
     Args:
-        current_consumption (np.ndarray): Level of the agent's consumption in the
-            current period. Array of shape (i) (n_quad_stochastic * n_grid_wealth,)
+        consumption (np.ndarray): Level of the agent's consumption.
+            Array of shape (i) (n_quad_stochastic * n_grid_wealth,)
             when called by :func:`~dcgm.call_egm_step.map_exog_to_endog_grid`
             and :func:`~dcgm.call_egm_step.get_next_period_value`, or
             (ii) of shape (n_grid_wealth,) when called by
@@ -83,8 +83,8 @@ def utility_func_crra(
             Relevant here is the CRRA coefficient theta.
 
     Returns:
-        utility (np.ndarray): Array of agent's utility in the current period
-            with shape (n_grid_wealth,).
+        utility (np.ndarray): Agent's utility . Array of shape
+            (n_quad_stochastic * n_grid_wealth,) or (n_grid_wealth,).
     """
     theta = params.loc[("utility_function", "theta"), "value"]
 
@@ -96,24 +96,22 @@ def utility_func_crra(
     return utility
 
 
-def marginal_utility_crra(
-    current_consumption: np.ndarray, params: pd.DataFrame
-) -> np.ndarray:
+def marginal_utility_crra(consumption: np.ndarray, params: pd.DataFrame) -> np.ndarray:
     """Computes marginal utility of CRRA utility function.
 
     Args:
-        current_consumption (np.ndarray): Level of the agent's consumption in the
-            curent period. Array of shape (n_quad_stochastic * n_grid_wealth,).
+        consumption (np.ndarray): Level of the agent's consumption.
+            Array of shape (n_quad_stochastic * n_grid_wealth,).
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
             Relevant here is the CRRA coefficient theta.
 
     Returns:
         marginal_utility (np.ndarray): Marginal utility of CRRA consumption
-            function with shape (n_grid_wealth,).
+            function. Array of shape (n_quad_stochastic * n_grid_wealth,).
     """
     theta = params.loc[("utility_function", "theta"), "value"]
-    marginal_utility = current_consumption ** (-theta)
+    marginal_utility = consumption ** (-theta)
 
     return marginal_utility
 
@@ -130,7 +128,7 @@ def inverse_marginal_utility_crra(
             form ("category", "name") and two columns ["value", "comment"].
     Returns:
         inverse_marginal_utility(np.ndarray): Inverse of the marginal utility of
-            a CRRA consumption function.
+            a CRRA consumption function. Array of shape (n_grid_wealth,).
     """
     theta = params.loc[("utility_function", "theta"), "value"]
     inverse_marginal_utility = marginal_utility ** (-1 / theta)
