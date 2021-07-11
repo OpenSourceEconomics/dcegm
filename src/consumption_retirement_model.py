@@ -1,8 +1,69 @@
 """Model specific utility, wealth, and value functions."""
-from typing import Dict, List
+from typing import Dict
 
 import numpy as np
 import pandas as pd
+
+
+def compute_value_function(
+    state: int,
+    current_consumption: np.ndarray,
+    next_period_value: np.ndarray,
+    params: pd.DataFrame,
+) -> np.ndarray:
+    """Computes the agent's value function in the current (not her final) period.
+    
+    Args:
+        state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
+        current_consumption (np.ndarray): Level of the agent's consumption in the
+            current period. Array of (i) shape (n_quad_stochastic * n_grid_wealth,)
+            when called by :func:`~dcgm.call_egm_step.get_next_period_value`, or
+            (ii) of shape (n_grid_wealth,) when called by
+            :func:`~dcgm.call_egm_step.get_current_period_value`.
+        next_period_value (np.ndarray): Array containing values of next period
+            choice-specific value function.
+            Shape (n_choices, n_quad_stochastic * n_grid_wealth).
+        params (pd.DataFrame): Model parameters indexed with multi-index of the
+            form ("category", "name") and two columns ["value", "comment"].
+
+    Returns:
+        value (np.ndarray): Values of the value function in the current (not the
+            final) period. Array of shape (i) (n_quad_stochastic * n_grid_wealth,) or 
+            (ii) (n_grid_wealth,), depending on where :func:`compute_value_function`
+            is called (see above).
+    """
+    delta = params.loc[("delta", "delta"), "value"]
+    beta = params.loc[("beta", "beta"), "value"]
+
+    utility = utility_func_crra(current_consumption, params)
+    value = utility - state * delta + beta * next_period_value
+
+    return value
+
+
+def compute_value_function_final_period(
+    state: int, current_consumption: np.ndarray, params: pd.DataFrame,
+) -> np.ndarray:
+    """Computes the agent's value function in the final period of her life cycle.
+    
+    Args:
+        state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
+        current_consumption (np.ndarray): Level of the agent's consumption in the
+            current period. Array of shape (n_quad_stochastic * n_grid_wealth,).
+        params (pd.DataFrame): Model parameters indexed with multi-index of the
+            form ("category", "name") and two columns ["value", "comment"].
+
+    Returns:
+        value_function_final_period (np.ndarray): Values of the value function
+            in the agent's final period. Array of shape 
+            (n_quad_stochastic * n_grid_wealth,).
+    """
+    delta = params.loc[("delta", "delta"), "value"]
+
+    utility = utility_func_crra(current_consumption, params,).flatten("F")
+    value_final_period = utility - state * delta
+
+    return value_final_period
 
 
 def utility_func_crra(
@@ -11,8 +72,8 @@ def utility_func_crra(
     """Computes the agent's current utility based on a CRRA utility function.
 
     Args:
-        current_consumption (np.ndarray): Level of the agent's consumption in the
-            current period. Array of shape (i) (n_quad_stochastic * n_grid_wealth,)
+        consumption (np.ndarray): Level of the agent's consumption.
+            Array of shape (i) (n_quad_stochastic * n_grid_wealth,)
             when called by :func:`~dcgm.call_egm_step.map_exog_to_endog_grid`
             and :func:`~dcgm.call_egm_step.get_next_period_value`, or
             (ii) of shape (n_grid_wealth,) when called by
@@ -22,8 +83,8 @@ def utility_func_crra(
             Relevant here is the CRRA coefficient theta.
 
     Returns:
-        utility (np.ndarray): Array of agent's utility in the current period
-            with shape (n_grid_wealth,).
+        utility (np.ndarray): Agent's utility . Array of shape
+            (n_quad_stochastic * n_grid_wealth,) or (n_grid_wealth,).
     """
     theta = params.loc[("utility_function", "theta"), "value"]
 
@@ -35,24 +96,22 @@ def utility_func_crra(
     return utility
 
 
-def marginal_utility_crra(
-    current_consumption: np.ndarray, params: pd.DataFrame
-) -> np.ndarray:
+def marginal_utility_crra(consumption: np.ndarray, params: pd.DataFrame) -> np.ndarray:
     """Computes marginal utility of CRRA utility function.
 
     Args:
-        current_consumption (np.ndarray): Level of the agent's consumption in the
-            curent period. Array of shape (n_quad_stochastic * n_grid_wealth,).
+        consumption (np.ndarray): Level of the agent's consumption.
+            Array of shape (n_quad_stochastic * n_grid_wealth,).
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
             Relevant here is the CRRA coefficient theta.
 
     Returns:
         marginal_utility (np.ndarray): Marginal utility of CRRA consumption
-            function with shape (n_grid_wealth,).
+            function. Array of shape (n_quad_stochastic * n_grid_wealth,).
     """
     theta = params.loc[("utility_function", "theta"), "value"]
-    marginal_utility = current_consumption ** (-theta)
+    marginal_utility = consumption ** (-theta)
 
     return marginal_utility
 
@@ -69,7 +128,7 @@ def inverse_marginal_utility_crra(
             form ("category", "name") and two columns ["value", "comment"].
     Returns:
         inverse_marginal_utility(np.ndarray): Inverse of the marginal utility of
-            a CRRA consumption function.
+            a CRRA consumption function. Array of shape (n_grid_wealth,).
     """
     theta = params.loc[("utility_function", "theta"), "value"]
     inverse_marginal_utility = marginal_utility ** (-1 / theta)
@@ -89,20 +148,9 @@ def compute_next_period_marginal_utility(
     Args:
         period (int): Current period t.
         state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
-        policy (List[np.ndarray]): Nested list of np.ndarrays storing the
-            choice-specific consumption policies. Dimensions of the list are:
-            [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*], where 
-            *n_endog_wealth_grid* is of variable length depending on the number of 
-            concurrent local optima for consumption. The arrays have shape
-            [2, *n_endog_wealth_grid*] and are initialized to
-            *endog_wealth_grid* = n_grid_wealth + 1. We include one additional
-            grid point to the left of the endogenous wealth grid, which we set
-            to zero (that's why we have n_grid_wealth + 1 initial points). 
-            Position [0, :] of the arrays contain the endogenous grid over wealth M, 
-            and [1, :] stores the corresponding value of the (consumption) policy 
-            function c(M, d), for each time period and each discrete choice.
-        matrix_next_period_wealth (np.ndarray): Array of all possible next period
-            wealths with shape (n_quad_stochastic, n_grid_wealth).
+        next_period_consumption (np.ndarray): Array of next period consumption 
+            of shape (n_choices, n_quad_stochastic * n_grid_wealth). Contains 
+            interpolated values.
         next_period_value (np.ndarray): Array containing values of next period
             choice-specific value function.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
@@ -137,8 +185,8 @@ def compute_next_period_marginal_utility(
 
 def compute_expected_value(
     state: int,
-    next_period_value: np.ndarray,
     matrix_next_period_wealth: np.ndarray,
+    next_period_value: np.ndarray,
     quad_weights: np.ndarray,
     params: pd.DataFrame,
     options: Dict[str, int],
@@ -147,11 +195,11 @@ def compute_expected_value(
 
     Args:
         state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
+        matrix_next_period_wealth (np.ndarray): Array of all possible next period
+            wealths with shape (n_quad_stochastic, n_grid_wealth).
         next_period_value (np.ndarray): Array containing values of next period
             choice-specific value function.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
-        matrix_next_period_wealth (np.ndarray): Array of all possible next period
-            wealths with shape (n_quad_stochastic, n_grid_wealth).
         quad_weights (np.ndarray): Weights associated with the stochastic
             quadrature points of shape (n_quad_stochastic,).
         params (pd.DataFrame): Model parameters indexed with multi-index of the
@@ -159,8 +207,8 @@ def compute_expected_value(
         options (dict): Options dictionary.
 
     Returns:
-        expected_value (np.ndarray): Array of current period's expected value of
-            next_period. Shape (n_grid_wealth,).
+        expected_value (np.ndarray): Expected value of next period. Array of
+            shape (n_grid_wealth,).
     """
     # Taste shock (scale) parameter
     lambda_ = params.loc[("shocks", "lambda"), "value"]
