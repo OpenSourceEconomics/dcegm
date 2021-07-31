@@ -16,12 +16,10 @@ def solve_dcegm(
     params: pd.DataFrame,
     options: Dict[str, int],
     utility_functions: Dict[str, callable],
-    value_functions: Callable,
+    compute_expected_value: Callable,
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Solves a discrete-continuous life-cycle model using the DC-EGM algorithm.
-
     EGM stands for Endogenous Grid Method.
-
     Args:
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
@@ -96,7 +94,7 @@ def solve_dcegm(
         savings_grid=savings_grid,
         params=params,
         options=options,
-        value_func=value_functions["final_period"],
+        compute_utility=utility_functions["utility"],
     )
 
     # Start backwards induction from second to last period (T - 1)
@@ -136,7 +134,7 @@ def solve_dcegm(
                 options=options,
                 exogenous_grid=exogenous_grid,
                 utility_functions=utility_functions,
-                value_functions=value_functions,
+                compute_expected_value=compute_expected_value,
             )
 
             if state >= 1 and n_choices > 1:
@@ -159,7 +157,6 @@ def set_first_elements_to_zero(
     policy: np.ndarray, value: np.ndarray, options: Dict[str, int],
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Sets first elements in endogenous wealth grid and consumption policy to zero.
-
     Args:
         policy (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific consumption policies. Dimensions of the list are:
@@ -185,10 +182,8 @@ def set_first_elements_to_zero(
             Position [0, :] of the array contains the endogenous grid over wealth M, 
             and [1, :] stores the corresponding value of the value function v(M, d),
             for each time period and each discrete choice. 
-
     Returns:
         (tuple): Tuple containing
-
         - policy (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific consumption policies. The first element in the 
             endogenous wealth grid and and the first element in the policy function
@@ -219,10 +214,9 @@ def solve_final_period(
     savings_grid: np.ndarray,
     params: pd.DataFrame,
     options: Dict[str, int],
-    value_func: Callable,
+    compute_utility: Callable,
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Computes solution to final period for consumption policy and value function.
-
     Args:
         policy (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific consumption policies. Dimensions of the list are:
@@ -254,10 +248,8 @@ def solve_final_period(
             form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
         value_func (callable): The agent's value function in the final period.
-
     Returns:
         (tuple): Tuple containing
-
         - policy (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific consumption policies with the solution for the final 
             period included.
@@ -277,11 +269,11 @@ def solve_final_period(
             policy[n_periods - 1][state_index][0, 1:]
         )  # c(M, d)
 
-        value[n_periods - 1][state_index][0, 2:] = value_func(
-            state, policy[n_periods - 1][state_index][0, 2:], params
+        value[n_periods - 1][state_index][0, 2:] = compute_utility(
+            policy[n_periods - 1][state_index][0, 2:], state, params
         )
-        value[n_periods - 1][state_index][1, 2:] = value_func(
-            state, policy[n_periods - 1][state_index][1, 2:], params
+        value[n_periods - 1][state_index][1, 2:] = compute_utility(
+            policy[n_periods - 1][state_index][1, 2:], state, params
         )
 
         value[n_periods - 1][state_index][:, 2] = 0
@@ -293,7 +285,6 @@ def _create_multi_dim_lists(
     options: Dict[str, int]
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Create nested list for storing the consumption policy and value function.
-
     Note that we include one additional grid point (n_grid_wealth + 1) to M,
     since we want to set the first positon (j=0) to M_t = 0 for all time
     periods.
@@ -302,10 +293,8 @@ def _create_multi_dim_lists(
     drops suboptimal points from the original grid and adds new ones (kink
     points as well as the corresponding interpolated values of the consumption
     and value functions).
-
     Args:
         options (dict): Options dictionary.
-
      Returns:
         (tuple): Tuple containing
         

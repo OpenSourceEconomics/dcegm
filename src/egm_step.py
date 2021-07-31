@@ -17,10 +17,9 @@ def do_egm_step(
     options: Dict[str, int],
     exogenous_grid: Dict[str, np.ndarray],
     utility_functions: Dict[str, callable],
-    value_functions: Dict[str, callable],
+    compute_expected_value: Callable,
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
-
     Args:
         period (int): Current period t.
         state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
@@ -60,7 +59,6 @@ def do_egm_step(
             functions for computation of the agent's (i) value function before
             the final period, (ii) value function in the final period, 
             and (iii) the expected value.
-
     Returns:
         (tuple) Tuple containing
         
@@ -92,7 +90,7 @@ def do_egm_step(
         matrix_next_period_wealth=matrix_next_period_wealth,
         params=params,
         options=options,
-        value_functions=value_functions,
+        compute_utility=utility_functions["utility"],
     )
 
     # 1) Current period consumption & endogenous wealth grid
@@ -120,7 +118,8 @@ def do_egm_step(
         quad_weights=exogenous_grid["quadrature_weights"],
         params=params,
         options=options,
-        value_functions=value_functions,
+        compute_utility=utility_functions["utility"],
+        compute_expected_value=compute_expected_value,
     )
 
     # 3) Update policy and value function
@@ -146,7 +145,6 @@ def get_next_period_wealth_matrices(
     options: Dict[str, int],
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Computes all possible levels of next period (marginal) wealth M_(t+1).
-
     Args:
         period (int): Current period t.
         state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
@@ -158,10 +156,8 @@ def get_next_period_wealth_matrices(
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
-
     Returns:
         (tuple): Tuple containing
-
         - matrix_next_period_wealth (np.ndarray): Array of all possible next period
             wealths with shape (n_quad_stochastic, n_grid_wealth).
         - next_period_marginal_wealth (np.ndarray): Array of all possible next period
@@ -206,10 +202,9 @@ def map_value_to_current_matrix(
     matrix_next_period_wealth: np.ndarray,
     params: pd.DataFrame,
     options: Dict[str, int],
-    value_functions: Dict[str, callable],
+    compute_utility: Callable,
 ) -> np.ndarray:
     """Maps next-period value onto this period's matrix of next-period wealth.
-
     Args:
         period (int): Current period t.
         value (List[np.ndarray]): Nested list of np.ndarrays storing the
@@ -233,7 +228,6 @@ def map_value_to_current_matrix(
             functions for computation of the agent's (i) value function before
             the final period, (ii) value function in the final period, 
             and (iii) the expected value.
-
     Returns:
         next_period_value_interp (np.ndarray): Array containing interpolated
             values of next period choice-specific value function. We use
@@ -244,8 +238,8 @@ def map_value_to_current_matrix(
     n_periods, n_choices = options["n_periods"], options["n_discrete_choices"]
     choice_range = [1] if n_choices < 2 else range(n_choices)
 
-    compute_value_function_final_period = value_functions["final_period"]
-    compute_value_function = value_functions["before_final_period"]
+    # compute_value_function_final_period = value_functions["final_period"]
+    # compute_value_function = value_functions["before_final_period"]
 
     next_period_value_interp = np.empty(
         (
@@ -257,11 +251,13 @@ def map_value_to_current_matrix(
     for state_index, state in enumerate(choice_range):
         # Next period is the final period
         if period + 1 == n_periods - 1:
-            next_period_value_interp[
-                state_index, :
-            ] = compute_value_function_final_period(
-                state, matrix_next_period_wealth, params
-            )
+            next_period_value_interp[state_index, :] = compute_utility(
+                matrix_next_period_wealth, state, params
+            ).flatten("F")
+
+            # compute_value_function_final_period(
+            #     state, matrix_next_period_wealth, params
+            # )
 
         else:
             next_period_value_interp[state_index, :] = _interpolate_next_period_value(
@@ -269,7 +265,7 @@ def map_value_to_current_matrix(
                 true_value=true_next_period_value[state_index],
                 matrix_next_period_wealth=matrix_next_period_wealth,
                 params=params,
-                compute_value_function=compute_value_function,
+                compute_utility=compute_utility,
             )
 
     return next_period_value_interp
@@ -287,9 +283,7 @@ def map_consumption_to_current_matrix(
     utility_functions: Dict[str, callable],
 ) -> np.ndarray:
     """Maps next-period consumption onto matrix of next-period wealth.
-
     Returns current period consumption.
-
     Args:
         state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
         true_next_period_policy (List[np.ndarray]): Nested list of np.ndarrays storing
@@ -321,7 +315,6 @@ def map_consumption_to_current_matrix(
         utility_functions (Dict[str, callable]): Dictionary of three user-supplied
             functions for computation of (i) utility, (ii) inverse marginal utility, 
             and (iii) next period marginal utility.
-
     Returns:
         current_period_consumption (np.ndarray): Consumption in the current
             period. Array of shape (n_grid_wealth,).
@@ -362,7 +355,6 @@ def get_endogenous_wealth_grid(
     current_period_consumption: np.ndarray, exog_savings_grid: np.ndarray
 ) -> np.ndarray:
     """Returns the endogenous grid over wealth of the current period.
-
     Args:
         current_period_consumption (np.ndarray): Consumption in the current
             period. Array of shape (n_grid_wealth,).
@@ -386,7 +378,8 @@ def get_expected_and_current_period_value(
     quad_weights: np.ndarray,
     params: pd.DataFrame,
     options: Dict[str, int],
-    value_functions: Dict[str, callable],
+    compute_utility: Callable,
+    compute_expected_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Computes the expected (next period) value and the current period's value.
     
@@ -416,8 +409,9 @@ def get_expected_and_current_period_value(
         current_period_value (np.ndarray): Array of current period value
             function of shape (n_grid_wealth,).
     """
-    compute_expected_value = value_functions["expected_value"]
-    compute_value_function = value_functions["before_final_period"]
+    # compute_expected_value = value_functions["expected_value"]
+    # compute_value_function = value_functions["before_final_period"]
+    beta = params.loc[("beta", "beta"), "value"]
 
     expected_value = compute_expected_value(
         state,
@@ -427,12 +421,15 @@ def get_expected_and_current_period_value(
         params=params,
         options=options,
     )
-    current_period_value = compute_value_function(
-        state,
-        current_period_consumption,
-        next_period_value=expected_value,
-        params=params,
-    )
+    # current_period_value = compute_utility(
+    #     state,
+    #     current_period_consumption,
+    #     next_period_value=expected_value,
+    #     params=params,
+    # )
+
+    utility = compute_utility(current_period_consumption, state, params)
+    current_period_value = utility + beta * expected_value
 
     return expected_value, current_period_value
 
@@ -441,20 +438,15 @@ def _calc_stochastic_income(
     period: int, shock: float, params: pd.DataFrame, options: Dict[str, int]
 ) -> float:
     """Computes the current level of deterministic and stochastic income.
-
     Note that income is paid at the end of the current period, i.e. after
     the (potential) labor supply choice has been made. This is equivalent to
     allowing income to be dependent on a lagged choice of labor supply.
-
     The agent starts working in period t = 0.
     Relevant for the wage equation (deterministic income) are age-dependent
     coefficients of work experience:
-
     labor_income = constant + alpha_1 * age + alpha_2 * age**2
-
     They include a constant as well as two coefficents on age and age squared,
     respectively. Note that the last one (alpha_2) typically has a negative sign.
-
     Args:
         period (int): Curent period t.
         shock (float): Stochastic shock on labor income, which may or may not
@@ -463,7 +455,6 @@ def _calc_stochastic_income(
             form ("category", "name") and two columns ["value", "comment"].
             Relevant here are the coefficients of the wage equation.
         options (dict): Options dictionary.
-
     Returns:
         stochastic_income (float): End of period income composed of a
             deterministic component, i.e. age-dependent labor income, and a
@@ -491,10 +482,8 @@ def _interpolate_next_period_consumption(
     options: Dict[str, int],
 ) -> np.ndarray:
     """Computes consumption in the next period via linear interpolation.
-
     Extrapolate lineary in wealth regions beyond the grid, i.e. larger
     than "max_wealth" specifiec in the ``params`` dictionary.
-
     Args:
         policy (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific consumption policies of the next period. Dimensions 
@@ -511,7 +500,6 @@ def _interpolate_next_period_consumption(
         matrix_next_period_wealth (np.ndarray): Array of all possible next period
             wealths with shape (n_quad_stochastic, n_grid_wealth).
         options (dict): Options dictionary.
-
     Returns:
         next_period_consumption_interp (np.ndarray): Array of next period
             consumption of shape (n_choices, n_quad_stochastic * n_grid_wealth).
@@ -549,14 +537,12 @@ def _interpolate_next_period_value(
     true_value: np.ndarray,
     matrix_next_period_wealth: np.ndarray,
     params: pd.DataFrame,
-    compute_value_function: Callable,
+    compute_utility: Callable,
 ) -> np.ndarray:
     """Computes the value function of the next period t+1.
-
     Take into account credit-constrained regions.
     Use interpolation in non-constrained region and apply extrapolation
     where the observed wealth exceeds the maximum wealth level.
-
     Args:
         state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
         true_value (np.ndarray): Actual next period value, obtained from
@@ -570,12 +556,13 @@ def _interpolate_next_period_value(
             form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
         uility_func (callable): Utility function.
-
     Returns:
         next_period_value_interp (np.ndarray): Interpolated next period value function. 
             In credit constrained regions, the analytical part of the value function
             is used. Array of shape (n_quad_stochastic * n_grid_wealth,).
     """
+    beta = params.loc[("beta", "beta"), "value"]
+
     matrix_next_period_wealth = matrix_next_period_wealth.flatten("F")
     next_period_value_interp = np.empty(matrix_next_period_wealth.shape)
 
@@ -584,11 +571,17 @@ def _interpolate_next_period_value(
 
     # Calculate t+1 value function in constrained region using
     # the analytical part
-    next_period_value_interp[constrained_region] = compute_value_function(
-        state,
-        matrix_next_period_wealth[constrained_region],
-        next_period_value=true_value[1, 0],
-        params=params,
+    # next_period_value_interp[constrained_region] = compute_utility(
+    #     state,
+    #     matrix_next_period_wealth[constrained_region],
+    #     next_period_value=true_value[1, 0],
+    #     params=params,
+    # )
+    next_period_utility = compute_utility(
+        matrix_next_period_wealth[constrained_region], state, params
+    )
+    next_period_value_interp[constrained_region] = (
+        next_period_utility + beta * true_value[1, 0]  # next_period_value
     )
 
     # Calculate t+1 value function in non-constrained region
@@ -614,7 +607,6 @@ def _calc_rhs_euler(
     quad_weights: np.ndarray,
 ) -> np.ndarray:
     """Computes the right-hand side of the Euler equation, p. 337 IJRS (2017).
-
     Args:
         next_period_marginal_utility (np.ndarray): Array of next period's
             marginal utility of shape (n_quad_stochastic * n_grid_wealth,).
@@ -625,7 +617,6 @@ def _calc_rhs_euler(
         quad_weights (np.ndarray): Weights associated with the quadrature points
             of shape (n_quad_stochastic,). Used for integration over the
             stochastic income component in the Euler equation.
-
     Returns:
         rhs_euler (np.ndarray): Right-hand side of the Euler equation.
             Shape (n_grid_wealth,).
@@ -640,4 +631,3 @@ def _calc_rhs_euler(
     )
 
     return rhs_euler
-

@@ -5,69 +5,8 @@ import numpy as np
 import pandas as pd
 
 
-def compute_value_function(
-    state: int,
-    current_consumption: np.ndarray,
-    next_period_value: np.ndarray,
-    params: pd.DataFrame,
-) -> np.ndarray:
-    """Computes the agent's value function in the current (not her final) period.
-    
-    Args:
-        state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
-        current_consumption (np.ndarray): Level of the agent's consumption in the
-            current period. Array of (i) shape (n_quad_stochastic * n_grid_wealth,)
-            when called by :func:`~dcgm.call_egm_step.get_next_period_value`, or
-            (ii) of shape (n_grid_wealth,) when called by
-            :func:`~dcgm.call_egm_step.get_current_period_value`.
-        next_period_value (np.ndarray): Array containing values of next period
-            choice-specific value function.
-            Shape (n_choices, n_quad_stochastic * n_grid_wealth).
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
-
-    Returns:
-        value (np.ndarray): Values of the value function in the current (not the
-            final) period. Array of shape (i) (n_quad_stochastic * n_grid_wealth,) or 
-            (ii) (n_grid_wealth,), depending on where :func:`compute_value_function`
-            is called (see above).
-    """
-    delta = params.loc[("delta", "delta"), "value"]
-    beta = params.loc[("beta", "beta"), "value"]
-
-    utility = utility_func_crra(current_consumption, params)
-    value = utility - state * delta + beta * next_period_value
-
-    return value
-
-
-def compute_value_function_final_period(
-    state: int, current_consumption: np.ndarray, params: pd.DataFrame,
-) -> np.ndarray:
-    """Computes the agent's value function in the final period of her life cycle.
-    
-    Args:
-        state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
-        current_consumption (np.ndarray): Level of the agent's consumption in the
-            current period. Array of shape (n_quad_stochastic * n_grid_wealth,).
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
-
-    Returns:
-        value_function_final_period (np.ndarray): Values of the value function
-            in the agent's final period. Array of shape 
-            (n_quad_stochastic * n_grid_wealth,).
-    """
-    delta = params.loc[("delta", "delta"), "value"]
-
-    utility = utility_func_crra(current_consumption, params,).flatten("F")
-    value_final_period = utility - state * delta
-
-    return value_final_period
-
-
 def utility_func_crra(
-    current_consumption: np.ndarray, params: pd.DataFrame
+    consumption: np.ndarray, state: int, params: pd.DataFrame
 ) -> np.ndarray:
     """Computes the agent's current utility based on a CRRA utility function.
 
@@ -78,6 +17,7 @@ def utility_func_crra(
             and :func:`~dcgm.call_egm_step.get_next_period_value`, or
             (ii) of shape (n_grid_wealth,) when called by
             :func:`~dcgm.call_egm_step.get_current_period_value`.
+        state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
             Relevant here is the CRRA coefficient theta.
@@ -87,16 +27,19 @@ def utility_func_crra(
             (n_quad_stochastic * n_grid_wealth,) or (n_grid_wealth,).
     """
     theta = params.loc[("utility_function", "theta"), "value"]
+    delta = params.loc[("delta", "delta"), "value"]
 
     if theta == 1:
-        utility = np.log(current_consumption)
+        utility_consumption = np.log(consumption)
     else:
-        utility = (current_consumption ** (1 - theta) - 1) / (1 - theta)
+        utility_consumption = (consumption ** (1 - theta) - 1) / (1 - theta)
+
+    utility = utility_consumption - state * delta
 
     return utility
 
 
-def marginal_utility_crra(consumption: np.ndarray, params: pd.DataFrame) -> np.ndarray:
+def _marginal_utility_crra(consumption: np.ndarray, params: pd.DataFrame) -> np.ndarray:
     """Computes marginal utility of CRRA utility function.
 
     Args:
@@ -166,7 +109,7 @@ def compute_next_period_marginal_utility(
 
     # If no discrete alternatives, only one state, i.e. one column with index = 0
     if n_choices < 2:
-        next_period_marg_util = marginal_utility_crra(
+        next_period_marg_util = _marginal_utility_crra(
             next_period_consumption[0, :], params
         )
     else:
@@ -174,9 +117,9 @@ def compute_next_period_marginal_utility(
             next_period_value, state, params, options
         )
 
-        next_period_marg_util = prob_working * marginal_utility_crra(
+        next_period_marg_util = prob_working * _marginal_utility_crra(
             next_period_consumption[1, :], params
-        ) + (1 - prob_working) * marginal_utility_crra(
+        ) + (1 - prob_working) * _marginal_utility_crra(
             next_period_consumption[0, :], params
         )
 
