@@ -89,7 +89,6 @@ def solve_dcegm(
     # We cannot use multi-dim np.ndarrays here, since the length of
     # the grid is altered by the Upper Envelope step!
     policy, value = _create_multi_dim_lists(options)
-    policy, value = set_first_elements_to_zero(policy, value, options)
     policy, value = solve_final_period(
         policy,
         value,
@@ -156,7 +155,7 @@ def solve_dcegm(
                 interpolate_policy, policy=current_policy
             )
 
-            # Update lists
+            # Append to list
             policy[period][index] = current_policy
             value[period][index] = current_value
 
@@ -353,6 +352,8 @@ def solve_final_period(
         policy[n_periods - 1][state_index][1, 1:] = copy.deepcopy(
             policy[n_periods - 1][state_index][0, 1:]
         )  # c(M, d)
+        policy[n_periods - 1][state_index][0, 0] = 0
+        policy[n_periods - 1][state_index][1, 0] = 0
 
         value[n_periods - 1][state_index][0, 2:] = compute_utility(
             policy[n_periods - 1][state_index][0, 2:], state, params
@@ -360,7 +361,7 @@ def solve_final_period(
         value[n_periods - 1][state_index][1, 2:] = compute_utility(
             policy[n_periods - 1][state_index][1, 2:], state, params
         )
-
+        value[n_periods - 1][state_index][0, 0] = 0
         value[n_periods - 1][state_index][:, 2] = 0
 
     return policy, value
