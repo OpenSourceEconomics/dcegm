@@ -114,17 +114,16 @@ def solve_dcegm(
     # Start backwards induction from second to last period (T - 1)
     for period in range(n_periods - 2, -1, -1):
 
+        # Update and reset dictionaries
         next_period_policy_function = current_policy_function
         next_period_value_function = current_value_function
 
-        current_value_function, current_policy_function = dict(), dict()
+        current_policy_function, current_value_function = dict(), dict()
 
         for index, state in enumerate(choice_range):
-            policy, value, expected_value = do_egm_step(
+            current_policy, current_value, expected_value = do_egm_step(
                 period,
                 state,
-                policy,
-                value,
                 params=params,
                 options=options,
                 exogenous_grid=exogenous_grid,
@@ -135,30 +134,31 @@ def solve_dcegm(
             )
 
             if state >= 1 and n_choices > 1:
-                policy_refined, value_refined = do_upper_envelope_step(
-                    policy[period][index],
-                    value[period][index],
+                current_policy, current_value = do_upper_envelope_step(
+                    current_policy,
+                    current_value,
                     expected_value=expected_value,
                     params=params,
                     options=options,
                     compute_utility=utility_functions["utility"],
                 )
 
-                policy[period][index] = policy_refined
-                value[period][index] = value_refined
-
             # get policy & value (interpolation) functions
             current_value_function[state] = partial(
                 interpolate_value,
-                value=value[period][index],
+                value=current_value,
                 state=state,
                 params=params,
                 utility_func=utility_functions["utility"],
-            )  # input: wealth=matrix_next_period_wealth
+            )
 
             current_policy_function[state] = partial(
-                interpolate_policy, policy=policy[period][index]
+                interpolate_policy, policy=current_policy
             )
+
+            # Update lists
+            policy[period][index] = current_policy
+            value[period][index] = current_value
 
     return policy, value
 

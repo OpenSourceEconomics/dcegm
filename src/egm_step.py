@@ -11,8 +11,6 @@ from scipy import interpolate
 def do_egm_step(
     period: int,
     state: int,
-    policy: np.ndarray,
-    value: np.ndarray,
     *,
     params: pd.DataFrame,
     options: Dict[str, int],
@@ -131,18 +129,33 @@ def do_egm_step(
         compute_expected_value=compute_expected_value,
     )
 
-    # 3) Update policy and value function
-    # If no discrete alternatives; only one state, i.e. one column with index = 0
-    state_index = 0 if options["n_discrete_choices"] < 2 else state
+    current_policy = np.empty((2, endog_wealth_grid.shape[0] + 1))
+    current_policy[0, 1:] = endog_wealth_grid
+    current_policy[1, 1:] = current_period_consumption
 
-    policy[period][state_index][0, 1:] = endog_wealth_grid
-    policy[period][state_index][1, 1:] = current_period_consumption
+    current_value = np.empty((2, endog_wealth_grid.shape[0] + 1))
+    current_value[0, 1:] = endog_wealth_grid
+    current_value[1, 1:] = current_period_value
 
-    value[period][state_index][0, 1:] = endog_wealth_grid
-    value[period][state_index][1, 1:] = current_period_value
-    value[period][state_index][1, 0] = expected_value[0]
+    current_policy, current_value = _adjust_first_elements(
+        current_policy, current_value, expected_value
+    )
 
-    return policy, value, expected_value
+    return current_policy, current_value, expected_value
+
+
+def _adjust_first_elements(
+    policy: np.ndarray, value: np.ndarray, expected_value: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    """
+    policy[0, 0] = 0
+    policy[1, 0] = 0
+
+    value[0, 0] = 0
+    value[1, 0] = expected_value[0]
+
+    return policy, value
 
 
 def map_next_period_policy(
