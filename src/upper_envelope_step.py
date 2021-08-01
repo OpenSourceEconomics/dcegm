@@ -83,7 +83,7 @@ def do_upper_envelope_step(
             function have been added. Shape (2, *n_grid_refined*), where 
             *n_grid_refined* is the length of the *refined* endogenous wealth grid.
     """
-    policy = copy.deepcopy(policy)  # state == 1 "working"
+    policy = copy.deepcopy(policy)
     value = copy.deepcopy(value)
 
     min_wealth_grid = np.min(value[0, 1:])
@@ -121,7 +121,17 @@ def do_upper_envelope_step(
     else:
         policy_refined = policy
 
-    return policy_refined, value_refined
+    # NEW
+    n_grid_wealth = options["grid_points_wealth"]
+    policy_refined_with_nans = np.empty((2, int(1.1 * n_grid_wealth)))
+    value_refined_with_nans = np.empty((2, int(1.1 * n_grid_wealth)))
+    policy_refined_with_nans[:] = np.nan
+    value_refined_with_nans[:] = np.nan
+
+    policy_refined_with_nans[:, : policy_refined.shape[1]] = policy_refined
+    value_refined_with_nans[:, : value_refined.shape[1]] = value_refined
+
+    return policy_refined_with_nans, value_refined_with_nans
 
 
 def locate_non_concave_regions_and_refine(

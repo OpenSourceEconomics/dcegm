@@ -143,16 +143,18 @@ def solve_dcegm(
                 )
 
             # get policy & value (interpolation) functions
+            # test[:, ~np.isnan(test).any(axis=0)]
             current_value_function[state] = partial(
                 interpolate_value,
-                value=current_value,
+                value=current_value[:, ~np.isnan(current_value).any(axis=0)],
                 state=state,
                 params=params,
                 utility_func=utility_functions["utility"],
             )
 
             current_policy_function[state] = partial(
-                interpolate_policy, policy=current_policy
+                interpolate_policy,
+                policy=current_policy[:, ~np.isnan(current_policy).any(axis=0)],
             )
 
             # Append to list
