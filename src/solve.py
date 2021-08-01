@@ -144,7 +144,7 @@ def solve_dcegm(
                     expected_value=expected_value,
                     params=params,
                     options=options,
-                    utility_func=utility_functions["utility"],
+                    compute_utility=utility_functions["utility"],
                 )
 
                 policy[period][state] = policy_refined
