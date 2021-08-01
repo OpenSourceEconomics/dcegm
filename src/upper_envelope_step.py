@@ -83,8 +83,8 @@ def do_upper_envelope_step(
             function have been added. Shape (2, *n_grid_refined*), where 
             *n_grid_refined* is the length of the *refined* endogenous wealth grid.
     """
-    policy = copy.deepcopy(policy)
-    value = copy.deepcopy(value)
+    policy = copy.deepcopy(policy[:, ~np.isnan(policy).any(axis=0)])
+    value = copy.deepcopy(value[:, ~np.isnan(value).any(axis=0)])
 
     min_wealth_grid = np.min(value[0, 1:])
 
@@ -96,7 +96,7 @@ def do_upper_envelope_step(
         ) = locate_non_concave_regions_and_refine(value)
     else:
         # Non-concave region coincides with credit constraint.
-        # This happens when we have a non-monotonicity in the endogenous wealth grid
+        # This happens when there is a non-monotonicity in the endogenous wealth grid
         # that goes below the first point.
         # Solution: Value function to the left of the first point is analytical,
         # so we just need to add some points to the left of the first grid point.

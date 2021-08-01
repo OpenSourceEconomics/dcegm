@@ -88,10 +88,10 @@ def solve_dcegm(
     # Create nested lists for consumption policy and value function.
     # We cannot use multi-dim np.ndarrays here, since the length of
     # the grid is altered by the Upper Envelope step!
-    policy, value = _create_multi_dim_lists(options)
-    policy, value = solve_final_period(
-        policy,
-        value,
+    policy_arr, value_arr = _create_multi_dim_arrays(options)
+    policy_arr, value_arr = solve_final_period(
+        policy_arr,
+        value_arr,
         savings_grid=savings_grid,
         params=params,
         options=options,
@@ -102,13 +102,15 @@ def solve_dcegm(
     current_policy_function = dict()
     current_value_function = dict()
     for index, state in enumerate(choice_range):
+        final_policy = policy_arr[n_periods - 1, index, :]
+        current_policy_function[state] = partial(
+            interpolate_policy,
+            policy=final_policy[:, ~np.isnan(final_policy).any(axis=0)],
+        )
+
         current_value_function[state] = partial(
             utility_functions["utility"], state=state, params=params
         )  # input: consumption=matrix_next_period_wealth
-
-        current_policy_function[state] = partial(
-            interpolate_policy, policy=policy[n_periods - 1][index]
-        )
 
     # Start backwards induction from second to last period (T - 1)
     for period in range(n_periods - 2, -1, -1):
@@ -142,8 +144,6 @@ def solve_dcegm(
                     compute_utility=utility_functions["utility"],
                 )
 
-            # get policy & value (interpolation) functions
-            # test[:, ~np.isnan(test).any(axis=0)]
             current_value_function[state] = partial(
                 interpolate_value,
                 value=current_value[:, ~np.isnan(current_value).any(axis=0)],
@@ -158,10 +158,10 @@ def solve_dcegm(
             )
 
             # Append to list
-            policy[period][index] = current_policy
-            value[period][index] = current_value
+            policy_arr[period, index, :, : current_policy.shape[1]] = current_policy
+            value_arr[period, index, :, : current_value.shape[1]] = current_value
 
-    return policy, value
+    return policy_arr, value_arr
 
 
 def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarray:
@@ -349,27 +349,30 @@ def solve_final_period(
 
     # In last period, nothing is saved for the next period (since there is none).
     # Hence, everything is consumed, c_T(M, d) = M
+    end_grid = savings_grid.shape[0] + 1
     for state_index, state in enumerate(choice_range):
-        policy[n_periods - 1][state_index][0, 1:] = copy.deepcopy(savings_grid)  # M
-        policy[n_periods - 1][state_index][1, 1:] = copy.deepcopy(
-            policy[n_periods - 1][state_index][0, 1:]
+        policy[n_periods - 1, state_index, 0, 1:end_grid] = copy.deepcopy(
+            savings_grid
+        )  # M
+        policy[n_periods - 1, state_index, 1, 1:end_grid] = copy.deepcopy(
+            policy[n_periods - 1, state_index, 0, 1:end_grid]
         )  # c(M, d)
-        policy[n_periods - 1][state_index][0, 0] = 0
-        policy[n_periods - 1][state_index][1, 0] = 0
+        policy[n_periods - 1, state_index, 0, 0] = 0
+        policy[n_periods - 1, state_index, 1, 0] = 0
 
-        value[n_periods - 1][state_index][0, 2:] = compute_utility(
-            policy[n_periods - 1][state_index][0, 2:], state, params
+        value[n_periods - 1, state_index, 0, 2:end_grid] = compute_utility(
+            policy[n_periods - 1, state_index, 0, 2:end_grid], state, params
         )
-        value[n_periods - 1][state_index][1, 2:] = compute_utility(
-            policy[n_periods - 1][state_index][1, 2:], state, params
+        value[n_periods - 1, state_index][1, 2:end_grid] = compute_utility(
+            policy[n_periods - 1, state_index, 1, 2:end_grid], state, params
         )
-        value[n_periods - 1][state_index][0, 0] = 0
-        value[n_periods - 1][state_index][:, 2] = 0
+        value[n_periods - 1, state_index, 0, 0] = 0
+        value[n_periods - 1, state_index, :, 2] = 0
 
     return policy, value
 
 
-def _create_multi_dim_lists(
+def _create_multi_dim_arrays(
     options: Dict[str, int]
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Create nested list for storing the consumption policy and value function.
@@ -415,14 +418,9 @@ def _create_multi_dim_lists(
     n_periods = options["n_periods"]
     n_choices = options["n_discrete_choices"]
 
-    policy = [
-        [np.empty((2, n_grid_wealth + 1)) for state in range(n_choices)]
-        for period in range(n_periods)
-    ]
+    policy_arr = np.empty((n_periods, n_choices, 2, int(1.1 * n_grid_wealth)))
+    value_arr = np.empty((n_periods, n_choices, 2, int(1.1 * n_grid_wealth)))
+    policy_arr[:] = np.nan
+    value_arr[:] = np.nan
 
-    value = [
-        [np.empty((2, n_grid_wealth + 1)) for state in range(n_choices)]
-        for period in range(n_periods)
-    ]
-
-    return policy, value
+    return policy_arr, value_arr

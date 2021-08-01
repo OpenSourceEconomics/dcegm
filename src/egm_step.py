@@ -3,6 +3,7 @@ from typing import Callable, Dict, List, Tuple
 from functools import partial
 
 import numpy as np
+from numpy.lib.index_tricks import nd_grid
 import pandas as pd
 
 from scipy import interpolate
@@ -129,22 +130,26 @@ def do_egm_step(
         compute_expected_value=compute_expected_value,
     )
 
-    current_policy = np.empty((2, endog_wealth_grid.shape[0] + 1))
-    current_policy[0, 1:] = endog_wealth_grid
-    current_policy[1, 1:] = current_period_consumption
+    n_grid_wealth = options["grid_points_wealth"]
 
-    current_value = np.empty((2, endog_wealth_grid.shape[0] + 1))
-    current_value[0, 1:] = endog_wealth_grid
-    current_value[1, 1:] = current_period_value
+    current_policy = np.empty((2, int(1.1 * n_grid_wealth)))
+    current_policy[:] = np.nan
+    current_policy[0, 1 : n_grid_wealth + 1] = endog_wealth_grid
+    current_policy[1, 1 : n_grid_wealth + 1] = current_period_consumption
 
-    current_policy, current_value = _adjust_first_elements(
+    current_value = np.empty((2, int(1.1 * n_grid_wealth)))
+    current_value[:] = np.nan
+    current_value[0, 1 : n_grid_wealth + 1] = endog_wealth_grid
+    current_value[1, 1 : n_grid_wealth + 1] = current_period_value
+
+    current_policy, current_value = adjust_first_elements(
         current_policy, current_value, expected_value
     )
 
     return current_policy, current_value, expected_value
 
 
-def _adjust_first_elements(
+def adjust_first_elements(
     policy: np.ndarray, value: np.ndarray, expected_value: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
