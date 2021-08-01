@@ -1,10 +1,12 @@
 """Interface for the DC-EGM algorithm."""
 import copy
 from typing import Callable, Dict, List, Tuple
+from functools import partial
 
 import numpy as np
 import pandas as pd
 
+from scipy import interpolate
 from scipy.stats import norm
 from scipy.special.orthogonal import roots_sh_legendre
 
@@ -97,34 +99,27 @@ def solve_dcegm(
         compute_utility=utility_functions["utility"],
     )
 
+    # Make new function or move inside func:`solve_final_period`
+    current_policy_function = dict()
+    current_value_function = dict()
+    for index, state in enumerate(choice_range):
+        current_value_function[state] = partial(
+            utility_functions["utility"], state=state, params=params
+        )  # input: consumption=matrix_next_period_wealth
+
+        current_policy_function[state] = partial(
+            interpolate_policy, policy=policy[n_periods - 1][index]
+        )
+
     # Start backwards induction from second to last period (T - 1)
     for period in range(n_periods - 2, -1, -1):
 
-        # Note: In the DC-EGM retirement model with two states
-        # (0 = "retirement" and 1 = "working") ``state`` denotes both the
-        # STATE INDICATOR and the INDEX of the ``policy`` and ``value`` arrays.
-        # In fact, in the retirement model, ``states`` dual roles coincide.
-        # Meaning, for the "retirement" state, denotes both the state indicator
-        # and the index. ``state``'s role as an indicator becomes apparent when
-        # subtracting the disutility of work (denoted by ``delta``) from the
-        # agent's utility function via `` - state * delta``, which is unequal to 0
-        # when then agent is working,
-        # see :func:`~dcgm.egm_step.get_current_period_value`.
-        # In the EGM consumption-savings model, however, there is no discrete
-        # choice to make so that ``state`` is - always - set to 1 ("working").
-        # Consequently, ``state``'s roles as indicator and index do not overlap
-        # anymore, i.e. the state indicator is 1, but the corresponding index
-        # in the ``policy`` and ``value`` arrays is 0!
-        # To account for this discrepancy, several one-liners have been put in place
-        # to set ``state`` = 0 when it needs to take on the role as an index;
-        # see :func:`~dcgm.consumption_savings_model.compute_value_function` and
-        # :func:`~dcgm.egm_step.call_egm_step`.
-        # Similarly, when we loop over choices, in the consumption-savings model
-        # with no discrete choice here, one-liners are in place to keep the
-        # existing for-loop structure. In Practice, ``choice_range`` = [1] in
-        # this case, see :func:`~dcgm.call_egm_step.get_next_period_value` and
-        # :func:`~dcgm.solve.solve_final_period`.
-        for state in choice_range:
+        next_period_policy_function = current_policy_function
+        next_period_value_function = current_value_function
+
+        current_value_function, current_policy_function = dict(), dict()
+
+        for index, state in enumerate(choice_range):
             policy, value, expected_value = do_egm_step(
                 period,
                 state,
@@ -135,22 +130,112 @@ def solve_dcegm(
                 exogenous_grid=exogenous_grid,
                 utility_functions=utility_functions,
                 compute_expected_value=compute_expected_value,
+                next_period_policy_function=next_period_policy_function,
+                next_period_value_function=next_period_value_function,
             )
 
             if state >= 1 and n_choices > 1:
                 policy_refined, value_refined = do_upper_envelope_step(
-                    policy[period][state],
-                    value[period][state],
+                    policy[period][index],
+                    value[period][index],
                     expected_value=expected_value,
                     params=params,
                     options=options,
                     compute_utility=utility_functions["utility"],
                 )
 
-                policy[period][state] = policy_refined
-                value[period][state] = value_refined
+                policy[period][index] = policy_refined
+                value[period][index] = value_refined
+
+            # get policy & value (interpolation) functions
+            current_value_function[state] = partial(
+                interpolate_value,
+                value=value[period][index],
+                state=state,
+                params=params,
+                utility_func=utility_functions["utility"],
+            )  # input: wealth=matrix_next_period_wealth
+
+            current_policy_function[state] = partial(
+                interpolate_policy, policy=policy[period][index]
+            )
 
     return policy, value
+
+
+def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarray:
+    """
+    """
+    policy_interp = np.empty(flat_wealth.shape)
+
+    interpolation_func = interpolate.interp1d(
+        x=policy[0, :],
+        y=policy[1, :],
+        bounds_error=False,
+        fill_value="extrapolate",
+        kind="linear",
+    )
+
+    policy_interp = interpolation_func(flat_wealth)
+
+    return policy_interp
+
+
+def interpolate_value(
+    wealth: np.ndarray,
+    value: np.ndarray,
+    state: int,
+    params: pd.DataFrame,
+    utility_func: Callable,
+) -> np.ndarray:
+    """
+    
+    """
+    value_interp = np.empty(wealth.shape)
+
+    # Mark credit constrained region
+    constrained_region = wealth < value[0, 1]
+
+    # Calculate t+1 value function in constrained region using
+    # the analytical part
+    value_interp[constrained_region] = _get_value_constrained(
+        wealth[constrained_region],
+        next_period_value=value[1, 0],
+        state=state,
+        params=params,
+        utility_func=utility_func,
+    )
+
+    # Calculate t+1 value function in non-constrained region
+    # via inter- and extrapolation
+    interpolation_func = interpolate.interp1d(
+        x=value[0, :],  # endogenous wealth grid
+        y=value[1, :],  # value_function
+        bounds_error=False,
+        fill_value="extrapolate",
+        kind="linear",
+    )
+    value_interp[~constrained_region] = interpolation_func(wealth[~constrained_region])
+
+    return value_interp
+
+
+def _get_value_constrained(
+    wealth: np.ndarray,
+    next_period_value: np.ndarray,
+    state: int,
+    params: pd.DataFrame,
+    utility_func: Callable,
+) -> np.ndarray:
+    """"
+    
+    """
+    beta = params.loc[("beta", "beta"), "value"]
+
+    utility = utility_func(wealth, state, params)
+    value_constrained = utility + beta * next_period_value
+
+    return value_constrained
 
 
 def set_first_elements_to_zero(

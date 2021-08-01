@@ -19,6 +19,8 @@ def do_egm_step(
     exogenous_grid: Dict[str, np.ndarray],
     utility_functions: Dict[str, callable],
     compute_expected_value: Callable,
+    next_period_policy_function: Callable,
+    next_period_value_function: Callable
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
     Args:
@@ -70,37 +72,6 @@ def do_egm_step(
             choice-specific value functions. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*].
     """
-    n_periods, n_choices = options["n_periods"], options["n_discrete_choices"]
-    choice_range = [1] if n_choices < 2 else range(n_choices)
-    next_period_value_function = dict()
-    next_period_policy_function = dict()
-
-    for index, s in enumerate(choice_range):
-        # Next period is the final period T
-        # Note that we start backwards loop at t = n_periods - 1 = T
-        # since t denotes the index.
-        if period + 1 == n_periods - 1:
-            next_period_value_function[s] = partial(
-                utility_functions["utility"], state=s, params=params
-            )  # input: consumption=matrix_next_period_wealth
-
-            next_period_policy_function[s] = partial(
-                interpolate_policy, policy=policy[period + 1][index]
-            )
-
-        else:
-            next_period_value_function[s] = partial(
-                interpolate_value,
-                value=value[period + 1][index],
-                state=s,
-                params=params,
-                utility_func=utility_functions["utility"],
-            )  # input: wealth=matrix_next_period_wealth
-
-            next_period_policy_function[s] = partial(
-                interpolate_policy, policy=policy[period + 1][index]
-            )
-
     # 0) Preliminaries
     # Matrices of all possible next period wealths and marginal wealths
     (
@@ -135,7 +106,6 @@ def do_egm_step(
     current_period_consumption = map_consumption_to_current_matrix(
         state,
         next_period_consumption=next_period_consumption_interp,
-        # true_next_period_policy=policy[period + 1],
         matrix_next_period_wealth=matrix_next_period_wealth,
         next_period_marginal_wealth=next_period_marginal_wealth,
         next_period_value_interp=next_period_value_interp,
@@ -219,81 +189,6 @@ def map_next_period_policy(
         )
 
     return next_period_policy
-
-
-def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarray:
-    """
-    """
-    policy_interp = np.empty(flat_wealth.shape)
-
-    interpolation_func = interpolate.interp1d(
-        x=policy[0, :],
-        y=policy[1, :],
-        bounds_error=False,
-        fill_value="extrapolate",
-        kind="linear",
-    )
-
-    policy_interp = interpolation_func(flat_wealth)
-
-    return policy_interp
-
-
-def interpolate_value(
-    wealth: np.ndarray,
-    value: np.ndarray,
-    state: int,
-    params: pd.DataFrame,
-    utility_func: Callable,
-) -> np.ndarray:
-    """
-    
-    """
-    value_interp = np.empty(wealth.shape)
-
-    # Mark credit constrained region
-    constrained_region = wealth < value[0, 1]
-
-    # Calculate t+1 value function in constrained region using
-    # the analytical part
-    value_interp[constrained_region] = _get_value_constrained(
-        wealth[constrained_region],
-        next_period_value=value[1, 0],
-        state=state,
-        params=params,
-        utility_func=utility_func,
-    )
-
-    # Calculate t+1 value function in non-constrained region
-    # via inter- and extrapolation
-    interpolation_func = interpolate.interp1d(
-        x=value[0, :],  # endogenous wealth grid
-        y=value[1, :],  # value_function
-        bounds_error=False,
-        fill_value="extrapolate",
-        kind="linear",
-    )
-    value_interp[~constrained_region] = interpolation_func(wealth[~constrained_region])
-
-    return value_interp
-
-
-def _get_value_constrained(
-    wealth: np.ndarray,
-    next_period_value: np.ndarray,
-    state: int,
-    params: pd.DataFrame,
-    utility_func: Callable,
-) -> np.ndarray:
-    """"
-    
-    """
-    beta = params.loc[("beta", "beta"), "value"]
-
-    utility = utility_func(wealth, state, params)
-    value_constrained = utility + beta * next_period_value
-
-    return value_constrained
 
 
 def get_next_period_wealth_matrices(
