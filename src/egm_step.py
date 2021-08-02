@@ -71,6 +71,10 @@ def do_egm_step(
             choice-specific value functions. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*].
     """
+    n_grid_wealth = options["grid_points_wealth"]
+    current_policy = np.empty((2, n_grid_wealth + 1))
+    current_value = np.empty((2, n_grid_wealth + 1))
+
     # 0) Preliminaries
     # Matrices of all possible next period wealths and marginal wealths
     (
@@ -84,8 +88,8 @@ def do_egm_step(
         savings=exogenous_grid["savings"],
         quad_points=exogenous_grid["quadrature_points"],
     )
-    # Interpolate next period values to match the contemporary matrix of
-    # potential next period wealths
+    # Interpolate next period policy and values to match the
+    # contemporary matrix of potential next period wealths
     next_period_value_interp = map_value_to_current_matrix(
         period,
         matrix_next_period_wealth=matrix_next_period_wealth,
@@ -101,7 +105,7 @@ def do_egm_step(
         next_period_policy_function=next_period_policy_function,
     )
 
-    # 1) Current period consumption & endogenous wealth grid
+    # i) Current period consumption & endogenous wealth grid
     current_period_consumption = map_consumption_to_current_matrix(
         state,
         next_period_consumption=next_period_consumption_interp,
@@ -117,7 +121,7 @@ def do_egm_step(
         current_period_consumption, exog_savings_grid=exogenous_grid["savings"]
     )
 
-    # 2) Expected & current period value
+    # ii) Expected & current period value
     expected_value, current_period_value = get_expected_and_current_period_value(
         state,
         next_period_value=next_period_value_interp,
@@ -130,30 +134,23 @@ def do_egm_step(
         compute_expected_value=compute_expected_value,
     )
 
-    n_grid_wealth = options["grid_points_wealth"]
+    current_policy[0, 1:] = endog_wealth_grid
+    current_policy[1, 1:] = current_period_consumption
 
-    current_policy = np.empty((2, int(1.1 * n_grid_wealth)))
-    current_policy[:] = np.nan
-    current_policy[0, 1 : n_grid_wealth + 1] = endog_wealth_grid
-    current_policy[1, 1 : n_grid_wealth + 1] = current_period_consumption
+    current_value[0, 1:] = endog_wealth_grid
+    current_value[1, 1:] = current_period_value
 
-    current_value = np.empty((2, int(1.1 * n_grid_wealth)))
-    current_value[:] = np.nan
-    current_value[0, 1 : n_grid_wealth + 1] = endog_wealth_grid
-    current_value[1, 1 : n_grid_wealth + 1] = current_period_value
-
-    current_policy, current_value = adjust_first_elements(
+    current_policy, current_value = set_first_elements(
         current_policy, current_value, expected_value
     )
 
     return current_policy, current_value, expected_value
 
 
-def adjust_first_elements(
+def set_first_elements(
     policy: np.ndarray, value: np.ndarray, expected_value: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    """
+    """Sets first value to expected value and the other elements to zero."""
     policy[0, 0] = 0
     policy[1, 0] = 0
 
@@ -171,6 +168,7 @@ def map_next_period_policy(
     """Computes consumption in the next period via linear interpolation.
     Extrapolate lineary in wealth regions beyond the grid, i.e. larger
     than "max_wealth" specifiec in the ``params`` dictionary.
+
     Args:
         policy (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific consumption policies of the next period. Dimensions 
@@ -187,6 +185,7 @@ def map_next_period_policy(
         matrix_next_period_wealth (np.ndarray): Array of all possible next period
             wealths with shape (n_quad_stochastic, n_grid_wealth).
         options (dict): Options dictionary.
+
     Returns:
         next_period_consumption_interp (np.ndarray): Array of next period
             consumption of shape (n_choices, n_quad_stochastic * n_grid_wealth).

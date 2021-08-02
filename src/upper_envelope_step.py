@@ -83,8 +83,8 @@ def do_upper_envelope_step(
             function have been added. Shape (2, *n_grid_refined*), where 
             *n_grid_refined* is the length of the *refined* endogenous wealth grid.
     """
-    policy = copy.deepcopy(policy[:, ~np.isnan(policy).any(axis=0)])
-    value = copy.deepcopy(value[:, ~np.isnan(value).any(axis=0)])
+    policy = copy.deepcopy(policy)
+    value = copy.deepcopy(value)
 
     min_wealth_grid = np.min(value[0, 1:])
 
@@ -121,7 +121,8 @@ def do_upper_envelope_step(
     else:
         policy_refined = policy
 
-    # NEW
+    # Fill array with nans to fit 10% extra grid points,
+    # since true shape unknown
     n_grid_wealth = options["grid_points_wealth"]
     policy_refined_with_nans = np.empty((2, int(1.1 * n_grid_wealth)))
     value_refined_with_nans = np.empty((2, int(1.1 * n_grid_wealth)))
@@ -174,7 +175,7 @@ def locate_non_concave_regions_and_refine(
     segments_non_mono = []
 
     # Find non-monotonicity in the endogenous wealth grid where grid point
-    # to the right that is smaller than the preceeding one.
+    # to the right is smaller than the preceeding one.
     is_monotonic = value_correspondence[0, 1:] > value_correspondence[0, :-1]
 
     lap = 1
@@ -183,9 +184,8 @@ def locate_non_concave_regions_and_refine(
     while move_right:
         index_non_monotonic = np.where(is_monotonic != is_monotonic[0])[0]
 
+        # Check if we are beyond the starting (left-most) point
         if len(index_non_monotonic) == 0:
-
-            # Check if we are beyond the starting (left-most) point
             if lap > 1:
                 segments_non_mono += [value_correspondence]
             move_right = False
@@ -206,11 +206,20 @@ def locate_non_concave_regions_and_refine(
 
     if len(segments_non_mono) > 1:
         segments_non_mono = [np.sort(i) for i in segments_non_mono]
+        print(f"segments_non_mono: {len(segments_non_mono)}")
         value_refined, points_to_add = _compute_upper_envelope(segments_non_mono,)
+
+        print(
+            f"value_refined: {value_refined.shape}, points_to_add: {points_to_add.shape}"
+        )
+
         index_dominated_points = _find_dominated_points(value, value_refined, 10)
+
+        print(f"index_dominated_points: {index_dominated_points.shape}")
+
     else:
         value_refined = value
-        points_to_add = np.stack([np.array([]), np.array([])])
+        points_to_add = np.vstack([np.array([]), np.array([])])
         index_dominated_points = np.array([])
 
     return value_refined, points_to_add, index_dominated_points
@@ -409,7 +418,9 @@ def _compute_upper_envelope(
                 )
 
                 if np.all(
-                    np.isfinite(np.stack([values_first_segment, values_second_segment]))
+                    np.isfinite(
+                        np.vstack([values_first_segment, values_second_segment])
+                    )
                 ) and np.all(np.abs(values_first_segment - values_second_segment) > 0):
                     intersect_point = root(
                         _subtract_values,
@@ -527,13 +538,13 @@ def _augment_grid(
         compute_utility(grid_points_to_add, state=1, params=params)
         + beta * expected_value[0]
     )
-    value_augmented = np.stack(
+    value_augmented = np.vstack(
         [
             np.append(grid_points_to_add, value[0, 1:]),
             np.append(values_to_add, value[1, 1:]),
         ]
     )
-    policy_augmented = np.stack(
+    policy_augmented = np.vstack(
         [
             np.append(grid_points_to_add, policy[0, 1:]),
             np.append(grid_points_to_add, policy[1, 1:]),
@@ -564,7 +575,8 @@ def _partition_grid(
         part_two (np.ndarray): Array of shape (2, ``j``:) containing the second partition.
     """
     j = value_correspondence.shape[1] if j > value_correspondence.shape[1] else j
-    part_one = np.stack(
+
+    part_one = np.vstack(
         [
             value_correspondence[0, : j + 1],  # endogenous wealth grid
             value_correspondence[1, : j + 1],  # corresponding value function
@@ -572,7 +584,7 @@ def _partition_grid(
     )
 
     # Include boundary points in both partitions
-    part_two = np.stack([value_correspondence[0, j:], value_correspondence[1, j:]])
+    part_two = np.vstack([value_correspondence[0, j:], value_correspondence[1, j:]])
 
     return part_one, part_two
 

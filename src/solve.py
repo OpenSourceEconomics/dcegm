@@ -102,15 +102,17 @@ def solve_dcegm(
     current_policy_function = dict()
     current_value_function = dict()
     for index, state in enumerate(choice_range):
-        final_policy = policy_arr[n_periods - 1, index, :]
+        final_policy = policy_arr[n_periods - 1, index, :][
+            :, ~np.isnan(policy_arr[n_periods - 1, index, :]).any(axis=0),
+        ]
+
         current_policy_function[state] = partial(
-            interpolate_policy,
-            policy=final_policy[:, ~np.isnan(final_policy).any(axis=0)],
+            interpolate_policy, policy=final_policy,
         )
 
         current_value_function[state] = partial(
             utility_functions["utility"], state=state, params=params
-        )  # input: consumption=matrix_next_period_wealth
+        )
 
     # Start backwards induction from second to last period (T - 1)
     for period in range(n_periods - 2, -1, -1):
@@ -143,21 +145,22 @@ def solve_dcegm(
                     options=options,
                     compute_utility=utility_functions["utility"],
                 )
+            else:
+                pass
 
             current_value_function[state] = partial(
                 interpolate_value,
-                value=current_value[:, ~np.isnan(current_value).any(axis=0)],
+                value=current_value,
                 state=state,
                 params=params,
                 utility_func=utility_functions["utility"],
             )
 
             current_policy_function[state] = partial(
-                interpolate_policy,
-                policy=current_policy[:, ~np.isnan(current_policy).any(axis=0)],
+                interpolate_policy, policy=current_policy,
             )
 
-            # Append to list
+            # Store
             policy_arr[period, index, :, : current_policy.shape[1]] = current_policy
             value_arr[period, index, :, : current_value.shape[1]] = current_value
 
@@ -167,6 +170,7 @@ def solve_dcegm(
 def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarray:
     """
     """
+    policy = policy[:, ~np.isnan(policy).any(axis=0)]
     policy_interp = np.empty(flat_wealth.shape)
 
     interpolation_func = interpolate.interp1d(
@@ -192,6 +196,7 @@ def interpolate_value(
     """
     
     """
+    value = value[:, ~np.isnan(value).any(axis=0)]
     value_interp = np.empty(wealth.shape)
 
     # Mark credit constrained region
