@@ -39,26 +39,6 @@ def utility_func_crra(
     return utility
 
 
-def _marginal_utility_crra(consumption: np.ndarray, params: pd.DataFrame) -> np.ndarray:
-    """Computes marginal utility of CRRA utility function.
-
-    Args:
-        consumption (np.ndarray): Level of the agent's consumption.
-            Array of shape (n_quad_stochastic * n_grid_wealth,).
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
-            Relevant here is the CRRA coefficient theta.
-
-    Returns:
-        marginal_utility (np.ndarray): Marginal utility of CRRA consumption
-            function. Array of shape (n_quad_stochastic * n_grid_wealth,).
-    """
-    theta = params.loc[("utility_function", "theta"), "value"]
-    marginal_utility = consumption ** (-theta)
-
-    return marginal_utility
-
-
 def inverse_marginal_utility_crra(
     marginal_utility: np.ndarray, params: pd.DataFrame,
 ) -> np.ndarray:
@@ -69,6 +49,7 @@ def inverse_marginal_utility_crra(
             Array of shape (n_grid_wealth,).
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
+            
     Returns:
         inverse_marginal_utility(np.ndarray): Inverse of the marginal utility of
             a CRRA consumption function. Array of shape (n_grid_wealth,).
@@ -176,6 +157,26 @@ def compute_expected_value(
     return expected_value
 
 
+def _marginal_utility_crra(consumption: np.ndarray, params: pd.DataFrame) -> np.ndarray:
+    """Computes marginal utility of CRRA utility function.
+
+    Args:
+        consumption (np.ndarray): Level of the agent's consumption.
+            Array of shape (n_quad_stochastic * n_grid_wealth,).
+        params (pd.DataFrame): Model parameters indexed with multi-index of the
+            form ("category", "name") and two columns ["value", "comment"].
+            Relevant here is the CRRA coefficient theta.
+
+    Returns:
+        marginal_utility (np.ndarray): Marginal utility of CRRA consumption
+            function. Array of shape (n_quad_stochastic * n_grid_wealth,).
+    """
+    theta = params.loc[("utility_function", "theta"), "value"]
+    marginal_utility = consumption ** (-theta)
+
+    return marginal_utility
+
+
 def _calc_next_period_choice_probs(
     next_period_value: np.ndarray,
     state: int,
@@ -237,7 +238,7 @@ def _calc_logsum(next_period_value: np.ndarray, lambda_: float) -> np.ndarray:
     col_max = np.amax(next_period_value, axis=0)
     next_period_value_ = next_period_value - col_max
 
-    # Eq. (14), p. 334 IJRS (2017
+    # Eq. (14), p. 334 IJRS (2017)
     logsum = col_max + lambda_ * np.log(
         np.sum(np.exp((next_period_value_) / lambda_), axis=0)
     )
