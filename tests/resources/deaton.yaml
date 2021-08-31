@@ -1,0 +1,6 @@
+n_periods: 25
+min_age: 20
+n_discrete_choices: 1
+grid_points_wealth: 100
+quadrature_points_stochastic: 10
+n_simulations: 10

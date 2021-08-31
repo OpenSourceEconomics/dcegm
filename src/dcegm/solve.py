@@ -8,11 +8,11 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
-from egm_step import do_egm_step
+from dcegm.egm_step import do_egm_step
+from dcegm.upper_envelope_step import do_upper_envelope_step
 from scipy import interpolate
 from scipy.special.orthogonal import roots_sh_legendre
 from scipy.stats import norm
-from upper_envelope_step import do_upper_envelope_step
 
 
 def solve_dcegm(

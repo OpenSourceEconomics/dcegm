@@ -3,7 +3,7 @@ repos:
     rev: v4.0.1
     hooks:
     -   id: check-added-large-files
-        args: ['--maxkb=30']
+        args: ['--maxkb=400']
     -   id: check-case-conflict
     -   id: check-merge-conflict
     -   id: check-vcs-permalinks
