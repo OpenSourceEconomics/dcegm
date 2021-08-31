@@ -1,6 +1,20 @@
-__pxcache__/
-__pycache__/
+# Files
+.coverage
+coverage.*
 .pyc
-.ipynb_checkpoints/
 .DS_Store
 .txt
+
+# Folders
+.idea
+.ipynb_checkpoints
+.tox
+.vscode
+_build
+_generated
+__pxcache__
+__pycache__
+.ipynb_checkpoints
+
+*.egg-info
+.eggs
