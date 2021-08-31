@@ -18,3 +18,7 @@ __pycache__
 
 *.egg-info
 .eggs
+
+_build
+dist
+src/dcegm/_version.py
