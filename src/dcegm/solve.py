@@ -87,8 +87,7 @@ def solve_dcegm(
     )
 
     # Make new function or move inside func:`solve_final_period`
-    current_policy_function = dict()
-    current_value_function = dict()
+    current_policy_function, current_value_function = {}, {}
     for index, state in enumerate(choice_range):
         final_policy = policy_arr[n_periods - 1, index, :][
             :,
@@ -111,7 +110,7 @@ def solve_dcegm(
         next_period_policy_function = current_policy_function
         next_period_value_function = current_value_function
 
-        current_policy_function, current_value_function = dict(), dict()
+        current_policy_function, current_value_function = {}, {}
 
         for index, state in enumerate(choice_range):
             current_policy, current_value, expected_value = do_egm_step(
@@ -321,7 +320,7 @@ def _create_multi_dim_arrays(
     discontinuities) near the start of the grid.
 
     We include one additional grid point (n_grid_wealth + 1) to M,
-    since we want to set the first positon (j=0) to M_t = 0 for all time
+    since we want to set the first position (j=0) to M_t = 0 for all time
     periods.
 
     Moreover, the lists have variable length, because the Upper Envelope step

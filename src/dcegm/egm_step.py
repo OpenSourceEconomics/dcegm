@@ -1,12 +1,11 @@
 """Implementation of the EGM algorithm."""
-from typing import Callable, Dict, List, Tuple
-from functools import partial
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Tuple
 
 import numpy as np
-from numpy.lib.index_tricks import nd_grid
 import pandas as pd
-
-from scipy import interpolate
 
 
 def do_egm_step(
@@ -34,27 +33,27 @@ def do_egm_step(
             (iii) associated quadrature weights (also an array of shape
             (n_quad_stochastic, )).
         utility_functions (Dict[str, callable]): Dictionary of three user-supplied
-            functions for computation of (i) utility, (ii) inverse marginal utility, 
+            functions for computation of (i) utility, (ii) inverse marginal utility,
             and (iii) next period marginal utility.
-        compute_expected_value (callable): User-supplied functions for computation 
+        compute_expected_value (callable): User-supplied functions for computation
             of the agent's expected value.
         next_period_policy_function (Dict[int, callable]): Dictionary of partial
-            functions (one for each discrete choice) functions to compute agent's 
-            choice-specific policy function of the next period. 
+            functions (one for each discrete choice) functions to compute agent's
+            choice-specific policy function of the next period.
             It takes the current period matrix of potential next-period wealths
             as input.
         next_period_value_function (Dict[int, callable]): Dictionary of partial
-            functions (one for each discrete choice) functions to compute agent's 
+            functions (one for each discrete choice) functions to compute agent's
             choice-specific value function of the next period.
             It takes the current period matrix of potential next-period wealths
             as input.
 
     Returns:
         (tuple) Tuple containing
-        
+
         - policy (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific consumption policies. Dimensions of the list are:
-            [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*]. 
+            [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*].
         - value (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific value functions. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*].
@@ -172,9 +171,13 @@ def get_next_period_wealth_matrices(
         period + 1, shocks, params=params, options=options
     )
 
-    matrix_next_period_wealth = np.full(
-        (n_grid_wealth, n_quad_stochastic), next_period_income * state,
-    ).T + np.full((n_quad_stochastic, n_grid_wealth), savings * (1 + r))
+    matrix_next_period_wealth = (
+        np.full(
+            (n_grid_wealth, n_quad_stochastic),
+            next_period_income * state,
+        ).T
+        + np.full((n_quad_stochastic, n_grid_wealth), savings * (1 + r))
+    )
 
     # Retirement safety net, only in retirement model
     consump_floor_index = ("assets", "consumption_floor")
@@ -205,7 +208,7 @@ def get_next_period_value(
             wealths with shape (n_quad_stochastic, n_grid_wealth).
         options (dict): Options dictionary.
         next_period_value_function (Dict[int, callable]): Dictionary of partial
-            functions (one for each discrete choice) functions to compute agent's 
+            functions (one for each discrete choice) functions to compute agent's
             choice-specific value function of the next period.
             It takes the current period matrix of potential next-period wealths
             as input.
@@ -249,16 +252,16 @@ def get_next_period_policy(
 
     Args:
         policy (List[np.ndarray]): Nested list of np.ndarrays storing the
-            choice-specific consumption policies of the next period. Dimensions 
-            of the list are: [n_discrete_choices][2, *n_endog_wealth_grid*], where 
-            *n_endog_wealth_grid* is of variable length depending on the number of 
+            choice-specific consumption policies of the next period. Dimensions
+            of the list are: [n_discrete_choices][2, *n_endog_wealth_grid*], where
+            *n_endog_wealth_grid* is of variable length depending on the number of
             concurrent local optima for consumption. The arrays have shape
             [2, *n_endog_wealth_grid*] and are initialized to
             *endog_wealth_grid* = n_grid_wealth + 1. We include one additional
             grid point to the left of the endogenous wealth grid, which we set
-            to zero (that's why we have n_grid_wealth + 1 initial points). 
-            Position [0, :] of the arrays contain the endogenous grid over wealth M, 
-            and [1, :] stores the corresponding value of the (consumption) policy 
+            to zero (that's why we have n_grid_wealth + 1 initial points).
+            Position [0, :] of the arrays contain the endogenous grid over wealth M,
+            and [1, :] stores the corresponding value of the (consumption) policy
             function c(M, d), for each time period and each discrete choice.
         matrix_next_period_wealth (np.ndarray): Array of all possible next period
             wealths with shape (n_quad_stochastic, n_grid_wealth).
@@ -303,16 +306,16 @@ def get_current_period_policy(
         state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
         true_next_period_policy (List[np.ndarray]): Nested list of np.ndarrays storing
             choice-specific consumption policies. Dimensions of the list are:
-            [n_discrete_choices][2, *n_endog_wealth_grid*], where 
-            *n_endog_wealth_grid* is of variable length depending on the number of 
+            [n_discrete_choices][2, *n_endog_wealth_grid*], where
+            *n_endog_wealth_grid* is of variable length depending on the number of
             concurrent local optima for consumption. The arrays have shape
             [2, *n_endog_wealth_grid*] and are initialized to
             *endog_wealth_grid* = n_grid_wealth + 1. We include one additional
             grid point to the left of the endogenous wealth grid, which we set
-            to zero (that's why we have n_grid_wealth + 1 initial points). 
-            Position [0, :] of the arrays contain the endogenous grid over wealth M, 
-            and [1, :] stores the corresponding value of the (consumption) policy 
-            function c(M, d), for each time period and each discrete choice. 
+            to zero (that's why we have n_grid_wealth + 1 initial points).
+            Position [0, :] of the arrays contain the endogenous grid over wealth M,
+            and [1, :] stores the corresponding value of the (consumption) policy
+            function c(M, d), for each time period and each discrete choice.
             exogenous savings grid.
         matrix_next_period_wealth (np.ndarray): Array of all possible next period
             wealths with shape (n_quad_stochastic, n_grid_wealth).
@@ -328,7 +331,7 @@ def get_current_period_policy(
             of shape (n_quad_stochastic,). Used for integration over the
             stochastic income component in the Euler equation.
         utility_functions (Dict[str, callable]): Dictionary of three user-supplied
-            functions for computation of (i) utility, (ii) inverse marginal utility, 
+            functions for computation of (i) utility, (ii) inverse marginal utility,
             and (iii) next period marginal utility.
 
     Returns:
@@ -374,7 +377,7 @@ def get_endogenous_wealth_grid(
             period. Array of shape (n_grid_wealth,).
         exog_savings_grid (np.ndarray): Exogenous grid over savings.
             Array of shape (n_grid_wealth,).
-       
+
     Returns:
         endog_wealth_grid (np.ndarray): Endogenous wealth grid of shape
             (n_grid_wealth,).
@@ -396,7 +399,7 @@ def get_expected_and_current_period_value(
     compute_expected_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Computes the expected (next-period) value and the current period's value.
-    
+
     Args:
         state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
         next_period_value (np.ndarray): Array containing values of next period
@@ -414,9 +417,9 @@ def get_expected_and_current_period_value(
         options (dict): Options dictionary.
         value_functions (Dict[str, callable]): Dictionary of three user-supplied
             functions for computation of the agent's (i) value function before
-            the final period, (ii) value function in the final period, 
+            the final period, (ii) value function in the final period,
             and (iii) the expected value.
-    
+
     Returns:
         expected_value (np.ndarray): Expected value of next period. Array of
             shape (n_grid_wealth,).
@@ -452,11 +455,11 @@ def _calc_stochastic_income(
     Relevant for the wage equation (deterministic income) are age-dependent
     coefficients of work experience:
     labor_income = constant + alpha_1 * age + alpha_2 * age**2
-    They include a constant as well as two coefficents on age and age squared,
+    They include a constant as well as two coefficients on age and age squared,
     respectively. Note that the last one (alpha_2) typically has a negative sign.
 
     Args:
-        period (int): Curent period t.
+        period (int): Current period t.
         shock (float): Stochastic shock on labor income, which may or may not
             be normally distributed.
         params (pd.DataFrame): Model parameters indexed with multi-index of the
@@ -470,13 +473,11 @@ def _calc_stochastic_income(
             stochastic shock.
     """
     # For simplicity, assume current_age - min_age = experience
-    # TODO: Allow age and work experience to differ,
-    # i.e. allow for unemployment spells
     min_age = options["min_age"]
     age = period + min_age
 
-    # Determinisctic component of income depending on experience
-    # labor_income = constant + alpha_1 * age + alpha_2 * age**2
+    # Determinisctic component of income depending on experience:
+    # constant + alpha_1 * age + alpha_2 * age**2
     exp_coeffs = np.asarray(params.loc["wage", "value"])
     labor_income = exp_coeffs @ (age ** np.arange(len(exp_coeffs)))
 
@@ -503,7 +504,7 @@ def _calc_rhs_euler(
         quad_weights (np.ndarray): Weights associated with the quadrature points
             of shape (n_quad_stochastic,). Used for integration over the
             stochastic income component in the Euler equation.
-            
+
     Returns:
         rhs_euler (np.ndarray): Right-hand side of the Euler equation.
             Shape (n_grid_wealth,).

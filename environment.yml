@@ -5,25 +5,25 @@ channels:
   - conda-forge
 
 dependencies:
-  - python >= 3.6
+  - python >=3.7
   - pip
   - pytest
+  - pytest-cov
 
-  - jupyterlab
-  - nb_conda_kernels
-  - nb_black
-
-  - numpy 
-  - pandas
+  # Package dependencies
+  - estimagic
+  - numpy
   - scipy
+  - numba
+  - pandas
+  - jax
+  - networkx
 
-  - matplotlib
-
+  # Misc
   - black
   - flake8
   - pdbpp
   - pre-commit
-
   - setuptools_scm
   - toml
 
@@ -31,6 +31,4 @@ dependencies:
   - anaconda-client
   - conda-build
   - conda-verify
-
-  - pytest-cov
   - tox-conda

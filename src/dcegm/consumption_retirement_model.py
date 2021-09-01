@@ -40,7 +40,8 @@ def utility_func_crra(
 
 
 def inverse_marginal_utility_crra(
-    marginal_utility: np.ndarray, params: pd.DataFrame,
+    marginal_utility: np.ndarray,
+    params: pd.DataFrame,
 ) -> np.ndarray:
     """Computes the inverse marginal utility of a CRRA utility function.
 
@@ -49,7 +50,7 @@ def inverse_marginal_utility_crra(
             Array of shape (n_grid_wealth,).
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
-            
+
     Returns:
         inverse_marginal_utility(np.ndarray): Inverse of the marginal utility of
             a CRRA consumption function. Array of shape (n_grid_wealth,).
@@ -68,12 +69,12 @@ def compute_next_period_marginal_utility(
     options: Dict[str, int],
 ) -> np.ndarray:
     """Computes the marginal utility of the next period.
-    
+
     Args:
         period (int): Current period t.
         state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
-        next_period_consumption (np.ndarray): Array of next period consumption 
-            of shape (n_choices, n_quad_stochastic * n_grid_wealth). Contains 
+        next_period_consumption (np.ndarray): Array of next period consumption
+            of shape (n_choices, n_quad_stochastic * n_grid_wealth). Contains
             interpolated values.
         next_period_value (np.ndarray): Array containing values of next period
             choice-specific value function.
@@ -184,7 +185,7 @@ def _calc_next_period_choice_probs(
     options: Dict[str, int],
 ) -> np.ndarray:
     """Calculates the probability of working in the next period.
-    
+
     Args:
         next_period_value (np.ndarray): Array containing values of next period
             choice-specific value function.
@@ -224,7 +225,7 @@ def _calc_logsum(next_period_value: np.ndarray, lambda_: float) -> np.ndarray:
 
     The log-sum formula may also be referred to as the 'smoothed max function',
     see eq. (50), p. 335 (Appendix).
-    
+
     Args:
         next_period_value (np.ndarray): Array containing values of next period
             choice-specific value function.
