@@ -1,4 +1,4 @@
-name: dcegm_old
+name: dcegm
 
 channels:
   - defaults
@@ -22,3 +22,4 @@ dependencies:
   - black
   - flake8
   - pdbpp
+  - pre-commit
