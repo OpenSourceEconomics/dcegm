@@ -40,7 +40,11 @@ def utility_functions():
 
 @pytest.mark.parametrize(
     "model, choice_range",
-    [("deaton", [0]), ("retirement_taste_shocks", [1, 0])],
+    [
+        ("deaton", [0]),
+        ("retirement_taste_shocks", [1, 0]),
+        ("retirement_no_taste_shocks", [1, 0]),
+    ],
 )
 def test_benchmark_models(model, choice_range, utility_functions):
     params, options = get_example_model(f"{model}")

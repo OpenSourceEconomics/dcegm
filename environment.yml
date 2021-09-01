@@ -1,20 +1,14 @@
 name: dcegm
 
 channels:
+  - defaults
   - conda-forge
-  - nodefaults
-  - opensourceeconomics
 
 dependencies:
   - python >=3.7
   - pip
-  - setuptools_scm
-  - toml
-
-  # Conda
-  - anaconda-client
-  - conda-build
-  - conda-verify
+  - pytest
+  - pytest-cov
 
   # Package dependencies
   - estimagic
@@ -27,17 +21,14 @@ dependencies:
 
   # Misc
   - black
-  - jupyterlab
-  - matplotlib
-  - nb_black
-  - nodejs
+  - flake8
   - pdbpp
   - pre-commit
-  - pydot
-  - pytest
-  - pytest-cov
+  - setuptools_scm
+  - toml
+
+  # Conda
+  - anaconda-client
+  - conda-build
+  - conda-verify
   - tox-conda
-  - sphinx
-  - sphinx-panels
-  - sphinxcontrib-bibtex
-  - pydata-sphinx-theme>=0.3.0
