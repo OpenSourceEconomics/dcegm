@@ -1,4 +1,4 @@
-name: dcegm
+name: dcegm_old
 
 channels:
   - defaults
@@ -7,6 +7,7 @@ channels:
 dependencies:
   - python >= 3.6
   - pip
+  - pytest
 
   - jupyterlab
   - nb_conda_kernels
@@ -20,3 +21,4 @@ dependencies:
 
   - black
   - flake8
+  - pdbpp
