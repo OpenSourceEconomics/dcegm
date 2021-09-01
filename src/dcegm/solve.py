@@ -1,17 +1,18 @@
 """Interface for the DC-EGM algorithm."""
 import copy
-from typing import Callable, Dict, List, Tuple
 from functools import partial
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
-
-from scipy import interpolate
-from scipy.stats import norm
-from scipy.special.orthogonal import roots_sh_legendre
-
 from dcegm.egm_step import do_egm_step
 from dcegm.upper_envelope_step import do_upper_envelope_step
+from scipy import interpolate
+from scipy.special.orthogonal import roots_sh_legendre
+from scipy.stats import norm
 
 
 def solve_dcegm(
