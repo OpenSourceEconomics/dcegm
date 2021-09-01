@@ -23,3 +23,14 @@ dependencies:
   - flake8
   - pdbpp
   - pre-commit
+
+  - setuptools_scm
+  - toml
+
+  # Conda
+  - anaconda-client
+  - conda-build
+  - conda-verify
+
+  - pytest-cov
+  - tox-conda
