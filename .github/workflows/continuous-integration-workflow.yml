@@ -4,7 +4,6 @@ on:
   push:
     branches:
     - main
-    - known_shapes
   pull_request:
     branches:
     - '*'
