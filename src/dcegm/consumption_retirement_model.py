@@ -1,5 +1,6 @@
 """Model specific utility, wealth, and value functions."""
 from typing import Dict
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -245,3 +246,127 @@ def _calc_logsum(next_period_value: np.ndarray, lambda_: float) -> np.ndarray:
     )
 
     return logsum
+
+
+def get_next_period_wealth_matrices(
+    period: int,
+    choice: int,
+    savings: np.ndarray,
+    quad_points: np.ndarray,
+    params: pd.DataFrame,
+    options: Dict[str, int],
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Computes all possible levels of next period (marginal) wealth M_(t+1).
+
+    Args:
+        period (int): Current period t.
+        choice (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
+        savings (np.ndarray): Array of shape (n_grid_wealth,) containing the
+            exogenous savings grid.
+        quad_points (np.ndarray): Array of shape (n_quad_stochastic,)
+            containing (normally distributed) stochastic income components,
+            which induce shocks to the wage equation.
+        params (pd.DataFrame): Model parameters indexed with multi-index of the
+            form ("category", "name") and two columns ["value", "comment"].
+        options (dict): Options dictionary.
+    Returns:
+        (tuple): Tuple containing
+        - matrix_next_period_wealth (np.ndarray): Array of all possible next period
+            wealths with shape (n_quad_stochastic, n_grid_wealth).
+    """
+    r = params.loc[("assets", "interest_rate"), "value"]
+    sigma = params.loc[("shocks", "sigma"), "value"]
+
+    n_grid_wealth = options["grid_points_wealth"]
+    n_quad_stochastic = options["quadrature_points_stochastic"]
+
+    # Calculate stochastic labor income
+    shocks = quad_points * sigma
+    next_period_income = _calc_stochastic_income(
+        period + 1, shocks, params=params, options=options
+    )
+
+    matrix_next_period_wealth = np.full(
+        (n_grid_wealth, n_quad_stochastic),
+        next_period_income * choice,
+    ).T + np.full((n_quad_stochastic, n_grid_wealth), savings * (1 + r))
+
+    # Retirement safety net, only in retirement model
+    consump_floor_index = ("assets", "consumption_floor")
+    if (
+        consump_floor_index in params.index
+        or params.loc[consump_floor_index, "value"] > 0
+    ):
+        consump_floor = params.loc[consump_floor_index, "value"]
+
+        matrix_next_period_wealth[
+            matrix_next_period_wealth < consump_floor
+        ] = consump_floor
+
+    return matrix_next_period_wealth
+
+
+def calc_next_period_marginal_wealth(state, params, options):
+    """
+    Calculate next periods marginal wealth.
+    Args:
+        state (np.ndarray): The current state.
+        params (pd.DataFrame): Model parameters indexed with multi-index of the
+            form ("category", "name") and two columns ["value", "comment"].
+        options (dict): Options dictionary.
+
+    Returns:
+        - next_period_marginal_wealth (np.ndarray): Array of all possible next period
+            marginal wealths. Also of shape (n_quad_stochastic, n_grid_wealth).
+
+    """
+    r = params.loc[("assets", "interest_rate"), "value"]
+    n_grid_wealth = options["grid_points_wealth"]
+    n_quad_stochastic = options["quadrature_points_stochastic"]
+
+    out = np.full((n_quad_stochastic, n_grid_wealth), (1 + r))
+
+    return out
+
+
+def _calc_stochastic_income(
+    period: int, shock: float, params: pd.DataFrame, options: Dict[str, int]
+) -> float:
+    """Computes the current level of deterministic and stochastic income.
+
+    Note that income is paid at the end of the current period, i.e. after
+    the (potential) labor supply choice has been made. This is equivalent to
+    allowing income to be dependent on a lagged choice of labor supply.
+    The agent starts working in period t = 0.
+    Relevant for the wage equation (deterministic income) are age-dependent
+    coefficients of work experience:
+    labor_income = constant + alpha_1 * age + alpha_2 * age**2
+    They include a constant as well as two coefficients on age and age squared,
+    respectively. Note that the last one (alpha_2) typically has a negative sign.
+
+    Args:
+        period (int): Current period t.
+        shock (float): Stochastic shock on labor income, which may or may not
+            be normally distributed.
+        params (pd.DataFrame): Model parameters indexed with multi-index of the
+            form ("category", "name") and two columns ["value", "comment"].
+            Relevant here are the coefficients of the wage equation.
+        options (dict): Options dictionary.
+
+    Returns:
+        stochastic_income (float): End of period income composed of a
+            deterministic component, i.e. age-dependent labor income, and a
+            stochastic shock.
+    """
+    # For simplicity, assume current_age - min_age = experience
+    min_age = options["min_age"]
+    age = period + min_age
+
+    # Determinisctic component of income depending on experience:
+    # constant + alpha_1 * age + alpha_2 * age**2
+    exp_coeffs = np.asarray(params.loc["wage", "value"])
+    labor_income = exp_coeffs @ (age ** np.arange(len(exp_coeffs)))
+
+    stochastic_income = np.exp(labor_income + shock)
+
+    return stochastic_income
