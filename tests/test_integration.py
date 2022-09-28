@@ -10,6 +10,7 @@ from dcegm.consumption_retirement_model import compute_next_period_marginal_util
 from dcegm.consumption_retirement_model import inverse_marginal_utility_crra
 from dcegm.consumption_retirement_model import utility_func_crra
 from dcegm.solve import solve_dcegm
+from dcegm.state_space import create_state_space
 from numpy.testing import assert_array_almost_equal as aaae
 
 # Obtain the test directory of the package.
@@ -49,6 +50,8 @@ def utility_functions():
 def test_benchmark_models(model, choice_range, utility_functions):
     params, options = get_example_model(f"{model}")
 
+    state_space, indexer = create_state_space(options)
+
     policy_calculated, value_calculated = solve_dcegm(
         params,
         options,
@@ -62,6 +65,9 @@ def test_benchmark_models(model, choice_range, utility_functions):
     value_expected = pickle.load(open(TEST_RESOURCES_DIR / f"value_{model}.pkl", "rb"))
 
     for period in range(23, -1, -1):
+        relevant_subset_state = state_space[np.where(state_space[:, 0] == period)][0]
+
+        state_index = indexer[relevant_subset_state[0], relevant_subset_state[1]]
         for choice in choice_range:
             if model == "deaton":
                 policy_expec = policy_expected[period, choice]
@@ -71,16 +77,16 @@ def test_benchmark_models(model, choice_range, utility_functions):
                 value_expec = value_expected[period][choice].T
 
             aaae(
-                policy_calculated[period, choice, :][
+                policy_calculated[state_index, choice, :][
                     :,
-                    ~np.isnan(policy_calculated[period, choice, :]).any(axis=0),
+                    ~np.isnan(policy_calculated[state_index, choice, :]).any(axis=0),
                 ],
                 policy_expec,
             )
             aaae(
-                value_calculated[period, choice, :][
+                value_calculated[state_index, choice, :][
                     :,
-                    ~np.isnan(value_calculated[period, choice, :]).any(axis=0),
+                    ~np.isnan(value_calculated[state_index, choice, :]).any(axis=0),
                 ],
                 value_expec,
             )

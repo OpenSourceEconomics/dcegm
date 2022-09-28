@@ -81,6 +81,8 @@ def solve_dcegm(
 
     policy_arr, value_arr = _create_multi_dim_arrays(state_space, options)
     policy_arr, value_arr = solve_final_period(
+        state_space,
+        indexer,
         policy_arr,
         value_arr,
         savings_grid=savings_grid,
@@ -99,7 +101,7 @@ def solve_dcegm(
         subset_states = state_space[np.where(state_space[:, 0] == period)]
 
         for state in subset_states:
-            current_state_index = indexer[state[0]]
+            current_state_index = indexer[state[0], state[1]]
 
             next_period_policy = current_policy
             next_period_value = current_value
@@ -156,6 +158,8 @@ def solve_dcegm(
 
 
 def solve_final_period(
+    state_space,
+    indexer,
     policy: np.ndarray,
     value: np.ndarray,
     savings_grid: np.ndarray,
@@ -202,23 +206,29 @@ def solve_final_period(
 
     # In last period, nothing is saved for the next period (since there is none).
     # Hence, everything is consumed, c_T(M, d) = M
-    end_grid = savings_grid.shape[0] + 1
-    for index, choice in enumerate(choice_range):
-        policy[n_periods - 1, index, 0, 1:end_grid] = copy.deepcopy(savings_grid)  # M
-        policy[n_periods - 1, index, 1, 1:end_grid] = copy.deepcopy(
-            policy[n_periods - 1, index, 0, 1:end_grid]
-        )  # c(M, d)
-        policy[n_periods - 1, index, 0, 0] = 0
-        policy[n_periods - 1, index, 1, 0] = 0
 
-        value[n_periods - 1, index, 0, 2:end_grid] = compute_utility(
-            policy[n_periods - 1, index, 0, 2:end_grid], choice, params
-        )
-        value[n_periods - 1, index][1, 2:end_grid] = compute_utility(
-            policy[n_periods - 1, index, 1, 2:end_grid], choice, params
-        )
-        value[n_periods - 1, index, 0, 0] = 0
-        value[n_periods - 1, index, :, 2] = 0
+    states_last_period = state_space[np.where(state_space[:, 0] == n_periods - 1)]
+
+    end_grid = savings_grid.shape[0] + 1
+    for state in states_last_period:
+        state_index = indexer[state[0], state[1]]
+
+        for index, choice in enumerate(choice_range):
+            policy[state_index, index, 0, 1:end_grid] = copy.deepcopy(savings_grid)  # M
+            policy[state_index, index, 1, 1:end_grid] = copy.deepcopy(
+                policy[state_index, index, 0, 1:end_grid]
+            )  # c(M, d)
+            policy[state_index, index, 0, 0] = 0
+            policy[state_index, index, 1, 0] = 0
+
+            value[state_index, index, 0, 2:end_grid] = compute_utility(
+                policy[state_index, index, 0, 2:end_grid], choice, params
+            )
+            value[state_index, index][1, 2:end_grid] = compute_utility(
+                policy[state_index, index, 1, 2:end_grid], choice, params
+            )
+            value[state_index, index, 0, 0] = 0
+            value[state_index, index, :, 2] = 0
 
     return policy, value
 
