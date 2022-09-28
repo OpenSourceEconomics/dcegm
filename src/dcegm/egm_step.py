@@ -19,13 +19,13 @@ def do_egm_step(
     compute_expected_value: Callable,
     next_period_policy_function: Dict[int, Callable],
     next_period_value_function: Dict[int, Callable]
-) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
     Args:
         period (int): Current period t.
         state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
+        params (pd.DataFrame): Model parameters indexed with multi-index of the form
+            ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
         exogenous_grid (Dict[str, np.ndarray]): Dictionary containing the
             exogenous grids of (i) savings (array of shape (n_grid_wealth, ))
@@ -57,6 +57,8 @@ def do_egm_step(
         - value (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific value functions. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*].
+        - expected_value: The expected value of continuation
+
     """
     n_grid_wealth = options["grid_points_wealth"]
     current_policy = np.empty((2, n_grid_wealth + 1))
@@ -171,13 +173,10 @@ def get_next_period_wealth_matrices(
         period + 1, shocks, params=params, options=options
     )
 
-    matrix_next_period_wealth = (
-        np.full(
-            (n_grid_wealth, n_quad_stochastic),
-            next_period_income * state,
-        ).T
-        + np.full((n_quad_stochastic, n_grid_wealth), savings * (1 + r))
-    )
+    matrix_next_period_wealth = np.full(
+        (n_grid_wealth, n_quad_stochastic),
+        next_period_income * state,
+    ).T + np.full((n_quad_stochastic, n_grid_wealth), savings * (1 + r))
 
     # Retirement safety net, only in retirement model
     consump_floor_index = ("assets", "consumption_floor")
