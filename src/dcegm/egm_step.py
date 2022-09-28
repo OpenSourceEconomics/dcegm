@@ -5,12 +5,14 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
+from dcegm.consumption_retirement_model import calc_next_period_marginal_wealth
+from dcegm.consumption_retirement_model import get_next_period_wealth_matrices
 from scipy import interpolate
 
 
 def do_egm_step(
-    period: int,
     choice: int,
+    state: np.ndarray,
     *,
     params: pd.DataFrame,
     options: Dict[str, int],
@@ -23,10 +25,10 @@ def do_egm_step(
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
 
     Args:
-        period (int): Current period t.
         choice (int): Choice of the agent, e.g. 0 = "retirement", 1 = "working".
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
+        state (np.ndarray): Current individual state.
+        params (pd.DataFrame): Model parameters indexed with multi-index of the form
+            ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
         exogenous_grid (Dict[str, np.ndarray]): Dictionary containing the
             exogenous grids of (i) savings (array of shape (n_grid_wealth, ))
@@ -52,7 +54,8 @@ def do_egm_step(
         - value (List[np.ndarray]): Nested list of np.ndarrays storing the
             choice-specific value functions. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*].
-        - exected_value (np.ndarray)
+        - expected_value (np.ndarray): The expected value of continuation.
+
     """
     n_grid_wealth = options["grid_points_wealth"]
     current_policy = np.empty((2, n_grid_wealth + 1))
@@ -60,11 +63,8 @@ def do_egm_step(
 
     # 0) Preliminaries
     # Matrices of all possible next period wealths and marginal wealths
-    (
-        matrix_next_period_wealth,
-        next_period_marginal_wealth,
-    ) = get_next_period_wealth_matrices(
-        period,
+    matrix_next_period_wealth = get_next_period_wealth_matrices(
+        state,
         choice,
         params=params,
         options=options,
@@ -72,17 +72,21 @@ def do_egm_step(
         quad_points=exogenous_grid["quadrature_points"],
     )
 
+    next_period_marginal_wealth = calc_next_period_marginal_wealth(
+        state, params, options
+    )
+
     # Interpolate next period policy and values to match the
     # contemporary matrix of potential next period wealths
     next_period_policy = get_next_period_policy(
         matrix_next_period_wealth,
-        options=options,
         next_period_policy=next_period_policy,
+        options=options,
     )
 
     next_period_value = get_next_period_value(
         matrix_next_period_wealth=matrix_next_period_wealth,
-        period=period,
+        period=state[0],
         params=params,
         options=options,
         next_period_value=next_period_value,
@@ -131,73 +135,10 @@ def do_egm_step(
     return current_policy, current_value, expected_value
 
 
-def get_next_period_wealth_matrices(
-    period: int,
-    choice: int,
-    savings: np.ndarray,
-    quad_points: np.ndarray,
-    params: pd.DataFrame,
-    options: Dict[str, int],
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Computes all possible levels of next period (marginal) wealth M_(t+1).
-
-    Args:
-        period (int): Current period t.
-        choice (int): Choice of the agent, e.g. 0 = "retirement", 1 = "working".
-        savings (np.ndarray): Array of shape (n_grid_wealth,) containing the
-            exogenous savings grid.
-        quad_points (np.ndarray): Array of shape (n_quad_stochastic,)
-            containing (normally distributed) stochastic income components,
-            which induce shocks to the wage equation.
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
-        options (dict): Options dictionary.
-
-    Returns:
-        (tuple): Tuple containing
-        - matrix_next_period_wealth (np.ndarray): Array of all possible next period
-            wealths with shape (n_quad_stochastic, n_grid_wealth).
-        - next_period_marginal_wealth (np.ndarray): Array of all possible next period
-            marginal wealths. Also of shape (n_quad_stochastic, n_grid_wealth).
-    """
-    r = params.loc[("assets", "interest_rate"), "value"]
-    sigma = params.loc[("shocks", "sigma"), "value"]
-
-    n_grid_wealth = options["grid_points_wealth"]
-    n_quad_stochastic = options["quadrature_points_stochastic"]
-
-    # Calculate stochastic labor income
-    shocks = quad_points * sigma
-    next_period_income = _calc_stochastic_income(
-        period + 1, shocks, params=params, options=options
-    )
-
-    matrix_next_period_wealth = np.full(
-        (n_grid_wealth, n_quad_stochastic),
-        next_period_income * choice,
-    ).T + np.full((n_quad_stochastic, n_grid_wealth), savings * (1 + r))
-
-    # Retirement safety net, only in retirement model
-    consump_floor_index = ("assets", "consumption_floor")
-    if (
-        consump_floor_index in params.index
-        or params.loc[consump_floor_index, "value"] > 0
-    ):
-        consump_floor = params.loc[consump_floor_index, "value"]
-
-        matrix_next_period_wealth[
-            matrix_next_period_wealth < consump_floor
-        ] = consump_floor
-
-    next_period_marginal_wealth = np.full((n_quad_stochastic, n_grid_wealth), (1 + r))
-
-    return matrix_next_period_wealth, next_period_marginal_wealth
-
-
 def get_next_period_policy(
     matrix_next_period_wealth: np.ndarray,
-    options: Dict[str, int],
     next_period_policy: np.ndarray,
+    options: Dict[str, int],
 ) -> np.ndarray:
     """Computes the next-period policy via linear interpolation.
 
@@ -439,7 +380,6 @@ def get_expected_and_current_period_value(
     return expected_value, current_period_value
 
 
-# =====================================================================================
 def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarray:
     """Interpolate the agent's policy for given flat wealth matrix.
 
@@ -453,7 +393,6 @@ def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarra
             function c(M, d), for each time period and each discrete choice.
     """
     policy = policy[:, ~np.isnan(policy).any(axis=0)]
-    policy_interp = np.empty(flat_wealth.shape)
 
     interpolation_func = interpolate.interp1d(
         x=policy[0, :],
@@ -536,52 +475,6 @@ def _get_value_constrained(
     value_constrained = utility + beta * next_period_value
 
     return value_constrained
-
-
-# =====================================================================================
-
-
-def _calc_stochastic_income(
-    period: int, shock: float, params: pd.DataFrame, options: Dict[str, int]
-) -> float:
-    """Computes the current level of deterministic and stochastic income.
-
-    Note that income is paid at the end of the current period, i.e. after
-    the (potential) labor supply choice has been made. This is equivalent to
-    allowing income to be dependent on a lagged choice of labor supply.
-    The agent starts working in period t = 0.
-    Relevant for the wage equation (deterministic income) are age-dependent
-    coefficients of work experience:
-    labor_income = constant + alpha_1 * age + alpha_2 * age**2
-    They include a constant as well as two coefficients on age and age squared,
-    respectively. Note that the last one (alpha_2) typically has a negative sign.
-
-    Args:
-        period (int): Current period t.
-        shock (float): Stochastic shock on labor income, which may or may not
-            be normally distributed.
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
-            Relevant here are the coefficients of the wage equation.
-        options (dict): Options dictionary.
-
-    Returns:
-        stochastic_income (float): End of period income composed of a
-            deterministic component, i.e. age-dependent labor income, and a
-            stochastic shock.
-    """
-    # For simplicity, assume current_age - min_age = experience
-    min_age = options["min_age"]
-    age = period + min_age
-
-    # Determinisctic component of income depending on experience:
-    # constant + alpha_1 * age + alpha_2 * age**2
-    exp_coeffs = np.asarray(params.loc["wage", "value"])
-    labor_income = exp_coeffs @ (age ** np.arange(len(exp_coeffs)))
-
-    stochastic_income = np.exp(labor_income + shock)
-
-    return stochastic_income
 
 
 def _calc_rhs_euler(

@@ -134,3 +134,6 @@ venv.bak/
 
 
 *.~lock.*
+
+# Local envrc file
+*envrc

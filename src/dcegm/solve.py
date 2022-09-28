@@ -8,6 +8,7 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 from dcegm.egm_step import do_egm_step
+from dcegm.state_space import create_state_space
 from dcegm.upper_envelope_step import do_upper_envelope_step
 from scipy.special.orthogonal import roots_sh_legendre
 from scipy.stats import norm
@@ -64,19 +65,24 @@ def solve_dcegm(
 
     savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
 
+    state_space, indexer = create_state_space(options)
+
     # Gauss-Legendre (shifted) quadrature over the interval [0,1].
     # Standard Gauss-Legendre quadrature (scipy.special.roots_legendre)
     # integrates over [-1, 1].
     quad_points, quad_weights = roots_sh_legendre(n_quad_points)
     quad_points_normal = norm.ppf(quad_points)
+
     exogenous_grid = {
         "savings": savings_grid,
         "quadrature_points": quad_points_normal,
         "quadrature_weights": quad_weights,
     }
 
-    policy_arr, value_arr = _create_multi_dim_arrays(options)
+    policy_arr, value_arr = _create_multi_dim_arrays(state_space, options)
     policy_arr, value_arr = solve_final_period(
+        state_space,
+        indexer,
         policy_arr,
         value_arr,
         savings_grid=savings_grid,
@@ -85,54 +91,68 @@ def solve_dcegm(
         compute_utility=utility_functions["utility"],
     )
 
-    current_policy = policy_arr[n_periods - 1]
-    current_value = value_arr[n_periods - 1]
-
     # Backwards induction from second to last period (T - 1)
     for period in range(n_periods - 2, -1, -1):
 
-        next_period_policy = current_policy
-        next_period_value = current_value
+        subset_states = state_space[np.where(state_space[:, 0] == period)]
 
-        for index, choice in enumerate(choice_range):
+        for state in subset_states:
+            current_state_index = indexer[state[0], state[1]]
 
-            policy_choice_specific, value_choice_specific, expected_value = do_egm_step(
-                period,
-                choice,
-                params=params,
-                options=options,
-                exogenous_grid=exogenous_grid,
-                utility_functions=utility_functions,
-                compute_expected_value=compute_expected_value,
-                next_period_policy=next_period_policy,
-                next_period_value=next_period_value,
-            )
+            for choice_index, choice in enumerate(choice_range):
+                # Get child states!!!
+                next_period_policy = policy_arr[indexer[state[0] + 1, choice_index]]
+                next_period_value = value_arr[indexer[state[0] + 1, choice_index]]
 
-            if choice >= 1 and n_choices > 1:
-                policy_choice_specific, value_choice_specific = do_upper_envelope_step(
+                (
                     policy_choice_specific,
                     value_choice_specific,
-                    expected_value=expected_value,
+                    expected_value,
+                ) = do_egm_step(
+                    choice=choice,
+                    state=state,
                     params=params,
                     options=options,
-                    compute_utility=utility_functions["utility"],
+                    exogenous_grid=exogenous_grid,
+                    utility_functions=utility_functions,
+                    compute_expected_value=compute_expected_value,
+                    next_period_policy=next_period_policy,
+                    next_period_value=next_period_value,
                 )
 
-            # Store
-            policy_arr[
-                period, index, :, : policy_choice_specific.shape[1]
-            ] = policy_choice_specific
-            value_arr[
-                period, index, :, : value_choice_specific.shape[1]
-            ] = value_choice_specific
+                if choice >= 1 and n_choices > 1:
+                    (
+                        policy_choice_specific,
+                        value_choice_specific,
+                    ) = do_upper_envelope_step(
+                        policy_choice_specific,
+                        value_choice_specific,
+                        expected_value=expected_value,
+                        params=params,
+                        options=options,
+                        compute_utility=utility_functions["utility"],
+                    )
 
-        current_policy = policy_arr[period]
-        current_value = value_arr[period]
+                # Store
+                policy_arr[
+                    current_state_index,
+                    choice_index,
+                    :,
+                    : policy_choice_specific.shape[1],
+                ] = policy_choice_specific
+                value_arr[
+                    current_state_index,
+                    choice_index,
+                    :,
+                    : value_choice_specific.shape[1],
+                ] = value_choice_specific
 
     return policy_arr, value_arr
 
 
 def solve_final_period(
+    state_space,
+    indexer,
     policy: np.ndarray,
     value: np.ndarray,
     savings_grid: np.ndarray,
@@ -179,29 +199,35 @@ def solve_final_period(
 
     # In last period, nothing is saved for the next period (since there is none).
     # Hence, everything is consumed, c_T(M, d) = M
-    end_grid = savings_grid.shape[0] + 1
-    for index, choice in enumerate(choice_range):
-        policy[n_periods - 1, index, 0, 1:end_grid] = copy.deepcopy(savings_grid)  # M
-        policy[n_periods - 1, index, 1, 1:end_grid] = copy.deepcopy(
-            policy[n_periods - 1, index, 0, 1:end_grid]
-        )  # c(M, d)
-        policy[n_periods - 1, index, 0, 0] = 0
-        policy[n_periods - 1, index, 1, 0] = 0
+    states_last_period = state_space[np.where(state_space[:, 0] == n_periods - 1)]
 
-        value[n_periods - 1, index, 0, 2:end_grid] = compute_utility(
-            policy[n_periods - 1, index, 0, 2:end_grid], choice, params
-        )
-        value[n_periods - 1, index][1, 2:end_grid] = compute_utility(
-            policy[n_periods - 1, index, 1, 2:end_grid], choice, params
-        )
-        value[n_periods - 1, index, 0, 0] = 0
-        value[n_periods - 1, index, :, 2] = 0
+    end_grid = savings_grid.shape[0] + 1
+    for state in states_last_period:
+        state_index = indexer[state[0], state[1]]
+
+        for index, choice in enumerate(choice_range):
+            policy[state_index, index, 0, 1:end_grid] = copy.deepcopy(savings_grid)  # M
+            policy[state_index, index, 1, 1:end_grid] = copy.deepcopy(
+                policy[state_index, index, 0, 1:end_grid]
+            )  # c(M, d)
+            policy[state_index, index, 0, 0] = 0
+            policy[state_index, index, 1, 0] = 0
+
+            value[state_index, index, 0, 2:end_grid] = compute_utility(
+                policy[state_index, index, 0, 2:end_grid], choice, params
+            )
+            value[state_index, index][1, 2:end_grid] = compute_utility(
+                policy[state_index, index, 1, 2:end_grid], choice, params
+            )
+            value[state_index, index, 0, 0] = 0
+            value[state_index, index, :, 2] = 0
 
     return policy, value
 
 
 def _create_multi_dim_arrays(
-    options: Dict[str, int]
+    state_space: np.ndarray,
+    options: Dict[str, int],
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Create multi-diminesional array for storing the policy and value function.
 
@@ -221,6 +247,8 @@ def _create_multi_dim_arrays(
 
     Args:
         options (dict): Options dictionary.
+        states (np.ndarray): Collection of all possible states.
+
 
     Returns:
         (tuple): Tuple containing
@@ -239,11 +267,11 @@ def _create_multi_dim_arrays(
             v(M, d), for each time period and each discrete choice.
     """
     n_grid_wealth = options["grid_points_wealth"]
-    n_periods = options["n_periods"]
     n_choices = options["n_discrete_choices"]
+    n_states = state_space.shape[0]
 
-    policy_arr = np.empty((n_periods, n_choices, 2, int(1.1 * n_grid_wealth)))
-    value_arr = np.empty((n_periods, n_choices, 2, int(1.1 * n_grid_wealth)))
+    policy_arr = np.empty((n_states, n_choices, 2, int(1.1 * n_grid_wealth)))
+    value_arr = np.empty((n_states, n_choices, 2, int(1.1 * n_grid_wealth)))
     policy_arr[:] = np.nan
     value_arr[:] = np.nan
 
