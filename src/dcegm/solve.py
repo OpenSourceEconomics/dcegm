@@ -9,6 +9,7 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 from dcegm.egm_step import do_egm_step
+from dcegm.state_space import create_state_space
 from dcegm.upper_envelope_step import do_upper_envelope_step
 from scipy import interpolate
 from scipy.special.orthogonal import roots_sh_legendre
@@ -63,6 +64,8 @@ def solve_dcegm(
 
     savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
 
+    state_space, indexer = create_state_space(options)
+
     # Gauss-Legendre (shifted) quadrature over the interval [0,1].
     # Standard Gauss-Legendre quadrature (scipy.special.roots_legendre)
     # integrates over [-1, 1].
@@ -77,7 +80,7 @@ def solve_dcegm(
     # Create nested lists for consumption policy and value function.
     # We cannot use multi-dim np.ndarrays here, since the length of
     # the grid is altered by the Upper Envelope step!
-    policy_arr, value_arr = _create_multi_dim_arrays(options)
+    policy_arr, value_arr = _create_multi_dim_arrays(state_space, options)
     policy_arr, value_arr = solve_final_period(
         policy_arr,
         value_arr,
@@ -107,53 +110,57 @@ def solve_dcegm(
     # Start backwards induction from second to last period (T - 1)
     for period in range(n_periods - 2, -1, -1):
 
+        subset_states = state_space[np.where(state_space[:, 0] == period)]
+
         # Update and reset dictionaries
         next_period_policy_function = current_policy_function
         next_period_value_function = current_value_function
 
-        current_policy_function, current_value_function = {}, {}
+        for state in subset_states:
+            current_policy_function, current_value_function = {}, {}
 
-        for index, state in enumerate(choice_range):
-            current_policy, current_value, expected_value = do_egm_step(
-                period,
-                state,
-                params=params,
-                options=options,
-                exogenous_grid=exogenous_grid,
-                utility_functions=utility_functions,
-                compute_expected_value=compute_expected_value,
-                next_period_policy_function=next_period_policy_function,
-                next_period_value_function=next_period_value_function,
-            )
-
-            if state >= 1 and n_choices > 1:
-                current_policy, current_value = do_upper_envelope_step(
-                    current_policy,
-                    current_value,
-                    expected_value=expected_value,
+            for index, choice in enumerate(choice_range):
+                current_policy, current_value, expected_value = do_egm_step(
+                    period,
+                    choice,
+                    state,
                     params=params,
                     options=options,
+                    exogenous_grid=exogenous_grid,
+                    utility_functions=utility_functions,
+                    compute_expected_value=compute_expected_value,
+                    next_period_policy_function=next_period_policy_function,
+                    next_period_value_function=next_period_value_function,
+                )
+
+                if choice >= 1 and n_choices > 1:
+                    current_policy, current_value = do_upper_envelope_step(
+                        current_policy,
+                        current_value,
+                        expected_value=expected_value,
+                        params=params,
+                        options=options,
+                        compute_utility=utility_functions["utility"],
+                    )
+                else:
+                    pass
+
+                current_value_function[choice] = partial(
+                    interpolate_value,
+                    value=current_value,
+                    state=choice,
+                    params=params,
                     compute_utility=utility_functions["utility"],
                 )
-            else:
-                pass
 
-            current_value_function[state] = partial(
-                interpolate_value,
-                value=current_value,
-                state=state,
-                params=params,
-                compute_utility=utility_functions["utility"],
-            )
+                current_policy_function[choice] = partial(
+                    interpolate_policy,
+                    policy=current_policy,
+                )
 
-            current_policy_function[state] = partial(
-                interpolate_policy,
-                policy=current_policy,
-            )
-
-            # Store
-            policy_arr[period, index, :, : current_policy.shape[1]] = current_policy
-            value_arr[period, index, :, : current_value.shape[1]] = current_value
+                # Store
+                policy_arr[period, index, :, : current_policy.shape[1]] = current_policy
+                value_arr[period, index, :, : current_value.shape[1]] = current_value
 
     return policy_arr, value_arr
 
@@ -311,7 +318,8 @@ def solve_final_period(
 
 
 def _create_multi_dim_arrays(
-    options: Dict[str, int]
+    states: np.ndarray,
+    options: Dict[str, int],
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Create multi-diminesional array for storing the policy and value function.
 
@@ -331,6 +339,8 @@ def _create_multi_dim_arrays(
 
     Args:
         options (dict): Options dictionary.
+        states (np.ndarray): Collection of all possible states.
+
 
     Returns:
         (tuple): Tuple containing
@@ -349,11 +359,11 @@ def _create_multi_dim_arrays(
             v(M, d), for each time period and each discrete choice.
     """
     n_grid_wealth = options["grid_points_wealth"]
-    n_periods = options["n_periods"]
     n_choices = options["n_discrete_choices"]
+    n_states = states.shape[0]
 
-    policy_arr = np.empty((n_periods, n_choices, 2, int(1.1 * n_grid_wealth)))
-    value_arr = np.empty((n_periods, n_choices, 2, int(1.1 * n_grid_wealth)))
+    policy_arr = np.empty((n_states, n_choices, 2, int(1.1 * n_grid_wealth)))
+    value_arr = np.empty((n_states, n_choices, 2, int(1.1 * n_grid_wealth)))
     policy_arr[:] = np.nan
     value_arr[:] = np.nan
 
