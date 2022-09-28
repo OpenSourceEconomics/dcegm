@@ -121,7 +121,6 @@ def solve_dcegm(
 
             for index, choice in enumerate(choice_range):
                 current_policy, current_value, expected_value = do_egm_step(
-                    period,
                     choice,
                     state,
                     params=params,

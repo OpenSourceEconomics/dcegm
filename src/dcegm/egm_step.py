@@ -11,7 +11,6 @@ from dcegm.consumption_retirement_model import get_next_period_wealth_matrices
 
 
 def do_egm_step(
-    period: int,
     choice: int,
     state: np.ndarray,
     *,
@@ -25,7 +24,6 @@ def do_egm_step(
 ) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
     Args:
-        period (int): Current period t.
         state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
         params (pd.DataFrame): Model parameters indexed with multi-index of the form
             ("category", "name") and two columns ["value", "comment"].

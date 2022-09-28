@@ -249,7 +249,7 @@ def _calc_logsum(next_period_value: np.ndarray, lambda_: float) -> np.ndarray:
 
 
 def get_next_period_wealth_matrices(
-    period: int,
+    state,
     choice: int,
     savings: np.ndarray,
     quad_points: np.ndarray,
@@ -259,7 +259,7 @@ def get_next_period_wealth_matrices(
     """Computes all possible levels of next period (marginal) wealth M_(t+1).
 
     Args:
-        period (int): Current period t.
+        state (np.ndarray): The current state.
         choice (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
         savings (np.ndarray): Array of shape (n_grid_wealth,) containing the
             exogenous savings grid.
@@ -274,6 +274,7 @@ def get_next_period_wealth_matrices(
         - matrix_next_period_wealth (np.ndarray): Array of all possible next period
             wealths with shape (n_quad_stochastic, n_grid_wealth).
     """
+    period = state[0]
     r = params.loc[("assets", "interest_rate"), "value"]
     sigma = params.loc[("shocks", "sigma"), "value"]
 
