@@ -24,7 +24,7 @@ def do_egm_step(
 ) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
     Args:
-        state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
+        choice (int): Choice of the agent, e.g. 0 = "retirement", 1 = "working".
         params (pd.DataFrame): Model parameters indexed with multi-index of the form
             ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
