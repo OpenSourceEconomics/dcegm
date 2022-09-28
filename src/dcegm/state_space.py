@@ -13,7 +13,8 @@ def create_state_space(options):
 
     """
     n_periods = options["n_periods"]
-    n_choices = 2
+    n_choices = options["n_discrete_choices"]
+    n_choices = 1 if n_choices < 2 else n_choices
     shape = (n_periods, n_choices)
     indexer = np.full(shape, -9999, dtype=np.int64)
     data = []

@@ -101,8 +101,8 @@ def solve_dcegm(
 
             for choice_index, choice in enumerate(choice_range):
                 # Get child states!!!
-                next_period_policy = policy_arr[indexer[state[0] + 1, choice]]
-                next_period_value = value_arr[indexer[state[0] + 1, choice]]
+                next_period_policy = policy_arr[indexer[state[0] + 1, choice_index]]
+                next_period_value = value_arr[indexer[state[0] + 1, choice_index]]
 
                 (
                     policy_choice_specific,
