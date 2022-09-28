@@ -1,11 +1,11 @@
 name: dcegm
 
 channels:
-  - defaults
   - conda-forge
+  - defaults
 
 dependencies:
-  - python >=3.7
+  - python=3.9
   - pip
   - pytest
   - pytest-cov
@@ -20,6 +20,8 @@ dependencies:
   - networkx
 
   # Misc
+  - jupyterlab
+  - matplotlib
   - black
   - flake8
   - pdbpp
