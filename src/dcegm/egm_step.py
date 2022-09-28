@@ -393,7 +393,6 @@ def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarra
             function c(M, d), for each time period and each discrete choice.
     """
     policy = policy[:, ~np.isnan(policy).any(axis=0)]
-    policy_interp = np.empty(flat_wealth.shape)
 
     interpolation_func = interpolate.interp1d(
         x=policy[0, :],
