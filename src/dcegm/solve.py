@@ -91,10 +91,6 @@ def solve_dcegm(
         compute_utility=utility_functions["utility"],
     )
 
-    #
-    current_policy = policy_arr[n_periods - 1]
-    current_value = value_arr[n_periods - 1]
-
     # Backwards induction from second to last period (T - 1)
     for period in range(n_periods - 2, -1, -1):
 
@@ -103,10 +99,10 @@ def solve_dcegm(
         for state in subset_states:
             current_state_index = indexer[state[0], state[1]]
 
-            next_period_policy = current_policy
-            next_period_value = current_value
-
             for choice_index, choice in enumerate(choice_range):
+                # Get child states!!!
+                next_period_policy = policy_arr[indexer[state[0] + 1, choice]]
+                next_period_value = value_arr[indexer[state[0] + 1, choice]]
 
                 (
                     policy_choice_specific,
@@ -150,9 +146,6 @@ def solve_dcegm(
                     :,
                     : value_choice_specific.shape[1],
                 ] = value_choice_specific
-
-            current_policy = policy_arr[current_state_index]
-            current_value = value_arr[current_state_index]
 
     return policy_arr, value_arr
 
@@ -206,7 +199,6 @@ def solve_final_period(
 
     # In last period, nothing is saved for the next period (since there is none).
     # Hence, everything is consumed, c_T(M, d) = M
-
     states_last_period = state_space[np.where(state_space[:, 0] == n_periods - 1)]
 
     end_grid = savings_grid.shape[0] + 1
