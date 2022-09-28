@@ -104,7 +104,7 @@ def solve_dcegm(
             next_period_policy = current_policy
             next_period_value = current_value
 
-            for index, choice in enumerate(choice_range):
+            for choice_index, choice in enumerate(choice_range):
 
                 (
                     policy_choice_specific,
@@ -123,7 +123,10 @@ def solve_dcegm(
                 )
 
                 if choice >= 1 and n_choices > 1:
-                    current_policy, current_value = do_upper_envelope_step(
+                    (
+                        policy_choice_specific,
+                        value_choice_specific,
+                    ) = do_upper_envelope_step(
                         policy_choice_specific,
                         value_choice_specific,
                         expected_value=expected_value,
@@ -134,10 +137,16 @@ def solve_dcegm(
 
                 # Store
                 policy_arr[
-                    current_state_index, index, :, : policy_choice_specific.shape[1]
+                    current_state_index,
+                    choice_index,
+                    :,
+                    : policy_choice_specific.shape[1],
                 ] = policy_choice_specific
                 value_arr[
-                    current_state_index, index, :, : value_choice_specific.shape[1]
+                    current_state_index,
+                    choice_index,
+                    :,
+                    : value_choice_specific.shape[1],
                 ] = value_choice_specific
 
             current_policy = policy_arr[current_state_index]
@@ -215,7 +224,7 @@ def solve_final_period(
 
 
 def _create_multi_dim_arrays(
-    states: np.ndarray,
+    state_space: np.ndarray,
     options: Dict[str, int],
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Create multi-diminesional array for storing the policy and value function.
@@ -257,7 +266,7 @@ def _create_multi_dim_arrays(
     """
     n_grid_wealth = options["grid_points_wealth"]
     n_choices = options["n_discrete_choices"]
-    n_states = states.shape[0]
+    n_states = state_space.shape[0]
 
     policy_arr = np.empty((n_states, n_choices, 2, int(1.1 * n_grid_wealth)))
     value_arr = np.empty((n_states, n_choices, 2, int(1.1 * n_grid_wealth)))
