@@ -533,7 +533,7 @@ def _augment_grid(
     )[:-1]
 
     values_to_add = (
-        compute_utility(grid_points_to_add, state=1, params=params)
+        compute_utility(grid_points_to_add, choice=1, params=params)
         + beta * expected_value[0]
     )
     value_augmented = np.vstack(
@@ -620,7 +620,7 @@ def _find_dominated_points(
             containing the indices of dominated points in the endogenous wealth grid,
             where *n_dominated_points* is of variable length.
     """
-    sig_pos = 10 ** significance
+    sig_pos = 10**significance
     sig_neg = 10 ** (-significance)
 
     # Endogenous wealth grid

@@ -92,19 +92,19 @@ def solve_dcegm(
 
     # Make new function or move inside func:`solve_final_period`
     current_policy_function, current_value_function = {}, {}
-    for index, state in enumerate(choice_range):
+    for index, choice in enumerate(choice_range):
         final_policy = policy_arr[n_periods - 1, index, :][
             :,
             ~np.isnan(policy_arr[n_periods - 1, index, :]).any(axis=0),
         ]
 
-        current_policy_function[state] = partial(
+        current_policy_function[choice] = partial(
             interpolate_policy,
             policy=final_policy,
         )
 
-        current_value_function[state] = partial(
-            utility_functions["utility"], state=state, params=params
+        current_value_function[choice] = partial(
+            utility_functions["utility"], choice=choice, params=params
         )
 
     # Start backwards induction from second to last period (T - 1)
@@ -118,6 +118,7 @@ def solve_dcegm(
 
         for state in subset_states:
             current_policy_function, current_value_function = {}, {}
+            current_state_index = indexer[state[0]]
 
             for index, choice in enumerate(choice_range):
                 current_policy, current_value, expected_value = do_egm_step(
@@ -158,8 +159,12 @@ def solve_dcegm(
                 )
 
                 # Store
-                policy_arr[period, index, :, : current_policy.shape[1]] = current_policy
-                value_arr[period, index, :, : current_value.shape[1]] = current_value
+                policy_arr[
+                    current_state_index, index, :, : current_policy.shape[1]
+                ] = current_policy
+                value_arr[
+                    current_state_index, index, :, : current_value.shape[1]
+                ] = current_value
 
     return policy_arr, value_arr
 
