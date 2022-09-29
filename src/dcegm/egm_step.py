@@ -6,6 +6,7 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 from dcegm.consumption_retirement_model import calc_next_period_marginal_wealth
+from dcegm.consumption_retirement_model import compute_expected_value
 from dcegm.consumption_retirement_model import get_next_period_wealth_matrices
 from scipy import interpolate
 
@@ -18,7 +19,6 @@ def do_egm_step(
     options: Dict[str, int],
     exogenous_grid: Dict[str, np.ndarray],
     utility_functions: Dict[str, callable],
-    compute_expected_value: Callable,
     next_period_policy: np.ndarray,
     next_period_value: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -38,8 +38,6 @@ def do_egm_step(
         utility_functions (Dict[str, callable]): Dictionary of three user-supplied
             functions for computation of (i) utility, (ii) inverse marginal utility,
             and (iii) next period marginal utility.
-        compute_expected_value (callable): User-supplied functions for computation
-            of the agent's expected value.
         next_period_policy (np.ndarray): Array of the next period policy
             for all choices. Shape (n_choices, 2, 1.1 * (n_grid_wealth + 1)).
         next_period_value (np.ndarray): Array of the next period values
@@ -119,7 +117,6 @@ def do_egm_step(
         params=params,
         options=options,
         compute_utility=utility_functions["utility"],
-        compute_expected_value=compute_expected_value,
     )
 
     current_policy[0, 1:] = endog_wealth_grid
@@ -333,7 +330,6 @@ def get_expected_and_current_period_value(
     params: pd.DataFrame,
     options: Dict[str, int],
     compute_utility: Callable,
-    compute_expected_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Computes the expected (next-period) value and the current period's value.
 
@@ -352,11 +348,7 @@ def get_expected_and_current_period_value(
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
-        value_functions (Dict[str, callable]): Dictionary of three user-supplied
-            functions for computation of the agent's (i) value function before
-            the final period, (ii) value function in the final period,
-            and (iii) the expected value.
-
+        compute_utility (callable): Function for computation of agent's utility.
     Returns:
         expected_value (np.ndarray): Expected value of next period. Array of
             shape (n_grid_wealth,).

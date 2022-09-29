@@ -18,7 +18,6 @@ def solve_dcegm(
     params: pd.DataFrame,
     options: Dict[str, int],
     utility_functions: Dict[str, callable],
-    compute_expected_value: Callable,
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Solves a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
@@ -34,9 +33,6 @@ def solve_dcegm(
             (i) utility
             (ii) inverse marginal utility
             (iii) next period marginal utility
-
-        compute_expected_value (callable): User-supplied functions for computation
-            of the agent's expected value.
 
      Returns:
         (tuple): Tuple containing
@@ -115,7 +111,6 @@ def solve_dcegm(
                     options=options,
                     exogenous_grid=exogenous_grid,
                     utility_functions=utility_functions,
-                    compute_expected_value=compute_expected_value,
                     next_period_policy=next_period_policy,
                     next_period_value=next_period_value,
                 )
