@@ -9,7 +9,6 @@ import pandas as pd
 from dcegm.egm_step import do_egm_step
 from dcegm.state_space import create_state_space
 from dcegm.state_space import get_child_states
-from dcegm.state_space import get_state_choice_set
 from dcegm.upper_envelope_step import do_upper_envelope_step
 from scipy.special.orthogonal import roots_sh_legendre
 from scipy.stats import norm
@@ -95,20 +94,19 @@ def solve_dcegm(
 
         for state in subset_states:
             current_state_index = indexer[state[0], state[1]]
-            choice_set_state = get_state_choice_set(state, state_space, indexer)
-            # child_nodes = get_child_states(state, state_space, indexer)
+            child_nodes = get_child_states(state, state_space, indexer)
 
-            for choice_index, choice in enumerate(choice_set_state):
+            for child_state in child_nodes:
                 # Get child states!!!
-                next_period_policy = policy_arr[indexer[state[0] + 1, choice_index]]
-                next_period_value = value_arr[indexer[state[0] + 1, choice_index]]
+                next_period_policy = policy_arr[indexer[child_state[0], child_state[1]]]
+                next_period_value = value_arr[indexer[child_state[0], child_state[1]]]
 
                 (
                     policy_choice_specific,
                     value_choice_specific,
                     expected_value,
                 ) = do_egm_step(
-                    choice=choice,
+                    choice=child_state[1],
                     state=state,
                     params=params,
                     options=options,
@@ -134,13 +132,13 @@ def solve_dcegm(
                 # Store
                 policy_arr[
                     current_state_index,
-                    choice_index,
+                    child_state[1],
                     :,
                     : policy_choice_specific.shape[1],
                 ] = policy_choice_specific
                 value_arr[
                     current_state_index,
-                    choice_index,
+                    child_state[1],
                     :,
                     : value_choice_specific.shape[1],
                 ] = value_choice_specific
