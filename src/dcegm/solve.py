@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from dcegm.egm_step import do_egm_step
 from dcegm.state_space import create_state_space
+from dcegm.state_space import get_state_choice_set
 from dcegm.upper_envelope_step import do_upper_envelope_step
 from scipy.special.orthogonal import roots_sh_legendre
 from scipy.stats import norm
@@ -56,9 +57,6 @@ def solve_dcegm(
     n_quad_points = options["quadrature_points_stochastic"]
     sigma = params.loc[("shocks", "sigma"), "value"]
 
-    # If no discrete choices to make, set choice_range to 1 = "working".
-    choice_range = [1] if n_choices < 2 else range(n_choices)
-
     savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
 
     state_space, indexer = create_state_space(options)
@@ -94,8 +92,9 @@ def solve_dcegm(
 
         for state in subset_states:
             current_state_index = indexer[state[0], state[1]]
+            choice_set_state = get_state_choice_set(state, state_space, indexer)
 
-            for choice_index, choice in enumerate(choice_range):
+            for choice_index, choice in enumerate(choice_set_state):
                 # Get child states!!!
                 next_period_policy = policy_arr[indexer[state[0] + 1, choice_index]]
                 next_period_value = value_arr[indexer[state[0] + 1, choice_index]]
@@ -146,8 +145,8 @@ def solve_dcegm(
 
 
 def solve_final_period(
-    state_space,
-    indexer,
+    state_space: np.ndarray,
+    indexer: np.ndarray,
     policy: np.ndarray,
     value: np.ndarray,
     savings_grid: np.ndarray,
