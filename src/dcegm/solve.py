@@ -2,7 +2,6 @@
 import copy
 from typing import Callable
 from typing import Dict
-from typing import List
 from typing import Tuple
 
 import numpy as np
@@ -18,7 +17,7 @@ def solve_dcegm(
     params: pd.DataFrame,
     options: Dict[str, int],
     utility_functions: Dict[str, callable],
-) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+) -> Tuple[np.ndarray, np.ndarray]:
     """Solves a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
     EGM stands for Endogenous Grid Method.
@@ -155,10 +154,12 @@ def solve_final_period(
     params: pd.DataFrame,
     options: Dict[str, int],
     compute_utility: Callable,
-) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+) -> Tuple[np.ndarray, np.ndarray]:
     """Computes solution to final period for policy and value function.
 
     Args:
+        state_space (np.ndarray): Collection of all possible states.
+        indexer (np.ndarray): Indexer object, that maps states to indexes.
         policy (np.ndarray): Multi-dimensional np.ndarray storing the
             choice-specific policy function; of shape
             [n_periods, n_discrete_choices, 2, 1.1 * n_grid_wealth].
@@ -223,7 +224,7 @@ def solve_final_period(
 def _create_multi_dim_arrays(
     state_space: np.ndarray,
     options: Dict[str, int],
-) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+) -> Tuple[np.ndarray, np.ndarray]:
     """Create multi-diminesional array for storing the policy and value function.
 
     Note that we add 10% extra space filled with nans, since, in the upper
@@ -242,7 +243,7 @@ def _create_multi_dim_arrays(
 
     Args:
         options (dict): Options dictionary.
-        states (np.ndarray): Collection of all possible states.
+        state_space (np.ndarray): Collection of all possible states.
 
 
     Returns:

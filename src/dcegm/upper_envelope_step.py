@@ -16,8 +16,8 @@ eps = 2.2204e-16
 
 
 def do_upper_envelope_step(
-    policy: List[np.ndarray],
-    value: List[np.ndarray],
+    policy: np.ndarray,
+    value: np.ndarray,
     *,
     expected_value: np.ndarray,
     params: pd.DataFrame,
