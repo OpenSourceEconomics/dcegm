@@ -5,7 +5,6 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
-from dcegm.upper_envelope_step import do_upper_envelope_step
 from scipy import interpolate
 from toy_models.consumption_retirement_model import calc_next_period_marginal_wealth
 from toy_models.consumption_retirement_model import compute_expected_value
@@ -126,16 +125,6 @@ def do_egm_step(
     current_value[0, 1:] = endog_wealth_grid
     current_value[1, 0] = expected_value[0]
     current_value[1, 1:] = utility + beta * expected_value
-
-    if options["n_discrete_choices"] > 1:
-        (current_policy, current_value,) = do_upper_envelope_step(
-            current_policy,
-            current_value,
-            expected_value=expected_value,
-            params=params,
-            options=options,
-            compute_utility=utility_functions["utility"],
-        )
 
     return current_policy, current_value, expected_value
 

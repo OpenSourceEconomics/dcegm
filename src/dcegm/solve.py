@@ -10,6 +10,7 @@ from dcegm.egm_step import do_egm_step
 from dcegm.state_space import create_state_space
 from dcegm.state_space import get_child_states
 from dcegm.state_space import get_index_by_state
+from dcegm.upper_envelope_step import do_upper_envelope_step
 from scipy.special.orthogonal import roots_sh_legendre
 from scipy.stats import norm
 
@@ -98,11 +99,7 @@ def solve_dcegm(
                 next_period_policy = policy_arr[child_state_ind]
                 next_period_value = value_arr[child_state_ind]
 
-                (
-                    policy_choice_specific,
-                    value_choice_specific,
-                    expected_value,
-                ) = do_egm_step(
+                (current_policy, current_value, expected_value,) = do_egm_step(
                     child_state,
                     params=params,
                     options=options,
@@ -112,19 +109,29 @@ def solve_dcegm(
                     next_period_value=next_period_value,
                 )
 
+                if options["n_discrete_choices"] > 1:
+                    (current_policy, current_value) = do_upper_envelope_step(
+                        current_policy,
+                        current_value,
+                        expected_value=expected_value,
+                        params=params,
+                        options=options,
+                        compute_utility=utility_functions["utility"],
+                    )
+
                 # Store
                 policy_arr[
                     current_state_index,
                     child_state[1],
                     :,
-                    : policy_choice_specific.shape[1],
-                ] = policy_choice_specific
+                    : current_policy.shape[1],
+                ] = current_policy
                 value_arr[
                     current_state_index,
                     child_state[1],
                     :,
-                    : value_choice_specific.shape[1],
-                ] = value_choice_specific
+                    : current_value.shape[1],
+                ] = current_value
 
     return policy_arr, value_arr
 
