@@ -13,6 +13,7 @@ from toy_models.consumption_retirement_model import get_next_period_wealth_matri
 
 def do_egm_step(
     child_state,
+    child_node_choice_set,
     *,
     params: pd.DataFrame,
     options: Dict[str, int],
@@ -73,6 +74,7 @@ def do_egm_step(
     # Interpolate next period policy and values to match the
     # contemporary matrix of potential next period wealths
     next_period_policy = get_next_period_policy(
+        child_node_choice_set,
         matrix_next_period_wealth,
         next_period_policy=next_period_policy,
         options=options,
@@ -130,6 +132,7 @@ def do_egm_step(
 
 
 def get_next_period_policy(
+    child_node_choice_set,
     matrix_next_period_wealth: np.ndarray,
     next_period_policy: np.ndarray,
     options: Dict[str, int],
@@ -150,13 +153,14 @@ def get_next_period_policy(
         next_period_policy_interp (np.ndarray): Array of interpolated next period
             consumption of shape (n_choices, n_quad_stochastic * n_grid_wealth).
     """
-    n_choices = options["n_discrete_choices"]
     n_grid_wealth = options["grid_points_wealth"]
     n_quad_stochastic = options["quadrature_points_stochastic"]
 
-    next_period_policy_interp = np.empty((n_choices, n_quad_stochastic * n_grid_wealth))
+    next_period_policy_interp = np.empty(
+        (child_node_choice_set.shape[0], n_quad_stochastic * n_grid_wealth)
+    )
 
-    for index in range(n_choices):
+    for index in range(child_node_choice_set.shape[0]):
         next_period_policy_interp[index, :] = interpolate_policy(
             matrix_next_period_wealth.flatten("F"), next_period_policy[index]
         )

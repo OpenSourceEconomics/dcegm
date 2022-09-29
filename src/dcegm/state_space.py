@@ -70,10 +70,10 @@ def get_child_states(
 
     """
     # Child nodes are so far num_choices by state_space variables.
-    child_nodes = np.empty((indexer.shape[1], state_space.shape[1]), dtype=int)
     choice_set_state = get_state_choice_set(state, state_space, indexer)
-    for choice in choice_set_state:
-        child_nodes[choice, :] = state_space[indexer[state[0] + 1, choice]]
+    child_nodes = np.empty((choice_set_state.shape[0], state_space.shape[1]), dtype=int)
+    for i, choice in enumerate(choice_set_state):
+        child_nodes[i, :] = state_space[indexer[state[0] + 1, choice]]
     return child_nodes
 
 

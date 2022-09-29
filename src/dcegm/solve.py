@@ -10,6 +10,7 @@ from dcegm.egm_step import do_egm_step
 from dcegm.state_space import create_state_space
 from dcegm.state_space import get_child_states
 from dcegm.state_space import get_index_by_state
+from dcegm.state_space import get_state_choice_set
 from dcegm.upper_envelope_step import do_upper_envelope_step
 from scipy.special.orthogonal import roots_sh_legendre
 from scipy.stats import norm
@@ -98,9 +99,13 @@ def solve_dcegm(
                 child_state_ind = get_index_by_state(child_state, indexer)
                 next_period_policy = policy_arr[child_state_ind]
                 next_period_value = value_arr[child_state_ind]
+                child_node_choice_set = get_state_choice_set(
+                    child_state, state_space, indexer
+                )
 
                 (current_policy, current_value, expected_value,) = do_egm_step(
                     child_state,
+                    child_node_choice_set,
                     params=params,
                     options=options,
                     exogenous_grid=exogenous_grid,
