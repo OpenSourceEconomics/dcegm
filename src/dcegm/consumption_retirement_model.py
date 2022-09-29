@@ -34,7 +34,7 @@ def utility_func_crra(
     else:
         utility_consumption = (consumption ** (1 - theta) - 1) / (1 - theta)
 
-    utility = utility_consumption - choice * delta
+    utility = utility_consumption - (1 - choice) * delta
 
     return utility
 
@@ -62,7 +62,7 @@ def inverse_marginal_utility_crra(
 
 
 def compute_next_period_marginal_utility(
-    state: int,
+    choice: int,
     next_period_consumption: np.ndarray,
     next_period_value: np.ndarray,
     params: pd.DataFrame,
@@ -71,8 +71,7 @@ def compute_next_period_marginal_utility(
     """Computes the marginal utility of the next period.
 
     Args:
-        period (int): Current period t.
-        state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
+        choice (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
         next_period_consumption (np.ndarray): Array of next period consumption
             of shape (n_choices, n_quad_stochastic * n_grid_wealth). Contains
             interpolated values.
@@ -96,20 +95,20 @@ def compute_next_period_marginal_utility(
         )
     else:
         prob_working = _calc_next_period_choice_probs(
-            next_period_value, state, params, options
+            next_period_value, choice, params, options
         )
 
         next_period_marg_util = prob_working * _marginal_utility_crra(
-            next_period_consumption[1, :], params
-        ) + (1 - prob_working) * _marginal_utility_crra(
             next_period_consumption[0, :], params
+        ) + (1 - prob_working) * _marginal_utility_crra(
+            next_period_consumption[1, :], params
         )
 
     return next_period_marg_util
 
 
 def compute_expected_value(
-    state: int,
+    choice: int,
     matrix_next_period_wealth: np.ndarray,
     next_period_value: np.ndarray,
     quad_weights: np.ndarray,
@@ -119,7 +118,7 @@ def compute_expected_value(
     """Computes the expected value of the next period.
 
     Args:
-        state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
+        choice (int): Choice of the agent, e.g. 0 = "retirement", 1 = "working".
         matrix_next_period_wealth (np.ndarray): Array of all possible next period
             wealths with shape (n_quad_stochastic, n_grid_wealth).
         next_period_value (np.ndarray): Array containing values of next period
@@ -138,10 +137,7 @@ def compute_expected_value(
     # Taste shock (scale) parameter
     lambda_ = params.loc[("shocks", "lambda"), "value"]
 
-    # If no discrete alternatives, only one state and logsum is not needed
-    state_index = 0 if options["n_discrete_choices"] < 2 else state
-
-    if state_index == 1:
+    if (choice == 0) & (options["n_discrete_choices"] > 1):
         # Continuation value of working
         expected_value = np.dot(
             quad_weights.T,
@@ -152,7 +148,9 @@ def compute_expected_value(
     else:
         expected_value = np.dot(
             quad_weights.T,
-            next_period_value[0, :].reshape(matrix_next_period_wealth.shape, order="F"),
+            next_period_value[choice, :].reshape(
+                matrix_next_period_wealth.shape, order="F"
+            ),
         )
 
     return expected_value
@@ -180,7 +178,7 @@ def _marginal_utility_crra(consumption: np.ndarray, params: pd.DataFrame) -> np.
 
 def _calc_next_period_choice_probs(
     next_period_value: np.ndarray,
-    state: int,
+    choice: int,
     params: pd.DataFrame,
     options: Dict[str, int],
 ) -> np.ndarray:
@@ -190,7 +188,7 @@ def _calc_next_period_choice_probs(
         next_period_value (np.ndarray): Array containing values of next period
             choice-specific value function.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
-        state (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
+        choice (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
@@ -205,15 +203,14 @@ def _calc_next_period_choice_probs(
     n_grid_wealth = options["grid_points_wealth"]
     n_quad_stochastic = options["quadrature_points_stochastic"]
 
-    if state == 1:
+    if choice == 0:
         col_max = np.amax(next_period_value, axis=0)
         next_period_value_ = next_period_value - col_max
 
         # Eq. (15), p. 334 IJRS (2017
-        prob_working = np.exp(next_period_value_[state, :] / lambda_) / np.sum(
+        prob_working = np.exp(next_period_value_[choice, :] / lambda_) / np.sum(
             np.exp(next_period_value_ / lambda_), axis=0
         )
-
     else:
         prob_working = np.zeros(n_quad_stochastic * n_grid_wealth)
 
@@ -286,7 +283,7 @@ def get_next_period_wealth_matrices(
 
     matrix_next_period_wealth = np.full(
         (n_grid_wealth, n_quad_stochastic),
-        next_period_income * choice,
+        next_period_income * (1 - choice),
     ).T + np.full((n_quad_stochastic, n_grid_wealth), savings * (1 + r))
 
     # Retirement safety net, only in retirement model

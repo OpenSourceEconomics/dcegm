@@ -17,7 +17,6 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
     """
     n_periods = options["n_periods"]
     n_choices = options["n_discrete_choices"]
-    n_choices = 1 if n_choices < 2 else n_choices
     shape = (n_periods, n_choices)
     indexer = np.full(shape, -9999, dtype=np.int64)
     data = []
@@ -51,10 +50,7 @@ def get_state_choice_set(
         choice_set (np.ndarray): This is the choice set in this state.
 
     """
-    n_choices = indexer.shape[1]
-    # If no discrete choices to make, set choice_range to 1 = "working".
-    choice_set = [1] if n_choices < 2 else range(n_choices)
-    return np.array(choice_set)
+    return np.array(range(indexer.shape[1]))
 
 
 def get_child_states(

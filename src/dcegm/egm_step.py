@@ -197,8 +197,6 @@ def get_next_period_value(
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
     """
     n_choices = options["n_discrete_choices"]
-    choice_range = [1] if n_choices < 2 else range(n_choices)
-
     next_period_value_interp = np.empty(
         (
             n_choices,
@@ -206,15 +204,15 @@ def get_next_period_value(
         )
     )
 
-    for index, choice in enumerate(choice_range):
+    for choice in range(n_choices):
         if period == options["n_periods"] - 2:
-            next_period_value_interp[index, :] = compute_utility(
+            next_period_value_interp[choice, :] = compute_utility(
                 matrix_next_period_wealth.flatten("F"), choice, params
             )
         else:
-            next_period_value_interp[index, :] = interpolate_value(
+            next_period_value_interp[choice, :] = interpolate_value(
                 flat_wealth=matrix_next_period_wealth.flatten("F"),
-                value=next_period_value[index],
+                value=next_period_value[choice],
                 choice=choice,
                 params=params,
                 compute_utility=compute_utility,

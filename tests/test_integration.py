@@ -42,8 +42,8 @@ def utility_functions():
     "model, choice_range",
     [
         ("deaton", [0]),
-        ("retirement_taste_shocks", [1, 0]),
-        ("retirement_no_taste_shocks", [1, 0]),
+        ("retirement_taste_shocks", [0, 1]),
+        ("retirement_no_taste_shocks", [0, 1]),
     ],
 )
 def test_benchmark_models(model, choice_range, utility_functions):
@@ -56,6 +56,8 @@ def test_benchmark_models(model, choice_range, utility_functions):
         options,
         utility_functions,
     )
+    # if model == "retirement_taste_shocks":
+    #     breakpoint()
 
     policy_expected = pickle.load(
         open(TEST_RESOURCES_DIR / f"policy_{model}.pkl", "rb")
@@ -71,8 +73,8 @@ def test_benchmark_models(model, choice_range, utility_functions):
                 policy_expec = policy_expected[period, choice]
                 value_expec = value_expected[period, choice]
             else:
-                policy_expec = policy_expected[period][choice].T
-                value_expec = value_expected[period][choice].T
+                policy_expec = policy_expected[period][1 - choice].T
+                value_expec = value_expected[period][1 - choice].T
 
             aaae(
                 policy_calculated[state_index, choice, :][

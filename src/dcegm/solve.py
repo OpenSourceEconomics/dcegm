@@ -86,6 +86,8 @@ def solve_dcegm(
         compute_utility=utility_functions["utility"],
     )
 
+    # Check the need for upper envelope
+    need_upper_env = n_choices > 1
     # Backwards induction from second to last period (T - 1)
     for period in range(n_periods - 2, -1, -1):
 
@@ -116,7 +118,7 @@ def solve_dcegm(
                     next_period_value=next_period_value,
                 )
 
-                if n_choices > 1:
+                if need_upper_env:
                     (
                         policy_choice_specific,
                         value_choice_specific,
@@ -193,7 +195,6 @@ def solve_final_period(
     """
     n_periods = options["n_periods"]
     n_choices = options["n_discrete_choices"]
-    choice_range = [1] if n_choices < 2 else range(n_choices)
 
     # In last period, nothing is saved for the next period (since there is none).
     # Hence, everything is consumed, c_T(M, d) = M
@@ -203,22 +204,24 @@ def solve_final_period(
     for state in states_last_period:
         state_index = indexer[state[0], state[1]]
 
-        for index, choice in enumerate(choice_range):
-            policy[state_index, index, 0, 1:end_grid] = copy.deepcopy(savings_grid)  # M
-            policy[state_index, index, 1, 1:end_grid] = copy.deepcopy(
-                policy[state_index, index, 0, 1:end_grid]
+        for choice in range(n_choices):
+            policy[state_index, choice, 0, 1:end_grid] = copy.deepcopy(
+                savings_grid
+            )  # M
+            policy[state_index, choice, 1, 1:end_grid] = copy.deepcopy(
+                policy[state_index, choice, 0, 1:end_grid]
             )  # c(M, d)
-            policy[state_index, index, 0, 0] = 0
-            policy[state_index, index, 1, 0] = 0
+            policy[state_index, choice, 0, 0] = 0
+            policy[state_index, choice, 1, 0] = 0
 
-            value[state_index, index, 0, 2:end_grid] = compute_utility(
-                policy[state_index, index, 0, 2:end_grid], choice, params
+            value[state_index, choice, 0, 2:end_grid] = compute_utility(
+                policy[state_index, choice, 0, 2:end_grid], choice, params
             )
-            value[state_index, index][1, 2:end_grid] = compute_utility(
-                policy[state_index, index, 1, 2:end_grid], choice, params
+            value[state_index, choice][1, 2:end_grid] = compute_utility(
+                policy[state_index, choice, 1, 2:end_grid], choice, params
             )
-            value[state_index, index, 0, 0] = 0
-            value[state_index, index, :, 2] = 0
+            value[state_index, choice, 0, 0] = 0
+            value[state_index, choice, :, 2] = 0
 
     return policy, value
 
