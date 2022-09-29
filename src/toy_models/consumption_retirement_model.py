@@ -93,6 +93,10 @@ def compute_next_period_marginal_utility(
         next_period_marg_util = _marginal_utility_crra(
             next_period_consumption[0, :], params
         )
+    elif choice == 1:
+        next_period_marg_util = _marginal_utility_crra(
+            next_period_consumption[1, :], params
+        )
     else:
         prob_working = _calc_next_period_choice_probs(
             next_period_value, choice, params, options
@@ -200,19 +204,13 @@ def _calc_next_period_choice_probs(
     # Taste shock (scale) parameter
     lambda_ = params.loc[("shocks", "lambda"), "value"]
 
-    n_grid_wealth = options["grid_points_wealth"]
-    n_quad_stochastic = options["quadrature_points_stochastic"]
+    col_max = np.amax(next_period_value, axis=0)
+    next_period_value_ = next_period_value - col_max
 
-    if choice == 0:
-        col_max = np.amax(next_period_value, axis=0)
-        next_period_value_ = next_period_value - col_max
-
-        # Eq. (15), p. 334 IJRS (2017
-        prob_working = np.exp(next_period_value_[choice, :] / lambda_) / np.sum(
-            np.exp(next_period_value_ / lambda_), axis=0
-        )
-    else:
-        prob_working = np.zeros(n_quad_stochastic * n_grid_wealth)
+    # Eq. (15), p. 334 IJRS (2017
+    prob_working = np.exp(next_period_value_[choice, :] / lambda_) / np.sum(
+        np.exp(next_period_value_ / lambda_), axis=0
+    )
 
     return prob_working
 
