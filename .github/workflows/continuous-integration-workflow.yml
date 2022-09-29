@@ -111,7 +111,7 @@ jobs:
       #   shell: bash -l {0}
       #   run: bash <(curl -s https://codecov.io/bash) -F end_to_end -c
 
-pre-commit:
+  pre-commit:
 
     name: Run pre-commit.
     runs-on: ubuntu-latest
