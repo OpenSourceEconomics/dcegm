@@ -23,8 +23,6 @@ def create_state_space(options):
     for period in range(n_periods):
         for last_period_decision in range(n_choices):
             indexer[period, last_period_decision] = i
-
-            indexer[period, last_period_decision] = i
             row = [period, last_period_decision]
             i += 1
             data.append(row)

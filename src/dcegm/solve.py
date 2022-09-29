@@ -2,7 +2,6 @@
 import copy
 from typing import Callable
 from typing import Dict
-from typing import List
 from typing import Tuple
 
 import numpy as np
@@ -18,8 +17,7 @@ def solve_dcegm(
     params: pd.DataFrame,
     options: Dict[str, int],
     utility_functions: Dict[str, callable],
-    compute_expected_value: Callable,
-) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+) -> Tuple[np.ndarray, np.ndarray]:
     """Solves a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
     EGM stands for Endogenous Grid Method.
@@ -34,9 +32,6 @@ def solve_dcegm(
             (i) utility
             (ii) inverse marginal utility
             (iii) next period marginal utility
-
-        compute_expected_value (callable): User-supplied functions for computation
-            of the agent's expected value.
 
      Returns:
         (tuple): Tuple containing
@@ -59,6 +54,7 @@ def solve_dcegm(
     n_choices = options["n_discrete_choices"]
     n_grid_wealth = options["grid_points_wealth"]
     n_quad_points = options["quadrature_points_stochastic"]
+    sigma = params.loc[("shocks", "sigma"), "value"]
 
     # If no discrete choices to make, set choice_range to 1 = "working".
     choice_range = [1] if n_choices < 2 else range(n_choices)
@@ -75,7 +71,7 @@ def solve_dcegm(
 
     exogenous_grid = {
         "savings": savings_grid,
-        "quadrature_points": quad_points_normal,
+        "quadrature_points": quad_points_normal * sigma,
         "quadrature_weights": quad_weights,
     }
 
@@ -115,12 +111,11 @@ def solve_dcegm(
                     options=options,
                     exogenous_grid=exogenous_grid,
                     utility_functions=utility_functions,
-                    compute_expected_value=compute_expected_value,
                     next_period_policy=next_period_policy,
                     next_period_value=next_period_value,
                 )
 
-                if choice >= 1 and n_choices > 1:
+                if n_choices > 1:
                     (
                         policy_choice_specific,
                         value_choice_specific,
@@ -160,10 +155,12 @@ def solve_final_period(
     params: pd.DataFrame,
     options: Dict[str, int],
     compute_utility: Callable,
-) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+) -> Tuple[np.ndarray, np.ndarray]:
     """Computes solution to final period for policy and value function.
 
     Args:
+        state_space (np.ndarray): Collection of all possible states.
+        indexer (np.ndarray): Indexer object, that maps states to indexes.
         policy (np.ndarray): Multi-dimensional np.ndarray storing the
             choice-specific policy function; of shape
             [n_periods, n_discrete_choices, 2, 1.1 * n_grid_wealth].
@@ -228,7 +225,7 @@ def solve_final_period(
 def _create_multi_dim_arrays(
     state_space: np.ndarray,
     options: Dict[str, int],
-) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+) -> Tuple[np.ndarray, np.ndarray]:
     """Create multi-diminesional array for storing the policy and value function.
 
     Note that we add 10% extra space filled with nans, since, in the upper
@@ -247,7 +244,7 @@ def _create_multi_dim_arrays(
 
     Args:
         options (dict): Options dictionary.
-        states (np.ndarray): Collection of all possible states.
+        state_space (np.ndarray): Collection of all possible states.
 
 
     Returns:
