@@ -245,8 +245,7 @@ def _calc_logsum(next_period_value: np.ndarray, lambda_: float) -> np.ndarray:
 
 
 def get_next_period_wealth_matrices(
-    state,
-    choice: int,
+    child_state,
     savings: np.ndarray,
     quad_points: np.ndarray,
     params: pd.DataFrame,
@@ -255,8 +254,7 @@ def get_next_period_wealth_matrices(
     """Computes all possible levels of next period (marginal) wealth M_(t+1).
 
     Args:
-        state (np.ndarray): The current state.
-        choice (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
+        child_state (np.ndarray): Current individual child state.
         savings (np.ndarray): Array of shape (n_grid_wealth,) containing the
             exogenous savings grid.
         quad_points (np.ndarray): Array of shape (n_quad_stochastic,)
@@ -270,7 +268,6 @@ def get_next_period_wealth_matrices(
         - matrix_next_period_wealth (np.ndarray): Array of all possible next period
             wealths with shape (n_quad_stochastic, n_grid_wealth).
     """
-    period = state[0]
     r = params.loc[("assets", "interest_rate"), "value"]
 
     n_grid_wealth = options["grid_points_wealth"]
@@ -278,12 +275,12 @@ def get_next_period_wealth_matrices(
 
     # Calculate stochastic labor income
     next_period_income = _calc_stochastic_income(
-        period + 1, quad_points, params=params, options=options
+        child_state[0], quad_points, params=params, options=options
     )
 
     matrix_next_period_wealth = np.full(
         (n_grid_wealth, n_quad_stochastic),
-        next_period_income * (1 - choice),
+        next_period_income * (1 - child_state[1]),
     ).T + np.full((n_quad_stochastic, n_grid_wealth), savings * (1 + r))
 
     # Retirement safety net, only in retirement model
@@ -305,7 +302,7 @@ def calc_next_period_marginal_wealth(state, params, options):
     """
     Calculate next periods marginal wealth.
     Args:
-        state (np.ndarray): The current state.
+        child_state (np.ndarray): Current individual child state.
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
@@ -325,7 +322,7 @@ def calc_next_period_marginal_wealth(state, params, options):
 
 
 def _calc_stochastic_income(
-    period: int, shock: float, params: pd.DataFrame, options: Dict[str, int]
+    period: int, shock: np.ndarray, params: pd.DataFrame, options: Dict[str, int]
 ) -> float:
     """Computes the current level of deterministic and stochastic income.
 

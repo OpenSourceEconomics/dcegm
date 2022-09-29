@@ -12,8 +12,7 @@ from scipy import interpolate
 
 
 def do_egm_step(
-    choice: int,
-    state: np.ndarray,
+    child_state,
     *,
     params: pd.DataFrame,
     options: Dict[str, int],
@@ -25,8 +24,7 @@ def do_egm_step(
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
 
     Args:
-        choice (int): Choice of the agent, e.g. 0 = "retirement", 1 = "working".
-        state (np.ndarray): Current individual state.
+        child_state (np.ndarray): Current individual child state.
         params (pd.DataFrame): Model parameters indexed with multi-index of the form
             ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
@@ -62,8 +60,7 @@ def do_egm_step(
     # 0) Preliminaries
     # Matrices of all possible next period wealths and marginal wealths
     matrix_next_period_wealth = get_next_period_wealth_matrices(
-        state,
-        choice,
+        child_state,
         params=params,
         options=options,
         savings=exogenous_grid["savings"],
@@ -71,7 +68,7 @@ def do_egm_step(
     )
 
     next_period_marginal_wealth = calc_next_period_marginal_wealth(
-        state, params, options
+        child_state, params, options
     )
 
     # Interpolate next period policy and values to match the
@@ -84,7 +81,7 @@ def do_egm_step(
 
     next_period_value = get_next_period_value(
         matrix_next_period_wealth=matrix_next_period_wealth,
-        period=state[0],
+        period=child_state[0] - 1,
         params=params,
         options=options,
         next_period_value=next_period_value,
@@ -93,7 +90,7 @@ def do_egm_step(
 
     # i) Current period consumption & endogenous wealth grid
     current_period_policy = get_current_period_policy(
-        choice,
+        child_state[1],
         next_period_policy=next_period_policy,
         matrix_next_period_wealth=matrix_next_period_wealth,
         next_period_marginal_wealth=next_period_marginal_wealth,
@@ -109,7 +106,7 @@ def do_egm_step(
 
     # ii) Expected & current period value
     expected_value, current_period_value = get_expected_and_current_period_value(
-        choice,
+        child_state[1],
         next_period_value=next_period_value,
         matrix_next_period_wealth=matrix_next_period_wealth,
         current_period_policy=current_period_policy,

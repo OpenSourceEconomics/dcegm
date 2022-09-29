@@ -94,23 +94,20 @@ def solve_dcegm(
         subset_states = state_space[np.where(state_space[:, 0] == period)]
 
         for state in subset_states:
-            current_state_index = indexer[state[0], state[1]]
+            current_state_index = get_index_by_state(state, indexer)
             child_nodes = get_child_states(state, state_space, indexer)
 
             for child_state in child_nodes:
-                # Get child states!!!
-                next_period_policy = policy_arr[
-                    get_index_by_state(child_state, indexer)
-                ]
-                next_period_value = value_arr[get_index_by_state(child_state, indexer)]
+                child_state_ind = get_index_by_state(child_state, indexer)
+                next_period_policy = policy_arr[child_state_ind]
+                next_period_value = value_arr[child_state_ind]
 
                 (
                     policy_choice_specific,
                     value_choice_specific,
                     expected_value,
                 ) = do_egm_step(
-                    choice=child_state[1],
-                    state=state,
+                    child_state,
                     params=params,
                     options=options,
                     exogenous_grid=exogenous_grid,
