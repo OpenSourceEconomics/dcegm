@@ -56,8 +56,6 @@ def test_benchmark_models(model, choice_range, utility_functions):
         options,
         utility_functions,
     )
-    # if model == "retirement_taste_shocks":
-    #     breakpoint()
 
     policy_expected = pickle.load(
         open(TEST_RESOURCES_DIR / f"policy_{model}.pkl", "rb")
