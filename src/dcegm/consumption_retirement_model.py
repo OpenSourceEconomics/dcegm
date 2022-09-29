@@ -1,6 +1,5 @@
 """Model specific utility, wealth, and value functions."""
 from typing import Dict
-from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -255,7 +254,7 @@ def get_next_period_wealth_matrices(
     quad_points: np.ndarray,
     params: pd.DataFrame,
     options: Dict[str, int],
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> np.ndarray:
     """Computes all possible levels of next period (marginal) wealth M_(t+1).
 
     Args:
