@@ -54,6 +54,7 @@ def solve_dcegm(
     n_choices = options["n_discrete_choices"]
     n_grid_wealth = options["grid_points_wealth"]
     n_quad_points = options["quadrature_points_stochastic"]
+    sigma = params.loc[("shocks", "sigma"), "value"]
 
     # If no discrete choices to make, set choice_range to 1 = "working".
     choice_range = [1] if n_choices < 2 else range(n_choices)
@@ -67,8 +68,6 @@ def solve_dcegm(
     # integrates over [-1, 1].
     quad_points, quad_weights = roots_sh_legendre(n_quad_points)
     quad_points_normal = norm.ppf(quad_points)
-
-    sigma = params.loc[("shocks", "sigma"), "value"]
 
     exogenous_grid = {
         "savings": savings_grid,
