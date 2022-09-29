@@ -92,7 +92,7 @@ def do_egm_step(
 
     # i) Current period consumption & endogenous wealth grid
     current_period_policy = get_current_period_policy(
-        child_state[1],
+        child_node_choice_set,
         next_period_policy=next_period_policy,
         matrix_next_period_wealth=matrix_next_period_wealth,
         next_period_marginal_wealth=next_period_marginal_wealth,
@@ -108,12 +108,10 @@ def do_egm_step(
 
     # ii) Expected & current period value
     expected_value = compute_expected_value(
-        child_state[1],
         matrix_next_period_wealth,
         next_period_value=next_period_value,
         quad_weights=exogenous_grid["quadrature_weights"],
         params=params,
-        options=options,
     )
 
     utility = utility_functions["utility"](
@@ -224,7 +222,7 @@ def get_next_period_value(
 
 
 def get_current_period_policy(
-    choice: int,
+    child_node_choice_set,
     next_period_policy: np.ndarray,
     matrix_next_period_wealth: np.ndarray,
     next_period_marginal_wealth: np.ndarray,
@@ -279,7 +277,7 @@ def get_current_period_policy(
     ]
 
     next_period_marginal_utility = _compute_next_period_marginal_utility(
-        choice,
+        child_node_choice_set,
         next_period_consumption=next_period_policy,
         next_period_value=next_period_value,
         params=params,

@@ -62,7 +62,7 @@ def inverse_marginal_utility_crra(
 
 
 def compute_next_period_marginal_utility(
-    choice: int,
+    child_node_choice_set,
     next_period_consumption: np.ndarray,
     next_period_value: np.ndarray,
     params: pd.DataFrame,
@@ -86,43 +86,28 @@ def compute_next_period_marginal_utility(
         next_period_marg_util (np.ndarray): Array of next period's
             marginal utility of shape (n_quad_stochastic * n_grid_wealth,).
     """
-    n_choices = options["n_discrete_choices"]
 
-    # If no discrete alternatives, only one state, i.e. one column with index = 0
-    if n_choices < 2:
-        next_period_marg_util = _marginal_utility_crra(
-            next_period_consumption[0, :], params
+    next_period_marg_util = np.zeros_like(next_period_consumption[0, :])
+    for choice_index in range(child_node_choice_set.shape[0]):
+        choice_prob = _calc_next_period_choice_probs(
+            next_period_value, choice_index, params, options
         )
-    elif choice == 1:
-        next_period_marg_util = _marginal_utility_crra(
-            next_period_consumption[0, :], params
-        )
-    else:
-        prob_working = _calc_next_period_choice_probs(
-            next_period_value, choice, params, options
-        )
-
-        next_period_marg_util = prob_working * _marginal_utility_crra(
-            next_period_consumption[0, :], params
-        ) + (1 - prob_working) * _marginal_utility_crra(
-            next_period_consumption[1, :], params
+        next_period_marg_util += choice_prob * _marginal_utility_crra(
+            next_period_consumption[choice_index, :], params
         )
 
     return next_period_marg_util
 
 
 def compute_expected_value(
-    choice: int,
     matrix_next_period_wealth: np.ndarray,
     next_period_value: np.ndarray,
     quad_weights: np.ndarray,
     params: pd.DataFrame,
-    options: Dict[str, int],
 ) -> np.ndarray:
     """Computes the expected value of the next period.
 
     Args:
-        choice (int): Choice of the agent, e.g. 0 = "retirement", 1 = "working".
         matrix_next_period_wealth (np.ndarray): Array of all possible next period
             wealths with shape (n_quad_stochastic, n_grid_wealth).
         next_period_value (np.ndarray): Array containing values of next period
@@ -132,7 +117,6 @@ def compute_expected_value(
             quadrature points of shape (n_quad_stochastic,).
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
-        options (dict): Options dictionary.
 
     Returns:
         expected_value (np.ndarray): Expected value of next period. Array of
