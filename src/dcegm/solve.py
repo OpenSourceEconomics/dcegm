@@ -9,6 +9,7 @@ import pandas as pd
 from dcegm.egm_step import do_egm_step
 from dcegm.state_space import create_state_space
 from dcegm.state_space import get_child_states
+from dcegm.state_space import get_index_by_state
 from dcegm.upper_envelope_step import do_upper_envelope_step
 from scipy.special.orthogonal import roots_sh_legendre
 from scipy.stats import norm
@@ -98,8 +99,10 @@ def solve_dcegm(
 
             for child_state in child_nodes:
                 # Get child states!!!
-                next_period_policy = policy_arr[indexer[child_state[0], child_state[1]]]
-                next_period_value = value_arr[indexer[child_state[0], child_state[1]]]
+                next_period_policy = policy_arr[
+                    get_index_by_state(child_state, indexer)
+                ]
+                next_period_value = value_arr[get_index_by_state(child_state, indexer)]
 
                 (
                     policy_choice_specific,
