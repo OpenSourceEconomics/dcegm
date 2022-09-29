@@ -37,21 +37,10 @@ jobs:
         shell: bash -l {0}
         run: conda install -c conda-forge tox-conda
 
-      - name: Run pytest.
+
+      - name: Run unit and integration tests.
         shell: bash -l {0}
-        run: tox -e pytest -- --cov-report=xml --cov=./ -n auto
-
-      # - name: Upload coverage report.
-      #   if: runner.os == 'Linux' && matrix.python-version == '3.9'
-      #   uses: codecov/codecov-action@v1
-      #   with:
-      #     token: ${{ secrets.CODECOV_TOKEN }}
-
-      # # Unit, integration, and end-to-end tests.
-
-      # - name: Run unit tests and doctests.
-      #   shell: bash -l {0}
-      #   run: tox -e pytest -- src tests --cov-report=xml --cov=./ -n auto
+        run: tox -e pytest -- src tests --cov-report=xml --cov=./ -n auto
 
       - name: Upload coverage report.
         if: runner.os == 'Linux' && matrix.python-version == '3.9'
@@ -59,7 +48,9 @@ jobs:
         run: bash <(curl -s https://codecov.io/bash) -F unit -c
 
 
-  pre-commit:
+
+
+pre-commit:
 
     name: Run pre-commit.
     runs-on: ubuntu-latest
