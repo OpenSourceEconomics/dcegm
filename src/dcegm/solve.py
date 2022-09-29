@@ -115,8 +115,7 @@ def solve_dcegm(
                     next_period_value=next_period_value,
                 )
 
-                # Only calculate upper envolope when working
-                if choice >= 1 and n_choices > 1:
+                if n_choices > 1:
                     (
                         policy_choice_specific,
                         value_choice_specific,
