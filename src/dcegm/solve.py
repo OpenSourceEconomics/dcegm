@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from dcegm.egm_step import do_egm_step
 from dcegm.state_space import create_state_space
+from dcegm.state_space import get_child_states
 from dcegm.state_space import get_state_choice_set
 from dcegm.upper_envelope_step import do_upper_envelope_step
 from scipy.special.orthogonal import roots_sh_legendre
@@ -93,6 +94,7 @@ def solve_dcegm(
         for state in subset_states:
             current_state_index = indexer[state[0], state[1]]
             choice_set_state = get_state_choice_set(state, state_space, indexer)
+            # child_nodes = get_child_states(state, state_space, indexer)
 
             for choice_index, choice in enumerate(choice_set_state):
                 # Get child states!!!
