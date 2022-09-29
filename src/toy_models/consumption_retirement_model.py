@@ -141,22 +141,12 @@ def compute_expected_value(
     # Taste shock (scale) parameter
     lambda_ = params.loc[("shocks", "lambda"), "value"]
 
-    if options["n_discrete_choices"] > 1:
-        # Continuation value of working
-        expected_value = np.dot(
-            quad_weights.T,
-            _calc_logsum(next_period_value, lambda_).reshape(
-                matrix_next_period_wealth.shape, order="F"
-            ),
-        )
-    else:
-        expected_value = np.dot(
-            quad_weights.T,
-            next_period_value[choice, :].reshape(
-                matrix_next_period_wealth.shape, order="F"
-            ),
-        )
-
+    expected_value = np.dot(
+        quad_weights.T,
+        _calc_logsum(next_period_value, lambda_).reshape(
+            matrix_next_period_wealth.shape, order="F"
+        ),
+    )
     return expected_value
 
 
