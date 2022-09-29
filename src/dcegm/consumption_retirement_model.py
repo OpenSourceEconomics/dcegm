@@ -275,15 +275,13 @@ def get_next_period_wealth_matrices(
     """
     period = state[0]
     r = params.loc[("assets", "interest_rate"), "value"]
-    sigma = params.loc[("shocks", "sigma"), "value"]
 
     n_grid_wealth = options["grid_points_wealth"]
     n_quad_stochastic = options["quadrature_points_stochastic"]
 
     # Calculate stochastic labor income
-    shocks = quad_points * sigma
     next_period_income = _calc_stochastic_income(
-        period + 1, shocks, params=params, options=options
+        period + 1, quad_points, params=params, options=options
     )
 
     matrix_next_period_wealth = np.full(

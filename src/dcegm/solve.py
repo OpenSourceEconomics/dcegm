@@ -68,9 +68,11 @@ def solve_dcegm(
     quad_points, quad_weights = roots_sh_legendre(n_quad_points)
     quad_points_normal = norm.ppf(quad_points)
 
+    sigma = params.loc[("shocks", "sigma"), "value"]
+
     exogenous_grid = {
         "savings": savings_grid,
-        "quadrature_points": quad_points_normal,
+        "quadrature_points": quad_points_normal * sigma,
         "quadrature_weights": quad_weights,
     }
 
