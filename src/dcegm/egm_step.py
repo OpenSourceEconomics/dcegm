@@ -5,10 +5,10 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
-from dcegm.consumption_retirement_model import calc_next_period_marginal_wealth
-from dcegm.consumption_retirement_model import compute_expected_value
-from dcegm.consumption_retirement_model import get_next_period_wealth_matrices
 from scipy import interpolate
+from toy_models.consumption_retirement_model import calc_next_period_marginal_wealth
+from toy_models.consumption_retirement_model import compute_expected_value
+from toy_models.consumption_retirement_model import get_next_period_wealth_matrices
 
 
 def do_egm_step(

@@ -5,12 +5,12 @@ import numpy as np
 import pandas as pd
 import pytest
 import yaml
-from dcegm.consumption_retirement_model import compute_next_period_marginal_utility
-from dcegm.consumption_retirement_model import inverse_marginal_utility_crra
-from dcegm.consumption_retirement_model import utility_func_crra
 from dcegm.solve import solve_dcegm
 from dcegm.state_space import create_state_space
 from numpy.testing import assert_array_almost_equal as aaae
+from toy_models.consumption_retirement_model import compute_next_period_marginal_utility
+from toy_models.consumption_retirement_model import inverse_marginal_utility_crra
+from toy_models.consumption_retirement_model import utility_func_crra
 
 # Obtain the test directory of the package.
 TEST_DIR = Path(__file__).parent

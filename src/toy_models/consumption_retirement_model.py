@@ -298,6 +298,9 @@ def get_next_period_wealth_matrices(
     return matrix_next_period_wealth
 
 
+# def wage_systematic(state, params, options):
+
+
 def calc_next_period_marginal_wealth(state, params, options):
     """
     Calculate next periods marginal wealth.
