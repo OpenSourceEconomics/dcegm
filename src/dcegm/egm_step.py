@@ -81,6 +81,7 @@ def do_egm_step(
     )
 
     next_period_value = get_next_period_value(
+        child_node_choice_set,
         matrix_next_period_wealth=matrix_next_period_wealth,
         period=child_state[0] - 1,
         params=params,
@@ -160,15 +161,16 @@ def get_next_period_policy(
         (child_node_choice_set.shape[0], n_quad_stochastic * n_grid_wealth)
     )
 
-    for index in range(child_node_choice_set.shape[0]):
+    for index, choice in enumerate(child_node_choice_set):
         next_period_policy_interp[index, :] = interpolate_policy(
-            matrix_next_period_wealth.flatten("F"), next_period_policy[index]
+            matrix_next_period_wealth.flatten("F"), next_period_policy[choice]
         )
 
     return next_period_policy_interp
 
 
 def get_next_period_value(
+    child_node_choice_set,
     matrix_next_period_wealth: np.ndarray,
     next_period_value: np.ndarray,
     period: int,
@@ -197,21 +199,20 @@ def get_next_period_value(
             the current period grid of potential next period wealths.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
     """
-    n_choices = options["n_discrete_choices"]
     next_period_value_interp = np.empty(
         (
-            n_choices,
+            child_node_choice_set.shape[0],
             matrix_next_period_wealth.shape[0] * matrix_next_period_wealth.shape[1],
         )
     )
 
-    for choice in range(n_choices):
+    for index, choice in enumerate(child_node_choice_set):
         if period == options["n_periods"] - 2:
-            next_period_value_interp[choice, :] = compute_utility(
+            next_period_value_interp[index, :] = compute_utility(
                 matrix_next_period_wealth.flatten("F"), choice, params
             )
         else:
-            next_period_value_interp[choice, :] = interpolate_value(
+            next_period_value_interp[index, :] = interpolate_value(
                 flat_wealth=matrix_next_period_wealth.flatten("F"),
                 value=next_period_value[choice],
                 choice=choice,

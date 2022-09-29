@@ -95,7 +95,7 @@ def compute_next_period_marginal_utility(
         )
     elif choice == 1:
         next_period_marg_util = _marginal_utility_crra(
-            next_period_consumption[1, :], params
+            next_period_consumption[0, :], params
         )
     else:
         prob_working = _calc_next_period_choice_probs(
@@ -141,7 +141,7 @@ def compute_expected_value(
     # Taste shock (scale) parameter
     lambda_ = params.loc[("shocks", "lambda"), "value"]
 
-    if (choice == 0) & (options["n_discrete_choices"] > 1):
+    if options["n_discrete_choices"] > 1:
         # Continuation value of working
         expected_value = np.dot(
             quad_weights.T,

@@ -50,7 +50,10 @@ def get_state_choice_set(
         choice_set (np.ndarray): This is the choice set in this state.
 
     """
-    return np.array(range(indexer.shape[1]))
+    if state[1] == 1:
+        return np.array([1])
+    else:
+        return np.array(range(indexer.shape[1]))
 
 
 def get_child_states(
