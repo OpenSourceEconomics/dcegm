@@ -10,7 +10,6 @@ from dcegm.egm_step import do_egm_step
 from dcegm.state_space import create_state_space
 from dcegm.state_space import get_child_states
 from dcegm.state_space import get_index_by_state
-from dcegm.upper_envelope_step import do_upper_envelope_step
 from scipy.special.orthogonal import roots_sh_legendre
 from scipy.stats import norm
 
@@ -53,7 +52,6 @@ def solve_dcegm(
     """
     max_wealth = params.loc[("assets", "max_wealth"), "value"]
     n_periods = options["n_periods"]
-    n_choices = options["n_discrete_choices"]
     n_grid_wealth = options["grid_points_wealth"]
     n_quad_points = options["quadrature_points_stochastic"]
     sigma = params.loc[("shocks", "sigma"), "value"]
@@ -86,8 +84,6 @@ def solve_dcegm(
         compute_utility=utility_functions["utility"],
     )
 
-    # Check the need for upper envelope
-    need_upper_env = n_choices > 1
     # Backwards induction from second to last period (T - 1)
     for period in range(n_periods - 2, -1, -1):
 
@@ -115,19 +111,6 @@ def solve_dcegm(
                     next_period_policy=next_period_policy,
                     next_period_value=next_period_value,
                 )
-
-                if need_upper_env:
-                    (
-                        policy_choice_specific,
-                        value_choice_specific,
-                    ) = do_upper_envelope_step(
-                        policy_choice_specific,
-                        value_choice_specific,
-                        expected_value=expected_value,
-                        params=params,
-                        options=options,
-                        compute_utility=utility_functions["utility"],
-                    )
 
                 # Store
                 policy_arr[

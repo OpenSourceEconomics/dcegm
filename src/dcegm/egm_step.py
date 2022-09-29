@@ -5,6 +5,7 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
+from dcegm.upper_envelope_step import do_upper_envelope_step
 from scipy import interpolate
 from toy_models.consumption_retirement_model import calc_next_period_marginal_wealth
 from toy_models.consumption_retirement_model import compute_expected_value
@@ -44,18 +45,16 @@ def do_egm_step(
     Returns:
         (tuple) Tuple containing
 
-        - policy (List[np.ndarray]): Nested list of np.ndarrays storing the
+        - current_policy (np.ndarray): Nested list of np.ndarrays storing the
             choice-specific consumption policies. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*].
-        - value (List[np.ndarray]): Nested list of np.ndarrays storing the
+        - current_value (np.ndarray): Nested list of np.ndarrays storing the
             choice-specific value functions. Dimensions of the list are:
             [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*].
         - expected_value (np.ndarray): The expected value of continuation.
 
     """
     n_grid_wealth = options["grid_points_wealth"]
-    current_policy = np.empty((2, n_grid_wealth + 1))
-    current_value = np.empty((2, n_grid_wealth + 1))
     beta = params.loc[("beta", "beta"), "value"]
 
     # 0) Preliminaries
@@ -115,20 +114,28 @@ def do_egm_step(
         options=options,
     )
 
-    current_policy[0, 1:] = endog_wealth_grid
-    current_policy[1, 1:] = current_period_policy
-
-    current_value[0, 1:] = endog_wealth_grid
-
     utility = utility_functions["utility"](
         current_period_policy, child_state[1], params
     )
 
+    current_policy = np.zeros((2, n_grid_wealth + 1))
+    current_policy[0, 1:] = endog_wealth_grid
+    current_policy[1, 1:] = current_period_policy
+
+    current_value = np.zeros((2, n_grid_wealth + 1))
+    current_value[0, 1:] = endog_wealth_grid
+    current_value[1, 0] = expected_value[0]
     current_value[1, 1:] = utility + beta * expected_value
 
-    current_policy, current_value = _set_first_elements(
-        current_policy, current_value, expected_value
-    )
+    if options["n_discrete_choices"] > 1:
+        (current_policy, current_value,) = do_upper_envelope_step(
+            current_policy,
+            current_value,
+            expected_value=expected_value,
+            params=params,
+            options=options,
+            compute_utility=utility_functions["utility"],
+        )
 
     return current_policy, current_value, expected_value
 
