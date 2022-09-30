@@ -11,26 +11,33 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
         options (dict): Options dictionary.
 
     Returns:
-        states (np.ndarray): Collection of all possible states.
-        indexer (np.ndarray): Indexer object, that maps states to indexes.
+        states (np.ndarray): Collection of all possible states of shape
+            (n_periods * n_choices, n_choices).
+        indexer (np.ndarray): Indexer object that maps states to indexes.
+            Shape (n_periods, n_choices).
 
     """
     n_periods = options["n_periods"]
     n_choices = options["n_discrete_choices"]
+
     shape = (n_periods, n_choices)
     indexer = np.full(shape, -9999, dtype=np.int64)
-    data = []
-    i = 0
 
+    _state_space = []
+
+    i = 0
     for period in range(n_periods):
         for last_period_decision in range(n_choices):
             indexer[period, last_period_decision] = i
-            row = [period, last_period_decision]
-            i += 1
-            data.append(row)
 
-    states = np.array(data, dtype=np.int64)
-    return states, indexer
+            row = [period, last_period_decision]
+            _state_space.append(row)
+
+            i += 1
+
+    state_space = np.array(_state_space, dtype=np.int64)
+
+    return state_space, indexer
 
 
 def get_state_choice_set(
