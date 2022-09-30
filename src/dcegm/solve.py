@@ -1,5 +1,4 @@
 """Interface for the DC-EGM algorithm."""
-import copy
 from typing import Callable
 from typing import Dict
 from typing import Tuple
@@ -72,16 +71,17 @@ def solve_dcegm(
     }
 
     policy_arr, value_arr = _create_multi_dim_arrays(state_space, options)
-    policy_arr, value_arr = solve_final_period(
-        state_space,
-        state_indexer,
-        policy_arr,
-        value_arr,
+
+    states_last_period = state_space[np.where(state_space[:, 0] == n_periods - 1)]
+    policy_final, value_final = solve_final_period(
+        states_last_period,
         savings_grid=savings_grid,
         params=params,
         options=options,
         compute_utility=utility_functions["utility"],
     )
+    policy_arr[-len(states_last_period) :, ...] = policy_final
+    value_arr[-len(states_last_period) :, ...] = value_final
 
     for period in range(n_periods - 2, -1, -1):
 
@@ -142,10 +142,7 @@ def solve_dcegm(
 
 
 def solve_final_period(
-    state_space: np.ndarray,
-    indexer: np.ndarray,
-    policy: np.ndarray,
-    value: np.ndarray,
+    states_last_period,
     savings_grid: np.ndarray,
     *,
     params: pd.DataFrame,
@@ -154,21 +151,11 @@ def solve_final_period(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Computes solution to final period for policy and value function.
 
+    In the last period, everything is consumed, i.e. consumption = savings.
+
     Args:
         state_space (np.ndarray): Collection of all possible states.
         indexer (np.ndarray): Indexer object, that maps states to indexes.
-        policy (np.ndarray): Multi-dimensional np.ndarray storing the
-            choice-specific policy function; of shape
-            [n_periods, n_discrete_choices, 2, 1.1 * n_grid_wealth].
-            Position [.., 0, :] of contains the endogenous grid over wealth M,
-            and [.., 1, :] stores the corresponding value of the policy function
-            c(M, d), for each time period and each discrete choice.
-        value (np.ndarray): Multi-dimensional np.ndarray storing the
-            choice-specific value functions; of shape
-            [n_periods, n_discrete_choices, 2, 1.1 * n_grid_wealth].
-            Position [.., 0, :] of contains the endogenous grid over wealth M,
-            and [.., 1, :] stores the corresponding value of the value function
-            v(M, d), for each time period and each discrete choice.
         savings_grid (np.ndarray): Array of shape (n_wealth_grid,) denoting the
             exogenous savings grid.
         params (pd.DataFrame): Model parameters indexed with multi-index of the
@@ -179,44 +166,54 @@ def solve_final_period(
     Returns:
         (tuple): Tuple containing
 
-        - policy (List[np.ndarray]): Nested list of np.ndarrays storing the
-            choice-specific consumption policies with the solution for the final
-            period included.
-        - value (List[np.ndarray]): Nested list of np.ndarrays storing the
-            choice-specific value functions with the solution for the final period
-            included.
+        - policy (np.ndarray): Multi-dimensional np.ndarray storing the
+            choice-specific policy function; of shape
+            [n_periods, n_discrete_choices, 2, 1.1 * (n_grid_wealth + 1)].
+            Position [.., 0, :] of contains the endogenous grid over wealth M,
+            and [.., 1, :] stores the corresponding value of the policy function
+            c(M, d), for each time period and each discrete choice.
+        - value (np.ndarray): Multi-dimensional np.ndarray storing the
+            choice-specific value functions; of shape
+            [n_periods, n_discrete_choices, 2, 1.1 * (n_grid_wealth + 1)].
+            Position [.., 0, :] of contains the endogenous grid over wealth M,
+            and [.., 1, :] stores the corresponding value of the value function
+            v(M, d), for each time period and each discrete choice.
     """
-    n_periods = options["n_periods"]
     n_choices = options["n_discrete_choices"]
+    choice_range = [1] if n_choices < 2 else range(n_choices)
 
     # In last period, nothing is saved for the next period (since there is none).
     # Hence, everything is consumed, c_T(M, d) = M
-    states_last_period = state_space[np.where(state_space[:, 0] == n_periods - 1)]
+    n_states = len(states_last_period)
 
-    end_grid = savings_grid.shape[0] + 1
-    for state in states_last_period:
-        state_index = indexer[state[0], state[1]]
+    policy_final = np.empty(
+        (len(states_last_period), n_choices, 2, int(1.1 * (len(savings_grid) + 1)))
+    )
+    value_final = np.empty(
+        (len(states_last_period), n_states, 2, int(1.1 * (len(savings_grid) + 1)))
+    )
+    policy_final[:] = np.nan
+    value_final[:] = np.nan
 
-        for choice in range(n_choices):
-            policy[state_index, choice, 0, 1:end_grid] = copy.deepcopy(
-                savings_grid
-            )  # M
-            policy[state_index, choice, 1, 1:end_grid] = copy.deepcopy(
-                policy[state_index, choice, 0, 1:end_grid]
-            )  # c(M, d)
-            policy[state_index, choice, 0, 0] = 0
-            policy[state_index, choice, 1, 0] = 0
+    end_grid = len(savings_grid) + 1
 
-            value[state_index, choice, 0, 2:end_grid] = compute_utility(
-                policy[state_index, choice, 0, 2:end_grid], choice, params
+    for state_index in range(n_states):
+
+        for index, choice in enumerate(choice_range):
+            policy_final[state_index, index, :, 0] = 0
+            policy_final[state_index, index, 0, 1:end_grid] = savings_grid  # M
+            policy_final[state_index, index, 1, 1:end_grid] = savings_grid  # c(M, d)
+
+            value_final[state_index, index, :, 0] = 0
+            value_final[state_index, index, 0, 1:end_grid] = savings_grid
+
+            # Start with second entry of savings grid, to avaid taking the log of 0
+            # (the first entry) when computing utility
+            value_final[state_index, index, 1, 2:end_grid] = compute_utility(
+                savings_grid[1:], choice, params
             )
-            value[state_index, choice][1, 2:end_grid] = compute_utility(
-                policy[state_index, choice, 1, 2:end_grid], choice, params
-            )
-            value[state_index, choice, 0, 0] = 0
-            value[state_index, choice, :, 2] = 0
 
-    return policy, value
+    return policy_final, value_final
 
 
 def _create_multi_dim_arrays(
@@ -249,13 +246,13 @@ def _create_multi_dim_arrays(
 
         - policy (np.ndarray): Multi-dimensional np.ndarray storing the
             choice-specific policy function; of shape
-            [n_periods, n_discrete_choices, 2, 1.1 * n_grid_wealth].
+            [n_periods, n_discrete_choices, 2, 1.1 * n_grid_wealth + 1].
             Position [.., 0, :] of contains the endogenous grid over wealth M,
             and [.., 1, :] stores the corresponding value of the policy function
             c(M, d), for each time period and each discrete choice.
         - value (np.ndarray): Multi-dimensional np.ndarray storing the
             choice-specific value functions; of shape
-            [n_periods, n_discrete_choices, 2, 1.1 * n_grid_wealth].
+            [n_periods, n_discrete_choices, 2, 1.1 * n_grid_wealth + 1].
             Position [.., 0, :] of contains the endogenous grid over wealth M,
             and [.., 1, :] stores the corresponding value of the value function
             v(M, d), for each time period and each discrete choice.
@@ -264,8 +261,8 @@ def _create_multi_dim_arrays(
     n_choices = options["n_discrete_choices"]
     n_states = state_space.shape[0]
 
-    policy_arr = np.empty((n_states, n_choices, 2, int(1.1 * n_grid_wealth)))
-    value_arr = np.empty((n_states, n_choices, 2, int(1.1 * n_grid_wealth)))
+    policy_arr = np.empty((n_states, n_choices, 2, int(1.1 * n_grid_wealth) + 1))
+    value_arr = np.empty((n_states, n_choices, 2, int(1.1 * n_grid_wealth) + 1))
     policy_arr[:] = np.nan
     value_arr[:] = np.nan
 
