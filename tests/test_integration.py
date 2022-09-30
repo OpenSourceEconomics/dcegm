@@ -5,12 +5,12 @@ import numpy as np
 import pandas as pd
 import pytest
 import yaml
-from dcegm.consumption_retirement_model import compute_next_period_marginal_utility
-from dcegm.consumption_retirement_model import inverse_marginal_utility_crra
-from dcegm.consumption_retirement_model import utility_func_crra
 from dcegm.solve import solve_dcegm
 from dcegm.state_space import create_state_space
 from numpy.testing import assert_array_almost_equal as aaae
+from toy_models.consumption_retirement_model import inverse_marginal_utility_crra
+from toy_models.consumption_retirement_model import marginal_utility_crra
+from toy_models.consumption_retirement_model import utility_func_crra
 
 # Obtain the test directory of the package.
 TEST_DIR = Path(__file__).parent
@@ -34,7 +34,7 @@ def utility_functions():
     return {
         "utility": utility_func_crra,
         "inverse_marginal_utility": inverse_marginal_utility_crra,
-        "next_period_marginal_utility": compute_next_period_marginal_utility,
+        "marginal_utility": marginal_utility_crra,
     }
 
 
@@ -42,8 +42,8 @@ def utility_functions():
     "model, choice_range",
     [
         ("deaton", [0]),
-        ("retirement_taste_shocks", [1, 0]),
-        ("retirement_no_taste_shocks", [1, 0]),
+        ("retirement_taste_shocks", [0, 1]),
+        ("retirement_no_taste_shocks", [0, 1]),
     ],
 )
 def test_benchmark_models(model, choice_range, utility_functions):
@@ -71,8 +71,8 @@ def test_benchmark_models(model, choice_range, utility_functions):
                 policy_expec = policy_expected[period, choice]
                 value_expec = value_expected[period, choice]
             else:
-                policy_expec = policy_expected[period][choice].T
-                value_expec = value_expected[period][choice].T
+                policy_expec = policy_expected[period][1 - choice].T
+                value_expec = value_expected[period][1 - choice].T
 
             aaae(
                 policy_calculated[state_index, choice, :][

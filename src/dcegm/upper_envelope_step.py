@@ -533,7 +533,7 @@ def _augment_grid(
     )[:-1]
 
     values_to_add = (
-        compute_utility(grid_points_to_add, choice=1, params=params)
+        compute_utility(grid_points_to_add, choice=0, params=params)
         + beta * expected_value[0]
     )
     value_augmented = np.vstack(

@@ -8,8 +8,10 @@ import numpy as np
 import pandas as pd
 from dcegm.egm_step import do_egm_step
 from dcegm.state_space import create_state_space
+from dcegm.state_space import get_child_states
+from dcegm.state_space import get_state_specific_choice_set
 from dcegm.upper_envelope_step import do_upper_envelope_step
-from scipy.special.orthogonal import roots_sh_legendre
+from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 
 
@@ -51,21 +53,15 @@ def solve_dcegm(
     """
     max_wealth = params.loc[("assets", "max_wealth"), "value"]
     n_periods = options["n_periods"]
-    n_choices = options["n_discrete_choices"]
     n_grid_wealth = options["grid_points_wealth"]
     n_quad_points = options["quadrature_points_stochastic"]
     sigma = params.loc[("shocks", "sigma"), "value"]
 
-    # If no discrete choices to make, set choice_range to 1 = "working".
-    choice_range = [1] if n_choices < 2 else range(n_choices)
-
     savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
 
-    state_space, indexer = create_state_space(options)
+    state_space, state_indexer = create_state_space(options)
 
     # Gauss-Legendre (shifted) quadrature over the interval [0,1].
-    # Standard Gauss-Legendre quadrature (scipy.special.roots_legendre)
-    # integrates over [-1, 1].
     quad_points, quad_weights = roots_sh_legendre(n_quad_points)
     quad_points_normal = norm.ppf(quad_points)
 
@@ -78,7 +74,7 @@ def solve_dcegm(
     policy_arr, value_arr = _create_multi_dim_arrays(state_space, options)
     policy_arr, value_arr = solve_final_period(
         state_space,
-        indexer,
+        state_indexer,
         policy_arr,
         value_arr,
         savings_grid=savings_grid,
@@ -87,26 +83,29 @@ def solve_dcegm(
         compute_utility=utility_functions["utility"],
     )
 
-    # Backwards induction from second to last period (T - 1)
     for period in range(n_periods - 2, -1, -1):
 
-        subset_states = state_space[np.where(state_space[:, 0] == period)]
+        state_subspace = state_space[np.where(state_space[:, 0] == period)]
 
-        for state in subset_states:
-            current_state_index = indexer[state[0], state[1]]
+        for state in state_subspace:
 
-            for choice_index, choice in enumerate(choice_range):
-                # Get child states!!!
-                next_period_policy = policy_arr[indexer[state[0] + 1, choice_index]]
-                next_period_value = value_arr[indexer[state[0] + 1, choice_index]]
+            current_state_index = state_indexer[tuple(state)]
+            child_nodes = get_child_states(state, state_space, state_indexer)
 
-                (
-                    policy_choice_specific,
-                    value_choice_specific,
-                    expected_value,
-                ) = do_egm_step(
-                    choice=choice,
-                    state=state,
+            for child_state in child_nodes:
+
+                child_state_index = state_indexer[tuple(child_state)]
+
+                next_period_policy = policy_arr[child_state_index]
+                next_period_value = value_arr[child_state_index]
+
+                child_node_choice_set = get_state_specific_choice_set(
+                    child_state, state_space, state_indexer
+                )
+
+                current_policy, current_value, expected_value = do_egm_step(
+                    child_state,
+                    child_node_choice_set,
                     params=params,
                     options=options,
                     exogenous_grid=exogenous_grid,
@@ -115,13 +114,10 @@ def solve_dcegm(
                     next_period_value=next_period_value,
                 )
 
-                if n_choices > 1:
-                    (
-                        policy_choice_specific,
-                        value_choice_specific,
-                    ) = do_upper_envelope_step(
-                        policy_choice_specific,
-                        value_choice_specific,
+                if options["n_discrete_choices"] > 1:
+                    current_policy, current_value = do_upper_envelope_step(
+                        current_policy,
+                        current_value,
                         expected_value=expected_value,
                         params=params,
                         options=options,
@@ -131,23 +127,23 @@ def solve_dcegm(
                 # Store
                 policy_arr[
                     current_state_index,
-                    choice_index,
+                    child_state[1],
                     :,
-                    : policy_choice_specific.shape[1],
-                ] = policy_choice_specific
+                    : current_policy.shape[1],
+                ] = current_policy
                 value_arr[
                     current_state_index,
-                    choice_index,
+                    child_state[1],
                     :,
-                    : value_choice_specific.shape[1],
-                ] = value_choice_specific
+                    : current_value.shape[1],
+                ] = current_value
 
     return policy_arr, value_arr
 
 
 def solve_final_period(
-    state_space,
-    indexer,
+    state_space: np.ndarray,
+    indexer: np.ndarray,
     policy: np.ndarray,
     value: np.ndarray,
     savings_grid: np.ndarray,
@@ -192,7 +188,6 @@ def solve_final_period(
     """
     n_periods = options["n_periods"]
     n_choices = options["n_discrete_choices"]
-    choice_range = [1] if n_choices < 2 else range(n_choices)
 
     # In last period, nothing is saved for the next period (since there is none).
     # Hence, everything is consumed, c_T(M, d) = M
@@ -202,22 +197,24 @@ def solve_final_period(
     for state in states_last_period:
         state_index = indexer[state[0], state[1]]
 
-        for index, choice in enumerate(choice_range):
-            policy[state_index, index, 0, 1:end_grid] = copy.deepcopy(savings_grid)  # M
-            policy[state_index, index, 1, 1:end_grid] = copy.deepcopy(
-                policy[state_index, index, 0, 1:end_grid]
+        for choice in range(n_choices):
+            policy[state_index, choice, 0, 1:end_grid] = copy.deepcopy(
+                savings_grid
+            )  # M
+            policy[state_index, choice, 1, 1:end_grid] = copy.deepcopy(
+                policy[state_index, choice, 0, 1:end_grid]
             )  # c(M, d)
-            policy[state_index, index, 0, 0] = 0
-            policy[state_index, index, 1, 0] = 0
+            policy[state_index, choice, 0, 0] = 0
+            policy[state_index, choice, 1, 0] = 0
 
-            value[state_index, index, 0, 2:end_grid] = compute_utility(
-                policy[state_index, index, 0, 2:end_grid], choice, params
+            value[state_index, choice, 0, 2:end_grid] = compute_utility(
+                policy[state_index, choice, 0, 2:end_grid], choice, params
             )
-            value[state_index, index][1, 2:end_grid] = compute_utility(
-                policy[state_index, index, 1, 2:end_grid], choice, params
+            value[state_index, choice][1, 2:end_grid] = compute_utility(
+                policy[state_index, choice, 1, 2:end_grid], choice, params
             )
-            value[state_index, index, 0, 0] = 0
-            value[state_index, index, :, 2] = 0
+            value[state_index, choice, 0, 0] = 0
+            value[state_index, choice, :, 2] = 0
 
     return policy, value
 
