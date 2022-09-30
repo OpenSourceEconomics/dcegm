@@ -72,16 +72,19 @@ def solve_dcegm(
 
     policy_arr, value_arr = _create_multi_dim_arrays(state_space, options)
 
-    states_last_period = state_space[np.where(state_space[:, 0] == n_periods - 1)]
+    condition_final_period = np.where(state_space[:, 0] == n_periods - 1)
+    states_final_period = state_space[condition_final_period]
+
     policy_final, value_final = solve_final_period(
-        states_last_period,
+        states=states_final_period,
         savings_grid=savings_grid,
         params=params,
         options=options,
         compute_utility=utility_functions["utility"],
     )
-    policy_arr[-len(states_last_period) :, ...] = policy_final
-    value_arr[-len(states_last_period) :, ...] = value_final
+
+    policy_arr[condition_final_period, ...] = policy_final
+    value_arr[condition_final_period, ...] = value_final
 
     for period in range(n_periods - 2, -1, -1):
 
@@ -142,7 +145,7 @@ def solve_dcegm(
 
 
 def solve_final_period(
-    states_last_period,
+    states: np.ndarray,
     savings_grid: np.ndarray,
     *,
     params: pd.DataFrame,
@@ -181,22 +184,19 @@ def solve_final_period(
     """
     n_choices = options["n_discrete_choices"]
     choice_range = [1] if n_choices < 2 else range(n_choices)
-
-    # In last period, nothing is saved for the next period (since there is none).
-    # Hence, everything is consumed, c_T(M, d) = M
-    n_states = len(states_last_period)
+    n_states = states.shape[0]
 
     policy_final = np.empty(
-        (len(states_last_period), n_choices, 2, int(1.1 * (len(savings_grid) + 1)))
+        (n_states, n_choices, 2, int(1.1 * (len(savings_grid) + 1)))
     )
-    value_final = np.empty(
-        (len(states_last_period), n_states, 2, int(1.1 * (len(savings_grid) + 1)))
-    )
+    value_final = np.empty((n_states, n_choices, 2, int(1.1 * (len(savings_grid) + 1))))
     policy_final[:] = np.nan
     value_final[:] = np.nan
 
     end_grid = len(savings_grid) + 1
 
+    # In last period, nothing is saved for the next period (since there is none).
+    # Hence, everything is consumed, c_T(M, d) = M
     for state_index in range(n_states):
 
         for index, choice in enumerate(choice_range):
@@ -204,10 +204,10 @@ def solve_final_period(
             policy_final[state_index, index, 0, 1:end_grid] = savings_grid  # M
             policy_final[state_index, index, 1, 1:end_grid] = savings_grid  # c(M, d)
 
-            value_final[state_index, index, :, 0] = 0
+            value_final[state_index, index, :, :2] = 0
             value_final[state_index, index, 0, 1:end_grid] = savings_grid
 
-            # Start with second entry of savings grid, to avaid taking the log of 0
+            # Start with second entry of savings grid to avaid taking the log of 0
             # (the first entry) when computing utility
             value_final[state_index, index, 1, 2:end_grid] = compute_utility(
                 savings_grid[1:], choice, params
