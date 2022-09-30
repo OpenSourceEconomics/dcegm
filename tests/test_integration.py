@@ -8,8 +8,8 @@ import yaml
 from dcegm.solve import solve_dcegm
 from dcegm.state_space import create_state_space
 from numpy.testing import assert_array_almost_equal as aaae
-from toy_models.consumption_retirement_model import compute_next_period_marginal_utility
 from toy_models.consumption_retirement_model import inverse_marginal_utility_crra
+from toy_models.consumption_retirement_model import marginal_utility_crra
 from toy_models.consumption_retirement_model import utility_func_crra
 
 # Obtain the test directory of the package.
@@ -34,7 +34,7 @@ def utility_functions():
     return {
         "utility": utility_func_crra,
         "inverse_marginal_utility": inverse_marginal_utility_crra,
-        "next_period_marginal_utility": compute_next_period_marginal_utility,
+        "marginal_utility": marginal_utility_crra,
     }
 
 

@@ -8,6 +8,9 @@ import pandas as pd
 from scipy import interpolate
 from toy_models.consumption_retirement_model import calc_next_period_marginal_wealth
 from toy_models.consumption_retirement_model import compute_expected_value
+from toy_models.consumption_retirement_model import (
+    compute_marginal_utiltiy_in_child_state,
+)
 from toy_models.consumption_retirement_model import get_next_period_wealth_matrices
 
 
@@ -90,15 +93,24 @@ def do_egm_step(
         compute_utility=utility_functions["utility"],
     )
 
-    # i) Current period consumption & endogenous wealth grid
-    current_period_policy = get_current_period_policy(
+    next_period_marginal_utility = compute_marginal_utiltiy_in_child_state(
         child_node_choice_set,
-        next_period_policy=next_period_policy,
-        matrix_next_period_wealth=matrix_next_period_wealth,
-        next_period_marginal_wealth=next_period_marginal_wealth,
+        marginal_utility_func=utility_functions["marginal_utility"],
+        next_period_consumption=next_period_policy,
         next_period_value=next_period_value,
         params=params,
         options=options,
+    )
+
+    next_period_marginal_utility_reshaped = next_period_marginal_utility.reshape(
+        matrix_next_period_wealth.shape, order="F"
+    )
+
+    # i) Current period consumption & endogenous wealth grid
+    current_period_policy = get_current_period_policy(
+        next_period_marginal_utility_reshaped,
+        next_period_marginal_wealth=next_period_marginal_wealth,
+        params=params,
         quad_weights=exogenous_grid["quadrature_weights"],
         utility_functions=utility_functions,
     )
@@ -222,43 +234,21 @@ def get_next_period_value(
 
 
 def get_current_period_policy(
-    child_node_choice_set,
-    next_period_policy: np.ndarray,
-    matrix_next_period_wealth: np.ndarray,
+    next_period_marginal_utility: np.array,
     next_period_marginal_wealth: np.ndarray,
-    next_period_value: np.ndarray,
     params: pd.DataFrame,
-    options: Dict[str, int],
     quad_weights: np.ndarray,
     utility_functions: Dict[str, callable],
 ) -> np.ndarray:
     """Computes the current period policy.
 
     Args:
-        choice (int): Choice of the agent, e.g. 0 = "retirement", 1 = "working".
-        true_next_period_policy (List[np.ndarray]): Nested list of np.ndarrays storing
-            choice-specific consumption policies. Dimensions of the list are:
-            [n_discrete_choices][2, *n_endog_wealth_grid*], where
-            *n_endog_wealth_grid* is of variable length depending on the number of
-            concurrent local optima for consumption. The arrays have shape
-            [2, *n_endog_wealth_grid*] and are initialized to
-            *endog_wealth_grid* = n_grid_wealth + 1. We include one additional
-            grid point to the left of the endogenous wealth grid, which we set
-            to zero (that's why we have n_grid_wealth + 1 initial points).
-            Position [0, :] of the arrays contain the endogenous grid over wealth M,
-            and [1, :] stores the corresponding value of the (consumption) policy
-            function c(M, d), for each time period and each discrete choice.
-            exogenous savings grid.
-        matrix_next_period_wealth (np.ndarray): Array of all possible next period
-            wealths with shape (n_quad_stochastic, n_grid_wealth).
+        next_period_marginal_utility (np.ndarray): Array of next period's
+            marginal utility of shape (n_quad_stochastic, n_grid_wealth,).
         next_period_marginal_wealth (np.ndarray): Array of all possible next period
             marginal wealths. Also of shape (n_quad_stochastic, n_grid_wealth)
-        next_period_value (np.ndarray): Array containing interpolated
-            values of next period choice-specific value function.
-            Shape (n_choices, n_quad_stochastic * n_grid_wealth).
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
-        options (dict): Options dictionary.
         quad_weights (np.ndarray): Weights associated with the quadrature points
             of shape (n_quad_stochastic,). Used for integration over the
             stochastic income component in the Euler equation.
@@ -272,23 +262,11 @@ def get_current_period_policy(
     """
     beta = params.loc[("beta", "beta"), "value"]
     _inv_marg_utility_func = utility_functions["inverse_marginal_utility"]
-    _compute_next_period_marginal_utility = utility_functions[
-        "next_period_marginal_utility"
-    ]
-
-    next_period_marginal_utility = _compute_next_period_marginal_utility(
-        child_node_choice_set,
-        next_period_consumption=next_period_policy,
-        next_period_value=next_period_value,
-        params=params,
-        options=options,
-    )
 
     # RHS of Euler Eq., p. 337 IJRS (2017)
     # Integrate out uncertainty over stochastic income y
     rhs_euler = _calc_rhs_euler(
         next_period_marginal_utility,
-        matrix_next_period_wealth=matrix_next_period_wealth,
         next_period_marginal_wealth=next_period_marginal_wealth,
         quad_weights=quad_weights,
     )
@@ -418,7 +396,6 @@ def _get_value_constrained(
 
 def _calc_rhs_euler(
     next_period_marginal_utility: np.ndarray,
-    matrix_next_period_wealth: np.ndarray,
     next_period_marginal_wealth: np.ndarray,
     quad_weights: np.ndarray,
 ) -> np.ndarray:
@@ -426,9 +403,7 @@ def _calc_rhs_euler(
 
     Args:
         next_period_marginal_utility (np.ndarray): Array of next period's
-            marginal utility of shape (n_quad_stochastic * n_grid_wealth,).
-        matrix_next_period_wealth(np.ndarray): Array of all possible next
-            period wealths. Shape (n_quad_stochastic, n_wealth_grid).
+            marginal utility of shape (n_quad_stochastic, n_grid_wealth,).
         next_period_marginal_wealth(np.ndarray): Array of marginal next period wealths.
             Shape (n_quad_stochastic, n_wealth_grid).
         quad_weights (np.ndarray): Weights associated with the quadrature points
@@ -439,9 +414,6 @@ def _calc_rhs_euler(
         rhs_euler (np.ndarray): Right-hand side of the Euler equation.
             Shape (n_grid_wealth,).
     """
-    next_period_marginal_utility = next_period_marginal_utility.reshape(
-        matrix_next_period_wealth.shape, order="F"
-    )
 
     rhs_euler = np.dot(
         quad_weights.T,
