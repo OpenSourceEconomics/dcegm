@@ -98,7 +98,7 @@ def solve_dcegm(
 
             current_state_index = get_index_by_state(state, indexer)
             child_nodes = get_child_states(state, state_space, indexer)
-            
+
             for child_state in child_nodes:
                 child_state_ind = get_index_by_state(child_state, state_indexer)
                 next_period_policy = policy_arr[child_state_ind]
