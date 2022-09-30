@@ -62,8 +62,8 @@ def inverse_marginal_utility_crra(
     return inverse_marginal_utility
 
 
-def compute_next_period_marginal_utility(
-    child_node_choice_set,
+def compute_marginal_utiltiy_in_child_state(
+    child_node_choice_set: np.ndarray,
     marginal_utility_func: Callable,
     next_period_consumption: np.ndarray,
     next_period_value: np.ndarray,
@@ -73,7 +73,10 @@ def compute_next_period_marginal_utility(
     """Computes the marginal utility of the next period.
 
     Args:
-        choice (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
+        child_node_choice_set (np.ndarray): Choice set of all possible choices in child
+            state. Array of shape (n_choices_in_state).
+        marginal_utility_func (Callable): Function that calculates marginal utility.
+            Supposed to have same interface as utility func.
         next_period_consumption (np.ndarray): Array of next period consumption
             of shape (n_choices, n_quad_stochastic * n_grid_wealth). Contains
             interpolated values.

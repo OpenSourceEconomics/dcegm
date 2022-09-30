@@ -8,7 +8,9 @@ import pandas as pd
 from scipy import interpolate
 from toy_models.consumption_retirement_model import calc_next_period_marginal_wealth
 from toy_models.consumption_retirement_model import compute_expected_value
-from toy_models.consumption_retirement_model import compute_next_period_marginal_utility
+from toy_models.consumption_retirement_model import (
+    compute_marginal_utiltiy_in_child_state,
+)
 from toy_models.consumption_retirement_model import get_next_period_wealth_matrices
 
 
@@ -274,7 +276,7 @@ def get_current_period_policy(
     beta = params.loc[("beta", "beta"), "value"]
     _inv_marg_utility_func = utility_functions["inverse_marginal_utility"]
 
-    next_period_marginal_utility = compute_next_period_marginal_utility(
+    next_period_marginal_utility = compute_marginal_utiltiy_in_child_state(
         child_node_choice_set,
         marginal_utility_func=utility_functions["marginal_utility"],
         next_period_consumption=next_period_policy,
