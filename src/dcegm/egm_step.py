@@ -449,16 +449,3 @@ def _calc_rhs_euler(
     )
 
     return rhs_euler
-
-
-def _set_first_elements(
-    policy: np.ndarray, value: np.ndarray, expected_value: np.ndarray
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Sets first value to expected value and the other elements to zero."""
-    policy[0, 0] = 0
-    policy[1, 0] = 0
-
-    value[0, 0] = 0
-    value[1, 0] = expected_value[0]
-
-    return policy, value
