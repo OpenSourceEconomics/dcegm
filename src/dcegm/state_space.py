@@ -110,19 +110,3 @@ def get_child_states(
         child_nodes[i, :] = state_space[indexer[state[0] + 1, choice]]
 
     return child_nodes
-
-
-def get_index_by_state(state, indexer):
-    """Can we get a better function than this?
-
-    Args:
-        state:
-        indexer:
-
-    Returns:
-
-    """
-    sub_ind = indexer[state[0]]
-    for state_var in state[1:]:
-        sub_ind = sub_ind[state_var]
-    return sub_ind

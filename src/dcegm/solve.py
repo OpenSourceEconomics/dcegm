@@ -9,7 +9,6 @@ import pandas as pd
 from dcegm.egm_step import do_egm_step
 from dcegm.state_space import create_state_space
 from dcegm.state_space import get_child_states
-from dcegm.state_space import get_index_by_state
 from dcegm.state_space import get_state_specific_choice_set
 from dcegm.upper_envelope_step import do_upper_envelope_step
 from scipy.special import roots_sh_legendre
@@ -63,8 +62,6 @@ def solve_dcegm(
     state_space, state_indexer = create_state_space(options)
 
     # Gauss-Legendre (shifted) quadrature over the interval [0,1].
-    # Standard Gauss-Legendre quadrature (scipy.special.roots_legendre)
-    # integrates over [-1, 1].
     quad_points, quad_weights = roots_sh_legendre(n_quad_points)
     quad_points_normal = norm.ppf(quad_points)
 
@@ -86,25 +83,27 @@ def solve_dcegm(
         compute_utility=utility_functions["utility"],
     )
 
-    # Backwards induction from second to last period (T - 1)
     for period in range(n_periods - 2, -1, -1):
 
-        subset_states = state_space[np.where(state_space[:, 0] == period)]
+        state_subspace = state_space[np.where(state_space[:, 0] == period)]
 
-        for state in subset_states:
+        for state in state_subspace:
 
-            current_state_index = get_index_by_state(state, state_indexer)
+            current_state_index = state_indexer[tuple(state)]
             child_nodes = get_child_states(state, state_space, state_indexer)
 
             for child_state in child_nodes:
-                child_state_ind = get_index_by_state(child_state, state_indexer)
-                next_period_policy = policy_arr[child_state_ind]
-                next_period_value = value_arr[child_state_ind]
+
+                child_state_index = state_indexer[tuple(child_state)]
+
+                next_period_policy = policy_arr[child_state_index]
+                next_period_value = value_arr[child_state_index]
+
                 child_node_choice_set = get_state_specific_choice_set(
                     child_state, state_space, state_indexer
                 )
 
-                (current_policy, current_value, expected_value,) = do_egm_step(
+                current_policy, current_value, expected_value = do_egm_step(
                     child_state,
                     child_node_choice_set,
                     params=params,
@@ -116,7 +115,7 @@ def solve_dcegm(
                 )
 
                 if options["n_discrete_choices"] > 1:
-                    (current_policy, current_value) = do_upper_envelope_step(
+                    current_policy, current_value = do_upper_envelope_step(
                         current_policy,
                         current_value,
                         expected_value=expected_value,
