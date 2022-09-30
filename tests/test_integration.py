@@ -55,7 +55,7 @@ def test_benchmark_models(model, choice_range, utility_functions, load_example_m
     for period in range(23, -1, -1):
         relevant_subset_state = state_space[np.where(state_space[:, 0] == period)][0]
 
-        state_index = indexer[relevant_subset_state[0], relevant_subset_state[1]]
+        state_index = indexer[tuple(relevant_subset_state)]
         for choice in choice_range:
             if model == "deaton":
                 policy_expec = policy_expected[period, choice]

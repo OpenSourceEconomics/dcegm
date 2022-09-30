@@ -19,8 +19,9 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
     """
     n_periods = options["n_periods"]
     n_choices = options["n_discrete_choices"]
+    n_exog_process = 1
 
-    shape = (n_periods, n_choices)
+    shape = (n_periods, n_choices, n_exog_process)
     indexer = np.full(shape, -9999, dtype=np.int64)
 
     _state_space = []
@@ -28,12 +29,14 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
     i = 0
     for period in range(n_periods):
         for last_period_decision in range(n_choices):
-            indexer[period, last_period_decision] = i
+            for exog_process in range(n_exog_process):
 
-            row = [period, last_period_decision]
-            _state_space.append(row)
+                indexer[period, last_period_decision, exog_process] = i
 
-            i += 1
+                row = [period, last_period_decision, exog_process]
+                _state_space.append(row)
+
+                i += 1
 
     state_space = np.array(_state_space, dtype=np.int64)
 
@@ -105,8 +108,10 @@ def get_child_states(
     child_nodes = np.empty(
         (state_specific_choice_set.shape[0], state_space.shape[1]), dtype=int
     )  # (n_admissible_choices, n_state_variables)
-
+    new_state = state.copy()
+    new_state[0] += 1
     for i, choice in enumerate(state_specific_choice_set):
-        child_nodes[i, :] = state_space[indexer[state[0] + 1, choice]]
+        new_state[1] = choice
+        child_nodes[i, :] = state_space[indexer[tuple(new_state)]]
 
     return child_nodes
