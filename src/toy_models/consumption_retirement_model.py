@@ -1,4 +1,5 @@
 """Model specific utility, wealth, and value functions."""
+from typing import Callable
 from typing import Dict
 
 import numpy as np
@@ -63,6 +64,7 @@ def inverse_marginal_utility_crra(
 
 def compute_next_period_marginal_utility(
     child_node_choice_set,
+    marginal_utility_func: Callable,
     next_period_consumption: np.ndarray,
     next_period_value: np.ndarray,
     params: pd.DataFrame,
@@ -92,7 +94,7 @@ def compute_next_period_marginal_utility(
         choice_prob = _calc_next_period_choice_probs(
             next_period_value, choice_index, params, options
         )
-        next_period_marg_util += choice_prob * _marginal_utility_crra(
+        next_period_marg_util += choice_prob * marginal_utility_func(
             next_period_consumption[choice_index, :], params
         )
 
@@ -134,7 +136,7 @@ def compute_expected_value(
     return expected_value
 
 
-def _marginal_utility_crra(consumption: np.ndarray, params: pd.DataFrame) -> np.ndarray:
+def marginal_utility_crra(consumption: np.ndarray, params: pd.DataFrame) -> np.ndarray:
     """Computes marginal utility of CRRA utility function.
 
     Args:
