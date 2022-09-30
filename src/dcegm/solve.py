@@ -10,7 +10,7 @@ from dcegm.egm_step import do_egm_step
 from dcegm.state_space import create_state_space
 from dcegm.state_space import get_child_states
 from dcegm.state_space import get_index_by_state
-from dcegm.state_space import get_state_choice_set
+from dcegm.state_space import get_state_specific_choice_set
 from dcegm.upper_envelope_step import do_upper_envelope_step
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
@@ -60,7 +60,7 @@ def solve_dcegm(
 
     savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
 
-    state_space, indexer = create_state_space(options)
+    state_space, state_indexer = create_state_space(options)
 
     # Gauss-Legendre (shifted) quadrature over the interval [0,1].
     # Standard Gauss-Legendre quadrature (scipy.special.roots_legendre)
@@ -77,7 +77,7 @@ def solve_dcegm(
     policy_arr, value_arr = _create_multi_dim_arrays(state_space, options)
     policy_arr, value_arr = solve_final_period(
         state_space,
-        indexer,
+        state_indexer,
         policy_arr,
         value_arr,
         savings_grid=savings_grid,
@@ -92,15 +92,15 @@ def solve_dcegm(
         subset_states = state_space[np.where(state_space[:, 0] == period)]
 
         for state in subset_states:
-            current_state_index = get_index_by_state(state, indexer)
-            child_nodes = get_child_states(state, state_space, indexer)
+            current_state_index = get_index_by_state(state, state_indexer)
+            child_nodes = get_child_states(state, state_space, state_indexer)
 
             for child_state in child_nodes:
-                child_state_ind = get_index_by_state(child_state, indexer)
+                child_state_ind = get_index_by_state(child_state, state_indexer)
                 next_period_policy = policy_arr[child_state_ind]
                 next_period_value = value_arr[child_state_ind]
-                child_node_choice_set = get_state_choice_set(
-                    child_state, state_space, indexer
+                child_node_choice_set = get_state_specific_choice_set(
+                    child_state, state_space, state_indexer
                 )
 
                 (current_policy, current_value, expected_value,) = do_egm_step(
