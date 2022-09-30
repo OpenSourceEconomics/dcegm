@@ -1,4 +1,8 @@
-# EGM and DC-EGM
+# DC-EGM
+
+[![Continuous Integration Workflow](https://github.com/segsell/dc-egm/actions/workflows/continuous-integration-workflow.yml/badge.svg)](https://github.com/segsell/dc-egm/actions/workflows/continuous-integration-workflow.yml)
+[![Codecov](https://codecov.io/gh/segsell/dc-egm/branch/main/graph/badge.svg)](https://codecov.io/gh/segsell/dc-egm)
+[![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 Python implementation of the Endogenous Grid Method (EGM) and Discrete-Continuous EGM (DC-EGM) algorithms for solving dynamic stochastic lifecycle models of consumption and savings, including additional discrete choices.
 
