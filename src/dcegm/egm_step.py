@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 from scipy import interpolate
 from toy_models.consumption_retirement_model import calc_next_period_marginal_wealth
-from toy_models.consumption_retirement_model import compute_expected_value
 from toy_models.consumption_retirement_model import (
     compute_marginal_utility_in_child_state,
 )
@@ -23,6 +22,7 @@ def do_egm_step(
     utility_functions: Dict[str, callable],
     compute_income: callable,
     compute_value_constrained: callable,
+    compute_expected_value: callable,
     next_period_policy: np.ndarray,
     next_period_value: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -122,16 +122,11 @@ def do_egm_step(
         quad_weights=exogenous_grid["quadrature_weights"],
         utility_functions=utility_functions,
     )
-    endog_wealth_grid = get_endogenous_wealth_grid(
-        current_period_policy, exog_savings_grid=exogenous_grid["savings"]
-    )
+    endog_wealth_grid = exogenous_grid["savings"] + current_period_policy
 
     # ii) Expected & current period value
     expected_value = compute_expected_value(
-        matrix_next_period_wealth,
-        next_period_value=next_period_value,
-        quad_weights=exogenous_grid["quadrature_weights"],
-        params=params,
+        matrix_next_period_wealth, next_period_value
     )
 
     utility = utility_functions["utility"](current_period_policy, child_state[1])
@@ -325,36 +320,14 @@ def get_current_period_policy(
 
     # RHS of Euler Eq., p. 337 IJRS (2017)
     # Integrate out uncertainty over stochastic income y
-    rhs_euler = _calc_rhs_euler(
-        next_period_marginal_utility,
-        next_period_marginal_wealth=next_period_marginal_wealth,
-        quad_weights=quad_weights,
+    rhs_euler = quad_weights @ np.multiply(
+        next_period_marginal_utility, next_period_marginal_wealth
     )
     current_period_policy = _inv_marg_utility_func(
         marginal_utility=beta * rhs_euler, params=params
     )
 
     return current_period_policy
-
-
-def get_endogenous_wealth_grid(
-    current_period_policy: np.ndarray, exog_savings_grid: np.ndarray
-) -> np.ndarray:
-    """Returns the endogenous wealth grid of the current period.
-    .
-    Args:
-        current_period_policy (np.ndarray): Consumption in the current
-            period. Array of shape (n_grid_wealth,).
-        exog_savings_grid (np.ndarray): Exogenous grid over savings.
-            Array of shape (n_grid_wealth,).
-
-    Returns:
-        endog_wealth_grid (np.ndarray): Endogenous wealth grid of shape
-            (n_grid_wealth,).
-    """
-    endog_wealth_grid = exog_savings_grid + current_period_policy
-
-    return endog_wealth_grid
 
 
 def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarray:
@@ -437,32 +410,3 @@ def interpolate_value(
     )
 
     return value_interp
-
-
-def _calc_rhs_euler(
-    next_period_marginal_utility: np.ndarray,
-    next_period_marginal_wealth: np.ndarray,
-    quad_weights: np.ndarray,
-) -> np.ndarray:
-    """Computes the right-hand side of the Euler equation, p. 337 IJRS (2017).
-
-    Args:
-        next_period_marginal_utility (np.ndarray): Array of next period's
-            marginal utility of shape (n_quad_stochastic, n_grid_wealth,).
-        next_period_marginal_wealth(np.ndarray): Array of marginal next period wealths.
-            Shape (n_quad_stochastic, n_wealth_grid).
-        quad_weights (np.ndarray): Weights associated with the quadrature points
-            of shape (n_quad_stochastic,). Used for integration over the
-            stochastic income component in the Euler equation.
-
-    Returns:
-        rhs_euler (np.ndarray): Right-hand side of the Euler equation.
-            Shape (n_grid_wealth,).
-    """
-
-    rhs_euler = np.dot(
-        quad_weights.T,
-        np.multiply(next_period_marginal_utility, next_period_marginal_wealth),
-    )
-
-    return rhs_euler

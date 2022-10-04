@@ -105,7 +105,7 @@ def compute_marginal_utility_in_child_state(
     return next_period_marg_util
 
 
-def compute_expected_value(
+def calc_expected_value(
     matrix_next_period_wealth: np.ndarray,
     next_period_value: np.ndarray,
     quad_weights: np.ndarray,
@@ -128,14 +128,12 @@ def compute_expected_value(
         expected_value (np.ndarray): Expected value of next period. Array of
             shape (n_grid_wealth,).
     """
-    # Taste shock (scale) parameter
-    lambda_ = params.loc[("shocks", "lambda"), "value"]
+    log_sum = _calc_log_sum(
+        next_period_value, lambda_=params.loc[("shocks", "lambda"), "value"]
+    )
 
-    expected_value = np.dot(
-        quad_weights.T,
-        _calc_logsum(next_period_value, lambda_).reshape(
-            matrix_next_period_wealth.shape, order="F"
-        ),
+    expected_value = quad_weights @ log_sum.reshape(
+        matrix_next_period_wealth.shape, order="F"
     )
     return expected_value
 
@@ -211,7 +209,7 @@ def _calc_next_period_choice_probs(
     return prob_working
 
 
-def _calc_logsum(next_period_value: np.ndarray, lambda_: float) -> np.ndarray:
+def _calc_log_sum(next_period_value: np.ndarray, lambda_: float) -> np.ndarray:
     """Calculates the log-sum needed for computing the expected value function.
 
     The log-sum formula may also be referred to as the 'smoothed max function',
@@ -293,8 +291,7 @@ def calc_stochastic_income(
 
 
 def calc_next_period_marginal_wealth(state, params, options):
-    """
-    Calculate next periods marginal wealth.
+    """Calculate next periods marginal wealth.
 
     Args:
         child_state (np.ndarray): 1d array of shape (n_state_variables,) denoting

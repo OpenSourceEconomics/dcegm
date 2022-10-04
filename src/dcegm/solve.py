@@ -13,6 +13,7 @@ from dcegm.state_space import get_state_specific_choice_set
 from dcegm.upper_envelope_step import do_upper_envelope_step
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
+from toy_models.consumption_retirement_model import calc_expected_value
 from toy_models.consumption_retirement_model import calc_stochastic_income
 from toy_models.consumption_retirement_model import calc_value_constrained
 
@@ -83,6 +84,11 @@ def solve_dcegm(
         params=params,
         compute_utility=utility_functions["utility"],
     )
+    compute_expected_value = partial(
+        calc_expected_value,
+        params=params,
+        quad_weights=quad_weights,
+    )
     compute_utility = partial(
         utility_functions["utility"],
         params=params,
@@ -145,6 +151,7 @@ def solve_dcegm(
                     utility_functions=utility_functions,
                     compute_income=compute_income,
                     compute_value_constrained=compute_value_constrained,
+                    compute_expected_value=compute_expected_value,
                     next_period_policy=next_period_policy,
                     next_period_value=next_period_value,
                 )
