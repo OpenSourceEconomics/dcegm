@@ -26,7 +26,7 @@ def get_example_model(model):
     return params, options
 
 
-model = ["retirement_taste_shocks", "retirement_no_taste_shocks"]
+model = ["deaton", "retirement_taste_shocks", "retirement_no_taste_shocks"]
 max_wealth = [50, 11]
 n_grid_points = [1000, 101]
 TEST_CASES = list(product(model, max_wealth, n_grid_points))

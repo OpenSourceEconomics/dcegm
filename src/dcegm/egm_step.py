@@ -11,7 +11,6 @@ from toy_models.consumption_retirement_model import compute_expected_value
 from toy_models.consumption_retirement_model import (
     compute_marginal_utiltiy_in_child_state,
 )
-from toy_models.consumption_retirement_model import get_next_period_wealth_matrices
 
 
 def do_egm_step(
@@ -22,6 +21,7 @@ def do_egm_step(
     options: Dict[str, int],
     exogenous_grid: Dict[str, np.ndarray],
     utility_functions: Dict[str, callable],
+    compute_income: callable,
     next_period_policy: np.ndarray,
     next_period_value: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -40,6 +40,9 @@ def do_egm_step(
         utility_functions (Dict[str, callable]): Dictionary of three user-supplied
             functions for computation of (i) utility, (ii) inverse marginal utility,
             and (iii) next period marginal utility.
+        compute_income (callable): User-defined function to calculate the agent's
+            end-of-period (labor) income, where the inputs ```quad_points```,
+                ```params``` and ```options``` are already partialled in.
         next_period_policy (np.ndarray): Array of the next period policy
             for all choices. Shape (n_choices, 2, 1.1 * (n_grid_wealth + 1)).
         next_period_value (np.ndarray): Array of the next period values
@@ -67,7 +70,7 @@ def do_egm_step(
         params=params,
         options=options,
         savings=exogenous_grid["savings"],
-        quad_points=exogenous_grid["quadrature_points"],
+        compute_income=compute_income,
     )
 
     next_period_marginal_wealth = calc_next_period_marginal_wealth(
@@ -140,6 +143,64 @@ def do_egm_step(
     current_value[1, 1:] = utility + beta * expected_value
 
     return current_policy, current_value, expected_value
+
+
+def get_next_period_wealth_matrices(
+    child_state,
+    savings: np.ndarray,
+    params: pd.DataFrame,
+    options: Dict[str, int],
+    compute_income: Callable,
+) -> np.ndarray:
+    """Computes all possible levels of next period (marginal) wealth M_(t+1).
+
+    Args:
+        child_state (np.ndarray): 1d array of shape (n_state_variables,) denoting
+            the current child state.
+        savings (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            exogenous savings grid.
+        params (pd.DataFrame): Model parameters indexed with multi-index of the
+            form ("category", "name") and two columns ["value", "comment"].
+        options (dict): Options dictionary.
+        compute_income (callable): User-defined function to calculate the agent's
+            end-of-period (labor) income, where the inputs ```quad_points```,
+                ```params``` and ```options``` are already partialled in.
+
+    Returns:
+        (np.ndarray): 2d array of shape (n_quad_stochastic, n_grid_wealth)
+            containing all possible next period wealths.
+    """
+    r = params.loc[("assets", "interest_rate"), "value"]
+
+    n_grid_wealth = options["grid_points_wealth"]
+    n_quad_stochastic = options["quadrature_points_stochastic"]
+
+    # Calculate stochastic labor income
+    next_period_income = compute_income(child_state)
+
+    income_matrix = np.repeat(next_period_income[:, np.newaxis], n_grid_wealth, 1)
+    savings_matrix = np.full((n_quad_stochastic, n_grid_wealth), savings * (1 + r))
+
+    from numpy.testing import assert_array_almost_equal as aaae
+
+    a = np.full((n_grid_wealth, n_quad_stochastic), next_period_income).T
+    aaae(a, income_matrix)
+
+    matrix_next_period_wealth = income_matrix + savings_matrix
+
+    # Retirement safety net, only in retirement model
+    consump_floor_index = ("assets", "consumption_floor")
+    if (
+        consump_floor_index in params.index
+        or params.loc[consump_floor_index, "value"] > 0
+    ):
+        consump_floor = params.loc[consump_floor_index, "value"]
+
+        matrix_next_period_wealth[
+            matrix_next_period_wealth < consump_floor
+        ] = consump_floor
+
+    return matrix_next_period_wealth
 
 
 def get_next_period_policy(

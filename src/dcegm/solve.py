@@ -1,4 +1,5 @@
 """Interface for the DC-EGM algorithm."""
+from functools import partial
 from typing import Callable
 from typing import Dict
 from typing import Tuple
@@ -12,6 +13,7 @@ from dcegm.state_space import get_state_specific_choice_set
 from dcegm.upper_envelope_step import do_upper_envelope_step
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
+from toy_models.consumption_retirement_model import calc_stochastic_income
 
 
 def solve_dcegm(
@@ -69,6 +71,12 @@ def solve_dcegm(
         "quadrature_points": quad_points_normal * sigma,
         "quadrature_weights": quad_weights,
     }
+    compute_income = partial(
+        calc_stochastic_income,
+        wage_shock=quad_points_normal * sigma,
+        params=params,
+        options=options,
+    )
 
     policy_arr, value_arr = _create_multi_dim_arrays(state_space, options)
 
@@ -113,6 +121,7 @@ def solve_dcegm(
                     options=options,
                     exogenous_grid=exogenous_grid,
                     utility_functions=utility_functions,
+                    compute_income=compute_income,
                     next_period_policy=next_period_policy,
                     next_period_value=next_period_value,
                 )
