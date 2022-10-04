@@ -103,18 +103,16 @@ def do_egm_step(
         child_node_choice_set,
         next_period_policy=next_period_policy,
         next_period_value=next_period_value,
+        options=options,
         compute_marginal_utility=utility_functions["marginal_utility"],
         compute_next_period_choice_probs=compute_next_period_choice_probs,
-    )
-    next_period_marginal_utility_reshaped = next_period_marginal_utility.reshape(
-        matrix_next_period_wealth.shape, order="F"
     )
 
     # i) Current period consumption & endogenous wealth grid
     # RHS of Euler Eq., p. 337 IJRS (2017)
     # Integrate out uncertainty over stochastic income y
     rhs_euler = exogenous_grid["quadrature_weights"] @ (
-        next_period_marginal_utility_reshaped * next_period_marginal_wealth
+        next_period_marginal_utility * next_period_marginal_wealth
     )
     current_period_policy = utility_functions["inverse_marginal_utility"](rhs_euler)
 
@@ -194,6 +192,7 @@ def sum_marginal_utility_over_choice_probs(
     child_node_choice_set: np.ndarray,
     next_period_policy: np.ndarray,
     next_period_value: np.ndarray,
+    options: dict,
     compute_marginal_utility: Callable,
     compute_next_period_choice_probs: Callable,
 ) -> np.ndarray:
@@ -211,14 +210,15 @@ def sum_marginal_utility_over_choice_probs(
         next_period_value (np.ndarray): Array containing values of next period
             choice-specific value function.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
 
     Returns:
         (np.ndarray): Array of next period's marginal utility of shape
             (n_quad_stochastic * n_grid_wealth,).
     """
+    n_grid_wealth = options["grid_points_wealth"]
+    n_quad_stochastic = options["quadrature_points_stochastic"]
+
     next_period_marg_util = np.zeros(next_period_policy.shape[1])
 
     for choice_index in range(len(child_node_choice_set)):
@@ -227,7 +227,7 @@ def sum_marginal_utility_over_choice_probs(
             next_period_policy[choice_index, :]
         )
 
-    return next_period_marg_util
+    return next_period_marg_util.reshape((n_quad_stochastic, n_grid_wealth), order="F")
 
 
 def get_next_period_policy(

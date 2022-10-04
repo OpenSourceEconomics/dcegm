@@ -171,7 +171,12 @@ TEST_CASES = list(product(child_node_choice_set, n_grid_points, n_quad_points))
 def test_sum_marginal_utility_over_choice_probs(
     child_node_choice_set, n_grid_points, n_quad_points
 ):
-    params, options = get_example_model("retirement_no_taste_shocks")
+    params, _ = get_example_model("retirement_no_taste_shocks")
+    options = {
+        "quadrature_points_stochastic": n_quad_points,
+        "grid_points_wealth": n_grid_points,
+    }
+
     n_choices = len(child_node_choice_set)
     n_grid_flat = n_quad_points * n_grid_points
 
@@ -189,14 +194,13 @@ def test_sum_marginal_utility_over_choice_probs(
         child_node_choice_set,
         next_policy,
         next_value,
+        options=options,
         compute_marginal_utility=compute_marginal_utility,
         compute_next_period_choice_probs=compute_next_choice_probs,
     )
 
     choice_index = 0
     choice_prob = compute_next_choice_probs(next_value, choice_index)
-    expected_marg_util = choice_prob * compute_marginal_utility(
-        next_policy[choice_index]
-    )
+    expected = choice_prob * compute_marginal_utility(next_policy[choice_index])
 
-    aaae(next_marg_util, expected_marg_util)
+    aaae(next_marg_util, expected.reshape((n_quad_points, n_grid_points), order="F"))
