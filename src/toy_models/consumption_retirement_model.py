@@ -62,7 +62,7 @@ def inverse_marginal_utility_crra(
     return inverse_marginal_utility
 
 
-def compute_marginal_utiltiy_in_child_state(
+def compute_marginal_utility_in_child_state(
     child_node_choice_set: np.ndarray,
     marginal_utility_func: Callable,
     next_period_consumption: np.ndarray,
@@ -75,7 +75,8 @@ def compute_marginal_utiltiy_in_child_state(
     Args:
         child_node_choice_set (np.ndarray): Choice set of all possible choices in child
             state. Array of shape (n_choices_in_state).
-        marginal_utility_func (Callable): Function that calculates marginal utility.
+        marginal_utility_func (callable): Partial function that calculates marginal
+            utility, where the input ```params``` has already been partialed in.
             Supposed to have same interface as utility func.
         next_period_consumption (np.ndarray): Array of next period consumption
             of shape (n_choices, n_quad_stochastic * n_grid_wealth). Contains
@@ -91,14 +92,14 @@ def compute_marginal_utiltiy_in_child_state(
         next_period_marg_util (np.ndarray): Array of next period's
             marginal utility of shape (n_quad_stochastic * n_grid_wealth,).
     """
-
     next_period_marg_util = np.zeros_like(next_period_consumption[0, :])
+
     for choice_index in range(child_node_choice_set.shape[0]):
         choice_prob = _calc_next_period_choice_probs(
             next_period_value, choice_index, params, options
         )
         next_period_marg_util += choice_prob * marginal_utility_func(
-            next_period_consumption[choice_index, :], params
+            next_period_consumption[choice_index, :]
         )
 
     return next_period_marg_util
@@ -157,6 +158,22 @@ def marginal_utility_crra(consumption: np.ndarray, params: pd.DataFrame) -> np.n
     marginal_utility = consumption ** (-theta)
 
     return marginal_utility
+
+
+def calc_value_constrained(
+    wealth: np.ndarray,
+    next_period_value: np.ndarray,
+    choice: int,
+    params: pd.DataFrame,
+    compute_utility: Callable,
+) -> np.ndarray:
+    """Compute the agent's value in the credit constrained region."""
+    beta = params.loc[("beta", "beta"), "value"]
+
+    utility = compute_utility(wealth, choice, params)
+    value_constrained = utility + beta * next_period_value
+
+    return value_constrained
 
 
 def _calc_next_period_choice_probs(

@@ -1,3 +1,4 @@
+from functools import partial
 from itertools import product
 from pathlib import Path
 
@@ -49,13 +50,13 @@ def test_consume_everything_in_final_period(model, max_wealth, n_grid_points):
     condition_final_period = np.where(state_space[:, 0] == n_periods - 1)
     states_final_period = state_space[condition_final_period]
     n_states = states_final_period.shape[0]
+    compute_utility = partial(utility_func_crra, params=params)
 
     policy_final, value_final = solve_final_period(
         states=states_final_period,
         savings_grid=savings_grid,
-        params=params,
         options=options,
-        compute_utility=utility_func_crra,
+        compute_utility=compute_utility,
     )
 
     _savings_grid = np.concatenate(([0], savings_grid))
@@ -64,7 +65,7 @@ def test_consume_everything_in_final_period(model, max_wealth, n_grid_points):
     for state_index in range(n_states):
         for choice in range(n_choices):
             _utility = np.concatenate(
-                ([0, 0], utility_func_crra(savings_grid[1:], choice, params))
+                ([0, 0], compute_utility(savings_grid[1:], choice))
             )
             value_final_expected = np.row_stack((_savings_grid, _utility))
 

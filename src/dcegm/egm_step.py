@@ -9,7 +9,7 @@ from scipy import interpolate
 from toy_models.consumption_retirement_model import calc_next_period_marginal_wealth
 from toy_models.consumption_retirement_model import compute_expected_value
 from toy_models.consumption_retirement_model import (
-    compute_marginal_utiltiy_in_child_state,
+    compute_marginal_utility_in_child_state,
 )
 
 
@@ -22,6 +22,7 @@ def do_egm_step(
     exogenous_grid: Dict[str, np.ndarray],
     utility_functions: Dict[str, callable],
     compute_income: callable,
+    compute_value_constrained: callable,
     next_period_policy: np.ndarray,
     next_period_value: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -39,10 +40,14 @@ def do_egm_step(
             (n_quad_stochastic, )).
         utility_functions (Dict[str, callable]): Dictionary of three user-supplied
             functions for computation of (i) utility, (ii) inverse marginal utility,
-            and (iii) next period marginal utility.
+            and (iii) next period marginal utility. All three are partial functions,
+            where the common input ```params``` has already been partialled in.
         compute_income (callable): User-defined function to calculate the agent's
             end-of-period (labor) income, where the inputs ```quad_points```,
-                ```params``` and ```options``` are already partialled in.
+            ```params``` and ```options``` are already partialled in.
+        compute_value_credit_constrained (callable): User-defined function to compute
+            the agent's value function in the credit-constrained area.
+            The inputs ```params``` and ```compute_utility``` are already partialled in.
         next_period_policy (np.ndarray): Array of the next period policy
             for all choices. Shape (n_choices, 2, 1.1 * (n_grid_wealth + 1)).
         next_period_value (np.ndarray): Array of the next period values
@@ -90,13 +95,13 @@ def do_egm_step(
         child_node_choice_set,
         matrix_next_period_wealth=matrix_next_period_wealth,
         period=child_state[0] - 1,
-        params=params,
         options=options,
         next_period_value=next_period_value,
+        compute_value_constrained=compute_value_constrained,
         compute_utility=utility_functions["utility"],
     )
 
-    next_period_marginal_utility = compute_marginal_utiltiy_in_child_state(
+    next_period_marginal_utility = compute_marginal_utility_in_child_state(
         child_node_choice_set,
         marginal_utility_func=utility_functions["marginal_utility"],
         next_period_consumption=next_period_policy,
@@ -129,9 +134,7 @@ def do_egm_step(
         params=params,
     )
 
-    utility = utility_functions["utility"](
-        current_period_policy, child_state[1], params
-    )
+    utility = utility_functions["utility"](current_period_policy, child_state[1])
 
     current_policy = np.zeros((2, n_grid_wealth + 1))
     current_policy[0, 1:] = endog_wealth_grid
@@ -241,9 +244,9 @@ def get_next_period_value(
     matrix_next_period_wealth: np.ndarray,
     next_period_value: np.ndarray,
     period: int,
-    params: pd.DataFrame,
     options: Dict[str, int],
     compute_utility: Callable,
+    compute_value_constrained: Callable,
 ) -> np.ndarray:
     """Maps next-period value onto this period's matrix of next-period wealth.
 
@@ -253,11 +256,12 @@ def get_next_period_value(
         next_period_value (np.ndarray): Array of the next period value
             for all choices. Shape (n_choices, 2, 1.1 * n_grid_wealth + 1).
         period (int): Current period t.
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
-        compute_utility (callable): User-supplied functions for computation
-            of the agent's utility.
+        compute_value_credit_constrained (callable): User-defined function to compute
+            the agent's utility. The input ```params``` is already partialled in.
+        compute_value_credit_constrained (callable): User-defined function to compute
+            the agent's value function in the credit-constrained area.
+            The inputs ```params``` and ```compute_utility``` are already partialled in.
 
     Returns:
         next_period_value_interp (np.ndarray): Array containing interpolated
@@ -276,15 +280,14 @@ def get_next_period_value(
     for index, choice in enumerate(child_node_choice_set):
         if period == options["n_periods"] - 2:
             next_period_value_interp[index, :] = compute_utility(
-                matrix_next_period_wealth.flatten("F"), choice, params
+                matrix_next_period_wealth.flatten("F"), choice
             )
         else:
             next_period_value_interp[index, :] = interpolate_value(
                 flat_wealth=matrix_next_period_wealth.flatten("F"),
                 value=next_period_value[choice],
                 choice=choice,
-                params=params,
-                compute_utility=compute_utility,
+                compute_value_constrained=compute_value_constrained,
             )
 
     return next_period_value_interp
@@ -385,8 +388,7 @@ def interpolate_value(
     flat_wealth: np.ndarray,
     value: np.ndarray,
     choice: int,
-    params: pd.DataFrame,
-    compute_utility: Callable,
+    compute_value_constrained: Callable,
 ) -> np.ndarray:
     """Interpolate the agent's value for given flat wealth matrix.
 
@@ -402,6 +404,10 @@ def interpolate_value(
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
         compute_utility (callable): Function for computation of agent's utility.
+
+    Returns:
+        (np.ndarray): Interpolated flat value function of shape
+            (n_quad_stochastic * n_grid_wealth,).
     """
     value = value[:, ~np.isnan(value).any(axis=0)]
     value_interp = np.empty(flat_wealth.shape)
@@ -411,12 +417,10 @@ def interpolate_value(
 
     # Calculate t+1 value function in constrained region using
     # the analytical part
-    value_interp[constrained_region] = _get_value_constrained(
+    value_interp[constrained_region] = compute_value_constrained(
         flat_wealth[constrained_region],
         next_period_value=value[1, 0],
         choice=choice,
-        params=params,
-        compute_utility=compute_utility,
     )
 
     # Calculate t+1 value function in non-constrained region
@@ -433,22 +437,6 @@ def interpolate_value(
     )
 
     return value_interp
-
-
-def _get_value_constrained(
-    wealth: np.ndarray,
-    next_period_value: np.ndarray,
-    choice: int,
-    params: pd.DataFrame,
-    compute_utility: Callable,
-) -> np.ndarray:
-    """Compute the agent's value in the credit constrained region."""
-    beta = params.loc[("beta", "beta"), "value"]
-
-    utility = compute_utility(wealth, choice, params)
-    value_constrained = utility + beta * next_period_value
-
-    return value_constrained
 
 
 def _calc_rhs_euler(

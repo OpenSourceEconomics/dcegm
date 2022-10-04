@@ -14,6 +14,7 @@ from dcegm.upper_envelope_step import do_upper_envelope_step
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 from toy_models.consumption_retirement_model import calc_stochastic_income
+from toy_models.consumption_retirement_model import calc_value_constrained
 
 
 def solve_dcegm(
@@ -77,6 +78,28 @@ def solve_dcegm(
         params=params,
         options=options,
     )
+    compute_value_constrained = partial(
+        calc_value_constrained,
+        params=params,
+        compute_utility=utility_functions["utility"],
+    )
+    compute_utility = partial(
+        utility_functions["utility"],
+        params=params,
+    )
+    compute_marginal_utility = partial(
+        utility_functions["marginal_utility"],
+        params=params,
+    )
+    compute_inverse_marginal_utility = partial(
+        utility_functions["inverse_marginal_utility"],
+        params=params,
+    )
+    utility_functions = {
+        "utility": compute_utility,
+        "marginal_utility": compute_marginal_utility,
+        "inverse_marginal_utility": compute_inverse_marginal_utility,
+    }
 
     policy_arr, value_arr = _create_multi_dim_arrays(state_space, options)
 
@@ -86,7 +109,6 @@ def solve_dcegm(
     policy_final, value_final = solve_final_period(
         states=states_final_period,
         savings_grid=savings_grid,
-        params=params,
         options=options,
         compute_utility=utility_functions["utility"],
     )
@@ -122,6 +144,7 @@ def solve_dcegm(
                     exogenous_grid=exogenous_grid,
                     utility_functions=utility_functions,
                     compute_income=compute_income,
+                    compute_value_constrained=compute_value_constrained,
                     next_period_policy=next_period_policy,
                     next_period_value=next_period_value,
                 )
@@ -157,7 +180,6 @@ def solve_final_period(
     states: np.ndarray,
     savings_grid: np.ndarray,
     *,
-    params: pd.DataFrame,
     options: Dict[str, int],
     compute_utility: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -170,8 +192,6 @@ def solve_final_period(
         indexer (np.ndarray): Indexer object, that maps states to indexes.
         savings_grid (np.ndarray): Array of shape (n_wealth_grid,) denoting the
             exogenous savings grid.
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
         compute_utility (callable): Function for computation of agent's utility.
 
@@ -219,7 +239,7 @@ def solve_final_period(
             # Start with second entry of savings grid to avaid taking the log of 0
             # (the first entry) when computing utility
             value_final[state_index, index, 1, 2:end_grid] = compute_utility(
-                savings_grid[1:], choice, params
+                savings_grid[1:], choice
             )
 
     return policy_final, value_final
