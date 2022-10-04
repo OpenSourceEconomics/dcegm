@@ -40,6 +40,26 @@ def utility_func_crra(
     return utility
 
 
+def marginal_utility_crra(consumption: np.ndarray, params: pd.DataFrame) -> np.ndarray:
+    """Computes marginal utility of CRRA utility function.
+
+    Args:
+        consumption (np.ndarray): Level of the agent's consumption.
+            Array of shape (n_quad_stochastic * n_grid_wealth,).
+        params (pd.DataFrame): Model parameters indexed with multi-index of the
+            form ("category", "name") and two columns ["value", "comment"].
+            Relevant here is the CRRA coefficient theta.
+
+    Returns:
+        marginal_utility (np.ndarray): Marginal utility of CRRA consumption
+            function. Array of shape (n_quad_stochastic * n_grid_wealth,).
+    """
+    theta = params.loc[("utility_function", "theta"), "value"]
+    marginal_utility = consumption ** (-theta)
+
+    return marginal_utility
+
+
 def inverse_marginal_utility_crra(
     marginal_utility: np.ndarray,
     params: pd.DataFrame,
@@ -57,52 +77,11 @@ def inverse_marginal_utility_crra(
             a CRRA consumption function. Array of shape (n_grid_wealth,).
     """
     theta = params.loc[("utility_function", "theta"), "value"]
-    inverse_marginal_utility = marginal_utility ** (-1 / theta)
+    beta = params.loc[("beta", "beta"), "value"]
+
+    inverse_marginal_utility = (marginal_utility * beta) ** (-1 / theta)
 
     return inverse_marginal_utility
-
-
-def compute_marginal_utility_in_child_state(
-    child_node_choice_set: np.ndarray,
-    marginal_utility_func: Callable,
-    next_period_consumption: np.ndarray,
-    next_period_value: np.ndarray,
-    params: pd.DataFrame,
-    options: Dict[str, int],
-) -> np.ndarray:
-    """Computes the marginal utility of the next period.
-
-    Args:
-        child_node_choice_set (np.ndarray): Choice set of all possible choices in child
-            state. Array of shape (n_choices_in_state).
-        marginal_utility_func (callable): Partial function that calculates marginal
-            utility, where the input ```params``` has already been partialed in.
-            Supposed to have same interface as utility func.
-        next_period_consumption (np.ndarray): Array of next period consumption
-            of shape (n_choices, n_quad_stochastic * n_grid_wealth). Contains
-            interpolated values.
-        next_period_value (np.ndarray): Array containing values of next period
-            choice-specific value function.
-            Shape (n_choices, n_quad_stochastic * n_grid_wealth).
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
-        options (dict): Options dictionary.
-
-    Returns:
-        next_period_marg_util (np.ndarray): Array of next period's
-            marginal utility of shape (n_quad_stochastic * n_grid_wealth,).
-    """
-    next_period_marg_util = np.zeros_like(next_period_consumption[0, :])
-
-    for choice_index in range(child_node_choice_set.shape[0]):
-        choice_prob = _calc_next_period_choice_probs(
-            next_period_value, choice_index, params, options
-        )
-        next_period_marg_util += choice_prob * marginal_utility_func(
-            next_period_consumption[choice_index, :]
-        )
-
-    return next_period_marg_util
 
 
 def calc_expected_value(
@@ -138,26 +117,6 @@ def calc_expected_value(
     return expected_value
 
 
-def marginal_utility_crra(consumption: np.ndarray, params: pd.DataFrame) -> np.ndarray:
-    """Computes marginal utility of CRRA utility function.
-
-    Args:
-        consumption (np.ndarray): Level of the agent's consumption.
-            Array of shape (n_quad_stochastic * n_grid_wealth,).
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
-            Relevant here is the CRRA coefficient theta.
-
-    Returns:
-        marginal_utility (np.ndarray): Marginal utility of CRRA consumption
-            function. Array of shape (n_quad_stochastic * n_grid_wealth,).
-    """
-    theta = params.loc[("utility_function", "theta"), "value"]
-    marginal_utility = consumption ** (-theta)
-
-    return marginal_utility
-
-
 def calc_value_constrained(
     wealth: np.ndarray,
     next_period_value: np.ndarray,
@@ -174,7 +133,7 @@ def calc_value_constrained(
     return value_constrained
 
 
-def _calc_next_period_choice_probs(
+def calc_next_period_choice_probs(
     next_period_value: np.ndarray,
     choice: int,
     params: pd.DataFrame,

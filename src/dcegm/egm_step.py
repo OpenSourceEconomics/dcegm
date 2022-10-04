@@ -7,9 +7,6 @@ import numpy as np
 import pandas as pd
 from scipy import interpolate
 from toy_models.consumption_retirement_model import calc_next_period_marginal_wealth
-from toy_models.consumption_retirement_model import (
-    compute_marginal_utility_in_child_state,
-)
 
 
 def do_egm_step(
@@ -19,10 +16,11 @@ def do_egm_step(
     params: pd.DataFrame,
     options: Dict[str, int],
     exogenous_grid: Dict[str, np.ndarray],
-    utility_functions: Dict[str, callable],
-    compute_income: callable,
-    compute_value_constrained: callable,
-    compute_expected_value: callable,
+    utility_functions: Dict[str, Callable],
+    compute_income: Callable,
+    compute_value_constrained: Callable,
+    compute_expected_value: Callable,
+    compute_next_period_choice_probs: Callable,
     next_period_policy: np.ndarray,
     next_period_value: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -101,27 +99,25 @@ def do_egm_step(
         compute_utility=utility_functions["utility"],
     )
 
-    next_period_marginal_utility = compute_marginal_utility_in_child_state(
+    next_period_marginal_utility = sum_marginal_utility_over_choice_probs(
         child_node_choice_set,
-        marginal_utility_func=utility_functions["marginal_utility"],
-        next_period_consumption=next_period_policy,
+        next_period_policy=next_period_policy,
         next_period_value=next_period_value,
-        params=params,
-        options=options,
+        compute_marginal_utility=utility_functions["marginal_utility"],
+        compute_next_period_choice_probs=compute_next_period_choice_probs,
     )
-
     next_period_marginal_utility_reshaped = next_period_marginal_utility.reshape(
         matrix_next_period_wealth.shape, order="F"
     )
 
     # i) Current period consumption & endogenous wealth grid
-    current_period_policy = get_current_period_policy(
-        next_period_marginal_utility_reshaped,
-        next_period_marginal_wealth=next_period_marginal_wealth,
-        params=params,
-        quad_weights=exogenous_grid["quadrature_weights"],
-        utility_functions=utility_functions,
+    # RHS of Euler Eq., p. 337 IJRS (2017)
+    # Integrate out uncertainty over stochastic income y
+    rhs_euler = exogenous_grid["quadrature_weights"] @ (
+        next_period_marginal_utility_reshaped * next_period_marginal_wealth
     )
+    current_period_policy = utility_functions["inverse_marginal_utility"](rhs_euler)
+
     endog_wealth_grid = exogenous_grid["savings"] + current_period_policy
 
     # ii) Expected & current period value
@@ -192,6 +188,46 @@ def get_next_period_wealth_matrices(
         ] = consump_floor
 
     return matrix_next_period_wealth
+
+
+def sum_marginal_utility_over_choice_probs(
+    child_node_choice_set: np.ndarray,
+    next_period_policy: np.ndarray,
+    next_period_value: np.ndarray,
+    compute_marginal_utility: Callable,
+    compute_next_period_choice_probs: Callable,
+) -> np.ndarray:
+    """Computes the marginal utility of the next period.
+
+    Args:
+        child_node_choice_set (np.ndarray): 1d array of shape (n_choices_in_state)
+            containing the set of all possible choices in the given child state.
+        marginal_utility_func (callable): Partial function that calculates marginal
+            utility, where the input ```params``` has already been partialed in.
+            Supposed to have same interface as utility func.
+        next_period_policy (np.ndarray): 2d array of shape
+            (n_choices, n_quad_stochastic * n_grid_wealth) containing the agent's
+            interpolated next period policy.
+        next_period_value (np.ndarray): Array containing values of next period
+            choice-specific value function.
+            Shape (n_choices, n_quad_stochastic * n_grid_wealth).
+        params (pd.DataFrame): Model parameters indexed with multi-index of the
+            form ("category", "name") and two columns ["value", "comment"].
+        options (dict): Options dictionary.
+
+    Returns:
+        (np.ndarray): Array of next period's marginal utility of shape
+            (n_quad_stochastic * n_grid_wealth,).
+    """
+    next_period_marg_util = np.zeros(next_period_policy.shape[1])
+
+    for choice_index in range(len(child_node_choice_set)):
+        choice_prob = compute_next_period_choice_probs(next_period_value, choice_index)
+        next_period_marg_util += choice_prob * compute_marginal_utility(
+            next_period_policy[choice_index, :]
+        )
+
+    return next_period_marg_util
 
 
 def get_next_period_policy(
@@ -286,48 +322,6 @@ def get_next_period_value(
             )
 
     return next_period_value_interp
-
-
-def get_current_period_policy(
-    next_period_marginal_utility: np.array,
-    next_period_marginal_wealth: np.ndarray,
-    params: pd.DataFrame,
-    quad_weights: np.ndarray,
-    utility_functions: Dict[str, callable],
-) -> np.ndarray:
-    """Computes the current period policy.
-
-    Args:
-        next_period_marginal_utility (np.ndarray): Array of next period's
-            marginal utility of shape (n_quad_stochastic, n_grid_wealth,).
-        next_period_marginal_wealth (np.ndarray): Array of all possible next period
-            marginal wealths. Also of shape (n_quad_stochastic, n_grid_wealth)
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
-        quad_weights (np.ndarray): Weights associated with the quadrature points
-            of shape (n_quad_stochastic,). Used for integration over the
-            stochastic income component in the Euler equation.
-        utility_functions (Dict[str, callable]): Dictionary of three user-supplied
-            functions for computation of (i) utility, (ii) inverse marginal utility,
-            and (iii) next period marginal utility.
-
-    Returns:
-        current_period_policy (np.ndarray): Policy (consumption) in the current
-            period. Array of shape (n_grid_wealth,).
-    """
-    beta = params.loc[("beta", "beta"), "value"]
-    _inv_marg_utility_func = utility_functions["inverse_marginal_utility"]
-
-    # RHS of Euler Eq., p. 337 IJRS (2017)
-    # Integrate out uncertainty over stochastic income y
-    rhs_euler = quad_weights @ np.multiply(
-        next_period_marginal_utility, next_period_marginal_wealth
-    )
-    current_period_policy = _inv_marg_utility_func(
-        marginal_utility=beta * rhs_euler, params=params
-    )
-
-    return current_period_policy
 
 
 def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarray:
