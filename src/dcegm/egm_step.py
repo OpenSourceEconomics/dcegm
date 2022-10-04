@@ -171,20 +171,13 @@ def get_next_period_wealth_matrices(
             containing all possible next period wealths.
     """
     r = params.loc[("assets", "interest_rate"), "value"]
-
     n_grid_wealth = options["grid_points_wealth"]
     n_quad_stochastic = options["quadrature_points_stochastic"]
 
     # Calculate stochastic labor income
-    next_period_income = compute_income(child_state)
-
-    income_matrix = np.repeat(next_period_income[:, np.newaxis], n_grid_wealth, 1)
+    _next_period_income = compute_income(child_state)
+    income_matrix = np.repeat(_next_period_income[:, np.newaxis], n_grid_wealth, 1)
     savings_matrix = np.full((n_quad_stochastic, n_grid_wealth), savings * (1 + r))
-
-    from numpy.testing import assert_array_almost_equal as aaae
-
-    a = np.full((n_grid_wealth, n_quad_stochastic), next_period_income).T
-    aaae(a, income_matrix)
 
     matrix_next_period_wealth = income_matrix + savings_matrix
 
@@ -215,7 +208,10 @@ def get_next_period_policy(
     than "max_wealth" specifiec in the ``params`` dictionary.
 
     Args:
-        matrix_next_period_wealth (np.ndarray): Array of all possible next period
+        child_node_choice_set (np.ndarray): 1d array of shape (n_admissible_choices,)
+            containing the agent's choice set at the current child node in the state
+            space.
+        matrix_next_period_wealth (np.ndarray): 2d array of all possible next period
             wealths with shape (n_quad_stochastic, n_grid_wealth).
         next_period_policy (np.ndarray): Array of the next period policy
             for all choices. Shape (n_choices, 2, 1.1 * n_grid_wealth + 1).

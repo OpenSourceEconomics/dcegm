@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 import yaml
 from dcegm.egm_step import get_next_period_wealth_matrices
+from dcegm.egm_step import interpolate_policy
 from numpy.testing import assert_array_almost_equal as aaae
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
@@ -44,10 +45,11 @@ def test_get_next_period_wealth_matrices(
 ):
     params, options = get_example_model(f"{model}")
     sigma = params.loc[("shocks", "sigma"), "value"]
+    consump_floor = params.loc[("assets", "consumption_floor"), "value"]
+    r = params.loc[("assets", "interest_rate"), "value"]
+
     n_quad_points = options["quadrature_points_stochastic"]
     options["grid_points_wealth"] = n_grid_points
-    r = 0.05
-    consump_floor = params.loc[("assets", "consumption_floor"), "value"]
 
     child_state = np.array([period, labor_choice])
     savings_grid = np.linspace(0, max_wealth, n_grid_points)
@@ -75,3 +77,34 @@ def test_get_next_period_wealth_matrices(
     expected_matrix[expected_matrix < consump_floor] = consump_floor
 
     aaae(matrix_next_period_wealth, expected_matrix)
+
+
+choice_set = [np.array([0]), np.array([0, 1]), np.arange(7)]
+n_grid_points = [101, 444, 1000]
+n_quad_stochastic = [5, 10]
+TEST_CASES = list(product(choice_set, max_wealth, n_grid_points, n_quad_stochastic))
+
+
+@pytest.mark.parametrize(
+    "choice_set, max_wealth, n_grid_points, n_quad_stochastic", TEST_CASES
+)
+def test_interpolate_policy(choice_set, max_wealth, n_grid_points, n_quad_stochastic):
+    r = 0.05
+
+    _savings = np.linspace(0, max_wealth, n_grid_points)
+    matrix_next_period_wealth = np.full(
+        (n_quad_stochastic, n_grid_points), _savings * (1 + r)
+    )
+    next_period_policy = np.tile(
+        _savings[np.newaxis, np.newaxis, :], (len(choice_set), 2, 1)
+    )
+
+    policy_interp = np.empty((len(choice_set), n_quad_stochastic * n_grid_points))
+
+    for index, choice in enumerate(choice_set):
+        policy_interp[index, :] = interpolate_policy(
+            matrix_next_period_wealth.flatten("F"), next_period_policy[choice]
+        )
+
+        _expected = np.linspace(0, max_wealth * (1 + r), n_grid_points)
+        aaae(policy_interp[0], np.repeat(_expected, n_quad_stochastic))
