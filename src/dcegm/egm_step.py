@@ -39,21 +39,30 @@ def do_egm_step(
         compute_value_credit_constrained (callable): User-defined function to compute
             the agent's value function in the credit-constrained area.
             The inputs ```params``` and ```compute_utility``` are already partialled in.
-        next_period_policy (np.ndarray): Array of the next period policy
+        next_period_policy (np.ndarray): 2d array of the agent's next period policy
             for all choices. Shape (n_choices, 2, 1.1 * (n_grid_wealth + 1)).
-        next_period_value (np.ndarray): Array of the next period values
+            Position [:, 0, :] contains the endogenous grid over wealth M,
+            and [:, 1, :] stores the corresponding value of the choice-specific policy
+            function c(M, d).
+        next_period_value (np.ndarray): 2d array of the agent's next period values
             for all choices. Shape (n_choices, 2, 1.1 * (n_grid_wealth + 1)).
+            Position [:, 0, :] contains the endogenous grid over wealth M,
+            and [:, 1, :] stores the corresponding value of the choice-specific value
+            function v(M, d).
 
     Returns:
-        (tuple) Tuple containing
+        (tuple) Tuple containing:
 
-        - current_policy (np.ndarray): Nested list of np.ndarrays storing the
-            choice-specific consumption policies. Dimensions of the list are:
-            [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*].
-        - current_value (np.ndarray): Nested list of np.ndarrays storing the
-            choice-specific value functions. Dimensions of the list are:
-            [n_periods][n_discrete_choices][2, *n_endog_wealth_grid*].
-        - expected_value (np.ndarray): The expected value of continuation.
+        - current_policy (np.ndarray): 2d array of the agent's period- and
+            choice-specific consumption policy. Shape (2, 1.1 * (n_grid_wealth + 1)).
+            Position [0, :] contains the endogenous grid over wealth M,
+            and [1, :] stores the corresponding value of the policy function c(M, d).
+        - current_value (np.ndarray): 2d array of the agent's period- and
+            choice-specific value function. Shape (2, 1.1 * (n_grid_wealth + 1)).
+            Position [0, :] contains the endogenous grid over wealth M,
+            and [1, :] stores the corresponding value of the value function v(M, d).
+        - expected_value (np.ndarray): (np.ndarray): 1d array of the agent's expected
+            value of the next period. Shape (n_grid_wealth,).
 
     """
     next_wealth = compute_next_wealth_matrices(child_state)

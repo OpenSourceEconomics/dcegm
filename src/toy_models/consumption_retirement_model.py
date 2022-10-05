@@ -190,8 +190,8 @@ def calc_expected_value(
             form ("category", "name") and two columns ["value", "comment"].
 
     Returns:
-        expected_value (np.ndarray): Expected value of next period. Array of
-            shape (n_grid_wealth,).
+        (np.ndarray): 1d array of the agent's expected value of the next period.
+            Shape (n_grid_wealth,).
     """
     log_sum = _calc_log_sum(
         next_period_value, lambda_=params.loc[("shocks", "lambda"), "value"]

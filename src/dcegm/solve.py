@@ -47,16 +47,16 @@ def solve_dcegm(
 
         - policy (np.ndarray): Multi-dimensional np.ndarray storing the
             choice-specific policy function; of shape
-            [n_periods, n_discrete_choices, 2, 1.1 * n_grid_wealth].
-            Position [.., 0, :] of contains the endogenous grid over wealth M,
+            [n_states, n_discrete_choices, 2, 1.1 * n_grid_wealth].
+            Position [.., 0, :] contains the endogenous grid over wealth M,
             and [.., 1, :] stores the corresponding value of the policy function
-            c(M, d), for each time period and each discrete choice.
+            c(M, d), for each state and each discrete choice.
         - value (np.ndarray): Multi-dimensional np.ndarray storing the
             choice-specific value functions; of shape
-            [n_periods, n_discrete_choices, 2, 1.1 * n_grid_wealth].
-            Position [.., 0, :] of contains the endogenous grid over wealth M,
+            [n_states, n_discrete_choices, 2, 1.1 * n_grid_wealth].
+            Position [.., 0, :] contains the endogenous grid over wealth M,
             and [.., 1, :] stores the corresponding value of the value function
-            v(M, d), for each time period and each discrete choice.
+            v(M, d), for each state and each discrete choice.
     """
     max_wealth = params.loc[("assets", "max_wealth"), "value"]
     n_periods = options["n_periods"]
@@ -231,16 +231,16 @@ def solve_final_period(
 
         - policy (np.ndarray): Multi-dimensional np.ndarray storing the
             choice-specific policy function; of shape
-            [n_periods, n_discrete_choices, 2, 1.1 * (n_grid_wealth + 1)].
-            Position [.., 0, :] of contains the endogenous grid over wealth M,
+            [n_states, n_discrete_choices, 2, 1.1 * (n_grid_wealth + 1)].
+            Position [.., 0, :] contains the endogenous grid over wealth M,
             and [.., 1, :] stores the corresponding value of the policy function
-            c(M, d), for each time period and each discrete choice.
+            c(M, d), for each state and each discrete choice.
         - value (np.ndarray): Multi-dimensional np.ndarray storing the
             choice-specific value functions; of shape
-            [n_periods, n_discrete_choices, 2, 1.1 * (n_grid_wealth + 1)].
-            Position [.., 0, :] of contains the endogenous grid over wealth M,
+            [n_states, n_discrete_choices, 2, 1.1 * (n_grid_wealth + 1)].
+            Position [.., 0, :] contains the endogenous grid over wealth M,
             and [.., 1, :] stores the corresponding value of the value function
-            v(M, d), for each time period and each discrete choice.
+            v(M, d), for each state and each discrete choice.
     """
     n_choices = options["n_discrete_choices"]
     choice_range = [1] if n_choices < 2 else range(n_choices)
@@ -334,23 +334,23 @@ def _create_multi_dim_arrays(
 
         - policy (np.ndarray): Multi-dimensional np.ndarray storing the
             choice-specific policy function; of shape
-            [n_periods, n_discrete_choices, 2, 1.1 * n_grid_wealth + 1].
-            Position [.., 0, :] of contains the endogenous grid over wealth M,
+            [n_states, n_discrete_choices, 2, 1.1 * (n_grid_wealth + 1)].
+            Position [.., 0, :] contains the endogenous grid over wealth M,
             and [.., 1, :] stores the corresponding value of the policy function
-            c(M, d), for each time period and each discrete choice.
+            c(M, d), for each state and each discrete choice.
         - value (np.ndarray): Multi-dimensional np.ndarray storing the
             choice-specific value functions; of shape
-            [n_periods, n_discrete_choices, 2, 1.1 * n_grid_wealth + 1].
-            Position [.., 0, :] of contains the endogenous grid over wealth M,
+            [n_states, n_discrete_choices, 2, 1.1 * (n_grid_wealth + 1)].
+            Position [.., 0, :] contains the endogenous grid over wealth M,
             and [.., 1, :] stores the corresponding value of the value function
-            v(M, d), for each time period and each discrete choice.
+            v(M, d), for each state and each discrete choice.
     """
     n_grid_wealth = options["grid_points_wealth"]
     n_choices = options["n_discrete_choices"]
     n_states = state_space.shape[0]
 
-    policy_arr = np.empty((n_states, n_choices, 2, int(1.1 * n_grid_wealth) + 1))
-    value_arr = np.empty((n_states, n_choices, 2, int(1.1 * n_grid_wealth) + 1))
+    policy_arr = np.empty((n_states, n_choices, 2, int(1.1 * n_grid_wealth + 1)))
+    value_arr = np.empty((n_states, n_choices, 2, int(1.1 * n_grid_wealth + 1)))
     policy_arr[:] = np.nan
     value_arr[:] = np.nan
 
