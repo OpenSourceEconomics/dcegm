@@ -84,6 +84,92 @@ def inverse_marginal_utility_crra(
     return inverse_marginal_utility
 
 
+def calc_next_period_wealth_matrices(
+    child_state,
+    savings: np.ndarray,
+    params: pd.DataFrame,
+    options: Dict[str, int],
+    compute_income: Callable,
+) -> np.ndarray:
+    """Computes all possible levels of next period (marginal) wealth M_(t+1).
+
+    Args:
+        child_state (np.ndarray): 1d array of shape (n_state_variables,) denoting
+            the current child state.
+        savings (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            exogenous savings grid.
+        params (pd.DataFrame): Model parameters indexed with multi-index of the
+            form ("category", "name") and two columns ["value", "comment"].
+        options (dict): Options dictionary.
+        compute_income (callable): User-defined function to calculate the agent's
+            end-of-period (labor) income, where the inputs ```quad_points```,
+                ```params``` and ```options``` are already partialled in.
+
+    Returns:
+        (np.ndarray): 2d array of shape (n_quad_stochastic, n_grid_wealth)
+            containing all possible next period wealths.
+    """
+    r = params.loc[("assets", "interest_rate"), "value"]
+    n_grid_wealth = options["grid_points_wealth"]
+    n_quad_stochastic = options["quadrature_points_stochastic"]
+
+    # Calculate stochastic labor income
+    _next_period_income = compute_income(child_state)
+    income_matrix = np.repeat(_next_period_income[:, np.newaxis], n_grid_wealth, 1)
+    savings_matrix = np.full((n_quad_stochastic, n_grid_wealth), savings * (1 + r))
+
+    matrix_next_period_wealth = income_matrix + savings_matrix
+
+    # Retirement safety net, only in retirement model
+    consump_floor_index = ("assets", "consumption_floor")
+    if (
+        consump_floor_index in params.index
+        or params.loc[consump_floor_index, "value"] > 0
+    ):
+        consump_floor = params.loc[consump_floor_index, "value"]
+
+        matrix_next_period_wealth[
+            matrix_next_period_wealth < consump_floor
+        ] = consump_floor
+
+    return matrix_next_period_wealth
+
+
+def calc_current_period_policy(
+    next_period_marginal_utility: np.ndarray,
+    next_period_marginal_wealth: np.ndarray,
+    quad_weights: np.ndarray,
+    compute_inverse_marginal_utility: Callable,
+) -> np.ndarray:
+    """Computes the current period policy.
+
+    Args:
+        next_period_marginal_utility (np.ndarray): Array of next period's
+            marginal utility of shape (n_quad_stochastic, n_grid_wealth,).
+        next_period_marginal_wealth (np.ndarray): Array of all possible next period
+            marginal wealths. Also of shape (n_quad_stochastic, n_grid_wealth)
+        quad_weights (np.ndarray): Weights associated with the quadrature points
+            of shape (n_quad_stochastic,). Used for integration over the
+            stochastic income component in the Euler equation.
+        compute_value_credit_constrained (callable): User-defined function to compute
+            the agent's inverse marginal utility.
+            The input ```params``` is already partialled in.
+
+    Returns:
+        (np.ndarray): 1d array of shape (n_grid_wealth,) containing the current
+            period's policy rule.
+    """
+    # RHS of Euler Eq., p. 337 IJRS (2017)
+    # Integrate out uncertainty over stochastic income y
+    rhs_euler = quad_weights @ (
+        next_period_marginal_utility * next_period_marginal_wealth
+    )
+
+    current_period_policy = compute_inverse_marginal_utility(rhs_euler)
+
+    return current_period_policy
+
+
 def calc_expected_value(
     matrix_next_period_wealth: np.ndarray,
     next_period_value: np.ndarray,
@@ -121,13 +207,17 @@ def calc_value_constrained(
     wealth: np.ndarray,
     next_period_value: np.ndarray,
     choice: int,
-    params: pd.DataFrame,
+    beta: float,
     compute_utility: Callable,
 ) -> np.ndarray:
-    """Compute the agent's value in the credit constrained region."""
-    beta = params.loc[("beta", "beta"), "value"]
+    """Compute the agent's value in the credit constrained region.
 
-    utility = compute_utility(wealth, choice, params)
+    Args:
+        compute_utility (callable): User-defined function to compute the agent's
+            utility. The input ``params``` is already partialled in.
+
+    """
+    utility = compute_utility(wealth, choice)
     value_constrained = utility + beta * next_period_value
 
     return value_constrained

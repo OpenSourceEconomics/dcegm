@@ -4,38 +4,31 @@ from typing import Dict
 from typing import Tuple
 
 import numpy as np
-import pandas as pd
 from scipy import interpolate
-from toy_models.consumption_retirement_model import calc_next_period_marginal_wealth
 
 
 def do_egm_step(
     child_state,
     child_node_choice_set,
     *,
-    params: pd.DataFrame,
     options: Dict[str, int],
-    exogenous_grid: Dict[str, np.ndarray],
-    utility_functions: Dict[str, Callable],
-    compute_income: Callable,
+    compute_utility: Callable,
+    compute_marginal_utility: Callable,
+    compute_current_policy: Callable,
     compute_value_constrained: Callable,
     compute_expected_value: Callable,
-    compute_next_period_choice_probs: Callable,
-    next_period_policy: np.ndarray,
-    next_period_value: np.ndarray
+    compute_next_choice_probs: Callable,
+    compute_next_wealth_matrices: Callable,
+    compute_next_marginal_wealth: Callable,
+    store_current_policy_and_value: Callable,
+    next_policy: np.ndarray,
+    next_value: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
 
     Args:
         child_state (np.ndarray): Current individual child state.
-        params (pd.DataFrame): Model parameters indexed with multi-index of the form
-            ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
-        exogenous_grid (Dict[str, np.ndarray]): Dictionary containing the
-            exogenous grids of (i) savings (array of shape (n_grid_wealth, ))
-            (ii) quadrature points (array of shape (n_quad_stochastic, )) and
-            (iii) associated quadrature weights (also an array of shape
-            (n_quad_stochastic, )).
         utility_functions (Dict[str, callable]): Dictionary of three user-supplied
             functions for computation of (i) utility, (ii) inverse marginal utility,
             and (iii) next period marginal utility. All three are partial functions,
@@ -63,129 +56,44 @@ def do_egm_step(
         - expected_value (np.ndarray): The expected value of continuation.
 
     """
-    n_grid_wealth = options["grid_points_wealth"]
-    beta = params.loc[("beta", "beta"), "value"]
-
-    # 0) Preliminaries
-    # Matrices of all possible next period wealths and marginal wealths
-    matrix_next_period_wealth = get_next_period_wealth_matrices(
-        child_state,
-        params=params,
-        options=options,
-        savings=exogenous_grid["savings"],
-        compute_income=compute_income,
-    )
-
-    next_period_marginal_wealth = calc_next_period_marginal_wealth(
-        child_state, params, options
-    )
+    next_wealth = compute_next_wealth_matrices(child_state)
+    next_marginal_wealth = compute_next_marginal_wealth(child_state)
 
     # Interpolate next period policy and values to match the
     # contemporary matrix of potential next period wealths
-    next_period_policy = get_next_period_policy(
+    next_policy = get_next_period_policy(
         child_node_choice_set,
-        matrix_next_period_wealth,
-        next_period_policy=next_period_policy,
+        next_wealth,
+        next_period_policy=next_policy,
         options=options,
     )
-
-    next_period_value = get_next_period_value(
+    next_value = get_next_period_value(
         child_node_choice_set,
-        matrix_next_period_wealth=matrix_next_period_wealth,
+        matrix_next_period_wealth=next_wealth,
         period=child_state[0] - 1,
         options=options,
-        next_period_value=next_period_value,
+        next_period_value=next_value,
         compute_value_constrained=compute_value_constrained,
-        compute_utility=utility_functions["utility"],
+        compute_utility=compute_utility,
     )
 
-    next_period_marginal_utility = sum_marginal_utility_over_choice_probs(
+    next_marginal_utility = sum_marginal_utility_over_choice_probs(
         child_node_choice_set,
-        next_period_policy=next_period_policy,
-        next_period_value=next_period_value,
+        next_period_policy=next_policy,
+        next_period_value=next_value,
         options=options,
-        compute_marginal_utility=utility_functions["marginal_utility"],
-        compute_next_period_choice_probs=compute_next_period_choice_probs,
+        compute_marginal_utility=compute_marginal_utility,
+        compute_next_period_choice_probs=compute_next_choice_probs,
     )
 
-    # i) Current period consumption & endogenous wealth grid
-    # RHS of Euler Eq., p. 337 IJRS (2017)
-    # Integrate out uncertainty over stochastic income y
-    rhs_euler = exogenous_grid["quadrature_weights"] @ (
-        next_period_marginal_utility * next_period_marginal_wealth
-    )
-    current_period_policy = utility_functions["inverse_marginal_utility"](rhs_euler)
+    current_policy = compute_current_policy(next_marginal_utility, next_marginal_wealth)
+    expected_value = compute_expected_value(next_wealth, next_value)
 
-    endog_wealth_grid = exogenous_grid["savings"] + current_period_policy
-
-    # ii) Expected & current period value
-    expected_value = compute_expected_value(
-        matrix_next_period_wealth, next_period_value
+    current_policy_arr, current_value_arr = store_current_policy_and_value(
+        current_policy, expected_value, child_state
     )
 
-    utility = utility_functions["utility"](current_period_policy, child_state[1])
-
-    current_policy = np.zeros((2, n_grid_wealth + 1))
-    current_policy[0, 1:] = endog_wealth_grid
-    current_policy[1, 1:] = current_period_policy
-
-    current_value = np.zeros((2, n_grid_wealth + 1))
-    current_value[0, 1:] = endog_wealth_grid
-    current_value[1, 0] = expected_value[0]
-    current_value[1, 1:] = utility + beta * expected_value
-
-    return current_policy, current_value, expected_value
-
-
-def get_next_period_wealth_matrices(
-    child_state,
-    savings: np.ndarray,
-    params: pd.DataFrame,
-    options: Dict[str, int],
-    compute_income: Callable,
-) -> np.ndarray:
-    """Computes all possible levels of next period (marginal) wealth M_(t+1).
-
-    Args:
-        child_state (np.ndarray): 1d array of shape (n_state_variables,) denoting
-            the current child state.
-        savings (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
-            exogenous savings grid.
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
-        options (dict): Options dictionary.
-        compute_income (callable): User-defined function to calculate the agent's
-            end-of-period (labor) income, where the inputs ```quad_points```,
-                ```params``` and ```options``` are already partialled in.
-
-    Returns:
-        (np.ndarray): 2d array of shape (n_quad_stochastic, n_grid_wealth)
-            containing all possible next period wealths.
-    """
-    r = params.loc[("assets", "interest_rate"), "value"]
-    n_grid_wealth = options["grid_points_wealth"]
-    n_quad_stochastic = options["quadrature_points_stochastic"]
-
-    # Calculate stochastic labor income
-    _next_period_income = compute_income(child_state)
-    income_matrix = np.repeat(_next_period_income[:, np.newaxis], n_grid_wealth, 1)
-    savings_matrix = np.full((n_quad_stochastic, n_grid_wealth), savings * (1 + r))
-
-    matrix_next_period_wealth = income_matrix + savings_matrix
-
-    # Retirement safety net, only in retirement model
-    consump_floor_index = ("assets", "consumption_floor")
-    if (
-        consump_floor_index in params.index
-        or params.loc[consump_floor_index, "value"] > 0
-    ):
-        consump_floor = params.loc[consump_floor_index, "value"]
-
-        matrix_next_period_wealth[
-            matrix_next_period_wealth < consump_floor
-        ] = consump_floor
-
-    return matrix_next_period_wealth
+    return current_policy_arr, current_value_arr, expected_value
 
 
 def sum_marginal_utility_over_choice_probs(

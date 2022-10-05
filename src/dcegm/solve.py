@@ -13,8 +13,11 @@ from dcegm.state_space import get_state_specific_choice_set
 from dcegm.upper_envelope_step import do_upper_envelope_step
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
+from toy_models.consumption_retirement_model import calc_current_period_policy
 from toy_models.consumption_retirement_model import calc_expected_value
 from toy_models.consumption_retirement_model import calc_next_period_choice_probs
+from toy_models.consumption_retirement_model import calc_next_period_marginal_wealth
+from toy_models.consumption_retirement_model import calc_next_period_wealth_matrices
 from toy_models.consumption_retirement_model import calc_stochastic_income
 from toy_models.consumption_retirement_model import calc_value_constrained
 
@@ -61,38 +64,14 @@ def solve_dcegm(
     n_quad_points = options["quadrature_points_stochastic"]
     sigma = params.loc[("shocks", "sigma"), "value"]
 
-    savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
-
     state_space, state_indexer = create_state_space(options)
+
+    exogenous_savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
 
     # Gauss-Legendre (shifted) quadrature over the interval [0,1].
     quad_points, quad_weights = roots_sh_legendre(n_quad_points)
     quad_points_normal = norm.ppf(quad_points)
 
-    exogenous_grid = {
-        "savings": savings_grid,
-        "quadrature_points": quad_points_normal * sigma,
-        "quadrature_weights": quad_weights,
-    }
-    compute_income = partial(
-        calc_stochastic_income,
-        wage_shock=quad_points_normal * sigma,
-        params=params,
-        options=options,
-    )
-    compute_value_constrained = partial(
-        calc_value_constrained,
-        params=params,
-        compute_utility=utility_functions["utility"],
-    )
-    compute_expected_value = partial(
-        calc_expected_value,
-        params=params,
-        quad_weights=quad_weights,
-    )
-    compute_next_period_choice_probs = partial(
-        calc_next_period_choice_probs, params=params, options=options
-    )
     compute_utility = partial(
         utility_functions["utility"],
         params=params,
@@ -105,11 +84,49 @@ def solve_dcegm(
         utility_functions["inverse_marginal_utility"],
         params=params,
     )
-    utility_functions = {
-        "utility": compute_utility,
-        "marginal_utility": compute_marginal_utility,
-        "inverse_marginal_utility": compute_inverse_marginal_utility,
-    }
+    compute_income = partial(
+        calc_stochastic_income,
+        wage_shock=quad_points_normal * sigma,
+        params=params,
+        options=options,
+    )
+    compute_current_policy = partial(
+        calc_current_period_policy,
+        quad_weights=quad_weights,
+        compute_inverse_marginal_utility=compute_inverse_marginal_utility,
+    )
+    compute_value_constrained = partial(
+        calc_value_constrained,
+        beta=params.loc[("beta", "beta"), "value"],
+        compute_utility=compute_utility,
+    )
+    compute_expected_value = partial(
+        calc_expected_value,
+        params=params,
+        quad_weights=quad_weights,
+    )
+    compute_next_choice_probs = partial(
+        calc_next_period_choice_probs, params=params, options=options
+    )
+    compute_next_wealth_matrices = partial(
+        calc_next_period_wealth_matrices,
+        savings=exogenous_savings_grid,
+        params=params,
+        options=options,
+        compute_income=compute_income,
+    )
+    compute_next_marginal_wealth = partial(
+        calc_next_period_marginal_wealth,
+        params=params,
+        options=options,
+    )
+    store_current_policy_and_value = partial(
+        _store_current_period_policy_and_value,
+        savings=exogenous_savings_grid,
+        params=params,
+        options=options,
+        compute_utility=compute_utility,
+    )
 
     policy_arr, value_arr = _create_multi_dim_arrays(state_space, options)
 
@@ -118,9 +135,9 @@ def solve_dcegm(
 
     policy_final, value_final = solve_final_period(
         states=states_final_period,
-        savings_grid=savings_grid,
+        savings_grid=exogenous_savings_grid,
         options=options,
-        compute_utility=utility_functions["utility"],
+        compute_utility=compute_utility,
     )
 
     policy_arr[condition_final_period, ...] = policy_final
@@ -149,16 +166,18 @@ def solve_dcegm(
                 current_policy, current_value, expected_value = do_egm_step(
                     child_state,
                     child_node_choice_set,
-                    params=params,
                     options=options,
-                    exogenous_grid=exogenous_grid,
-                    utility_functions=utility_functions,
-                    compute_income=compute_income,
+                    compute_utility=compute_utility,
+                    compute_marginal_utility=compute_marginal_utility,
+                    compute_current_policy=compute_current_policy,
                     compute_value_constrained=compute_value_constrained,
                     compute_expected_value=compute_expected_value,
-                    compute_next_period_choice_probs=compute_next_period_choice_probs,
-                    next_period_policy=next_period_policy,
-                    next_period_value=next_period_value,
+                    compute_next_choice_probs=compute_next_choice_probs,
+                    compute_next_wealth_matrices=compute_next_wealth_matrices,
+                    compute_next_marginal_wealth=compute_next_marginal_wealth,
+                    store_current_policy_and_value=store_current_policy_and_value,
+                    next_policy=next_period_policy,
+                    next_value=next_period_value,
                 )
 
                 if options["n_discrete_choices"] > 1:
@@ -255,6 +274,34 @@ def solve_final_period(
             )
 
     return policy_final, value_final
+
+
+def _store_current_period_policy_and_value(
+    current_period_policy: np.ndarray,
+    expected_value: np.ndarray,
+    child_state: np.ndarray,
+    savings: np.ndarray,
+    params: pd.DataFrame,
+    options: Dict[str, int],
+    compute_utility: Callable,
+):
+    beta = params.loc[("beta", "beta"), "value"]
+    n_grid_wealth = options["grid_points_wealth"]
+
+    endogenous_wealth_grid = savings + current_period_policy
+
+    current_period_utility = compute_utility(current_period_policy, child_state[1])
+
+    current_policy = np.zeros((2, n_grid_wealth + 1))
+    current_policy[0, 1:] = endogenous_wealth_grid
+    current_policy[1, 1:] = current_period_policy
+
+    current_value = np.zeros((2, n_grid_wealth + 1))
+    current_value[0, 1:] = endogenous_wealth_grid
+    current_value[1, 0] = expected_value[0]
+    current_value[1, 1:] = current_period_utility + beta * expected_value
+
+    return current_policy, current_value
 
 
 def _create_multi_dim_arrays(

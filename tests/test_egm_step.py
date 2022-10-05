@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import yaml
-from dcegm.egm_step import get_next_period_wealth_matrices
 from dcegm.egm_step import interpolate_policy
 from dcegm.egm_step import interpolate_value
 from dcegm.egm_step import sum_marginal_utility_over_choice_probs
@@ -14,6 +13,7 @@ from numpy.testing import assert_array_almost_equal as aaae
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 from toy_models.consumption_retirement_model import calc_next_period_choice_probs
+from toy_models.consumption_retirement_model import calc_next_period_wealth_matrices
 from toy_models.consumption_retirement_model import calc_stochastic_income
 from toy_models.consumption_retirement_model import calc_value_constrained
 from toy_models.consumption_retirement_model import marginal_utility_crra
@@ -86,7 +86,7 @@ def test_get_next_period_wealth_matrices(
         calc_stochastic_income, wage_shock=quad_points, params=params, options=options
     )
 
-    matrix_next_period_wealth = get_next_period_wealth_matrices(
+    matrix_next_wealth = calc_next_period_wealth_matrices(
         child_state,
         savings_grid,
         params,
@@ -101,7 +101,7 @@ def test_get_next_period_wealth_matrices(
     expected_matrix = _income_mat + _savings_mat
     expected_matrix[expected_matrix < consump_floor] = consump_floor
 
-    aaae(matrix_next_period_wealth, expected_matrix)
+    aaae(matrix_next_wealth, expected_matrix)
 
 
 choice_set = [np.array([0]), np.array([0, 1]), np.arange(7)]
@@ -118,14 +118,12 @@ def test_interpolate_policy(
     interest_rate, max_wealth, n_grid_points, n_quad_stochastic
 ):
     _savings = np.linspace(0, max_wealth, n_grid_points)
-    matrix_next_period_wealth = np.full(
+    matrix_next_wealth = np.full(
         (n_quad_stochastic, n_grid_points), _savings * (1 + interest_rate)
     )
-    next_period_policy = np.tile(_savings[np.newaxis, :], (2, 1))
+    next_policy = np.tile(_savings[np.newaxis, :], (2, 1))
 
-    policy_interp = interpolate_policy(
-        matrix_next_period_wealth.flatten("F"), next_period_policy
-    )
+    policy_interp = interpolate_policy(matrix_next_wealth.flatten("F"), next_policy)
 
     _expected = np.linspace(0, max_wealth * (1 + interest_rate), n_grid_points)
     aaae(policy_interp, np.repeat(_expected, n_quad_stochastic))
@@ -138,10 +136,14 @@ def test_interpolate_value(value_interp_expected):
     interest_rate = 0.05
     params, _ = get_example_model("retirement_no_taste_shocks")
 
+    compute_utility = partial(
+        utility_func_crra,
+        params=params,
+    )
     compute_value_constrained = partial(
         calc_value_constrained,
-        params=params,
-        compute_utility=utility_func_crra,
+        beta=params.loc[("beta", "beta"), "value"],
+        compute_utility=compute_utility,
     )
 
     _savings = np.linspace(1, max_wealth, n_grid_points)
