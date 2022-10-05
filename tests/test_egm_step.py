@@ -159,9 +159,13 @@ def test_get_next_period_policy(
 # ======================================================================================
 
 
-def get_inputs_interpolate_value(
-    interest_rate, max_wealth, n_grid_points, n_quad_points
-):
+@pytest.fixture()
+def inputs_interpolate_value():
+    max_wealth = 50
+    n_grid_points = 10
+    n_quad_points = 5
+    interest_rate = 0.05
+
     _savings = np.linspace(1, max_wealth, n_grid_points)
     matrix_next_wealth = np.full(
         (n_quad_points, n_grid_points), _savings * (1 + interest_rate)
@@ -190,12 +194,10 @@ def value_interp_expected():
     return np.repeat(_value, 5)
 
 
-def test_interpolate_value(value_interp_expected, load_example_model):
+def test_interpolate_value(
+    inputs_interpolate_value, value_interp_expected, load_example_model
+):
     params, _ = load_example_model("retirement_no_taste_shocks")
-    max_wealth = 50
-    n_grid_points = 10
-    n_quad_points = 5
-    interest_rate = 0.05
 
     compute_utility = partial(
         utility_func_crra,
@@ -207,9 +209,7 @@ def test_interpolate_value(value_interp_expected, load_example_model):
         compute_utility=compute_utility,
     )
 
-    matrix_next_wealth, next_value = get_inputs_interpolate_value(
-        interest_rate, max_wealth, n_grid_points, n_quad_points
-    )
+    matrix_next_wealth, next_value = inputs_interpolate_value
 
     value_interp = interpolate_value(
         flat_wealth=matrix_next_wealth.flatten("F"),
@@ -221,12 +221,10 @@ def test_interpolate_value(value_interp_expected, load_example_model):
     aaae(value_interp, value_interp_expected)
 
 
-def test_get_next_period_value(value_interp_expected, load_example_model):
+def test_get_next_period_value(
+    inputs_interpolate_value, value_interp_expected, load_example_model
+):
     params, options = load_example_model("retirement_no_taste_shocks")
-    max_wealth = 50
-    n_grid_points = 10
-    n_quad_points = 5
-    interest_rate = 0.05
 
     choice_set = np.array([0])
     period = 10
@@ -241,9 +239,7 @@ def test_get_next_period_value(value_interp_expected, load_example_model):
         compute_utility=compute_utility,
     )
 
-    matrix_next_wealth, _next_value = get_inputs_interpolate_value(
-        interest_rate, max_wealth, n_grid_points, n_quad_points
-    )
+    matrix_next_wealth, _next_value = inputs_interpolate_value
     next_value = np.repeat(_next_value[np.newaxis, ...], len(choice_set), axis=0)
 
     value_interp = get_next_period_value(
