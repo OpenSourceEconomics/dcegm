@@ -126,12 +126,9 @@ venv.bak/
 
 *.bak
 
-
 *.db
 
-
 .pytask.sqlite3
-
 
 *.~lock.*
 
