@@ -2,9 +2,7 @@ import pickle
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import pytest
-import yaml
 from dcegm.solve import solve_dcegm
 from dcegm.state_space import create_state_space
 from numpy.testing import assert_array_almost_equal as aaae
@@ -12,20 +10,12 @@ from toy_models.consumption_retirement_model import inverse_marginal_utility_crr
 from toy_models.consumption_retirement_model import marginal_utility_crra
 from toy_models.consumption_retirement_model import utility_func_crra
 
+
 # Obtain the test directory of the package.
 TEST_DIR = Path(__file__).parent
 
 # Directory with additional resources for the testing harness
 TEST_RESOURCES_DIR = TEST_DIR / "resources"
-
-
-def get_example_model(model):
-    """Return parameters and options of an example model."""
-    params = pd.read_csv(
-        TEST_RESOURCES_DIR / f"{model}.csv", index_col=["category", "name"]
-    )
-    options = yaml.safe_load((TEST_RESOURCES_DIR / f"{model}.yaml").read_text())
-    return params, options
 
 
 @pytest.fixture()
@@ -46,8 +36,8 @@ def utility_functions():
         ("retirement_no_taste_shocks", [0, 1]),
     ],
 )
-def test_benchmark_models(model, choice_range, utility_functions):
-    params, options = get_example_model(f"{model}")
+def test_benchmark_models(model, choice_range, utility_functions, load_example_model):
+    params, options = load_example_model(f"{model}")
 
     state_space, indexer = create_state_space(options)
 

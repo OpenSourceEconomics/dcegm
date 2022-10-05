@@ -1,11 +1,8 @@
 from functools import partial
 from itertools import product
-from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import pytest
-import yaml
 from dcegm.egm_step import get_next_period_policy
 from dcegm.egm_step import get_next_period_value
 from dcegm.egm_step import interpolate_policy
@@ -20,21 +17,6 @@ from toy_models.consumption_retirement_model import calc_stochastic_income
 from toy_models.consumption_retirement_model import calc_value_constrained
 from toy_models.consumption_retirement_model import marginal_utility_crra
 from toy_models.consumption_retirement_model import utility_func_crra
-
-# Obtain the test directory of the package.
-TEST_DIR = Path(__file__).parent
-
-# Directory with additional resources for the testing harness
-TEST_RESOURCES_DIR = TEST_DIR / "resources"
-
-
-def get_example_model(model):
-    """Return parameters and options of an example model."""
-    params = pd.read_csv(
-        TEST_RESOURCES_DIR / f"{model}.csv", index_col=["category", "name"]
-    )
-    options = yaml.safe_load((TEST_RESOURCES_DIR / f"{model}.yaml").read_text())
-    return params, options
 
 
 model = ["deaton", "retirement_taste_shocks", "retirement_no_taste_shocks"]
@@ -68,9 +50,9 @@ def value_interp_expected():
     "model, period, labor_choice, max_wealth, n_grid_points", TEST_CASES
 )
 def test_get_next_period_wealth_matrices(
-    model, period, labor_choice, max_wealth, n_grid_points
+    model, period, labor_choice, max_wealth, n_grid_points, load_example_model
 ):
-    params, options = get_example_model(f"{model}")
+    params, options = load_example_model(f"{model}")
     sigma = params.loc[("shocks", "sigma"), "value"]
     consump_floor = params.loc[("assets", "consumption_floor"), "value"]
     r = params.loc[("assets", "interest_rate"), "value"]
@@ -166,12 +148,12 @@ def test_interpolate_policy(
     aaae(policy_interp, np.repeat(_expected, n_quad_stochastic))
 
 
-def test_get_next_period_value(value_interp_expected):
+def test_get_next_period_value(value_interp_expected, load_example_model):
     max_wealth = 50
     n_grid_points = 10
     n_quad_stochastic = 5
     interest_rate = 0.05
-    params, options = get_example_model("retirement_no_taste_shocks")
+    params, options = load_example_model("retirement_no_taste_shocks")
 
     choice_set = np.array([0])
     period = 10
@@ -209,12 +191,12 @@ def test_get_next_period_value(value_interp_expected):
     assert True
 
 
-def test_interpolate_value(value_interp_expected):
+def test_interpolate_value(value_interp_expected, load_example_model):
     max_wealth = 50
     n_grid_points = 10
     n_quad_stochastic = 5
     interest_rate = 0.05
-    params, _ = get_example_model("retirement_no_taste_shocks")
+    params, _ = load_example_model("retirement_no_taste_shocks")
 
     compute_utility = partial(
         utility_func_crra,
@@ -251,9 +233,9 @@ TEST_CASES = list(product(child_node_choice_set, n_grid_points, n_quad_points))
     TEST_CASES,
 )
 def test_sum_marginal_utility_over_choice_probs(
-    child_node_choice_set, n_grid_points, n_quad_points
+    child_node_choice_set, n_grid_points, n_quad_points, load_example_model
 ):
-    params, _ = get_example_model("retirement_no_taste_shocks")
+    params, _ = load_example_model("retirement_no_taste_shocks")
     options = {
         "quadrature_points_stochastic": n_quad_points,
         "grid_points_wealth": n_grid_points,
