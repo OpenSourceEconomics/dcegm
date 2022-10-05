@@ -33,9 +33,8 @@ def do_egm_step(
             functions for computation of (i) utility, (ii) inverse marginal utility,
             and (iii) next period marginal utility. All three are partial functions,
             where the common input ```params``` has already been partialled in.
-        compute_income (callable): User-defined function to calculate the agent's
-            end-of-period (labor) income, where the inputs ```quad_points```,
-            ```params``` and ```options``` are already partialled in.
+        compute_utility (callable): User-defined function to compute the agent's
+            utility. The input ```params``` is already partialled in.
         compute_value_credit_constrained (callable): User-defined function to compute
             the agent's value function in the credit-constrained area.
             The inputs ```params``` and ```compute_utility``` are already partialled in.
@@ -61,8 +60,8 @@ def do_egm_step(
             choice-specific value function. Shape (2, 1.1 * (n_grid_wealth + 1)).
             Position [0, :] contains the endogenous grid over wealth M,
             and [1, :] stores the corresponding value of the value function v(M, d).
-        - expected_value (np.ndarray): (np.ndarray): 1d array of the agent's expected
-            value of the next period. Shape (n_grid_wealth,).
+        - expected_value (np.ndarray): 1d array of shape (n_grid_wealth,)
+            containing the agent's expected value of the next period.
 
     """
     next_wealth = compute_next_wealth_matrices(child_state)
