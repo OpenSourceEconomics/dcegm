@@ -284,7 +284,7 @@ def _store_current_period_policy_and_value(
     params: pd.DataFrame,
     options: Dict[str, int],
     compute_utility: Callable,
-):
+) -> Tuple[np.ndarray, np.ndarray]:
     beta = params.loc[("beta", "beta"), "value"]
     n_grid_wealth = options["grid_points_wealth"]
 

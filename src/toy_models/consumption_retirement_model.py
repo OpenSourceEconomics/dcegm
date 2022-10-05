@@ -250,12 +250,12 @@ def calc_next_period_choice_probs(
     col_max = np.amax(next_period_value, axis=0)
     next_period_value_ = next_period_value - col_max
 
-    # Eq. (15), p. 334 IJRS (2017
-    prob_working = np.exp(next_period_value_[choice, :] / lambda_) / np.sum(
+    # Eq. (15), p. 334 IJRS (2017)
+    choice_prob = np.exp(next_period_value_[choice, :] / lambda_) / np.sum(
         np.exp(next_period_value_ / lambda_), axis=0
     )
 
-    return prob_working
+    return choice_prob
 
 
 def _calc_log_sum(next_period_value: np.ndarray, lambda_: float) -> np.ndarray:
