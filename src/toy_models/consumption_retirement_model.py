@@ -142,7 +142,7 @@ def budget_constraint(
 
 
 def calc_stochastic_income(
-    child_state: int,
+    child_state: np.ndarray,
     wage_shock: np.ndarray,
     params: pd.DataFrame,
     options: Dict[str, int],
