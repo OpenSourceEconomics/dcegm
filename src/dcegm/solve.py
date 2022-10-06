@@ -7,10 +7,10 @@ import pandas as pd
 from dcegm.egm_step import do_egm_step
 from dcegm.pre_processing import partial_functions
 from dcegm.state_space import _create_multi_dim_arrays
-from dcegm.state_space import create_state_space
 from dcegm.state_space import get_child_states
-from dcegm.state_space import get_state_specific_choice_set
 from dcegm.upper_envelope_step import do_upper_envelope_step
+from toy_models.state_space_objects import create_state_space
+from toy_models.state_space_objects import get_state_specific_choice_set
 
 
 def solve_dcegm(
@@ -110,7 +110,12 @@ def solve_dcegm(
         for state in state_subspace:
 
             current_state_index = state_indexer[tuple(state)]
-            child_nodes = get_child_states(state, state_space, state_indexer)
+            child_nodes = get_child_states(
+                state,
+                state_space,
+                state_indexer,
+                get_choice_set_by_state=get_state_specific_choice_set,
+            )
 
             for child_state in child_nodes:
 

@@ -4,7 +4,6 @@ from pathlib import Path
 import numpy as np
 import pytest
 from dcegm.solve import solve_dcegm
-from dcegm.state_space import create_state_space
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model import budget_constraint
 from toy_models.consumption_retirement_model import inverse_marginal_utility_crra
@@ -12,6 +11,7 @@ from toy_models.consumption_retirement_model import marginal_utility_crra
 from toy_models.consumption_retirement_model import marginal_wealth
 from toy_models.consumption_retirement_model import solve_final_period
 from toy_models.consumption_retirement_model import utility_func_crra
+from toy_models.state_space_objects import create_state_space
 
 
 # Obtain the test directory of the package.
