@@ -17,8 +17,7 @@ def solve_dcegm(
     params: pd.DataFrame,
     options: Dict[str, int],
     utility_functions: Dict[str, callable],
-    budget_constraint,
-    marginal_wealth,
+    budget_functions,
     final_period_solution,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Solves a discrete-continuous life-cycle model using the DC-EGM algorithm.
@@ -35,7 +34,13 @@ def solve_dcegm(
             (i) utility
             (ii) inverse marginal utility
             (iii) next period marginal utility
+        budget_functions (Dict[str, callable]): Dictionary of two user-supplied
+            functions for computation of:
 
+            (i) the budget constraint
+            (ii) marginal budget constraint with respect to end of period assets
+                of last period
+        final_period_solution (callable): A function solving the last period.
      Returns:
         (tuple): Tuple containing
 
@@ -84,8 +89,8 @@ def solve_dcegm(
         user_inverse_marginal_utility_func=utility_functions[
             "inverse_marginal_utility"
         ],
-        user_budget_constraint=budget_constraint,
-        user_marginal_next_period_wealth=marginal_wealth,
+        user_budget_constraint=budget_functions["budget_constraint"],
+        user_marginal_next_period_wealth=budget_functions["marginal_budget_constraint"],
     )
 
     policy_final, value_final = final_period_solution(

@@ -31,6 +31,15 @@ def utility_functions():
     }
 
 
+@pytest.fixture()
+def budget_functions():
+    """Return dict with utility functions."""
+    return {
+        "budget_constraint": budget_constraint,
+        "marginal_budget_constraint": marginal_wealth,
+    }
+
+
 @pytest.mark.parametrize(
     "model, choice_range",
     [
@@ -39,7 +48,9 @@ def utility_functions():
         ("retirement_no_taste_shocks", [0, 1]),
     ],
 )
-def test_benchmark_models(model, choice_range, utility_functions, load_example_model):
+def test_benchmark_models(
+    model, choice_range, utility_functions, budget_functions, load_example_model
+):
     params, options = load_example_model(f"{model}")
 
     state_space, indexer = create_state_space(options)
@@ -48,8 +59,7 @@ def test_benchmark_models(model, choice_range, utility_functions, load_example_m
         params,
         options,
         utility_functions,
-        budget_constraint=budget_constraint,
-        marginal_wealth=marginal_wealth,
+        budget_functions=budget_functions,
         final_period_solution=solve_final_period,
     )
 
