@@ -9,9 +9,6 @@ from dcegm.pre_processing import partial_functions
 from dcegm.state_space import _create_multi_dim_arrays
 from dcegm.state_space import get_child_states
 from dcegm.upper_envelope_step import do_upper_envelope_step
-from toy_models.consumption_retirement_model.state_space_objects import (
-    get_state_specific_choice_set,
-)
 
 
 def solve_dcegm(
@@ -128,9 +125,9 @@ def solve_dcegm(
                 next_period_policy = policy_arr[child_state_index]
                 next_period_value = value_arr[child_state_index]
 
-                child_node_choice_set = get_state_specific_choice_set(
-                    child_state, state_space, state_indexer
-                )
+                child_node_choice_set = state_space_functions[
+                    "get_choice_set_by_state"
+                ](child_state, state_space, state_indexer)
 
                 current_policy, current_value, expected_value = do_egm_step(
                     child_state,
