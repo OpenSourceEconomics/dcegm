@@ -20,6 +20,7 @@ from toy_models.consumption_retirement_model import calc_next_period_marginal_we
 from toy_models.consumption_retirement_model import calc_next_period_wealth_matrices
 from toy_models.consumption_retirement_model import calc_stochastic_income
 from toy_models.consumption_retirement_model import calc_value_constrained
+from toy_models.consumption_retirement_model import solve_final_period
 
 
 def solve_dcegm(
@@ -61,77 +62,34 @@ def solve_dcegm(
     max_wealth = params.loc[("assets", "max_wealth"), "value"]
     n_periods = options["n_periods"]
     n_grid_wealth = options["grid_points_wealth"]
-    n_quad_points = options["quadrature_points_stochastic"]
-    sigma = params.loc[("shocks", "sigma"), "value"]
 
     state_space, state_indexer = create_state_space(options)
 
     exogenous_savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
 
-    # Gauss-Legendre (shifted) quadrature over the interval [0,1].
-    quad_points, quad_weights = roots_sh_legendre(n_quad_points)
-    quad_points_normal = norm.ppf(quad_points)
-
-    compute_utility = partial(
-        utility_functions["utility"],
-        params=params,
-    )
-    compute_marginal_utility = partial(
-        utility_functions["marginal_utility"],
-        params=params,
-    )
-    compute_inverse_marginal_utility = partial(
-        utility_functions["inverse_marginal_utility"],
-        params=params,
-    )
-    compute_income = partial(
-        calc_stochastic_income,
-        wage_shock=quad_points_normal * sigma,
-        params=params,
-        options=options,
-    )
-    compute_current_policy = partial(
-        calc_current_period_policy,
-        quad_weights=quad_weights,
-        compute_inverse_marginal_utility=compute_inverse_marginal_utility,
-    )
-    compute_value_constrained = partial(
-        calc_value_constrained,
-        beta=params.loc[("beta", "beta"), "value"],
-        compute_utility=compute_utility,
-    )
-    compute_expected_value = partial(
-        calc_expected_value,
-        params=params,
-        quad_weights=quad_weights,
-    )
-    compute_next_choice_probs = partial(
-        calc_next_period_choice_probs, params=params, options=options
-    )
-    compute_next_wealth_matrices = partial(
-        calc_next_period_wealth_matrices,
-        savings=exogenous_savings_grid,
-        params=params,
-        options=options,
-        compute_income=compute_income,
-    )
-    compute_next_marginal_wealth = partial(
-        calc_next_period_marginal_wealth,
-        params=params,
-        options=options,
-    )
-    store_current_policy_and_value = partial(
-        _store_current_period_policy_and_value,
-        savings=exogenous_savings_grid,
-        params=params,
-        options=options,
-        compute_utility=compute_utility,
-    )
-
     policy_arr, value_arr = _create_multi_dim_arrays(state_space, options)
 
     condition_final_period = np.where(state_space[:, 0] == n_periods - 1)
     states_final_period = state_space[condition_final_period]
+
+    (
+        compute_utility,
+        compute_marginal_utility,
+        compute_current_policy,
+        compute_value_constrained,
+        compute_expected_value,
+        compute_next_choice_probs,
+        compute_next_wealth_matrices,
+        compute_next_marginal_wealth,
+        store_current_policy_and_value,
+    ) = partial_functions(
+        params,
+        options,
+        exogenous_savings_grid,
+        utility_functions["utility"],
+        utility_functions["marginal_utility"],
+        utility_functions["inverse_marginal_utility"],
+    )
 
     policy_final, value_final = solve_final_period(
         states=states_final_period,
@@ -207,73 +165,85 @@ def solve_dcegm(
     return policy_arr, value_arr
 
 
-def solve_final_period(
-    states: np.ndarray,
-    savings_grid: np.ndarray,
-    *,
-    options: Dict[str, int],
-    compute_utility: Callable,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Computes solution to final period for policy and value function.
-
-    In the last period, everything is consumed, i.e. consumption = savings.
-
-    Args:
-        state_space (np.ndarray): Collection of all possible states.
-        indexer (np.ndarray): Indexer object, that maps states to indexes.
-        savings_grid (np.ndarray): Array of shape (n_wealth_grid,) denoting the
-            exogenous savings grid.
-        options (dict): Options dictionary.
-        compute_utility (callable): Function for computation of agent's utility.
-
-    Returns:
-        (tuple): Tuple containing
-
-        - policy (np.ndarray): Multi-dimensional np.ndarray storing the
-            choice-specific policy function; of shape
-            [n_states, n_discrete_choices, 2, 1.1 * (n_grid_wealth + 1)].
-            Position [.., 0, :] contains the endogenous grid over wealth M,
-            and [.., 1, :] stores the corresponding value of the policy function
-            c(M, d), for each state and each discrete choice.
-        - value (np.ndarray): Multi-dimensional np.ndarray storing the
-            choice-specific value functions; of shape
-            [n_states, n_discrete_choices, 2, 1.1 * (n_grid_wealth + 1)].
-            Position [.., 0, :] contains the endogenous grid over wealth M,
-            and [.., 1, :] stores the corresponding value of the value function
-            v(M, d), for each state and each discrete choice.
-    """
-    n_choices = options["n_discrete_choices"]
-    choice_range = [1] if n_choices < 2 else range(n_choices)
-    n_states = states.shape[0]
-
-    policy_final = np.empty(
-        (n_states, n_choices, 2, int(1.1 * (len(savings_grid) + 1)))
+def partial_functions(
+    params,
+    options,
+    exogenous_savings_grid,
+    user_utility_func,
+    user_marginal_utility_func,
+    user_inverse_marginal_utility_func,
+):
+    sigma = params.loc[("shocks", "sigma"), "value"]
+    n_quad_points = options["quadrature_points_stochastic"]
+    # Gauss-Legendre (shifted) quadrature over the interval [0,1].
+    quad_points, quad_weights = roots_sh_legendre(n_quad_points)
+    quad_points_normal = norm.ppf(quad_points)
+    compute_utility = partial(
+        user_utility_func,
+        params=params,
     )
-    value_final = np.empty((n_states, n_choices, 2, int(1.1 * (len(savings_grid) + 1))))
-    policy_final[:] = np.nan
-    value_final[:] = np.nan
-
-    end_grid = len(savings_grid) + 1
-
-    # In last period, nothing is saved for the next period (since there is none).
-    # Hence, everything is consumed, c_T(M, d) = M
-    for state_index in range(n_states):
-
-        for index, choice in enumerate(choice_range):
-            policy_final[state_index, index, :, 0] = 0
-            policy_final[state_index, index, 0, 1:end_grid] = savings_grid  # M
-            policy_final[state_index, index, 1, 1:end_grid] = savings_grid  # c(M, d)
-
-            value_final[state_index, index, :, :2] = 0
-            value_final[state_index, index, 0, 1:end_grid] = savings_grid
-
-            # Start with second entry of savings grid to avaid taking the log of 0
-            # (the first entry) when computing utility
-            value_final[state_index, index, 1, 2:end_grid] = compute_utility(
-                savings_grid[1:], choice
-            )
-
-    return policy_final, value_final
+    compute_marginal_utility = partial(
+        user_marginal_utility_func,
+        params=params,
+    )
+    compute_inverse_marginal_utility = partial(
+        user_inverse_marginal_utility_func,
+        params=params,
+    )
+    compute_income = partial(
+        calc_stochastic_income,
+        wage_shock=quad_points_normal * sigma,
+        params=params,
+        options=options,
+    )
+    compute_current_policy = partial(
+        calc_current_period_policy,
+        quad_weights=quad_weights,
+        compute_inverse_marginal_utility=compute_inverse_marginal_utility,
+    )
+    compute_value_constrained = partial(
+        calc_value_constrained,
+        beta=params.loc[("beta", "beta"), "value"],
+        compute_utility=compute_utility,
+    )
+    compute_expected_value = partial(
+        calc_expected_value,
+        params=params,
+        quad_weights=quad_weights,
+    )
+    compute_next_choice_probs = partial(
+        calc_next_period_choice_probs, params=params, options=options
+    )
+    compute_next_wealth_matrices = partial(
+        calc_next_period_wealth_matrices,
+        savings=exogenous_savings_grid,
+        params=params,
+        options=options,
+        compute_income=compute_income,
+    )
+    compute_next_marginal_wealth = partial(
+        calc_next_period_marginal_wealth,
+        params=params,
+        options=options,
+    )
+    store_current_policy_and_value = partial(
+        _store_current_period_policy_and_value,
+        savings=exogenous_savings_grid,
+        params=params,
+        options=options,
+        compute_utility=compute_utility,
+    )
+    return (
+        compute_utility,
+        compute_marginal_utility,
+        compute_current_policy,
+        compute_value_constrained,
+        compute_expected_value,
+        compute_next_choice_probs,
+        compute_next_wealth_matrices,
+        compute_next_marginal_wealth,
+        store_current_policy_and_value,
+    )
 
 
 def _store_current_period_policy_and_value(

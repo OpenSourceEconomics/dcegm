@@ -3,10 +3,9 @@ from itertools import product
 
 import numpy as np
 import pytest
-from dcegm.solve import solve_final_period
 from numpy.testing import assert_array_almost_equal as aaae
+from toy_models.consumption_retirement_model import solve_final_period
 from toy_models.consumption_retirement_model import utility_func_crra
-
 
 model = ["deaton", "retirement_taste_shocks", "retirement_no_taste_shocks"]
 max_wealth = [50, 11]
