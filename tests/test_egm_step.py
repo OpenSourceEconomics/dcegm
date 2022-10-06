@@ -3,18 +3,18 @@ from itertools import product
 
 import numpy as np
 import pytest
+from dcegm.aggregate_policy_value import calc_next_period_choice_probs
+from dcegm.aggregate_policy_value import calc_value_constrained
 from dcegm.egm_step import get_next_period_policy
 from dcegm.egm_step import get_next_period_value
-from dcegm.egm_step import interpolate_policy
-from dcegm.egm_step import interpolate_value
 from dcegm.egm_step import sum_marginal_utility_over_choice_probs
+from dcegm.interpolate import interpolate_policy
+from dcegm.interpolate import interpolate_value
 from numpy.testing import assert_array_almost_equal as aaae
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
-from toy_models.consumption_retirement_model import calc_next_period_choice_probs
-from toy_models.consumption_retirement_model import calc_next_period_wealth_matrices
+from toy_models.consumption_retirement_model import budget_constraint
 from toy_models.consumption_retirement_model import calc_stochastic_income
-from toy_models.consumption_retirement_model import calc_value_constrained
 from toy_models.consumption_retirement_model import marginal_utility_crra
 from toy_models.consumption_retirement_model import utility_func_crra
 
@@ -52,19 +52,20 @@ def test_get_next_period_wealth_matrices(
     _quad_points, _ = roots_sh_legendre(n_quad_points)
     quad_points = norm.ppf(_quad_points) * sigma
 
-    compute_income = partial(
-        calc_stochastic_income, wage_shock=quad_points, params=params, options=options
-    )
-
-    matrix_next_wealth = calc_next_period_wealth_matrices(
+    matrix_next_wealth = budget_constraint(
         child_state,
         savings_grid,
         params,
         options,
-        compute_income=compute_income,
+        income_shocks=quad_points,
     )
 
-    _income = compute_income(child_state)
+    _income = calc_stochastic_income(
+        child_state,
+        wage_shock=quad_points,
+        params=params,
+        options=options,
+    )
     _income_mat = np.repeat(_income[:, np.newaxis], n_grid_points, 1)
     _savings_mat = np.full((n_quad_points, n_grid_points), savings_grid * (1 + r))
 

@@ -4,7 +4,9 @@ from typing import Dict
 from typing import Tuple
 
 import numpy as np
-from scipy import interpolate
+import pandas as pd
+from dcegm.interpolate import interpolate_policy
+from dcegm.interpolate import interpolate_value
 
 
 def do_egm_step(
@@ -240,83 +242,59 @@ def get_next_period_value(
     return next_period_value_interp
 
 
-def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarray:
-    """Interpolate the agent's policy for given flat wealth matrix.
+def _store_current_period_policy_and_value(
+    current_period_policy: np.ndarray,
+    expected_value: np.ndarray,
+    child_state: np.ndarray,
+    savings: np.ndarray,
+    params: pd.DataFrame,
+    options: Dict[str, int],
+    compute_utility: Callable,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Store the current period policy and value funtions.
 
     Args:
-        flat_wealth (np.ndarray): Flat array of shape
-            (n_quad_stochastic *n_grid_wealth,) containing the agent's
-            potential wealth matrix in given period.
-        policy (np.ndarray): Policy array of shape (2, 1.1 * n_grid_wealth).
-            Position [0, :] of the arrays contain the endogenous grid over wealth M,
-            and [1, :] stores the corresponding value of the (consumption) policy
-            function c(M, d), for each time period and each discrete choice.
-    """
-    policy = policy[:, ~np.isnan(policy).any(axis=0)]
-
-    interpolation_func = interpolate.interp1d(
-        x=policy[0, :],
-        y=policy[1, :],
-        bounds_error=False,
-        fill_value="extrapolate",
-        kind="linear",
-    )
-
-    policy_interp = interpolation_func(flat_wealth)
-
-    return policy_interp
-
-
-def interpolate_value(
-    flat_wealth: np.ndarray,
-    value: np.ndarray,
-    choice: int,
-    compute_value_constrained: Callable,
-) -> np.ndarray:
-    """Interpolate the agent's value for given flat wealth matrix.
-
-    Args:
-        flat_wealth (np.ndarray): Flat array of shape
-            (n_quad_stochastic *n_grid_wealth,) containing the agent's
-            potential wealth matrix in given period.
-        value (np.ndarray): Value array of shape (2, 1.1* n_grid_wealth).
-            Position [0, :] of the array contains the endogenous grid over wealth M,
-            and [1, :] stores the corresponding value of the value function v(M, d),
-            for each time period and each discrete choice.
-        choice (int): Choice of the agent, e.g. 0 = "retirement", 1 = "working".
+        current_period_policy (np.ndarray): 1d array of shape (n_grid_wealth,)
+            containing the agent's current period policy rule.
+        expected_value (np.ndarray): (np.ndarray): 1d array of shape (n_grid_wealth,)
+            containing the agent's expected value of the next period.
+        child_state (np.ndarray): 1d array of shape (n_state_variables,) denoting
+            the current child state.
+        savings (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            exogenous savings grid .
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
-        compute_utility (callable): Function for computation of agent's utility.
+        options (dict): Options dictionary.
+        compute_utility (callable): User-defined function to compute the agent's
+            utility. The input ```params``` is already partialled in.
 
     Returns:
-        (np.ndarray): Interpolated flat value function of shape
-            (n_quad_stochastic * n_grid_wealth,).
+        (tuple): Tuple containing:
+
+        - current_policy (np.ndarray): 2d array of the agent's period- and
+            choice-specific consumption policy. Shape (2, 1.1 * (n_grid_wealth + 1)).
+            Position [0, :] contains the endogenous grid over wealth M,
+            and [1, :] stores the corresponding value of the policy function c(M, d).
+        - current_value (np.ndarray): 2d array of the agent's period- and
+            choice-specific value function. Shape (2, 1.1 * (n_grid_wealth + 1)).
+            Position [0, :] contains the endogenous grid over wealth M,
+            and [1, :] stores the corresponding value of the value function v(M, d).
+
     """
-    value = value[:, ~np.isnan(value).any(axis=0)]
-    value_interp = np.empty(flat_wealth.shape)
+    beta = params.loc[("beta", "beta"), "value"]
+    n_grid_wealth = options["grid_points_wealth"]
 
-    # Mark credit constrained region
-    constrained_region = flat_wealth < value[0, 1]
+    endogenous_wealth_grid = savings + current_period_policy
 
-    # Calculate t+1 value function in constrained region using
-    # the analytical part
-    value_interp[constrained_region] = compute_value_constrained(
-        flat_wealth[constrained_region],
-        next_period_value=value[1, 0],
-        choice=choice,
-    )
+    current_period_utility = compute_utility(current_period_policy, child_state[1])
 
-    # Calculate t+1 value function in non-constrained region
-    # via inter- and extrapolation
-    interpolation_func = interpolate.interp1d(
-        x=value[0, :],  # endogenous wealth grid
-        y=value[1, :],  # value_function
-        bounds_error=False,
-        fill_value="extrapolate",
-        kind="linear",
-    )
-    value_interp[~constrained_region] = interpolation_func(
-        flat_wealth[~constrained_region]
-    )
+    current_policy = np.zeros((2, n_grid_wealth + 1))
+    current_policy[0, 1:] = endogenous_wealth_grid
+    current_policy[1, 1:] = current_period_policy
 
-    return value_interp
+    current_value = np.zeros((2, n_grid_wealth + 1))
+    current_value[0, 1:] = endogenous_wealth_grid
+    current_value[1, 0] = expected_value[0]
+    current_value[1, 1:] = current_period_utility + beta * expected_value
+
+    return current_policy, current_value
