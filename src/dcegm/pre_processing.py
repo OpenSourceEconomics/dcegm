@@ -7,8 +7,6 @@ from dcegm.aggregate_policy_value import calc_value_constrained
 from dcegm.egm_step import _store_current_period_policy_and_value
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
-from toy_models.consumption_retirement_model import budget_constraint
-from toy_models.consumption_retirement_model import calc_next_period_marginal_wealth
 
 
 def partial_functions(
@@ -18,6 +16,8 @@ def partial_functions(
     user_utility_func,
     user_marginal_utility_func,
     user_inverse_marginal_utility_func,
+    user_budget_constraint,
+    user_marginal_next_period_wealth,
 ):
     sigma = params.loc[("shocks", "sigma"), "value"]
     n_quad_points = options["quadrature_points_stochastic"]
@@ -55,14 +55,14 @@ def partial_functions(
         calc_next_period_choice_probs, params=params, options=options
     )
     compute_next_wealth_matrices = partial(
-        budget_constraint,
+        user_budget_constraint,
         savings=exogenous_savings_grid,
         params=params,
         options=options,
         income_shocks=quad_points_normal * sigma,
     )
     compute_next_marginal_wealth = partial(
-        calc_next_period_marginal_wealth,
+        user_marginal_next_period_wealth,
         params=params,
         options=options,
     )

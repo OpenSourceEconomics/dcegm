@@ -11,6 +11,8 @@ from dcegm.state_space import create_state_space
 from dcegm.state_space import get_child_states
 from dcegm.state_space import get_state_specific_choice_set
 from dcegm.upper_envelope_step import do_upper_envelope_step
+from toy_models.consumption_retirement_model import budget_constraint
+from toy_models.consumption_retirement_model import calc_next_period_marginal_wealth
 from toy_models.consumption_retirement_model import solve_final_period
 
 
@@ -77,9 +79,13 @@ def solve_dcegm(
         params,
         options,
         exogenous_savings_grid,
-        utility_functions["utility"],
-        utility_functions["marginal_utility"],
-        utility_functions["inverse_marginal_utility"],
+        user_utility_func=utility_functions["utility"],
+        user_marginal_utility_func=utility_functions["marginal_utility"],
+        user_inverse_marginal_utility_func=utility_functions[
+            "inverse_marginal_utility"
+        ],
+        user_budget_constraint=budget_constraint,
+        user_marginal_next_period_wealth=calc_next_period_marginal_wealth,
     )
 
     policy_final, value_final = solve_final_period(
