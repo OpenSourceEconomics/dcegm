@@ -4,8 +4,8 @@ from itertools import product
 import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal as aaae
-from toy_models.consumption_retirement_model import solve_final_period
-from toy_models.consumption_retirement_model import utility_func_crra
+from toy_models.consumption_retirement_model.final_period import solve_final_period
+from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
 
 model = ["deaton", "retirement_taste_shocks", "retirement_no_taste_shocks"]
 max_wealth = [50, 11]

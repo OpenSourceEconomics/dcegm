@@ -9,8 +9,9 @@ from dcegm.pre_processing import partial_functions
 from dcegm.state_space import _create_multi_dim_arrays
 from dcegm.state_space import get_child_states
 from dcegm.upper_envelope_step import do_upper_envelope_step
-from toy_models.state_space_objects import create_state_space
-from toy_models.state_space_objects import get_state_specific_choice_set
+from toy_models.consumption_retirement_model.state_space_objects import (
+    get_state_specific_choice_set,
+)
 
 
 def solve_dcegm(
@@ -19,6 +20,7 @@ def solve_dcegm(
     utility_functions: Dict[str, callable],
     budget_functions,
     final_period_solution,
+    state_space_functions,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Solves a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
@@ -61,7 +63,7 @@ def solve_dcegm(
     n_periods = options["n_periods"]
     n_grid_wealth = options["grid_points_wealth"]
 
-    state_space, state_indexer = create_state_space(options)
+    state_space, state_indexer = state_space_functions["create_state_space"](options)
 
     exogenous_savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
 
@@ -114,7 +116,9 @@ def solve_dcegm(
                 state,
                 state_space,
                 state_indexer,
-                get_choice_set_by_state=get_state_specific_choice_set,
+                get_choice_set_by_state=state_space_functions[
+                    "get_choice_set_by_state"
+                ],
             )
 
             for child_state in child_nodes:

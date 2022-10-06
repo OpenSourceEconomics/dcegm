@@ -13,11 +13,14 @@ from dcegm.interpolate import interpolate_value
 from numpy.testing import assert_array_almost_equal as aaae
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
-from toy_models.consumption_retirement_model import budget_constraint
-from toy_models.consumption_retirement_model import calc_stochastic_income
-from toy_models.consumption_retirement_model import marginal_utility_crra
-from toy_models.consumption_retirement_model import utility_func_crra
-
+from toy_models.consumption_retirement_model.budget_functions import budget_constraint
+from toy_models.consumption_retirement_model.budget_functions import (
+    calc_stochastic_income,
+)
+from toy_models.consumption_retirement_model.utility_functions import (
+    marginal_utility_crra,
+)
+from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
 
 # ======================================================================================
 # next_period_wealth_matrices

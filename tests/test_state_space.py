@@ -3,8 +3,12 @@ from itertools import product
 import numpy as np
 import pytest
 from dcegm.state_space import get_child_states
-from toy_models.state_space_objects import create_state_space
-from toy_models.state_space_objects import get_state_specific_choice_set
+from toy_models.consumption_retirement_model.state_space_objects import (
+    create_state_space,
+)
+from toy_models.consumption_retirement_model.state_space_objects import (
+    get_state_specific_choice_set,
+)
 
 
 def expected_state_space_and_indexer(n_periods, n_choices):
