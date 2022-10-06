@@ -10,6 +10,7 @@ from dcegm.state_space import get_state_specific_choice_set
 def expected_state_space_and_indexer(n_periods, n_choices):
     _periods = np.arange(n_periods)
     _choices = np.arange(n_choices)
+    _exog_process = np.arange(n_choices)
     state_space = np.column_stack(
         [np.repeat(_periods, n_choices), np.tile(_choices, n_periods)]
     )
