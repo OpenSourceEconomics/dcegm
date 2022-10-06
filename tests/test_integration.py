@@ -6,8 +6,11 @@ import pytest
 from dcegm.solve import solve_dcegm
 from dcegm.state_space import create_state_space
 from numpy.testing import assert_array_almost_equal as aaae
+from toy_models.consumption_retirement_model import budget_constraint
 from toy_models.consumption_retirement_model import inverse_marginal_utility_crra
 from toy_models.consumption_retirement_model import marginal_utility_crra
+from toy_models.consumption_retirement_model import marginal_wealth
+from toy_models.consumption_retirement_model import solve_final_period
 from toy_models.consumption_retirement_model import utility_func_crra
 
 
@@ -45,6 +48,9 @@ def test_benchmark_models(model, choice_range, utility_functions, load_example_m
         params,
         options,
         utility_functions,
+        budget_constraint=budget_constraint,
+        marginal_wealth=marginal_wealth,
+        final_period_solution=solve_final_period,
     )
 
     policy_expected = pickle.load(

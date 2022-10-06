@@ -11,15 +11,15 @@ from dcegm.state_space import create_state_space
 from dcegm.state_space import get_child_states
 from dcegm.state_space import get_state_specific_choice_set
 from dcegm.upper_envelope_step import do_upper_envelope_step
-from toy_models.consumption_retirement_model import budget_constraint
-from toy_models.consumption_retirement_model import calc_next_period_marginal_wealth
-from toy_models.consumption_retirement_model import solve_final_period
 
 
 def solve_dcegm(
     params: pd.DataFrame,
     options: Dict[str, int],
     utility_functions: Dict[str, callable],
+    budget_constraint,
+    marginal_wealth,
+    final_period_solution,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Solves a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
@@ -85,10 +85,10 @@ def solve_dcegm(
             "inverse_marginal_utility"
         ],
         user_budget_constraint=budget_constraint,
-        user_marginal_next_period_wealth=calc_next_period_marginal_wealth,
+        user_marginal_next_period_wealth=marginal_wealth,
     )
 
-    policy_final, value_final = solve_final_period(
+    policy_final, value_final = final_period_solution(
         states=states_final_period,
         savings_grid=exogenous_savings_grid,
         options=options,

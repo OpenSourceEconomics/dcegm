@@ -192,7 +192,7 @@ def calc_stochastic_income(
     return stochastic_income
 
 
-def calc_next_period_marginal_wealth(state, params, options):
+def marginal_wealth(state, params, options):
     """Calculate next periods marginal wealth.
 
     Args:
