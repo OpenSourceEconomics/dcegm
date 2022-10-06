@@ -285,6 +285,36 @@ def _store_current_period_policy_and_value(
     options: Dict[str, int],
     compute_utility: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
+    """Store the current period policy and value funtions.
+
+    Args:
+        current_period_policy (np.ndarray): 1d array of shape (n_grid_wealth,)
+            containing the agent's current period policy rule.
+        expected_value (np.ndarray): (np.ndarray): 1d array of shape (n_grid_wealth,)
+            containing the agent's expected value of the next period.
+        child_state (np.ndarray): 1d array of shape (n_state_variables,) denoting
+            the current child state.
+        savings (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            exogenous savings grid .
+        params (pd.DataFrame): Model parameters indexed with multi-index of the
+            form ("category", "name") and two columns ["value", "comment"].
+        options (dict): Options dictionary.
+        compute_utility (callable): User-defined function to compute the agent's
+            utility. The input ```params``` is already partialled in.
+
+    Returns:
+        (tuple): Tuple containing:
+
+        - current_policy (np.ndarray): 2d array of the agent's period- and
+            choice-specific consumption policy. Shape (2, 1.1 * (n_grid_wealth + 1)).
+            Position [0, :] contains the endogenous grid over wealth M,
+            and [1, :] stores the corresponding value of the policy function c(M, d).
+        - current_value (np.ndarray): 2d array of the agent's period- and
+            choice-specific value function. Shape (2, 1.1 * (n_grid_wealth + 1)).
+            Position [0, :] contains the endogenous grid over wealth M,
+            and [1, :] stores the corresponding value of the value function v(M, d).
+
+    """
     beta = params.loc[("beta", "beta"), "value"]
     n_grid_wealth = options["grid_points_wealth"]
 

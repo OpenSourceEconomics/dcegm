@@ -1,11 +1,8 @@
 from functools import partial
 from itertools import product
-from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import pytest
-import yaml
 from dcegm.egm_step import get_next_period_policy
 from dcegm.egm_step import get_next_period_value
 from dcegm.egm_step import interpolate_policy
@@ -21,56 +18,27 @@ from toy_models.consumption_retirement_model import calc_value_constrained
 from toy_models.consumption_retirement_model import marginal_utility_crra
 from toy_models.consumption_retirement_model import utility_func_crra
 
-# Obtain the test directory of the package.
-TEST_DIR = Path(__file__).parent
 
-# Directory with additional resources for the testing harness
-TEST_RESOURCES_DIR = TEST_DIR / "resources"
-
-
-def get_example_model(model):
-    """Return parameters and options of an example model."""
-    params = pd.read_csv(
-        TEST_RESOURCES_DIR / f"{model}.csv", index_col=["category", "name"]
-    )
-    options = yaml.safe_load((TEST_RESOURCES_DIR / f"{model}.yaml").read_text())
-    return params, options
-
+# ======================================================================================
+# next_period_wealth_matrices
+# ======================================================================================
 
 model = ["deaton", "retirement_taste_shocks", "retirement_no_taste_shocks"]
 labor_choice = [0, 1]
 period = [0, 5, 7]
 max_wealth = [11, 33, 50]
 n_grid_points = [101, 444, 1000]
+
 TEST_CASES = list(product(model, period, labor_choice, max_wealth, n_grid_points))
-
-
-@pytest.fixture()
-def value_interp_expected():
-    _value = np.array(
-        [
-            -0.30232329,
-            1.17687075,
-            2.34353741,
-            3.51020408,
-            4.67687075,
-            5.84353741,
-            7.01020408,
-            8.17687075,
-            9.34353741,
-            10.51020408,
-        ]
-    )
-    return np.repeat(_value, 5)
 
 
 @pytest.mark.parametrize(
     "model, period, labor_choice, max_wealth, n_grid_points", TEST_CASES
 )
 def test_get_next_period_wealth_matrices(
-    model, period, labor_choice, max_wealth, n_grid_points
+    model, period, labor_choice, max_wealth, n_grid_points, load_example_model
 ):
-    params, options = get_example_model(f"{model}")
+    params, options = load_example_model(f"{model}")
     sigma = params.loc[("shocks", "sigma"), "value"]
     consump_floor = params.loc[("assets", "consumption_floor"), "value"]
     r = params.loc[("assets", "interest_rate"), "value"]
@@ -106,9 +74,49 @@ def test_get_next_period_wealth_matrices(
     aaae(matrix_next_wealth, expected_matrix)
 
 
-choice_set = [np.array([0]), np.array([0, 1]), np.arange(7)]
+# ======================================================================================
+# interpolate_policy & get_next_period_policy
+# ======================================================================================
+
+
+def get_inputs_and_expected_interpolate_policy(
+    interest_rate, max_wealth, n_grid_points, n_quad_points
+):
+    _savings = np.linspace(0, max_wealth, n_grid_points)
+    matrix_next_wealth = np.full(
+        (n_quad_points, n_grid_points), _savings * (1 + interest_rate)
+    )
+    next_policy = np.tile(_savings[np.newaxis], (2, 1))
+
+    expected_policy = np.linspace(0, max_wealth * (1 + interest_rate), n_grid_points)
+
+    return matrix_next_wealth, next_policy, expected_policy
+
+
+choice_set = [np.array([0, 1]), np.arange(7)]
 interest_rate = [0.05, 0.123]
 n_quad_points = [5, 10]
+
+TEST_CASES = list(product(interest_rate, max_wealth, n_grid_points, n_quad_points))
+
+
+@pytest.mark.parametrize(
+    "interest_rate, max_wealth, n_grid_points, n_quad_points",
+    TEST_CASES,
+)
+def test_interpolate_policy(interest_rate, max_wealth, n_grid_points, n_quad_points):
+    (
+        matrix_next_wealth,
+        next_policy,
+        expected_policy,
+    ) = get_inputs_and_expected_interpolate_policy(
+        interest_rate, max_wealth, n_grid_points, n_quad_points
+    )
+
+    policy_interp = interpolate_policy(matrix_next_wealth.flatten("F"), next_policy)
+    aaae(policy_interp, np.repeat(expected_policy, n_quad_points))
+
+
 TEST_CASES = list(
     product(choice_set, interest_rate, max_wealth, n_grid_points, n_quad_points)
 )
@@ -126,52 +134,97 @@ def test_get_next_period_policy(
         "grid_points_wealth": n_grid_points,
     }
 
-    _savings = np.linspace(0, max_wealth, n_grid_points)
-    matrix_next_wealth = np.full(
-        (n_quad_points, n_grid_points), _savings * (1 + interest_rate)
+    (
+        matrix_next_wealth,
+        _next_policy,
+        _expected_policy,
+    ) = get_inputs_and_expected_interpolate_policy(
+        interest_rate, max_wealth, n_grid_points, n_quad_points
     )
-    next_policy = np.tile(_savings[np.newaxis], (len(choice_set), 2, 1))
+    next_policy = np.repeat(_next_policy[np.newaxis, ...], len(choice_set), axis=0)
 
     policy_interp = get_next_period_policy(
         choice_set, matrix_next_wealth, next_policy, options
     )
 
-    _expected = np.linspace(0, max_wealth * (1 + interest_rate), n_grid_points)
-    expected = np.tile(
-        np.repeat(_expected, n_quad_points)[np.newaxis],
+    expected_policy = np.tile(
+        np.repeat(_expected_policy, n_quad_points)[np.newaxis],
         (len(choice_set), 1),
     )
-    aaae(policy_interp, expected)
+    aaae(policy_interp, expected_policy)
 
 
-TEST_CASES = list(product(interest_rate, max_wealth, n_grid_points, n_quad_points))
+# ======================================================================================
+# interpolate_value & get_next_period_value
+# ======================================================================================
 
 
-@pytest.mark.parametrize(
-    "interest_rate, max_wealth, n_grid_points, n_quad_stochastic",
-    TEST_CASES,
-)
-def test_interpolate_policy(
-    interest_rate, max_wealth, n_grid_points, n_quad_stochastic
-):
-    _savings = np.linspace(0, max_wealth, n_grid_points)
-    matrix_next_wealth = np.full(
-        (n_quad_stochastic, n_grid_points), _savings * (1 + interest_rate)
-    )
-    next_policy = np.tile(_savings[np.newaxis], (2, 1))
-
-    policy_interp = interpolate_policy(matrix_next_wealth.flatten("F"), next_policy)
-
-    _expected = np.linspace(0, max_wealth * (1 + interest_rate), n_grid_points)
-    aaae(policy_interp, np.repeat(_expected, n_quad_stochastic))
-
-
-def test_get_next_period_value(value_interp_expected):
+@pytest.fixture()
+def inputs_interpolate_value():
     max_wealth = 50
     n_grid_points = 10
-    n_quad_stochastic = 5
+    n_quad_points = 5
     interest_rate = 0.05
-    params, options = get_example_model("retirement_no_taste_shocks")
+
+    _savings = np.linspace(1, max_wealth, n_grid_points)
+    matrix_next_wealth = np.full(
+        (n_quad_points, n_grid_points), _savings * (1 + interest_rate)
+    )
+    next_value = np.stack([_savings, np.linspace(0, 10, n_grid_points)])
+
+    return matrix_next_wealth, next_value
+
+
+@pytest.fixture()
+def value_interp_expected():
+    _value = np.array(
+        [
+            -0.30232329,
+            1.17687075,
+            2.34353741,
+            3.51020408,
+            4.67687075,
+            5.84353741,
+            7.01020408,
+            8.17687075,
+            9.34353741,
+            10.51020408,
+        ]
+    )
+    return np.repeat(_value, 5)
+
+
+def test_interpolate_value(
+    inputs_interpolate_value, value_interp_expected, load_example_model
+):
+    params, _ = load_example_model("retirement_no_taste_shocks")
+
+    compute_utility = partial(
+        utility_func_crra,
+        params=params,
+    )
+    compute_value_constrained = partial(
+        calc_value_constrained,
+        beta=params.loc[("beta", "beta"), "value"],
+        compute_utility=compute_utility,
+    )
+
+    matrix_next_wealth, next_value = inputs_interpolate_value
+
+    value_interp = interpolate_value(
+        flat_wealth=matrix_next_wealth.flatten("F"),
+        value=next_value,
+        choice=0,
+        compute_value_constrained=compute_value_constrained,
+    )
+
+    aaae(value_interp, value_interp_expected)
+
+
+def test_get_next_period_value(
+    inputs_interpolate_value, value_interp_expected, load_example_model
+):
+    params, options = load_example_model("retirement_no_taste_shocks")
 
     choice_set = np.array([0])
     period = 10
@@ -186,19 +239,13 @@ def test_get_next_period_value(value_interp_expected):
         compute_utility=compute_utility,
     )
 
-    _savings = np.linspace(1, max_wealth, n_grid_points)
-    matrix_next_period_wealth = np.full(
-        (n_quad_stochastic, n_grid_points), _savings * (1 + interest_rate)
-    )
-    next_period_value = np.tile(
-        np.stack([_savings, np.linspace(0, 10, n_grid_points)])[np.newaxis],
-        (len(choice_set), 1),
-    )
+    matrix_next_wealth, _next_value = inputs_interpolate_value
+    next_value = np.repeat(_next_value[np.newaxis, ...], len(choice_set), axis=0)
 
     value_interp = get_next_period_value(
         choice_set,
-        matrix_next_period_wealth,
-        next_period_value,
+        matrix_next_wealth,
+        next_value,
         period,
         options,
         compute_utility,
@@ -206,54 +253,23 @@ def test_get_next_period_value(value_interp_expected):
     )
     aaae(value_interp, np.tile(value_interp_expected[np.newaxis], (len(choice_set), 1)))
 
-    assert True
 
-
-def test_interpolate_value(value_interp_expected):
-    max_wealth = 50
-    n_grid_points = 10
-    n_quad_stochastic = 5
-    interest_rate = 0.05
-    params, _ = get_example_model("retirement_no_taste_shocks")
-
-    compute_utility = partial(
-        utility_func_crra,
-        params=params,
-    )
-    compute_value_constrained = partial(
-        calc_value_constrained,
-        beta=params.loc[("beta", "beta"), "value"],
-        compute_utility=compute_utility,
-    )
-
-    _savings = np.linspace(1, max_wealth, n_grid_points)
-    matrix_next_period_wealth = np.full(
-        (n_quad_stochastic, n_grid_points), _savings * (1 + interest_rate)
-    )
-    next_period_value = np.stack([_savings, np.linspace(0, 10, n_grid_points)])
-
-    value_interp = interpolate_value(
-        flat_wealth=matrix_next_period_wealth.flatten("F"),
-        value=next_period_value,
-        choice=0,
-        compute_value_constrained=compute_value_constrained,
-    )
-
-    aaae(value_interp, value_interp_expected)
-
+# ======================================================================================
+# sum_marginal_utilities_over_choice_probs
+# ======================================================================================
 
 child_node_choice_set = [np.array([0]), np.array([1])]
-TEST_CASES = list(product(child_node_choice_set, n_grid_points, n_quad_points))
+TEST_CASES = list(product(model, child_node_choice_set, n_grid_points, n_quad_points))
 
 
 @pytest.mark.parametrize(
-    "child_node_choice_set, n_grid_points, n_quad_points",
+    "model, child_node_choice_set, n_grid_points, n_quad_points",
     TEST_CASES,
 )
 def test_sum_marginal_utility_over_choice_probs(
-    child_node_choice_set, n_grid_points, n_quad_points
+    model, child_node_choice_set, n_grid_points, n_quad_points, load_example_model
 ):
-    params, _ = get_example_model("retirement_no_taste_shocks")
+    params, _ = load_example_model(model)
     options = {
         "quadrature_points_stochastic": n_quad_points,
         "grid_points_wealth": n_grid_points,
@@ -281,8 +297,9 @@ def test_sum_marginal_utility_over_choice_probs(
         compute_next_period_choice_probs=compute_next_choice_probs,
     )
 
-    choice_index = 0
-    choice_prob = compute_next_choice_probs(next_value, choice_index)
-    expected = choice_prob * compute_marginal_utility(next_policy[choice_index])
+    _choice_index = 0
+    _choice_prob = compute_next_choice_probs(next_value, _choice_index)
+    _expected = _choice_prob * compute_marginal_utility(next_policy[_choice_index])
+    expected = _expected.reshape((n_quad_points, n_grid_points), order="F")
 
-    aaae(next_marg_util, expected.reshape((n_quad_points, n_grid_points), order="F"))
+    aaae(next_marg_util, expected)

@@ -1,30 +1,11 @@
 from functools import partial
 from itertools import product
-from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import pytest
-import yaml
 from dcegm.solve import solve_final_period
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model import utility_func_crra
-
-
-# Obtain the test directory of the package.
-TEST_DIR = Path(__file__).parent
-
-# Directory with additional resources for the testing harness
-TEST_RESOURCES_DIR = TEST_DIR / "resources"
-
-
-def get_example_model(model):
-    """Return parameters and options of an example model."""
-    params = pd.read_csv(
-        TEST_RESOURCES_DIR / f"{model}.csv", index_col=["category", "name"]
-    )
-    options = yaml.safe_load((TEST_RESOURCES_DIR / f"{model}.yaml").read_text())
-    return params, options
 
 
 model = ["deaton", "retirement_taste_shocks", "retirement_no_taste_shocks"]
@@ -34,8 +15,10 @@ TEST_CASES = list(product(model, max_wealth, n_grid_points))
 
 
 @pytest.mark.parametrize("model, max_wealth, n_grid_points", TEST_CASES)
-def test_consume_everything_in_final_period(model, max_wealth, n_grid_points):
-    params, options = get_example_model(f"{model}")
+def test_consume_everything_in_final_period(
+    model, max_wealth, n_grid_points, load_example_model
+):
+    params, options = load_example_model(f"{model}")
     savings_grid = np.linspace(0, max_wealth, n_grid_points)
 
     n_periods = options["n_periods"]
