@@ -70,7 +70,7 @@ def test_get_child_states(lagged_choice, n_periods, n_choices):
         state,
         state_space,
         state_indexer,
-        get_choice_set_by_state=get_state_specific_choice_set,
+        get_state_specific_choice_set=get_state_specific_choice_set,
     )
 
     expected_child_nodes = np.atleast_2d(

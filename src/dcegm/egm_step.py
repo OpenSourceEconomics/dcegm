@@ -4,7 +4,6 @@ from typing import Dict
 from typing import Tuple
 
 import numpy as np
-import pandas as pd
 from dcegm.interpolate import interpolate_policy
 from dcegm.interpolate import interpolate_value
 
@@ -31,15 +30,34 @@ def do_egm_step(
     Args:
         child_state (np.ndarray): Current individual child state.
         options (dict): Options dictionary.
-        utility_functions (Dict[str, callable]): Dictionary of three user-supplied
-            functions for computation of (i) utility, (ii) inverse marginal utility,
-            and (iii) next period marginal utility. All three are partial functions,
-            where the common input ```params``` has already been partialled in.
         compute_utility (callable): User-defined function to compute the agent's
             utility. The input ```params``` is already partialled in.
+        compute_marginal_utility (callable): User-defined function to compute the
+            agent's marginal utility. The input ```params``` is already partialled in.
+        compute_current_policy (callable): User-defined function to compute the agent's
+            current state- and choice-specific optimal policy. The inputs
+            ```quad_weights```and ```compute_inverse_margina_utility``` are already
+            partialled in.
         compute_value_credit_constrained (callable): User-defined function to compute
-            the agent's value function in the credit-constrained area.
-            The inputs ```params``` and ```compute_utility``` are already partialled in.
+            the agent's value function in the credit-constrained area. The inputs
+            ```params``` and ```compute_utility``` are already partialled in.
+        compute_expected_value (callable): User-defined function to compute the agent's
+            expected value. The inputs ```params``` and ```quad_weights``` are already
+            partialled in.
+        compute_next_choice_probs (callable): User-defined function to compute the
+            agent's choice probabilities in the next period (t + 1). The inputs
+            ```params``` and ```options``` are already partialled in.
+        compute_next_wealth_matrices (callable): User-defined function to compute the
+            agent's wealth matrices of the next period (t + 1). The inputs
+            ```savings_grid```, ```income_shocks```, ```params``` and ```options```
+            are already partialled in.
+        store_current_policy_and_value (callable): Internal function that computes the
+            current state- and choice-specific optimal policy and value functions.
+            The inputs ```savings_grid```, ```params```, ```options```, and
+            ```compute_utility``` are already partialled in.
+        compute_next_marginal_wealth (callable): User-defined function to compute the
+            agent's marginal wealth in the next period (t + 1). The inputs
+            ```params``` and ```options``` are already partialled in.
         next_period_policy (np.ndarray): 2d array of the agent's next period policy
             for all choices. Shape (n_choices, 2, 1.1 * (n_grid_wealth + 1)).
             Position [:, 0, :] contains the endogenous grid over wealth M,
@@ -240,61 +258,3 @@ def get_next_period_value(
             )
 
     return next_period_value_interp
-
-
-def _store_current_period_policy_and_value(
-    current_period_policy: np.ndarray,
-    expected_value: np.ndarray,
-    child_state: np.ndarray,
-    savings: np.ndarray,
-    params: pd.DataFrame,
-    options: Dict[str, int],
-    compute_utility: Callable,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Store the current period policy and value funtions.
-
-    Args:
-        current_period_policy (np.ndarray): 1d array of shape (n_grid_wealth,)
-            containing the agent's current period policy rule.
-        expected_value (np.ndarray): (np.ndarray): 1d array of shape (n_grid_wealth,)
-            containing the agent's expected value of the next period.
-        child_state (np.ndarray): 1d array of shape (n_state_variables,) denoting
-            the current child state.
-        savings (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
-            exogenous savings grid .
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
-        options (dict): Options dictionary.
-        compute_utility (callable): User-defined function to compute the agent's
-            utility. The input ```params``` is already partialled in.
-
-    Returns:
-        (tuple): Tuple containing:
-
-        - current_policy (np.ndarray): 2d array of the agent's period- and
-            choice-specific consumption policy. Shape (2, 1.1 * (n_grid_wealth + 1)).
-            Position [0, :] contains the endogenous grid over wealth M,
-            and [1, :] stores the corresponding value of the policy function c(M, d).
-        - current_value (np.ndarray): 2d array of the agent's period- and
-            choice-specific value function. Shape (2, 1.1 * (n_grid_wealth + 1)).
-            Position [0, :] contains the endogenous grid over wealth M,
-            and [1, :] stores the corresponding value of the value function v(M, d).
-
-    """
-    beta = params.loc[("beta", "beta"), "value"]
-    n_grid_wealth = options["grid_points_wealth"]
-
-    endogenous_wealth_grid = savings + current_period_policy
-
-    current_period_utility = compute_utility(current_period_policy, child_state[1])
-
-    current_policy = np.zeros((2, n_grid_wealth + 1))
-    current_policy[0, 1:] = endogenous_wealth_grid
-    current_policy[1, 1:] = current_period_policy
-
-    current_value = np.zeros((2, n_grid_wealth + 1))
-    current_value[0, 1:] = endogenous_wealth_grid
-    current_value[1, 0] = expected_value[0]
-    current_value[1, 1:] = current_period_utility + beta * expected_value
-
-    return current_policy, current_value

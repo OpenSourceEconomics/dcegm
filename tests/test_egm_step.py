@@ -13,10 +13,10 @@ from dcegm.interpolate import interpolate_value
 from numpy.testing import assert_array_almost_equal as aaae
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
-from toy_models.consumption_retirement_model.budget_functions import budget_constraint
 from toy_models.consumption_retirement_model.budget_functions import (
-    calc_stochastic_income,
+    _calc_stochastic_income,
 )
+from toy_models.consumption_retirement_model.budget_functions import budget_constraint
 from toy_models.consumption_retirement_model.utility_functions import (
     marginal_utility_crra,
 )
@@ -57,13 +57,13 @@ def test_get_next_period_wealth_matrices(
 
     matrix_next_wealth = budget_constraint(
         child_state,
-        savings_grid,
-        params,
-        options,
-        income_shocks=quad_points,
+        savings_grid=savings_grid,
+        income_shock=quad_points,
+        params=params,
+        options=options,
     )
 
-    _income = calc_stochastic_income(
+    _income = _calc_stochastic_income(
         child_state,
         wage_shock=quad_points,
         params=params,

@@ -1,4 +1,3 @@
-from typing import Callable
 from typing import Dict
 
 import numpy as np
@@ -6,11 +5,11 @@ import pandas as pd
 
 
 def budget_constraint(
-    state,
-    savings: np.ndarray,
+    state: np.ndarray,
+    savings_grid: np.ndarray,
+    income_shock: np.ndarray,
     params: pd.DataFrame,
     options: Dict[str, int],
-    income_shocks: Callable,
 ) -> np.ndarray:
     """Compute possible current beginning of period resources, given the savings grid of
     last period and the current state including the choice of last period.
@@ -18,13 +17,13 @@ def budget_constraint(
     Args:
         state (np.ndarray): 1d array of shape (n_state_variables,) denoting
             the current child state.
-        savings (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+        savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
             exogenous savings grid.
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
-        wage_shock (float): Stochastic shock on labor income, which may or may not
-            be normally distributed.
+        income_shock (np.ndarray): 1d array of shape (n_quadrature_points,) containing
+            a stochastic shock on labor income; may or may not be normally distributed.
 
     Returns:
         (np.ndarray): 2d array of shape (n_quad_stochastic, n_grid_wealth)
@@ -35,14 +34,14 @@ def budget_constraint(
     n_quad_stochastic = options["quadrature_points_stochastic"]
 
     # Calculate stochastic labor income
-    _next_period_income = calc_stochastic_income(
+    _next_period_income = _calc_stochastic_income(
         state,
-        wage_shock=income_shocks,
+        wage_shock=income_shock,
         params=params,
         options=options,
     )
     income_matrix = np.repeat(_next_period_income[:, np.newaxis], n_grid_wealth, 1)
-    savings_matrix = np.full((n_quad_stochastic, n_grid_wealth), savings * (1 + r))
+    savings_matrix = np.full((n_quad_stochastic, n_grid_wealth), savings_grid * (1 + r))
 
     matrix_next_period_wealth = income_matrix + savings_matrix
 
@@ -61,7 +60,7 @@ def budget_constraint(
     return matrix_next_period_wealth
 
 
-def calc_stochastic_income(
+def _calc_stochastic_income(
     child_state: np.ndarray,
     wage_shock: np.ndarray,
     params: pd.DataFrame,
@@ -82,8 +81,8 @@ def calc_stochastic_income(
     Args:
         child_state (np.ndarray): 1d array of shape (n_state_variables,) denoting
             the current child state.
-        wage_shock (float): Stochastic shock on labor income, which may or may not
-            be normally distributed.
+        wage_shock (np.ndarray): 1d array of shape (n_quadrature_points,) containing
+            a stochastic shock on labor income; may or may not be normally distributed.
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
             Relevant here are the coefficients of the wage equation.
@@ -112,7 +111,7 @@ def calc_stochastic_income(
     return stochastic_income
 
 
-def marginal_wealth(state, params, options):
+def marginal_wealth(child_state, params, options):
     """Calculate next periods marginal wealth.
 
     Args:

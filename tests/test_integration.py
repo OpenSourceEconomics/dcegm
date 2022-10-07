@@ -54,7 +54,7 @@ def state_space_functions():
     """Return dict with utility functions."""
     return {
         "create_state_space": create_state_space,
-        "get_choice_set_by_state": get_state_specific_choice_set,
+        "get_state_specific_choice_set": get_state_specific_choice_set,
     }
 
 
@@ -83,7 +83,7 @@ def test_benchmark_models(
         options,
         utility_functions,
         budget_functions=budget_functions,
-        final_period_solution=solve_final_period,
+        solve_final_period=solve_final_period,
         state_space_functions=state_space_functions,
     )
 

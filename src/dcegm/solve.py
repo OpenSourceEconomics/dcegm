@@ -1,12 +1,13 @@
 """Interface for the DC-EGM algorithm."""
+from typing import Callable
 from typing import Dict
 from typing import Tuple
 
 import numpy as np
 import pandas as pd
 from dcegm.egm_step import do_egm_step
-from dcegm.pre_processing import partial_functions
-from dcegm.state_space import _create_multi_dim_arrays
+from dcegm.pre_processing import create_multi_dim_arrays
+from dcegm.pre_processing import get_partial_functions
 from dcegm.state_space import get_child_states
 from dcegm.upper_envelope_step import do_upper_envelope_step
 
@@ -14,10 +15,10 @@ from dcegm.upper_envelope_step import do_upper_envelope_step
 def solve_dcegm(
     params: pd.DataFrame,
     options: Dict[str, int],
-    utility_functions: Dict[str, callable],
-    budget_functions,
-    final_period_solution,
-    state_space_functions,
+    utility_functions: Dict[str, Callable],
+    budget_functions: Dict[str, Callable],
+    state_space_functions: Dict[str, Callable],
+    solve_final_period: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Solves a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
@@ -39,7 +40,13 @@ def solve_dcegm(
             (i) the budget constraint
             (ii) marginal budget constraint with respect to end of period assets
                 of last period
-        final_period_solution (callable): A function solving the last period.
+        state_space_functions (Dict[str, callable]): Dictionary of two user-supplied
+            functions to:
+
+            (i) create the state space
+            (ii) get the state specific choice set
+        solve_final_period (callable): A function to solve the last period.
+
      Returns:
         (tuple): Tuple containing
 
@@ -60,14 +67,14 @@ def solve_dcegm(
     n_periods = options["n_periods"]
     n_grid_wealth = options["grid_points_wealth"]
 
-    state_space, state_indexer = state_space_functions["create_state_space"](options)
-
     exogenous_savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
 
-    policy_arr, value_arr = _create_multi_dim_arrays(state_space, options)
-
-    condition_final_period = np.where(state_space[:, 0] == n_periods - 1)
-    states_final_period = state_space[condition_final_period]
+    create_state_space = state_space_functions["create_state_space"]
+    get_state_specific_choice_set = state_space_functions[
+        "get_state_specific_choice_set"
+    ]
+    state_space, state_indexer = create_state_space(options)
+    policy_arr, value_arr = create_multi_dim_arrays(state_space, options)
 
     (
         compute_utility,
@@ -79,7 +86,7 @@ def solve_dcegm(
         compute_next_wealth_matrices,
         compute_next_marginal_wealth,
         store_current_policy_and_value,
-    ) = partial_functions(
+    ) = get_partial_functions(
         params,
         options,
         exogenous_savings_grid,
@@ -92,15 +99,16 @@ def solve_dcegm(
         user_marginal_next_period_wealth=budget_functions["marginal_budget_constraint"],
     )
 
-    policy_final, value_final = final_period_solution(
+    _indices_final_period = np.where(state_space[:, 0] == n_periods - 1)
+    states_final_period = state_space[_indices_final_period]
+    policy_final, value_final = solve_final_period(
         states=states_final_period,
         savings_grid=exogenous_savings_grid,
         options=options,
         compute_utility=compute_utility,
     )
-
-    policy_arr[condition_final_period, ...] = policy_final
-    value_arr[condition_final_period, ...] = value_final
+    policy_arr[_indices_final_period, ...] = policy_final
+    value_arr[_indices_final_period, ...] = value_final
 
     for period in range(n_periods - 2, -1, -1):
 
@@ -113,9 +121,7 @@ def solve_dcegm(
                 state,
                 state_space,
                 state_indexer,
-                get_choice_set_by_state=state_space_functions[
-                    "get_choice_set_by_state"
-                ],
+                get_state_specific_choice_set=get_state_specific_choice_set,
             )
 
             for child_state in child_nodes:
@@ -125,9 +131,9 @@ def solve_dcegm(
                 next_period_policy = policy_arr[child_state_index]
                 next_period_value = value_arr[child_state_index]
 
-                child_node_choice_set = state_space_functions[
-                    "get_choice_set_by_state"
-                ](child_state, state_space, state_indexer)
+                child_node_choice_set = get_state_specific_choice_set(
+                    child_state, state_space, state_indexer
+                )
 
                 current_policy, current_value, expected_value = do_egm_step(
                     child_state,
