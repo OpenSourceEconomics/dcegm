@@ -50,10 +50,10 @@ def get_state_specific_choice_set(
     This is very basic in Ishkakov.
 
     Args:
-        state (np.ndarray): Array of shape (n_states,) defining the agent's current
+        state (np.ndarray): Array of shape (n_state_variables,) defining the agent's
             state. In Ishkakov, an agent's state is defined by her (i) age (i.e. the
             current period) and (ii) her lagged labor market choice.
-            Hence n_states = 2.
+            Hence n_state_variables = 2.
         state_space (np.ndarray): Collection of all possible states of shape
             (n_periods * n_choices, n_choices).
         indexer (np.ndarray): Indexer object that maps states to indexes.
@@ -64,14 +64,14 @@ def get_state_specific_choice_set(
             state of shape (n_admissible_choices,).
 
     """
-    n_states = indexer.shape[1]
+    n_state_variables = indexer.shape[1]
 
     # Once the agent choses retirement, she can only choose retirement thereafter.
     # Hence, retirement is an absorbing state.
     if state[1] == 1:
         choice_set = np.array([1])
     else:
-        choice_set = np.arange(n_states)
+        choice_set = np.arange(n_state_variables)
 
     return choice_set
 
@@ -84,10 +84,10 @@ def get_child_states(
     """Select state-specific child nodes. Will be a user defined function later.
 
     Args:
-        state (np.ndarray): Array of shape (n_states,) defining the agent's current
+        # state (np.ndarray): Array of shape (n_state_variables,) defining the agent's
             state. In Ishkakov, an agent's state is defined by her (i) age (i.e. the
             current period) and (ii) her lagged labor market choice.
-            Hence n_states = 2.
+            Hence n_state_variables = 2.
         states (np.ndarray): Collection of all possible states of shape
             (n_periods * n_choices, n_choices).
         indexer (np.ndarray): Indexer object that maps states to indexes.
@@ -104,7 +104,7 @@ def get_child_states(
     )
     child_nodes = np.empty(
         (state_specific_choice_set.shape[0], state_space.shape[1]), dtype=int
-    )  # (n_admissible_choices, n_states)
+    )  # (n_admissible_choices, n_state_variables)
 
     for i, choice in enumerate(state_specific_choice_set):
         child_nodes[i, :] = state_space[indexer[state[0] + 1, choice]]
