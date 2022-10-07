@@ -7,6 +7,7 @@ Changes
 Record changes to *dc-egm* here to facilitate a collaborate workflow. Please write down the number of
 your pull request, a short description, and link the contributors.
 
+- :gh:`21` Sets up documentation infrastructure (:ghuser:`amageh`).
 - :gh:`18` Refactors tests (:ghuser:`segsell`).
 - :gh:`16` Adds tests for state space handling (:ghuser:`segsell`).
 - :gh:`15` Implement computation on state specific objects (:ghuser:`MaxBlesch`, :ghuser:`segsell`).
