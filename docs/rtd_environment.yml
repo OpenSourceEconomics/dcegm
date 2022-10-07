@@ -1,0 +1,13 @@
+channels:
+  - defaults
+dependencies:
+  - python
+  - ipython
+  - nbsphinx
+  - numpydoc
+  - sphinx
+  - sphinx-autobuild
+  - sphinx-autoapi
+  - pip:
+    - sphinx-tabs
+    - furo
