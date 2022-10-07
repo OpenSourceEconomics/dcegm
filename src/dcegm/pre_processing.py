@@ -5,8 +5,7 @@ from dcegm.aggregate_policy_value import calc_expected_value
 from dcegm.aggregate_policy_value import calc_next_period_choice_probs
 from dcegm.aggregate_policy_value import calc_value_constrained
 from dcegm.egm_step import _store_current_period_policy_and_value
-from scipy.special import roots_sh_legendre
-from scipy.stats import norm
+from dcegm.integration import quadrature_legendre
 
 
 def partial_functions(
@@ -19,11 +18,12 @@ def partial_functions(
     user_budget_constraint,
     user_marginal_next_period_wealth,
 ):
-    sigma = params.loc[("shocks", "sigma"), "value"]
-    n_quad_points = options["quadrature_points_stochastic"]
-    # Gauss-Legendre (shifted) quadrature over the interval [0,1].
-    quad_points, quad_weights = roots_sh_legendre(n_quad_points)
-    quad_points_normal = norm.ppf(quad_points)
+
+    quad_points, quad_weights = quadrature_legendre(
+        options["quadrature_points_stochastic"],
+        params.loc[("shocks", "sigma"), "value"],
+    )
+
     compute_utility = partial(
         user_utility_func,
         params=params,
@@ -59,7 +59,7 @@ def partial_functions(
         savings=exogenous_savings_grid,
         params=params,
         options=options,
-        income_shocks=quad_points_normal * sigma,
+        income_shocks=quad_points,
     )
     compute_next_marginal_wealth = partial(
         user_marginal_next_period_wealth,
