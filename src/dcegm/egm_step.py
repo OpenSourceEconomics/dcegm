@@ -13,11 +13,9 @@ def do_egm_step(
     child_node_choice_set,
     *,
     options: Dict[str, int],
-    compute_utility: Callable,
     compute_marginal_utility: Callable,
     compute_current_policy: Callable,
     compute_current_value: Callable,
-    compute_value_constrained: Callable,
     compute_expected_value: Callable,
     compute_next_choice_probs: Callable,
     compute_next_wealth_matrices: Callable,
@@ -100,11 +98,8 @@ def do_egm_step(
     next_value_interp = get_next_period_value(
         child_node_choice_set,
         matrix_next_period_wealth=next_wealth,
-        period=child_state[0] - 1,
-        options=options,
         next_period_value=next_value,
-        compute_value_constrained=compute_value_constrained,
-        compute_utility=compute_utility,
+        compute_value=compute_current_value,
     )
 
     next_marginal_utility = sum_marginal_utility_over_choice_probs(
@@ -215,10 +210,7 @@ def get_next_period_value(
     child_node_choice_set,
     matrix_next_period_wealth: np.ndarray,
     next_period_value: np.ndarray,
-    period: int,
-    options: Dict[str, int],
-    compute_utility: Callable,
-    compute_value_constrained: Callable,
+    compute_value: Callable,
 ) -> np.ndarray:
     """Maps next-period value onto this period's matrix of next-period wealth.
 
@@ -254,7 +246,7 @@ def get_next_period_value(
             flat_wealth=matrix_next_period_wealth.flatten("F"),
             value=next_period_value[choice],
             choice=choice,
-            compute_value_constrained=compute_value_constrained,
+            compute_value_constrained=compute_value,
         )
 
     return next_period_value_interp

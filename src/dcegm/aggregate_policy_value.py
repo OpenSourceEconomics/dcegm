@@ -73,7 +73,7 @@ def calc_expected_value(
     return expected_value
 
 
-def calc_value_constrained(
+def calc_current_period_value(
     wealth: np.ndarray,
     next_period_value: np.ndarray,
     choice: int,

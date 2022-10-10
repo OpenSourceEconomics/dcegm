@@ -4,9 +4,9 @@ from typing import Tuple
 
 import numpy as np
 from dcegm.aggregate_policy_value import calc_current_period_policy
+from dcegm.aggregate_policy_value import calc_current_period_value
 from dcegm.aggregate_policy_value import calc_expected_value
 from dcegm.aggregate_policy_value import calc_next_period_choice_probs
-from dcegm.aggregate_policy_value import calc_value_constrained
 from dcegm.integration import quadrature_legendre
 
 
@@ -44,12 +44,7 @@ def get_partial_functions(
         compute_inverse_marginal_utility=compute_inverse_marginal_utility,
     )
     compute_current_value = partial(
-        _calc_current_period_value,
-        params=params,
-        compute_utility=compute_utility,
-    )
-    compute_value_constrained = partial(
-        calc_value_constrained,
+        calc_current_period_value,
         beta=params.loc[("beta", "beta"), "value"],
         compute_utility=compute_utility,
     )
@@ -83,7 +78,6 @@ def get_partial_functions(
         compute_marginal_utility,
         compute_current_policy,
         compute_current_value,
-        compute_value_constrained,
         compute_expected_value,
         compute_next_choice_probs,
         compute_next_wealth_matrices,
@@ -196,14 +190,3 @@ def _store_current_period_policy_and_value(
     current_value[1, 1:] = current_period_value
 
     return current_policy, current_value
-
-
-def _calc_current_period_value(
-    current_policy, expected_value, *, choice, params, compute_utility
-):
-    beta = params.loc[("beta", "beta"), "value"]
-
-    current_utility = compute_utility(current_policy, choice)
-    current_value = current_utility + beta * expected_value
-
-    return current_value

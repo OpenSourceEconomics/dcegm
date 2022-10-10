@@ -3,8 +3,8 @@ from itertools import product
 
 import numpy as np
 import pytest
+from dcegm.aggregate_policy_value import calc_current_period_value
 from dcegm.aggregate_policy_value import calc_next_period_choice_probs
-from dcegm.aggregate_policy_value import calc_value_constrained
 from dcegm.egm_step import get_next_period_policy
 from dcegm.egm_step import get_next_period_value
 from dcegm.egm_step import sum_marginal_utility_over_choice_probs
@@ -208,7 +208,7 @@ def test_interpolate_value(
         params=params,
     )
     compute_value_constrained = partial(
-        calc_value_constrained,
+        calc_current_period_value,
         beta=params.loc[("beta", "beta"), "value"],
         compute_utility=compute_utility,
     )
@@ -228,17 +228,16 @@ def test_interpolate_value(
 def test_get_next_period_value(
     inputs_interpolate_value, value_interp_expected, load_example_model
 ):
-    params, options = load_example_model("retirement_no_taste_shocks")
+    params, _ = load_example_model("retirement_no_taste_shocks")
 
     choice_set = np.array([0])
-    period = 10
 
     compute_utility = partial(
         utility_func_crra,
         params=params,
     )
     compute_value_constrained = partial(
-        calc_value_constrained,
+        calc_current_period_value,
         beta=params.loc[("beta", "beta"), "value"],
         compute_utility=compute_utility,
     )
@@ -250,9 +249,6 @@ def test_get_next_period_value(
         choice_set,
         matrix_next_wealth,
         next_value,
-        period,
-        options,
-        compute_utility,
         compute_value_constrained,
     )
     aaae(value_interp, np.tile(value_interp_expected[np.newaxis], (len(choice_set), 1)))
