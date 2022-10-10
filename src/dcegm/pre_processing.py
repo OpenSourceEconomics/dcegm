@@ -45,6 +45,11 @@ def get_partial_functions(
         quad_weights=quad_weights,
         compute_inverse_marginal_utility=compute_inverse_marginal_utility,
     )
+    compute_current_value = partial(
+        calc_current_period_value,
+        params=params,
+        compute_utility=compute_utility,
+    )
     compute_value_constrained = partial(
         calc_value_constrained,
         beta=params.loc[("beta", "beta"), "value"],
@@ -81,6 +86,7 @@ def get_partial_functions(
         compute_utility,
         compute_marginal_utility,
         compute_current_policy,
+        compute_current_value,
         compute_value_constrained,
         compute_expected_value,
         compute_next_choice_probs,
@@ -88,6 +94,17 @@ def get_partial_functions(
         compute_next_marginal_wealth,
         store_current_policy_and_value,
     )
+
+
+def calc_current_period_value(
+    current_policy, expected_value, choice, params, compute_utility
+):
+    beta = params.loc[("beta", "beta"), "value"]
+
+    current_utility = compute_utility(current_policy, choice)
+    current_value = current_utility + beta * expected_value
+
+    return current_value
 
 
 def create_multi_dim_arrays(

@@ -16,6 +16,7 @@ def do_egm_step(
     compute_utility: Callable,
     compute_marginal_utility: Callable,
     compute_current_policy: Callable,
+    compute_current_value: Callable,
     compute_value_constrained: Callable,
     compute_expected_value: Callable,
     compute_next_choice_probs: Callable,
@@ -124,7 +125,7 @@ def do_egm_step(
         current_policy, expected_value, child_state
     )
 
-    return current_policy_arr, current_value_arr, expected_value
+    return current_policy_arr, current_value_arr
 
 
 def sum_marginal_utility_over_choice_probs(

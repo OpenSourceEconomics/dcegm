@@ -1,4 +1,5 @@
 """Interface for the DC-EGM algorithm."""
+from functools import partial
 from typing import Callable
 from typing import Dict
 from typing import Tuple
@@ -82,6 +83,7 @@ def solve_dcegm(
         compute_utility,
         compute_marginal_utility,
         compute_current_policy,
+        compute_current_value,
         compute_value_constrained,
         compute_expected_value,
         compute_next_choice_probs,
@@ -137,13 +139,14 @@ def solve_dcegm(
                     child_state, state_space, state_indexer
                 )
 
-                current_policy, current_value, expected_value = do_egm_step(
+                current_policy, current_value = do_egm_step(
                     child_state,
                     child_node_choice_set,
                     options=options,
                     compute_utility=compute_utility,
                     compute_marginal_utility=compute_marginal_utility,
                     compute_current_policy=compute_current_policy,
+                    compute_current_value=compute_current_value,
                     compute_value_constrained=compute_value_constrained,
                     compute_expected_value=compute_expected_value,
                     compute_next_choice_probs=compute_next_choice_probs,
@@ -155,13 +158,15 @@ def solve_dcegm(
                 )
 
                 if options["n_discrete_choices"] > 1:
+                    compute_value = partial(
+                        compute_current_value,
+                        choice=child_state[1],  # working decision
+                    )
                     current_policy, current_value = do_upper_envelope_step(
                         current_policy,
                         current_value,
-                        expected_value=expected_value,
-                        params=params,
                         options=options,
-                        compute_utility=utility_functions["utility"],
+                        compute_value=compute_value,
                     )
 
                 # Store
