@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 
 dc-egm`s Documentation
-====================
+======================
 
 Python implementation of the *Endogenous Grid Method* (EGM) and Discrete-Continuous EGM
 (DC-EGM) algorithms for solving dynamic stochastic lifecycle models of consumption and

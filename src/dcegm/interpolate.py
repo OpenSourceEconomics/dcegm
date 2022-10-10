@@ -9,12 +9,16 @@ def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarra
 
     Args:
         flat_wealth (np.ndarray): Flat array of shape
-            (n_quad_stochastic *n_grid_wealth,) containing the agent's
+            (n_quad_stochastic * n_grid_wealth,) containing the agent's
             potential wealth matrix in given period.
         policy (np.ndarray): Policy array of shape (2, 1.1 * n_grid_wealth).
             Position [0, :] of the arrays contain the endogenous grid over wealth M,
             and [1, :] stores the corresponding value of the (consumption) policy
             function c(M, d), for each time period and each discrete choice.
+
+    Returns:
+        np.ndarray: Interpolated flat policy function of shape
+            (n_quad_stochastic * n_grid_wealth,).
     """
     policy = policy[:, ~np.isnan(policy).any(axis=0)]
 
@@ -41,9 +45,9 @@ def interpolate_value(
 
     Args:
         flat_wealth (np.ndarray): Flat array of shape
-            (n_quad_stochastic *n_grid_wealth,) containing the agent's
+            (n_quad_stochastic * n_grid_wealth,) containing the agent's
             potential wealth matrix in given period.
-        value (np.ndarray): Value array of shape (2, 1.1* n_grid_wealth).
+        value (np.ndarray): Value array of shape (2, 1.1 * n_grid_wealth).
             Position [0, :] of the array contains the endogenous grid over wealth M,
             and [1, :] stores the corresponding value of the value function v(M, d),
             for each time period and each discrete choice.
@@ -53,19 +57,19 @@ def interpolate_value(
         compute_utility (callable): Function for computation of agent's utility.
 
     Returns:
-        (np.ndarray): Interpolated flat value function of shape
+        np.ndarray: Interpolated flat value function of shape
             (n_quad_stochastic * n_grid_wealth,).
+
     """
     value = value[:, ~np.isnan(value).any(axis=0)]
     value_interp = np.empty(flat_wealth.shape)
 
-    # Mark credit constrained region
-    constrained_region = flat_wealth < value[0, 1]
+    credit_constrained_region = flat_wealth < value[0, 1]
 
     # Calculate t+1 value function in constrained region using
     # the analytical part
-    value_interp[constrained_region] = compute_value_constrained(
-        flat_wealth[constrained_region],
+    value_interp[credit_constrained_region] = compute_value_constrained(
+        flat_wealth[credit_constrained_region],
         next_period_value=value[1, 0],
         choice=choice,
     )
@@ -79,8 +83,8 @@ def interpolate_value(
         fill_value="extrapolate",
         kind="linear",
     )
-    value_interp[~constrained_region] = interpolation_func(
-        flat_wealth[~constrained_region]
+    value_interp[~credit_constrained_region] = interpolation_func(
+        flat_wealth[~credit_constrained_region]
     )
 
     return value_interp

@@ -29,11 +29,12 @@ release = "0.0.1"
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "autoapi.extension",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
-    "autoapi.extension",
     "sphinx.ext.doctest",
     "sphinx.ext.extlinks",  # link to websites using abbreviations
+    "sphinx.ext.napoleon",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -92,4 +93,4 @@ extlinks = {
 }
 
 # Path for sphinx-autoapi
-autoapi_dirs = ["../src"]
+autoapi_dirs = ["../../src"]
