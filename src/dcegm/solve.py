@@ -39,7 +39,6 @@ def solve_dcegm(
 
             (i) the budget constraint
             (ii) marginal budget constraint with respect to end of period assets
-                of last period
         state_space_functions (Dict[str, callable]): Dictionary of two user-supplied
             functions to:
 
@@ -49,7 +48,7 @@ def solve_dcegm(
             last period.
 
      Returns:
-        (tuple): Tuple containing
+        (tuple): Tuple containing:
 
         - policy (np.ndarray): Multi-dimensional np.ndarray storing the
             choice-specific policy function; of shape
@@ -57,6 +56,7 @@ def solve_dcegm(
             Position [.., 0, :] contains the endogenous grid over wealth M,
             and [.., 1, :] stores the corresponding value of the policy function
             c(M, d), for each state and each discrete choice.
+
         - value (np.ndarray): Multi-dimensional np.ndarray storing the
             choice-specific value functions; of shape
             [n_states, n_discrete_choices, 2, 1.1 * n_grid_wealth].

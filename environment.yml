@@ -34,3 +34,7 @@ dependencies:
   - conda-build
   - conda-verify
   - tox-conda
+
+  # docs
+  - pip:
+      - furo
