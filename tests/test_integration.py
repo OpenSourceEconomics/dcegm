@@ -4,11 +4,23 @@ from pathlib import Path
 import numpy as np
 import pytest
 from dcegm.solve import solve_dcegm
-from dcegm.state_space import create_state_space
 from numpy.testing import assert_array_almost_equal as aaae
-from toy_models.consumption_retirement_model import inverse_marginal_utility_crra
-from toy_models.consumption_retirement_model import marginal_utility_crra
-from toy_models.consumption_retirement_model import utility_func_crra
+from toy_models.consumption_retirement_model.budget_functions import budget_constraint
+from toy_models.consumption_retirement_model.budget_functions import marginal_wealth
+from toy_models.consumption_retirement_model.final_period import solve_final_period
+from toy_models.consumption_retirement_model.state_space_objects import (
+    create_state_space,
+)
+from toy_models.consumption_retirement_model.state_space_objects import (
+    get_state_specific_choice_set,
+)
+from toy_models.consumption_retirement_model.utility_functions import (
+    inverse_marginal_utility_crra,
+)
+from toy_models.consumption_retirement_model.utility_functions import (
+    marginal_utility_crra,
+)
+from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
 
 
 # Obtain the test directory of the package.
@@ -28,6 +40,24 @@ def utility_functions():
     }
 
 
+@pytest.fixture()
+def budget_functions():
+    """Return dict with utility functions."""
+    return {
+        "budget_constraint": budget_constraint,
+        "marginal_budget_constraint": marginal_wealth,
+    }
+
+
+@pytest.fixture()
+def state_space_functions():
+    """Return dict with utility functions."""
+    return {
+        "create_state_space": create_state_space,
+        "get_state_specific_choice_set": get_state_specific_choice_set,
+    }
+
+
 @pytest.mark.parametrize(
     "model, choice_range",
     [
@@ -36,7 +66,14 @@ def utility_functions():
         ("retirement_no_taste_shocks", [0, 1]),
     ],
 )
-def test_benchmark_models(model, choice_range, utility_functions, load_example_model):
+def test_benchmark_models(
+    model,
+    choice_range,
+    utility_functions,
+    budget_functions,
+    state_space_functions,
+    load_example_model,
+):
     params, options = load_example_model(f"{model}")
 
     state_space, indexer = create_state_space(options)
@@ -45,6 +82,9 @@ def test_benchmark_models(model, choice_range, utility_functions, load_example_m
         params,
         options,
         utility_functions,
+        budget_functions=budget_functions,
+        solve_final_period=solve_final_period,
+        state_space_functions=state_space_functions,
     )
 
     policy_expected = pickle.load(

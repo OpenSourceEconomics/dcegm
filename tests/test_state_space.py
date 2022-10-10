@@ -2,9 +2,13 @@ from itertools import product
 
 import numpy as np
 import pytest
-from dcegm.state_space import create_state_space
 from dcegm.state_space import get_child_states
-from dcegm.state_space import get_state_specific_choice_set
+from toy_models.consumption_retirement_model.state_space_objects import (
+    create_state_space,
+)
+from toy_models.consumption_retirement_model.state_space_objects import (
+    get_state_specific_choice_set,
+)
 
 
 def expected_state_space_and_indexer(n_periods, n_choices):
@@ -63,7 +67,12 @@ def test_get_child_states(lagged_choice, n_periods, n_choices):
     period = 0
     state = np.array([period, lagged_choice])
 
-    child_nodes = get_child_states(state, state_space, state_indexer)
+    child_nodes = get_child_states(
+        state,
+        state_space,
+        state_indexer,
+        get_state_specific_choice_set=get_state_specific_choice_set,
+    )
 
     expected_child_nodes = np.atleast_2d(
         np.column_stack(
