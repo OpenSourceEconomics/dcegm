@@ -1,3 +1,5 @@
+name: rtd_dcegm
+
 channels:
   - defaults
 dependencies:
