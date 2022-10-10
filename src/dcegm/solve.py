@@ -103,16 +103,23 @@ def solve_dcegm(
         user_marginal_next_period_wealth=budget_functions["marginal_budget_constraint"],
     )
 
-    _indices_final_period = np.where(state_space[:, 0] == n_periods - 1)
-    states_final_period = state_space[_indices_final_period]
+    _state_indices_final_period = np.where(state_space[:, 0] == n_periods - 1)
+    states_final_period = state_space[_state_indices_final_period]
     policy_final, value_final = solve_final_period(
         states=states_final_period,
         savings_grid=exogenous_savings_grid,
         options=options,
         compute_utility=compute_utility,
     )
-    policy_arr[_indices_final_period, ...] = policy_final
-    value_arr[_indices_final_period, ...] = value_final
+
+    # =================================================================================
+    end_grid = len(exogenous_savings_grid) + 1
+    value_final[..., 0, 1:end_grid] = np.ones_like(exogenous_savings_grid) * np.inf
+    value_final[..., 1, 2:end_grid] = np.zeros_like(exogenous_savings_grid[1:])
+    # =================================================================================
+
+    policy_arr[_state_indices_final_period, ...] = policy_final
+    value_arr[_state_indices_final_period, ...] = value_final
 
     for period in range(n_periods - 2, -1, -1):
 

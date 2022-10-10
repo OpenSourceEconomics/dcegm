@@ -44,7 +44,7 @@ def get_partial_functions(
         compute_inverse_marginal_utility=compute_inverse_marginal_utility,
     )
     compute_current_value = partial(
-        calc_current_period_value,
+        _calc_current_period_value,
         params=params,
         compute_utility=compute_utility,
     )
@@ -90,17 +90,6 @@ def get_partial_functions(
         compute_next_marginal_wealth,
         store_current_policy_and_value,
     )
-
-
-def calc_current_period_value(
-    current_policy, expected_value, *, choice, params, compute_utility
-):
-    beta = params.loc[("beta", "beta"), "value"]
-
-    current_utility = compute_utility(current_policy, choice)
-    current_value = current_utility + beta * expected_value
-
-    return current_value
 
 
 def create_multi_dim_arrays(
@@ -207,3 +196,14 @@ def _store_current_period_policy_and_value(
     current_value[1, 1:] = current_period_value
 
     return current_policy, current_value
+
+
+def _calc_current_period_value(
+    current_policy, expected_value, *, choice, params, compute_utility
+):
+    beta = params.loc[("beta", "beta"), "value"]
+
+    current_utility = compute_utility(current_policy, choice)
+    current_value = current_utility + beta * expected_value
+
+    return current_value

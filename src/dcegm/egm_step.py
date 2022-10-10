@@ -250,16 +250,11 @@ def get_next_period_value(
     )
 
     for index, choice in enumerate(child_node_choice_set):
-        if period == options["n_periods"] - 2:
-            next_period_value_interp[index, :] = compute_utility(
-                matrix_next_period_wealth.flatten("F"), choice
-            )
-        else:
-            next_period_value_interp[index, :] = interpolate_value(
-                flat_wealth=matrix_next_period_wealth.flatten("F"),
-                value=next_period_value[choice],
-                choice=choice,
-                compute_value_constrained=compute_value_constrained,
-            )
+        next_period_value_interp[index, :] = interpolate_value(
+            flat_wealth=matrix_next_period_wealth.flatten("F"),
+            value=next_period_value[choice],
+            choice=choice,
+            compute_value_constrained=compute_value_constrained,
+        )
 
     return next_period_value_interp

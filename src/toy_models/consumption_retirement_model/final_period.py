@@ -70,4 +70,5 @@ def solve_final_period(
             value_final[state_index, index, 1, 2:end_grid] = compute_utility(
                 savings_grid[1:], choice
             )
+
     return policy_final, value_final
