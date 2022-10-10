@@ -102,6 +102,7 @@ def do_upper_envelope_step(
             points_to_add,
             index_dominated_points,
         ) = locate_non_concave_regions_and_refine(value)
+
         value_refined = np.hstack(
             [np.array([[0], [expected_value_zero_wealth]]), value_refined]
         )

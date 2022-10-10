@@ -84,8 +84,6 @@ def do_egm_step(
             choice-specific value function. Shape (2, 1.1 * (n_grid_wealth + 1)).
             Position [0, :] contains the endogenous grid over wealth M,
             and [1, :] stores the corresponding value of the value function v(M, d).
-        - expected_value (np.ndarray): 1d array of shape (n_grid_wealth,)
-            containing the agent's expected value of the next period.
 
     """
     next_wealth = compute_next_wealth_matrices(child_state)
@@ -93,13 +91,13 @@ def do_egm_step(
 
     # Interpolate next period policy and values to match the
     # contemporary matrix of potential next period wealths
-    next_policy = get_next_period_policy(
+    next_policy_interp = get_next_period_policy(
         child_node_choice_set,
         next_wealth,
         next_period_policy=next_policy,
         options=options,
     )
-    next_value = get_next_period_value(
+    next_value_interp = get_next_period_value(
         child_node_choice_set,
         matrix_next_period_wealth=next_wealth,
         period=child_state[0] - 1,
@@ -111,18 +109,21 @@ def do_egm_step(
 
     next_marginal_utility = sum_marginal_utility_over_choice_probs(
         child_node_choice_set,
-        next_period_policy=next_policy,
-        next_period_value=next_value,
+        next_period_policy=next_policy_interp,
+        next_period_value=next_value_interp,
         options=options,
         compute_marginal_utility=compute_marginal_utility,
         compute_next_period_choice_probs=compute_next_choice_probs,
     )
 
     current_policy = compute_current_policy(next_marginal_utility, next_marginal_wealth)
-    expected_value = compute_expected_value(next_wealth, next_value)
+    expected_value = compute_expected_value(next_wealth, next_value_interp)
+    current_value = compute_current_value(
+        current_policy, expected_value, choice=child_state[1]
+    )
 
     current_policy_arr, current_value_arr = store_current_policy_and_value(
-        current_policy, expected_value, child_state
+        current_policy, current_value, expected_value
     )
 
     return current_policy_arr, current_value_arr
