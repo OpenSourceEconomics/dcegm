@@ -28,7 +28,10 @@ def do_egm_step(
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
 
     Args:
-        child_state (np.ndarray): Current individual child state.
+        child_state (np.ndarray): Array of shape (n_state_variables,) defining the
+            agent's current child state.
+        child_node_choice_set (np.ndarray): The agent's (restricted) choice set in
+            the given state of shape (n_admissible_choices,).
         options (dict): Options dictionary.
         compute_utility (callable): User-defined function to compute the agent's
             utility. The input ```params``` is already partialled in.

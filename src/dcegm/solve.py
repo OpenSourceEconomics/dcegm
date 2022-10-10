@@ -45,7 +45,8 @@ def solve_dcegm(
 
             (i) create the state space
             (ii) get the state specific choice set
-        solve_final_period (callable): A function to solve the last period.
+        solve_final_period (callable): User-supplied function for solving the agent's
+            last period.
 
      Returns:
         (tuple): Tuple containing
@@ -62,6 +63,7 @@ def solve_dcegm(
             Position [.., 0, :] contains the endogenous grid over wealth M,
             and [.., 1, :] stores the corresponding value of the value function
             v(M, d), for each state and each discrete choice.
+
     """
     max_wealth = params.loc[("assets", "max_wealth"), "value"]
     n_periods = options["n_periods"]
