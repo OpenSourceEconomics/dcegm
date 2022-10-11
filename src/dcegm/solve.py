@@ -133,21 +133,13 @@ def solve_dcegm(
                 state_indexer,
                 get_state_specific_choice_set=get_state_specific_choice_set,
             )
-
-            for child_state in child_nodes:
-
-                child_state_index = state_indexer[tuple(child_state)]
-
-                choice_policies_child = policy_arr[child_state_index]
-                choice_values_child = value_arr[child_state_index]
-
-                child_node_choice_set = get_state_specific_choice_set(
-                    child_state, state_space, state_indexer
-                )
+            for child_states_choice in child_nodes:
 
                 current_policy, current_value, expected_value = do_egm_step(
-                    child_state,
-                    child_node_choice_set,
+                    child_states_choice,
+                    quad_weights,
+                    state_indexer,
+                    state_space,
                     quad_weights,
                     options=options,
                     compute_utility=compute_utility,
@@ -159,8 +151,9 @@ def solve_dcegm(
                     compute_next_wealth_matrices=compute_next_wealth_matrices,
                     compute_next_marginal_wealth=compute_next_marginal_wealth,
                     store_current_policy_and_value=store_current_policy_and_value,
-                    choice_policies_child=choice_policies_child,
-                    choice_values_child=choice_values_child,
+                    get_state_specific_choice_set=get_state_specific_choice_set,
+                    policy_array=policy_arr,
+                    value_array=value_arr,
                 )
 
                 if options["n_discrete_choices"] > 1:
@@ -176,13 +169,13 @@ def solve_dcegm(
                 # Store
                 policy_arr[
                     current_state_index,
-                    child_state[1],
+                    child_states_choice[0][1],
                     :,
                     : current_policy.shape[1],
                 ] = current_policy
                 value_arr[
                     current_state_index,
-                    child_state[1],
+                    child_states_choice[0][1],
                     :,
                     : current_value.shape[1],
                 ] = current_value

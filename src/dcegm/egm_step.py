@@ -9,8 +9,10 @@ from dcegm.interpolate import interpolate_value
 
 
 def do_egm_step(
-    child_state,
+    child_states,
     child_node_choice_set,
+    state_indexer,
+    state_space,
     quad_weights,
     *,
     options: Dict[str, int],
@@ -23,8 +25,9 @@ def do_egm_step(
     compute_next_wealth_matrices: Callable,
     compute_next_marginal_wealth: Callable,
     store_current_policy_and_value: Callable,
-    choice_policies_child: np.ndarray,
-    choice_values_child: np.ndarray
+    get_state_specific_choice_set,
+    policy_array: np.ndarray,
+    value_array: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
 
@@ -86,21 +89,33 @@ def do_egm_step(
             containing the agent's expected value of the next period.
 
     """
-    next_period_wealth = compute_next_wealth_matrices(child_state)
-    next_period_marginal_wealth = compute_next_marginal_wealth(child_state)
+    for child_state in child_states:
+        child_state_index = state_indexer[tuple(child_state)]
 
-    next_period_marginal_utility, next_period_values = get_child_state_policy_and_value(
-        child_state,
-        child_node_choice_set,
-        options,
-        compute_utility,
-        compute_marginal_utility,
-        compute_value_constrained,
-        compute_next_choice_probs,
-        choice_policies_child,
-        choice_values_child,
-        next_period_wealth,
-    )
+        choice_policies_child = policy_array[child_state_index]
+        choice_values_child = value_array[child_state_index]
+
+        child_node_choice_set = get_state_specific_choice_set(
+            child_state, state_space, state_indexer
+        )
+        next_period_wealth = compute_next_wealth_matrices(child_state)
+        next_period_marginal_wealth = compute_next_marginal_wealth(child_state)
+
+        (
+            next_period_marginal_utility,
+            next_period_values,
+        ) = get_child_state_policy_and_value(
+            child_state,
+            child_node_choice_set,
+            options,
+            compute_utility,
+            compute_marginal_utility,
+            compute_value_constrained,
+            compute_next_choice_probs,
+            choice_policies_child,
+            choice_values_child,
+            next_period_wealth,
+        )
 
     # RHS of Euler Eq., p. 337 IJRS (2017)
     # Integrate out uncertainty over stochastic income y
