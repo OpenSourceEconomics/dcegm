@@ -14,6 +14,7 @@ def do_egm_step(
     state_indexer,
     state_space,
     quad_weights,
+    trans_mat_state,
     *,
     options: Dict[str, int],
     compute_utility: Callable,

@@ -7,6 +7,9 @@ from dcegm.solve import solve_dcegm
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
 from toy_models.consumption_retirement_model.budget_functions import marginal_wealth
+from toy_models.consumption_retirement_model.exogenous_processes import (
+    get_transition_matrix_by_state,
+)
 from toy_models.consumption_retirement_model.final_period import solve_final_period
 from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space,
@@ -61,7 +64,7 @@ def state_space_functions():
 @pytest.mark.parametrize(
     "model, choice_range",
     [
-        ("deaton", [0]),
+        # ("deaton", [0]),
         ("retirement_taste_shocks", [0, 1]),
         ("retirement_no_taste_shocks", [0, 1]),
     ],
@@ -75,7 +78,7 @@ def test_benchmark_models(
     load_example_model,
 ):
     params, options = load_example_model(f"{model}")
-    options["n_exog_processes"] = 1
+    options["n_exog_processes"] = 2
 
     state_space, indexer = create_state_space(options)
 
@@ -86,6 +89,7 @@ def test_benchmark_models(
         budget_functions=budget_functions,
         solve_final_period=solve_final_period,
         state_space_functions=state_space_functions,
+        transition_matrix_by_state=get_transition_matrix_by_state,
     )
 
     policy_expected = pickle.load(

@@ -20,6 +20,7 @@ def solve_dcegm(
     budget_functions: Dict[str, Callable],
     state_space_functions: Dict[str, Callable],
     solve_final_period: Callable,
+    transition_matrix_by_state: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Solves a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
@@ -133,6 +134,7 @@ def solve_dcegm(
                 state_indexer,
                 get_state_specific_choice_set=get_state_specific_choice_set,
             )
+            trans_mat_state = transition_matrix_by_state(state)
             for child_states_choice in child_nodes:
 
                 current_policy, current_value, expected_value = do_egm_step(
@@ -141,6 +143,7 @@ def solve_dcegm(
                     state_indexer,
                     state_space,
                     quad_weights,
+                    trans_mat_state,
                     options=options,
                     compute_utility=compute_utility,
                     compute_marginal_utility=compute_marginal_utility,
