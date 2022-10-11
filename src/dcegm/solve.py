@@ -6,6 +6,7 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 from dcegm.egm_step import do_egm_step
+from dcegm.integration import quadrature_legendre
 from dcegm.pre_processing import create_multi_dim_arrays
 from dcegm.pre_processing import get_partial_functions
 from dcegm.state_space import get_child_states
@@ -78,10 +79,15 @@ def solve_dcegm(
     state_space, state_indexer = create_state_space(options)
     policy_arr, value_arr = create_multi_dim_arrays(state_space, options)
 
+    quad_points, quad_weights = quadrature_legendre(
+        options["quadrature_points_stochastic"],
+        params.loc[("shocks", "sigma"), "value"],
+    )
+
     (
         compute_utility,
         compute_marginal_utility,
-        compute_current_policy,
+        compute_inverse_marginal_utility,
         compute_value_constrained,
         compute_expected_value,
         compute_next_choice_probs,
@@ -91,6 +97,8 @@ def solve_dcegm(
     ) = get_partial_functions(
         params,
         options,
+        quad_points,
+        quad_weights,
         exogenous_savings_grid,
         user_utility_func=utility_functions["utility"],
         user_marginal_utility_func=utility_functions["marginal_utility"],
@@ -130,8 +138,8 @@ def solve_dcegm(
 
                 child_state_index = state_indexer[tuple(child_state)]
 
-                next_period_policy = policy_arr[child_state_index]
-                next_period_value = value_arr[child_state_index]
+                choice_policies_child = policy_arr[child_state_index]
+                choice_values_child = value_arr[child_state_index]
 
                 child_node_choice_set = get_state_specific_choice_set(
                     child_state, state_space, state_indexer
@@ -140,18 +148,19 @@ def solve_dcegm(
                 current_policy, current_value, expected_value = do_egm_step(
                     child_state,
                     child_node_choice_set,
+                    quad_weights,
                     options=options,
                     compute_utility=compute_utility,
                     compute_marginal_utility=compute_marginal_utility,
-                    compute_current_policy=compute_current_policy,
+                    compute_inverse_marginal_utility=compute_inverse_marginal_utility,
                     compute_value_constrained=compute_value_constrained,
                     compute_expected_value=compute_expected_value,
                     compute_next_choice_probs=compute_next_choice_probs,
                     compute_next_wealth_matrices=compute_next_wealth_matrices,
                     compute_next_marginal_wealth=compute_next_marginal_wealth,
                     store_current_policy_and_value=store_current_policy_and_value,
-                    next_policy=next_period_policy,
-                    next_value=next_period_value,
+                    choice_policies_child=choice_policies_child,
+                    choice_values_child=choice_values_child,
                 )
 
                 if options["n_discrete_choices"] > 1:

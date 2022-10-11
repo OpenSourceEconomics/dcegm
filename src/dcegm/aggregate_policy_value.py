@@ -5,41 +5,6 @@ import numpy as np
 import pandas as pd
 
 
-def calc_current_period_policy(
-    next_period_marginal_utility: np.ndarray,
-    next_period_marginal_wealth: np.ndarray,
-    quad_weights: np.ndarray,
-    compute_inverse_marginal_utility: Callable,
-) -> np.ndarray:
-    """Computes the current period policy.
-
-    Args:
-        next_period_marginal_utility (np.ndarray): Array of next period's
-            marginal utility of shape (n_quad_stochastic, n_grid_wealth,).
-        next_period_marginal_wealth (np.ndarray): Array of all possible next period
-            marginal wealths. Also of shape (n_quad_stochastic, n_grid_wealth)
-        quad_weights (np.ndarray): Weights associated with the quadrature points
-            of shape (n_quad_stochastic,). Used for integration over the
-            stochastic income component in the Euler equation.
-        compute_value_credit_constrained (callable): User-defined function to compute
-            the agent's inverse marginal utility.
-            The input ```params``` is already partialled in.
-
-    Returns:
-        (np.ndarray): 1d array of shape (n_grid_wealth,) containing the current
-            period's policy rule.
-    """
-    # RHS of Euler Eq., p. 337 IJRS (2017)
-    # Integrate out uncertainty over stochastic income y
-    rhs_euler = quad_weights @ (
-        next_period_marginal_utility * next_period_marginal_wealth
-    )
-
-    current_period_policy = compute_inverse_marginal_utility(rhs_euler)
-
-    return current_period_policy
-
-
 def calc_expected_value(
     matrix_next_period_wealth: np.ndarray,
     next_period_value: np.ndarray,
