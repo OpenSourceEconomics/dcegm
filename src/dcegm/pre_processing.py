@@ -5,16 +5,16 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
-from dcegm.aggregate_policy_value import calc_current_period_policy
 from dcegm.aggregate_policy_value import calc_expected_value
 from dcegm.aggregate_policy_value import calc_next_period_choice_probs
 from dcegm.aggregate_policy_value import calc_value_constrained
-from dcegm.integration import quadrature_legendre
 
 
 def get_partial_functions(
     params,
     options,
+    quad_points,
+    quad_weights,
     exogenous_savings_grid,
     user_utility_func,
     user_marginal_utility_func,
@@ -22,11 +22,6 @@ def get_partial_functions(
     user_budget_constraint,
     user_marginal_next_period_wealth,
 ):
-
-    quad_points, quad_weights = quadrature_legendre(
-        options["quadrature_points_stochastic"],
-        params.loc[("shocks", "sigma"), "value"],
-    )
 
     compute_utility = partial(
         user_utility_func,
@@ -39,11 +34,6 @@ def get_partial_functions(
     compute_inverse_marginal_utility = partial(
         user_inverse_marginal_utility_func,
         params=params,
-    )
-    compute_current_policy = partial(
-        calc_current_period_policy,
-        quad_weights=quad_weights,
-        compute_inverse_marginal_utility=compute_inverse_marginal_utility,
     )
     compute_value_constrained = partial(
         calc_value_constrained,
@@ -80,7 +70,7 @@ def get_partial_functions(
     return (
         compute_utility,
         compute_marginal_utility,
-        compute_current_policy,
+        compute_inverse_marginal_utility,
         compute_value_constrained,
         compute_expected_value,
         compute_next_choice_probs,

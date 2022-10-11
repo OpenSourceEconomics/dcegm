@@ -11,11 +11,12 @@ from dcegm.interpolate import interpolate_value
 def do_egm_step(
     child_state,
     child_node_choice_set,
+    quad_weights,
     *,
     options: Dict[str, int],
     compute_utility: Callable,
     compute_marginal_utility: Callable,
-    compute_current_policy: Callable,
+    compute_inverse_marginal_utility: Callable,
     compute_value_constrained: Callable,
     compute_expected_value: Callable,
     compute_next_choice_probs: Callable,
@@ -37,11 +38,9 @@ def do_egm_step(
             utility. The input ```params``` is already partialled in.
         compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility. The input ```params``` is already partialled in.
-        compute_current_policy (callable): User-defined function to compute the agent's
-            current state- and choice-specific optimal policy. The inputs
-            ```quad_weights```and ```compute_inverse_margina_utility``` are already
-            partialled in.
-        compute_value_credit_constrained (callable): User-defined function to compute
+        compute_inverse_marginal_utility (callable): User-defined function to compute
+        the agent's inverse marginal utility.
+        compute_value_constrained (callable): User-defined function to compute
             the agent's value function in the credit-constrained area. The inputs
             ```params``` and ```compute_utility``` are already partialled in.
         compute_expected_value (callable): User-defined function to compute the agent's
@@ -103,9 +102,14 @@ def do_egm_step(
         next_period_wealth,
     )
 
-    current_policy = compute_current_policy(
-        next_period_marginal_utility, next_period_marginal_wealth
+    # RHS of Euler Eq., p. 337 IJRS (2017)
+    # Integrate out uncertainty over stochastic income y
+    rhs_euler = quad_weights @ (
+        next_period_marginal_utility * next_period_marginal_wealth
     )
+
+    current_policy = compute_inverse_marginal_utility(rhs_euler)
+
     expected_value = compute_expected_value(next_period_wealth, next_period_values)
 
     current_policy_arr, current_value_arr = store_current_policy_and_value(
@@ -115,9 +119,12 @@ def do_egm_step(
     return current_policy_arr, current_value_arr, expected_value
 
 
+# def aggregate_over_income_shocks():
+
+
 def get_child_state_policy_and_value(
-    child_state,
-    child_node_choice_set,
+    child_state: np.ndarray,
+    child_node_choice_set: np.ndarray,
     options: Dict[str, int],
     compute_utility: Callable,
     compute_marginal_utility: Callable,
@@ -127,6 +134,55 @@ def get_child_state_policy_and_value(
     choice_values_child: np.ndarray,
     next_period_wealth: np.ndarray,
 ):
+    """Runs the Endogenous-Grid-Method Algorithm (EGM step).
+
+    Args:
+        child_state (np.ndarray): Array of shape (n_state_variables,) defining the
+            agent's current child state.
+        child_node_choice_set (np.ndarray): The agent's (restricted) choice set in
+            the given state of shape (n_admissible_choices,).
+        options (dict): Options dictionary.
+        compute_utility (callable): User-defined function to compute the agent's
+            utility. The input ```params``` is already partialled in.
+        compute_marginal_utility (callable): User-defined function to compute the
+            agent's marginal utility. The input ```params``` is already partialled in.
+        compute_current_policy (callable): User-defined function to compute the agent's
+            current state- and choice-specific optimal policy. The inputs
+            ```quad_weights```and ```compute_inverse_margina_utility``` are already
+            partialled in.
+        compute_value_credit_constrained (callable): User-defined function to compute
+            the agent's value function in the credit-constrained area. The inputs
+            ```params``` and ```compute_utility``` are already partialled in.
+        compute_expected_value (callable): User-defined function to compute the agent's
+            expected value. The inputs ```params``` and ```quad_weights``` are already
+            partialled in.
+        compute_next_choice_probs (callable): User-defined function to compute the
+            agent's choice probabilities in the next period (t + 1). The inputs
+            ```params``` and ```options``` are already partialled in.
+        compute_next_wealth_matrices (callable): User-defined function to compute the
+            agent's wealth matrices of the next period (t + 1). The inputs
+            ```savings_grid```, ```income_shocks```, ```params``` and ```options```
+            are already partialled in.
+        store_current_policy_and_value (callable): Internal function that computes the
+            current state- and choice-specific optimal policy and value functions.
+            The inputs ```savings_grid```, ```params```, ```options```, and
+            ```compute_utility``` are already partialled in.
+        compute_next_marginal_wealth (callable): User-defined function to compute the
+            agent's marginal wealth in the next period (t + 1). The inputs
+            ```params``` and ```options``` are already partialled in.
+        choice_policies_child (np.ndarray): 2d array of the agent's next period policy
+            for all choices. Shape (n_choices, 2, 1.1 * (n_grid_wealth + 1)).
+            Position [:, 0, :] contains the endogenous grid over wealth M,
+            and [:, 1, :] stores the corresponding value of the choice-specific policy
+            function c(M, d).
+        choice_values_child (np.ndarray): 2d array of the agent's next period values
+            for all choices. Shape (n_choices, 2, 1.1 * (n_grid_wealth + 1)).
+            Position [:, 0, :] contains the endogenous grid over wealth M,
+            and [:, 1, :] stores the corresponding value of the choice-specific value
+            function v(M, d).
+
+    Returns:
+    """
     # Interpolate next period policy and values to match the
     # contemporary matrix of potential next period wealths
     child_policy = get_next_period_policy(
