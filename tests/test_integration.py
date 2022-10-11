@@ -75,6 +75,7 @@ def test_benchmark_models(
     load_example_model,
 ):
     params, options = load_example_model(f"{model}")
+    options["n_exog_processes"] = 1
 
     state_space, indexer = create_state_space(options)
 
