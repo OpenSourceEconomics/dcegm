@@ -146,29 +146,11 @@ def get_child_state_policy_and_value(
             utility. The input ```params``` is already partialled in.
         compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility. The input ```params``` is already partialled in.
-        compute_current_policy (callable): User-defined function to compute the agent's
-            current state- and choice-specific optimal policy. The inputs
-            ```quad_weights```and ```compute_inverse_margina_utility``` are already
-            partialled in.
-        compute_value_credit_constrained (callable): User-defined function to compute
+        compute_value_constrained (callable): User-defined function to compute
             the agent's value function in the credit-constrained area. The inputs
             ```params``` and ```compute_utility``` are already partialled in.
-        compute_expected_value (callable): User-defined function to compute the agent's
-            expected value. The inputs ```params``` and ```quad_weights``` are already
-            partialled in.
         compute_next_choice_probs (callable): User-defined function to compute the
             agent's choice probabilities in the next period (t + 1). The inputs
-            ```params``` and ```options``` are already partialled in.
-        compute_next_wealth_matrices (callable): User-defined function to compute the
-            agent's wealth matrices of the next period (t + 1). The inputs
-            ```savings_grid```, ```income_shocks```, ```params``` and ```options```
-            are already partialled in.
-        store_current_policy_and_value (callable): Internal function that computes the
-            current state- and choice-specific optimal policy and value functions.
-            The inputs ```savings_grid```, ```params```, ```options```, and
-            ```compute_utility``` are already partialled in.
-        compute_next_marginal_wealth (callable): User-defined function to compute the
-            agent's marginal wealth in the next period (t + 1). The inputs
             ```params``` and ```options``` are already partialled in.
         choice_policies_child (np.ndarray): 2d array of the agent's next period policy
             for all choices. Shape (n_choices, 2, 1.1 * (n_grid_wealth + 1)).
@@ -180,6 +162,8 @@ def get_child_state_policy_and_value(
             Position [:, 0, :] contains the endogenous grid over wealth M,
             and [:, 1, :] stores the corresponding value of the choice-specific value
             function v(M, d).
+        next_period_wealth (np.ndarray): Array of all possible next period
+            wealths with shape (n_quad_stochastic, n_grid_wealth).
 
     Returns:
     """
