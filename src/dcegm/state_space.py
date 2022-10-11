@@ -27,17 +27,26 @@ def get_child_states(
             nodes the agent can reach from her given state.
 
     """
-    # Child nodes are so far n_choices by state_space variables.
+    # Exogenous processes are always on the last entry of the state space. We also treat
+    # them all admissible in each period. If there exists a absorbing state, this is
+    # reflected by 0 transition probability.
+    n_exog_processes = indexer.shape[-1]
+
+    # Get all admissible choices.
     state_specific_choice_set = get_state_specific_choice_set(
         state, state_space, indexer
     )
+
     child_nodes = np.empty(
-        (state_specific_choice_set.shape[0], state_space.shape[1]), dtype=int
-    )  # (n_admissible_choices, n_state_variables)
+        (state_specific_choice_set.shape[0], n_exog_processes, state_space.shape[1]),
+        dtype=int,
+    )  # (n_admissible_choices, n_exog_processes, n_state_variables)
     new_state = state.copy()
     new_state[0] += 1
     for i, choice in enumerate(state_specific_choice_set):
         new_state[1] = choice
-        child_nodes[i, :] = state_space[indexer[tuple(new_state)]]
+        for exog_proc_state in range(n_exog_processes):
+            new_state[-1] = exog_proc_state
+            child_nodes[i, exog_proc_state, :] = state_space[indexer[tuple(new_state)]]
 
     return child_nodes

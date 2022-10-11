@@ -19,7 +19,7 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
     """
     n_periods = options["n_periods"]
     n_choices = options["n_discrete_choices"]
-    n_exog_process = 1
+    n_exog_process = options["n_exog_processes"]
 
     shape = (n_periods, n_choices, n_exog_process)
     indexer = np.full(shape, -9999, dtype=np.int64)
