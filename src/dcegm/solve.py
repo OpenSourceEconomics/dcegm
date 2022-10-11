@@ -130,8 +130,8 @@ def solve_dcegm(
 
                 child_state_index = state_indexer[tuple(child_state)]
 
-                next_period_policy = policy_arr[child_state_index]
-                next_period_value = value_arr[child_state_index]
+                choice_policies_child = policy_arr[child_state_index]
+                choice_values_child = value_arr[child_state_index]
 
                 child_node_choice_set = get_state_specific_choice_set(
                     child_state, state_space, state_indexer
@@ -150,8 +150,8 @@ def solve_dcegm(
                     compute_next_wealth_matrices=compute_next_wealth_matrices,
                     compute_next_marginal_wealth=compute_next_marginal_wealth,
                     store_current_policy_and_value=store_current_policy_and_value,
-                    next_policy=next_period_policy,
-                    next_value=next_period_value,
+                    choice_policies_child=choice_policies_child,
+                    choice_values_child=choice_values_child,
                 )
 
                 if options["n_discrete_choices"] > 1:
