@@ -61,9 +61,9 @@ def state_space_functions():
 @pytest.mark.parametrize(
     "model, choice_range",
     [
-        ("deaton", [0]),
-        ("retirement_taste_shocks", [0, 1]),
         ("retirement_no_taste_shocks", [0, 1]),
+        ("retirement_taste_shocks", [0, 1]),
+        ("deaton", [0]),
     ],
 )
 def test_benchmark_models(

@@ -57,18 +57,16 @@ def solve_final_period(
     # Hence, everything is consumed, c_T(M, d) = M
     for state_index in range(n_states):
 
-        for index, choice in enumerate(choice_range):
-            policy_final[state_index, index, :, 0] = 0
-            policy_final[state_index, index, 0, 1:end_grid] = savings_grid  # M
-            policy_final[state_index, index, 1, 1:end_grid] = savings_grid  # c(M, d)
+        for choice_index, _ in enumerate(choice_range):
+            policy_final[state_index, choice_index, :, 0] = 0
+            policy_final[state_index, choice_index, 0, 1:end_grid] = savings_grid  # M
+            policy_final[
+                state_index, choice_index, 1, 1:end_grid
+            ] = savings_grid  # c(M, d)
 
-            value_final[state_index, index, :, :2] = 0
-            value_final[state_index, index, 0, 1:end_grid] = savings_grid
-
-            # Start with second entry of savings grid to avaid taking the log of 0
-            # (the first entry) when computing utility
-            value_final[state_index, index, 1, 2:end_grid] = compute_utility(
-                savings_grid[1:], choice
+            value_final[state_index, choice_index, 0, :end_grid] = (
+                np.ones(end_grid) * np.inf
             )
+            value_final[state_index, choice_index, 1, :end_grid] = np.zeros(end_grid)
 
     return policy_final, value_final

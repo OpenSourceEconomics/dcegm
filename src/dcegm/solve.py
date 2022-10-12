@@ -111,12 +111,6 @@ def solve_dcegm(
         compute_utility=compute_utility,
     )
 
-    # =================================================================================
-    end_grid = len(exogenous_savings_grid) + 1
-    value_final[..., 0, 1:end_grid] = np.ones_like(exogenous_savings_grid) * np.inf
-    value_final[..., 1, 2:end_grid] = np.zeros_like(exogenous_savings_grid[1:])
-    # =================================================================================
-
     policy_arr[_state_indices_final_period, ...] = policy_final
     value_arr[_state_indices_final_period, ...] = value_final
 
