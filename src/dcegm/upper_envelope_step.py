@@ -54,10 +54,8 @@ def do_upper_envelope_step(
             Position [0, :] of the array contains the endogenous grid over wealth M,
             and [1, :] stores the corresponding value of the value function v(M, d),
             for each time period and each discrete choice.
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
-        compute_utility (callable): The agent's utility function.
+        compute_value (callable): Function to compute the agent's value.
 
     Returns:
         (tuple) Tuple containing
@@ -506,13 +504,11 @@ def _augment_grid(
             kinks and non-concave regions in the value function.
             In the presence of kinks, the value function is a "correspondence"
             rather than a function due to non-concavities.
-        expected_value (np.ndarray): Array of current period's expected value of
-            next_period. Shape (*n_endog_wealth_grid*,).
-        min_wealth_grid (float): Minimal point in the endogenous wealth grid.
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
-        options (dict): Options dictionary.
-        compute_utility (callable): The agent's utility function.
+        expected_value_zero_wealth (float): The agent's expected value given that she
+            has a wealth of zero.
+        min_wealth_grid (float): Minimal wealth level in the endogenous wealth grid.
+        n_grid_wealth (int): Number of gird points in the exogenous wealth grid.
+        compute_value (callable): Function to compute the agent's value.
 
     Returns:
         policy_augmented (np.ndarray): Array containing endogenous grid and

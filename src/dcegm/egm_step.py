@@ -40,9 +40,9 @@ def do_egm_step(
             current state- and choice-specific optimal policy. The inputs
             ```quad_weights```and ```compute_inverse_margina_utility``` are already
             partialled in.
-        compute_value_credit_constrained (callable): User-defined function to compute
-            the agent's value function in the credit-constrained area. The inputs
-            ```params``` and ```compute_utility``` are already partialled in.
+        compute_current_value (callable): User-defined function to compute
+            the agent's current state- and choice-specific value function. The inputs
+            ```beta``` and ```compute_utility``` are already partialled in.
         compute_expected_value (callable): User-defined function to compute the agent's
             expected value. The inputs ```params``` and ```quad_weights``` are already
             partialled in.
