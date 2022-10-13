@@ -33,8 +33,8 @@ def do_egm_step(
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
 
     Args:
-        child_state (np.ndarray): Array of shape (n_state_variables,) defining the
-            agent's current child state.
+        child_states (np.ndarray): Array of shape (n_exog_processes, n_state_variables)
+        capturing the child node for each exogenous process state.
         child_node_choice_set (np.ndarray): The agent's (restricted) choice set in
             the given state of shape (n_admissible_choices,).
         options (dict): Options dictionary.
@@ -117,7 +117,7 @@ def do_egm_step(
             choice_values_child,
             next_period_wealth,
         )
-    # TODO: Aggregate via transition matrix
+        # TODO: Aggregate via transition matrix
 
     # RHS of Euler Eq., p. 337 IJRS (2017)
     # Integrate out uncertainty over stochastic income y
