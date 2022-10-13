@@ -10,17 +10,15 @@ from dcegm.interpolate import interpolate_value
 
 def do_egm_step(
     child_states,
-    child_node_choice_set,
     state_indexer,
     state_space,
     quad_weights,
     trans_mat_state,
     *,
     options: Dict[str, int],
-    compute_utility: Callable,
     compute_marginal_utility: Callable,
     compute_inverse_marginal_utility: Callable,
-    compute_value_constrained: Callable,
+    compute_current_value: Callable,
     compute_expected_value: Callable,
     compute_next_choice_probs: Callable,
     compute_next_wealth_matrices: Callable,
@@ -86,8 +84,6 @@ def do_egm_step(
             choice-specific value function. Shape (2, 1.1 * (n_grid_wealth + 1)).
             Position [0, :] contains the endogenous grid over wealth M,
             and [1, :] stores the corresponding value of the value function v(M, d).
-        - expected_value (np.ndarray): 1d array of shape (n_grid_wealth,)
-            containing the agent's expected value of the next period.
 
     """
     for child_state in child_states:
@@ -109,9 +105,8 @@ def do_egm_step(
             child_state,
             child_node_choice_set,
             options,
-            compute_utility,
             compute_marginal_utility,
-            compute_value_constrained,
+            compute_current_value,
             compute_next_choice_probs,
             choice_policies_child,
             choice_values_child,
@@ -143,9 +138,8 @@ def get_child_state_policy_and_value(
     child_state: np.ndarray,
     child_node_choice_set: np.ndarray,
     options: Dict[str, int],
-    compute_utility: Callable,
     compute_marginal_utility: Callable,
-    compute_value_constrained: Callable,
+    compute_current_value: Callable,
     compute_next_choice_probs: Callable,
     choice_policies_child: np.ndarray,
     choice_values_child: np.ndarray,
@@ -195,11 +189,8 @@ def get_child_state_policy_and_value(
     child_value = get_next_period_value(
         child_node_choice_set,
         matrix_next_period_wealth=next_period_wealth,
-        period=child_state[0] - 1,
-        options=options,
         next_period_value=choice_values_child,
-        compute_value_constrained=compute_value_constrained,
-        compute_utility=compute_utility,
+        compute_value=compute_current_value,
     )
 
     child_state_marginal_utility = sum_marginal_utility_over_choice_probs(
@@ -299,10 +290,7 @@ def get_next_period_value(
     child_node_choice_set,
     matrix_next_period_wealth: np.ndarray,
     next_period_value: np.ndarray,
-    period: int,
-    options: Dict[str, int],
-    compute_utility: Callable,
-    compute_value_constrained: Callable,
+    compute_value: Callable,
 ) -> np.ndarray:
     """Maps next-period value onto this period's matrix of next-period wealth.
 
@@ -334,16 +322,11 @@ def get_next_period_value(
     )
 
     for index, choice in enumerate(child_node_choice_set):
-        if period == options["n_periods"] - 2:
-            next_period_value_interp[index, :] = compute_utility(
-                matrix_next_period_wealth.flatten("F"), choice
-            )
-        else:
-            next_period_value_interp[index, :] = interpolate_value(
-                flat_wealth=matrix_next_period_wealth.flatten("F"),
-                value=next_period_value[choice],
-                choice=choice,
-                compute_value_constrained=compute_value_constrained,
-            )
+        next_period_value_interp[index, :] = interpolate_value(
+            flat_wealth=matrix_next_period_wealth.flatten("F"),
+            value=next_period_value[choice],
+            choice=choice,
+            compute_value_constrained=compute_value,
+        )
 
     return next_period_value_interp

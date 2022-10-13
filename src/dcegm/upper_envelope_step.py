@@ -1,5 +1,4 @@
 """Implementation of the Upper Envelope algorithm."""
-import copy
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -8,7 +7,6 @@ from typing import Tuple
 from typing import Union
 
 import numpy as np
-import pandas as pd
 from scipy import interpolate
 from scipy.optimize import brenth as root
 
@@ -19,10 +17,8 @@ def do_upper_envelope_step(
     policy: np.ndarray,
     value: np.ndarray,
     *,
-    expected_value: np.ndarray,
-    params: pd.DataFrame,
     options: Dict[str, int],
-    compute_utility: Callable,
+    compute_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Runs the Upper Envelope algorithm and drops sub-optimal points.
 
@@ -58,10 +54,8 @@ def do_upper_envelope_step(
             Position [0, :] of the array contains the endogenous grid over wealth M,
             and [1, :] stores the corresponding value of the value function v(M, d),
             for each time period and each discrete choice.
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
-        compute_utility (callable): The agent's utility function.
+        compute_value (callable): Function to compute the agent's value.
 
     Returns:
         (tuple) Tuple containing
@@ -75,9 +69,7 @@ def do_upper_envelope_step(
             points along with the corresponding interpolated values of the value
             function have been added. Shape (2, 1.1 * n_grid_wealth).
     """
-    policy = copy.deepcopy(policy)
-    value = copy.deepcopy(value)
-
+    n_grid_wealth = options["grid_points_wealth"]
     min_wealth_grid = np.min(value[0, 1:])
 
     if value[0, 1] <= min_wealth_grid:
@@ -92,30 +84,34 @@ def do_upper_envelope_step(
         # that goes below the first point.
         # Solution: Value function to the left of the first point is analytical,
         # so we just need to add some points to the left of the first grid point.
+        expected_value_zero_wealth = value[1, 0]
+
         policy, value = _augment_grid(
             policy,
             value,
-            expected_value,
+            expected_value_zero_wealth,
             min_wealth_grid,
-            params,
-            options,
-            compute_utility,
+            n_grid_wealth,
+            compute_value,
         )
+
         (
             value_refined,
             points_to_add,
             index_dominated_points,
         ) = locate_non_concave_regions_and_refine(value)
-        value_refined = np.hstack([np.array([[0], [expected_value[0]]]), value_refined])
+
+        value_refined = np.hstack(
+            [np.array([[0], [expected_value_zero_wealth]]), value_refined]
+        )
 
     if len(index_dominated_points) > 0:
         policy_refined = refine_policy(policy, index_dominated_points, points_to_add)
     else:
         policy_refined = policy
 
-    # Fill array with nans to fit 10% extra grid points,
-    # as true shape unknown
-    n_grid_wealth = options["grid_points_wealth"]
+    # Fill array with nans to fit 10% extra grid points, as the true shape is
+    # unknown ex ante
     policy_refined_with_nans = np.empty((2, int(1.1 * n_grid_wealth)))
     value_refined_with_nans = np.empty((2, int(1.1 * n_grid_wealth)))
     policy_refined_with_nans[:] = np.nan
@@ -163,7 +159,7 @@ def locate_non_concave_regions_and_refine(
             containing the indices of dominated points in the endogenous wealth grid,
             where *n_dominated_points* is of variable length.
     """
-    value_correspondence = copy.deepcopy(value)
+    value_correspondence = value
     segments_non_mono = []
 
     # Find non-monotonicity in the endogenous wealth grid where grid point
@@ -488,11 +484,10 @@ def _compute_upper_envelope(
 def _augment_grid(
     policy: np.ndarray,
     value: np.ndarray,
-    expected_value: np.ndarray,
+    expected_value_zero_wealth: np.ndarray,
     min_wealth_grid: float,
-    params: pd.DataFrame,
-    options: Dict[str, int],
-    compute_utility: Callable,
+    n_grid_wealth: int,
+    compute_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Extends the endogenous wealth grid, value, and policy function to the left.
 
@@ -509,13 +504,11 @@ def _augment_grid(
             kinks and non-concave regions in the value function.
             In the presence of kinks, the value function is a "correspondence"
             rather than a function due to non-concavities.
-        expected_value (np.ndarray): Array of current period's expected value of
-            next_period. Shape (*n_endog_wealth_grid*,).
-        min_wealth_grid (float): Minimal point in the endogenous wealth grid.
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
-        options (dict): Options dictionary.
-        compute_utility (callable): The agent's utility function.
+        expected_value_zero_wealth (float): The agent's expected value given that she
+            has a wealth of zero.
+        min_wealth_grid (float): Minimal wealth level in the endogenous wealth grid.
+        n_grid_wealth (int): Number of gird points in the exogenous wealth grid.
+        compute_value (callable): Function to compute the agent's value.
 
     Returns:
         policy_augmented (np.ndarray): Array containing endogenous grid and
@@ -525,17 +518,11 @@ def _augment_grid(
             value function with ancillary points added to the left.
             Shape (2, *n_grid_augmented*).
     """
-    beta = params.loc[("beta", "beta"), "value"]  # discount factor
-    n_grid_wealth = options["grid_points_wealth"]
+    grid_points_to_add = np.linspace(min_wealth_grid, value[0, 1], n_grid_wealth // 10)[
+        :-1
+    ]
+    values_to_add = compute_value(grid_points_to_add, expected_value_zero_wealth)
 
-    grid_points_to_add = np.linspace(
-        min_wealth_grid, value[0, 1], int(np.floor(n_grid_wealth / 10))
-    )[:-1]
-
-    values_to_add = (
-        compute_utility(grid_points_to_add, choice=0, params=params)
-        + beta * expected_value[0]
-    )
     value_augmented = np.vstack(
         [
             np.append(grid_points_to_add, value[0, 1:]),

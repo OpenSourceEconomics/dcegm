@@ -5,9 +5,9 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
+from dcegm.aggregate_policy_value import calc_current_period_value
 from dcegm.aggregate_policy_value import calc_expected_value
 from dcegm.aggregate_policy_value import calc_next_period_choice_probs
-from dcegm.aggregate_policy_value import calc_value_constrained
 
 
 def get_partial_functions(
@@ -35,8 +35,8 @@ def get_partial_functions(
         user_inverse_marginal_utility_func,
         params=params,
     )
-    compute_value_constrained = partial(
-        calc_value_constrained,
+    compute_current_value = partial(
+        calc_current_period_value,
         beta=params.loc[("beta", "beta"), "value"],
         compute_utility=compute_utility,
     )
@@ -71,7 +71,7 @@ def get_partial_functions(
         compute_utility,
         compute_marginal_utility,
         compute_inverse_marginal_utility,
-        compute_value_constrained,
+        compute_current_value,
         compute_expected_value,
         compute_next_choice_probs,
         compute_next_wealth_matrices,
