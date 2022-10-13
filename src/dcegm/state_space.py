@@ -10,6 +10,7 @@ def get_child_states(
     get_state_specific_choice_set: Callable,
 ) -> np.ndarray:
     """Select state-specific child nodes. Will be a user defined function later.
+    TODO: How to incoporate updating from state variables, e.g. experience.
 
     Args:
         state (np.ndarray): 1d array of shape (n_state_variables,) defining the agent's

@@ -117,6 +117,7 @@ def do_egm_step(
             choice_values_child,
             next_period_wealth,
         )
+    # TODO: Aggregate via transition matrix
 
     # RHS of Euler Eq., p. 337 IJRS (2017)
     # Integrate out uncertainty over stochastic income y
