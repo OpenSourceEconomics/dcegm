@@ -43,14 +43,12 @@ def test_consume_everything_in_final_period(
 
     _savings_grid = np.concatenate(([0], savings_grid))
     policy_final_expected = np.tile(_savings_grid, (2, 1))
+    value_final_expected = np.row_stack(
+        (np.ones_like(_savings_grid) * np.inf, np.zeros_like(_savings_grid))
+    )
 
     for state_index in range(n_states):
         for choice in range(n_choices):
-            _utility = np.concatenate(
-                ([0, 0], compute_utility(savings_grid[1:], choice))
-            )
-            value_final_expected = np.row_stack((_savings_grid, _utility))
-
             aaae(
                 policy_final[state_index, choice, :][
                     :,

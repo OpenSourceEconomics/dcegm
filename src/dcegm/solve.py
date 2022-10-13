@@ -1,4 +1,5 @@
 """Interface for the DC-EGM algorithm."""
+from functools import partial
 from typing import Callable
 from typing import Dict
 from typing import Tuple
@@ -82,7 +83,7 @@ def solve_dcegm(
         compute_utility,
         compute_marginal_utility,
         compute_current_policy,
-        compute_value_constrained,
+        compute_current_value,
         compute_expected_value,
         compute_next_choice_probs,
         compute_next_wealth_matrices,
@@ -101,16 +102,17 @@ def solve_dcegm(
         user_marginal_next_period_wealth=budget_functions["marginal_budget_constraint"],
     )
 
-    _indices_final_period = np.where(state_space[:, 0] == n_periods - 1)
-    states_final_period = state_space[_indices_final_period]
+    _state_indices_final_period = np.where(state_space[:, 0] == n_periods - 1)
+    states_final_period = state_space[_state_indices_final_period]
     policy_final, value_final = solve_final_period(
         states=states_final_period,
         savings_grid=exogenous_savings_grid,
         options=options,
         compute_utility=compute_utility,
     )
-    policy_arr[_indices_final_period, ...] = policy_final
-    value_arr[_indices_final_period, ...] = value_final
+
+    policy_arr[_state_indices_final_period, ...] = policy_final
+    value_arr[_state_indices_final_period, ...] = value_final
 
     for period in range(n_periods - 2, -1, -1):
 
@@ -137,14 +139,13 @@ def solve_dcegm(
                     child_state, state_space, state_indexer
                 )
 
-                current_policy, current_value, expected_value = do_egm_step(
+                current_policy, current_value = do_egm_step(
                     child_state,
                     child_node_choice_set,
                     options=options,
-                    compute_utility=compute_utility,
                     compute_marginal_utility=compute_marginal_utility,
                     compute_current_policy=compute_current_policy,
-                    compute_value_constrained=compute_value_constrained,
+                    compute_current_value=compute_current_value,
                     compute_expected_value=compute_expected_value,
                     compute_next_choice_probs=compute_next_choice_probs,
                     compute_next_wealth_matrices=compute_next_wealth_matrices,
@@ -155,13 +156,15 @@ def solve_dcegm(
                 )
 
                 if options["n_discrete_choices"] > 1:
+                    compute_value = partial(
+                        compute_current_value,
+                        choice=child_state[1],  # working decision
+                    )
                     current_policy, current_value = do_upper_envelope_step(
                         current_policy,
                         current_value,
-                        expected_value=expected_value,
-                        params=params,
                         options=options,
-                        compute_utility=utility_functions["utility"],
+                        compute_value=compute_value,
                     )
 
                 # Store

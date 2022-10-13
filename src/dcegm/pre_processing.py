@@ -1,14 +1,12 @@
 from functools import partial
-from typing import Callable
 from typing import Dict
 from typing import Tuple
 
 import numpy as np
-import pandas as pd
 from dcegm.aggregate_policy_value import calc_current_period_policy
+from dcegm.aggregate_policy_value import calc_current_period_value
 from dcegm.aggregate_policy_value import calc_expected_value
 from dcegm.aggregate_policy_value import calc_next_period_choice_probs
-from dcegm.aggregate_policy_value import calc_value_constrained
 from dcegm.integration import quadrature_legendre
 
 
@@ -45,8 +43,8 @@ def get_partial_functions(
         quad_weights=quad_weights,
         compute_inverse_marginal_utility=compute_inverse_marginal_utility,
     )
-    compute_value_constrained = partial(
-        calc_value_constrained,
+    compute_current_value = partial(
+        calc_current_period_value,
         beta=params.loc[("beta", "beta"), "value"],
         compute_utility=compute_utility,
     )
@@ -73,15 +71,13 @@ def get_partial_functions(
     store_current_policy_and_value = partial(
         _store_current_period_policy_and_value,
         savings_grid=exogenous_savings_grid,
-        params=params,
         options=options,
-        compute_utility=compute_utility,
     )
     return (
         compute_utility,
         compute_marginal_utility,
         compute_current_policy,
-        compute_value_constrained,
+        compute_current_value,
         compute_expected_value,
         compute_next_choice_probs,
         compute_next_wealth_matrices,
@@ -145,12 +141,10 @@ def create_multi_dim_arrays(
 
 def _store_current_period_policy_and_value(
     current_period_policy: np.ndarray,
+    current_period_value: np.ndarray,
     expected_value: np.ndarray,
-    child_state: np.ndarray,
     savings_grid: np.ndarray,
-    params: pd.DataFrame,
     options: Dict[str, int],
-    compute_utility: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Store the current period policy and value funtions.
 
@@ -182,12 +176,9 @@ def _store_current_period_policy_and_value(
             and [1, :] stores the corresponding value of the value function v(M, d).
 
     """
-    beta = params.loc[("beta", "beta"), "value"]
     n_grid_wealth = options["grid_points_wealth"]
 
     endogenous_wealth_grid = savings_grid + current_period_policy
-
-    current_period_utility = compute_utility(current_period_policy, child_state[1])
 
     current_policy = np.zeros((2, n_grid_wealth + 1))
     current_policy[0, 1:] = endogenous_wealth_grid
@@ -196,6 +187,6 @@ def _store_current_period_policy_and_value(
     current_value = np.zeros((2, n_grid_wealth + 1))
     current_value[0, 1:] = endogenous_wealth_grid
     current_value[1, 0] = expected_value[0]
-    current_value[1, 1:] = current_period_utility + beta * expected_value
+    current_value[1, 1:] = current_period_value
 
     return current_policy, current_value
