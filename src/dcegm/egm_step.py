@@ -4,6 +4,7 @@ from typing import Dict
 from typing import Tuple
 
 import numpy as np
+from dcegm.aggregate_policy_value import calc_next_period_choice_probs
 from dcegm.interpolate import interpolate_policy
 from dcegm.interpolate import interpolate_value
 
@@ -14,13 +15,13 @@ def do_egm_step(
     state_space,
     quad_weights,
     trans_mat_state,
+    taste_shock_scale,
     *,
     options: Dict[str, int],
     compute_marginal_utility: Callable,
     compute_inverse_marginal_utility: Callable,
     compute_current_value: Callable,
     compute_expected_value: Callable,
-    compute_next_choice_probs: Callable,
     compute_next_wealth_matrices: Callable,
     compute_next_marginal_wealth: Callable,
     store_current_policy_and_value: Callable,
@@ -121,12 +122,12 @@ def do_egm_step(
         ) = get_child_state_policy_and_value(
             child_state,
             child_node_choice_set,
+            taste_shock_scale,
             options,
             compute_next_marginal_wealth,
             compute_expected_value,
             compute_marginal_utility,
             compute_current_value,
-            compute_next_choice_probs,
             choice_policies_child,
             choice_values_child,
             next_period_wealth,
@@ -156,12 +157,12 @@ def do_egm_step(
 def get_child_state_policy_and_value(
     child_state: np.ndarray,
     child_node_choice_set: np.ndarray,
+    taste_shock_scale: float,
     options: Dict[str, int],
     compute_next_marginal_wealth,
     compute_expected_value: Callable,
     compute_marginal_utility: Callable,
     compute_current_value: Callable,
-    compute_next_choice_probs: Callable,
     choice_policies_child: np.ndarray,
     choice_values_child: np.ndarray,
     next_period_wealth: np.ndarray,
@@ -181,9 +182,6 @@ def get_child_state_policy_and_value(
         compute_value_constrained (callable): User-defined function to compute
             the agent's value function in the credit-constrained area. The inputs
             ```params``` and ```compute_utility``` are already partialled in.
-        compute_next_choice_probs (callable): User-defined function to compute the
-            agent's choice probabilities in the next period (t + 1). The inputs
-            ```params``` and ```options``` are already partialled in.
         choice_policies_child (np.ndarray): 2d array of the agent's next period policy
             for all choices. Shape (n_choices, 2, 1.1 * (n_grid_wealth + 1)).
             Position [:, 0, :] contains the endogenous grid over wealth M,
@@ -219,8 +217,8 @@ def get_child_state_policy_and_value(
         next_period_policy=child_policy,
         next_period_value=choice_child_values,
         options=options,
+        taste_shock_scale=taste_shock_scale,
         compute_marginal_utility=compute_marginal_utility,
-        compute_next_period_choice_probs=compute_next_choice_probs,
     )
 
     child_state_log_sum = compute_expected_value(choice_child_values).reshape(
@@ -239,7 +237,7 @@ def sum_marginal_utility_over_choice_probs(
     next_period_value: np.ndarray,
     options: dict,
     compute_marginal_utility: Callable,
-    compute_next_period_choice_probs: Callable,
+    taste_shock_scale: float,
 ) -> np.ndarray:
     """Computes the marginal utility of the next period.
 
@@ -267,7 +265,9 @@ def sum_marginal_utility_over_choice_probs(
     next_period_marg_util = np.zeros(next_period_policy.shape[1])
 
     for choice_index in range(len(child_node_choice_set)):
-        choice_prob = compute_next_period_choice_probs(next_period_value, choice_index)
+        choice_prob = calc_next_period_choice_probs(
+            next_period_value, choice_index, taste_shock_scale
+        )
         next_period_marg_util += choice_prob * compute_marginal_utility(
             next_period_policy[choice_index, :]
         )

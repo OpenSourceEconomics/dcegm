@@ -284,21 +284,21 @@ def test_sum_marginal_utility_over_choice_probs(
     next_value = np.random.rand(n_grid_flat * n_choices).reshape(n_choices, n_grid_flat)
 
     compute_marginal_utility = partial(marginal_utility_crra, params=params)
-    compute_next_choice_probs = partial(
-        calc_next_period_choice_probs, params=params, options=options
-    )
+    taste_shock_scale = params.loc[("shocks", "lambda"), "value"]
 
     next_marg_util = sum_marginal_utility_over_choice_probs(
         child_node_choice_set,
         next_policy,
         next_value,
         options=options,
+        taste_shock_scale=taste_shock_scale,
         compute_marginal_utility=compute_marginal_utility,
-        compute_next_period_choice_probs=compute_next_choice_probs,
     )
 
     _choice_index = 0
-    _choice_prob = compute_next_choice_probs(next_value, _choice_index)
+    _choice_prob = calc_next_period_choice_probs(
+        next_value, _choice_index, taste_shock_scale
+    )
     _expected = _choice_prob * compute_marginal_utility(next_policy[_choice_index])
     expected = _expected.reshape((n_quad_points, n_grid_points), order="F")
 

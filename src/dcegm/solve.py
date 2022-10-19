@@ -92,7 +92,6 @@ def solve_dcegm(
         compute_inverse_marginal_utility,
         compute_current_value,
         compute_expected_value,
-        compute_next_choice_probs,
         compute_next_wealth_matrices,
         compute_next_marginal_wealth,
         store_current_policy_and_value,
@@ -119,6 +118,7 @@ def solve_dcegm(
         options=options,
         compute_utility=compute_utility,
     )
+    taste_shock_scale = params.loc[("shocks", "lambda"), "value"]
 
     policy_arr[_state_indices_final_period, ...] = policy_final
     value_arr[_state_indices_final_period, ...] = value_final
@@ -146,12 +146,12 @@ def solve_dcegm(
                     state_space,
                     quad_weights,
                     trans_mat_state,
+                    taste_shock_scale,
                     options=options,
                     compute_marginal_utility=compute_marginal_utility,
                     compute_inverse_marginal_utility=compute_inverse_marginal_utility,
                     compute_current_value=compute_current_value,
                     compute_expected_value=compute_expected_value,
-                    compute_next_choice_probs=compute_next_choice_probs,
                     compute_next_wealth_matrices=compute_next_wealth_matrices,
                     compute_next_marginal_wealth=compute_next_marginal_wealth,
                     store_current_policy_and_value=store_current_policy_and_value,

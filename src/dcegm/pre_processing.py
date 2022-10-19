@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 from dcegm.aggregate_policy_value import calc_current_period_value
 from dcegm.aggregate_policy_value import calc_expected_value
-from dcegm.aggregate_policy_value import calc_next_period_choice_probs
 
 
 def get_partial_functions(
@@ -44,9 +43,6 @@ def get_partial_functions(
         calc_expected_value,
         params=params,
     )
-    compute_next_choice_probs = partial(
-        calc_next_period_choice_probs, params=params, options=options
-    )
     compute_next_wealth_matrices = partial(
         user_budget_constraint,
         savings_grid=exogenous_savings_grid,
@@ -71,7 +67,6 @@ def get_partial_functions(
         compute_inverse_marginal_utility,
         compute_current_value,
         compute_expected_value,
-        compute_next_choice_probs,
         compute_next_wealth_matrices,
         compute_next_marginal_wealth,
         store_current_policy_and_value,
