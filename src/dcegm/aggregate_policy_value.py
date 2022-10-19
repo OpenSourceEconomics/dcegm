@@ -6,21 +6,15 @@ import pandas as pd
 
 
 def calc_expected_value(
-    matrix_next_period_wealth: np.ndarray,
     next_period_value: np.ndarray,
-    quad_weights: np.ndarray,
     params: pd.DataFrame,
 ) -> np.ndarray:
     """Computes the expected value of the next period.
 
     Args:
-        matrix_next_period_wealth (np.ndarray): Array of all possible next period
-            wealths with shape (n_quad_stochastic, n_grid_wealth).
         next_period_value (np.ndarray): Array containing values of next period
             choice-specific value function.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
-        quad_weights (np.ndarray): Weights associated with the stochastic
-            quadrature points of shape (n_quad_stochastic,).
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
 
@@ -31,11 +25,7 @@ def calc_expected_value(
     log_sum = _calc_log_sum(
         next_period_value, lambda_=params.loc[("shocks", "lambda"), "value"]
     )
-
-    expected_value = quad_weights @ log_sum.reshape(
-        matrix_next_period_wealth.shape, order="F"
-    )
-    return expected_value
+    return log_sum
 
 
 def calc_current_period_value(

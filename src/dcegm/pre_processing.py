@@ -43,7 +43,6 @@ def get_partial_functions(
     compute_expected_value = partial(
         calc_expected_value,
         params=params,
-        quad_weights=quad_weights,
     )
     compute_next_choice_probs = partial(
         calc_next_period_choice_probs, params=params, options=options

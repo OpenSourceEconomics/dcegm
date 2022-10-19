@@ -86,6 +86,7 @@ def do_egm_step(
             and [1, :] stores the corresponding value of the value function v(M, d).
 
     """
+
     for child_state in child_states:
         child_state_index = state_indexer[tuple(child_state)]
 
@@ -96,15 +97,16 @@ def do_egm_step(
             child_state, state_space, state_indexer
         )
         next_period_wealth = compute_next_wealth_matrices(child_state)
-        next_period_marginal_wealth = compute_next_marginal_wealth(child_state)
 
         (
-            next_period_marginal_utility,
-            next_period_values,
+            child_state_rhs_euler,
+            child_state_log_sum,
         ) = get_child_state_policy_and_value(
             child_state,
             child_node_choice_set,
             options,
+            compute_next_marginal_wealth,
+            compute_expected_value,
             compute_marginal_utility,
             compute_current_value,
             compute_next_choice_probs,
@@ -116,13 +118,11 @@ def do_egm_step(
 
     # RHS of Euler Eq., p. 337 IJRS (2017)
     # Integrate out uncertainty over stochastic income y
-    rhs_euler = quad_weights @ (
-        next_period_marginal_utility * next_period_marginal_wealth
-    )
+    rhs_euler = quad_weights @ (child_state_rhs_euler)
+
+    expected_value = quad_weights @ child_state_log_sum
 
     current_policy = compute_inverse_marginal_utility(rhs_euler)
-
-    expected_value = compute_expected_value(next_period_wealth, next_period_values)
 
     current_policy_arr, current_value_arr = store_current_policy_and_value(
         current_policy, expected_value, child_state
@@ -138,6 +138,8 @@ def get_child_state_policy_and_value(
     child_state: np.ndarray,
     child_node_choice_set: np.ndarray,
     options: Dict[str, int],
+    compute_next_marginal_wealth,
+    compute_expected_value: Callable,
     compute_marginal_utility: Callable,
     compute_current_value: Callable,
     compute_next_choice_probs: Callable,
@@ -186,7 +188,7 @@ def get_child_state_policy_and_value(
         next_period_policy=choice_policies_child,
         options=options,
     )
-    child_value = get_next_period_value(
+    choice_child_values = get_next_period_value(
         child_node_choice_set,
         matrix_next_period_wealth=next_period_wealth,
         next_period_value=choice_values_child,
@@ -196,12 +198,20 @@ def get_child_state_policy_and_value(
     child_state_marginal_utility = sum_marginal_utility_over_choice_probs(
         child_node_choice_set,
         next_period_policy=child_policy,
-        next_period_value=child_value,
+        next_period_value=choice_child_values,
         options=options,
         compute_marginal_utility=compute_marginal_utility,
         compute_next_period_choice_probs=compute_next_choice_probs,
     )
-    return child_state_marginal_utility, child_value
+
+    child_state_log_sum = compute_expected_value(choice_child_values).reshape(
+        next_period_wealth.shape, order="F"
+    )
+    next_period_marginal_wealth = compute_next_marginal_wealth(child_state)
+
+    child_state_rhs_euler = child_state_marginal_utility * next_period_marginal_wealth
+
+    return child_state_rhs_euler, child_state_log_sum
 
 
 def sum_marginal_utility_over_choice_probs(
