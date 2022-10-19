@@ -86,10 +86,25 @@ def do_egm_step(
             and [1, :] stores the corresponding value of the value function v(M, d).
 
     """
-    breakpoint()
-    rhs_euler_values = np.empty(options["n_eog_processes"])
 
-    for child_state in child_states:
+    rhs_euler_values = np.empty(
+        (
+            options["n_exog_processes"],
+            options["quadrature_points_stochastic"],
+            options["grid_points_wealth"],
+        ),
+        dtype=float,
+    )
+    max_value_func = np.empty(
+        (
+            options["n_exog_processes"],
+            options["quadrature_points_stochastic"],
+            options["grid_points_wealth"],
+        ),
+        dtype=float,
+    )
+
+    for i, child_state in enumerate(child_states):
         child_state_index = state_indexer[tuple(child_state)]
 
         choice_policies_child = policy_array[child_state_index]
@@ -101,8 +116,8 @@ def do_egm_step(
         next_period_wealth = compute_next_wealth_matrices(child_state)
 
         (
-            child_state_rhs_euler,
-            child_state_log_sum,
+            rhs_euler_values[i, :, :],
+            max_value_func[i, :, :],
         ) = get_child_state_policy_and_value(
             child_state,
             child_node_choice_set,
@@ -116,13 +131,13 @@ def do_egm_step(
             choice_values_child,
             next_period_wealth,
         )
-        # TODO: Aggregate via transition matrix
+        rhs_euler_values[i, :, :] *= trans_mat_state[i]
 
     # RHS of Euler Eq., p. 337 IJRS (2017)
     # Integrate out uncertainty over stochastic income y
-    rhs_euler = quad_weights @ (child_state_rhs_euler)
+    rhs_euler = quad_weights @ rhs_euler_values.sum(axis=0)
 
-    expected_value = quad_weights @ child_state_log_sum
+    expected_value = quad_weights @ max_value_func.sum(axis=0)
 
     current_policy = compute_inverse_marginal_utility(rhs_euler)
 
