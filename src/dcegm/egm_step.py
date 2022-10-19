@@ -86,6 +86,8 @@ def do_egm_step(
             and [1, :] stores the corresponding value of the value function v(M, d).
 
     """
+    breakpoint()
+    rhs_euler_values = np.empty(options["n_eog_processes"])
 
     for child_state in child_states:
         child_state_index = state_indexer[tuple(child_state)]
