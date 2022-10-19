@@ -138,6 +138,7 @@ def solve_dcegm(
             )
             trans_mat_state = transition_matrix_by_state(state)
             for child_states_choice in child_nodes:
+                choice = child_states_choice[0][1]
 
                 current_policy, current_value, expected_value = do_egm_step(
                     child_states_choice,
@@ -162,7 +163,7 @@ def solve_dcegm(
                 if options["n_discrete_choices"] > 1:
                     compute_value = partial(
                         compute_current_value,
-                        choice=child_states_choice[0][1],  # working decision
+                        choice=choice,  # child working decision
                     )
                     current_policy, current_value = do_upper_envelope_step(
                         current_policy,
@@ -174,13 +175,13 @@ def solve_dcegm(
                 # Store
                 policy_arr[
                     current_state_index,
-                    child_states_choice[0][1],
+                    choice,
                     :,
                     : current_policy.shape[1],
                 ] = current_policy
                 value_arr[
                     current_state_index,
-                    child_states_choice[0][1],
+                    choice,
                     :,
                     : current_value.shape[1],
                 ] = current_value
