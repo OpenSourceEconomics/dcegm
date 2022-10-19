@@ -141,8 +141,10 @@ def do_egm_step(
 
     current_policy = compute_inverse_marginal_utility(rhs_euler)
 
+    current_choice = child_states[0][1]
+
     current_policy_arr, current_value_arr = store_current_policy_and_value(
-        current_policy, expected_value, child_state
+        current_policy, expected_value, current_choice
     )
 
     return current_policy_arr, current_value_arr

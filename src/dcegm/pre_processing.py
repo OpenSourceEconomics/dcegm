@@ -63,7 +63,6 @@ def get_partial_functions(
         _store_current_period_policy_and_value,
         savings_grid=exogenous_savings_grid,
         params=params,
-        options=options,
         compute_utility=compute_utility,
     )
     return (
@@ -135,10 +134,9 @@ def create_multi_dim_arrays(
 def _store_current_period_policy_and_value(
     current_period_policy: np.ndarray,
     expected_value: np.ndarray,
-    child_state: np.ndarray,
+    current_choice: float,
     savings_grid: np.ndarray,
     params: pd.DataFrame,
-    options: Dict[str, int],
     compute_utility: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Store the current period policy and value funtions.
@@ -172,11 +170,11 @@ def _store_current_period_policy_and_value(
 
     """
     beta = params.loc[("beta", "beta"), "value"]
-    n_grid_wealth = options["grid_points_wealth"]
+    n_grid_wealth = savings_grid.shape[0]
 
     endogenous_wealth_grid = savings_grid + current_period_policy
 
-    current_period_utility = compute_utility(current_period_policy, child_state[1])
+    current_period_utility = compute_utility(current_period_policy, current_choice)
 
     current_policy = np.zeros((2, n_grid_wealth + 1))
     current_policy[0, 1:] = endogenous_wealth_grid
