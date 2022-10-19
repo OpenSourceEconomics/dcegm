@@ -140,7 +140,7 @@ def solve_dcegm(
             for child_states_choice in child_nodes:
                 choice = child_states_choice[0][1]
 
-                current_policy, current_value, expected_value = do_egm_step(
+                current_policy, current_value = do_egm_step(
                     child_states_choice,
                     state_indexer,
                     state_space,

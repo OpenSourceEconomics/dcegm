@@ -27,7 +27,7 @@ def do_egm_step(
     get_state_specific_choice_set,
     policy_array: np.ndarray,
     value_array: np.ndarray
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray]:
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
 
     Args:
@@ -145,7 +145,7 @@ def do_egm_step(
         current_policy, expected_value, child_state
     )
 
-    return current_policy_arr, current_value_arr, expected_value
+    return current_policy_arr, current_value_arr
 
 
 # def aggregate_over_income_shocks():
