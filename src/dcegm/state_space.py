@@ -11,7 +11,7 @@ def get_child_states(
 ) -> np.ndarray:
     """Select state-specific child nodes. Will be a user defined function later.
 
-    We need to think about how to incoporate updating from state variables,
+    We need to think about how to incorporate updating from state variables,
     e.g. experience.
 
     Args:
