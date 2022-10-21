@@ -209,7 +209,7 @@ def test_interpolate_value(
     )
     compute_value_constrained = partial(
         calc_current_period_value,
-        beta=params.loc[("beta", "beta"), "value"],
+        discount_factor=params.loc[("beta", "beta"), "value"],
         compute_utility=compute_utility,
     )
 
@@ -238,7 +238,7 @@ def test_get_next_period_value(
     )
     compute_value_constrained = partial(
         calc_current_period_value,
-        beta=params.loc[("beta", "beta"), "value"],
+        discount_factor=params.loc[("beta", "beta"), "value"],
         compute_utility=compute_utility,
     )
 

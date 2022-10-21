@@ -35,7 +35,7 @@ def get_partial_functions(
     )
     compute_current_value = partial(
         calc_current_period_value,
-        beta=params.loc[("beta", "beta"), "value"],
+        discount_factor=params.loc[("beta", "beta"), "value"],
         compute_utility=compute_utility,
     )
     compute_next_wealth_matrices = partial(

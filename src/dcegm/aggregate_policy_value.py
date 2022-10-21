@@ -7,7 +7,7 @@ def calc_current_period_value(
     wealth: np.ndarray,
     next_period_value: np.ndarray,
     choice: int,
-    beta: float,
+    discount_factor: float,
     compute_utility: Callable,
 ) -> np.ndarray:
     """Compute the agent's value in the credit constrained region.
@@ -18,7 +18,7 @@ def calc_current_period_value(
 
     """
     utility = compute_utility(wealth, choice)
-    value_constrained = utility + beta * next_period_value
+    value_constrained = utility + discount_factor * next_period_value
 
     return value_constrained
 
