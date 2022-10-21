@@ -270,10 +270,6 @@ def test_sum_marginal_utility_over_choice_probs(
     model, child_node_choice_set, n_grid_points, n_quad_points, load_example_model
 ):
     params, _ = load_example_model(model)
-    options = {
-        "quadrature_points_stochastic": n_quad_points,
-        "grid_points_wealth": n_grid_points,
-    }
 
     n_choices = len(child_node_choice_set)
     n_grid_flat = n_quad_points * n_grid_points
@@ -290,10 +286,9 @@ def test_sum_marginal_utility_over_choice_probs(
         child_node_choice_set,
         next_policy,
         next_value,
-        options=options,
         taste_shock_scale=taste_shock_scale,
         compute_marginal_utility=compute_marginal_utility,
-    )
+    ).reshape((n_quad_points, n_grid_points), order="F")
 
     _choice_index = 0
     _choice_probabilites = calc_choice_probability(next_value, taste_shock_scale)

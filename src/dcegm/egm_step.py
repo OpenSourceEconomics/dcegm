@@ -208,10 +208,9 @@ def get_child_state_policy_and_value(
         child_node_choice_set,
         next_period_policy=child_policy,
         next_period_value=choice_child_values,
-        options=options,
         taste_shock_scale=taste_shock_scale,
         compute_marginal_utility=compute_marginal_utility,
-    )
+    ).reshape(next_period_wealth.shape, order="F")
 
     child_state_log_sum = _calc_log_sum(choice_child_values, taste_shock_scale).reshape(
         next_period_wealth.shape, order="F"
@@ -254,7 +253,6 @@ def sum_marginal_utility_over_choice_probs(
     child_node_choice_set: np.ndarray,
     next_period_policy: np.ndarray,
     next_period_value: np.ndarray,
-    options: dict,
     compute_marginal_utility: Callable,
     taste_shock_scale: float,
 ) -> np.ndarray:
@@ -272,14 +270,11 @@ def sum_marginal_utility_over_choice_probs(
         next_period_value (np.ndarray): Array containing values of next period
             choice-specific value function.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
-        options (dict): Options dictionary.
 
     Returns:
         (np.ndarray): Array of next period's marginal utility of shape
             (n_quad_stochastic * n_grid_wealth,).
     """
-    n_grid_wealth = options["grid_points_wealth"]
-    n_quad_stochastic = options["quadrature_points_stochastic"]
 
     next_period_marg_util = np.zeros(next_period_policy.shape[1])
 
@@ -290,7 +285,7 @@ def sum_marginal_utility_over_choice_probs(
             choice_index
         ] * compute_marginal_utility(next_period_policy[choice_index, :])
 
-    return next_period_marg_util.reshape((n_quad_stochastic, n_grid_wealth), order="F")
+    return next_period_marg_util
 
 
 def get_next_period_policy(
