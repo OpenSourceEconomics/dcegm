@@ -1,10 +1,8 @@
 from functools import partial
-from typing import Callable
 from typing import Dict
 from typing import Tuple
 
 import numpy as np
-import pandas as pd
 from dcegm.aggregate_policy_value import calc_current_period_value
 
 
@@ -50,12 +48,6 @@ def get_partial_functions(
         params=params,
         options=options,
     )
-    store_current_policy_and_value = partial(
-        _store_current_period_policy_and_value,
-        savings_grid=exogenous_savings_grid,
-        params=params,
-        compute_utility=compute_utility,
-    )
     return (
         compute_utility,
         compute_marginal_utility,
@@ -63,7 +55,6 @@ def get_partial_functions(
         compute_current_value,
         compute_next_wealth_matrices,
         compute_next_marginal_wealth,
-        store_current_policy_and_value,
     )
 
 
@@ -118,60 +109,3 @@ def create_multi_dim_arrays(
     value_arr[:] = np.nan
 
     return policy_arr, value_arr
-
-
-def _store_current_period_policy_and_value(
-    current_period_policy: np.ndarray,
-    expected_value: np.ndarray,
-    current_choice: float,
-    savings_grid: np.ndarray,
-    params: pd.DataFrame,
-    compute_utility: Callable,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Store the current period policy and value funtions.
-
-    Args:
-        current_period_policy (np.ndarray): 1d array of shape (n_grid_wealth,)
-            containing the agent's current period policy rule.
-        expected_value (np.ndarray): (np.ndarray): 1d array of shape (n_grid_wealth,)
-            containing the agent's expected value of the next period.
-        child_state (np.ndarray): 1d array of shape (n_state_variables,) denoting
-            the current child state.
-        savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
-            exogenous savings grid .
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
-        options (dict): Options dictionary.
-        compute_utility (callable): User-defined function to compute the agent's
-            utility. The input ```params``` is already partialled in.
-
-    Returns:
-        (tuple): Tuple containing:
-
-        - current_policy (np.ndarray): 2d array of the agent's period- and
-            choice-specific consumption policy. Shape (2, 1.1 * (n_grid_wealth + 1)).
-            Position [0, :] contains the endogenous grid over wealth M,
-            and [1, :] stores the corresponding value of the policy function c(M, d).
-        - current_value (np.ndarray): 2d array of the agent's period- and
-            choice-specific value function. Shape (2, 1.1 * (n_grid_wealth + 1)).
-            Position [0, :] contains the endogenous grid over wealth M,
-            and [1, :] stores the corresponding value of the value function v(M, d).
-
-    """
-    beta = params.loc[("beta", "beta"), "value"]
-    n_grid_wealth = savings_grid.shape[0]
-
-    endogenous_wealth_grid = savings_grid + current_period_policy
-
-    current_period_utility = compute_utility(current_period_policy, current_choice)
-
-    current_policy = np.zeros((2, n_grid_wealth + 1))
-    current_policy[0, 1:] = endogenous_wealth_grid
-    current_policy[1, 1:] = current_period_policy
-
-    current_value = np.zeros((2, n_grid_wealth + 1))
-    current_value[0, 1:] = endogenous_wealth_grid
-    current_value[1, 0] = expected_value[0]
-    current_value[1, 1:] = current_period_utility + beta * expected_value
-
-    return current_policy, current_value

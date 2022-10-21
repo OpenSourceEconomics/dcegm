@@ -4,7 +4,7 @@ import numpy as np
 
 
 def calc_current_period_value(
-    wealth: np.ndarray,
+    consumption: np.ndarray,
     next_period_value: np.ndarray,
     choice: int,
     discount_factor: float,
@@ -17,7 +17,7 @@ def calc_current_period_value(
             utility. The input ``params``` is already partialled in.
 
     """
-    utility = compute_utility(wealth, choice)
+    utility = compute_utility(consumption, choice)
     value_constrained = utility + discount_factor * next_period_value
 
     return value_constrained
