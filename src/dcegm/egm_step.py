@@ -14,7 +14,7 @@ def do_egm_step(
     state_indexer,
     state_space,
     quad_weights,
-    trans_mat_state,
+    trans_vec_state,
     taste_shock_scale,
     savings_grid,
     *,
@@ -33,11 +33,7 @@ def do_egm_step(
     Args:
         child_states (np.ndarray): Array of shape (n_exog_processes, n_state_variables)
         capturing the child node for each exogenous process state.
-        child_node_choice_set (np.ndarray): The agent's (restricted) choice set in
-            the given state of shape (n_admissible_choices,).
         options (dict): Options dictionary.
-        compute_utility (callable): User-defined function to compute the agent's
-            utility. The input ```params``` is already partialled in.
         compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility. The input ```params``` is already partialled in.
         compute_inverse_marginal_utility (callable): User-defined function to compute
@@ -127,8 +123,8 @@ def do_egm_step(
             choice_values_child,
             next_period_wealth,
         )
-        rhs_euler_values[i, :, :] *= trans_mat_state[i]
-        max_value_func[i, :, :] *= trans_mat_state[i]
+        rhs_euler_values[i, :, :] *= trans_vec_state[i]
+        max_value_func[i, :, :] *= trans_vec_state[i]
 
     # RHS of Euler Eq., p. 337 IJRS (2017)
     # Integrate out uncertainty over stochastic income y
@@ -222,9 +218,11 @@ def get_child_state_policy_and_value(
             agent's current child state.
         child_node_choice_set (np.ndarray): The agent's (restricted) choice set in
             the given state of shape (n_admissible_choices,).
+        taste_shock_scale (float): The taste shock scale.
         options (dict): Options dictionary.
-        compute_utility (callable): User-defined function to compute the agent's
-            utility. The input ```params``` is already partialled in.
+        compute_next_marginal_wealth (callable): User-defined function to compute the
+            agent's marginal wealth in the next period (t + 1). The inputs
+            ```params``` and ```options``` are already partialled in.
         compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility. The input ```params``` is already partialled in.
         compute_value (callable): User-defined function to compute

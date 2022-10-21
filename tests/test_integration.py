@@ -89,7 +89,7 @@ def test_benchmark_models(
         budget_functions=budget_functions,
         solve_final_period=solve_final_period,
         state_space_functions=state_space_functions,
-        transition_matrix_by_state=get_transition_matrix_by_state,
+        transition_vector_by_state=get_transition_matrix_by_state,
     )
 
     policy_expected = pickle.load(

@@ -11,5 +11,5 @@ def get_transition_matrix_by_state(state):
         trans_mat (np.ndarray)
 
     """
-    trans_mat = np.array([[1]])
+    trans_mat = np.array([1])
     return trans_mat
