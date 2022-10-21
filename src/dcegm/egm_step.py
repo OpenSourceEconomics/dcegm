@@ -132,6 +132,7 @@ def do_egm_step(
             next_period_wealth,
         )
         rhs_euler_values[i, :, :] *= trans_mat_state[i]
+        max_value_func[i, :, :] *= trans_mat_state[i]
 
     # RHS of Euler Eq., p. 337 IJRS (2017)
     # Integrate out uncertainty over stochastic income y
@@ -148,9 +149,6 @@ def do_egm_step(
     )
 
     return current_policy_arr, current_value_arr
-
-
-# def aggregate_over_income_shocks():
 
 
 def get_child_state_policy_and_value(
