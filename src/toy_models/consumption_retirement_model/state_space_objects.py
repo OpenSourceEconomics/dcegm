@@ -13,9 +13,11 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
 
     Returns:
         state_space (np.ndarray): Collection of all possible states of shape
-            (n_periods * n_choices, n_choices).
-        indexer (np.ndarray): Indexer object that maps states to indexes.
-            Shape (n_periods, n_choices).
+            (n_states, n_state_variables).
+        indexer (np.ndarray): Indexer object that maps states to indexes. The shape of
+            this object quite complicated. For each state variable it has the number of
+            possible states as "row", i.e.
+            (n_poss_states_statesvar_1, n_poss_states_statesvar_2, ....)
 
     """
     n_periods = options["n_periods"]
