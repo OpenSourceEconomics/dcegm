@@ -4,7 +4,7 @@ from typing import Dict
 from typing import Tuple
 
 import numpy as np
-from dcegm.aggregate_policy_value import calc_next_period_choice_probs
+from dcegm.aggregate_policy_value import calc_choice_probability
 from dcegm.interpolate import interpolate_policy
 from dcegm.interpolate import interpolate_value
 
@@ -283,13 +283,12 @@ def sum_marginal_utility_over_choice_probs(
 
     next_period_marg_util = np.zeros(next_period_policy.shape[1])
 
+    choice_probabilites = calc_choice_probability(next_period_value, taste_shock_scale)
+
     for choice_index in range(len(child_node_choice_set)):
-        choice_prob = calc_next_period_choice_probs(
-            next_period_value, choice_index, taste_shock_scale
-        )
-        next_period_marg_util += choice_prob * compute_marginal_utility(
-            next_period_policy[choice_index, :]
-        )
+        next_period_marg_util += choice_probabilites[
+            choice_index
+        ] * compute_marginal_utility(next_period_policy[choice_index, :])
 
     return next_period_marg_util.reshape((n_quad_stochastic, n_grid_wealth), order="F")
 

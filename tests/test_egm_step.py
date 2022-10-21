@@ -3,8 +3,8 @@ from itertools import product
 
 import numpy as np
 import pytest
+from dcegm.aggregate_policy_value import calc_choice_probability
 from dcegm.aggregate_policy_value import calc_current_period_value
-from dcegm.aggregate_policy_value import calc_next_period_choice_probs
 from dcegm.egm_step import get_next_period_policy
 from dcegm.egm_step import get_next_period_value
 from dcegm.egm_step import sum_marginal_utility_over_choice_probs
@@ -296,10 +296,10 @@ def test_sum_marginal_utility_over_choice_probs(
     )
 
     _choice_index = 0
-    _choice_prob = calc_next_period_choice_probs(
-        next_value, _choice_index, taste_shock_scale
+    _choice_probabilites = calc_choice_probability(next_value, taste_shock_scale)
+    _expected = _choice_probabilites[_choice_index] * compute_marginal_utility(
+        next_policy[_choice_index]
     )
-    _expected = _choice_prob * compute_marginal_utility(next_policy[_choice_index])
     expected = _expected.reshape((n_quad_points, n_grid_points), order="F")
 
     aaae(next_marg_util, expected)
