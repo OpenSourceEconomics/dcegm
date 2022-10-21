@@ -39,7 +39,7 @@ def interpolate_value(
     flat_wealth: np.ndarray,
     value: np.ndarray,
     choice: int,
-    compute_value_constrained: Callable,
+    compute_value: Callable,
 ) -> np.ndarray:
     """Interpolate the agent's value for given flat wealth matrix.
 
@@ -52,9 +52,10 @@ def interpolate_value(
             and [1, :] stores the corresponding value of the value function v(M, d),
             for each time period and each discrete choice.
         choice (int): Choice of the agent, e.g. 0 = "retirement", 1 = "working".
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
-        compute_utility (callable): Function for computation of agent's utility.
+        compute_value (callable): Function for calculating the value from consumption
+            level, discrete choice and expected value. The inputs ```discount_rate```
+            and ```compute_utility``` are already partialled in.
+
 
     Returns:
         np.ndarray: Interpolated flat value function of shape
@@ -68,7 +69,7 @@ def interpolate_value(
 
     # Calculate t+1 value function in constrained region using
     # the analytical part
-    value_interp[credit_constrained_region] = compute_value_constrained(
+    value_interp[credit_constrained_region] = compute_value(
         flat_wealth[credit_constrained_region],
         next_period_value=value[1, 0],
         choice=choice,

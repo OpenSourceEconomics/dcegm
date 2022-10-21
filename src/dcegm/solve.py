@@ -89,7 +89,7 @@ def solve_dcegm(
         compute_utility,
         compute_marginal_utility,
         compute_inverse_marginal_utility,
-        compute_current_value,
+        compute_value,
         compute_next_wealth_matrices,
         compute_next_marginal_wealth,
     ) = get_partial_functions(
@@ -147,7 +147,7 @@ def solve_dcegm(
                     options=options,
                     compute_marginal_utility=compute_marginal_utility,
                     compute_inverse_marginal_utility=compute_inverse_marginal_utility,
-                    compute_current_value=compute_current_value,
+                    compute_value=compute_value,
                     compute_next_wealth_matrices=compute_next_wealth_matrices,
                     compute_next_marginal_wealth=compute_next_marginal_wealth,
                     get_state_specific_choice_set=get_state_specific_choice_set,
@@ -161,7 +161,7 @@ def solve_dcegm(
                         current_value,
                         choice,
                         options=options,
-                        compute_value=compute_current_value,
+                        compute_value=compute_value,
                     )
 
                 # Store

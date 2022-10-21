@@ -207,7 +207,7 @@ def test_interpolate_value(
         utility_func_crra,
         params=params,
     )
-    compute_value_constrained = partial(
+    compute_value = partial(
         calc_current_period_value,
         discount_factor=params.loc[("beta", "beta"), "value"],
         compute_utility=compute_utility,
@@ -219,7 +219,7 @@ def test_interpolate_value(
         flat_wealth=matrix_next_wealth.flatten("F"),
         value=next_value,
         choice=0,
-        compute_value_constrained=compute_value_constrained,
+        compute_value=compute_value,
     )
 
     aaae(value_interp, value_interp_expected)
@@ -236,7 +236,7 @@ def test_get_next_period_value(
         utility_func_crra,
         params=params,
     )
-    compute_value_constrained = partial(
+    compute_value = partial(
         calc_current_period_value,
         discount_factor=params.loc[("beta", "beta"), "value"],
         compute_utility=compute_utility,
@@ -249,7 +249,7 @@ def test_get_next_period_value(
         choice_set,
         matrix_next_wealth,
         next_value,
-        compute_value_constrained,
+        compute_value,
     )
     aaae(value_interp, np.tile(value_interp_expected[np.newaxis], (len(choice_set), 1)))
 

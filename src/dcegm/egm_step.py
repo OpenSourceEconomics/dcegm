@@ -21,7 +21,7 @@ def do_egm_step(
     options: Dict[str, int],
     compute_marginal_utility: Callable,
     compute_inverse_marginal_utility: Callable,
-    compute_current_value: Callable,
+    compute_value: Callable,
     compute_next_wealth_matrices: Callable,
     compute_next_marginal_wealth: Callable,
     get_state_specific_choice_set,
@@ -42,9 +42,9 @@ def do_egm_step(
             agent's marginal utility. The input ```params``` is already partialled in.
         compute_inverse_marginal_utility (callable): User-defined function to compute
         the agent's inverse marginal utility.
-        compute_value_constrained (callable): User-defined function to compute
-            the agent's value function in the credit-constrained area. The inputs
-            ```params``` and ```compute_utility``` are already partialled in.
+        compute_value (callable): Function for calculating the value from consumption
+            level, discrete choice and expected value. The inputs ```discount_rate```
+            and ```compute_utility``` are already partialled in.
         compute_next_choice_probs (callable): User-defined function to compute the
             agent's choice probabilities in the next period (t + 1). The inputs
             ```params``` and ```options``` are already partialled in.
@@ -122,7 +122,7 @@ def do_egm_step(
             options,
             compute_next_marginal_wealth,
             compute_marginal_utility,
-            compute_current_value,
+            compute_value,
             choice_policies_child,
             choice_values_child,
             next_period_wealth,
@@ -145,14 +145,14 @@ def do_egm_step(
         expected_value,
         current_choice,
         savings_grid,
-        compute_current_value,
+        compute_value,
     )
 
     return current_policy_arr, current_value_arr
 
 
 def store_current_period_policy_and_value(
-    current_period_policy: np.ndarray,
+    current_policy: np.ndarray,
     expected_value: np.ndarray,
     current_choice: float,
     savings_grid: np.ndarray,
@@ -161,19 +161,16 @@ def store_current_period_policy_and_value(
     """Store the current period policy and value funtions.
 
     Args:
-        current_period_policy (np.ndarray): 1d array of shape (n_grid_wealth,)
+        current_policy (np.ndarray): 1d array of shape (n_grid_wealth,)
             containing the agent's current period policy rule.
         expected_value (np.ndarray): (np.ndarray): 1d array of shape (n_grid_wealth,)
             containing the agent's expected value of the next period.
-        child_state (np.ndarray): 1d array of shape (n_state_variables,) denoting
-            the current child state.
+        current_choice (int): The current discrete choice.
         savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
             exogenous savings grid .
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
-        options (dict): Options dictionary.
-        compute_utility (callable): User-defined function to compute the agent's
-            utility. The input ```params``` is already partialled in.
+        compute_value (callable): Function for calculating the value from consumption
+            level, discrete choice and expected value. The inputs ```discount_rate```
+            and ```compute_utility``` are already partialled in.
 
     Returns:
         (tuple): Tuple containing:
@@ -190,20 +187,20 @@ def store_current_period_policy_and_value(
     """
     n_grid_wealth = savings_grid.shape[0]
 
-    endogenous_wealth_grid = savings_grid + current_period_policy
+    endogenous_wealth_grid = savings_grid + current_policy
 
-    current_policy = np.zeros((2, n_grid_wealth + 1))
-    current_policy[0, 1:] = endogenous_wealth_grid
-    current_policy[1, 1:] = current_period_policy
+    current_policy_container = np.zeros((2, n_grid_wealth + 1))
+    current_policy_container[0, 1:] = endogenous_wealth_grid
+    current_policy_container[1, 1:] = current_policy
 
-    current_value = np.zeros((2, n_grid_wealth + 1))
-    current_value[0, 1:] = endogenous_wealth_grid
-    current_value[1, 0] = expected_value[0]
-    current_value[1, 1:] = compute_value(
-        current_period_policy, expected_value, current_choice
+    current_value_container = np.zeros((2, n_grid_wealth + 1))
+    current_value_container[0, 1:] = endogenous_wealth_grid
+    current_value_container[1, 0] = expected_value[0]
+    current_value_container[1, 1:] = compute_value(
+        current_policy, expected_value, current_choice
     )
 
-    return current_policy, current_value
+    return current_policy_container, current_value_container
 
 
 def get_child_state_policy_and_value(
@@ -213,7 +210,7 @@ def get_child_state_policy_and_value(
     options: Dict[str, int],
     compute_next_marginal_wealth,
     compute_marginal_utility: Callable,
-    compute_current_value: Callable,
+    compute_value: Callable,
     choice_policies_child: np.ndarray,
     choice_values_child: np.ndarray,
     next_period_wealth: np.ndarray,
@@ -230,7 +227,7 @@ def get_child_state_policy_and_value(
             utility. The input ```params``` is already partialled in.
         compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility. The input ```params``` is already partialled in.
-        compute_value_constrained (callable): User-defined function to compute
+        compute_value (callable): User-defined function to compute
             the agent's value function in the credit-constrained area. The inputs
             ```params``` and ```compute_utility``` are already partialled in.
         choice_policies_child (np.ndarray): 2d array of the agent's next period policy
@@ -258,9 +255,9 @@ def get_child_state_policy_and_value(
     )
     choice_child_values = get_next_period_value(
         child_node_choice_set,
-        matrix_next_period_wealth=next_period_wealth,
+        next_period_wealth=next_period_wealth,
         next_period_value=choice_values_child,
-        compute_value=compute_current_value,
+        compute_value=compute_value,
     )
 
     child_state_marginal_utility = sum_marginal_utility_over_choice_probs(
@@ -282,7 +279,7 @@ def get_child_state_policy_and_value(
 
 
 def calc_exp_max_value(
-    choice_specific_values: np.ndarray, lambda_: float
+    choice_specific_values: np.ndarray, taste_shock_scale: float
 ) -> np.ndarray:
     """Calculate the expected max value given choice specific values. Wit the general
      extrem value assumption on the taste shocks, this reduces to the log-sum.
@@ -294,7 +291,7 @@ def calc_exp_max_value(
         choice_specific_values (np.ndarray): Array containing values of the
             choice-specific value function.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
-        lambda_ (float): Taste shock (scale) parameter.
+        taste_shock_scale (float): Taste shock (scale) parameter.
 
     Returns:
         logsum (np.ndarray): Log-sum formula inside the expected value function.
@@ -304,8 +301,8 @@ def calc_exp_max_value(
     choice_specific_values_scaled = choice_specific_values - col_max
 
     # Eq. (14), p. 334 IJRS (2017)
-    logsum = col_max + lambda_ * np.log(
-        np.sum(np.exp(choice_specific_values_scaled / lambda_), axis=0)
+    logsum = col_max + taste_shock_scale * np.log(
+        np.sum(np.exp(choice_specific_values_scaled / taste_shock_scale), axis=0)
     )
 
     return logsum
@@ -318,20 +315,22 @@ def sum_marginal_utility_over_choice_probs(
     compute_marginal_utility: Callable,
     taste_shock_scale: float,
 ) -> np.ndarray:
-    """Computes the marginal utility of the next period.
+    """Aggregates the marginal utility of the discrete choices in the next period with
+    the choice probabilities following from the choice-specific value functions.
 
     Args:
         child_node_choice_set (np.ndarray): 1d array of shape (n_choices_in_state)
             containing the set of all possible choices in the given child state.
-        marginal_utility_func (callable): Partial function that calculates marginal
-            utility, where the input ```params``` has already been partialed in.
-            Supposed to have same interface as utility func.
         next_period_policy (np.ndarray): 2d array of shape
             (n_choices, n_quad_stochastic * n_grid_wealth) containing the agent's
             interpolated next period policy.
         next_period_value (np.ndarray): Array containing values of next period
             choice-specific value function.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
+        compute_marginal_utility (callable): Partial function that calculates marginal
+            utility, where the input ```params``` has already been partialed in.
+        taste_shock_scale (float): Taste shock (scale) parameter.
+
 
     Returns:
         (np.ndarray): Array of next period's marginal utility of shape
@@ -391,25 +390,21 @@ def get_next_period_policy(
 
 
 def get_next_period_value(
-    child_node_choice_set,
-    matrix_next_period_wealth: np.ndarray,
+    child_node_choice_set: np.ndarray,
+    next_period_wealth: np.ndarray,
     next_period_value: np.ndarray,
     compute_value: Callable,
 ) -> np.ndarray:
     """Maps next-period value onto this period's matrix of next-period wealth.
 
     Args:
-        matrix_next_period_wealth (np.ndarray): Array of all possible next period
+        next_period_wealth (np.ndarray): Array of all possible next period
             wealths with shape (n_quad_stochastic, n_grid_wealth).
         next_period_value (np.ndarray): Array of the next period value
             for all choices. Shape (n_choices, 2, 1.1 * n_grid_wealth + 1).
-        period (int): Current period t.
-        options (dict): Options dictionary.
-        compute_value_credit_constrained (callable): User-defined function to compute
-            the agent's utility. The input ```params``` is already partialled in.
-        compute_value_credit_constrained (callable): User-defined function to compute
-            the agent's value function in the credit-constrained area.
-            The inputs ```params``` and ```compute_utility``` are already partialled in.
+        compute_value (callable): Function for calculating the value from consumption
+            level, discrete choice and expected value. The inputs ```discount_rate```
+            and ```compute_utility``` are already partialled in.
 
     Returns:
         next_period_value_interp (np.ndarray): Array containing interpolated
@@ -418,19 +413,21 @@ def get_next_period_value(
             the current period grid of potential next period wealths.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
     """
+
+    next_period_wealth_flat = next_period_wealth.flatten("F")
     next_period_value_interp = np.empty(
         (
             child_node_choice_set.shape[0],
-            matrix_next_period_wealth.shape[0] * matrix_next_period_wealth.shape[1],
+            next_period_wealth_flat.shape[0],
         )
     )
 
     for index, choice in enumerate(child_node_choice_set):
         next_period_value_interp[index, :] = interpolate_value(
-            flat_wealth=matrix_next_period_wealth.flatten("F"),
+            flat_wealth=next_period_wealth_flat,
             value=next_period_value[choice],
             choice=choice,
-            compute_value_constrained=compute_value,
+            compute_value=compute_value,
         )
 
     return next_period_value_interp

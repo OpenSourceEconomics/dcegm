@@ -30,7 +30,7 @@ def get_partial_functions(
         user_inverse_marginal_utility_func,
         params=params,
     )
-    compute_current_value = partial(
+    compute_value = partial(
         calc_current_period_value,
         discount_factor=params.loc[("beta", "beta"), "value"],
         compute_utility=compute_utility,
@@ -51,7 +51,7 @@ def get_partial_functions(
         compute_utility,
         compute_marginal_utility,
         compute_inverse_marginal_utility,
-        compute_current_value,
+        compute_value,
         compute_next_wealth_matrices,
         compute_next_marginal_wealth,
     )
