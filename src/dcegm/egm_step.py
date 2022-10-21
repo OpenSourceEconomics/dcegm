@@ -21,7 +21,6 @@ def do_egm_step(
     compute_marginal_utility: Callable,
     compute_inverse_marginal_utility: Callable,
     compute_current_value: Callable,
-    compute_expected_value: Callable,
     compute_next_wealth_matrices: Callable,
     compute_next_marginal_wealth: Callable,
     store_current_policy_and_value: Callable,
@@ -46,9 +45,6 @@ def do_egm_step(
         compute_value_constrained (callable): User-defined function to compute
             the agent's value function in the credit-constrained area. The inputs
             ```params``` and ```compute_utility``` are already partialled in.
-        compute_expected_value (callable): User-defined function to compute the agent's
-            expected value. The inputs ```params``` and ```quad_weights``` are already
-            partialled in.
         compute_next_choice_probs (callable): User-defined function to compute the
             agent's choice probabilities in the next period (t + 1). The inputs
             ```params``` and ```options``` are already partialled in.
@@ -125,7 +121,6 @@ def do_egm_step(
             taste_shock_scale,
             options,
             compute_next_marginal_wealth,
-            compute_expected_value,
             compute_marginal_utility,
             compute_current_value,
             choice_policies_child,
@@ -160,7 +155,6 @@ def get_child_state_policy_and_value(
     taste_shock_scale: float,
     options: Dict[str, int],
     compute_next_marginal_wealth,
-    compute_expected_value: Callable,
     compute_marginal_utility: Callable,
     compute_current_value: Callable,
     choice_policies_child: np.ndarray,
@@ -221,7 +215,7 @@ def get_child_state_policy_and_value(
         compute_marginal_utility=compute_marginal_utility,
     )
 
-    child_state_log_sum = compute_expected_value(choice_child_values).reshape(
+    child_state_log_sum = _calc_log_sum(choice_child_values, taste_shock_scale).reshape(
         next_period_wealth.shape, order="F"
     )
     next_period_marginal_wealth = compute_next_marginal_wealth(child_state)
@@ -229,6 +223,33 @@ def get_child_state_policy_and_value(
     child_state_rhs_euler = child_state_marginal_utility * next_period_marginal_wealth
 
     return child_state_rhs_euler, child_state_log_sum
+
+
+def _calc_log_sum(next_period_value: np.ndarray, lambda_: float) -> np.ndarray:
+    """Calculates the log-sum needed for computing the expected value function.
+
+    The log-sum formula may also be referred to as the 'smoothed max function',
+    see eq. (50), p. 335 (Appendix).
+
+    Args:
+        next_period_value (np.ndarray): Array containing values of next period
+            choice-specific value function.
+            Shape (n_choices, n_quad_stochastic * n_grid_wealth).
+        lambda_ (float): Taste shock (scale) parameter.
+
+    Returns:
+        logsum (np.ndarray): Log-sum formula inside the expected value function.
+            Array of shape (n_quad_stochastic * n_grid_wealth,).
+    """
+    col_max = np.amax(next_period_value, axis=0)
+    next_period_value_ = next_period_value - col_max
+
+    # Eq. (14), p. 334 IJRS (2017)
+    logsum = col_max + lambda_ * np.log(
+        np.sum(np.exp((next_period_value_) / lambda_), axis=0)
+    )
+
+    return logsum
 
 
 def sum_marginal_utility_over_choice_probs(
