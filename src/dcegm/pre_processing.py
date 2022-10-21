@@ -10,7 +10,6 @@ def get_partial_functions(
     params,
     options,
     quad_points,
-    quad_weights,
     exogenous_savings_grid,
     user_utility_func,
     user_marginal_utility_func,

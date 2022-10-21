@@ -96,7 +96,6 @@ def solve_dcegm(
         params,
         options,
         quad_points,
-        quad_weights,
         exogenous_savings_grid,
         user_utility_func=utility_functions["utility"],
         user_marginal_utility_func=utility_functions["marginal_utility"],
