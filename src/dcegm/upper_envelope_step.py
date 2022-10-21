@@ -1,7 +1,6 @@
 """Implementation of the Upper Envelope algorithm."""
 from typing import Any
 from typing import Callable
-from typing import Dict
 from typing import List
 from typing import Tuple
 from typing import Union
@@ -17,9 +16,8 @@ def do_upper_envelope_step(
     policy: np.ndarray,
     value: np.ndarray,
     choice: int,
-    *,
-    options: Dict[str, int],
-    compute_value: Callable
+    n_grid_wealth: int,
+    compute_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Runs the Upper Envelope algorithm and drops sub-optimal points.
 
@@ -55,7 +53,8 @@ def do_upper_envelope_step(
             Position [0, :] of the array contains the endogenous grid over wealth M,
             and [1, :] stores the corresponding value of the value function v(M, d),
             for each time period and each discrete choice.
-        options (dict): Options dictionary.
+        choice (int): The current choice.
+        n_grid_wealth (int): Number of gird points in the exogenous wealth grid.
         compute_value (callable): Function to compute the agent's value.
 
     Returns:
@@ -70,7 +69,6 @@ def do_upper_envelope_step(
             points along with the corresponding interpolated values of the value
             function have been added. Shape (2, 1.1 * n_grid_wealth).
     """
-    n_grid_wealth = options["grid_points_wealth"]
     min_wealth_grid = np.min(value[0, 1:])
 
     if value[0, 1] <= min_wealth_grid:

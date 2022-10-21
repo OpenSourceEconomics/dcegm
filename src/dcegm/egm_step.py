@@ -1,6 +1,5 @@
 """Implementation of the EGM algorithm."""
 from typing import Callable
-from typing import Dict
 from typing import Tuple
 
 import numpy as np
@@ -17,7 +16,6 @@ def do_egm_step(
     trans_vec_state: np.ndarray,
     taste_shock_scale: float,
     savings_grid: np.ndarray,
-    options: Dict[str, int],
     compute_marginal_utility: Callable,
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
@@ -46,7 +44,6 @@ def do_egm_step(
         taste_shock_scale (float): The taste shock scale.
         savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
             exogenous savings grid .
-        options (dict): Options dictionary.
         compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility. The input ```params``` is already partialled in.
         compute_inverse_marginal_utility (callable): User-defined function to compute
@@ -90,19 +87,22 @@ def do_egm_step(
 
     """
 
+    n_exog_process = trans_vec_state.shape[0]
+    n_quad_points = quad_weights.shape[0]
+    n_savings_grid = savings_grid.shape[0]
     rhs_euler_values = np.empty(
         (
-            options["n_exog_processes"],
-            options["quadrature_points_stochastic"],
-            options["grid_points_wealth"],
+            n_exog_process,
+            n_quad_points,
+            n_savings_grid,
         ),
         dtype=float,
     )
     max_value_func = np.empty(
         (
-            options["n_exog_processes"],
-            options["quadrature_points_stochastic"],
-            options["grid_points_wealth"],
+            n_exog_process,
+            n_quad_points,
+            n_savings_grid,
         ),
         dtype=float,
     )
@@ -125,7 +125,6 @@ def do_egm_step(
             child_state,
             child_node_choice_set,
             taste_shock_scale,
-            options,
             compute_next_marginal_wealth,
             compute_marginal_utility,
             compute_value,
@@ -213,7 +212,6 @@ def get_child_state_policy_and_value(
     child_state: np.ndarray,
     child_node_choice_set: np.ndarray,
     taste_shock_scale: float,
-    options: Dict[str, int],
     compute_next_marginal_wealth,
     compute_marginal_utility: Callable,
     compute_value: Callable,
@@ -229,7 +227,6 @@ def get_child_state_policy_and_value(
         child_node_choice_set (np.ndarray): The agent's (restricted) choice set in
             the given state of shape (n_admissible_choices,).
         taste_shock_scale (float): The taste shock scale.
-        options (dict): Options dictionary.
         compute_next_marginal_wealth (callable): User-defined function to compute the
             agent's marginal wealth in the next period (t + 1). The inputs
             ```params``` and ```options``` are already partialled in.
@@ -259,7 +256,6 @@ def get_child_state_policy_and_value(
         child_node_choice_set,
         next_period_wealth,
         next_period_policy=choice_policies_child,
-        options=options,
     )
     choice_child_values = get_next_period_value(
         child_node_choice_set,
@@ -359,9 +355,8 @@ def sum_marginal_utility_over_choice_probs(
 
 def get_next_period_policy(
     child_node_choice_set,
-    matrix_next_period_wealth: np.ndarray,
+    next_period_wealth: np.ndarray,
     next_period_policy: np.ndarray,
-    options: Dict[str, int],
 ) -> np.ndarray:
     """Computes the next-period policy via linear interpolation.
 
@@ -372,26 +367,24 @@ def get_next_period_policy(
         child_node_choice_set (np.ndarray): 1d array of shape (n_admissible_choices,)
             containing the agent's choice set at the current child node in the state
             space.
-        matrix_next_period_wealth (np.ndarray): 2d array of all possible next period
+        next_period_wealth (np.ndarray): 2d array of all possible next period
             wealths with shape (n_quad_stochastic, n_grid_wealth).
         next_period_policy (np.ndarray): Array of the next period policy
             for all choices. Shape (n_choices, 2, 1.1 * n_grid_wealth + 1).
-        options (dict): Options dictionary.
-
     Returns:
         next_period_policy_interp (np.ndarray): Array of interpolated next period
             consumption of shape (n_choices, n_quad_stochastic * n_grid_wealth).
     """
-    n_grid_wealth = options["grid_points_wealth"]
-    n_quad_stochastic = options["quadrature_points_stochastic"]
+
+    next_period_wealth_flat = next_period_wealth.flatten("F")
 
     next_period_policy_interp = np.empty(
-        (child_node_choice_set.shape[0], n_quad_stochastic * n_grid_wealth)
+        (child_node_choice_set.shape[0], next_period_wealth_flat.shape[0])
     )
 
     for index, choice in enumerate(child_node_choice_set):
         next_period_policy_interp[index, :] = interpolate_policy(
-            matrix_next_period_wealth.flatten("F"), next_period_policy[choice]
+            next_period_wealth_flat, next_period_policy[choice]
         )
 
     return next_period_policy_interp

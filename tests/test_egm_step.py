@@ -133,10 +133,6 @@ TEST_CASES = list(
 def test_get_next_period_policy(
     choice_set, interest_rate, max_wealth, n_grid_points, n_quad_points
 ):
-    options = {
-        "quadrature_points_stochastic": n_quad_points,
-        "grid_points_wealth": n_grid_points,
-    }
 
     (
         matrix_next_wealth,
@@ -147,9 +143,7 @@ def test_get_next_period_policy(
     )
     next_policy = np.repeat(_next_policy[np.newaxis, ...], len(choice_set), axis=0)
 
-    policy_interp = get_next_period_policy(
-        choice_set, matrix_next_wealth, next_policy, options
-    )
+    policy_interp = get_next_period_policy(choice_set, matrix_next_wealth, next_policy)
 
     expected_policy = np.tile(
         np.repeat(_expected_policy, n_quad_points)[np.newaxis],

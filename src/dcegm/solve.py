@@ -146,7 +146,6 @@ def solve_dcegm(
                     trans_vec_state,
                     taste_shock_scale,
                     exogenous_savings_grid,
-                    options=options,
                     compute_marginal_utility=compute_marginal_utility,
                     compute_inverse_marginal_utility=compute_inverse_marginal_utility,
                     compute_value=compute_value,
@@ -162,7 +161,7 @@ def solve_dcegm(
                         current_policy,
                         current_value,
                         choice,
-                        options=options,
+                        n_grid_wealth=exogenous_savings_grid.shape[0],
                         compute_value=compute_value,
                     )
 
