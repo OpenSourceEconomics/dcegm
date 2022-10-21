@@ -1,31 +1,6 @@
 from typing import Callable
-from typing import Dict
 
 import numpy as np
-import pandas as pd
-
-
-def calc_expected_value(
-    next_period_value: np.ndarray,
-    params: pd.DataFrame,
-) -> np.ndarray:
-    """Computes the expected value of the next period.
-
-    Args:
-        next_period_value (np.ndarray): Array containing values of next period
-            choice-specific value function.
-            Shape (n_choices, n_quad_stochastic * n_grid_wealth).
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
-
-    Returns:
-        (np.ndarray): 1d array of the agent's expected value of the next period.
-            Shape (n_grid_wealth,).
-    """
-    log_sum = _calc_log_sum(
-        next_period_value, lambda_=params.loc[("shocks", "lambda"), "value"]
-    )
-    return log_sum
 
 
 def calc_current_period_value(
@@ -51,8 +26,7 @@ def calc_current_period_value(
 def calc_next_period_choice_probs(
     next_period_value: np.ndarray,
     choice: int,
-    params: pd.DataFrame,
-    options: Dict[str, int],
+    taste_shock_scale: float,
 ) -> np.ndarray:
     """Calculates the probability of working in the next period.
 
@@ -61,50 +35,17 @@ def calc_next_period_choice_probs(
             choice-specific value function.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
         choice (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
-        options (dict): Options dictionary.
-
+        taste_shock_scale (float): The taste shock scale.
     Returns:
         prob_working (np.ndarray): Probability of working next period. Array of
             shape (n_quad_stochastic * n_grid_wealth,).
     """
-    # Taste shock (scale) parameter
-    lambda_ = params.loc[("shocks", "lambda"), "value"]
-
     col_max = np.amax(next_period_value, axis=0)
     next_period_value_ = next_period_value - col_max
 
     # Eq. (15), p. 334 IJRS (2017)
-    choice_prob = np.exp(next_period_value_[choice, :] / lambda_) / np.sum(
-        np.exp(next_period_value_ / lambda_), axis=0
+    choice_prob = np.exp(next_period_value_[choice, :] / taste_shock_scale) / np.sum(
+        np.exp(next_period_value_ / taste_shock_scale), axis=0
     )
 
     return choice_prob
-
-
-def _calc_log_sum(next_period_value: np.ndarray, lambda_: float) -> np.ndarray:
-    """Calculates the log-sum needed for computing the expected value function.
-
-    The log-sum formula may also be referred to as the 'smoothed max function',
-    see eq. (50), p. 335 (Appendix).
-
-    Args:
-        next_period_value (np.ndarray): Array containing values of next period
-            choice-specific value function.
-            Shape (n_choices, n_quad_stochastic * n_grid_wealth).
-        lambda_ (float): Taste shock (scale) parameter.
-
-    Returns:
-        logsum (np.ndarray): Log-sum formula inside the expected value function.
-            Array of shape (n_quad_stochastic * n_grid_wealth,).
-    """
-    col_max = np.amax(next_period_value, axis=0)
-    next_period_value_ = next_period_value - col_max
-
-    # Eq. (14), p. 334 IJRS (2017)
-    logsum = col_max + lambda_ * np.log(
-        np.sum(np.exp((next_period_value_) / lambda_), axis=0)
-    )
-
-    return logsum
