@@ -11,7 +11,7 @@ def get_child_states(
 ) -> np.ndarray:
     """Select state-specific child nodes. Will be a user defined function later.
 
-    We need to think about how to incorporate updating from state variables,
+    ToDo: We need to think about how to incorporate updating from state variables,
     e.g. experience.
 
     Args:
@@ -19,10 +19,11 @@ def get_child_states(
             state. In Ishkakov, an agent's state is defined by her (i) age (i.e. the
             current period) and (ii) her lagged labor market choice.
             Hence n_state_variables = 2.
-        states (np.ndarray): Collection of all possible states of shape
-            (n_periods * n_choices, n_choices).
+        state_space (np.ndarray): Collection of all possible states.
         indexer (np.ndarray): 2d array of shape (n_periods, n_choices) containing
             the indexer object that maps states to indices in the state space.
+        get_state_specific_choice_set (Callable): User-supplied function returning for
+            each state all possible choices.
 
     Returns:
         child_nodes (np.ndarray): 2d array of shape
