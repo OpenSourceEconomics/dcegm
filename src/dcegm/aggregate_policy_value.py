@@ -30,10 +30,9 @@ def calc_choice_probability(
     """Calculates the probability of working in the next period.
 
     Args:
-        next_period_value (np.ndarray): Array containing choice-specific values of the
+        values (np.ndarray): Array containing choice-specific values of the
          value function.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
-        choice (int): State of the agent, e.g. 0 = "retirement", 1 = "working".
         taste_shock_scale (float): The taste shock scale.
     Returns:
         prob_working (np.ndarray): Probability of working next period. Array of

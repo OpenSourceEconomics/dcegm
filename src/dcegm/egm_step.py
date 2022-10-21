@@ -212,9 +212,9 @@ def get_child_state_policy_and_value(
         compute_marginal_utility=compute_marginal_utility,
     ).reshape(next_period_wealth.shape, order="F")
 
-    child_state_log_sum = _calc_log_sum(choice_child_values, taste_shock_scale).reshape(
-        next_period_wealth.shape, order="F"
-    )
+    child_state_log_sum = calc_exp_max_value(
+        choice_child_values, taste_shock_scale
+    ).reshape(next_period_wealth.shape, order="F")
     next_period_marginal_wealth = compute_next_marginal_wealth(child_state)
 
     child_state_rhs_euler = child_state_marginal_utility * next_period_marginal_wealth
@@ -222,14 +222,17 @@ def get_child_state_policy_and_value(
     return child_state_rhs_euler, child_state_log_sum
 
 
-def _calc_log_sum(next_period_value: np.ndarray, lambda_: float) -> np.ndarray:
-    """Calculates the log-sum needed for computing the expected value function.
+def calc_exp_max_value(
+    choice_specific_values: np.ndarray, lambda_: float
+) -> np.ndarray:
+    """Calculate the expected max value given choice specific values. Wit the general
+     extrem value assumption on the taste shocks, this reduces to the log-sum.
 
     The log-sum formula may also be referred to as the 'smoothed max function',
     see eq. (50), p. 335 (Appendix).
 
     Args:
-        next_period_value (np.ndarray): Array containing values of next period
+        choice_specific_values (np.ndarray): Array containing values of the
             choice-specific value function.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
         lambda_ (float): Taste shock (scale) parameter.
@@ -238,12 +241,12 @@ def _calc_log_sum(next_period_value: np.ndarray, lambda_: float) -> np.ndarray:
         logsum (np.ndarray): Log-sum formula inside the expected value function.
             Array of shape (n_quad_stochastic * n_grid_wealth,).
     """
-    col_max = np.amax(next_period_value, axis=0)
-    next_period_value_ = next_period_value - col_max
+    col_max = np.amax(choice_specific_values, axis=0)
+    choice_specific_values_scaled = choice_specific_values - col_max
 
     # Eq. (14), p. 334 IJRS (2017)
     logsum = col_max + lambda_ * np.log(
-        np.sum(np.exp((next_period_value_) / lambda_), axis=0)
+        np.sum(np.exp(choice_specific_values_scaled / lambda_), axis=0)
     )
 
     return logsum
