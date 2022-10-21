@@ -7,7 +7,6 @@ from typing import Tuple
 from typing import Union
 
 import numpy as np
-from dcegm.aggregate_policy_value import calc_current_period_value
 from scipy import interpolate
 from scipy.optimize import brenth as root
 
@@ -18,10 +17,9 @@ def do_upper_envelope_step(
     policy: np.ndarray,
     value: np.ndarray,
     choice: int,
-    discount_rate,
     *,
     options: Dict[str, int],
-    compute_utility: Callable,
+    compute_value: Callable
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Runs the Upper Envelope algorithm and drops sub-optimal points.
 
@@ -93,11 +91,10 @@ def do_upper_envelope_step(
             policy,
             value,
             choice,
-            discount_rate,
             expected_value_zero_wealth,
             min_wealth_grid,
             n_grid_wealth,
-            compute_utility,
+            compute_value,
         )
 
         (
@@ -490,11 +487,10 @@ def _augment_grid(
     policy: np.ndarray,
     value: np.ndarray,
     choice,
-    discount_rate,
     expected_value_zero_wealth: np.ndarray,
     min_wealth_grid: float,
     n_grid_wealth: int,
-    compute_utility: Callable,
+    compute_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Extends the endogenous wealth grid, value, and policy function to the left.
 
@@ -528,12 +524,10 @@ def _augment_grid(
     grid_points_to_add = np.linspace(min_wealth_grid, value[0, 1], n_grid_wealth // 10)[
         :-1
     ]
-    values_to_add = calc_current_period_value(
+    values_to_add = compute_value(
         grid_points_to_add,
         expected_value_zero_wealth,
         choice,
-        discount_rate,
-        compute_utility,
     )
 
     value_augmented = np.vstack(

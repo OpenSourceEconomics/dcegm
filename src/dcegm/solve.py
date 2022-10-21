@@ -117,7 +117,6 @@ def solve_dcegm(
         compute_utility=compute_utility,
     )
     taste_shock_scale = params.loc[("shocks", "lambda"), "value"]
-    discount_rate = params.loc[("beta", "beta"), "value"]
 
     policy_arr[_state_indices_final_period, ...] = policy_final
     value_arr[_state_indices_final_period, ...] = value_final
@@ -163,9 +162,8 @@ def solve_dcegm(
                         current_policy,
                         current_value,
                         choice,
-                        discount_rate,
                         options=options,
-                        compute_utility=compute_utility,
+                        compute_value=compute_current_value,
                     )
 
                 # Store
