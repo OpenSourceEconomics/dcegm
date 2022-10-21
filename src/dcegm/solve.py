@@ -1,5 +1,4 @@
 """Interface for the DC-EGM algorithm."""
-from functools import partial
 from typing import Callable
 from typing import Dict
 from typing import Tuple
@@ -118,6 +117,7 @@ def solve_dcegm(
         compute_utility=compute_utility,
     )
     taste_shock_scale = params.loc[("shocks", "lambda"), "value"]
+    discount_rate = params.loc[("beta", "beta"), "value"]
 
     policy_arr[_state_indices_final_period, ...] = policy_final
     value_arr[_state_indices_final_period, ...] = value_final
@@ -159,15 +159,13 @@ def solve_dcegm(
                 )
 
                 if options["n_discrete_choices"] > 1:
-                    compute_value = partial(
-                        compute_current_value,
-                        choice=choice,  # child working decision
-                    )
                     current_policy, current_value = do_upper_envelope_step(
                         current_policy,
                         current_value,
+                        choice,
+                        discount_rate,
                         options=options,
-                        compute_value=compute_value,
+                        compute_utility=compute_utility,
                     )
 
                 # Store
