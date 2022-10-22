@@ -11,7 +11,6 @@ def get_partial_functions(
     options,
     user_utility_functions,
     user_budget_constraint,
-    user_marginal_next_period_wealth,
 ):
 
     compute_utility = partial(
@@ -36,18 +35,12 @@ def get_partial_functions(
         params=params,
         options=options,
     )
-    compute_next_marginal_wealth = partial(
-        user_marginal_next_period_wealth,
-        params=params,
-        options=options,
-    )
     return (
         compute_utility,
         compute_marginal_utility,
         compute_inverse_marginal_utility,
         compute_value,
         compute_next_wealth_matrices,
-        compute_next_marginal_wealth,
     )
 
 

@@ -8,19 +8,19 @@ from dcegm.interpolate import interpolate_value
 
 
 def do_egm_step(
+    taste_shock_scale: float,
+    interest_rate: float,
     child_states: np.ndarray,
     state_indexer: np.ndarray,
     state_space: np.ndarray,
     income_shocks: np.ndarray,
     quad_weights: np.ndarray,
     trans_vec_state: np.ndarray,
-    taste_shock_scale: float,
     savings_grid: np.ndarray,
     compute_marginal_utility: Callable,
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
     compute_next_wealth_matrices: Callable,
-    compute_next_marginal_wealth: Callable,
     get_state_specific_choice_set,
     policy_array: np.ndarray,
     value_array: np.ndarray,
@@ -121,22 +121,22 @@ def do_egm_step(
             savings_grid=savings_grid,
             income_shock=income_shocks,
         )
-        next_period_marginal_wealth = compute_next_marginal_wealth(child_state)
 
         (
-            rhs_euler_values[i, :, :],
+            child_state_marginal_utility,
             max_value_func[i, :, :],
         ) = get_child_state_policy_and_value(
             child_node_choice_set,
             taste_shock_scale,
-            next_period_marginal_wealth,
             compute_marginal_utility,
             compute_value,
             choice_policies_child,
             choice_values_child,
             next_period_wealth,
         )
-        rhs_euler_values[i, :, :] *= trans_vec_state[i]
+        rhs_euler_values[i, :, :] = (
+            child_state_marginal_utility * (1 + interest_rate) * trans_vec_state[i]
+        )
         max_value_func[i, :, :] *= trans_vec_state[i]
 
     # RHS of Euler Eq., p. 337 IJRS (2017)
@@ -215,7 +215,6 @@ def store_current_period_policy_and_value(
 def get_child_state_policy_and_value(
     child_node_choice_set: np.ndarray,
     taste_shock_scale: float,
-    next_period_marginal_wealth: np.ndarray,
     compute_marginal_utility: Callable,
     compute_value: Callable,
     choice_policies_child: np.ndarray,
@@ -228,8 +227,6 @@ def get_child_state_policy_and_value(
         child_node_choice_set (np.ndarray): The agent's (restricted) choice set in
             the given state of shape (n_admissible_choices,).
         taste_shock_scale (float): The taste shock scale.
-        next_period_marginal_wealth (np.ndarray): The marginal wealth in next period
-            with respect to end of current period wealth.
         compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility. The input ```params``` is already partialled in.
         compute_value (callable): User-defined function to compute
@@ -276,9 +273,7 @@ def get_child_state_policy_and_value(
         choice_child_values, taste_shock_scale
     ).reshape(next_period_wealth.shape, order="F")
 
-    child_state_rhs_euler = child_state_marginal_utility * next_period_marginal_wealth
-
-    return child_state_rhs_euler, child_state_log_sum
+    return child_state_marginal_utility, child_state_log_sum
 
 
 def calc_exp_max_value(

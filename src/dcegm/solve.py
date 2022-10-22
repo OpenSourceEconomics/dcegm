@@ -93,13 +93,11 @@ def solve_dcegm(
         compute_inverse_marginal_utility,
         compute_value,
         compute_next_wealth_matrices,
-        compute_next_marginal_wealth,
     ) = get_partial_functions(
         params,
         options,
         user_utility_functions=utility_functions,
         user_budget_constraint=budget_functions["budget_constraint"],
-        user_marginal_next_period_wealth=budget_functions["marginal_budget_constraint"],
     )
 
     _state_indices_final_period = np.where(state_space[:, 0] == n_periods - 1)
@@ -112,6 +110,7 @@ def solve_dcegm(
     )
 
     taste_shock_scale = params.loc[("shocks", "lambda"), "value"]
+    interest_rate = params.loc[("assets", "interest_rate"), "value"]
 
     policy_array, value_array = create_multi_dim_arrays(state_space, options)
     policy_array[_state_indices_final_period, ...] = policy_final
@@ -119,18 +118,17 @@ def solve_dcegm(
 
     policy_array, value_array = backwards_induction(
         n_periods,
-        options["n_discrete_choices"],
+        taste_shock_scale,
+        interest_rate,
         state_indexer,
         state_space,
         income_shock_draws,
         income_shock_weights,
-        taste_shock_scale,
         exogenous_savings_grid,
         compute_marginal_utility,
         compute_inverse_marginal_utility,
         compute_value,
         compute_next_wealth_matrices,
-        compute_next_marginal_wealth,
         get_state_specific_choice_set,
         transition_vector_by_state,
         policy_array,
@@ -142,18 +140,17 @@ def solve_dcegm(
 
 def backwards_induction(
     n_periods,
-    n_discrete_choices,
+    taste_shock_scale,
+    interest_rate,
     state_indexer,
     state_space,
     income_shock_draws,
     income_shock_weights,
-    taste_shock_scale,
     exogenous_savings_grid,
     compute_marginal_utility,
     compute_inverse_marginal_utility,
     compute_value,
     compute_next_wealth_matrices,
-    compute_next_marginal_wealth,
     get_state_specific_choice_set,
     transition_vector_by_state,
     policy_array,
@@ -177,25 +174,25 @@ def backwards_induction(
                 choice = child_states_choice[0][1]
 
                 current_policy, current_value = do_egm_step(
+                    taste_shock_scale,
+                    interest_rate,
                     child_states_choice,
                     state_indexer,
                     state_space,
                     income_shock_draws,
                     income_shock_weights,
                     trans_vec_state,
-                    taste_shock_scale,
                     exogenous_savings_grid,
                     compute_marginal_utility=compute_marginal_utility,
                     compute_inverse_marginal_utility=compute_inverse_marginal_utility,
                     compute_value=compute_value,
                     compute_next_wealth_matrices=compute_next_wealth_matrices,
-                    compute_next_marginal_wealth=compute_next_marginal_wealth,
                     get_state_specific_choice_set=get_state_specific_choice_set,
                     policy_array=policy_array,
                     value_array=value_array,
                 )
 
-                if n_discrete_choices > 1:
+                if policy_array.shape[1] > 1:
                     current_policy, current_value = do_upper_envelope_step(
                         current_policy,
                         current_value,
