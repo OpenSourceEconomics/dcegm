@@ -90,7 +90,7 @@ def do_egm_step(
     n_exog_process = trans_vec_state.shape[0]
     n_quad_points = quad_weights.shape[0]
     n_savings_grid = savings_grid.shape[0]
-    rhs_euler_values = np.empty(
+    marginal_utilities = np.empty(
         (
             n_exog_process,
             n_quad_points,
@@ -134,14 +134,12 @@ def do_egm_step(
             choice_values_child,
             next_period_wealth,
         )
-        rhs_euler_values[i, :, :] = (
-            child_state_marginal_utility * (1 + interest_rate) * trans_vec_state[i]
-        )
+        marginal_utilities[i, :, :] = child_state_marginal_utility * trans_vec_state[i]
         max_value_func[i, :, :] *= trans_vec_state[i]
 
     # RHS of Euler Eq., p. 337 IJRS (2017)
     # Integrate out uncertainty over stochastic income y
-    rhs_euler = quad_weights @ rhs_euler_values.sum(axis=0)
+    rhs_euler = quad_weights @ marginal_utilities.sum(axis=0) * (1 + interest_rate)
 
     expected_value = quad_weights @ max_value_func.sum(axis=0)
 
