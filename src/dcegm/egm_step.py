@@ -3,7 +3,6 @@ from typing import Callable
 from typing import Tuple
 
 import numpy as np
-from dcegm.aggregate_policy_value import calc_choice_probability
 from dcegm.interpolate import interpolate_policy
 from dcegm.interpolate import interpolate_value
 
@@ -117,15 +116,15 @@ def do_egm_step(
             child_state, state_space, state_indexer
         )
         next_period_wealth = compute_next_wealth_matrices(child_state)
+        next_period_marginal_wealth = compute_next_marginal_wealth(child_state)
 
         (
             rhs_euler_values[i, :, :],
             max_value_func[i, :, :],
         ) = get_child_state_policy_and_value(
-            child_state,
             child_node_choice_set,
             taste_shock_scale,
-            compute_next_marginal_wealth,
+            next_period_marginal_wealth,
             compute_marginal_utility,
             compute_value,
             choice_policies_child,
@@ -209,10 +208,9 @@ def store_current_period_policy_and_value(
 
 
 def get_child_state_policy_and_value(
-    child_state: np.ndarray,
     child_node_choice_set: np.ndarray,
     taste_shock_scale: float,
-    compute_next_marginal_wealth,
+    next_period_marginal_wealth: np.ndarray,
     compute_marginal_utility: Callable,
     compute_value: Callable,
     choice_policies_child: np.ndarray,
@@ -222,14 +220,11 @@ def get_child_state_policy_and_value(
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
 
     Args:
-        child_state (np.ndarray): Array of shape (n_state_variables,) defining the
-            agent's current child state.
         child_node_choice_set (np.ndarray): The agent's (restricted) choice set in
             the given state of shape (n_admissible_choices,).
         taste_shock_scale (float): The taste shock scale.
-        compute_next_marginal_wealth (callable): User-defined function to compute the
-            agent's marginal wealth in the next period (t + 1). The inputs
-            ```params``` and ```options``` are already partialled in.
+        next_period_marginal_wealth (np.ndarray): The marginal wealth in next period
+            with respect to end of current period wealth.
         compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility. The input ```params``` is already partialled in.
         compute_value (callable): User-defined function to compute
@@ -252,19 +247,19 @@ def get_child_state_policy_and_value(
     """
     # Interpolate next period policy and values to match the
     # contemporary matrix of potential next period wealths
-    child_policy = get_next_period_policy(
+    child_policy = get_child_state_choice_specific_policy(
         child_node_choice_set,
         next_period_wealth,
         next_period_policy=choice_policies_child,
     )
-    choice_child_values = get_next_period_value(
+    choice_child_values = get_child_state_choice_specific_values(
         child_node_choice_set,
         next_period_wealth=next_period_wealth,
         next_period_value=choice_values_child,
         compute_value=compute_value,
     )
 
-    child_state_marginal_utility = sum_marginal_utility_over_choice_probs(
+    child_state_marginal_utility = get_child_state_policy(
         child_node_choice_set,
         next_period_policy=child_policy,
         next_period_value=choice_child_values,
@@ -275,7 +270,6 @@ def get_child_state_policy_and_value(
     child_state_log_sum = calc_exp_max_value(
         choice_child_values, taste_shock_scale
     ).reshape(next_period_wealth.shape, order="F")
-    next_period_marginal_wealth = compute_next_marginal_wealth(child_state)
 
     child_state_rhs_euler = child_state_marginal_utility * next_period_marginal_wealth
 
@@ -312,7 +306,7 @@ def calc_exp_max_value(
     return logsum
 
 
-def sum_marginal_utility_over_choice_probs(
+def get_child_state_policy(
     child_node_choice_set: np.ndarray,
     next_period_policy: np.ndarray,
     next_period_value: np.ndarray,
@@ -353,7 +347,7 @@ def sum_marginal_utility_over_choice_probs(
     return next_period_marg_util
 
 
-def get_next_period_policy(
+def get_child_state_choice_specific_policy(
     child_node_choice_set,
     next_period_wealth: np.ndarray,
     next_period_policy: np.ndarray,
@@ -390,7 +384,7 @@ def get_next_period_policy(
     return next_period_policy_interp
 
 
-def get_next_period_value(
+def get_child_state_choice_specific_values(
     child_node_choice_set: np.ndarray,
     next_period_wealth: np.ndarray,
     next_period_value: np.ndarray,
@@ -434,3 +428,29 @@ def get_next_period_value(
         )
 
     return next_period_value_interp
+
+
+def calc_choice_probability(
+    values: np.ndarray,
+    taste_shock_scale: float,
+) -> np.ndarray:
+    """Calculates the probability of working in the next period.
+
+    Args:
+        values (np.ndarray): Array containing choice-specific values of the
+         value function.
+            Shape (n_choices, n_quad_stochastic * n_grid_wealth).
+        taste_shock_scale (float): The taste shock scale.
+    Returns:
+        prob_working (np.ndarray): Probability of working next period. Array of
+            shape (n_quad_stochastic * n_grid_wealth,).
+    """
+    col_max = np.amax(values, axis=0)
+    values_scaled = values - col_max
+
+    # Eq. (15), p. 334 IJRS (2017)
+    choice_prob = np.exp(values_scaled / taste_shock_scale) / np.sum(
+        np.exp(values_scaled / taste_shock_scale), axis=0
+    )
+
+    return choice_prob

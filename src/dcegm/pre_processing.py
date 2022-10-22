@@ -3,7 +3,7 @@ from typing import Dict
 from typing import Tuple
 
 import numpy as np
-from dcegm.aggregate_policy_value import calc_current_period_value
+from dcegm.aggregate_policy_value import calc_value
 
 
 def get_partial_functions(
@@ -31,7 +31,7 @@ def get_partial_functions(
         params=params,
     )
     compute_value = partial(
-        calc_current_period_value,
+        calc_value,
         discount_factor=params.loc[("beta", "beta"), "value"],
         compute_utility=compute_utility,
     )

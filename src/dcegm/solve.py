@@ -80,8 +80,6 @@ def solve_dcegm(
         "get_state_specific_choice_set"
     ]
     state_space, state_indexer = create_state_space(options)
-    policy_arr, value_arr = create_multi_dim_arrays(state_space, options)
-
     quad_points, quad_weights = quadrature_legendre(
         options["quadrature_points_stochastic"],
         params.loc[("shocks", "sigma"), "value"],
@@ -118,9 +116,50 @@ def solve_dcegm(
     )
     taste_shock_scale = params.loc[("shocks", "lambda"), "value"]
 
-    policy_arr[_state_indices_final_period, ...] = policy_final
-    value_arr[_state_indices_final_period, ...] = value_final
+    policy_array, value_array = create_multi_dim_arrays(state_space, options)
+    policy_array[_state_indices_final_period, ...] = policy_final
+    value_array[_state_indices_final_period, ...] = value_final
 
+    policy_array, value_array = backwards_induction(
+        n_periods,
+        options["n_discrete_choices"],
+        state_indexer,
+        state_space,
+        quad_weights,
+        taste_shock_scale,
+        exogenous_savings_grid,
+        compute_marginal_utility,
+        compute_inverse_marginal_utility,
+        compute_value,
+        compute_next_wealth_matrices,
+        compute_next_marginal_wealth,
+        get_state_specific_choice_set,
+        transition_vector_by_state,
+        policy_array,
+        value_array,
+    )
+
+    return policy_array, value_array
+
+
+def backwards_induction(
+    n_periods,
+    n_discrete_choices,
+    state_indexer,
+    state_space,
+    quad_weights,
+    taste_shock_scale,
+    exogenous_savings_grid,
+    compute_marginal_utility,
+    compute_inverse_marginal_utility,
+    compute_value,
+    compute_next_wealth_matrices,
+    compute_next_marginal_wealth,
+    get_state_specific_choice_set,
+    transition_vector_by_state,
+    policy_array,
+    value_array,
+):
     for period in range(n_periods - 2, -1, -1):
 
         state_subspace = state_space[np.where(state_space[:, 0] == period)]
@@ -152,11 +191,11 @@ def solve_dcegm(
                     compute_next_wealth_matrices=compute_next_wealth_matrices,
                     compute_next_marginal_wealth=compute_next_marginal_wealth,
                     get_state_specific_choice_set=get_state_specific_choice_set,
-                    policy_array=policy_arr,
-                    value_array=value_arr,
+                    policy_array=policy_array,
+                    value_array=value_array,
                 )
 
-                if options["n_discrete_choices"] > 1:
+                if n_discrete_choices > 1:
                     current_policy, current_value = do_upper_envelope_step(
                         current_policy,
                         current_value,
@@ -166,17 +205,17 @@ def solve_dcegm(
                     )
 
                 # Store
-                policy_arr[
+                policy_array[
                     current_state_index,
                     choice,
                     :,
                     : current_policy.shape[1],
                 ] = current_policy
-                value_arr[
+                value_array[
                     current_state_index,
                     choice,
                     :,
                     : current_value.shape[1],
                 ] = current_value
 
-    return policy_arr, value_arr
+    return policy_array, value_array
