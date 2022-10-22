@@ -9,25 +9,21 @@ from dcegm.aggregate_policy_value import calc_value
 def get_partial_functions(
     params,
     options,
-    quad_points,
-    exogenous_savings_grid,
-    user_utility_func,
-    user_marginal_utility_func,
-    user_inverse_marginal_utility_func,
+    user_utility_functions,
     user_budget_constraint,
     user_marginal_next_period_wealth,
 ):
 
     compute_utility = partial(
-        user_utility_func,
+        user_utility_functions["utility"],
         params=params,
     )
     compute_marginal_utility = partial(
-        user_marginal_utility_func,
+        user_utility_functions["marginal_utility"],
         params=params,
     )
     compute_inverse_marginal_utility = partial(
-        user_inverse_marginal_utility_func,
+        user_utility_functions["inverse_marginal_utility"],
         params=params,
     )
     compute_value = partial(
@@ -37,8 +33,6 @@ def get_partial_functions(
     )
     compute_next_wealth_matrices = partial(
         user_budget_constraint,
-        savings_grid=exogenous_savings_grid,
-        income_shock=quad_points,
         params=params,
         options=options,
     )

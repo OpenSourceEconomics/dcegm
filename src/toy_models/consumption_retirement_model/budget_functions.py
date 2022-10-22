@@ -41,8 +41,9 @@ def budget_constraint(
         options=options,
     )
     income_matrix = np.repeat(_next_period_income[:, np.newaxis], n_grid_wealth, 1)
-    savings_matrix = np.full((n_quad_stochastic, n_grid_wealth), savings_grid * (1 + r))
-
+    savings_matrix = np.repeat(savings_grid[np.newaxis, :], n_quad_stochastic, 0) * (
+        1 + r
+    )
     matrix_next_period_wealth = income_matrix + savings_matrix
 
     # Retirement safety net, only in retirement model

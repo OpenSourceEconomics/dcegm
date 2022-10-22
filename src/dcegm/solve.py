@@ -80,7 +80,9 @@ def solve_dcegm(
         "get_state_specific_choice_set"
     ]
     state_space, state_indexer = create_state_space(options)
-    quad_points, quad_weights = quadrature_legendre(
+    # ToDo: Make interface with several draw possibilities.
+    # ToDo: Some day make user supplied draw function.
+    income_shock_draws, income_shock_weights = quadrature_legendre(
         options["quadrature_points_stochastic"],
         params.loc[("shocks", "sigma"), "value"],
     )
@@ -95,13 +97,7 @@ def solve_dcegm(
     ) = get_partial_functions(
         params,
         options,
-        quad_points,
-        exogenous_savings_grid,
-        user_utility_func=utility_functions["utility"],
-        user_marginal_utility_func=utility_functions["marginal_utility"],
-        user_inverse_marginal_utility_func=utility_functions[
-            "inverse_marginal_utility"
-        ],
+        user_utility_functions=utility_functions,
         user_budget_constraint=budget_functions["budget_constraint"],
         user_marginal_next_period_wealth=budget_functions["marginal_budget_constraint"],
     )
@@ -114,6 +110,7 @@ def solve_dcegm(
         options=options,
         compute_utility=compute_utility,
     )
+
     taste_shock_scale = params.loc[("shocks", "lambda"), "value"]
 
     policy_array, value_array = create_multi_dim_arrays(state_space, options)
@@ -125,7 +122,8 @@ def solve_dcegm(
         options["n_discrete_choices"],
         state_indexer,
         state_space,
-        quad_weights,
+        income_shock_draws,
+        income_shock_weights,
         taste_shock_scale,
         exogenous_savings_grid,
         compute_marginal_utility,
@@ -147,7 +145,8 @@ def backwards_induction(
     n_discrete_choices,
     state_indexer,
     state_space,
-    quad_weights,
+    income_shock_draws,
+    income_shock_weights,
     taste_shock_scale,
     exogenous_savings_grid,
     compute_marginal_utility,
@@ -181,7 +180,8 @@ def backwards_induction(
                     child_states_choice,
                     state_indexer,
                     state_space,
-                    quad_weights,
+                    income_shock_draws,
+                    income_shock_weights,
                     trans_vec_state,
                     taste_shock_scale,
                     exogenous_savings_grid,

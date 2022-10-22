@@ -11,6 +11,7 @@ def do_egm_step(
     child_states: np.ndarray,
     state_indexer: np.ndarray,
     state_space: np.ndarray,
+    income_shocks: np.ndarray,
     quad_weights: np.ndarray,
     trans_vec_state: np.ndarray,
     taste_shock_scale: float,
@@ -115,7 +116,11 @@ def do_egm_step(
         child_node_choice_set = get_state_specific_choice_set(
             child_state, state_space, state_indexer
         )
-        next_period_wealth = compute_next_wealth_matrices(child_state)
+        next_period_wealth = compute_next_wealth_matrices(
+            child_state,
+            savings_grid=savings_grid,
+            income_shock=income_shocks,
+        )
         next_period_marginal_wealth = compute_next_marginal_wealth(child_state)
 
         (
