@@ -133,7 +133,6 @@ def do_egm_step(
             next_period_wealth,
         )
 
-    # RHS of Euler Eq., p. 337 IJRS (2017)
     # Integrate over stochastic processes
     marginal_utilities_income_shocks = trans_vec_state @ marginal_utilities_exog_process
     max_value_func_income_shocks = trans_vec_state @ max_value_func_exog_process
@@ -146,6 +145,7 @@ def do_egm_step(
         (n_quad_points, n_savings_grid), order="F"
     )
 
+    # RHS of Euler Eq., p. 337 IJRS (2017) by multiplying with marginal wealth
     rhs_euler = marginal_utilities * (1 + interest_rate)
     current_policy = compute_inverse_marginal_utility(rhs_euler)
 
@@ -160,6 +160,9 @@ def do_egm_step(
     )
 
     return current_policy_arr, current_value_arr
+
+
+# def aggr_exog_and_income():
 
 
 def store_current_period_policy_and_value(
