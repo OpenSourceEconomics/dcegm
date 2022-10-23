@@ -90,19 +90,17 @@ def do_egm_step(
     n_exog_process = trans_vec_state.shape[0]
     n_quad_points = quad_weights.shape[0]
     n_savings_grid = savings_grid.shape[0]
-    marginal_utilities = np.empty(
+    marginal_utilities_exog_process = np.empty(
         (
             n_exog_process,
-            n_quad_points,
-            n_savings_grid,
+            n_quad_points * n_savings_grid,
         ),
         dtype=float,
     )
-    max_value_func = np.empty(
+    max_value_func_exog_process = np.empty(
         (
             n_exog_process,
-            n_quad_points,
-            n_savings_grid,
+            n_quad_points * n_savings_grid,
         ),
         dtype=float,
     )
@@ -123,8 +121,8 @@ def do_egm_step(
         )
 
         (
-            child_state_marginal_utility,
-            max_value_func[i, :, :],
+            marginal_utilities_exog_process[i, :],
+            max_value_func_exog_process[i, :],
         ) = get_child_state_policy_and_value(
             child_node_choice_set,
             taste_shock_scale,
@@ -134,15 +132,21 @@ def do_egm_step(
             choice_values_child,
             next_period_wealth,
         )
-        marginal_utilities[i, :, :] = child_state_marginal_utility * trans_vec_state[i]
-        max_value_func[i, :, :] *= trans_vec_state[i]
 
     # RHS of Euler Eq., p. 337 IJRS (2017)
+    # Integrate over stochastic processes
+    marginal_utilities_income_shocks = trans_vec_state @ marginal_utilities_exog_process
+    max_value_func_income_shocks = trans_vec_state @ max_value_func_exog_process
     # Integrate out uncertainty over stochastic income y
-    rhs_euler = quad_weights @ marginal_utilities.sum(axis=0) * (1 + interest_rate)
+    marginal_utilities = quad_weights @ marginal_utilities_income_shocks.reshape(
+        (n_quad_points, n_savings_grid), order="F"
+    )
 
-    expected_value = quad_weights @ max_value_func.sum(axis=0)
+    expected_value = quad_weights @ max_value_func_income_shocks.reshape(
+        (n_quad_points, n_savings_grid), order="F"
+    )
 
+    rhs_euler = marginal_utilities * (1 + interest_rate)
     current_policy = compute_inverse_marginal_utility(rhs_euler)
 
     current_choice = child_states[0][1]
@@ -265,11 +269,9 @@ def get_child_state_policy_and_value(
         next_period_value=choice_child_values,
         taste_shock_scale=taste_shock_scale,
         compute_marginal_utility=compute_marginal_utility,
-    ).reshape(next_period_wealth.shape, order="F")
+    )
 
-    child_state_log_sum = calc_exp_max_value(
-        choice_child_values, taste_shock_scale
-    ).reshape(next_period_wealth.shape, order="F")
+    child_state_log_sum = calc_exp_max_value(choice_child_values, taste_shock_scale)
 
     return child_state_marginal_utility, child_state_log_sum
 
