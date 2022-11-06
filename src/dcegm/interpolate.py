@@ -20,7 +20,7 @@ def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarra
             (n_quad_stochastic * n_grid_wealth,).
     """
     policy = policy[:, ~np.isnan(policy).any(axis=0)]
-    policy_interp = linear_interpolation(
+    policy_interp = linear_interpolation_with_extrapolation(
         x=policy[0, :], y=policy[1, :], x_new=flat_wealth
     )
     return policy_interp
@@ -66,14 +66,14 @@ def interpolate_value(
         choice=choice,
     )
 
-    value_interp[~credit_constrained_region] = linear_interpolation(
+    value_interp[~credit_constrained_region] = linear_interpolation_with_extrapolation(
         x=value[0, :], y=value[1, :], x_new=flat_wealth[~credit_constrained_region]
     )
 
     return value_interp
 
 
-def linear_interpolation(x, y, x_new):
+def linear_interpolation_with_extrapolation(x, y, x_new):
     ind_high = np.searchsorted(x, x_new).clip(max=(x.shape[0] - 1))
     ind_low = ind_high - 1
 

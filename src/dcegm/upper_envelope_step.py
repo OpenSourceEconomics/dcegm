@@ -6,6 +6,7 @@ from typing import Tuple
 from typing import Union
 
 import numpy as np
+from dcegm.interpolate import linear_interpolation_with_extrapolation
 from scipy import interpolate
 from scipy.optimize import brenth as root
 
@@ -248,14 +249,10 @@ def refine_policy(
         )
 
         # Find (scalar) point interpolated from the left
-        interpolation_left = interpolate.interp1d(
-            policy[0, :][last_point_to_the_left : last_point_to_the_left + 2],
-            policy[1, :][last_point_to_the_left : last_point_to_the_left + 2],
-            bounds_error=False,
-            fill_value="extrapolate",
-        )
-        interp_from_the_left = interpolation_left(
-            points_to_add[0][new_grid_point]
+        interp_from_the_left = linear_interpolation_with_extrapolation(
+            x=policy[0, :][last_point_to_the_left : last_point_to_the_left + 2],
+            y=policy[1, :][last_point_to_the_left : last_point_to_the_left + 2],
+            x_new=points_to_add[0][new_grid_point],
         )  # single point
 
         first_point_to_the_right = min(
@@ -265,13 +262,11 @@ def refine_policy(
         )
 
         # Find (scalar) point interpolated from the right
-        interpolation_right = interpolate.interp1d(
-            policy[0, :][first_point_to_the_right - 1 : first_point_to_the_right + 1],
-            policy[1, :][first_point_to_the_right - 1 : first_point_to_the_right + 1],
-            bounds_error=False,
-            fill_value="extrapolate",
+        interp_from_the_right = linear_interpolation_with_extrapolation(
+            x=policy[0, :][first_point_to_the_right - 1 : first_point_to_the_right + 1],
+            y=policy[1, :][first_point_to_the_right - 1 : first_point_to_the_right + 1],
+            x_new=points_to_add[0, new_grid_point],
         )
-        interp_from_the_right = interpolation_right(points_to_add[0, new_grid_point])
 
         new_points_policy_interp += [
             np.array(
