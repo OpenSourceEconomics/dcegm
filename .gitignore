@@ -134,3 +134,6 @@ venv.bak/
 
 # Local envrc file
 *envrc
+
+# Local jupyter fle
+test.ipynb

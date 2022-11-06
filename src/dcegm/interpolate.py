@@ -21,16 +21,27 @@ def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarra
             (n_quad_stochastic * n_grid_wealth,).
     """
     policy = policy[:, ~np.isnan(policy).any(axis=0)]
+    policy_interp = np.empty_like(flat_wealth)
 
-    interpolation_func = interpolate.interp1d(
-        x=policy[0, :],
-        y=policy[1, :],
-        bounds_error=False,
-        fill_value="extrapolate",
-        kind="linear",
+    extrapolate_cond = flat_wealth > policy[0, -1]
+
+    interpol_cond = np.searchsorted(policy[0, :], flat_wealth[~extrapolate_cond])
+    y_high = policy[1, interpol_cond]
+    y_low = policy[1, interpol_cond - 1]
+    x_high = policy[0, interpol_cond]
+    x_low = policy[0, interpol_cond - 1]
+
+    interpolate_dist = flat_wealth[~extrapolate_cond] - x_low
+    interpolate_slope = (y_high - y_low) / (x_high - x_low)
+    interpol_res = (interpolate_slope * interpolate_dist) + y_low
+    policy_interp[~extrapolate_cond] = interpol_res
+
+    extrapolate_slope = (policy[1, -1] - policy[1, -2]) / (
+        policy[0, -1] - policy[0, -2]
     )
-
-    policy_interp = interpolation_func(flat_wealth)
+    extrapolate_dist = flat_wealth[extrapolate_cond] - policy[0, -1]
+    extrapolate_res = (extrapolate_slope * extrapolate_dist) + policy[1, -1]
+    policy_interp[extrapolate_cond] = extrapolate_res
 
     return policy_interp
 
