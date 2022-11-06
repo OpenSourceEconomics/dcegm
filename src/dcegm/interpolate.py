@@ -74,7 +74,7 @@ def interpolate_value(
 
 
 def linear_interpolation_with_extrapolation(x, y, x_new):
-    ind_high = np.searchsorted(x, x_new).clip(max=(x.shape[0] - 1))
+    ind_high = np.searchsorted(x, x_new).clip(max=(x.shape[0] - 1), min=1)
     ind_low = ind_high - 1
 
     y_high = y[ind_high]
