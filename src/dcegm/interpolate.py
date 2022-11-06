@@ -1,7 +1,6 @@
 from typing import Callable
 
 import numpy as np
-from scipy import interpolate
 
 
 def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarray:
@@ -21,28 +20,9 @@ def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarra
             (n_quad_stochastic * n_grid_wealth,).
     """
     policy = policy[:, ~np.isnan(policy).any(axis=0)]
-    policy_interp = np.empty_like(flat_wealth)
-
-    extrapolate_cond = flat_wealth > policy[0, -1]
-
-    interpol_cond = np.searchsorted(policy[0, :], flat_wealth[~extrapolate_cond])
-    y_high = policy[1, interpol_cond]
-    y_low = policy[1, interpol_cond - 1]
-    x_high = policy[0, interpol_cond]
-    x_low = policy[0, interpol_cond - 1]
-
-    interpolate_dist = flat_wealth[~extrapolate_cond] - x_low
-    interpolate_slope = (y_high - y_low) / (x_high - x_low)
-    interpol_res = (interpolate_slope * interpolate_dist) + y_low
-    policy_interp[~extrapolate_cond] = interpol_res
-
-    extrapolate_slope = (policy[1, -1] - policy[1, -2]) / (
-        policy[0, -1] - policy[0, -2]
+    policy_interp = linear_interpolation(
+        x=policy[0, :], y=policy[1, :], x_new=flat_wealth
     )
-    extrapolate_dist = flat_wealth[extrapolate_cond] - policy[0, -1]
-    extrapolate_res = (extrapolate_slope * extrapolate_dist) + policy[1, -1]
-    policy_interp[extrapolate_cond] = extrapolate_res
-
     return policy_interp
 
 
@@ -86,17 +66,24 @@ def interpolate_value(
         choice=choice,
     )
 
-    # Calculate t+1 value function in non-constrained region
-    # via inter- and extrapolation
-    interpolation_func = interpolate.interp1d(
-        x=value[0, :],  # endogenous wealth grid
-        y=value[1, :],  # value_function
-        bounds_error=False,
-        fill_value="extrapolate",
-        kind="linear",
-    )
-    value_interp[~credit_constrained_region] = interpolation_func(
-        flat_wealth[~credit_constrained_region]
+    value_interp[~credit_constrained_region] = linear_interpolation(
+        x=value[0, :], y=value[1, :], x_new=flat_wealth[~credit_constrained_region]
     )
 
     return value_interp
+
+
+def linear_interpolation(x, y, x_new):
+    ind_high = np.searchsorted(x, x_new).clip(max=(x.shape[0] - 1))
+    ind_low = ind_high - 1
+
+    y_high = y[ind_high]
+    y_low = y[ind_low]
+    x_high = x[ind_high]
+    x_low = x[ind_low]
+
+    interpolate_dist = x_new - x_low
+    interpolate_slope = (y_high - y_low) / (x_high - x_low)
+    interpol_res = (interpolate_slope * interpolate_dist) + y_low
+
+    return interpol_res
