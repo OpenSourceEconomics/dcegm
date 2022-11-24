@@ -6,7 +6,6 @@ import pytest
 from dcegm.solve import solve_dcegm
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
-from toy_models.consumption_retirement_model.budget_functions import marginal_wealth
 from toy_models.consumption_retirement_model.exogenous_processes import (
     get_transition_matrix_by_state,
 )
@@ -44,15 +43,6 @@ def utility_functions():
 
 
 @pytest.fixture()
-def budget_functions():
-    """Return dict with utility functions."""
-    return {
-        "budget_constraint": budget_constraint,
-        "marginal_budget_constraint": marginal_wealth,
-    }
-
-
-@pytest.fixture()
 def state_space_functions():
     """Return dict with utility functions."""
     return {
@@ -73,7 +63,6 @@ def test_benchmark_models(
     model,
     choice_range,
     utility_functions,
-    budget_functions,
     state_space_functions,
     load_example_model,
 ):
@@ -86,7 +75,7 @@ def test_benchmark_models(
         params,
         options,
         utility_functions,
-        budget_functions=budget_functions,
+        budget_constraint=budget_constraint,
         solve_final_period=solve_final_period,
         state_space_functions=state_space_functions,
         transition_vector_by_state=get_transition_matrix_by_state,

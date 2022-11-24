@@ -17,7 +17,7 @@ def solve_dcegm(
     params: pd.DataFrame,
     options: Dict[str, int],
     utility_functions: Dict[str, Callable],
-    budget_functions: Dict[str, Callable],
+    budget_constraint: Callable,
     state_space_functions: Dict[str, Callable],
     solve_final_period: Callable,
     transition_vector_by_state: Callable,
@@ -36,11 +36,7 @@ def solve_dcegm(
             (i) utility
             (ii) inverse marginal utility
             (iii) next period marginal utility
-        budget_functions (Dict[str, callable]): Dictionary of two user-supplied
-            functions for computation of:
-
-            (i) the budget constraint
-            (ii) marginal budget constraint with respect to end of period assets
+        budget_constraint (callable): Callable budget constraint.
         state_space_functions (Dict[str, callable]): Dictionary of two user-supplied
             functions to:
 
@@ -97,7 +93,7 @@ def solve_dcegm(
         params,
         options,
         user_utility_functions=utility_functions,
-        user_budget_constraint=budget_functions["budget_constraint"],
+        user_budget_constraint=budget_constraint,
     )
 
     _state_indices_final_period = np.where(state_space[:, 0] == n_periods - 1)
