@@ -1,9 +1,7 @@
 """Implementation of the Upper Envelope algorithm."""
-from typing import Any
 from typing import Callable
 from typing import List
 from typing import Tuple
-from typing import Union
 
 import numpy as np
 from dcegm.interpolate import linear_interpolation_with_extrapolation
@@ -366,6 +364,8 @@ def _compute_upper_envelope(
             x_new=endog_wealth_grid,
             missing_value=-np.inf,
         )
+    # values_interp has in each row the corresponding values of the upper curve
+    # in the overlapping seg
 
     max_values_interp = np.tile(values_interp.max(axis=0), (3, 1))  # need this below
     top_segments = values_interp == max_values_interp[0, :]
@@ -381,10 +381,10 @@ def _compute_upper_envelope(
     move_right = True
 
     while move_right:
-        index_first_segment = np.where(top_segments[:, 0] == 1)[0][0]
+        index_first_segment = np.where(top_segments[:, 0])[0][0]
 
         for i in range(1, len(endog_wealth_grid)):
-            index_second_segment = np.where(top_segments[:, i] == 1)[0][0]
+            index_second_segment = np.where(top_segments[:, i])[0][0]
 
             if index_second_segment != index_first_segment:
                 first_segment = index_first_segment
@@ -392,15 +392,21 @@ def _compute_upper_envelope(
                 first_grid_point = endog_wealth_grid[i - 1]
                 second_grid_point = endog_wealth_grid[i]
 
-                values_first_segment = _get_interpolated_value(
-                    segments,
-                    index=first_segment,
-                    grid_points=[first_grid_point, second_grid_point],
+                values_first_segment = (
+                    linear_interpolation_with_inserting_missing_values(
+                        x=segments[first_segment][0],
+                        y=segments[first_segment][1],
+                        x_new=np.array([first_grid_point, second_grid_point]),
+                        missing_value=np.nan,
+                    )
                 )
-                values_second_segment = _get_interpolated_value(
-                    segments,
-                    index=second_segment,
-                    grid_points=[first_grid_point, second_grid_point],
+                values_second_segment = (
+                    linear_interpolation_with_inserting_missing_values(
+                        x=segments[second_segment][0],
+                        y=segments[second_segment][1],
+                        x_new=np.array([first_grid_point, second_grid_point]),
+                        missing_value=np.nan,
+                    )
                 )
 
                 if np.all(
@@ -417,20 +423,27 @@ def _compute_upper_envelope(
                             segments[second_segment],
                         ),
                     )
-                    value_intersect = _get_interpolated_value(
-                        segments,
-                        index=first_segment,
-                        grid_points=intersect_point,
+                    value_intersect = (
+                        linear_interpolation_with_inserting_missing_values(
+                            x=segments[first_segment][0],
+                            y=segments[first_segment][1],
+                            x_new=np.array([intersect_point]),
+                            missing_value=np.nan,
+                        )[0]
                     )
 
                     values_all_segments = np.empty((len(segments), 1))
                     for segment in range(len(segments)):
-                        values_all_segments[segment] = _get_interpolated_value(
-                            segments,
-                            index=segment,
-                            grid_points=intersect_point,
-                            fill_value_=-np.inf,
-                        )
+                        values_all_segments[
+                            segment
+                        ] = linear_interpolation_with_inserting_missing_values(
+                            x=segments[segment][0],
+                            y=segments[segment][1],
+                            x_new=np.array([intersect_point]),
+                            missing_value=-np.inf,
+                        )[
+                            0
+                        ]
 
                     index_max_value_intersect = np.where(
                         values_all_segments == values_all_segments.max(axis=0)
@@ -627,24 +640,6 @@ def _find_dominated_points(
     )
 
     return index_dominated_points
-
-
-def _get_interpolated_value(
-    segments: List[np.ndarray],
-    index: int,
-    grid_points: Union[float, List[float]],
-    fill_value_: Any = np.nan,
-) -> Tuple[Union[np.ndarray, float]]:
-    """Returns the interpolated value(s)."""
-
-    values_interp = linear_interpolation_with_inserting_missing_values(
-        x=segments[index][0],
-        y=segments[index][1],
-        x_new=grid_points,
-        missing_value=fill_value_,
-    )
-
-    return values_interp
 
 
 def _subtract_values(grid_point: float, first_segment, second_segment):
