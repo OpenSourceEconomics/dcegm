@@ -87,3 +87,23 @@ def linear_interpolation_with_extrapolation(x, y, x_new):
     interpol_res = (interpolate_slope * interpolate_dist) + y_low
 
     return interpol_res
+
+
+def linear_interpolation_with_inserting_missing_values(x, y, x_new, missing_value):
+    if type(x_new) == float:
+        x_new = np.array([x_new])
+    ind_high_org = np.searchsorted(x, x_new)
+    ind_high = ind_high_org.clip(max=(x.shape[0] - 1), min=1)
+    ind_low = ind_high - 1
+
+    y_high = y[ind_high]
+    y_low = y[ind_low]
+    x_high = x[ind_high]
+    x_low = x[ind_low]
+
+    interpolate_dist = x_new - x_low
+    interpolate_slope = (y_high - y_low) / (x_high - x_low)
+    interpol_res = (interpolate_slope * interpolate_dist) + y_low
+    where_to_miss = (ind_high_org == 0) | (ind_high_org == x.shape[0])
+    interpol_res[where_to_miss] = missing_value
+    return interpol_res
