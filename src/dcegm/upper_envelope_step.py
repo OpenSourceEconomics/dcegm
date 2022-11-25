@@ -359,9 +359,12 @@ def _compute_upper_envelope(
     )
 
     values_interp = np.empty((len(segments), len(endog_wealth_grid)))
-    for arr in range(len(segments)):
-        values_interp[arr, :] = _get_interpolated_value(
-            segments, index=arr, grid_points=endog_wealth_grid, fill_value_=-np.inf
+    for i, segment in enumerate(segments):
+        values_interp[i, :] = linear_interpolation_with_inserting_missing_values(
+            x=segment[0],
+            y=segment[1],
+            x_new=endog_wealth_grid,
+            missing_value=-np.inf,
         )
 
     max_values_interp = np.tile(values_interp.max(axis=0), (3, 1))  # need this below
