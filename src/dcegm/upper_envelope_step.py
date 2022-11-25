@@ -194,7 +194,6 @@ def locate_non_concave_regions_and_refine(
             lap += 1
 
     if len(segments_non_mono) > 1:
-        segments_non_mono = [np.sort(i) for i in segments_non_mono]
         value_refined, points_to_add = _compute_upper_envelope(segments_non_mono)
         index_dominated_points = _find_dominated_points(value, value_refined, 10)
 
@@ -325,7 +324,7 @@ def _compute_upper_envelope(
     """Computes upper envelope and refines value function "correspondence".
 
     The upper envelope algorithm detects suboptimal points in the value function
-    "correspondence. Consequently, (i) the suboptimal points are removed and the
+    "correspondence". Consequently, (i) the suboptimal points are removed and the
     (ii) kink points along with their corresponding interpolated values are included.
     The elimination of suboptimal grid points converts the value
     "correspondence" back to a proper function. Applying both (i) and (ii)
@@ -356,7 +355,7 @@ def _compute_upper_envelope(
             (i.e. ``first_segment`` and ``second_segment``).
     """
     endog_wealth_grid = np.unique(
-        np.concatenate([segments[arr][0].tolist() for arr in range(len(segments))])
+        np.concatenate([segments[arr][0] for arr in range(len(segments))])
     )
 
     values_interp = np.empty((len(segments), len(endog_wealth_grid)))
