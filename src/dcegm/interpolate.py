@@ -74,6 +74,13 @@ def interpolate_value(
 
 
 def linear_interpolation_with_extrapolation(x, y, x_new):
+
+    # make sure that the function also works for unsorted x-arrays
+    # taken from scipy.interpolate.interp1d
+    ind = np.argsort(x, kind="mergesort")
+    x = x[ind]
+    y = np.take(y, ind)
+
     ind_high = np.searchsorted(x, x_new).clip(max=(x.shape[0] - 1), min=1)
     ind_low = ind_high - 1
 
@@ -90,6 +97,14 @@ def linear_interpolation_with_extrapolation(x, y, x_new):
 
 
 def linear_interpolation_with_inserting_missing_values(x, y, x_new, missing_value):
+
+    # make sure that the function also works for unsorted x-arrays
+    # taken from scipy.interpolate.interp1d
+    ind = np.argsort(x, kind="mergesort")
+    x = x[ind]
+    y = np.take(y, ind)
+
+
     x_int = np.atleast_1d(x_new)
     ind_high = np.searchsorted(x, x_int, side="left").clip(max=(x.shape[0] - 1), min=1)
     ind_low = ind_high - 1
