@@ -15,10 +15,11 @@ from numpy.testing import assert_allclose
 """draw random test arrays from a uniform distribution"""
 # fix length of input arrays
 n = 5
+m = 7
 # random test arrays
 x = np.random.rand(n)
 y = np.random.rand(n)
-x_new = np.random.rand(n)
+x_new = np.random.rand(m)
 missing_value = np.random.rand(1)
 
 

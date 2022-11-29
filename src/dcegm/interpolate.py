@@ -74,6 +74,21 @@ def interpolate_value(
 
 
 def linear_interpolation_with_extrapolation(x, y, x_new):
+    """Linear interpolation with extrapolation
+
+    Args:
+        x (np.ndarray): 1d array of shape (n,) containing the x-values.
+        y (np.ndarray): 1d array of shape (n,) containing the y-values
+            corresponding to the x-values.
+        x_new (np.ndarray or float): 1d array of shape (m,) or float containing
+            the new x-values at which to evaluate the interpolation function.
+
+    Returns:
+        np.ndarray or float: 1d array of shape (m,) or float containing
+            the new y-values corresponding to the new x-values.
+            In case x_new contains values outside of the range of x, these
+            values are extrapolated.
+    """
 
     # make sure that the function also works for unsorted x-arrays
     # taken from scipy.interpolate.interp1d
@@ -97,13 +112,29 @@ def linear_interpolation_with_extrapolation(x, y, x_new):
 
 
 def linear_interpolation_with_inserting_missing_values(x, y, x_new, missing_value):
+    """Linear interpolation with inserting missing values
+
+    Args:
+        x (np.ndarray): 1d array of shape (n,) containing the x-values.
+        y (np.ndarray): 1d array of shape (n,) containing the y-values
+            corresponding to the x-values.
+        x_new (np.ndarray or float): 1d array of shape (m,) or float containing
+            the new x-values at which to evaluate the interpolation function.
+        missing_value (np.ndarray or float): Flat array of shape (1,) or float
+            to set for values of x_new outside of the range of x.
+
+    Returns:
+        np.ndarray or float: 1d array of shape (m,) or float containing the
+            new y-values corresponding to the new x-values.
+            In case x_new contains values outside of the range of x, these
+            values are set equal to missing_value.
+    """
 
     # make sure that the function also works for unsorted x-arrays
     # taken from scipy.interpolate.interp1d
     ind = np.argsort(x, kind="mergesort")
     x = x[ind]
     y = np.take(y, ind)
-
 
     x_int = np.atleast_1d(x_new)
     ind_high = np.searchsorted(x, x_int, side="left").clip(max=(x.shape[0] - 1), min=1)
