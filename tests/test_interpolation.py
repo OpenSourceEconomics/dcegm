@@ -1,5 +1,5 @@
 """
-This module tests interpolation functions from dcegm.interpolate:
+This module tests the interpolation functions from dcegm.interpolate:
 - linear_interpolation_with_extrapolation,
 - linear_interpolation_with_inserting_missing_values.
 The results are compared to the ones from scipy's linear interpolation function interp1d.
