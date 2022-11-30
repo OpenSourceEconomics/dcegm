@@ -6,7 +6,8 @@ from typing import Tuple
 from typing import Union
 
 import numpy as np
-from scipy import interpolate
+from dcegm.interpolate import linear_interpolation_with_extrapolation
+from dcegm.interpolate import linear_interpolation_with_inserting_missing_values
 from scipy.optimize import brenth as root
 
 eps = 2.2204e-16
@@ -248,14 +249,10 @@ def refine_policy(
         )
 
         # Find (scalar) point interpolated from the left
-        interpolation_left = interpolate.interp1d(
-            policy[0, :][last_point_to_the_left : last_point_to_the_left + 2],
-            policy[1, :][last_point_to_the_left : last_point_to_the_left + 2],
-            bounds_error=False,
-            fill_value="extrapolate",
-        )
-        interp_from_the_left = interpolation_left(
-            points_to_add[0][new_grid_point]
+        interp_from_the_left = linear_interpolation_with_extrapolation(
+            x=policy[0, :][last_point_to_the_left : last_point_to_the_left + 2],
+            y=policy[1, :][last_point_to_the_left : last_point_to_the_left + 2],
+            x_new=points_to_add[0][new_grid_point],
         )  # single point
 
         first_point_to_the_right = min(
@@ -265,13 +262,11 @@ def refine_policy(
         )
 
         # Find (scalar) point interpolated from the right
-        interpolation_right = interpolate.interp1d(
-            policy[0, :][first_point_to_the_right - 1 : first_point_to_the_right + 1],
-            policy[1, :][first_point_to_the_right - 1 : first_point_to_the_right + 1],
-            bounds_error=False,
-            fill_value="extrapolate",
+        interp_from_the_right = linear_interpolation_with_extrapolation(
+            x=policy[0, :][first_point_to_the_right - 1 : first_point_to_the_right + 1],
+            y=policy[1, :][first_point_to_the_right - 1 : first_point_to_the_right + 1],
+            x_new=points_to_add[0, new_grid_point],
         )
-        interp_from_the_right = interpolation_right(points_to_add[0, new_grid_point])
 
         new_points_policy_interp += [
             np.array(
@@ -639,30 +634,25 @@ def _get_interpolated_value(
     fill_value_: Any = np.nan,
 ) -> Tuple[Union[np.ndarray, float]]:
     """Returns the interpolated value(s)."""
-    interp_func = interpolate.interp1d(
-        segments[index][0],
-        segments[index][1],
-        bounds_error=False,
-        fill_value=fill_value_,
+
+    values_interp = linear_interpolation_with_inserting_missing_values(
+        x=segments[index][0],
+        y=segments[index][1],
+        x_new=grid_points,
+        missing_value=fill_value_,
     )
-    values_interp = interp_func(grid_points)
 
     return values_interp
 
 
 def _subtract_values(grid_point: float, first_segment, second_segment):
     """Subtracts the interpolated values of the two uppermost segments."""
-    first_interp_func = interpolate.interp1d(
-        first_segment[0], first_segment[1], bounds_error=False, fill_value="extrapolate"
+    values_first_segment = linear_interpolation_with_extrapolation(
+        x=first_segment[0], y=first_segment[1], x_new=grid_point
     )
-    second_interp_func = interpolate.interp1d(
-        second_segment[0],
-        second_segment[1],
-        bounds_error=False,
-        fill_value="extrapolate",
+    values_second_segment = linear_interpolation_with_extrapolation(
+        x=second_segment[0], y=second_segment[1], x_new=grid_point
     )
-    values_first_segment = first_interp_func(grid_point)
-    values_second_segment = second_interp_func(grid_point)
 
     diff_values_segments = values_first_segment - values_second_segment
 
