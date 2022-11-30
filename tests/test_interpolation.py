@@ -2,7 +2,8 @@
 This module tests the interpolation functions from dcegm.interpolate:
 - linear_interpolation_with_extrapolation,
 - linear_interpolation_with_inserting_missing_values.
-The results are compared to the ones from scipy's linear interpolation function interp1d.
+The results are compared to the ones from scipy's linear interpolation
+function interp1d.
 """
 import numpy as np
 from dcegm.interpolate import linear_interpolation_with_extrapolation
@@ -34,7 +35,10 @@ def test_linear_interpolation_with_extrapolation():
 # test linear_interpolation_with_missing_values
 def test_linear_interpolation_with_missing_values():
     assert_allclose(
-        linear_interpolation_with_inserting_missing_values(x, y, x_new, missing_value),
+        linear_interpolation_with_inserting_missing_values(x,
+                                                           y,
+                                                           x_new,
+                                                           missing_value),
         interp1d(x, y, bounds_error=False, fill_value=missing_value)(x_new),
         atol=1e-10,
     )
