@@ -62,6 +62,25 @@ def get_child_indexes(
     indexer: np.ndarray,
     get_state_specific_choice_set: Callable,
 ) -> np.ndarray:
+    """Create array of child indexes.
+
+    Args:
+        state (np.ndarray): 1d array of shape (n_state_variables,) defining the agent's
+            state. In Ishkakov, an agent's state is defined by her (i) age (i.e. the
+            current period) and (ii) her lagged labor market choice.
+            Hence n_state_variables = 2.
+        state_space (np.ndarray): Collection of all possible states.
+        indexer (np.ndarray): 2d array of shape (n_periods, n_choices) containing
+            the indexer object that maps states to indices in the state space.
+        get_state_specific_choice_set (Callable): User-supplied function returning for
+            each state all possible choices.
+
+    Returns:
+        child_nodes (np.ndarray): 2d array of shape
+            (n_state_specific_choices, n_state_specific_choices) containing all child
+            nodes the agent can reach from her given state.
+
+    """
     child_states = get_child_states(
         state, state_space, indexer, get_state_specific_choice_set
     )
