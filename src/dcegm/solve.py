@@ -174,6 +174,19 @@ def backwards_induction(
         possible_child_states = state_space[np.where(state_space[:, 0] == period + 1)]
         for child_state in possible_child_states:
             child_state_index = state_indexer[tuple(child_state)]
+            # marg_ut_saving_income = np.full(
+            #     (exogenous_savings_grid.shape[0], income_shock_draws.shape[0]),
+            #     fill_value=np.nan,
+            #     dtype=float,
+            # )
+            # max_expval_ut_saving_income = np.full(
+            #     (exogenous_savings_grid.shape[0], income_shock_draws.shape[0]),
+            #     fill_value=np.nan,
+            #     dtype=float,
+            # )
+            #
+            # for i, saving in enumerate(exogenous_savings_grid):
+            #     for j, income_shock in enumerate(income_shock_draws):
 
             (
                 marginal_utilities[child_state_index, :],
