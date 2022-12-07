@@ -5,7 +5,7 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
-from dcegm.egm_step import do_egm_step
+from dcegm.egm_step import compute_optimal_policy_and_value
 from dcegm.egm_step import get_child_state_policy_and_value
 from dcegm.integration import quadrature_legendre
 from dcegm.pre_processing import create_multi_dim_arrays
@@ -199,6 +199,8 @@ def backwards_induction(
         for state in state_subspace:
 
             current_state_index = state_indexer[tuple(state)]
+            # The choice set and the indexes are different/of different shape
+            # for each state. For jax we should go over all states.
             choice_set = get_state_specific_choice_set(
                 state, state_space, state_indexer
             )
@@ -210,12 +212,11 @@ def backwards_induction(
             trans_vec_state = transition_vector_by_state(state)
             for choice_ind, choice in enumerate(choice_set):
 
-                current_policy, current_value = do_egm_step(
+                current_policy, current_value = compute_optimal_policy_and_value(
                     marginal_utilities_child_states[choice_ind, :],
                     max_expected_values_child_states[choice_ind, :],
                     interest_rate,
-                    child_states_indexes[choice_ind, :],
-                    state_space,
+                    choice,
                     income_shock_weights,
                     trans_vec_state,
                     exogenous_savings_grid,

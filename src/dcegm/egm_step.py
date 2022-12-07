@@ -7,12 +7,11 @@ from dcegm.interpolate import interpolate_policy
 from dcegm.interpolate import interpolate_value
 
 
-def do_egm_step(
+def compute_optimal_policy_and_value(
     marginal_utilities_exog_process,
     max_value_func_exog_process,
     interest_rate: float,
-    child_states_indexes: np.ndarray,
-    state_space: np.ndarray,
+    choice: int,
     quad_weights: np.ndarray,
     trans_vec_state: np.ndarray,
     savings_grid: np.ndarray,
@@ -22,8 +21,6 @@ def do_egm_step(
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
 
     Args:
-        state_space (np.ndarray): Collection of all possible states of shape
-            (n_states, n_state_variables).
         quad_weights (np.ndarrray): Weights for each stoachstic shock draw.
             Shape is (n_stochastic_quad_points)
         trans_vec_state (np.ndarray): A vector containing for each possible exogenous
@@ -58,12 +55,11 @@ def do_egm_step(
         marginal_utilities_exog_process,
         max_value_func_exog_process,
     )
-    current_choice = state_space[child_states_indexes[0]][1]
 
     current_policy_arr, current_value_arr = create_current_policy_and_value_array(
         current_policy,
         expected_value,
-        current_choice,
+        choice,
         savings_grid,
         compute_value,
     )
