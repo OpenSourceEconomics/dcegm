@@ -11,8 +11,8 @@ def do_egm_step(
     marginal_utilities_child_states,
     max_values_child_states,
     interest_rate: float,
-    child_states: np.ndarray,
-    state_indexer: np.ndarray,
+    child_states_indexes: np.ndarray,
+    state_space: np.ndarray,
     quad_weights: np.ndarray,
     trans_vec_state: np.ndarray,
     savings_grid: np.ndarray,
@@ -80,31 +80,10 @@ def do_egm_step(
             and [1, :] stores the corresponding value of the value function v(M, d).
 
     """
-
-    n_exog_process = trans_vec_state.shape[0]
-    n_quad_points = quad_weights.shape[0]
-    n_savings_grid = savings_grid.shape[0]
-    marginal_utilities_exog_process = np.empty(
-        (
-            n_exog_process,
-            n_quad_points * n_savings_grid,
-        ),
-        dtype=float,
-    )
-    max_value_func_exog_process = np.empty(
-        (
-            n_exog_process,
-            n_quad_points * n_savings_grid,
-        ),
-        dtype=float,
-    )
-
-    for i, child_state in enumerate(child_states):
-        child_state_index = state_indexer[tuple(child_state)]
-        marginal_utilities_exog_process[i, :] = marginal_utilities_child_states[
-            child_state_index
-        ]
-        max_value_func_exog_process[i, :] = max_values_child_states[child_state_index]
+    marginal_utilities_exog_process = marginal_utilities_child_states[
+        child_states_indexes
+    ]
+    max_value_func_exog_process = max_values_child_states[child_states_indexes]
 
     current_policy, expected_value = solution_euler_equation(
         quad_weights,
@@ -115,7 +94,7 @@ def do_egm_step(
         marginal_utilities_exog_process,
         max_value_func_exog_process,
     )
-    current_choice = child_states[0][1]
+    current_choice = state_space[child_states_indexes[0]][1]
 
     current_policy_arr, current_value_arr = create_current_policy_and_value_array(
         current_policy,

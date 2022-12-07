@@ -10,7 +10,7 @@ from dcegm.egm_step import get_child_state_policy_and_value
 from dcegm.integration import quadrature_legendre
 from dcegm.pre_processing import create_multi_dim_arrays
 from dcegm.pre_processing import get_partial_functions
-from dcegm.state_space import get_child_states
+from dcegm.state_space import get_child_indexes
 from dcegm.upper_envelope_step import do_upper_envelope_step
 
 
@@ -155,7 +155,8 @@ def backwards_induction(
 ):
     for period in range(n_periods - 2, -1, -1):
 
-        state_subspace = state_space[np.where(state_space[:, 0] == period)]
+        index_periods = np.where(state_space[:, 0] == period)[0]
+        state_subspace = state_space[index_periods]
         possible_child_states = state_space[np.where(state_space[:, 0] == period + 1)]
         marginal_utilities_child_states = np.empty(
             (
@@ -201,22 +202,20 @@ def backwards_induction(
         for state in state_subspace:
 
             current_state_index = state_indexer[tuple(state)]
-            child_nodes = get_child_states(
-                state,
-                state_space,
-                state_indexer,
-                get_state_specific_choice_set=get_state_specific_choice_set,
+            child_states_indexes = get_child_indexes(
+                state, state_space, state_indexer, get_state_specific_choice_set
             )
+
             trans_vec_state = transition_vector_by_state(state)
-            for child_states_choice in child_nodes:
-                choice = child_states_choice[0][1]
+            for child_states_indexes_choice in child_states_indexes:
+                choice = state_space[child_states_indexes_choice[0]][1]
 
                 current_policy, current_value = do_egm_step(
                     marginal_utilities_child_states,
                     max_values_child_states,
                     interest_rate,
-                    child_states_choice,
-                    state_indexer,
+                    child_states_indexes_choice,
+                    state_space,
                     income_shock_weights,
                     trans_vec_state,
                     exogenous_savings_grid,
