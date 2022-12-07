@@ -8,8 +8,8 @@ from dcegm.interpolate import interpolate_value
 
 
 def do_egm_step(
-    marginal_utilities_child_states,
-    max_values_child_states,
+    marginal_utilities_exog_process,
+    max_value_func_exog_process,
     interest_rate: float,
     child_states_indexes: np.ndarray,
     state_space: np.ndarray,
@@ -49,11 +49,6 @@ def do_egm_step(
             and [1, :] stores the corresponding value of the value function v(M, d).
 
     """
-    marginal_utilities_exog_process = marginal_utilities_child_states[
-        child_states_indexes
-    ]
-    max_value_func_exog_process = max_values_child_states[child_states_indexes]
-
     current_policy, expected_value = solution_euler_equation(
         quad_weights,
         trans_vec_state,

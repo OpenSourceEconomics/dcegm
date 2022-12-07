@@ -153,7 +153,7 @@ def backwards_induction(
     policy_array,
     value_array,
 ):
-    marginal_utilities_child_states = np.full(
+    marginal_utilities = np.full(
         shape=(
             state_space.shape[0],
             exogenous_savings_grid.shape[0] * income_shock_weights.shape[0],
@@ -161,7 +161,7 @@ def backwards_induction(
         fill_value=np.nan,
         dtype=float,
     )
-    max_values_child_states = np.full(
+    max_expected_values = np.full(
         shape=(
             state_space.shape[0],
             exogenous_savings_grid.shape[0] * income_shock_weights.shape[0],
@@ -176,8 +176,8 @@ def backwards_induction(
             child_state_index = state_indexer[tuple(child_state)]
 
             (
-                marginal_utilities_child_states[child_state_index, :],
-                max_values_child_states[child_state_index, :],
+                marginal_utilities[child_state_index, :],
+                max_expected_values[child_state_index, :],
             ) = get_child_state_policy_and_value(
                 exogenous_savings_grid,
                 income_shock_draws,
@@ -199,19 +199,22 @@ def backwards_induction(
         for state in state_subspace:
 
             current_state_index = state_indexer[tuple(state)]
+            choice_set = get_state_specific_choice_set(
+                state, state_space, state_indexer
+            )
             child_states_indexes = get_child_indexes(
                 state, state_space, state_indexer, get_state_specific_choice_set
             )
-
+            marginal_utilities_child_states = marginal_utilities[child_states_indexes]
+            max_expected_values_child_states = max_expected_values[child_states_indexes]
             trans_vec_state = transition_vector_by_state(state)
-            for child_states_indexes_choice in child_states_indexes:
-                choice = state_space[child_states_indexes_choice[0]][1]
+            for choice_ind, choice in enumerate(choice_set):
 
                 current_policy, current_value = do_egm_step(
-                    marginal_utilities_child_states,
-                    max_values_child_states,
+                    marginal_utilities_child_states[choice_ind, :],
+                    max_expected_values_child_states[choice_ind, :],
                     interest_rate,
-                    child_states_indexes_choice,
+                    child_states_indexes[choice_ind, :],
                     state_space,
                     income_shock_weights,
                     trans_vec_state,
