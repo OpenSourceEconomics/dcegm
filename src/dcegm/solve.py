@@ -155,6 +155,26 @@ def backwards_induction(
     for period in range(n_periods - 2, -1, -1):
 
         state_subspace = state_space[np.where(state_space[:, 0] == period)]
+        possible_child_states = state_space[np.where(state_space[:, 0] == period + 1)]
+        # for child_state in possible_child_states:
+        #     current_policy, current_value = do_egm_step(
+        #             taste_shock_scale,
+        #             interest_rate,
+        #             child_states_choice,
+        #             state_indexer,
+        #             state_space,
+        #             income_shock_draws,
+        #             income_shock_weights,
+        #             trans_vec_state,
+        #             exogenous_savings_grid,
+        #             compute_marginal_utility=compute_marginal_utility,
+        #             compute_inverse_marginal_utility=compute_inverse_marginal_utility,
+        #             compute_value=compute_value,
+        #             compute_next_wealth_matrices=compute_next_wealth_matrices,
+        #             get_state_specific_choice_set=get_state_specific_choice_set,
+        #             policy_array=policy_array,
+        #             value_array=value_array,
+        #         )
 
         for state in state_subspace:
 
