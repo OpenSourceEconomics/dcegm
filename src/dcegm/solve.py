@@ -174,19 +174,7 @@ def backwards_induction(
         possible_child_states = state_space[np.where(state_space[:, 0] == period + 1)]
         for child_state in possible_child_states:
             child_state_index = state_indexer[tuple(child_state)]
-            # marg_ut_saving_income = np.full(
-            #     (exogenous_savings_grid.shape[0], income_shock_draws.shape[0]),
-            #     fill_value=np.nan,
-            #     dtype=float,
-            # )
-            # max_expval_ut_saving_income = np.full(
-            #     (exogenous_savings_grid.shape[0], income_shock_draws.shape[0]),
-            #     fill_value=np.nan,
-            #     dtype=float,
-            # )
-            #
-            # for i, saving in enumerate(exogenous_savings_grid):
-            #     for j, income_shock in enumerate(income_shock_draws):
+            # We could parralelize here also over the savings grid!
 
             (
                 marginal_utilities[child_state_index, :],
@@ -214,6 +202,9 @@ def backwards_induction(
             current_state_index = state_indexer[tuple(state)]
             # The choice set and the indexes are different/of different shape
             # for each state. For jax we should go over all states.
+            # With numba we could easily guvectorize here over states and calculate
+            # everything on the state level. This could be really fast! However, how do
+            # treat the partial functiosn?
             choice_set = get_state_specific_choice_set(
                 state, state_space, state_indexer
             )
@@ -224,7 +215,6 @@ def backwards_induction(
             max_expected_values_child_states = max_expected_values[child_states_indexes]
             trans_vec_state = transition_vector_by_state(state)
             for choice_ind, choice in enumerate(choice_set):
-
                 current_policy, current_value = compute_optimal_policy_and_value(
                     marginal_utilities_child_states[choice_ind, :],
                     max_expected_values_child_states[choice_ind, :],
@@ -238,6 +228,9 @@ def backwards_induction(
                 )
 
                 if policy_array.shape[1] > 1:
+                    # For the upper envelope we cannot parralize over the wealth grid
+                    # as here we need to inspect the value function on the whole wealth
+                    # grid.
                     current_policy, current_value = do_upper_envelope_step(
                         current_policy,
                         current_value,
