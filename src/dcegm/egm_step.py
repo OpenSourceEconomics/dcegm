@@ -8,22 +8,16 @@ from dcegm.interpolate import interpolate_value
 
 
 def do_egm_step(
-    taste_shock_scale: float,
+    marginal_utilities_child_states,
+    max_values_child_states,
     interest_rate: float,
     child_states: np.ndarray,
     state_indexer: np.ndarray,
-    state_space: np.ndarray,
-    income_shocks: np.ndarray,
     quad_weights: np.ndarray,
     trans_vec_state: np.ndarray,
     savings_grid: np.ndarray,
-    compute_marginal_utility: Callable,
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
-    compute_next_wealth_matrices: Callable,
-    get_state_specific_choice_set,
-    policy_array: np.ndarray,
-    value_array: np.ndarray,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
 
@@ -107,31 +101,10 @@ def do_egm_step(
 
     for i, child_state in enumerate(child_states):
         child_state_index = state_indexer[tuple(child_state)]
-
-        choice_policies_child = policy_array[child_state_index]
-        choice_values_child = value_array[child_state_index]
-
-        child_node_choice_set = get_state_specific_choice_set(
-            child_state, state_space, state_indexer
-        )
-        next_period_wealth = compute_next_wealth_matrices(
-            child_state,
-            savings_grid=savings_grid,
-            income_shock=income_shocks,
-        )
-
-        (
-            marginal_utilities_exog_process[i, :],
-            max_value_func_exog_process[i, :],
-        ) = get_child_state_policy_and_value(
-            child_node_choice_set,
-            taste_shock_scale,
-            compute_marginal_utility,
-            compute_value,
-            choice_policies_child,
-            choice_values_child,
-            next_period_wealth,
-        )
+        marginal_utilities_exog_process[i, :] = marginal_utilities_child_states[
+            child_state_index
+        ]
+        max_value_func_exog_process[i, :] = max_values_child_states[child_state_index]
 
     current_policy, expected_value = solution_euler_equation(
         quad_weights,
@@ -144,7 +117,7 @@ def do_egm_step(
     )
     current_choice = child_states[0][1]
 
-    current_policy_arr, current_value_arr = store_current_period_policy_and_value(
+    current_policy_arr, current_value_arr = create_current_policy_and_value_array(
         current_policy,
         expected_value,
         current_choice,
@@ -164,6 +137,22 @@ def solution_euler_equation(
     marginal_utilities_exog_process,
     max_value_func_exog_process,
 ):
+    """
+    This function solves the eueler equation for a discrete choice and the corresponding
+    child states. So we have to integrate over the exogenous process and income
+    uncertainty and then apply the inverese marginal utility function.
+    Args:
+        quad_weights:
+        trans_vec_state:
+        savings_grid:
+        interest_rate:
+        compute_inverse_marginal_utility:
+        marginal_utilities_exog_process:
+        max_value_func_exog_process:
+
+    Returns:
+
+    """
     n_quad_points = quad_weights.shape[0]
     n_savings_grid = savings_grid.shape[0]
     # Integrate over stochastic processes
@@ -185,7 +174,7 @@ def solution_euler_equation(
     return current_policy, expected_value
 
 
-def store_current_period_policy_and_value(
+def create_current_policy_and_value_array(
     current_policy: np.ndarray,
     expected_value: np.ndarray,
     current_choice: float,

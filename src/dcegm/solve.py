@@ -6,6 +6,7 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 from dcegm.egm_step import do_egm_step
+from dcegm.egm_step import get_child_state_policy_and_value
 from dcegm.integration import quadrature_legendre
 from dcegm.pre_processing import create_multi_dim_arrays
 from dcegm.pre_processing import get_partial_functions
@@ -156,25 +157,46 @@ def backwards_induction(
 
         state_subspace = state_space[np.where(state_space[:, 0] == period)]
         possible_child_states = state_space[np.where(state_space[:, 0] == period + 1)]
-        # for child_state in possible_child_states:
-        #     current_policy, current_value = do_egm_step(
-        #             taste_shock_scale,
-        #             interest_rate,
-        #             child_states_choice,
-        #             state_indexer,
-        #             state_space,
-        #             income_shock_draws,
-        #             income_shock_weights,
-        #             trans_vec_state,
-        #             exogenous_savings_grid,
-        #             compute_marginal_utility=compute_marginal_utility,
-        #             compute_inverse_marginal_utility=compute_inverse_marginal_utility,
-        #             compute_value=compute_value,
-        #             compute_next_wealth_matrices=compute_next_wealth_matrices,
-        #             get_state_specific_choice_set=get_state_specific_choice_set,
-        #             policy_array=policy_array,
-        #             value_array=value_array,
-        #         )
+        marginal_utilities_child_states = np.empty(
+            (
+                state_space.shape[0],
+                exogenous_savings_grid.shape[0] * income_shock_weights.shape[0],
+            ),
+            dtype=float,
+        )
+        max_values_child_states = np.empty(
+            (
+                state_space.shape[0],
+                exogenous_savings_grid.shape[0] * income_shock_weights.shape[0],
+            ),
+            dtype=float,
+        )
+        for child_state in possible_child_states:
+            child_state_index = state_indexer[tuple(child_state)]
+            choice_policies_child = policy_array[child_state_index]
+            choice_values_child = value_array[child_state_index]
+
+            child_node_choice_set = get_state_specific_choice_set(
+                child_state, state_space, state_indexer
+            )
+            next_period_wealth = compute_next_wealth_matrices(
+                child_state,
+                savings_grid=exogenous_savings_grid,
+                income_shock=income_shock_draws,
+            )
+
+            (
+                marginal_utilities_child_states[child_state_index, :],
+                max_values_child_states[child_state_index, :],
+            ) = get_child_state_policy_and_value(
+                child_node_choice_set,
+                taste_shock_scale,
+                compute_marginal_utility,
+                compute_value,
+                choice_policies_child,
+                choice_values_child,
+                next_period_wealth,
+            )
 
         for state in state_subspace:
 
@@ -190,22 +212,16 @@ def backwards_induction(
                 choice = child_states_choice[0][1]
 
                 current_policy, current_value = do_egm_step(
-                    taste_shock_scale,
+                    marginal_utilities_child_states,
+                    max_values_child_states,
                     interest_rate,
                     child_states_choice,
                     state_indexer,
-                    state_space,
-                    income_shock_draws,
                     income_shock_weights,
                     trans_vec_state,
                     exogenous_savings_grid,
-                    compute_marginal_utility=compute_marginal_utility,
                     compute_inverse_marginal_utility=compute_inverse_marginal_utility,
                     compute_value=compute_value,
-                    compute_next_wealth_matrices=compute_next_wealth_matrices,
-                    get_state_specific_choice_set=get_state_specific_choice_set,
-                    policy_array=policy_array,
-                    value_array=value_array,
                 )
 
                 if policy_array.shape[1] > 1:
