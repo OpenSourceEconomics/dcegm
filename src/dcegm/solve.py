@@ -211,7 +211,13 @@ def backwards_induction(
             child_states_indexes = get_child_indexes(
                 state, state_space, state_indexer, get_state_specific_choice_set
             )
-            marginal_utilities_child_states = marginal_utilities[child_states_indexes]
+            # With this next step is clear! Create transition vector, child indexes for
+            # each state. For index use exception handling from take! Then create arrays
+            # for all states. And then parralize over child, choice combinations for
+            # upper envelope!
+            marginal_utilities_child_states = np.take(
+                marginal_utilities, child_states_indexes, axis=0
+            )
             max_expected_values_child_states = max_expected_values[child_states_indexes]
             trans_vec_state = transition_vector_by_state(state)
             for choice_ind, choice in enumerate(choice_set):
