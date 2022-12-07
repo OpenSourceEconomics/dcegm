@@ -153,25 +153,27 @@ def backwards_induction(
     policy_array,
     value_array,
 ):
+    marginal_utilities_child_states = np.full(
+        shape=(
+            state_space.shape[0],
+            exogenous_savings_grid.shape[0] * income_shock_weights.shape[0],
+        ),
+        fill_value=np.nan,
+        dtype=float,
+    )
+    max_values_child_states = np.full(
+        shape=(
+            state_space.shape[0],
+            exogenous_savings_grid.shape[0] * income_shock_weights.shape[0],
+        ),
+        fill_value=np.nan,
+        dtype=float,
+    )
     for period in range(n_periods - 2, -1, -1):
 
         index_periods = np.where(state_space[:, 0] == period)[0]
         state_subspace = state_space[index_periods]
         possible_child_states = state_space[np.where(state_space[:, 0] == period + 1)]
-        marginal_utilities_child_states = np.empty(
-            (
-                state_space.shape[0],
-                exogenous_savings_grid.shape[0] * income_shock_weights.shape[0],
-            ),
-            dtype=float,
-        )
-        max_values_child_states = np.empty(
-            (
-                state_space.shape[0],
-                exogenous_savings_grid.shape[0] * income_shock_weights.shape[0],
-            ),
-            dtype=float,
-        )
         for child_state in possible_child_states:
             child_state_index = state_indexer[tuple(child_state)]
             choice_policies_child = policy_array[child_state_index]
