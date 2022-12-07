@@ -171,35 +171,30 @@ def backwards_induction(
     )
     for period in range(n_periods - 2, -1, -1):
 
-        index_periods = np.where(state_space[:, 0] == period)[0]
-        state_subspace = state_space[index_periods]
         possible_child_states = state_space[np.where(state_space[:, 0] == period + 1)]
         for child_state in possible_child_states:
             child_state_index = state_indexer[tuple(child_state)]
-            choice_policies_child = policy_array[child_state_index]
-            choice_values_child = value_array[child_state_index]
-
-            child_node_choice_set = get_state_specific_choice_set(
-                child_state, state_space, state_indexer
-            )
-            next_period_wealth = compute_next_wealth_matrices(
-                child_state,
-                savings_grid=exogenous_savings_grid,
-                income_shock=income_shock_draws,
-            )
 
             (
                 marginal_utilities_child_states[child_state_index, :],
                 max_values_child_states[child_state_index, :],
             ) = get_child_state_policy_and_value(
-                child_node_choice_set,
+                exogenous_savings_grid,
+                income_shock_draws,
+                child_state,
+                state_indexer,
+                state_space,
                 taste_shock_scale,
+                policy_array,
+                value_array,
+                compute_next_wealth_matrices,
                 compute_marginal_utility,
                 compute_value,
-                choice_policies_child,
-                choice_values_child,
-                next_period_wealth,
+                get_state_specific_choice_set,
             )
+
+        index_periods = np.where(state_space[:, 0] == period)[0]
+        state_subspace = state_space[index_periods]
 
         for state in state_subspace:
 

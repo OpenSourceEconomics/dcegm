@@ -22,12 +22,6 @@ def do_egm_step(
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
 
     Args:
-        child_states (np.ndarray): Array of shape (n_exog_processes, n_state_variables)
-        capturing the child node for each exogenous process state.
-        state_indexer (np.ndarray): Indexer object that maps states to indexes.
-            The shape of this object quite complicated. For each state variable it
-             has the number of possible states as "row", i.e.
-            (n_poss_states_statesvar_1, n_poss_states_statesvar_2, ....)
         state_space (np.ndarray): Collection of all possible states of shape
             (n_states, n_state_variables).
         quad_weights (np.ndarrray): Weights for each stoachstic shock draw.
@@ -35,38 +29,13 @@ def do_egm_step(
         trans_vec_state (np.ndarray): A vector containing for each possible exogenous
             process state the corresponding probability.
             Shape is (n_exog_processes).
-        taste_shock_scale (float): The taste shock scale.
         savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
             exogenous savings grid .
-        compute_marginal_utility (callable): User-defined function to compute the
-            agent's marginal utility. The input ```params``` is already partialled in.
-        compute_inverse_marginal_utility (callable): User-defined function to compute
-        the agent's inverse marginal utility.
+        compute_inverse_marginal_utility (Callable): Function for calculating the
+            inverse marginal utility, which takes the marginal utility as only input.
         compute_value (callable): Function for calculating the value from consumption
             level, discrete choice and expected value. The inputs ```discount_rate```
             and ```compute_utility``` are already partialled in.
-        compute_next_wealth_matrices (callable): User-defined function to compute the
-            agent's wealth matrices of the next period (t + 1). The inputs
-            ```savings_grid```, ```income_shocks```, ```params``` and ```options```
-            are already partialled in.
-        compute_next_marginal_wealth (callable): User-defined function to compute the
-            agent's marginal wealth in the next period (t + 1). The inputs
-            ```params``` and ```options``` are already partialled in.
-        get_state_specific_choice_set (Callable): User-supplied function returning for
-            each state all possible choices.
-        policy_array (np.ndarray): Multi-dimensional np.ndarray storing the
-            choice-specific policy function; of shape
-            [n_states, n_discrete_choices, 2, 1.1 * n_grid_wealth].
-            Position [.., 0, :] contains the endogenous grid over wealth M,
-            and [.., 1, :] stores the corresponding value of the policy function
-            c(M, d), for each state and each discrete choice.
-        value_array (np.ndarray): Multi-dimensional np.ndarray storing the
-            choice-specific value functions; of shape
-            [n_states, n_discrete_choices, 2, 1.1 * n_grid_wealth].
-            Position [.., 0, :] contains the endogenous grid over wealth M,
-            and [.., 1, :] stores the corresponding value of the value function
-            v(M, d), for each state and each discrete choice.
-
     Returns:
         (tuple) Tuple containing:
 
@@ -206,40 +175,73 @@ def create_current_policy_and_value_array(
 
 
 def get_child_state_policy_and_value(
-    child_node_choice_set: np.ndarray,
+    exogenous_savings_grid,
+    income_shock_draws,
+    child_state: np.ndarray,
+    state_indexer: np.ndarray,
+    state_space: np.ndarray,
     taste_shock_scale: float,
+    policy_array: np.ndarray,
+    value_array: np.ndarray,
+    compute_next_wealth_matrices: Callable,
     compute_marginal_utility: Callable,
     compute_value: Callable,
-    choice_policies_child: np.ndarray,
-    choice_values_child: np.ndarray,
-    next_period_wealth: np.ndarray,
+    get_state_specific_choice_set: Callable,
 ):
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
 
     Args:
-        child_node_choice_set (np.ndarray): The agent's (restricted) choice set in
-            the given state of shape (n_admissible_choices,).
+        exogenous_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
+            containing the exogenous savings grid .
+        income_shock_draws (np.ndarray): 1d array of shape (n_quad_points,) containing
+            the Hermite quadrature points.
+        child_state (np.ndarray): The child state to do calculations for. Shape is
+        (n_num_state_variables)
+        state_indexer (np.ndarray): Indexer object that maps states to indexes.
+            The shape of this object quite complicated. For each state variable it
+             has the number of possible states as "row", i.e.
+            (n_poss_states_statesvar_1, n_poss_states_statesvar_2, ....)
+        state_space (np.ndarray): Collection of all possible states of shape
+            (n_states, n_state_variables).
         taste_shock_scale (float): The taste shock scale.
+        policy_array (np.ndarray): Multi-dimensional np.ndarray storing the
+            choice-specific policy function; of shape
+            [n_states, n_discrete_choices, 2, 1.1 * (n_grid_wealth + 1)].
+            Position [.., 0, :] contains the endogenous grid over wealth M,
+            and [.., 1, :] stores the corresponding value of the policy function
+            c(M, d), for each state and each discrete choice.
+        value_array (np.ndarray): Multi-dimensional np.ndarray storing the
+            choice-specific value functions; of shape
+            [n_states, n_discrete_choices, 2, 1.1 * (n_grid_wealth + 1)].
+            Position [.., 0, :] contains the endogenous grid over wealth M,
+            and [.., 1, :] stores the corresponding value of the value function
+            v(M, d), for each state and each discrete choice.
+        compute_next_wealth_matrices (callable): User-defined function to compute the
+            agent's wealth matrices of the next period (t + 1). The inputs
+            ```savings_grid```, ```income_shocks```, ```params``` and ```options```
+            are already partialled in.
         compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility. The input ```params``` is already partialled in.
         compute_value (callable): User-defined function to compute
             the agent's value function in the credit-constrained area. The inputs
             ```params``` and ```compute_utility``` are already partialled in.
-        choice_policies_child (np.ndarray): 2d array of the agent's next period policy
-            for all choices. Shape (n_choices, 2, 1.1 * (n_grid_wealth + 1)).
-            Position [:, 0, :] contains the endogenous grid over wealth M,
-            and [:, 1, :] stores the corresponding value of the choice-specific policy
-            function c(M, d).
-        choice_values_child (np.ndarray): 2d array of the agent's next period values
-            for all choices. Shape (n_choices, 2, 1.1 * (n_grid_wealth + 1)).
-            Position [:, 0, :] contains the endogenous grid over wealth M,
-            and [:, 1, :] stores the corresponding value of the choice-specific value
-            function v(M, d).
-        next_period_wealth (np.ndarray): Array of all possible next period
-            wealths with shape (n_quad_stochastic, n_grid_wealth).
+        get_state_specific_choice_set (Callable): User-supplied function returning for
+            each state all possible choices.
 
     Returns:
     """
+    child_state_index = state_indexer[tuple(child_state)]
+    choice_policies_child = policy_array[child_state_index]
+    choice_values_child = value_array[child_state_index]
+
+    child_node_choice_set = get_state_specific_choice_set(
+        child_state, state_space, state_indexer
+    )
+    next_period_wealth = compute_next_wealth_matrices(
+        child_state,
+        savings_grid=exogenous_savings_grid,
+        income_shock=income_shock_draws,
+    )
     # Interpolate next period policy and values to match the
     # contemporary matrix of potential next period wealths
     child_policy = get_child_state_choice_specific_policy(
