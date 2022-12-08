@@ -5,6 +5,7 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
+import pickle as pkl
 from dcegm.egm_step import do_egm_step
 from dcegm.integration import quadrature_legendre
 from dcegm.pre_processing import create_multi_dim_arrays
@@ -68,13 +69,13 @@ def solve_dcegm(
     max_wealth = params.loc[("assets", "max_wealth"), "value"]
     n_periods = options["n_periods"]
     n_grid_wealth = options["grid_points_wealth"]
-
     exogenous_savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
 
     create_state_space = state_space_functions["create_state_space"]
     get_state_specific_choice_set = state_space_functions[
         "get_state_specific_choice_set"
     ]
+
     state_space, state_indexer = create_state_space(options)
     # ToDo: Make interface with several draw possibilities.
     # ToDo: Some day make user supplied draw function.
@@ -154,6 +155,7 @@ def backwards_induction(
 ):
     for period in range(n_periods - 2, -1, -1):
 
+
         state_subspace = state_space[np.where(state_space[:, 0] == period)]
 
         for state in state_subspace:
@@ -189,6 +191,9 @@ def backwards_induction(
                 )
 
                 if policy_array.shape[1] > 1:
+                    if period == (n_periods - 5):
+                        breakpoint()
+                        test_string = "TEST"
                     current_policy, current_value = do_upper_envelope_step(
                         current_policy,
                         current_value,
@@ -196,7 +201,8 @@ def backwards_induction(
                         n_grid_wealth=exogenous_savings_grid.shape[0],
                         compute_value=compute_value,
                     )
-
+                    if period == (n_periods - 5):
+                        breakpoint()
                 # Store
                 policy_array[
                     current_state_index,
