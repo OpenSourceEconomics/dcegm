@@ -42,7 +42,7 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
 
 def get_state_specific_choice_set(
     state: np.ndarray,
-    state_space: np.ndarray,
+    state_space: np.ndarray,  # noqa: U100
     indexer: np.ndarray,
 ) -> np.ndarray:
     """Select state-specific choice set. Will be a user defined function later.

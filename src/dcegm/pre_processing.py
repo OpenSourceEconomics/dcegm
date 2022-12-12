@@ -145,8 +145,8 @@ def _store_current_period_policy_and_value(
     current_period_value: np.ndarray,
     expected_value: np.ndarray,
     savings_grid: np.ndarray,
-    options: Dict[str, int],
-) -> Tuple[np.ndarray, np.ndarray]:
+    options: dict[str, int],
+) -> tuple[np.ndarray, np.ndarray]:
     """Store the current period policy and value functions.
 
     Args:

@@ -1,6 +1,9 @@
 """Implementation of the Upper Envelope algorithm."""
 from typing import Any
 from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Tuple
 
 import numpy as np
 from scipy import interpolate
@@ -13,9 +16,9 @@ def do_upper_envelope_step(
     policy: np.ndarray,
     value: np.ndarray,
     *,
-    options: dict[str, int],
+    options: Dict[str, int],
     compute_value: Callable,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray]:
     """Runs the Upper Envelope algorithm and drops sub-optimal points.
 
     Calculates the upper envelope over the overlapping segments of the
@@ -122,7 +125,7 @@ def do_upper_envelope_step(
 
 def locate_non_concave_regions_and_refine(
     value,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Locates non-concave regions and refines the value "correspondence".
 
     Non-concave regions in the value function are reflected by non-monotonous
@@ -324,8 +327,8 @@ def refine_policy(
 
 
 def _compute_upper_envelope(
-    segments: list[np.ndarray],
-) -> tuple[np.ndarray, np.ndarray]:
+    segments: List[np.ndarray],
+) -> Tuple[np.ndarray, np.ndarray]:
     """Computes upper envelope and refines value function "correspondence".
 
     The upper envelope algorithm detects suboptimal points in the value function
@@ -488,7 +491,7 @@ def _augment_grid(
     min_wealth_grid: float,
     n_grid_wealth: int,
     compute_value: Callable,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray]:
     """Extends the endogenous wealth grid, value, and policy function to the left.
 
     Args:
@@ -542,7 +545,7 @@ def _augment_grid(
 
 def _partition_grid(
     value_correspondence: np.ndarray, j: int
-) -> tuple[np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray]:
     """Splits the grid into two parts, 1,..., j and j, j+1,..., J.
 
     Note that the index ``j``, after which the separation occurs,
@@ -631,11 +634,11 @@ def _find_dominated_points(
 
 
 def _get_interpolated_value(
-    segments: list[np.ndarray],
+    segments: List[np.ndarray],
     index: int,
-    grid_points: float | list[float],
+    grid_points: float | List[float],
     fill_value_: Any = np.nan,
-) -> tuple[np.ndarray | float]:
+) -> Tuple[np.ndarray | float]:
     """Returns the interpolated value(s)."""
     interp_func = interpolate.interp1d(
         segments[index][0],

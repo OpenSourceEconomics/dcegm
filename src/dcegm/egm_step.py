@@ -22,7 +22,7 @@ def do_egm_step(
     compute_next_marginal_wealth: Callable,
     store_current_policy_and_value: Callable,
     next_policy: np.ndarray,
-    next_value: np.ndarray,
+    next_value: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
 
@@ -128,7 +128,7 @@ def sum_marginal_utility_over_choice_probs(
     child_node_choice_set: np.ndarray,
     next_period_policy: np.ndarray,
     next_period_value: np.ndarray,
-    options: Dict,
+    options: Dict[str, int],
     compute_marginal_utility: Callable,
     compute_next_period_choice_probs: Callable,
 ) -> np.ndarray:

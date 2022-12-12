@@ -10,7 +10,7 @@ def solve_final_period(
     savings_grid: np.ndarray,
     *,
     options: Dict[str, int],
-    compute_utility: Callable,
+    compute_utility: Callable,  # noqa: U100
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Computes solution to final period for policy and value function.
 
@@ -39,6 +39,7 @@ def solve_final_period(
             Position [.., 0, :] contains the endogenous grid over wealth M,
             and [.., 1, :] stores the corresponding value of the value function
             v(M, d), for each state and each discrete choice.
+
     """
     n_choices = options["n_discrete_choices"]
     choice_range = [1] if n_choices < 2 else range(n_choices)
