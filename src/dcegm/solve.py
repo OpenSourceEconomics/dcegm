@@ -1,4 +1,6 @@
 """Interface for the DC-EGM algorithm."""
+from __future__ import annotations
+
 from functools import partial
 from typing import Callable
 from typing import Dict
@@ -15,12 +17,12 @@ from dcegm.upper_envelope_step import do_upper_envelope_step
 
 def solve_dcegm(
     params: pd.DataFrame,
-    options: Dict[str, int],
-    utility_functions: Dict[str, Callable],
-    budget_functions: Dict[str, Callable],
-    state_space_functions: Dict[str, Callable],
+    options: dict[str, int],
+    utility_functions: dict[str, Callable],
+    budget_functions: dict[str, Callable],
+    state_space_functions: dict[str, Callable],
     solve_final_period: Callable,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Solves a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
     EGM stands for Endogenous Grid Method.

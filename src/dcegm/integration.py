@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Tuple
 
 import numpy as np
@@ -8,7 +10,7 @@ from scipy.stats import norm
 
 def quadrature_hermite(
     n_quad_points: int, sigma: float
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Return the Hermite quadrature points and weights.
 
     It is the specific quadrature rule for the normal distribution.
@@ -40,7 +42,7 @@ def quadrature_hermite(
 
 def quadrature_legendre(
     n_quad_points: int, sigma: float
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Return the Gauss-Legendre quadrature points and weights.
 
     The stochastic Gauss-Legendre quadrature points are shifted points

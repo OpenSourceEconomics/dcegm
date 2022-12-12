@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Dict
 
 import numpy as np
@@ -9,7 +11,7 @@ def budget_constraint(
     savings_grid: np.ndarray,
     income_shock: np.ndarray,
     params: pd.DataFrame,
-    options: Dict[str, int],
+    options: dict[str, int],
 ) -> np.ndarray:
     """Compute possible current beginning of period resources, given the savings grid of
     last period and the current state including the choice of last period.
@@ -28,6 +30,7 @@ def budget_constraint(
     Returns:
         (np.ndarray): 2d array of shape (n_quad_stochastic, n_grid_wealth)
             containing all possible next period wealths.
+
     """
     r = params.loc[("assets", "interest_rate"), "value"]
     n_grid_wealth = options["grid_points_wealth"]
@@ -64,7 +67,7 @@ def _calc_stochastic_income(
     child_state: np.ndarray,
     wage_shock: np.ndarray,
     params: pd.DataFrame,
-    options: Dict[str, int],
+    options: dict[str, int],
 ) -> float:
     """Computes the current level of deterministic and stochastic income.
 
@@ -92,6 +95,7 @@ def _calc_stochastic_income(
         stochastic_income (np.ndarray): 1d array of shape (n_quad_points,) containing
             potential end of period incomes. It consists of a deterministic component,
             i.e. age-dependent labor income, and a stochastic shock.
+
     """
     if child_state[1] == 0:  # working
         # For simplicity, assume current_age - min_age = experience

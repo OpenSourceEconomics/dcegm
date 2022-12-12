@@ -12,6 +12,7 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 # -- Project information -----------------------------------------------------
+from __future__ import annotations
 
 project = "dc-egm"
 copyright = (

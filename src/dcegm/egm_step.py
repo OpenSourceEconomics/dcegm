@@ -1,4 +1,6 @@
 """Implementation of the EGM algorithm."""
+from __future__ import annotations
+
 from typing import Callable
 from typing import Dict
 from typing import Tuple
@@ -12,7 +14,7 @@ def do_egm_step(
     child_state,
     child_node_choice_set,
     *,
-    options: Dict[str, int],
+    options: dict[str, int],
     compute_marginal_utility: Callable,
     compute_current_policy: Callable,
     compute_current_value: Callable,
@@ -22,8 +24,8 @@ def do_egm_step(
     compute_next_marginal_wealth: Callable,
     store_current_policy_and_value: Callable,
     next_policy: np.ndarray,
-    next_value: np.ndarray
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    next_value: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
 
     Args:
@@ -151,6 +153,7 @@ def sum_marginal_utility_over_choice_probs(
     Returns:
         (np.ndarray): Array of next period's marginal utility of shape
             (n_quad_stochastic * n_grid_wealth,).
+
     """
     n_grid_wealth = options["grid_points_wealth"]
     n_quad_stochastic = options["quadrature_points_stochastic"]
@@ -170,7 +173,7 @@ def get_next_period_policy(
     child_node_choice_set,
     matrix_next_period_wealth: np.ndarray,
     next_period_policy: np.ndarray,
-    options: Dict[str, int],
+    options: dict[str, int],
 ) -> np.ndarray:
     """Computes the next-period policy via linear interpolation.
 
@@ -190,6 +193,7 @@ def get_next_period_policy(
     Returns:
         next_period_policy_interp (np.ndarray): Array of interpolated next period
             consumption of shape (n_choices, n_quad_stochastic * n_grid_wealth).
+
     """
     n_grid_wealth = options["grid_points_wealth"]
     n_quad_stochastic = options["quadrature_points_stochastic"]
@@ -233,6 +237,7 @@ def get_next_period_value(
             interpolation to the actual next period value function onto
             the current period grid of potential next period wealths.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
+
     """
     next_period_value_interp = np.empty(
         (

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 import pandas as pd
 
@@ -22,6 +24,7 @@ def utility_func_crra(
     Returns:
         utility (np.ndarray): Agent's utility . Array of shape
             (n_quad_stochastic * n_grid_wealth,) or (n_grid_wealth,).
+
     """
     theta = params.loc[("utility_function", "theta"), "value"]
     delta = params.loc[("delta", "delta"), "value"]
@@ -49,6 +52,7 @@ def marginal_utility_crra(consumption: np.ndarray, params: pd.DataFrame) -> np.n
     Returns:
         marginal_utility (np.ndarray): Marginal utility of CRRA consumption
             function. Array of shape (n_quad_stochastic * n_grid_wealth,).
+
     """
     theta = params.loc[("utility_function", "theta"), "value"]
     marginal_utility = consumption ** (-theta)
@@ -71,6 +75,7 @@ def inverse_marginal_utility_crra(
     Returns:
         inverse_marginal_utility(np.ndarray): Inverse of the marginal utility of
             a CRRA consumption function. Array of shape (n_grid_wealth,).
+
     """
     theta = params.loc[("utility_function", "theta"), "value"]
     beta = params.loc[("beta", "beta"), "value"]

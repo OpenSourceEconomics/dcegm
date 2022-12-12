@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Callable
 from typing import Dict
 from typing import Tuple
@@ -9,9 +11,9 @@ def solve_final_period(
     states: np.ndarray,
     savings_grid: np.ndarray,
     *,
-    options: Dict[str, int],
+    options: dict[str, int],
     compute_utility: Callable,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Computes solution to final period for policy and value function.
 
     In the last period, everything is consumed, i.e. consumption = savings.
@@ -39,6 +41,7 @@ def solve_final_period(
             Position [.., 0, :] contains the endogenous grid over wealth M,
             and [.., 1, :] stores the corresponding value of the value function
             v(M, d), for each state and each discrete choice.
+
     """
     n_choices = options["n_discrete_choices"]
     choice_range = [1] if n_choices < 2 else range(n_choices)
