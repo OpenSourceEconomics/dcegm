@@ -28,6 +28,7 @@ def calc_current_period_policy(
     Returns:
         (np.ndarray): 1d array of shape (n_grid_wealth,) containing the current
             period's policy rule.
+
     """
     # RHS of Euler Eq., p. 337 IJRS (2017)
     # Integrate out uncertainty over stochastic income y
@@ -62,6 +63,7 @@ def calc_expected_value(
     Returns:
         (np.ndarray): 1d array of the agent's expected value of the next period.
             Shape (n_grid_wealth,).
+
     """
     log_sum = _calc_log_sum(
         next_period_value, lambda_=params.loc[("shocks", "lambda"), "value"]
@@ -97,7 +99,7 @@ def calc_next_period_choice_probs(
     next_period_value: np.ndarray,
     choice: int,
     params: pd.DataFrame,
-    options: Dict[str, int],
+    options: Dict[str, int],  # noqa: U100
 ) -> np.ndarray:
     """Calculates the probability of working in the next period.
 
@@ -113,6 +115,7 @@ def calc_next_period_choice_probs(
     Returns:
         prob_working (np.ndarray): Probability of working next period. Array of
             shape (n_quad_stochastic * n_grid_wealth,).
+
     """
     # Taste shock (scale) parameter
     lambda_ = params.loc[("shocks", "lambda"), "value"]
@@ -143,6 +146,7 @@ def _calc_log_sum(next_period_value: np.ndarray, lambda_: float) -> np.ndarray:
     Returns:
         logsum (np.ndarray): Log-sum formula inside the expected value function.
             Array of shape (n_quad_stochastic * n_grid_wealth,).
+
     """
     col_max = np.amax(next_period_value, axis=0)
     next_period_value_ = next_period_value - col_max

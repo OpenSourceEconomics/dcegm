@@ -11,7 +11,7 @@ TEST_DIR = Path(__file__).parent
 TEST_RESOURCES_DIR = TEST_DIR / "resources"
 
 
-@pytest.fixture
+@pytest.fixture()
 def load_example_model():
     def load_options_and_params(model):
         """Return parameters and options of an example model."""
