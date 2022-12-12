@@ -243,8 +243,6 @@ def backwards_induction(
                         n_grid_wealth=exogenous_savings_grid.shape[0],
                         compute_value=compute_value,
                     )
-                    if period == (n_periods - 5):
-                        breakpoint()
                 # Store
                 policy_array[
                     current_state_index,
