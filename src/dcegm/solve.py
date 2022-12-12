@@ -69,13 +69,13 @@ def solve_dcegm(
     max_wealth = params.loc[("assets", "max_wealth"), "value"]
     n_periods = options["n_periods"]
     n_grid_wealth = options["grid_points_wealth"]
-
     exogenous_savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
 
     create_state_space = state_space_functions["create_state_space"]
     get_state_specific_choice_set = state_space_functions[
         "get_state_specific_choice_set"
     ]
+
     state_space, state_indexer = create_state_space(options)
     # ToDo: Make interface with several draw possibilities.
     # ToDo: Some day make user supplied draw function.
@@ -196,7 +196,6 @@ def backwards_induction(
 
         index_periods = np.where(state_space[:, 0] == period)[0]
         state_subspace = state_space[index_periods]
-
         for state in state_subspace:
 
             current_state_index = state_indexer[tuple(state)]
@@ -244,7 +243,6 @@ def backwards_induction(
                         n_grid_wealth=exogenous_savings_grid.shape[0],
                         compute_value=compute_value,
                     )
-
                 # Store
                 policy_array[
                     current_state_index,
