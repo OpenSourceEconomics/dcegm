@@ -1,8 +1,10 @@
 from functools import partial
+from typing import Callable
 from typing import Dict
 from typing import Tuple
 
 import numpy as np
+import pandas as pd
 from dcegm.aggregate_policy_value import calc_current_period_policy
 from dcegm.aggregate_policy_value import calc_current_period_value
 from dcegm.aggregate_policy_value import calc_expected_value
@@ -11,15 +13,26 @@ from dcegm.integration import quadrature_legendre
 
 
 def get_partial_functions(
-    params,
-    options,
-    exogenous_savings_grid,
-    user_utility_func,
-    user_marginal_utility_func,
-    user_inverse_marginal_utility_func,
-    user_budget_constraint,
-    user_marginal_next_period_wealth,
-):
+    params: pd.DataFrame,
+    options: Dict[str, int],
+    exogenous_savings_grid: Callable,
+    user_utility_func: Callable,
+    user_marginal_utility_func: Callable,
+    user_inverse_marginal_utility_func: Callable,
+    user_budget_constraint: Callable,
+    user_marginal_next_period_wealth: Callable,
+) -> Tuple[
+    Callable,
+    Callable,
+    Callable,
+    Callable,
+    Callable,
+    Callable,
+    Callable,
+    Callable,
+    Callable,
+]:
+    """Create partial functions."""
 
     quad_points, quad_weights = quadrature_legendre(
         options["quadrature_points_stochastic"],
@@ -145,8 +158,8 @@ def _store_current_period_policy_and_value(
     current_period_value: np.ndarray,
     expected_value: np.ndarray,
     savings_grid: np.ndarray,
-    options: dict[str, int],
-) -> tuple[np.ndarray, np.ndarray]:
+    options: Dict[str, int],
+) -> Tuple[np.ndarray, np.ndarray]:
     """Store the current period policy and value functions.
 
     Args:
