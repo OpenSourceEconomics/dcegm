@@ -5,10 +5,11 @@ channels:
   - defaults
 
 dependencies:
-  - python>=3.9
+  - python>=3.10
   - pip
   - pytest
   - pytest-cov
+  - pytest-xdist
 
   # Package dependencies
   - estimagic
@@ -20,10 +21,11 @@ dependencies:
   - networkx
 
   # Misc
+  - black
+  - nb_black
+  - flake8
   - jupyterlab
   - matplotlib
-  - black
-  - flake8
   - pdbpp
   - pre-commit
   - setuptools_scm
@@ -37,4 +39,5 @@ dependencies:
 
   # docs
   - pip:
+      - blackcellmagic
       - furo

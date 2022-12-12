@@ -4,6 +4,7 @@ from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Tuple
+from typing import Union
 
 import numpy as np
 from scipy import interpolate
@@ -636,9 +637,9 @@ def _find_dominated_points(
 def _get_interpolated_value(
     segments: List[np.ndarray],
     index: int,
-    grid_points: float | List[float],
+    grid_points: Union[float, List[float]],
     fill_value_: Any = np.nan,
-) -> Tuple[np.ndarray | float]:
+) -> Union[np.ndarray, float]:
     """Returns the interpolated value(s)."""
     interp_func = interpolate.interp1d(
         segments[index][0],
