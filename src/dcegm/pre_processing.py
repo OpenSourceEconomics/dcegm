@@ -126,6 +126,7 @@ def create_multi_dim_arrays(
             Position [.., 0, :] contains the endogenous grid over wealth M,
             and [.., 1, :] stores the corresponding value of the value function
             v(M, d), for each state and each discrete choice.
+
     """
     n_grid_wealth = options["grid_points_wealth"]
     n_choices = options["n_discrete_choices"]
@@ -146,7 +147,7 @@ def _store_current_period_policy_and_value(
     savings_grid: np.ndarray,
     options: Dict[str, int],
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Store the current period policy and value funtions.
+    """Store the current period policy and value functions.
 
     Args:
         current_period_policy (np.ndarray): 1d array of shape (n_grid_wealth,)

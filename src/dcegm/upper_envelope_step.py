@@ -1,10 +1,6 @@
 """Implementation of the Upper Envelope algorithm."""
 from typing import Any
 from typing import Callable
-from typing import Dict
-from typing import List
-from typing import Tuple
-from typing import Union
 
 import numpy as np
 from scipy import interpolate
@@ -17,9 +13,9 @@ def do_upper_envelope_step(
     policy: np.ndarray,
     value: np.ndarray,
     *,
-    options: Dict[str, int],
+    options: dict[str, int],
     compute_value: Callable,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Runs the Upper Envelope algorithm and drops sub-optimal points.
 
     Calculates the upper envelope over the overlapping segments of the
@@ -68,6 +64,7 @@ def do_upper_envelope_step(
             current period, where suboptimal points have been dropped and the kink
             points along with the corresponding interpolated values of the value
             function have been added. Shape (2, 1.1 * n_grid_wealth).
+
     """
     n_grid_wealth = options["grid_points_wealth"]
     min_wealth_grid = np.min(value[0, 1:])
@@ -125,7 +122,7 @@ def do_upper_envelope_step(
 
 def locate_non_concave_regions_and_refine(
     value,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Locates non-concave regions and refines the value "correspondence".
 
     Non-concave regions in the value function are reflected by non-monotonous
@@ -158,6 +155,7 @@ def locate_non_concave_regions_and_refine(
         - index_dominated_points (np.ndarray): Array of shape (*n_dominated_points*,)
             containing the indices of dominated points in the endogenous wealth grid,
             where *n_dominated_points* is of variable length.
+
     """
     value_correspondence = value
     segments_non_mono = []
@@ -225,6 +223,7 @@ def refine_policy(
             suboptimal points have been removed from the endogenous wealth grid and
             the policy "correspondence". Furthermore, kink points and the
             corresponding interpolated values of the policy function have been added.
+
     """
     # Remove suboptimal consumption points
     endog_wealth_grid = np.delete(policy[0, :], index_dominated_points)
@@ -325,8 +324,8 @@ def refine_policy(
 
 
 def _compute_upper_envelope(
-    segments: List[np.ndarray],
-) -> Tuple[np.ndarray, np.ndarray]:
+    segments: list[np.ndarray],
+) -> tuple[np.ndarray, np.ndarray]:
     """Computes upper envelope and refines value function "correspondence".
 
     The upper envelope algorithm detects suboptimal points in the value function
@@ -359,6 +358,7 @@ def _compute_upper_envelope(
             Shape (2, *n_intersect_points*), where *n_intersect_points* is the number of
             intersection points between the two uppermost segments
             (i.e. ``first_segment`` and ``second_segment``).
+
     """
     endog_wealth_grid = np.unique(
         np.concatenate([segments[arr][0].tolist() for arr in range(len(segments))])
@@ -488,7 +488,7 @@ def _augment_grid(
     min_wealth_grid: float,
     n_grid_wealth: int,
     compute_value: Callable,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Extends the endogenous wealth grid, value, and policy function to the left.
 
     Args:
@@ -507,7 +507,7 @@ def _augment_grid(
         expected_value_zero_wealth (float): The agent's expected value given that she
             has a wealth of zero.
         min_wealth_grid (float): Minimal wealth level in the endogenous wealth grid.
-        n_grid_wealth (int): Number of gird points in the exogenous wealth grid.
+        n_grid_wealth (int): Number of grid points in the exogenous wealth grid.
         compute_value (callable): Function to compute the agent's value.
 
     Returns:
@@ -517,6 +517,7 @@ def _augment_grid(
         value_augmented (np.ndarray): Array containing endogenous grid and
             value function with ancillary points added to the left.
             Shape (2, *n_grid_augmented*).
+
     """
     grid_points_to_add = np.linspace(min_wealth_grid, value[0, 1], n_grid_wealth // 10)[
         :-1
@@ -541,7 +542,7 @@ def _augment_grid(
 
 def _partition_grid(
     value_correspondence: np.ndarray, j: int
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Splits the grid into two parts, 1,..., j and j, j+1,..., J.
 
     Note that the index ``j``, after which the separation occurs,
@@ -562,6 +563,7 @@ def _partition_grid(
             partition.
         part_two (np.ndarray): Array of shape (2, ``j``:) containing the second
             partition.
+
     """
     j = value_correspondence.shape[1] if j > value_correspondence.shape[1] else j
 
@@ -606,6 +608,7 @@ def _find_dominated_points(
         index_dominated_points (np.ndarray): Array of shape (*n_dominated_points*,)
             containing the indices of dominated points in the endogenous wealth grid,
             where *n_dominated_points* is of variable length.
+
     """
     sig_pos = 10**significance
     sig_neg = 10 ** (-significance)
@@ -628,11 +631,11 @@ def _find_dominated_points(
 
 
 def _get_interpolated_value(
-    segments: List[np.ndarray],
+    segments: list[np.ndarray],
     index: int,
-    grid_points: Union[float, List[float]],
+    grid_points: float | list[float],
     fill_value_: Any = np.nan,
-) -> Tuple[Union[np.ndarray, float]]:
+) -> tuple[np.ndarray | float]:
     """Returns the interpolated value(s)."""
     interp_func = interpolate.interp1d(
         segments[index][0],
