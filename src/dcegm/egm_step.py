@@ -12,7 +12,6 @@ def compute_optimal_policy_and_value(
     max_value_func_exog_process,
     interest_rate: float,
     choice: int,
-    quad_weights: np.ndarray,
     trans_vec_state: np.ndarray,
     savings_grid: np.ndarray,
     compute_inverse_marginal_utility: Callable,
@@ -21,8 +20,6 @@ def compute_optimal_policy_and_value(
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
 
     Args:
-        quad_weights (np.ndarrray): Weights for each stoachstic shock draw.
-            Shape is (n_stochastic_quad_points)
         trans_vec_state (np.ndarray): A vector containing for each possible exogenous
             process state the corresponding probability.
             Shape is (n_exog_processes).
@@ -47,7 +44,6 @@ def compute_optimal_policy_and_value(
 
     """
     current_policy, expected_value = solution_euler_equation(
-        quad_weights,
         trans_vec_state,
         interest_rate,
         compute_inverse_marginal_utility,
@@ -67,7 +63,6 @@ def compute_optimal_policy_and_value(
 
 
 def solution_euler_equation(
-    quad_weights,
     trans_vec_state,
     interest_rate,
     compute_inverse_marginal_utility,
@@ -91,9 +86,9 @@ def solution_euler_equation(
 
     """
     # Integrate out uncertainty over exogenous process and stochastic income y
-    marginal_utility = trans_vec_state @ (marginal_utilities @ quad_weights)
+    marginal_utility = trans_vec_state @ marginal_utilities
 
-    expected_value = trans_vec_state @ (max_value_func @ quad_weights)
+    expected_value = trans_vec_state @ max_value_func
 
     # RHS of Euler Eq., p. 337 IJRS (2017) by multiplying with marginal wealth
     rhs_euler = marginal_utility * (1 + interest_rate)
@@ -157,6 +152,7 @@ def create_current_policy_and_value_array(
 def get_child_state_policy_and_value(
     exogenous_savings_grid,
     income_shock_draws,
+    income_shock_weights,
     child_state: np.ndarray,
     state_indexer: np.ndarray,
     state_space: np.ndarray,
@@ -175,6 +171,8 @@ def get_child_state_policy_and_value(
             containing the exogenous savings grid .
         income_shock_draws (np.ndarray): 1d array of shape (n_quad_points,) containing
             the Hermite quadrature points.
+        income_shock_weights (np.ndarrray): Weights for each stoachstic shock draw.
+            Shape is (n_stochastic_quad_points)
         child_state (np.ndarray): The child state to do calculations for. Shape is
         (n_num_state_variables)
         state_indexer (np.ndarray): Indexer object that maps states to indexes.
@@ -246,10 +244,15 @@ def get_child_state_policy_and_value(
 
     child_state_log_sum = calc_exp_max_value(choice_child_values, taste_shock_scale)
 
-    return child_state_marginal_utility.reshape(
-        exogenous_savings_grid.shape[0], income_shock_draws.shape[0]
-    ), child_state_log_sum.reshape(
-        exogenous_savings_grid.shape[0], income_shock_draws.shape[0]
+    return (
+        child_state_marginal_utility.reshape(
+            exogenous_savings_grid.shape[0], income_shock_draws.shape[0]
+        )
+        @ income_shock_weights,
+        child_state_log_sum.reshape(
+            exogenous_savings_grid.shape[0], income_shock_draws.shape[0]
+        )
+        @ income_shock_weights,
     )
 
 

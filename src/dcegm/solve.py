@@ -157,17 +157,12 @@ def backwards_induction(
         shape=(
             state_space.shape[0],
             exogenous_savings_grid.shape[0],
-            income_shock_weights.shape[0],
         ),
         fill_value=np.nan,
         dtype=float,
     )
     max_expected_values = np.full(
-        shape=(
-            state_space.shape[0],
-            exogenous_savings_grid.shape[0],
-            income_shock_weights.shape[0],
-        ),
+        shape=(state_space.shape[0], exogenous_savings_grid.shape[0]),
         fill_value=np.nan,
         dtype=float,
     )
@@ -177,13 +172,15 @@ def backwards_induction(
         for child_state in possible_child_states:
             child_state_index = state_indexer[tuple(child_state)]
             # We could parralelize here also over the savings grid!
+            # We aggregate here already over the income shocks!
 
             (
-                marginal_utilities[child_state_index, :, :],
-                max_expected_values[child_state_index, :, :],
+                marginal_utilities[child_state_index, :],
+                max_expected_values[child_state_index, :],
             ) = get_child_state_policy_and_value(
                 exogenous_savings_grid,
                 income_shock_draws,
+                income_shock_weights,
                 child_state,
                 state_indexer,
                 state_space,
@@ -229,7 +226,6 @@ def backwards_induction(
                     max_expected_values_child_states[choice_ind, :],
                     interest_rate,
                     choice,
-                    income_shock_weights,
                     trans_vec_state,
                     exogenous_savings_grid,
                     compute_inverse_marginal_utility=compute_inverse_marginal_utility,
