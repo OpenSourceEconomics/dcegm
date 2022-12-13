@@ -74,20 +74,17 @@ def solution_euler_equation(
     child states. So we have to integrate over the exogenous process and income
     uncertainty and then apply the inverese marginal utility function.
     Args:
-        quad_weights:
         trans_vec_state:
-        savings_grid:
         interest_rate:
         compute_inverse_marginal_utility:
-        marginal_utilities_exog_process:
-        max_value_func_exog_process:
+        marginal_utilities:
+        max_value_func:
 
     Returns:
 
     """
-    # Integrate out uncertainty over exogenous process and stochastic income y
+    # Integrate out uncertainty over exogenous process
     marginal_utility = trans_vec_state @ marginal_utilities
-
     expected_value = trans_vec_state @ max_value_func
 
     # RHS of Euler Eq., p. 337 IJRS (2017) by multiplying with marginal wealth
