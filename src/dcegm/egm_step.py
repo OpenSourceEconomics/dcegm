@@ -49,7 +49,6 @@ def compute_optimal_policy_and_value(
     current_policy, expected_value = solution_euler_equation(
         quad_weights,
         trans_vec_state,
-        savings_grid,
         interest_rate,
         compute_inverse_marginal_utility,
         marginal_utilities_exog_process,
@@ -70,11 +69,10 @@ def compute_optimal_policy_and_value(
 def solution_euler_equation(
     quad_weights,
     trans_vec_state,
-    savings_grid,
     interest_rate,
     compute_inverse_marginal_utility,
-    marginal_utilities_exog_process,
-    max_value_func_exog_process,
+    marginal_utilities,
+    max_value_func,
 ):
     """
     This function solves the eueler equation for a discrete choice and the corresponding
@@ -92,22 +90,13 @@ def solution_euler_equation(
     Returns:
 
     """
-    n_quad_points = quad_weights.shape[0]
-    n_savings_grid = savings_grid.shape[0]
-    # Integrate over stochastic processes
-    marginal_utilities_income_shocks = trans_vec_state @ marginal_utilities_exog_process
-    max_value_func_income_shocks = trans_vec_state @ max_value_func_exog_process
-    # Integrate out uncertainty over stochastic income y
-    marginal_utilities = quad_weights @ marginal_utilities_income_shocks.reshape(
-        (n_quad_points, n_savings_grid), order="F"
-    )
+    # Integrate out uncertainty over exogenous process and stochastic income y
+    marginal_utility = trans_vec_state @ (marginal_utilities @ quad_weights)
 
-    expected_value = quad_weights @ max_value_func_income_shocks.reshape(
-        (n_quad_points, n_savings_grid), order="F"
-    )
+    expected_value = trans_vec_state @ (max_value_func @ quad_weights)
 
     # RHS of Euler Eq., p. 337 IJRS (2017) by multiplying with marginal wealth
-    rhs_euler = marginal_utilities * (1 + interest_rate)
+    rhs_euler = marginal_utility * (1 + interest_rate)
     current_policy = compute_inverse_marginal_utility(rhs_euler)
 
     return current_policy, expected_value
@@ -257,7 +246,11 @@ def get_child_state_policy_and_value(
 
     child_state_log_sum = calc_exp_max_value(choice_child_values, taste_shock_scale)
 
-    return child_state_marginal_utility, child_state_log_sum
+    return child_state_marginal_utility.reshape(
+        exogenous_savings_grid.shape[0], income_shock_draws.shape[0]
+    ), child_state_log_sum.reshape(
+        exogenous_savings_grid.shape[0], income_shock_draws.shape[0]
+    )
 
 
 def calc_exp_max_value(

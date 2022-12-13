@@ -156,7 +156,8 @@ def backwards_induction(
     marginal_utilities = np.full(
         shape=(
             state_space.shape[0],
-            exogenous_savings_grid.shape[0] * income_shock_weights.shape[0],
+            exogenous_savings_grid.shape[0],
+            income_shock_weights.shape[0],
         ),
         fill_value=np.nan,
         dtype=float,
@@ -164,7 +165,8 @@ def backwards_induction(
     max_expected_values = np.full(
         shape=(
             state_space.shape[0],
-            exogenous_savings_grid.shape[0] * income_shock_weights.shape[0],
+            exogenous_savings_grid.shape[0],
+            income_shock_weights.shape[0],
         ),
         fill_value=np.nan,
         dtype=float,
@@ -177,8 +179,8 @@ def backwards_induction(
             # We could parralelize here also over the savings grid!
 
             (
-                marginal_utilities[child_state_index, :],
-                max_expected_values[child_state_index, :],
+                marginal_utilities[child_state_index, :, :],
+                max_expected_values[child_state_index, :, :],
             ) = get_child_state_policy_and_value(
                 exogenous_savings_grid,
                 income_shock_draws,
@@ -217,7 +219,9 @@ def backwards_induction(
             marginal_utilities_child_states = np.take(
                 marginal_utilities, child_states_indexes, axis=0
             )
-            max_expected_values_child_states = max_expected_values[child_states_indexes]
+            max_expected_values_child_states = np.take(
+                max_expected_values, child_states_indexes, axis=0
+            )
             trans_vec_state = transition_vector_by_state(state)
             for choice_ind, choice in enumerate(choice_set):
                 current_policy, current_value = compute_optimal_policy_and_value(
