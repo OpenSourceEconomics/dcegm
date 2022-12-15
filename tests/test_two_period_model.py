@@ -20,14 +20,37 @@ def marginal_utility(consumption, params):
     return u_prime
 
 
-def budget(
-    lagged_resources, lagged_consumption, lagged_health_state, wage, health, params
-):
+def inverse_marginal_utility(marginal_utility, params):
+    rho = params.loc[("utility_function", "rho"), "value"]
+    return marginal_utility ** (-1 / rho)
+
+
+def budget_dcegm(state, savings_grid, income_shock, params, options):
+    interest_factor = 1 + params.loc[("assets", "interest_rate"), "value"]
+    health_costs = params.loc[("assets", "ltc_cost"), "value"]
+    wage = params.loc[("wage", "wage_avg"), "value"]
+    resources = (
+        interest_factor * savings_grid
+        + (wage + income_shock) * (1 - state[1])
+        - state[-1] * health_costs
+    )
+    return resources
+
+
+def transitions_dcegm(state, params):
+    p = params.loc[("transition", "ltc_prob"), "value"]
+    if state[-1] == 1:
+        return np.array([0, 1])
+    elif state[-1] == 0:
+        return np.array([1 - p, p])
+
+
+def budget(lagged_resources, lagged_consumption, lagged_choice, wage, health, params):
     interest_factor = 1 + params.loc[("assets", "interest_rate"), "value"]
     health_costs = params.loc[("assets", "ltc_cost"), "value"]
     resources = (
         interest_factor * (lagged_resources - lagged_consumption)
-        + wage * (1 - lagged_health_state)
+        + wage * (1 - lagged_choice)
         - health * health_costs
     )
     return resources

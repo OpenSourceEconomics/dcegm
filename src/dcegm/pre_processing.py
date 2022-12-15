@@ -11,6 +11,7 @@ def get_partial_functions(
     options,
     user_utility_functions,
     user_budget_constraint,
+    exogenous_transition_function,
 ):
 
     compute_utility = partial(
@@ -35,12 +36,14 @@ def get_partial_functions(
         params=params,
         options=options,
     )
+    transition_function = partial(exogenous_transition_function, params=params)
     return (
         compute_utility,
         compute_marginal_utility,
         compute_inverse_marginal_utility,
         compute_value,
         compute_next_wealth_matrices,
+        transition_function,
     )
 
 
