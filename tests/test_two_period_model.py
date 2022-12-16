@@ -25,7 +25,7 @@ def inverse_marginal_utility(marginal_utility, params):
     return marginal_utility ** (-1 / rho)
 
 
-def budget_dcegm(state, savings_grid, income_shock, params, options):
+def budget_dcegm(state, savings_grid, income_shock, params, options):  # noqa: 100
     interest_factor = 1 + params.loc[("assets", "interest_rate"), "value"]
     health_costs = params.loc[("assets", "ltc_cost"), "value"]
     wage = params.loc[("wage", "wage_avg"), "value"]
