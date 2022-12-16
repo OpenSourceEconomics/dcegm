@@ -38,7 +38,7 @@ def get_partial_functions(
         options=options,
     )
     transition_function = partial(exogenous_transition_function, params=params)
-    
+
     return (
         compute_utility,
         compute_marginal_utility,
