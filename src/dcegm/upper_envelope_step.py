@@ -648,6 +648,7 @@ def _find_dominated_points(
 
     return index_dominated_points
 
+
 def _get_interpolated_value(
     segments: List[np.ndarray],
     index: int,
@@ -664,6 +665,7 @@ def _get_interpolated_value(
     )
 
     return values_interp
+
 
 def _subtract_values(grid_point: float, first_segment, second_segment):
     """Subtracts the interpolated values of the two uppermost segments."""

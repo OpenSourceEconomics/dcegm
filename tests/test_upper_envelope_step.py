@@ -1,8 +1,8 @@
-"""
-This module tests the function do_upper_envelope_step from
-dcegm.upper_envelope_step.
-For fixed inputs of do_upper_envelope_step, both outputs are compared
-to the true values of current_policy and current_value.
+"""This module tests the function do_upper_envelope_step from dcegm.upper_envelope_step.
+
+For fixed inputs of do_upper_envelope_step, both outputs are compared to the true values
+of current_policy and current_value.
+
 """
 # Imports
 import pickle as pkl
