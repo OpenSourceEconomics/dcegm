@@ -1,4 +1,5 @@
 from functools import partial
+from typing import Callable
 from typing import Dict
 from typing import Tuple
 
@@ -11,8 +12,14 @@ def get_partial_functions(
     options,
     user_utility_functions,
     user_budget_constraint,
-):
-
+) -> Tuple[
+    Callable,
+    Callable,
+    Callable,
+    Callable,
+    Callable,
+]:
+    """Create partial functions."""
     compute_utility = partial(
         user_utility_functions["utility"],
         params=params,
@@ -84,6 +91,7 @@ def create_multi_dim_arrays(
             Position [.., 0, :] contains the endogenous grid over wealth M,
             and [.., 1, :] stores the corresponding value of the value function
             v(M, d), for each state and each discrete choice.
+
     """
     n_grid_wealth = options["grid_points_wealth"]
     n_choices = options["n_discrete_choices"]
@@ -95,3 +103,8 @@ def create_multi_dim_arrays(
     value_arr[:] = np.nan
 
     return policy_arr, value_arr
+    
+
+    current_value[1, 1:] = current_period_value
+
+    return current_policy, current_value

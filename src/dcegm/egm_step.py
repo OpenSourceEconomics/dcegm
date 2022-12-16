@@ -336,6 +336,7 @@ def get_child_state_policy(
     Returns:
         (np.ndarray): Array of next period's marginal utility of shape
             (n_quad_stochastic * n_grid_wealth,).
+
     """
 
     next_period_marg_util = np.zeros(next_period_policy.shape[1])
@@ -357,8 +358,8 @@ def get_child_state_choice_specific_policy(
 ) -> np.ndarray:
     """Computes the next-period policy via linear interpolation.
 
-    Extrapolate lineary in wealth regions beyond the grid, i.e. larger
-    than "max_wealth" specifiec in the ``params`` dictionary.
+    Extrapolate linearly in wealth regions beyond the grid, i.e. larger
+    than "max_wealth" specific in the ``params`` dictionary.
 
     Args:
         child_node_choice_set (np.ndarray): 1d array of shape (n_admissible_choices,)
@@ -371,6 +372,7 @@ def get_child_state_choice_specific_policy(
     Returns:
         next_period_policy_interp (np.ndarray): Array of interpolated next period
             consumption of shape (n_choices, n_quad_stochastic * n_grid_wealth).
+
     """
 
     next_period_wealth_flat = next_period_wealth.flatten("F")
@@ -412,6 +414,7 @@ def get_child_state_choice_specific_values(
             interpolation to the actual next period value function onto
             the current period grid of potential next period wealths.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
+
     """
 
     next_period_wealth_flat = next_period_wealth.flatten("F")

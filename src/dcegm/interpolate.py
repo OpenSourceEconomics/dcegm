@@ -18,6 +18,7 @@ def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarra
     Returns:
         np.ndarray: Interpolated flat policy function of shape
             (n_quad_stochastic * n_grid_wealth,).
+
     """
     policy = policy[:, ~np.isnan(policy).any(axis=0)]
     policy_interp = linear_interpolation_with_extrapolation(
