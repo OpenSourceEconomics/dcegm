@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def get_transition_matrix_by_state(state):
+def get_transition_matrix_by_state(state):  # noqa: U100
     """Return a transition matrix for each state.
 
     Args:

@@ -12,7 +12,7 @@ def get_partial_functions(
     options,
     user_utility_functions,
     user_budget_constraint,
-) -> Tuple[Callable, Callable, Callable, Callable, Callable,]:
+) -> Tuple[Callable, Callable, Callable, Callable, Callable]:
     """Create partial functions."""
     compute_utility = partial(
         user_utility_functions["utility"],
@@ -97,7 +97,3 @@ def create_multi_dim_arrays(
     value_arr[:] = np.nan
 
     return policy_arr, value_arr
-
-    current_value[1, 1:] = current_period_value
-
-    return current_policy, current_value

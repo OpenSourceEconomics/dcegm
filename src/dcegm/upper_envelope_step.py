@@ -55,7 +55,7 @@ def do_upper_envelope_step(
             and [1, :] stores the corresponding value of the value function v(M, d),
             for each time period and each discrete choice.
         choice (int): The current choice.
-        n_grid_wealth (int): Number of gird points in the exogenous wealth grid.
+        n_grid_wealth (int): Number of grid points in the exogenous wealth grid.
         compute_value (callable): Function to compute the agent's value.
 
     Returns:
