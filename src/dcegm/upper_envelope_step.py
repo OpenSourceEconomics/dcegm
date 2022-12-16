@@ -55,7 +55,7 @@ def do_upper_envelope_step(
             and [1, :] stores the corresponding value of the value function v(M, d),
             for each time period and each discrete choice.
         choice (int): The current choice.
-        n_grid_wealth (int): Number of gird points in the exogenous wealth grid.
+        n_grid_wealth (int): Number of grid points in the exogenous wealth grid.
         compute_value (callable): Function to compute the agent's value.
 
     Returns:
@@ -69,6 +69,7 @@ def do_upper_envelope_step(
             current period, where suboptimal points have been dropped and the kink
             points along with the corresponding interpolated values of the value
             function have been added. Shape (2, 1.1 * n_grid_wealth).
+
     """
     min_wealth_grid = np.min(value[0, 1:])
 
@@ -159,6 +160,7 @@ def locate_non_concave_regions_and_refine(
         - index_dominated_points (np.ndarray): Array of shape (*n_dominated_points*,)
             containing the indices of dominated points in the endogenous wealth grid,
             where *n_dominated_points* is of variable length.
+
     """
     value_correspondence = value
     segments_non_mono = []
@@ -226,6 +228,7 @@ def refine_policy(
             suboptimal points have been removed from the endogenous wealth grid and
             the policy "correspondence". Furthermore, kink points and the
             corresponding interpolated values of the policy function have been added.
+
     """
     # Remove suboptimal consumption points
     endog_wealth_grid = np.delete(policy[0, :], index_dominated_points)
@@ -354,6 +357,7 @@ def _compute_upper_envelope(
             Shape (2, *n_intersect_points*), where *n_intersect_points* is the number of
             intersection points between the two uppermost segments
             (i.e. ``first_segment`` and ``second_segment``).
+
     """
     endog_wealth_grid = np.unique(
         np.concatenate([segments[arr][0].tolist() for arr in range(len(segments))])
@@ -503,7 +507,7 @@ def _augment_grid(
         expected_value_zero_wealth (float): The agent's expected value given that she
             has a wealth of zero.
         min_wealth_grid (float): Minimal wealth level in the endogenous wealth grid.
-        n_grid_wealth (int): Number of gird points in the exogenous wealth grid.
+        n_grid_wealth (int): Number of grid points in the exogenous wealth grid.
         compute_value (callable): Function to compute the agent's value.
 
     Returns:
@@ -513,6 +517,7 @@ def _augment_grid(
         value_augmented (np.ndarray): Array containing endogenous grid and
             value function with ancillary points added to the left.
             Shape (2, *n_grid_augmented*).
+
     """
     grid_points_to_add = np.linspace(min_wealth_grid, value[0, 1], n_grid_wealth // 10)[
         :-1
@@ -562,6 +567,7 @@ def _partition_grid(
             partition.
         part_two (np.ndarray): Array of shape (2, ``j``:) containing the second
             partition.
+
     """
     j = value_correspondence.shape[1] if j > value_correspondence.shape[1] else j
 
@@ -606,6 +612,7 @@ def _find_dominated_points(
         index_dominated_points (np.ndarray): Array of shape (*n_dominated_points*,)
             containing the indices of dominated points in the endogenous wealth grid,
             where *n_dominated_points* is of variable length.
+
     """
     sig_pos = 10**significance
     sig_neg = 10 ** (-significance)
@@ -632,7 +639,7 @@ def _get_interpolated_value(
     index: int,
     grid_points: Union[float, List[float]],
     fill_value_: Any = np.nan,
-) -> Tuple[Union[np.ndarray, float]]:
+) -> Union[np.ndarray, float]:
     """Returns the interpolated value(s)."""
 
     values_interp = linear_interpolation_with_inserting_missing_values(

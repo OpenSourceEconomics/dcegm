@@ -18,6 +18,7 @@ def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarra
     Returns:
         np.ndarray: Interpolated flat policy function of shape
             (n_quad_stochastic * n_grid_wealth,).
+
     """
     policy = policy[:, ~np.isnan(policy).any(axis=0)]
     policy_interp = linear_interpolation_with_extrapolation(
@@ -74,7 +75,7 @@ def interpolate_value(
 
 
 def linear_interpolation_with_extrapolation(x, y, x_new):
-    """Linear interpolation with extrapolation
+    """Linear interpolation with extrapolation.
 
     Args:
         x (np.ndarray): 1d array of shape (n,) containing the x-values.
@@ -88,6 +89,7 @@ def linear_interpolation_with_extrapolation(x, y, x_new):
             the new y-values corresponding to the new x-values.
             In case x_new contains values outside of the range of x, these
             values are extrapolated.
+
     """
 
     # make sure that the function also works for unsorted x-arrays
@@ -112,7 +114,7 @@ def linear_interpolation_with_extrapolation(x, y, x_new):
 
 
 def linear_interpolation_with_inserting_missing_values(x, y, x_new, missing_value):
-    """Linear interpolation with inserting missing values
+    """Linear interpolation with inserting missing values.
 
     Args:
         x (np.ndarray): 1d array of shape (n,) containing the x-values.
@@ -128,6 +130,7 @@ def linear_interpolation_with_inserting_missing_values(x, y, x_new, missing_valu
             new y-values corresponding to the new x-values.
             In case x_new contains values outside of the range of x, these
             values are set equal to missing_value.
+
     """
 
     # make sure that the function also works for unsorted x-arrays
