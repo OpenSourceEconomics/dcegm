@@ -251,6 +251,7 @@ def get_child_state_policy_and_value(
             wealths with shape (n_quad_stochastic, n_grid_wealth).
 
     Returns:
+
     """
     # Interpolate next period policy and values to match the
     # contemporary matrix of potential next period wealths
@@ -283,7 +284,7 @@ def calc_exp_max_value(
     choice_specific_values: np.ndarray, taste_shock_scale: float
 ) -> np.ndarray:
     """Calculate the expected max value given choice specific values. Wit the general
-     extrem value assumption on the taste shocks, this reduces to the log-sum.
+    extrem value assumption on the taste shocks, this reduces to the log-sum.
 
     The log-sum formula may also be referred to as the 'smoothed max function',
     see eq. (50), p. 335 (Appendix).
@@ -297,6 +298,7 @@ def calc_exp_max_value(
     Returns:
         logsum (np.ndarray): Log-sum formula inside the expected value function.
             Array of shape (n_quad_stochastic * n_grid_wealth,).
+
     """
     col_max = np.amax(choice_specific_values, axis=0)
     choice_specific_values_scaled = choice_specific_values - col_max
@@ -450,6 +452,7 @@ def calc_choice_probability(
     Returns:
         prob_working (np.ndarray): Probability of working next period. Array of
             shape (n_quad_stochastic * n_grid_wealth,).
+
     """
     col_max = np.amax(values, axis=0)
     values_scaled = values - col_max
