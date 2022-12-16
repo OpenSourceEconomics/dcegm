@@ -202,7 +202,7 @@ def backwards_induction(
             # for each state. For jax we should go over all states.
             # With numba we could easily guvectorize here over states and calculate
             # everything on the state level. This could be really fast! However, how do
-            # treat the partial functiosn?
+            # treat the partial functions?
             choice_set = get_state_specific_choice_set(
                 state, state_space, state_indexer
             )

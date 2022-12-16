@@ -1,7 +1,9 @@
 """Implementation of the Upper Envelope algorithm."""
+from typing import Any
 from typing import Callable
 from typing import List
 from typing import Tuple
+from typing import Union
 
 import numpy as np
 from dcegm.interpolate import linear_interpolation_with_extrapolation
