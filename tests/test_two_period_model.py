@@ -1,12 +1,10 @@
 """This module will have a test for our two period model."""
-from functools import partial
 from itertools import product
 
 import numpy as np
 import pandas as pd
 import pytest
 from dcegm.solve import solve_dcegm
-from scipy.optimize import root_scalar
 from scipy.special import roots_hermite
 from toy_models.consumption_retirement_model.final_period import solve_final_period
 from toy_models.consumption_retirement_model.state_space_objects import (
@@ -220,22 +218,6 @@ def test_two_period(input_data, wealth_id, state_id):
         wealth = calculated_policy_func[0, wealth_id + 1]
         if ~np.isnan(wealth) and wealth > 10:
             initial_cond["wealth"] = wealth
-            # partial_euler = partial(
-            #     euler_rhs,
-            #     initial_cond,
-            #     params,
-            #     quad_draws,
-            #     quad_weights,
-            #     choice_in_period_1,
-            # )
-            # partial_marginal = partial(marginal_utility, params=params)
-            # partil_diff = partial(diff_func, partial_euler, partial_marginal)
-            # result_root_finding = root_scalar(
-            #     partil_diff,
-            #     method="brenth",
-            #     bracket=[0.001, 2 * params.loc[("assets", "max_wealth"), "value"]],
-            # )
-            # cons_exp = result_root_finding.root
 
             cons_calc = calculated_policy_func[1, wealth_id + 1]
             diff = euler_rhs(
