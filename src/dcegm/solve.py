@@ -109,6 +109,7 @@ def solve_dcegm(
 
     taste_shock_scale = params.loc[("shocks", "lambda"), "value"]
     interest_rate = params.loc[("assets", "interest_rate"), "value"]
+    discount_factor = params.loc[("beta", "beta"), "value"]
 
     policy_array, value_array = create_multi_dim_arrays(state_space, options)
     policy_array[_state_indices_final_period, ...] = policy_final
@@ -116,6 +117,7 @@ def solve_dcegm(
 
     policy_array, value_array = backwards_induction(
         n_periods,
+        discount_factor,
         taste_shock_scale,
         interest_rate,
         state_indexer,
@@ -138,6 +140,7 @@ def solve_dcegm(
 
 def backwards_induction(
     n_periods,
+    discount_factor,
     taste_shock_scale,
     interest_rate,
     state_indexer,
@@ -173,6 +176,7 @@ def backwards_induction(
 
                 current_policy, current_value = do_egm_step(
                     taste_shock_scale,
+                    discount_factor,
                     interest_rate,
                     child_states_choice,
                     state_indexer,

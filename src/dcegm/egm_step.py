@@ -9,6 +9,7 @@ from dcegm.interpolate import interpolate_value
 
 def do_egm_step(
     taste_shock_scale: float,
+    discount_factor: float,
     interest_rate: float,
     child_states: np.ndarray,
     state_indexer: np.ndarray,
@@ -146,7 +147,7 @@ def do_egm_step(
     )
 
     # RHS of Euler Eq., p. 337 IJRS (2017) by multiplying with marginal wealth
-    rhs_euler = marginal_utilities * (1 + interest_rate)
+    rhs_euler = marginal_utilities * (1 + interest_rate) * discount_factor
     current_policy = compute_inverse_marginal_utility(rhs_euler)
 
     current_choice = child_states[0][1]

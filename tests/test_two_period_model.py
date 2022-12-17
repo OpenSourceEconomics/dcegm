@@ -1,10 +1,20 @@
 """This module will have a test for our two period model."""
 from functools import partial
+from itertools import product
 
 import numpy as np
 import pandas as pd
+import pytest
+from dcegm.solve import solve_dcegm
 from scipy.optimize import root_scalar
 from scipy.special import roots_hermite
+from toy_models.consumption_retirement_model.final_period import solve_final_period
+from toy_models.consumption_retirement_model.state_space_objects import (
+    create_state_space,
+)
+from toy_models.consumption_retirement_model.state_space_objects import (
+    get_state_specific_choice_set,
+)
 
 
 def flow_util(consumption, choice, params):
@@ -22,6 +32,7 @@ def marginal_utility(consumption, params):
 
 def inverse_marginal_utility(marginal_utility, params):
     rho = params.loc[("utility_function", "rho"), "value"]
+    beta = params.loc[("beta", "beta"), "value"]
     return marginal_utility ** (-1 / rho)
 
 
@@ -29,12 +40,15 @@ def budget_dcegm(state, savings_grid, income_shock, params, options):
     interest_factor = 1 + params.loc[("assets", "interest_rate"), "value"]
     health_costs = params.loc[("assets", "ltc_cost"), "value"]
     wage = params.loc[("wage", "wage_avg"), "value"]
-    resources = (
-        interest_factor * savings_grid
-        + (wage + income_shock) * (1 - state[1])
-        - state[-1] * health_costs
-    )
-    return resources
+    resources = np.empty((income_shock.shape[0], savings_grid.shape[0]))
+    for index_shock, shock in enumerate(income_shock):
+        resources[index_shock, :] = (
+            interest_factor * savings_grid
+            + (wage + shock) * (1 - state[1])
+            - state[-1] * health_costs
+        )
+
+    return resources.clip(min=0.5)
 
 
 def transitions_dcegm(state, params):
@@ -52,7 +66,7 @@ def budget(lagged_resources, lagged_consumption, lagged_choice, wage, health, pa
         interest_factor * (lagged_resources - lagged_consumption)
         + wage * (1 - lagged_choice)
         - health * health_costs
-    )
+    ).clip(min=0.5)
     return resources
 
 
@@ -115,37 +129,122 @@ def euler_rhs(init_cond, params, draws, weights, choice_1, consumption):
     rhs = 0
     for index_draw, draw in enumerate(draws):
         marg_util_draw = m_util_aux(init_cond, params, choice_1, draw, consumption)
-        rhs += weights[index_draw] * beta * interest_factor * marg_util_draw
-    return rhs
+        rhs += weights[index_draw] * marg_util_draw
+    return rhs * beta * interest_factor
 
 
-quad_draws_unscaled, quad_weights = roots_hermite(5)
-quad_weights *= 1 / np.sqrt(np.pi)
-quad_draws = quad_draws_unscaled * np.sqrt(2) * 1
+WEALTH_GRID_POINTS = 100
+
+
+@pytest.fixture()
+def input_data():
+    index = pd.MultiIndex.from_tuples(
+        [("utility_function", "rho"), ("utility_function", "delta")],
+        names=["category", "name"],
+    )
+    params = pd.DataFrame(data=[0.5, 0.5], columns=["value"], index=index)
+    params.loc[("assets", "interest_rate"), "value"] = 0.02
+    params.loc[("assets", "ltc_cost"), "value"] = 5
+    params.loc[("assets", "max_wealth"), "value"] = 50
+    params.loc[("wage", "wage_avg"), "value"] = 8
+    params.loc[("shocks", "sigma"), "value"] = 1
+    params.loc[("shocks", "lambda"), "value"] = 1
+    params.loc[("transition", "ltc_prob"), "value"] = 0.3
+    params.loc[("beta", "beta"), "value"] = 0.95
+    options = {
+        "n_periods": 2,
+        "n_discrete_choices": 2,
+        "grid_points_wealth": WEALTH_GRID_POINTS,
+        "quadrature_points_stochastic": 5,
+        "n_exog_processes": 2,
+    }
+    state_space_functions = {
+        "create_state_space": create_state_space,
+        "get_state_specific_choice_set": get_state_specific_choice_set,
+    }
+    utility_functions = {
+        "utility": flow_util,
+        "inverse_marginal_utility": inverse_marginal_utility,
+        "marginal_utility": marginal_utility,
+    }
+
+    policy_calculated, value_calculated = solve_dcegm(
+        params,
+        options,
+        utility_functions,
+        budget_constraint=budget_dcegm,
+        solve_final_period=solve_final_period,
+        state_space_functions=state_space_functions,
+        user_transition_function=transitions_dcegm,
+    )
+    out = {}
+    out["params"] = params
+    out["policy"] = policy_calculated
+    out["options"] = options
+
+    return out
 
 
 def diff_func(partial_lhs, partial_rhs, cons):
     return partial_lhs(cons) - partial_rhs(cons)
 
 
-index = pd.MultiIndex.from_tuples(
-    [("utility_function", "rho"), ("utility_function", "delta")],
-    names=["category", "name"],
+TEST_CASES = list(product(list(range(WEALTH_GRID_POINTS)), list(range(4))))
+
+
+@pytest.mark.parametrize(
+    "wealth_id, state_id",
+    TEST_CASES,
 )
-params = pd.DataFrame(data=[0.5, 0.5], columns=["value"], index=index)
-params.loc[("assets", "interest_rate"), "value"] = 0.02
-params.loc[("assets", "ltc_cost"), "value"] = 5
-params.loc[("wage", "wage_avg"), "value"] = 8
-params.loc[("transition", "ltc_prob"), "value"] = 0.3
-params.loc[("beta", "beta"), "value"] = 0.95
+def test_two_period(input_data, wealth_id, state_id):
+    quad_draws_unscaled, quad_weights = roots_hermite(5)
+    quad_weights *= 1 / np.sqrt(np.pi)
+    quad_draws = quad_draws_unscaled * np.sqrt(2) * 1
 
-initial_cond = {"health": 0, "wealth": 10}
-choice_in_period_1 = 0
+    params = input_data["params"]
+    state_space, indexer = create_state_space(input_data["options"])
 
-partial_euler = partial(
-    euler_rhs, initial_cond, params, quad_draws, quad_weights, choice_in_period_1
-)
-partial_marginal = partial(marginal_utility, params=params)
-partil_diff = partial(diff_func, partial_euler, partial_marginal)
+    initial_cond = {}
+    state = state_space[state_id, :]
 
-root_scalar(partil_diff, method="brenth", bracket=[0.001, initial_cond["wealth"]])
+    if state[1] == 1:
+        choice_range = [1]
+    else:
+        choice_range = [0, 1]
+    initial_cond["health"] = state[-1]
+
+    for choice_in_period_1 in choice_range:
+        calculated_policy_func = input_data["policy"][
+            state_id, choice_in_period_1, :, :
+        ]
+        wealth = calculated_policy_func[0, wealth_id + 1]
+        if ~np.isnan(wealth) and wealth > 10:
+            initial_cond["wealth"] = wealth
+            # partial_euler = partial(
+            #     euler_rhs,
+            #     initial_cond,
+            #     params,
+            #     quad_draws,
+            #     quad_weights,
+            #     choice_in_period_1,
+            # )
+            # partial_marginal = partial(marginal_utility, params=params)
+            # partil_diff = partial(diff_func, partial_euler, partial_marginal)
+            # result_root_finding = root_scalar(
+            #     partil_diff,
+            #     method="brenth",
+            #     bracket=[0.001, 2 * params.loc[("assets", "max_wealth"), "value"]],
+            # )
+            # cons_exp = result_root_finding.root
+
+            cons_calc = calculated_policy_func[1, wealth_id + 1]
+            diff = euler_rhs(
+                initial_cond,
+                params,
+                quad_draws,
+                quad_weights,
+                choice_in_period_1,
+                cons_calc,
+            ) - marginal_utility(cons_calc, params)
+
+            np.testing.assert_allclose(diff, 0, atol=1e-3)
