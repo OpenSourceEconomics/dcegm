@@ -173,7 +173,7 @@ def store_current_period_policy_and_value(
     savings_grid: np.ndarray,
     compute_value,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Store the current period policy and value funtions.
+    """Store the current period policy and value functions.
 
     Args:
         current_policy (np.ndarray): 1d array of shape (n_grid_wealth,)
@@ -252,6 +252,7 @@ def get_child_state_policy_and_value(
             wealths with shape (n_quad_stochastic, n_grid_wealth).
 
     Returns:
+
     """
     # Interpolate next period policy and values to match the
     # contemporary matrix of potential next period wealths
@@ -283,8 +284,10 @@ def get_child_state_policy_and_value(
 def calc_exp_max_value(
     choice_specific_values: np.ndarray, taste_shock_scale: float
 ) -> np.ndarray:
-    """Calculate the expected max value given choice specific values. Wit the general
-     extrem value assumption on the taste shocks, this reduces to the log-sum.
+    """Calculate the expected max value given choice specific values.
+
+    With the general extreme value assumption on the taste shocks, this reduces
+    to the log-sum.
 
     The log-sum formula may also be referred to as the 'smoothed max function',
     see eq. (50), p. 335 (Appendix).
@@ -298,6 +301,7 @@ def calc_exp_max_value(
     Returns:
         logsum (np.ndarray): Log-sum formula inside the expected value function.
             Array of shape (n_quad_stochastic * n_grid_wealth,).
+
     """
     col_max = np.amax(choice_specific_values, axis=0)
     choice_specific_values_scaled = choice_specific_values - col_max
@@ -337,6 +341,7 @@ def get_child_state_policy(
     Returns:
         (np.ndarray): Array of next period's marginal utility of shape
             (n_quad_stochastic * n_grid_wealth,).
+
     """
 
     next_period_marg_util = np.zeros(next_period_policy.shape[1])
@@ -358,8 +363,8 @@ def get_child_state_choice_specific_policy(
 ) -> np.ndarray:
     """Computes the next-period policy via linear interpolation.
 
-    Extrapolate lineary in wealth regions beyond the grid, i.e. larger
-    than "max_wealth" specifiec in the ``params`` dictionary.
+    Extrapolate linearly in wealth regions beyond the grid, i.e. larger
+    than "max_wealth" specific in the ``params`` dictionary.
 
     Args:
         child_node_choice_set (np.ndarray): 1d array of shape (n_admissible_choices,)
@@ -372,6 +377,7 @@ def get_child_state_choice_specific_policy(
     Returns:
         next_period_policy_interp (np.ndarray): Array of interpolated next period
             consumption of shape (n_choices, n_quad_stochastic * n_grid_wealth).
+
     """
 
     next_period_wealth_flat = next_period_wealth.flatten("F")
@@ -413,6 +419,7 @@ def get_child_state_choice_specific_values(
             interpolation to the actual next period value function onto
             the current period grid of potential next period wealths.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
+
     """
 
     next_period_wealth_flat = next_period_wealth.flatten("F")
@@ -448,6 +455,7 @@ def calc_choice_probability(
     Returns:
         prob_working (np.ndarray): Probability of working next period. Array of
             shape (n_quad_stochastic * n_grid_wealth,).
+
     """
     col_max = np.amax(values, axis=0)
     values_scaled = values - col_max

@@ -28,6 +28,7 @@ def budget_constraint(
     Returns:
         (np.ndarray): 2d array of shape (n_quad_stochastic, n_grid_wealth)
             containing all possible next period wealths.
+
     """
     r = params.loc[("assets", "interest_rate"), "value"]
     n_grid_wealth = options["grid_points_wealth"]
@@ -93,6 +94,7 @@ def _calc_stochastic_income(
         stochastic_income (np.ndarray): 1d array of shape (n_quad_points,) containing
             potential end of period incomes. It consists of a deterministic component,
             i.e. age-dependent labor income, and a stochastic shock.
+
     """
     if child_state[1] == 0:  # working
         # For simplicity, assume current_age - min_age = experience
@@ -112,7 +114,7 @@ def _calc_stochastic_income(
     return stochastic_income
 
 
-def marginal_wealth(child_state, params, options):
+def marginal_wealth(child_state, params, options):  # noqa: U100
     """Calculate next periods marginal wealth.
 
     Args:

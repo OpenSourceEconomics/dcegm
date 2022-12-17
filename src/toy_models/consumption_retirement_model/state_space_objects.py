@@ -5,8 +5,8 @@ import numpy as np
 
 
 def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]:
-    """Create state space object and indexer.
-    We need to add the convention for the state space objects.
+    """Create state space object and indexer. We need to add the convention for the
+    state space objects.
 
     Args:
         options (dict): Options dictionary.
@@ -48,7 +48,7 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
 
 def get_state_specific_choice_set(
     state: np.ndarray,
-    state_space: np.ndarray,
+    state_space: np.ndarray,  # noqa: U100
     indexer: np.ndarray,
 ) -> np.ndarray:
     """Select state-specific choice set. Will be a user defined function later.
