@@ -20,7 +20,7 @@ def solve_dcegm(
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable],
     solve_final_period: Callable,
-    transition_vector_by_state: Callable,
+    user_transition_function: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Solves a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
@@ -44,7 +44,7 @@ def solve_dcegm(
             (ii) get the state specific choice set
         solve_final_period (callable): User-supplied function for solving the agent's
             last period.
-        transition_vector_by_state (callable): User-supplied function returning for each
+        user_transition_function (callable): User-supplied function returning for each
             state a transition matrix vector.
 
      Returns:
@@ -89,11 +89,13 @@ def solve_dcegm(
         compute_inverse_marginal_utility,
         compute_value,
         compute_next_wealth_matrices,
+        transition_vector_by_state,
     ) = get_partial_functions(
         params,
         options,
         user_utility_functions=utility_functions,
         user_budget_constraint=budget_constraint,
+        exogenous_transition_function=user_transition_function,
     )
 
     _state_indices_final_period = np.where(state_space[:, 0] == n_periods - 1)
@@ -107,6 +109,7 @@ def solve_dcegm(
 
     taste_shock_scale = params.loc[("shocks", "lambda"), "value"]
     interest_rate = params.loc[("assets", "interest_rate"), "value"]
+    discount_factor = params.loc[("beta", "beta"), "value"]
 
     policy_array, value_array = create_multi_dim_arrays(state_space, options)
     policy_array[_state_indices_final_period, ...] = policy_final
@@ -114,6 +117,7 @@ def solve_dcegm(
 
     policy_array, value_array = backwards_induction(
         n_periods,
+        discount_factor,
         taste_shock_scale,
         interest_rate,
         state_indexer,
@@ -136,6 +140,7 @@ def solve_dcegm(
 
 def backwards_induction(
     n_periods,
+    discount_factor,
     taste_shock_scale,
     interest_rate,
     state_indexer,
@@ -171,6 +176,7 @@ def backwards_induction(
 
                 current_policy, current_value = do_egm_step(
                     taste_shock_scale,
+                    discount_factor,
                     interest_rate,
                     child_states_choice,
                     state_indexer,

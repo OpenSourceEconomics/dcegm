@@ -78,7 +78,7 @@ def test_benchmark_models(
         budget_constraint=budget_constraint,
         solve_final_period=solve_final_period,
         state_space_functions=state_space_functions,
-        transition_vector_by_state=get_transition_matrix_by_state,
+        user_transition_function=get_transition_matrix_by_state,
     )
 
     policy_expected = pickle.load(
