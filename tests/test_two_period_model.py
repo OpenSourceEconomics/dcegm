@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import pytest
 from dcegm.solve import solve_dcegm
-from scipy.special import roots_hermite
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 from toy_models.consumption_retirement_model.final_period import solve_final_period
@@ -32,7 +31,6 @@ def marginal_utility(consumption, params):
 
 def inverse_marginal_utility(marginal_utility, params):
     rho = params.loc[("utility_function", "rho"), "value"]
-    beta = params.loc[("beta", "beta"), "value"]
     return marginal_utility ** (-1 / rho)
 
 
@@ -193,10 +191,6 @@ TEST_CASES = list(product(list(range(WEALTH_GRID_POINTS)), list(range(4))))
     TEST_CASES,
 )
 def test_two_period(input_data, wealth_id, state_id):
-    # quad_draws_unscaled, quad_weights = roots_hermite(5)
-    # quad_weights *= 1 / np.sqrt(np.pi)
-    # quad_draws = quad_draws_unscaled * np.sqrt(2) * 1
-
     quad_points, quad_weights = roots_sh_legendre(5)
     quad_draws = norm.ppf(quad_points) * 1
 
