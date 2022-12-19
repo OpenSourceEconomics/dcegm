@@ -6,6 +6,8 @@ import pandas as pd
 import pytest
 from dcegm.solve import solve_dcegm
 from scipy.special import roots_hermite
+from scipy.special import roots_sh_legendre
+from scipy.stats import norm
 from toy_models.consumption_retirement_model.final_period import solve_final_period
 from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space,
@@ -13,9 +15,6 @@ from toy_models.consumption_retirement_model.state_space_objects import (
 from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_choice_set,
 )
-from scipy.special import roots_sh_legendre
-from scipy.stats import norm
-
 
 
 def flow_util(consumption, choice, params):
