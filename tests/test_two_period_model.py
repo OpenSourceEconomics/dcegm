@@ -13,6 +13,9 @@ from toy_models.consumption_retirement_model.state_space_objects import (
 from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_choice_set,
 )
+from scipy.special import roots_sh_legendre
+from scipy.stats import norm
+
 
 
 def flow_util(consumption, choice, params):
@@ -183,10 +186,6 @@ def input_data():
     return out
 
 
-def diff_func(partial_lhs, partial_rhs, cons):
-    return partial_lhs(cons) - partial_rhs(cons)
-
-
 TEST_CASES = list(product(list(range(WEALTH_GRID_POINTS)), list(range(4))))
 
 
@@ -195,9 +194,12 @@ TEST_CASES = list(product(list(range(WEALTH_GRID_POINTS)), list(range(4))))
     TEST_CASES,
 )
 def test_two_period(input_data, wealth_id, state_id):
-    quad_draws_unscaled, quad_weights = roots_hermite(5)
-    quad_weights *= 1 / np.sqrt(np.pi)
-    quad_draws = quad_draws_unscaled * np.sqrt(2) * 1
+    # quad_draws_unscaled, quad_weights = roots_hermite(5)
+    # quad_weights *= 1 / np.sqrt(np.pi)
+    # quad_draws = quad_draws_unscaled * np.sqrt(2) * 1
+
+    quad_points, quad_weights = roots_sh_legendre(5)
+    quad_draws = norm.ppf(quad_points) * 1
 
     params = input_data["params"]
     state_space, indexer = create_state_space(input_data["options"])
@@ -216,7 +218,7 @@ def test_two_period(input_data, wealth_id, state_id):
             state_id, choice_in_period_1, :, :
         ]
         wealth = calculated_policy_func[0, wealth_id + 1]
-        if ~np.isnan(wealth) and wealth > 10:
+        if ~np.isnan(wealth) and wealth > 0:
             initial_cond["wealth"] = wealth
 
             cons_calc = calculated_policy_func[1, wealth_id + 1]
@@ -229,4 +231,4 @@ def test_two_period(input_data, wealth_id, state_id):
                 cons_calc,
             ) - marginal_utility(cons_calc, params)
 
-            np.testing.assert_allclose(diff, 0, atol=1e-3)
+            np.testing.assert_allclose(diff, 0, atol=1e-8)
