@@ -10,6 +10,7 @@ from dcegm.interpolate import interpolate_value
 def compute_optimal_policy_and_value(
     marginal_utilities_exog_process,
     max_value_func_exog_process,
+discount_factor,
     interest_rate: float,
     choice: int,
     trans_vec_state: np.ndarray,
@@ -45,6 +46,7 @@ def compute_optimal_policy_and_value(
     """
     current_policy, expected_value = solution_euler_equation(
         trans_vec_state,
+        discount_factor,
         interest_rate,
         compute_inverse_marginal_utility,
         marginal_utilities_exog_process,
@@ -64,6 +66,7 @@ def compute_optimal_policy_and_value(
 
 def solution_euler_equation(
     trans_vec_state,
+    discount_factor,
     interest_rate,
     compute_inverse_marginal_utility,
     marginal_utilities,
@@ -88,7 +91,7 @@ def solution_euler_equation(
     expected_value = trans_vec_state @ max_value_func
 
     # RHS of Euler Eq., p. 337 IJRS (2017) by multiplying with marginal wealth
-    rhs_euler = marginal_utility * (1 + interest_rate)
+    rhs_euler = marginal_utility * (1 + interest_rate) * discount_factor
     current_policy = compute_inverse_marginal_utility(rhs_euler)
 
     return current_policy, expected_value

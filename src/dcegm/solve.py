@@ -118,8 +118,8 @@ def solve_dcegm(
 
     policy_array, value_array = backwards_induction(
         n_periods,
-        discount_factor,
         taste_shock_scale,
+        discount_factor,
         interest_rate,
         state_indexer,
         state_space,
@@ -142,6 +142,7 @@ def solve_dcegm(
 def backwards_induction(
     n_periods,
     taste_shock_scale,
+    discount_factor,
     interest_rate,
     state_indexer,
     state_space,
@@ -229,6 +230,7 @@ def backwards_induction(
                 current_policy, current_value = compute_optimal_policy_and_value(
                     marginal_utilities_child_states[choice_ind, :],
                     max_expected_values_child_states[choice_ind, :],
+                    discount_factor,
                     interest_rate,
                     choice,
                     trans_vec_state,
