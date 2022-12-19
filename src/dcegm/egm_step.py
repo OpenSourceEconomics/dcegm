@@ -7,73 +7,30 @@ from dcegm.interpolate import interpolate_policy
 from dcegm.interpolate import interpolate_value
 
 
-def do_egm_step(
-    taste_shock_scale: float,
-    discount_factor: float,
+def compute_optimal_policy_and_value(
+    marginal_utilities_exog_process,
+    max_value_func_exog_process,
+    discount_factor,
     interest_rate: float,
-    child_states: np.ndarray,
-    state_indexer: np.ndarray,
-    state_space: np.ndarray,
-    income_shocks: np.ndarray,
-    quad_weights: np.ndarray,
+    choice: int,
     trans_vec_state: np.ndarray,
     savings_grid: np.ndarray,
-    compute_marginal_utility: Callable,
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
-    compute_next_wealth_matrices: Callable,
-    get_state_specific_choice_set,
-    policy_array: np.ndarray,
-    value_array: np.ndarray,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
 
     Args:
-        child_states (np.ndarray): Array of shape (n_exog_processes, n_state_variables)
-        capturing the child node for each exogenous process state.
-        state_indexer (np.ndarray): Indexer object that maps states to indexes.
-            The shape of this object quite complicated. For each state variable it
-             has the number of possible states as "row", i.e.
-            (n_poss_states_statesvar_1, n_poss_states_statesvar_2, ....)
-        state_space (np.ndarray): Collection of all possible states of shape
-            (n_states, n_state_variables).
-        quad_weights (np.ndarrray): Weights for each stoachstic shock draw.
-            Shape is (n_stochastic_quad_points)
         trans_vec_state (np.ndarray): A vector containing for each possible exogenous
             process state the corresponding probability.
             Shape is (n_exog_processes).
-        taste_shock_scale (float): The taste shock scale.
         savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
             exogenous savings grid .
-        compute_marginal_utility (callable): User-defined function to compute the
-            agent's marginal utility. The input ```params``` is already partialled in.
-        compute_inverse_marginal_utility (callable): User-defined function to compute
-        the agent's inverse marginal utility.
+        compute_inverse_marginal_utility (Callable): Function for calculating the
+            inverse marginal utility, which takes the marginal utility as only input.
         compute_value (callable): Function for calculating the value from consumption
             level, discrete choice and expected value. The inputs ```discount_rate```
             and ```compute_utility``` are already partialled in.
-        compute_next_wealth_matrices (callable): User-defined function to compute the
-            agent's wealth matrices of the next period (t + 1). The inputs
-            ```savings_grid```, ```income_shocks```, ```params``` and ```options```
-            are already partialled in.
-        compute_next_marginal_wealth (callable): User-defined function to compute the
-            agent's marginal wealth in the next period (t + 1). The inputs
-            ```params``` and ```options``` are already partialled in.
-        get_state_specific_choice_set (Callable): User-supplied function returning for
-            each state all possible choices.
-        policy_array (np.ndarray): Multi-dimensional np.ndarray storing the
-            choice-specific policy function; of shape
-            [n_states, n_discrete_choices, 2, 1.1 * n_grid_wealth].
-            Position [.., 0, :] contains the endogenous grid over wealth M,
-            and [.., 1, :] stores the corresponding value of the policy function
-            c(M, d), for each state and each discrete choice.
-        value_array (np.ndarray): Multi-dimensional np.ndarray storing the
-            choice-specific value functions; of shape
-            [n_states, n_discrete_choices, 2, 1.1 * n_grid_wealth].
-            Position [.., 0, :] contains the endogenous grid over wealth M,
-            and [.., 1, :] stores the corresponding value of the value function
-            v(M, d), for each state and each discrete choice.
-
     Returns:
         (tuple) Tuple containing:
 
@@ -87,75 +44,19 @@ def do_egm_step(
             and [1, :] stores the corresponding value of the value function v(M, d).
 
     """
-
-    n_exog_process = trans_vec_state.shape[0]
-    n_quad_points = quad_weights.shape[0]
-    n_savings_grid = savings_grid.shape[0]
-    marginal_utilities_exog_process = np.empty(
-        (
-            n_exog_process,
-            n_quad_points * n_savings_grid,
-        ),
-        dtype=float,
-    )
-    max_value_func_exog_process = np.empty(
-        (
-            n_exog_process,
-            n_quad_points * n_savings_grid,
-        ),
-        dtype=float,
+    current_policy, expected_value = solution_euler_equation(
+        trans_vec_state,
+        discount_factor,
+        interest_rate,
+        compute_inverse_marginal_utility,
+        marginal_utilities_exog_process,
+        max_value_func_exog_process,
     )
 
-    for i, child_state in enumerate(child_states):
-        child_state_index = state_indexer[tuple(child_state)]
-
-        choice_policies_child = policy_array[child_state_index]
-        choice_values_child = value_array[child_state_index]
-
-        child_node_choice_set = get_state_specific_choice_set(
-            child_state, state_space, state_indexer
-        )
-        next_period_wealth = compute_next_wealth_matrices(
-            child_state,
-            savings_grid=savings_grid,
-            income_shock=income_shocks,
-        )
-
-        (
-            marginal_utilities_exog_process[i, :],
-            max_value_func_exog_process[i, :],
-        ) = get_child_state_policy_and_value(
-            child_node_choice_set,
-            taste_shock_scale,
-            compute_marginal_utility,
-            compute_value,
-            choice_policies_child,
-            choice_values_child,
-            next_period_wealth,
-        )
-
-    # Integrate over stochastic processes
-    marginal_utilities_income_shocks = trans_vec_state @ marginal_utilities_exog_process
-    max_value_func_income_shocks = trans_vec_state @ max_value_func_exog_process
-    # Integrate out uncertainty over stochastic income y
-    marginal_utilities = quad_weights @ marginal_utilities_income_shocks.reshape(
-        (n_quad_points, n_savings_grid), order="F"
-    )
-
-    expected_value = quad_weights @ max_value_func_income_shocks.reshape(
-        (n_quad_points, n_savings_grid), order="F"
-    )
-
-    # RHS of Euler Eq., p. 337 IJRS (2017) by multiplying with marginal wealth
-    rhs_euler = marginal_utilities * (1 + interest_rate) * discount_factor
-    current_policy = compute_inverse_marginal_utility(rhs_euler)
-
-    current_choice = child_states[0][1]
-
-    current_policy_arr, current_value_arr = store_current_period_policy_and_value(
+    current_policy_arr, current_value_arr = create_current_policy_and_value_array(
         current_policy,
         expected_value,
-        current_choice,
+        choice,
         savings_grid,
         compute_value,
     )
@@ -163,10 +64,40 @@ def do_egm_step(
     return current_policy_arr, current_value_arr
 
 
-# def aggr_exog_and_income():
+def solution_euler_equation(
+    trans_vec_state,
+    discount_factor,
+    interest_rate,
+    compute_inverse_marginal_utility,
+    marginal_utilities,
+    max_value_func,
+):
+    """
+    This function solves the eueler equation for a discrete choice and the corresponding
+    child states. So we have to integrate over the exogenous process and income
+    uncertainty and then apply the inverese marginal utility function.
+    Args:
+        trans_vec_state:
+        interest_rate:
+        compute_inverse_marginal_utility:
+        marginal_utilities:
+        max_value_func:
+
+    Returns:
+
+    """
+    # Integrate out uncertainty over exogenous process
+    marginal_utility = trans_vec_state @ marginal_utilities
+    expected_value = trans_vec_state @ max_value_func
+
+    # RHS of Euler Eq., p. 337 IJRS (2017) by multiplying with marginal wealth
+    rhs_euler = marginal_utility * (1 + interest_rate) * discount_factor
+    current_policy = compute_inverse_marginal_utility(rhs_euler)
+
+    return current_policy, expected_value
 
 
-def store_current_period_policy_and_value(
+def create_current_policy_and_value_array(
     current_policy: np.ndarray,
     expected_value: np.ndarray,
     current_choice: float,
@@ -219,41 +150,77 @@ def store_current_period_policy_and_value(
 
 
 def get_child_state_policy_and_value(
-    child_node_choice_set: np.ndarray,
+    exogenous_savings_grid,
+    income_shock_draws,
+    income_shock_weights,
+    child_state: np.ndarray,
+    state_indexer: np.ndarray,
+    state_space: np.ndarray,
     taste_shock_scale: float,
+    policy_array: np.ndarray,
+    value_array: np.ndarray,
+    compute_next_wealth_matrices: Callable,
     compute_marginal_utility: Callable,
     compute_value: Callable,
-    choice_policies_child: np.ndarray,
-    choice_values_child: np.ndarray,
-    next_period_wealth: np.ndarray,
+    get_state_specific_choice_set: Callable,
 ):
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
 
     Args:
-        child_node_choice_set (np.ndarray): The agent's (restricted) choice set in
-            the given state of shape (n_admissible_choices,).
+        exogenous_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
+            containing the exogenous savings grid .
+        income_shock_draws (np.ndarray): 1d array of shape (n_quad_points,) containing
+            the Hermite quadrature points.
+        income_shock_weights (np.ndarrray): Weights for each stoachstic shock draw.
+            Shape is (n_stochastic_quad_points)
+        child_state (np.ndarray): The child state to do calculations for. Shape is
+        (n_num_state_variables)
+        state_indexer (np.ndarray): Indexer object that maps states to indexes.
+            The shape of this object quite complicated. For each state variable it
+             has the number of possible states as "row", i.e.
+            (n_poss_states_statesvar_1, n_poss_states_statesvar_2, ....)
+        state_space (np.ndarray): Collection of all possible states of shape
+            (n_states, n_state_variables).
         taste_shock_scale (float): The taste shock scale.
+        policy_array (np.ndarray): Multi-dimensional np.ndarray storing the
+            choice-specific policy function; of shape
+            [n_states, n_discrete_choices, 2, 1.1 * (n_grid_wealth + 1)].
+            Position [.., 0, :] contains the endogenous grid over wealth M,
+            and [.., 1, :] stores the corresponding value of the policy function
+            c(M, d), for each state and each discrete choice.
+        value_array (np.ndarray): Multi-dimensional np.ndarray storing the
+            choice-specific value functions; of shape
+            [n_states, n_discrete_choices, 2, 1.1 * (n_grid_wealth + 1)].
+            Position [.., 0, :] contains the endogenous grid over wealth M,
+            and [.., 1, :] stores the corresponding value of the value function
+            v(M, d), for each state and each discrete choice.
+        compute_next_wealth_matrices (callable): User-defined function to compute the
+            agent's wealth matrices of the next period (t + 1). The inputs
+            ```savings_grid```, ```income_shocks```, ```params``` and ```options```
+            are already partialled in.
         compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility. The input ```params``` is already partialled in.
         compute_value (callable): User-defined function to compute
             the agent's value function in the credit-constrained area. The inputs
             ```params``` and ```compute_utility``` are already partialled in.
-        choice_policies_child (np.ndarray): 2d array of the agent's next period policy
-            for all choices. Shape (n_choices, 2, 1.1 * (n_grid_wealth + 1)).
-            Position [:, 0, :] contains the endogenous grid over wealth M,
-            and [:, 1, :] stores the corresponding value of the choice-specific policy
-            function c(M, d).
-        choice_values_child (np.ndarray): 2d array of the agent's next period values
-            for all choices. Shape (n_choices, 2, 1.1 * (n_grid_wealth + 1)).
-            Position [:, 0, :] contains the endogenous grid over wealth M,
-            and [:, 1, :] stores the corresponding value of the choice-specific value
-            function v(M, d).
-        next_period_wealth (np.ndarray): Array of all possible next period
-            wealths with shape (n_quad_stochastic, n_grid_wealth).
+        get_state_specific_choice_set (Callable): User-supplied function returning for
+            each state all possible choices.
 
     Returns:
 
     """
+    child_state_index = state_indexer[tuple(child_state)]
+    choice_policies_child = policy_array[child_state_index]
+    choice_values_child = value_array[child_state_index]
+
+    child_node_choice_set = get_state_specific_choice_set(
+        child_state, state_space, state_indexer
+    )
+    next_period_wealth = compute_next_wealth_matrices(
+        child_state,
+        savings_grid=exogenous_savings_grid,
+        income_shock=income_shock_draws,
+    )
     # Interpolate next period policy and values to match the
     # contemporary matrix of potential next period wealths
     child_policy = get_child_state_choice_specific_policy(
@@ -278,7 +245,16 @@ def get_child_state_policy_and_value(
 
     child_state_log_sum = calc_exp_max_value(choice_child_values, taste_shock_scale)
 
-    return child_state_marginal_utility, child_state_log_sum
+    return (
+        child_state_marginal_utility.reshape(
+            exogenous_savings_grid.shape[0], income_shock_draws.shape[0]
+        )
+        @ income_shock_weights,
+        child_state_log_sum.reshape(
+            exogenous_savings_grid.shape[0], income_shock_draws.shape[0]
+        )
+        @ income_shock_weights,
+    )
 
 
 def calc_exp_max_value(

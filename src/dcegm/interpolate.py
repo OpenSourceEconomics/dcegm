@@ -132,28 +132,7 @@ def linear_interpolation_with_inserting_missing_values(x, y, x_new, missing_valu
             values are set equal to missing_value.
 
     """
-
-    # make sure that the function also works for unsorted x-arrays
-    # taken from scipy.interpolate.interp1d
-    ind = np.argsort(x, kind="mergesort")
-    x = x[ind]
-    y = np.take(y, ind)
-
-    x_int = np.atleast_1d(x_new)
-    ind_high = np.searchsorted(x, x_int, side="left").clip(max=(x.shape[0] - 1), min=1)
-    ind_low = ind_high - 1
-
-    y_high = y[ind_high]
-    y_low = y[ind_low]
-    x_high = x[ind_high]
-    x_low = x[ind_low]
-
-    interpolate_dist = x_int - x_low
-    interpolate_slope = (y_high - y_low) / (x_high - x_low)
-    interpol_res = (interpolate_slope * interpolate_dist) + y_low
-    where_to_miss = (x_int < x.min()) | (x_int > x.max())
+    interpol_res = linear_interpolation_with_extrapolation(x, y, x_new)
+    where_to_miss = (x_new < x.min()) | (x_new > x.max())
     interpol_res[where_to_miss] = missing_value
-    if type(x_new) is float:
-        return interpol_res[0]
-    else:
-        return interpol_res
+    return interpol_res

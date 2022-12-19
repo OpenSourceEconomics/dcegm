@@ -54,3 +54,43 @@ def get_child_states(
             child_nodes[i, exog_proc_state, :] = state_space[indexer[tuple(new_state)]]
 
     return child_nodes
+
+
+def get_child_indexes(
+    state: np.ndarray,
+    state_space: np.ndarray,
+    indexer: np.ndarray,
+    get_state_specific_choice_set: Callable,
+) -> np.ndarray:
+    """Create array of child indexes.
+
+    Args:
+        state (np.ndarray): 1d array of shape (n_state_variables,) defining the agent's
+            state. In Ishkakov, an agent's state is defined by her (i) age (i.e. the
+            current period) and (ii) her lagged labor market choice.
+            Hence n_state_variables = 2.
+        state_space (np.ndarray): Collection of all possible states.
+        indexer (np.ndarray): 2d array of shape (n_periods, n_choices) containing
+            the indexer object that maps states to indices in the state space.
+        get_state_specific_choice_set (Callable): User-supplied function returning for
+            each state all possible choices.
+
+    Returns:
+        child_nodes (np.ndarray): 2d array of shape
+            (n_state_specific_choices, n_state_specific_choices) containing all child
+            nodes the agent can reach from her given state.
+
+    """
+    child_states = get_child_states(
+        state, state_space, indexer, get_state_specific_choice_set
+    )
+
+    child_indexes = np.full(
+        (child_states.shape[0], child_states.shape[1]), fill_value=-99, dtype=int
+    )
+    for choice_ind in range(child_states.shape[0]):
+        for exog_proc_ind in range(child_states.shape[1]):
+            child_indexes[choice_ind, exog_proc_ind] = indexer[
+                tuple(child_states[choice_ind, exog_proc_ind, :])
+            ]
+    return child_indexes
