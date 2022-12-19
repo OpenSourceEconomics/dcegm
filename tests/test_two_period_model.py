@@ -1,4 +1,8 @@
-"""This module will have a test for our two period model."""
+"""This is a test for a simple two period model with exogenous processes.
+
+We test DC-EGM against the closed form solution of the Euler equation.
+
+"""
 from itertools import product
 
 import numpy as np
@@ -73,7 +77,7 @@ def wage(nu, params):
     return wage
 
 
-def ltc_prob(params, lag_health, health):
+def prob_long_term_care_patient(params, lag_health, health):
     p = params.loc[("transition", "ltc_prob"), "value"]
     if (lag_health == 0) and (health == 1):
         pi = p
@@ -96,8 +100,8 @@ def choice_probs(cons, d, params):
     return choice_prob
 
 
-# expected marginal utility for one realization of the wage shock
 def m_util_aux(init_cond, params, choice_1, nu, consumption):
+    """Return the expected marginal utility for one realization of the wage shock."""
     budget_1 = init_cond["wealth"]
     health_state_1 = init_cond["health"]
 
@@ -114,7 +118,9 @@ def m_util_aux(init_cond, params, choice_1, nu, consumption):
             )
             marginal_util = marginal_utility(budget_2, params)
             choice_prob = choice_probs(budget_2, choice_2, params)
-            health_prob = ltc_prob(params, health_state_1, health_state_2)
+            health_prob = prob_long_term_care_patient(
+                params, health_state_1, health_state_2
+            )
             weighted_marginal += choice_prob * health_prob * marginal_util
 
     return weighted_marginal
@@ -166,7 +172,7 @@ def input_data():
         "marginal_utility": marginal_utility,
     }
 
-    policy_calculated, value_calculated = solve_dcegm(
+    policy_calculated, _ = solve_dcegm(
         params,
         options,
         utility_functions,
@@ -195,7 +201,7 @@ def test_two_period(input_data, wealth_id, state_id):
     quad_draws = norm.ppf(quad_points) * 1
 
     params = input_data["params"]
-    state_space, indexer = create_state_space(input_data["options"])
+    state_space, _ = create_state_space(input_data["options"])
 
     initial_cond = {}
     state = state_space[state_id, :]
