@@ -76,8 +76,6 @@ def inverse_marginal_utility_crra(
 
     """
     theta = params.loc[("utility_function", "theta"), "value"]
-    beta = params.loc[("beta", "beta"), "value"]
-
-    inverse_marginal_utility = (marginal_utility * beta) ** (-1 / theta)
+    inverse_marginal_utility = marginal_utility ** (-1 / theta)
 
     return inverse_marginal_utility
