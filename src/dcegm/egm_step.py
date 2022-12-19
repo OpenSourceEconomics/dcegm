@@ -10,7 +10,7 @@ from dcegm.interpolate import interpolate_value
 def compute_optimal_policy_and_value(
     marginal_utilities_exog_process,
     max_value_func_exog_process,
-discount_factor,
+    discount_factor,
     interest_rate: float,
     choice: int,
     trans_vec_state: np.ndarray,
