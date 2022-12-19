@@ -141,7 +141,6 @@ def solve_dcegm(
 
 def backwards_induction(
     n_periods,
-    discount_factor,
     taste_shock_scale,
     interest_rate,
     state_indexer,
