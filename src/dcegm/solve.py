@@ -225,7 +225,7 @@ def backwards_induction(
                 max_expected_values, child_states_indexes, axis=0
             )
             trans_vec_state = transition_vector_by_state(state)
-            
+
             for choice_ind, choice in enumerate(choice_set):
                 current_policy, current_value = compute_optimal_policy_and_value(
                     marginal_utilities_child_states[choice_ind, :],
