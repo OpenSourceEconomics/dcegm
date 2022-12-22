@@ -2,9 +2,9 @@ from functools import partial
 from typing import Callable
 from typing import Dict
 from typing import Tuple
-import pandas as pd
 
 import numpy as np
+import pandas as pd
 from dcegm.aggregate_policy_value import calc_value
 
 
