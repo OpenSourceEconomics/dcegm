@@ -2,9 +2,9 @@ from functools import partial
 from typing import Callable
 from typing import Dict
 from typing import Tuple
-import pandas as pd
 
 import numpy as np
+import pandas as pd
 from dcegm.egm_step import calc_value
 
 
@@ -15,7 +15,8 @@ def get_partial_functions(
     user_budget_constraint: Callable,
     exogenous_transition_function: Callable,
 ) -> Tuple[Callable, Callable, Callable, Callable, Callable, Callable]:
-    """Create partial functions.
+    """Create partial functions from user supplied functions. This is the function
+    where we handle all custom provided parameters.
     Args:
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
@@ -27,8 +28,8 @@ def get_partial_functions(
             (ii) inverse marginal utility
             (iii) next period marginal utility
         user_budget_constraint (callable): Callable budget constraint.
-        exogenous_transition_function (callable): User-supplied function returning for each
-            state a transition matrix vector.
+        exogenous_transition_function (callable): User-supplied function returning for
+            each state a transition matrix vector.
     Returns:
         - compute_utility (callable): Function for computation of agent's utility.
         - compute_marginal_utility (callable): User-defined function to compute the
