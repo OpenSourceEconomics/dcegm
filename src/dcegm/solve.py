@@ -158,7 +158,8 @@ def backwards_induction(
     policy_array: np.ndarray,
     value_array: np.ndarray,
 ):
-    """Conduct the backwards induction and solve for the optimal policy and value function.
+    """Conduct the backwards induction and solve for the optimal policy and value
+    function.
 
     Args:
         n_periods:
