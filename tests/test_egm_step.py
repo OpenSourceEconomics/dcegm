@@ -3,8 +3,7 @@ from itertools import product
 
 import numpy as np
 import pytest
-from dcegm.aggregate_policy_value import calc_value
-from dcegm.egm_step import calc_choice_probability
+from dcegm.egm_step import calc_choice_probability, calc_value
 from dcegm.egm_step import get_child_state_choice_specific_policy
 from dcegm.egm_step import get_child_state_choice_specific_values
 from dcegm.egm_step import get_child_state_policy

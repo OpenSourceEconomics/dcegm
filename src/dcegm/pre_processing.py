@@ -5,7 +5,7 @@ from typing import Tuple
 import pandas as pd
 
 import numpy as np
-from dcegm.aggregate_policy_value import calc_value
+from dcegm.egm_step import calc_value
 
 
 def get_partial_functions(
