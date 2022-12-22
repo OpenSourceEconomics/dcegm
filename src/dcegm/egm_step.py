@@ -21,13 +21,16 @@ def compute_optimal_policy_and_value(
     """Runs the Endogenous-Grid-Method Algorithm (EGM step).
 
     Args:
+        discount_factor (float): The discount factor.
+        interest_rate (float): The interest rate of capital.
+        choice (int): The current discrete choice.
         trans_vec_state (np.ndarray): A vector containing for each possible exogenous
             process state the corresponding probability.
             Shape is (n_exog_processes).
         savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
             exogenous savings grid .
         compute_inverse_marginal_utility (Callable): Function for calculating the
-            inverse marginal utility, which takes the marginal utility as only input.
+            inverse marginal utiFality, which takes the marginal utility as only input.
         compute_value (callable): Function for calculating the value from consumption
             level, discrete choice and expected value. The inputs ```discount_rate```
             and ```compute_utility``` are already partialled in.
@@ -77,9 +80,13 @@ def solution_euler_equation(
     child states. So we have to integrate over the exogenous process and income
     uncertainty and then apply the inverese marginal utility function.
     Args:
-        trans_vec_state:
-        interest_rate:
-        compute_inverse_marginal_utility:
+        trans_vec_state (np.ndarray): A vector containing for each possible exogenous
+            process state the corresponding probability.
+            Shape is (n_exog_processes).
+        discount_factor (float): The discount factor.
+        interest_rate (float): The interest rate of capital.
+        compute_inverse_marginal_utility (Callable): Function for calculating the
+            inverse marginal utility, which takes the marginal utility as only input.
         marginal_utilities:
         max_value_func:
 
@@ -150,9 +157,9 @@ def create_current_policy_and_value_array(
 
 
 def get_child_state_policy_and_value(
-    exogenous_savings_grid,
-    income_shock_draws,
-    income_shock_weights,
+    exogenous_savings_grid: np.ndarray,
+    income_shock_draws: np.ndarray,
+    income_shock_weights: np.ndarray,
     child_state: np.ndarray,
     state_indexer: np.ndarray,
     state_space: np.ndarray,

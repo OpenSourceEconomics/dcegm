@@ -141,23 +141,74 @@ def solve_dcegm(
 
 def backwards_induction(
     n_periods,
-    taste_shock_scale,
+    taste_shock_scale: float,
     discount_factor,
     interest_rate,
-    state_indexer,
-    state_space,
-    income_shock_draws,
-    income_shock_weights,
-    exogenous_savings_grid,
-    compute_marginal_utility,
-    compute_inverse_marginal_utility,
-    compute_value,
-    compute_next_wealth_matrices,
-    get_state_specific_choice_set,
-    transition_vector_by_state,
-    policy_array,
-    value_array,
+    state_indexer: np.ndarray,
+    state_space: np.ndarray,
+    income_shock_draws: np.ndarray,
+    income_shock_weights: np.ndarray,
+    exogenous_savings_grid: np.ndarray,
+    compute_marginal_utility: Callable,
+    compute_inverse_marginal_utility: Callable,
+    compute_value: Callable,
+    compute_next_wealth_matrices: Callable,
+    get_state_specific_choice_set: Callable,
+    transition_vector_by_state: Callable,
+    policy_array: np.ndarray,
+    value_array: np.ndarray,
 ):
+    """Conduct the backwards induction and solve for the optimal policy and value function.
+
+    Args:
+        n_periods:
+        taste_shock_scale (float): The taste shock scale.
+        discount_factor (float): The discount factor.
+        interest_rate (float): The interest rate of capital.
+        state_indexer (np.ndarray): Indexer object that maps states to indexes.
+            The shape of this object quite complicated. For each state variable it
+             has the number of possible states as "row", i.e.
+            (n_poss_states_statesvar_1, n_poss_states_statesvar_2, ....)
+        state_space (np.ndarray): Collection of all possible states of shape
+            (n_states, n_state_variables).
+        income_shock_draws (np.ndarray): 1d array of shape (n_quad_points,) containing
+            the Hermite quadrature points.
+        income_shock_weights (np.ndarrray): Weights for each stoachstic shock draw.
+            Shape is (n_stochastic_quad_points)
+        exogenous_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
+            containing the exogenous savings grid.
+        compute_marginal_utility (callable): User-defined function to compute the
+            agent's marginal utility. The input ```params``` is already partialled in.
+        compute_inverse_marginal_utility (Callable): Function for calculating the
+            inverse marginal utiFality, which takes the marginal utility as only input.
+        compute_value (callable): Function for calculating the value from consumption
+            level, discrete choice and expected value. The inputs ```discount_rate```
+            and ```compute_utility``` are already partialled in.
+        compute_next_wealth_matrices (callable): User-defined function to compute the
+            agent's wealth matrices of the next period (t + 1). The inputs
+            ```savings_grid```, ```income_shocks```, ```params``` and ```options```
+            are already partialled in.
+        get_state_specific_choice_set (Callable): User-supplied function returning for
+            each state all possible choices.
+        transition_vector_by_state (Callable): Partialled transition function return
+            transition vector for each state.
+        policy_array (np.ndarray): Multi-dimensional np.ndarray storing the
+            choice-specific policy function; of shape
+            [n_states, n_discrete_choices, 2, 1.1 * n_grid_wealth].
+            Position [.., 0, :] contains the endogenous grid over wealth M,
+            and [.., 1, :] stores the corresponding value of the policy function
+            c(M, d), for each state and each discrete choice.
+
+        value_array (np.ndarray): Multi-dimensional np.ndarray storing the
+            choice-specific value functions; of shape
+            [n_states, n_discrete_choices, 2, 1.1 * n_grid_wealth].
+            Position [.., 0, :] contains the endogenous grid over wealth M,
+            and [.., 1, :] stores the corresponding value of the value function
+            v(M, d), for each state and each discrete choice.
+
+    Returns:
+
+    """
     marginal_utilities = np.full(
         shape=(
             state_space.shape[0],
