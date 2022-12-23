@@ -248,7 +248,7 @@ def get_child_state_marginal_util_and_exp_max_value(
         compute_value=compute_value,
     )
 
-    child_state_marginal_utility = get_child_state_policy(
+    child_state_marginal_utility = get_child_state_marginal_util(
         child_node_choice_set,
         next_period_policy=child_policy,
         next_period_value=choice_child_values,
@@ -310,7 +310,7 @@ def calc_exp_max_value(
     return logsum
 
 
-def get_child_state_policy(
+def get_child_state_marginal_util(
     child_node_choice_set: np.ndarray,
     next_period_policy: np.ndarray,
     next_period_value: np.ndarray,

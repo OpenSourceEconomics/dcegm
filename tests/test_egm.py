@@ -7,7 +7,7 @@ from dcegm.aggregate_policy_value import calc_current_value
 from dcegm.egm import calc_choice_probability
 from dcegm.egm import get_child_state_choice_specific_policy
 from dcegm.egm import get_child_state_choice_specific_values
-from dcegm.egm import get_child_state_policy
+from dcegm.egm import get_child_state_marginal_util
 from dcegm.interpolate import interpolate_policy
 from dcegm.interpolate import interpolate_value
 from numpy.testing import assert_array_almost_equal as aaae
@@ -278,7 +278,7 @@ def test_sum_marginal_utility_over_choice_probs(
     compute_marginal_utility = partial(marginal_utility_crra, params=params)
     taste_shock_scale = params.loc[("shocks", "lambda"), "value"]
 
-    next_marg_util = get_child_state_policy(
+    next_marg_util = get_child_state_marginal_util(
         child_node_choice_set,
         next_policy,
         next_value,
