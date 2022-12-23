@@ -237,7 +237,9 @@ def backwards_induction(
     for period in range(n_periods - 2, -1, -1):
 
         possible_child_states = state_space[np.where(state_space[:, 0] == period + 1)]
+
         for child_state in possible_child_states:
+
             child_state_index = state_indexer[tuple(child_state)]
             # We could parralelize here also over the savings grid!
             # We aggregate here already over the income shocks!
@@ -263,6 +265,7 @@ def backwards_induction(
 
         index_periods = np.where(state_space[:, 0] == period)[0]
         state_subspace = state_space[index_periods]
+
         for state in state_subspace:
 
             current_state_index = state_indexer[tuple(state)]
@@ -289,10 +292,11 @@ def backwards_induction(
             )
             trans_vec_state = transition_vector_by_state(state)
 
-            for choice_ind, choice in enumerate(choice_set):
+            for choice_index, choice in enumerate(choice_set):
+
                 current_policy, current_value = compute_optimal_policy_and_value(
-                    marginal_utilities_child_states[choice_ind, :],
-                    max_expected_values_child_states[choice_ind, :],
+                    marginal_utilities_child_states[choice_index, :],
+                    max_expected_values_child_states[choice_index, :],
                     discount_factor,
                     interest_rate,
                     choice,
@@ -313,7 +317,7 @@ def backwards_induction(
                         n_grid_wealth=exogenous_savings_grid.shape[0],
                         compute_value=compute_value,
                     )
-                # Store
+
                 policy_array[
                     current_state_index,
                     choice,
