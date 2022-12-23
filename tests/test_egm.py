@@ -3,11 +3,11 @@ from itertools import product
 
 import numpy as np
 import pytest
-from dcegm.aggregate_policy_value import calc_value
-from dcegm.egm_step import calc_choice_probability
-from dcegm.egm_step import get_child_state_choice_specific_policy
-from dcegm.egm_step import get_child_state_choice_specific_values
-from dcegm.egm_step import get_child_state_policy
+from dcegm.aggregate_policy_value import calc_current_value
+from dcegm.egm import calc_choice_probability
+from dcegm.egm import get_child_state_choice_specific_policy
+from dcegm.egm import get_child_state_choice_specific_values
+from dcegm.egm import get_child_state_policy
 from dcegm.interpolate import interpolate_policy
 from dcegm.interpolate import interpolate_value
 from numpy.testing import assert_array_almost_equal as aaae
@@ -204,7 +204,7 @@ def test_interpolate_value(
         params=params,
     )
     compute_value = partial(
-        calc_value,
+        calc_current_value,
         discount_factor=params.loc[("beta", "beta"), "value"],
         compute_utility=compute_utility,
     )
@@ -233,7 +233,7 @@ def test_get_next_period_value(
         params=params,
     )
     compute_value = partial(
-        calc_value,
+        calc_current_value,
         discount_factor=params.loc[("beta", "beta"), "value"],
         compute_utility=compute_utility,
     )

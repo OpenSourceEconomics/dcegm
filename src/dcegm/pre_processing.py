@@ -5,7 +5,7 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
-from dcegm.aggregate_policy_value import calc_value
+from dcegm.aggregate_policy_value import calc_current_value
 
 
 def get_partial_functions(
@@ -15,8 +15,8 @@ def get_partial_functions(
     user_budget_constraint: Callable,
     exogenous_transition_function: Callable,
 ) -> Tuple[Callable, Callable, Callable, Callable, Callable, Callable]:
-    """Create partial functions from user supplied functions. This is the function
-    where we handle all custom provided parameters.
+    """Create partial functions from user supplied functions.
+
     Args:
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
@@ -30,6 +30,7 @@ def get_partial_functions(
         user_budget_constraint (callable): Callable budget constraint.
         exogenous_transition_function (callable): User-supplied function returning for
             each state a transition matrix vector.
+
     Returns:
         - compute_utility (callable): Function for computation of agent's utility.
         - compute_marginal_utility (callable): User-defined function to compute the
@@ -45,6 +46,7 @@ def get_partial_functions(
             are already partialled in.
         - transition_function (Callable): Partialled transition function return
             transition vector for each state.
+
     """
     compute_utility = partial(
         user_utility_functions["utility"],
@@ -59,7 +61,7 @@ def get_partial_functions(
         params=params,
     )
     compute_value = partial(
-        calc_value,
+        calc_current_value,
         discount_factor=params.loc[("beta", "beta"), "value"],
         compute_utility=compute_utility,
     )

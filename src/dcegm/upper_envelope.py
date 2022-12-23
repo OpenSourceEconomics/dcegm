@@ -13,14 +13,14 @@ from scipy.optimize import brenth as root
 eps = 2.2204e-16
 
 
-def do_upper_envelope_step(
+def upper_envelope(
     policy: np.ndarray,
     value: np.ndarray,
     choice: int,
     n_grid_wealth: int,
     compute_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Runs the Upper Envelope algorithm and drops sub-optimal points.
+    """Run the Upper Envelope algorithm and drop sub-optimal points.
 
     Calculates the upper envelope over the overlapping segments of the
     decision-specific value functions, which in fact are value "correspondences"

@@ -3,15 +3,17 @@ from typing import Callable
 import numpy as np
 
 
-def calc_value(
+def calc_current_value(
     consumption: np.ndarray,
     next_period_value: np.ndarray,
     choice: int,
     discount_factor: float,
     compute_utility: Callable,
 ) -> np.ndarray:
-    """Compute the agent's value in the next period. We only support the standard value
-    function, where the current utility and the next period discounted value is a sum.
+    """Compute the agent's current value.
+
+    We only support the standard value function, where the current utility and
+    the discounted next period value have a sum format.
 
     Args:
         consumption (np.ndarray): Level of the agent's consumption.

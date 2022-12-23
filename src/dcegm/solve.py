@@ -5,13 +5,13 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
-from dcegm.egm_step import compute_optimal_policy_and_value
-from dcegm.egm_step import get_child_state_policy_and_value
+from dcegm.egm import compute_optimal_policy_and_value
+from dcegm.egm import get_child_state_policy_and_value
 from dcegm.integration import quadrature_legendre
 from dcegm.pre_processing import create_multi_dim_arrays
 from dcegm.pre_processing import get_partial_functions
 from dcegm.state_space import get_child_indexes
-from dcegm.upper_envelope_step import do_upper_envelope_step
+from dcegm.upper_envelope import upper_envelope
 
 
 def solve_dcegm(
@@ -23,9 +23,7 @@ def solve_dcegm(
     solve_final_period: Callable,
     user_transition_function: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Solves a discrete-continuous life-cycle model using the DC-EGM algorithm.
-
-    EGM stands for Endogenous Grid Method.
+    """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
     Args:
         params (pd.DataFrame): Model parameters indexed with multi-index of the
@@ -48,7 +46,7 @@ def solve_dcegm(
         user_transition_function (callable): User-supplied function returning for each
             state a transition matrix vector.
 
-     Returns:
+    Returns:
         (tuple): Tuple containing:
 
         - policy (np.ndarray): Multi-dimensional np.ndarray storing the
@@ -140,10 +138,10 @@ def solve_dcegm(
 
 
 def backwards_induction(
-    n_periods,
+    n_periods: int,
     taste_shock_scale: float,
-    discount_factor,
-    interest_rate,
+    discount_factor: float,
+    interest_rate: float,
     state_indexer: np.ndarray,
     state_space: np.ndarray,
     income_shock_draws: np.ndarray,
@@ -158,11 +156,10 @@ def backwards_induction(
     policy_array: np.ndarray,
     value_array: np.ndarray,
 ):
-    """Conduct the backwards induction and solve for the optimal policy and value
-    function.
+    """Do backwards induction and solve for optimal policy and value function.
 
     Args:
-        n_periods:
+        n_periods (int): Number of periods.
         taste_shock_scale (float): The taste shock scale.
         discount_factor (float): The discount factor.
         interest_rate (float): The interest rate of capital.
@@ -199,7 +196,6 @@ def backwards_induction(
             Position [.., 0, :] contains the endogenous grid over wealth M,
             and [.., 1, :] stores the corresponding value of the policy function
             c(M, d), for each state and each discrete choice.
-
         value_array (np.ndarray): Multi-dimensional np.ndarray storing the
             choice-specific value functions; of shape
             [n_states, n_discrete_choices, 2, 1.1 * n_grid_wealth].
@@ -208,6 +204,21 @@ def backwards_induction(
             v(M, d), for each state and each discrete choice.
 
     Returns:
+        (tuple): Tuple containing:
+
+        - policy (np.ndarray): Multi-dimensional np.ndarray storing the
+            choice-specific policy function; of shape
+            [n_states, n_discrete_choices, 2, 1.1 * n_grid_wealth].
+            Position [.., 0, :] contains the endogenous grid over wealth M,
+            and [.., 1, :] stores the corresponding value of the policy function
+            c(M, d), for each state and each discrete choice.
+
+        - value (np.ndarray): Multi-dimensional np.ndarray storing the
+            choice-specific value functions; of shape
+            [n_states, n_discrete_choices, 2, 1.1 * n_grid_wealth].
+            Position [.., 0, :] contains the endogenous grid over wealth M,
+            and [.., 1, :] stores the corresponding value of the value function
+            v(M, d), for each state and each discrete choice.
 
     """
     marginal_utilities = np.full(
@@ -295,7 +306,7 @@ def backwards_induction(
                     # For the upper envelope we cannot parralize over the wealth grid
                     # as here we need to inspect the value function on the whole wealth
                     # grid.
-                    current_policy, current_value = do_upper_envelope_step(
+                    current_policy, current_value = upper_envelope(
                         current_policy,
                         current_value,
                         choice,

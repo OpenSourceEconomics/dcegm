@@ -1,4 +1,4 @@
-"""Implementation of the EGM algorithm."""
+"""Auxiliary functions for the EGM algorithm."""
 from typing import Callable
 from typing import Tuple
 
@@ -34,20 +34,21 @@ def compute_optimal_policy_and_value(
         compute_value (callable): Function for calculating the value from consumption
             level, discrete choice and expected value. The inputs ```discount_rate```
             and ```compute_utility``` are already partialled in.
+
     Returns:
         (tuple) Tuple containing:
 
-        - current_policy (np.ndarray): 2d array of the agent's period- and
-            choice-specific consumption policy. Shape (2, 1.1 * (n_grid_wealth + 1)).
-            Position [0, :] contains the endogenous grid over wealth M,
-            and [1, :] stores the corresponding value of the policy function c(M, d).
-        - current_value (np.ndarray): 2d array of the agent's period- and
-            choice-specific value function. Shape (2, 1.1 * (n_grid_wealth + 1)).
-            Position [0, :] contains the endogenous grid over wealth M,
-            and [1, :] stores the corresponding value of the value function v(M, d).
+        - (np.ndarray): 2d array of the agent's period- and choice-specific
+            consumption policy. Shape (2, 1.1 * (n_grid_wealth + 1)).
+            Position [0,:] contains the endogenous grid over wealth M, and [1, :]
+            stores the corresponding value of the policy function c(M, d).
+        - (np.ndarray): 2d array of the agent's period- and choice-specific
+            value function. Shape (2, 1.1 * (n_grid_wealth + 1)).  Position [0, :]
+            contains the endogenous grid over wealth M, and [1, :] stores the
+            corresponding value of the value function v(M, d).
 
     """
-    current_policy, expected_value = solution_euler_equation(
+    current_policy, expected_value = solve_euler_equation(
         trans_vec_state,
         discount_factor,
         interest_rate,
@@ -67,7 +68,7 @@ def compute_optimal_policy_and_value(
     return current_policy_arr, current_value_arr
 
 
-def solution_euler_equation(
+def solve_euler_equation(
     trans_vec_state,
     discount_factor,
     interest_rate,
@@ -75,10 +76,11 @@ def solution_euler_equation(
     marginal_utilities,
     max_value_func,
 ):
-    """
-    This function solves the eueler equation for a discrete choice and the corresponding
-    child states. So we have to integrate over the exogenous process and income
-    uncertainty and then apply the inverese marginal utility function.
+    """Solve the Euler equation for given discrete choice and child states.
+
+    We have to integrate over the exogenous process and income uncertainty and
+    then apply the inverese marginal utility function.
+
     Args:
         trans_vec_state (np.ndarray): A vector containing for each possible exogenous
             process state the corresponding probability.
@@ -171,7 +173,9 @@ def get_child_state_policy_and_value(
     compute_value: Callable,
     get_state_specific_choice_set: Callable,
 ):
-    """Runs the Endogenous-Grid-Method Algorithm (EGM step).
+    """Find the optimal choice- and child-state specific policy and value function.
+
+    The underlying algorithm is the Endogenous-Grid-Method (EGM).
 
     Args:
         exogenous_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
@@ -188,7 +192,7 @@ def get_child_state_policy_and_value(
             (n_poss_states_statesvar_1, n_poss_states_statesvar_2, ....)
         state_space (np.ndarray): Collection of all possible states of shape
             (n_states, n_state_variables).
-        taste_shock_scale (float): The taste shock scale.
+        taste_shock_scale (float): The taste shock scale parameter.
         policy_array (np.ndarray): Multi-dimensional np.ndarray storing the
             choice-specific policy function; of shape
             [n_states, n_discrete_choices, 2, 1.1 * (n_grid_wealth + 1)].
@@ -252,16 +256,21 @@ def get_child_state_policy_and_value(
 
     child_state_log_sum = calc_exp_max_value(choice_child_values, taste_shock_scale)
 
-    return (
+    marginal_utility_weighted = (
         child_state_marginal_utility.reshape(
             exogenous_savings_grid.shape[0], income_shock_draws.shape[0]
         )
-        @ income_shock_weights,
+        @ income_shock_weights
+    )
+
+    log_sum_weighted = (
         child_state_log_sum.reshape(
             exogenous_savings_grid.shape[0], income_shock_draws.shape[0]
         )
-        @ income_shock_weights,
+        @ income_shock_weights
     )
+
+    return marginal_utility_weighted, log_sum_weighted
 
 
 def calc_exp_max_value(
@@ -279,7 +288,7 @@ def calc_exp_max_value(
         choice_specific_values (np.ndarray): Array containing values of the
             choice-specific value function.
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
-        taste_shock_scale (float): Taste shock (scale) parameter.
+        taste_shock_scale (float): Taste shock scale parameter.
 
     Returns:
         logsum (np.ndarray): Log-sum formula inside the expected value function.
@@ -304,7 +313,7 @@ def get_child_state_policy(
     compute_marginal_utility: Callable,
     taste_shock_scale: float,
 ) -> np.ndarray:
-    """Aggregates the marginal utility of the discrete choices in the next period with
+    """We aggregate the marginal utility of the discrete choices in the next period with
     the choice probabilities following from the choice-specific value functions.
 
     Args:
@@ -318,7 +327,7 @@ def get_child_state_policy(
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
         compute_marginal_utility (callable): Partial function that calculates marginal
             utility, where the input ```params``` has already been partialed in.
-        taste_shock_scale (float): Taste shock (scale) parameter.
+        taste_shock_scale (float): Taste shock scale parameter.
 
 
     Returns:
@@ -326,7 +335,6 @@ def get_child_state_policy(
             (n_quad_stochastic * n_grid_wealth,).
 
     """
-
     next_period_marg_util = np.zeros(next_period_policy.shape[1])
 
     choice_probabilites = calc_choice_probability(next_period_value, taste_shock_scale)
@@ -344,10 +352,10 @@ def get_child_state_choice_specific_policy(
     next_period_wealth: np.ndarray,
     next_period_policy: np.ndarray,
 ) -> np.ndarray:
-    """Computes the next-period policy via linear interpolation.
+    """Compute next-period policy via linear interpolation.
 
     Extrapolate linearly in wealth regions beyond the grid, i.e. larger
-    than "max_wealth" specific in the ``params`` dictionary.
+    than "max_wealth", which is specified in the ``params`` dictionary.
 
     Args:
         child_node_choice_set (np.ndarray): 1d array of shape (n_admissible_choices,)
@@ -357,12 +365,12 @@ def get_child_state_choice_specific_policy(
             wealths with shape (n_quad_stochastic, n_grid_wealth).
         next_period_policy (np.ndarray): Array of the next period policy
             for all choices. Shape (n_choices, 2, 1.1 * n_grid_wealth + 1).
+
     Returns:
         next_period_policy_interp (np.ndarray): Array of interpolated next period
             consumption of shape (n_choices, n_quad_stochastic * n_grid_wealth).
 
     """
-
     next_period_wealth_flat = next_period_wealth.flatten("F")
 
     next_period_policy_interp = np.empty(
@@ -383,7 +391,7 @@ def get_child_state_choice_specific_values(
     next_period_value: np.ndarray,
     compute_value: Callable,
 ) -> np.ndarray:
-    """Maps next-period value onto this period's matrix of next-period wealth.
+    """Map next-period value onto this period's matrix of next-period wealth.
 
     Args:
         child_node_choice_set (np.ndarray): 1d array of shape (n_choices_in_state)
@@ -404,7 +412,6 @@ def get_child_state_choice_specific_values(
             Shape (n_choices, n_quad_stochastic * n_grid_wealth).
 
     """
-
     next_period_wealth_flat = next_period_wealth.flatten("F")
     next_period_value_interp = np.empty(
         (
@@ -428,16 +435,16 @@ def calc_choice_probability(
     values: np.ndarray,
     taste_shock_scale: float,
 ) -> np.ndarray:
-    """Calculates the probability of working in the next period.
+    """Calculate the next period probability of picking a given choice.
 
     Args:
         values (np.ndarray): Array containing choice-specific values of the
-         value function.
-            Shape (n_choices, n_quad_stochastic * n_grid_wealth).
-        taste_shock_scale (float): The taste shock scale.
+            value function. Shape (n_choices, n_quad_stochastic * n_grid_wealth).
+        taste_shock_scale (float): The taste shock scale parameter.
+
     Returns:
-        prob_working (np.ndarray): Probability of working next period. Array of
-            shape (n_quad_stochastic * n_grid_wealth,).
+        (np.ndarray): Probability of opting for the given choice next period.
+        1d array of shape (n_quad_stochastic * n_grid_wealth,).
 
     """
     col_max = np.amax(values, axis=0)
