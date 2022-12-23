@@ -1,9 +1,7 @@
 """Implementation of the Upper Envelope algorithm."""
-from typing import Any
 from typing import Callable
 from typing import List
 from typing import Tuple
-from typing import Union
 
 import numpy as np
 from dcegm.interpolate import linear_interpolation_with_extrapolation
@@ -649,24 +647,6 @@ def _find_dominated_points(
     )
 
     return index_dominated_points
-
-
-def _get_interpolated_value(
-    segments: List[np.ndarray],
-    index: int,
-    grid_points: Union[float, List[float]],
-    fill_value_: Any = np.nan,
-) -> Union[np.ndarray, float]:
-    """Returns the interpolated value(s)."""
-
-    values_interp = linear_interpolation_with_inserting_missing_values(
-        x=segments[index][0],
-        y=segments[index][1],
-        x_new=grid_points,
-        missing_value=fill_value_,
-    )
-
-    return values_interp
 
 
 def _subtract_values(grid_point: float, first_segment, second_segment):

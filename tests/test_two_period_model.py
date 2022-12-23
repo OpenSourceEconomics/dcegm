@@ -89,6 +89,7 @@ def prob_long_term_care_patient(params, lag_health, health):
         pi = 1
     else:
         raise ValueError("Health state not defined.")
+
     return pi
 
 
