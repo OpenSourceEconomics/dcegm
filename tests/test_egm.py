@@ -3,11 +3,11 @@ from itertools import product
 
 import numpy as np
 import pytest
-from dcegm.aggregate_policy_value import calc_current_period_value
-from dcegm.aggregate_policy_value import calc_next_period_choice_probs
-from dcegm.egm_step import get_next_period_policy
-from dcegm.egm_step import get_next_period_value
-from dcegm.egm_step import sum_marginal_utility_over_choice_probs
+from dcegm.aggregate_policy_value import calc_current_value
+from dcegm.egm import calc_choice_probability
+from dcegm.egm import get_child_state_choice_specific_policy
+from dcegm.egm import get_child_state_choice_specific_values
+from dcegm.egm import get_child_state_marginal_util
 from dcegm.interpolate import interpolate_policy
 from dcegm.interpolate import interpolate_value
 from numpy.testing import assert_array_almost_equal as aaae
@@ -133,10 +133,6 @@ TEST_CASES = list(
 def test_get_next_period_policy(
     choice_set, interest_rate, max_wealth, n_grid_points, n_quad_points
 ):
-    options = {
-        "quadrature_points_stochastic": n_quad_points,
-        "grid_points_wealth": n_grid_points,
-    }
 
     (
         matrix_next_wealth,
@@ -147,8 +143,8 @@ def test_get_next_period_policy(
     )
     next_policy = np.repeat(_next_policy[np.newaxis, ...], len(choice_set), axis=0)
 
-    policy_interp = get_next_period_policy(
-        choice_set, matrix_next_wealth, next_policy, options
+    policy_interp = get_child_state_choice_specific_policy(
+        choice_set, matrix_next_wealth, next_policy
     )
 
     expected_policy = np.tile(
@@ -207,9 +203,9 @@ def test_interpolate_value(
         utility_func_crra,
         params=params,
     )
-    compute_value_constrained = partial(
-        calc_current_period_value,
-        beta=params.loc[("beta", "beta"), "value"],
+    compute_value = partial(
+        calc_current_value,
+        discount_factor=params.loc[("beta", "beta"), "value"],
         compute_utility=compute_utility,
     )
 
@@ -219,7 +215,7 @@ def test_interpolate_value(
         flat_wealth=matrix_next_wealth.flatten("F"),
         value=next_value,
         choice=0,
-        compute_value_constrained=compute_value_constrained,
+        compute_value=compute_value,
     )
 
     aaae(value_interp, value_interp_expected)
@@ -236,20 +232,20 @@ def test_get_next_period_value(
         utility_func_crra,
         params=params,
     )
-    compute_value_constrained = partial(
-        calc_current_period_value,
-        beta=params.loc[("beta", "beta"), "value"],
+    compute_value = partial(
+        calc_current_value,
+        discount_factor=params.loc[("beta", "beta"), "value"],
         compute_utility=compute_utility,
     )
 
     matrix_next_wealth, _next_value = inputs_interpolate_value
     next_value = np.repeat(_next_value[np.newaxis, ...], len(choice_set), axis=0)
 
-    value_interp = get_next_period_value(
+    value_interp = get_child_state_choice_specific_values(
         choice_set,
         matrix_next_wealth,
         next_value,
-        compute_value_constrained,
+        compute_value,
     )
     aaae(value_interp, np.tile(value_interp_expected[np.newaxis], (len(choice_set), 1)))
 
@@ -270,10 +266,6 @@ def test_sum_marginal_utility_over_choice_probs(
     model, child_node_choice_set, n_grid_points, n_quad_points, load_example_model
 ):
     params, _ = load_example_model(model)
-    options = {
-        "quadrature_points_stochastic": n_quad_points,
-        "grid_points_wealth": n_grid_points,
-    }
 
     n_choices = len(child_node_choice_set)
     n_grid_flat = n_quad_points * n_grid_points
@@ -284,22 +276,21 @@ def test_sum_marginal_utility_over_choice_probs(
     next_value = np.random.rand(n_grid_flat * n_choices).reshape(n_choices, n_grid_flat)
 
     compute_marginal_utility = partial(marginal_utility_crra, params=params)
-    compute_next_choice_probs = partial(
-        calc_next_period_choice_probs, params=params, options=options
-    )
+    taste_shock_scale = params.loc[("shocks", "lambda"), "value"]
 
-    next_marg_util = sum_marginal_utility_over_choice_probs(
+    next_marg_util = get_child_state_marginal_util(
         child_node_choice_set,
         next_policy,
         next_value,
-        options=options,
+        taste_shock_scale=taste_shock_scale,
         compute_marginal_utility=compute_marginal_utility,
-        compute_next_period_choice_probs=compute_next_choice_probs,
-    )
+    ).reshape((n_quad_points, n_grid_points), order="F")
 
     _choice_index = 0
-    _choice_prob = compute_next_choice_probs(next_value, _choice_index)
-    _expected = _choice_prob * compute_marginal_utility(next_policy[_choice_index])
+    _choice_probabilites = calc_choice_probability(next_value, taste_shock_scale)
+    _expected = _choice_probabilites[_choice_index] * compute_marginal_utility(
+        next_policy[_choice_index]
+    )
     expected = _expected.reshape((n_quad_points, n_grid_points), order="F")
 
     aaae(next_marg_util, expected)

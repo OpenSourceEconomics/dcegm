@@ -8,7 +8,6 @@ import numpy as np
 def solve_final_period(
     states: np.ndarray,
     savings_grid: np.ndarray,
-    *,
     options: Dict[str, int],
     compute_utility: Callable,  # noqa: U100
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -17,8 +16,7 @@ def solve_final_period(
     In the last period, everything is consumed, i.e. consumption = savings.
 
     Args:
-        state_space (np.ndarray): Collection of all possible states.
-        indexer (np.ndarray): Indexer object, that maps states to indexes.
+        states (np.ndarray): Collection of all possible states.
         savings_grid (np.ndarray): Array of shape (n_wealth_grid,) denoting the
             exogenous savings grid.
         options (dict): Options dictionary.

@@ -5,97 +5,80 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
-from dcegm.aggregate_policy_value import calc_current_period_policy
-from dcegm.aggregate_policy_value import calc_current_period_value
-from dcegm.aggregate_policy_value import calc_expected_value
-from dcegm.aggregate_policy_value import calc_next_period_choice_probs
-from dcegm.integration import quadrature_legendre
+from dcegm.aggregate_policy_value import calc_current_value
 
 
 def get_partial_functions(
     params: pd.DataFrame,
     options: Dict[str, int],
-    exogenous_savings_grid: Callable,
-    user_utility_func: Callable,
-    user_marginal_utility_func: Callable,
-    user_inverse_marginal_utility_func: Callable,
+    user_utility_functions: Dict[str, Callable],
     user_budget_constraint: Callable,
-    user_marginal_next_period_wealth: Callable,
-) -> Tuple[
-    Callable,
-    Callable,
-    Callable,
-    Callable,
-    Callable,
-    Callable,
-    Callable,
-    Callable,
-    Callable,
-]:
-    """Create partial functions."""
+    exogenous_transition_function: Callable,
+) -> Tuple[Callable, Callable, Callable, Callable, Callable, Callable]:
+    """Create partial functions from user supplied functions.
 
-    quad_points, quad_weights = quadrature_legendre(
-        options["quadrature_points_stochastic"],
-        params.loc[("shocks", "sigma"), "value"],
-    )
+    Args:
+        params (pd.DataFrame): Model parameters indexed with multi-index of the
+            form ("category", "name") and two columns ["value", "comment"].
+        options (dict): Options dictionary.
+        user_utility_functions (Dict[str, callable]): Dictionary of three user-supplied
+            functions for computation of:
 
+            (i) utility
+            (ii) inverse marginal utility
+            (iii) next period marginal utility
+        user_budget_constraint (callable): Callable budget constraint.
+        exogenous_transition_function (callable): User-supplied function returning for
+            each state a transition matrix vector.
+
+    Returns:
+        - compute_utility (callable): Function for computation of agent's utility.
+        - compute_marginal_utility (callable): User-defined function to compute the
+            agent's marginal utility. The input ```params``` is already partialled in.
+        - compute_inverse_marginal_utility (Callable): Function for calculating the
+            inverse marginal utiFality, which takes the marginal utility as only input.
+        - compute_value (callable): Function for calculating the value from consumption
+            level, discrete choice and expected value. The inputs ```discount_rate```
+            and ```compute_utility``` are already partialled in.
+        - compute_next_wealth_matrices (callable): User-defined function to compute the
+            agent's wealth matrices of the next period (t + 1). The inputs
+            ```savings_grid```, ```income_shocks```, ```params``` and ```options```
+            are already partialled in.
+        - transition_function (Callable): Partialled transition function return
+            transition vector for each state.
+
+    """
     compute_utility = partial(
-        user_utility_func,
+        user_utility_functions["utility"],
         params=params,
     )
     compute_marginal_utility = partial(
-        user_marginal_utility_func,
+        user_utility_functions["marginal_utility"],
         params=params,
     )
     compute_inverse_marginal_utility = partial(
-        user_inverse_marginal_utility_func,
+        user_utility_functions["inverse_marginal_utility"],
         params=params,
     )
-    compute_current_policy = partial(
-        calc_current_period_policy,
-        quad_weights=quad_weights,
-        compute_inverse_marginal_utility=compute_inverse_marginal_utility,
-    )
-    compute_current_value = partial(
-        calc_current_period_value,
-        beta=params.loc[("beta", "beta"), "value"],
+    compute_value = partial(
+        calc_current_value,
+        discount_factor=params.loc[("beta", "beta"), "value"],
         compute_utility=compute_utility,
-    )
-    compute_expected_value = partial(
-        calc_expected_value,
-        params=params,
-        quad_weights=quad_weights,
-    )
-    compute_next_choice_probs = partial(
-        calc_next_period_choice_probs, params=params, options=options
     )
     compute_next_wealth_matrices = partial(
         user_budget_constraint,
-        savings_grid=exogenous_savings_grid,
-        income_shock=quad_points,
         params=params,
         options=options,
     )
-    compute_next_marginal_wealth = partial(
-        user_marginal_next_period_wealth,
-        params=params,
-        options=options,
-    )
-    store_current_policy_and_value = partial(
-        _store_current_period_policy_and_value,
-        savings_grid=exogenous_savings_grid,
-        options=options,
-    )
+    transition_function = partial(exogenous_transition_function, params=params)
+
     return (
         compute_utility,
         compute_marginal_utility,
-        compute_current_policy,
-        compute_current_value,
-        compute_expected_value,
-        compute_next_choice_probs,
+        compute_inverse_marginal_utility,
+        compute_value,
         compute_next_wealth_matrices,
-        compute_next_marginal_wealth,
-        store_current_policy_and_value,
+        transition_function,
     )
 
 
@@ -151,56 +134,3 @@ def create_multi_dim_arrays(
     value_arr[:] = np.nan
 
     return policy_arr, value_arr
-
-
-def _store_current_period_policy_and_value(
-    current_period_policy: np.ndarray,
-    current_period_value: np.ndarray,
-    expected_value: np.ndarray,
-    savings_grid: np.ndarray,
-    options: Dict[str, int],
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Store the current period policy and value functions.
-
-    Args:
-        current_period_policy (np.ndarray): 1d array of shape (n_grid_wealth,)
-            containing the agent's current period policy rule.
-        expected_value (np.ndarray): (np.ndarray): 1d array of shape (n_grid_wealth,)
-            containing the agent's expected value of the next period.
-        child_state (np.ndarray): 1d array of shape (n_state_variables,) denoting
-            the current child state.
-        savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
-            exogenous savings grid .
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
-        options (dict): Options dictionary.
-        compute_utility (callable): User-defined function to compute the agent's
-            utility. The input ```params``` is already partialled in.
-
-    Returns:
-        (tuple): Tuple containing:
-
-        - current_policy (np.ndarray): 2d array of the agent's period- and
-            choice-specific consumption policy. Shape (2, 1.1 * (n_grid_wealth + 1)).
-            Position [0, :] contains the endogenous grid over wealth M,
-            and [1, :] stores the corresponding value of the policy function c(M, d).
-        - current_value (np.ndarray): 2d array of the agent's period- and
-            choice-specific value function. Shape (2, 1.1 * (n_grid_wealth + 1)).
-            Position [0, :] contains the endogenous grid over wealth M,
-            and [1, :] stores the corresponding value of the value function v(M, d).
-
-    """
-    n_grid_wealth = options["grid_points_wealth"]
-
-    endogenous_wealth_grid = savings_grid + current_period_policy
-
-    current_policy = np.zeros((2, n_grid_wealth + 1))
-    current_policy[0, 1:] = endogenous_wealth_grid
-    current_policy[1, 1:] = current_period_policy
-
-    current_value = np.zeros((2, n_grid_wealth + 1))
-    current_value[0, 1:] = endogenous_wealth_grid
-    current_value[1, 0] = expected_value[0]
-    current_value[1, 1:] = current_period_value
-
-    return current_policy, current_value
