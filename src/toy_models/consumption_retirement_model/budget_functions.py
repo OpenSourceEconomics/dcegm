@@ -112,27 +112,3 @@ def _calc_stochastic_income(
         stochastic_income = np.zeros_like(wage_shock)
 
     return stochastic_income
-
-
-def marginal_wealth(child_state, params, options):  # noqa: U100
-    """Calculate next periods marginal wealth.
-
-    Args:
-        child_state (np.ndarray): 1d array of shape (n_state_variables,) denoting
-            the current child state.
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
-        options (dict): Options dictionary.
-
-    Returns:
-         (np.ndarray): 2d array of shape (n_quad_stochastic, n_grid_wealth)
-            containing all possible next marginal period wealths.
-
-    """
-    r = params.loc[("assets", "interest_rate"), "value"]
-    n_grid_wealth = options["grid_points_wealth"]
-    n_quad_stochastic = options["quadrature_points_stochastic"]
-
-    out = np.full((n_quad_stochastic, n_grid_wealth), (1 + r))
-
-    return out

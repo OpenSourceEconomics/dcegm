@@ -18,7 +18,9 @@ def compute_optimal_policy_and_value(
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Runs the Endogenous-Grid-Method Algorithm (EGM step).
+    """Given the marginal utilities of possible child states and next period wealth we
+    compute the optimal policy and current value functions by solving the euler equation
+    and using the optimal consumption level in the bellman equation.
 
     Args:
         discount_factor (float): The discount factor.
@@ -30,7 +32,7 @@ def compute_optimal_policy_and_value(
         savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
             exogenous savings grid .
         compute_inverse_marginal_utility (Callable): Function for calculating the
-            inverse marginal utiFality, which takes the marginal utility as only input.
+            inverse marginal utility, which takes the marginal utility as only input.
         compute_value (callable): Function for calculating the value from consumption
             level, discrete choice and expected value. The inputs ```discount_rate```
             and ```compute_utility``` are already partialled in.
@@ -158,7 +160,7 @@ def create_current_policy_and_value_array(
     return current_policy_container, current_value_container
 
 
-def get_child_state_policy_and_value(
+def get_child_state_marginal_util_and_exp_max_value(
     exogenous_savings_grid: np.ndarray,
     income_shock_draws: np.ndarray,
     income_shock_weights: np.ndarray,
@@ -254,7 +256,9 @@ def get_child_state_policy_and_value(
         compute_marginal_utility=compute_marginal_utility,
     )
 
-    child_state_log_sum = calc_exp_max_value(choice_child_values, taste_shock_scale)
+    child_state_exp_max_value = calc_exp_max_value(
+        choice_child_values, taste_shock_scale
+    )
 
     marginal_utility_weighted = (
         child_state_marginal_utility.reshape(
@@ -263,14 +267,14 @@ def get_child_state_policy_and_value(
         @ income_shock_weights
     )
 
-    log_sum_weighted = (
-        child_state_log_sum.reshape(
+    child_state_exp_max_value_weighted = (
+        child_state_exp_max_value.reshape(
             exogenous_savings_grid.shape[0], income_shock_draws.shape[0]
         )
         @ income_shock_weights
     )
 
-    return marginal_utility_weighted, log_sum_weighted
+    return marginal_utility_weighted, child_state_exp_max_value_weighted
 
 
 def calc_exp_max_value(

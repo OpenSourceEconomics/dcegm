@@ -6,7 +6,7 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 from dcegm.egm import compute_optimal_policy_and_value
-from dcegm.egm import get_child_state_policy_and_value
+from dcegm.egm import get_child_state_marginal_util_and_exp_max_value
 from dcegm.integration import quadrature_legendre
 from dcegm.pre_processing import create_multi_dim_arrays
 from dcegm.pre_processing import get_partial_functions
@@ -245,7 +245,7 @@ def backwards_induction(
             (
                 marginal_utilities[child_state_index, :],
                 max_expected_values[child_state_index, :],
-            ) = get_child_state_policy_and_value(
+            ) = get_child_state_marginal_util_and_exp_max_value(
                 exogenous_savings_grid,
                 income_shock_draws,
                 income_shock_weights,
