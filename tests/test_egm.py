@@ -3,13 +3,13 @@ from itertools import product
 
 import numpy as np
 import pytest
-from dcegm.aggregate_policy_value import calc_current_value
 from dcegm.egm import calc_choice_probability
 from dcegm.egm import get_child_state_choice_specific_policy
 from dcegm.egm import get_child_state_choice_specific_values
 from dcegm.egm import get_child_state_marginal_util
 from dcegm.interpolate import interpolate_policy
 from dcegm.interpolate import interpolate_value
+from dcegm.pre_processing import calc_current_value
 from numpy.testing import assert_array_almost_equal as aaae
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
