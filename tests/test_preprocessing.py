@@ -2,7 +2,7 @@ from functools import partial
 
 import numpy as np
 import pytest
-from dcegm.aggregate_policy_value import calc_current_value
+from dcegm.pre_processing import calc_current_value
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
 
