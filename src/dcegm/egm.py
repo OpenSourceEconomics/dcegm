@@ -76,132 +76,6 @@ def compute_optimal_policy_and_value(
     return current_policy_arr, current_value_arr
 
 
-# def get_child_state_marginal_util_and_exp_max_value(
-#     exogenous_savings_grid: np.ndarray,
-#     income_shock_draws: np.ndarray,
-#     income_shock_weights: np.ndarray,
-#     child_state: np.ndarray,
-#     state_indexer: np.ndarray,
-#     state_space: np.ndarray,
-#     taste_shock_scale: float,
-#     policy_array: np.ndarray,
-#     value_array: np.ndarray,
-#     compute_next_wealth_matrices: Callable, # muss Skalare als Input haben
-#     compute_marginal_utility: Callable,
-#     compute_value: Callable,
-#     get_state_specific_choice_set: Callable,
-# ):
-#     """Compute the child-state specific marginal utility and expected maximum value.
-#
-#     The underlying algorithm is the Endogenous-Grid-Method (EGM).
-#
-#     Args:
-#         exogenous_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
-#             containing the exogenous savings grid .
-#         income_shock_draws (np.ndarray): 1d array of shape (n_quad_points,) containing
-#             the Hermite quadrature points.
-#         income_shock_weights (np.ndarrray): Weights for each stoachstic shock draw.
-#             Shape is (n_stochastic_quad_points)
-#         child_state (np.ndarray): The child state to do calculations for. Shape is
-#             (n_num_state_variables,).
-#         state_indexer (np.ndarray): Indexer object that maps states to indexes.
-#             The shape of this object quite complicated. For each state variable it
-#              has the number of possible states as "row", i.e.
-#             (n_poss_states_statesvar_1, n_poss_states_statesvar_2, ....)
-#         state_space (np.ndarray): Collection of all possible states of shape
-#             (n_states, n_state_variables).
-#         taste_shock_scale (float): The taste shock scale parameter.
-#         policy_array (np.ndarray): Multi-dimensional np.ndarray storing the
-#             choice-specific policy function; of shape
-#             [n_states, n_discrete_choices, 2, 1.1 * (n_grid_wealth + 1)].
-#             Position [.., 0, :] contains the endogenous grid over wealth M,
-#             and [.., 1, :] stores the corresponding value of the policy function
-#             c(M, d), for each state and each discrete choice.
-#         value_array (np.ndarray): Multi-dimensional np.ndarray storing the
-#             choice-specific value functions; of shape
-#             [n_states, n_discrete_choices, 2, 1.1 * (n_grid_wealth + 1)].
-#             Position [.., 0, :] contains the endogenous grid over wealth M,
-#             and [.., 1, :] stores the corresponding value of the value function
-#             v(M, d), for each state and each discrete choice.
-#         compute_next_wealth_matrices (callable): User-defined function to compute the
-#             agent's wealth matrices of the next period (t + 1). The inputs
-#             ```savings_grid```, ```income_shocks```, ```params``` and ```options```
-#             are already partialled in.
-#         compute_marginal_utility (callable): User-defined function to compute the
-#             agent's marginal utility. The input ```params``` is already partialled in.
-#         compute_value (callable): User-defined function to compute
-#             the agent's value function in the credit-constrained area. The inputs
-#             ```params``` and ```compute_utility``` are already partialled in.
-#         get_state_specific_choice_set (Callable): User-supplied function returning for
-#             each state all possible choices.
-#
-#     Returns:
-#         tuple:
-#
-#         - (np.ndarray): 1d array of the child-state specific marginal utility,
-#             weighted by the vector of income shocks. Shape (n_grid_wealth,).
-#         - (np.ndarray): 1d array of the child-state specific expected maximum value,
-#             weighted by the vector of income shocks. Shape (n_grid_wealth,).
-#
-#     """
-#     child_state_index = state_indexer[tuple(child_state)]
-#     choice_policies_child = policy_array[child_state_index]
-#     choice_values_child = value_array[child_state_index]
-#
-#     child_node_choice_set = get_state_specific_choice_set(
-#         child_state, state_space, state_indexer
-#     )
-#
-#     # muss skalarisiert werden, d.h. nur ein saving und einen income shock nehmen
-#     next_period_wealth = compute_next_wealth_matrices(
-#         child_state,
-#         savings_grid=exogenous_savings_grid,
-#         income_shock=income_shock_draws,
-#     )
-#     # Interpolate next period policy and values to match the
-#     # contemporary matrix of potential next period wealths
-#     child_policy = get_child_state_choice_specific_policy(
-#         child_node_choice_set,
-#         next_period_wealth,
-#         next_period_policy=choice_policies_child,
-#     )
-#     choice_child_values = get_child_state_choice_specific_values(
-#         child_node_choice_set,
-#         next_period_wealth=next_period_wealth,
-#         next_period_value=choice_values_child,
-#         compute_value=compute_value,
-#     )
-#
-#     child_state_marginal_utility = get_child_state_marginal_util(
-#         child_node_choice_set,
-#         next_period_policy=child_policy,
-#         next_period_value=choice_child_values,
-#         taste_shock_scale=taste_shock_scale,
-#         compute_marginal_utility=compute_marginal_utility,
-#     )
-#
-#     child_state_exp_max_value = calc_exp_max_value(
-#         choice_child_values, taste_shock_scale
-#     )
-#
-#     marginal_utility_weighted = (
-#         child_state_marginal_utility.reshape(
-#             exogenous_savings_grid.shape[0], income_shock_draws.shape[0]
-#         )
-#         @ income_shock_weights
-#     )
-#
-#     expected_max_value_weighted = (
-#         child_state_exp_max_value.reshape(
-#             exogenous_savings_grid.shape[0], income_shock_draws.shape[0]
-#         )
-#         @ income_shock_weights
-#     )
-#
-#     return marginal_utility_weighted, expected_max_value_weighted
-
-
-# scalarized version
 def get_child_state_marginal_util_and_exp_max_value(
     saving: float,
     income_shock: float,
@@ -306,21 +180,7 @@ def get_child_state_marginal_util_and_exp_max_value(
         choice_child_values, taste_shock_scale
     )
 
-    # marginal_utility_weighted = (
-    #     child_state_marginal_utility.reshape(
-    #         exogenous_savings_grid.shape[0], income_shock_draws.shape[0]
-    #     )
-    #     @ income_shock_weights
-    # )
-
     marginal_utility_weighted = child_state_marginal_utility * income_shock_weight
-
-    # expected_max_value_weighted = (
-    #     child_state_exp_max_value.reshape(
-    #         exogenous_savings_grid.shape[0], income_shock_draws.shape[0]
-    #     )
-    #     @ income_shock_weights
-    # )
 
     expected_max_value_weighted = child_state_exp_max_value * income_shock_weight
 
@@ -471,16 +331,6 @@ def get_child_state_choice_specific_policy(
             (n_choices, n_quad_stochastic * n_grid_wealth).
 
     """
-    # next_period_wealth_flat = next_period_wealth.flatten("F")
-    #
-    # next_period_policy_interp = np.empty(
-    #     (child_node_choice_set.shape[0], next_period_wealth_flat.shape[0])
-    # )
-    #
-    # for index, choice in enumerate(child_node_choice_set):
-    #     next_period_policy_interp[index, :] = interpolate_policy(
-    #         next_period_wealth_flat, next_period_policy[choice]
-    #     )
     next_period_policy_interp = np.empty((child_node_choice_set.shape[0], 1))
 
     for index, choice in enumerate(child_node_choice_set):
@@ -516,21 +366,7 @@ def get_child_state_choice_specific_values(
             period wealths. Shape (n_choices, n_quad_stochastic * n_grid_wealth).
 
     """
-    # next_period_wealth_flat = next_period_wealth.flatten("F")
-    # next_period_value_interp = np.empty(
-    #     (
-    #         child_node_choice_set.shape[0],
-    #         next_period_wealth_flat.shape[0],
-    #     )
-    # )
-    #
-    # for index, choice in enumerate(child_node_choice_set):
-    #     next_period_value_interp[index, :] = interpolate_value(
-    #         flat_wealth=next_period_wealth_flat,
-    #         value=next_period_value[choice],
-    #         choice=choice,
-    #         compute_value=compute_value,
-    #     )
+
     next_period_value_interp = np.empty((child_node_choice_set.shape[0],1,))
 
     for index, choice in enumerate(child_node_choice_set):
