@@ -272,10 +272,16 @@ def backwards_induction(
                         compute_marginal_utility,
                         compute_value,
                     )
-                    marginal_utility_weighted[shock_index] = marginal_util_weighted_shock
+                    marginal_utility_weighted[
+                        shock_index
+                    ] = marginal_util_weighted_shock
                     max_exp_value_weighted[shock_index] = max_exp_value_weighted_shock
-                marginal_utilities[child_state_index, savings_index] = np.sum(marginal_utility_weighted)
-                max_expected_values[child_state_index, savings_index] = np.sum(max_exp_value_weighted)
+                marginal_utilities[child_state_index, savings_index] = np.sum(
+                    marginal_utility_weighted
+                )
+                max_expected_values[child_state_index, savings_index] = np.sum(
+                    max_exp_value_weighted
+                )
 
         index_periods = np.where(state_space[:, 0] == period)[0]
         state_subspace = state_space[index_periods]

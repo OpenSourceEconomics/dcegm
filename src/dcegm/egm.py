@@ -172,7 +172,6 @@ def get_child_state_marginal_util_and_exp_max_value(
 
     expected_max_value_weighted = child_state_exp_max_value * income_shock_weight
 
-
     return marginal_utility_weighted, expected_max_value_weighted
 
 
@@ -319,7 +318,7 @@ def get_child_state_choice_specific_policy(
             (n_choices, n_quad_stochastic * n_grid_wealth).
 
     """
-    next_period_policy_interp = np.empty((child_node_choice_set.shape[0],1))
+    next_period_policy_interp = np.empty((child_node_choice_set.shape[0], 1))
 
     for index, choice in enumerate(child_node_choice_set):
         next_period_policy_interp[index, :] = interpolate_policy(
@@ -355,7 +354,7 @@ def get_child_state_choice_specific_values(
 
     """
 
-    next_period_value_interp = np.empty((child_node_choice_set.shape[0],1))
+    next_period_value_interp = np.empty((child_node_choice_set.shape[0], 1))
 
     for index, choice in enumerate(child_node_choice_set):
         next_period_value_interp[index, :] = interpolate_value(

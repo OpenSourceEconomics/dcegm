@@ -1,7 +1,8 @@
+import math
 from typing import Dict
+
 import numpy as np
 import pandas as pd
-import math
 
 
 def budget_constraint(
@@ -39,7 +40,7 @@ def budget_constraint(
         options=options,
     )
 
-    _next_period_weath = _next_period_income + (1+r)*saving
+    _next_period_weath = _next_period_income + (1 + r) * saving
 
     # Retirement safety net, only in retirement model
     consump_floor_index = ("assets", "consumption_floor")
@@ -52,7 +53,6 @@ def budget_constraint(
         _next_period_wealth = max(consump_floor, _next_period_weath)
 
     return _next_period_wealth
-
 
 
 def _calc_stochastic_income(
@@ -102,4 +102,3 @@ def _calc_stochastic_income(
     elif child_state[1] == 1:  # retired
         stochastic_income = 0
     return stochastic_income
-
