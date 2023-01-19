@@ -241,12 +241,18 @@ def backwards_induction(
         for child_state in possible_child_states:
 
             child_state_index = state_indexer[tuple(child_state)]
+            choice_policies_child = policy_array[child_state_index]
+            choice_values_child = value_array[child_state_index]
+
+            child_node_choice_set = get_state_specific_choice_set(
+                child_state, state_space, state_indexer
+            )
 
             for savings_index in range(len(exogenous_savings_grid)):
                 saving = exogenous_savings_grid[savings_index]
 
-                marginal_utility_weighted = 0
-                max_exp_value_weighted = 0
+                marginal_utility_weighted = np.zeros(len(income_shock_draws))
+                max_exp_value_weighted = np.zeros(len(income_shock_draws))
                 for shock_index in range(len(income_shock_draws)):
                     income_shock = income_shock_draws[shock_index]
                     income_shock_weight = income_shock_weights[shock_index]
@@ -258,20 +264,18 @@ def backwards_induction(
                         income_shock,
                         income_shock_weight,
                         child_state,
-                        state_indexer,
-                        state_space,
+                        child_node_choice_set,
                         taste_shock_scale,
-                        policy_array,
-                        value_array,
+                        choice_policies_child,
+                        choice_values_child,
                         compute_next_period_wealth,
                         compute_marginal_utility,
                         compute_value,
-                        get_state_specific_choice_set,
                     )
-                    marginal_utility_weighted += marginal_util_weighted_shock
-                    max_exp_value_weighted += max_exp_value_weighted_shock
-                marginal_utilities[child_state_index, savings_index] = marginal_utility_weighted
-                max_expected_values[child_state_index, savings_index] = max_exp_value_weighted
+                    marginal_utility_weighted[shock_index] = marginal_util_weighted_shock
+                    max_exp_value_weighted[shock_index] = max_exp_value_weighted_shock
+                marginal_utilities[child_state_index, savings_index] = np.sum(marginal_utility_weighted)
+                max_expected_values[child_state_index, savings_index] = np.sum(max_exp_value_weighted)
 
         index_periods = np.where(state_space[:, 0] == period)[0]
         state_subspace = state_space[index_periods]
