@@ -87,7 +87,7 @@ def solve_dcegm(
         compute_marginal_utility,
         compute_inverse_marginal_utility,
         compute_value,
-        compute_next_wealth_matrices,
+        compute_next_period_wealth,
         transition_vector_by_state,
     ) = get_partial_functions(
         params,
@@ -127,7 +127,7 @@ def solve_dcegm(
         compute_marginal_utility,
         compute_inverse_marginal_utility,
         compute_value,
-        compute_next_wealth_matrices,
+        compute_next_period_wealth,
         get_state_specific_choice_set,
         transition_vector_by_state,
         policy_array,
@@ -150,7 +150,7 @@ def backwards_induction(
     compute_marginal_utility: Callable,
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
-    compute_next_wealth_matrices: Callable,
+    compute_next_period_wealth: Callable,
     get_state_specific_choice_set: Callable,
     transition_vector_by_state: Callable,
     policy_array: np.ndarray,
@@ -182,9 +182,9 @@ def backwards_induction(
         compute_value (callable): Function for calculating the value from consumption
             level, discrete choice and expected value. The inputs ```discount_rate```
             and ```compute_utility``` are already partialled in.
-        compute_next_wealth_matrices (callable): User-defined function to compute the
-            agent's wealth matrices of the next period (t + 1). The inputs
-            ```savings_grid```, ```income_shocks```, ```params``` and ```options```
+        compute_next_period_wealth (callable): User-defined function to compute the
+            agent's wealth of the next period (t + 1). The inputs
+            ```saving```, ```shock```, ```params``` and ```options```
             are already partialled in.
         get_state_specific_choice_set (Callable): User-supplied function returning for
             each state all possible choices.
@@ -241,27 +241,62 @@ def backwards_induction(
         for child_state in possible_child_states:
 
             child_state_index = state_indexer[tuple(child_state)]
-            # We could parralelize here also over the savings grid!
+
+            # We could parallelize here also over the savings grid!
             # We aggregate here already over the income shocks!
 
-            (
-                marginal_utilities[child_state_index, :],
-                max_expected_values[child_state_index, :],
-            ) = get_child_state_marginal_util_and_exp_max_value(
-                exogenous_savings_grid,
-                income_shock_draws,
-                income_shock_weights,
-                child_state,
-                state_indexer,
-                state_space,
-                taste_shock_scale,
-                policy_array,
-                value_array,
-                compute_next_wealth_matrices,
-                compute_marginal_utility,
-                compute_value,
-                get_state_specific_choice_set,
-            )
+            # (
+            #     marginal_utilities[child_state_index, :],
+            #     max_expected_values[child_state_index, :],
+            # ) = get_child_state_marginal_util_and_exp_max_value(
+            #     exogenous_savings_grid,
+            #     income_shock_draws,
+            #     income_shock_weights,
+            #     child_state,
+            #     state_indexer,
+            #     state_space,
+            #     taste_shock_scale,
+            #     policy_array,
+            #     value_array,
+            #     compute_next_wealth_matrices,
+            #     compute_marginal_utility,
+            #     compute_value,
+            #     get_state_specific_choice_set,
+            # )
+
+
+            #for saving in exogenous_savings_grid:
+            for savings_index in range(len(exogenous_savings_grid)):
+                saving = exogenous_savings_grid[savings_index]
+
+                marginal_utility_weighted = 0
+                max_exp_value_weighted = 0
+                #for income_shock in income_shock_draws:
+                for shock_index in range(len(income_shock_draws)):
+                    income_shock = income_shock_draws[shock_index]
+                    income_shock_weight = income_shock_weights[shock_index]
+                    (
+                        marginal_util_weighted_shock,
+                        max_exp_value_weighted_shock,
+                    ) = get_child_state_marginal_util_and_exp_max_value(
+                        saving,  # previously array exogenous_savings_grid
+                        income_shock,  # previously array income_shock_draws
+                        income_shock_weight,  #previously array income_shock_weights
+                        child_state,
+                        state_indexer,
+                        state_space,
+                        taste_shock_scale,
+                        policy_array,
+                        value_array,
+                        compute_next_period_wealth,
+                        compute_marginal_utility,
+                        compute_value,
+                        get_state_specific_choice_set,
+                    )
+                    marginal_utility_weighted += marginal_util_weighted_shock
+                    max_exp_value_weighted += max_exp_value_weighted_shock
+                marginal_utilities[child_state_index, savings_index] = marginal_utility_weighted
+                max_expected_values[child_state_index, savings_index] = max_exp_value_weighted
 
         index_periods = np.where(state_space[:, 0] == period)[0]
         state_subspace = state_space[index_periods]

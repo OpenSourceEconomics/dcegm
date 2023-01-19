@@ -35,7 +35,7 @@ def get_partial_functions(
         - compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility. The input ```params``` is already partialled in.
         - compute_inverse_marginal_utility (Callable): Function for calculating the
-            inverse marginal utiFality, which takes the marginal utility as only input.
+            inverse marginal utility, which takes the marginal utility as only input.
         - compute_value (callable): Function for calculating the value from consumption
             level, discrete choice and expected value. The inputs ```discount_rate```
             and ```compute_utility``` are already partialled in.
@@ -64,7 +64,7 @@ def get_partial_functions(
         discount_factor=params.loc[("beta", "beta"), "value"],
         compute_utility=compute_utility,
     )
-    compute_next_wealth_matrices = partial(
+    compute_next_period_wealth = partial(
         user_budget_constraint,
         params=params,
         options=options,
@@ -76,7 +76,7 @@ def get_partial_functions(
         compute_marginal_utility,
         compute_inverse_marginal_utility,
         compute_value,
-        compute_next_wealth_matrices,
+        compute_next_period_wealth,
         transition_function,
     )
 
@@ -116,7 +116,7 @@ def create_multi_dim_arrays(
     state_space: np.ndarray,
     options: Dict[str, int],
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Create multi-diminesional array for storing the policy and value function.
+    """Create multi-dimensional array for storing the policy and value function.
 
     Note that we add 10% extra space filled with nans, since, in the upper
     envelope step, the endogenous wealth grid might be augmented to the left
