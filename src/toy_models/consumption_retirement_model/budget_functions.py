@@ -22,8 +22,8 @@ def budget_constraint(
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
         options (dict): Options dictionary.
-        income_shock (float): Stochastic shock on labor income; may or may not be normally distributed.
-            Entry of income_shock_draws.
+        income_shock (float): Stochastic shock on labor income; may or may not be
+         normally distributed. Entry of income_shock_draws.
 
     Returns:
         (np.ndarray): 2d array of shape (n_quad_stochastic, n_grid_wealth)
@@ -76,8 +76,8 @@ def _calc_stochastic_income(
     Args:
         child_state (np.ndarray): 1d array of shape (n_state_variables,) denoting
             the current child state.
-        wage_shock (float): Stochastic shock on labor income; may or may not be normally distributed.
-            Entry of income_shock_draws.
+        wage_shock (float): Stochastic shock on labor income; may or may not be normally
+            distributed. Entry of income_shock_draws.
         params (pd.DataFrame): Model parameters indexed with multi-index of the
             form ("category", "name") and two columns ["value", "comment"].
             Relevant here are the coefficients of the wage equation.

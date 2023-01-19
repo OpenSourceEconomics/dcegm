@@ -99,8 +99,8 @@ def get_child_state_marginal_util_and_exp_max_value(
         income_shock_weight (float): Weight of stochastic shock draw.
         child_state (np.ndarray): The child state to do calculations for. Shape is
             (n_num_state_variables,).
-        child_node_choice_set (np.ndarray): The agent's (restricted) choice set in the given
-            state of shape (n_admissible_choices,).
+        child_node_choice_set (np.ndarray): The agent's (restricted) choice set in the
+            given state of shape (n_admissible_choices,).
         taste_shock_scale (float): The taste shock scale parameter.
         choice_policies_child (np.ndarray): Multi-dimensional np.ndarray storing the
              corresponding value of the policy function
@@ -129,13 +129,6 @@ def get_child_state_marginal_util_and_exp_max_value(
             weighted by the vector of income shocks. Shape (n_grid_wealth,).
 
     """
-    # child_state_index = state_indexer[tuple(child_state)]
-    # choice_policies_child = policy_array[child_state_index]
-    # choice_values_child = value_array[child_state_index]
-    #
-    # child_node_choice_set = get_state_specific_choice_set(
-    #     child_state, state_space, state_indexer
-    # )
 
     next_period_wealth = compute_next_period_wealth(
         child_state,
