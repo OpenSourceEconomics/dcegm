@@ -276,14 +276,14 @@ def get_child_state_marginal_util(
             (n_quad_stochastic * n_grid_wealth,).
 
     """
-    next_period_marg_util = np.zeros(next_period_policy.shape[1])
+    next_period_marg_util = 0
 
     choice_probabilites = calc_choice_probability(next_period_value, taste_shock_scale)
 
     for choice_index in range(len(child_node_choice_set)):
         next_period_marg_util += choice_probabilites[
             choice_index
-        ] * compute_marginal_utility(next_period_policy[choice_index, :])
+        ] * compute_marginal_utility(next_period_policy[choice_index])
 
     return next_period_marg_util
 
@@ -311,10 +311,10 @@ def get_child_state_choice_specific_policy(
             (n_choices, n_quad_stochastic * n_grid_wealth).
 
     """
-    next_period_policy_interp = np.empty((child_node_choice_set.shape[0], 1))
+    next_period_policy_interp = np.empty(child_node_choice_set.shape[0])
 
     for index, choice in enumerate(child_node_choice_set):
-        next_period_policy_interp[index, :] = interpolate_policy(
+        next_period_policy_interp[index] = interpolate_policy(
             next_period_wealth, next_period_policy[choice]
         )
 

@@ -38,19 +38,16 @@ def inverse_marginal_utility(marginal_utility, params):
     return marginal_utility ** (-1 / rho)
 
 
-def budget_dcegm(state, savings_grid, income_shock, params, options):  # noqa: 100
+def budget_dcegm(state, saving, income_shock, params, options):  # noqa: 100
     interest_factor = 1 + params.loc[("assets", "interest_rate"), "value"]
     health_costs = params.loc[("assets", "ltc_cost"), "value"]
     wage = params.loc[("wage", "wage_avg"), "value"]
-    resources = np.empty((income_shock.shape[0], savings_grid.shape[0]))
-    for index_shock, shock in enumerate(income_shock):
-        resources[index_shock, :] = (
-            interest_factor * savings_grid
-            + (wage + shock) * (1 - state[1])
-            - state[-1] * health_costs
-        )
-
-    return resources.clip(min=0.5)
+    resource = (
+        interest_factor * saving
+        + (wage + income_shock) * (1 - state[1])
+        - state[-1] * health_costs
+    )
+    return max(resource, 0.5)
 
 
 def transitions_dcegm(state, params):
