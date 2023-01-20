@@ -55,21 +55,21 @@ def interpolate_value(
 
     """
     value = value[:, ~np.isnan(value).any(axis=0)]
-    value_interp = np.empty(flat_wealth.shape)
 
-    credit_constrained_region = flat_wealth < value[0, 1]
+    if flat_wealth < value[0, 1]:
 
-    # Calculate t+1 value function in constrained region using
-    # the analytical part
-    value_interp[credit_constrained_region] = compute_value(
-        flat_wealth[credit_constrained_region],
-        next_period_value=value[1, 0],
-        choice=choice,
-    )
+        # Calculate t+1 value function in constrained region using
+        # the analytical part
+        value_interp = compute_value(
+            flat_wealth,
+            next_period_value=value[1, 0],
+            choice=choice,
+        )
+    else:
 
-    value_interp[~credit_constrained_region] = linear_interpolation_with_extrapolation(
-        x=value[0, :], y=value[1, :], x_new=flat_wealth[~credit_constrained_region]
-    )
+        value_interp = linear_interpolation_with_extrapolation(
+            x=value[0, :], y=value[1, :], x_new=flat_wealth
+        )
 
     return value_interp
 
