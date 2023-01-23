@@ -70,6 +70,7 @@ def test_benchmark_models(
     options["n_exog_processes"] = 1
 
     state_space, indexer = create_state_space(options)
+    breakpoint()
 
     policy_calculated, value_calculated = solve_dcegm(
         params,
