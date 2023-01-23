@@ -1,5 +1,4 @@
 from typing import Callable
-from typing import Tuple
 
 import numpy as np
 from dcegm.interpolate import interpolate_policy
@@ -65,8 +64,8 @@ def get_child_state_marginal_util_and_exp_max_value(
         saving=saving,
         income_shock=income_shock,
     )
-
-    # Interpolate the next period wealth on the pre-solved next period policy and values
+    # Interpolate next period policy and values to match the
+    # contemporary matrix of potential next period wealths
     child_policy = get_child_state_choice_specific_policy(
         child_node_choice_set,
         next_period_wealth,
@@ -103,7 +102,7 @@ def get_child_state_marginal_util(
     next_period_value: np.ndarray,
     compute_marginal_utility: Callable,
     taste_shock_scale: float,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> np.ndarray:
     """We aggregate the marginal utility of the discrete choices in the next period with
     the choice probabilities following from the choice-specific value functions.
 
@@ -204,10 +203,10 @@ def get_child_state_choice_specific_values(
 
     """
 
-    next_period_value_interp = np.empty(child_node_choice_set.shape[0])
+    next_period_value_interp = np.empty((child_node_choice_set.shape[0], 1))
 
     for index, choice in enumerate(child_node_choice_set):
-        next_period_value_interp[index] = interpolate_value(
+        next_period_value_interp[index, :] = interpolate_value(
             flat_wealth=next_period_wealth,
             value=next_period_value[choice],
             choice=choice,

@@ -157,7 +157,7 @@ def backwards_induction(
     transition_vector_by_state: Callable,
     policy_array: np.ndarray,
     value_array: np.ndarray,
-) -> Tuple[np.ndarray, np.ndarray]:
+):
     """Do backwards induction and solve for optimal policy and value function.
 
     Args:
