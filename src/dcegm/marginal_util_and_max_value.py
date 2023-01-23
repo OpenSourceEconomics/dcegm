@@ -69,7 +69,7 @@ def get_child_state_marginal_util_and_exp_max_value(
     # Interpolate the next period wealth on the pre-solved next period policy and values
     child_policy = get_child_state_choice_specific_policy(
         child_node_choice_set,
-        next_period_wealth=next_period_wealth,
+        next_period_wealth,
         next_period_policy=choice_policies_child,
     )
     choice_child_values = get_child_state_choice_specific_values(
@@ -82,7 +82,7 @@ def get_child_state_marginal_util_and_exp_max_value(
     (
         child_state_marginal_utility,
         child_state_exp_max_value,
-    ) = expected_child_state_marginal_utility_and_value(
+    ) = get_child_state_marginal_util(
         child_node_choice_set,
         next_period_policy=child_policy,
         next_period_value=choice_child_values,
@@ -97,7 +97,7 @@ def get_child_state_marginal_util_and_exp_max_value(
     return marginal_utility_weighted, expected_max_value_weighted
 
 
-def expected_child_state_marginal_utility_and_value(
+def get_child_state_marginal_util(
     child_node_choice_set: np.ndarray,
     next_period_policy: np.ndarray,
     next_period_value: np.ndarray,
