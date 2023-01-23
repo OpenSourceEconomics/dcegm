@@ -122,20 +122,19 @@ def get_child_state_marginal_util(
 
 
     Returns:
-        (np.ndarray): 1d array of the next period marginal utility of shape
-            (n_quad_stochastic * n_grid_wealth,).
+        (float): The marginal utility in the child state.
 
     """
-    next_period_marg_util = 0
+    child_state_marg_util = 0
 
     choice_probabilites = calc_choice_probability(next_period_value, taste_shock_scale)
 
     for choice_index in range(len(child_node_choice_set)):
-        next_period_marg_util += choice_probabilites[
+        child_state_marg_util += choice_probabilites[
             choice_index
         ] * compute_marginal_utility(next_period_policy[choice_index])
 
-    return next_period_marg_util
+    return child_state_marg_util
 
 
 def get_child_state_choice_specific_policy(
