@@ -1,4 +1,5 @@
 from typing import Callable
+from typing import Tuple
 
 import numpy as np
 from dcegm.interpolate import interpolate_policy
@@ -78,17 +79,15 @@ def get_child_state_marginal_util_and_exp_max_value(
         compute_value=compute_value,
     )
 
-    child_state_marginal_utility = expected_child_state_marginal_utility_and_value(
+    (
+        child_state_marginal_utility,
+        child_state_exp_max_value,
+    ) = expected_child_state_marginal_utility_and_value(
         child_node_choice_set,
         next_period_policy=child_policy,
         next_period_value=choice_child_values,
         taste_shock_scale=taste_shock_scale,
         compute_marginal_utility=compute_marginal_utility,
-    )
-
-    child_state_exp_max_value = calc_exp_max_value(
-        choice_specific_values=choice_child_values,
-        taste_shock_scale=income_shock_weight,
     )
 
     marginal_utility_weighted = child_state_marginal_utility * income_shock_weight
@@ -104,7 +103,7 @@ def expected_child_state_marginal_utility_and_value(
     next_period_value: np.ndarray,
     compute_marginal_utility: Callable,
     taste_shock_scale: float,
-) -> float:
+) -> Tuple[np.ndarray, np.ndarray]:
     """We aggregate the marginal utility of the discrete choices in the next period with
     the choice probabilities following from the choice-specific value functions.
 
@@ -125,9 +124,13 @@ def expected_child_state_marginal_utility_and_value(
     Returns:
         (np.ndarray): 1d array of the next period marginal utility of shape
             (n_quad_stochastic * n_grid_wealth,).
+    Returns:
+        (np.ndarray): Log-sum formula inside the expected value function.
+            2d array of shape (n_quad_stochastic * n_grid_wealth,).
 
     """
     next_period_marg_util = 0
+    max_exp_value = 0
 
     choice_probabilites = calc_choice_probability(next_period_value, taste_shock_scale)
 
@@ -135,36 +138,11 @@ def expected_child_state_marginal_utility_and_value(
         next_period_marg_util += choice_probabilites[
             choice_index
         ] * compute_marginal_utility(next_period_policy[choice_index])
+        max_exp_value = (
+            choice_probabilites[choice_index] * next_period_value[choice_index]
+        )
 
-    return next_period_marg_util
-
-
-def calc_exp_max_value(
-    choice_specific_values: np.ndarray, taste_shock_scale: float
-) -> np.ndarray:
-    """Calculate the expected maximum value given choice specific values.
-    With the general extreme value assumption on the taste shocks, this reduces
-    to the log-sum.
-    The log-sum formula may also be referred to as the 'smoothed max function',
-    see eq. (50), p. 335 (Appendix).
-    Args:
-        choice_specific_values (np.ndarray): Array containing values of the
-            choice-specific value function.
-            Shape (n_choices, n_quad_stochastic * n_grid_wealth).
-        taste_shock_scale (float): Taste shock scale parameter.
-    Returns:
-        (np.ndarray): Log-sum formula inside the expected value function.
-            2d array of shape (n_quad_stochastic * n_grid_wealth,).
-    """
-    col_max = np.amax(choice_specific_values, axis=0)
-    choice_specific_values_scaled = choice_specific_values - col_max
-
-    # Eq. (14), p. 334 IJRS (2017)
-    logsum = col_max + taste_shock_scale * np.log(
-        np.sum(np.exp(choice_specific_values_scaled / taste_shock_scale), axis=0)
-    )
-
-    return logsum
+    return next_period_marg_util, max_exp_value
 
 
 def get_child_state_choice_specific_policy(

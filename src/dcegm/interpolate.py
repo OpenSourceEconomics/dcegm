@@ -7,7 +7,9 @@ def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarra
     """Interpolate the agent's policy for given flat wealth matrix.
 
     Args:
-        flat_wealth (float): The wealth of on which the policy function is interpolated.
+        flat_wealth (np.ndarray): Flat array of shape
+            (n_quad_stochastic * n_grid_wealth,) containing the agent's
+            potential wealth matrix in given period.
         policy (np.ndarray): Policy array of shape (2, 1.1 * n_grid_wealth).
             Position [0, :] of the arrays contain the endogenous grid over wealth M,
             and [1, :] stores the corresponding value of the (consumption) policy
@@ -26,7 +28,7 @@ def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarra
 
 
 def interpolate_value(
-    flat_wealth: float,
+    flat_wealth: np.ndarray,
     value: np.ndarray,
     choice: int,
     compute_value: Callable,
@@ -34,7 +36,9 @@ def interpolate_value(
     """Interpolate the agent's value for given flat wealth matrix.
 
     Args:
-        flat_wealth (float): The wealth of on which the value function is interpolated.
+        flat_wealth (np.ndarray): Flat array of shape
+            (n_quad_stochastic * n_grid_wealth,) containing the agent's
+            potential wealth matrix in given period.
         value (np.ndarray): Value array of shape (2, 1.1 * n_grid_wealth).
             Position [0, :] of the array contains the endogenous grid over wealth M,
             and [1, :] stores the corresponding value of the value function v(M, d),

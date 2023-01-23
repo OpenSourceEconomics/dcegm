@@ -228,12 +228,12 @@ def backwards_induction(
             state_space.shape[0],
             exogenous_savings_grid.shape[0],
         ),
-        fill_value=np.nan,
+        fill_value=0,
         dtype=float,
     )
     max_expected_values = np.full(
         shape=(state_space.shape[0], exogenous_savings_grid.shape[0]),
-        fill_value=np.nan,
+        fill_value=0,
         dtype=float,
     )
     for period in range(n_periods - 2, -1, -1):
@@ -250,17 +250,17 @@ def backwards_induction(
                 child_state, state_space, state_indexer
             )
 
-            for savings_index, saving in enumerate(exogenous_savings_grid):
-                marginal_utilities[child_state_index, savings_index] = 0
-                max_expected_values[child_state_index, savings_index] = 0
-                for shock_index, shock in enumerate(income_shock_draws):
+            for savings_index in range(len(exogenous_savings_grid)):
+                saving = exogenous_savings_grid[savings_index]
+                for shock_index in range(len(income_shock_draws)):
+                    income_shock = income_shock_draws[shock_index]
                     income_shock_weight = income_shock_weights[shock_index]
                     (
                         marginal_util_weighted_shock,
                         max_exp_value_weighted_shock,
                     ) = get_child_state_marginal_util_and_exp_max_value(
                         saving,
-                        shock,
+                        income_shock,
                         income_shock_weight,
                         child_state,
                         child_node_choice_set,
@@ -277,7 +277,6 @@ def backwards_induction(
                     max_expected_values[
                         child_state_index, savings_index
                     ] += max_exp_value_weighted_shock
-        breakpoint()
 
         index_periods = np.where(state_space[:, 0] == period)[0]
         state_subspace = state_space[index_periods]
