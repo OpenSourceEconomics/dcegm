@@ -55,27 +55,30 @@ def test_get_next_period_wealth_matrices(
     _quad_points, _ = roots_sh_legendre(n_quad_points)
     quad_points = norm.ppf(_quad_points) * sigma
 
-    matrix_next_wealth = budget_constraint(
+    random_saving_ind = np.random.randint(0, n_grid_points)
+    random_shock_ind = np.random.randint(0, n_quad_points)
+
+    wealth_next_period = budget_constraint(
         child_state,
-        savings_grid=savings_grid,
-        income_shock=quad_points,
+        saving=savings_grid[random_saving_ind],
+        income_shock=quad_points[random_shock_ind],
         params=params,
         options=options,
     )
 
     _income = _calc_stochastic_income(
         child_state,
-        wage_shock=quad_points,
+        wage_shock=quad_points[random_shock_ind],
         params=params,
         options=options,
     )
-    _income_mat = np.repeat(_income[:, np.newaxis], n_grid_points, 1)
-    _savings_mat = np.full((n_quad_points, n_grid_points), savings_grid * (1 + r))
 
-    expected_matrix = _income_mat + _savings_mat
-    expected_matrix[expected_matrix < consump_floor] = consump_floor
+    expected_budget = (1 + r) * savings_grid[random_saving_ind] + _income
 
-    aaae(matrix_next_wealth, expected_matrix)
+    if expected_budget < consump_floor:
+        aaae(wealth_next_period, consump_floor)
+    else:
+        aaae(wealth_next_period, expected_budget)
 
 
 # ======================================================================================
@@ -143,15 +146,13 @@ def test_get_next_period_policy(
     )
     next_policy = np.repeat(_next_policy[np.newaxis, ...], len(choice_set), axis=0)
 
+    random_saving_ind = np.random.randint(0, n_grid_points)
+
     policy_interp = get_child_state_choice_specific_policy(
-        choice_set, matrix_next_wealth, next_policy
+        choice_set, matrix_next_wealth[0, random_saving_ind], next_policy
     )
 
-    expected_policy = np.tile(
-        np.repeat(_expected_policy, n_quad_points)[np.newaxis],
-        (len(choice_set), 1),
-    )
-    aaae(policy_interp, expected_policy)
+    aaae(policy_interp[0], _expected_policy[random_saving_ind])
 
 
 # ======================================================================================
@@ -191,7 +192,7 @@ def value_interp_expected():
             10.51020408,
         ]
     )
-    return np.repeat(_value, 5)
+    return _value
 
 
 def test_interpolate_value(
@@ -211,14 +212,16 @@ def test_interpolate_value(
 
     matrix_next_wealth, next_value = inputs_interpolate_value
 
+    random_saving_ind = np.random.randint(0, matrix_next_wealth.shape[1])
+
     value_interp = interpolate_value(
-        flat_wealth=matrix_next_wealth.flatten("F"),
+        flat_wealth=matrix_next_wealth[0, random_saving_ind],
         value=next_value,
         choice=0,
         compute_value=compute_value,
     )
 
-    aaae(value_interp, value_interp_expected)
+    aaae(value_interp, value_interp_expected[random_saving_ind])
 
 
 def test_get_next_period_value(
@@ -241,13 +244,15 @@ def test_get_next_period_value(
     matrix_next_wealth, _next_value = inputs_interpolate_value
     next_value = np.repeat(_next_value[np.newaxis, ...], len(choice_set), axis=0)
 
+    random_saving_ind = np.random.randint(0, matrix_next_wealth.shape[1])
+
     value_interp = get_child_state_choice_specific_values(
         choice_set,
-        matrix_next_wealth,
+        matrix_next_wealth[0, random_saving_ind],
         next_value,
         compute_value,
     )
-    aaae(value_interp, np.tile(value_interp_expected[np.newaxis], (len(choice_set), 1)))
+    aaae(value_interp, value_interp_expected[random_saving_ind])
 
 
 # ======================================================================================
