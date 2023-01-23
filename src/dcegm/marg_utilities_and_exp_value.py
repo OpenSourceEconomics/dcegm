@@ -197,10 +197,10 @@ def get_child_state_choice_specific_values(
 
     """
 
-    next_period_value_interp = np.empty((child_node_choice_set.shape[0], 1))
+    next_period_value_interp = np.empty(child_node_choice_set.shape[0])
 
     for index, choice in enumerate(child_node_choice_set):
-        next_period_value_interp[index, :] = interpolate_value(
+        next_period_value_interp[index] = interpolate_value(
             flat_wealth=next_period_wealth,
             value=next_period_value[choice],
             choice=choice,
@@ -225,12 +225,12 @@ def calc_choice_probability(
             1d array of shape (n_quad_stochastic * n_grid_wealth,).
 
     """
-    col_max = np.amax(values, axis=0)
+    col_max = np.amax(values)
     values_scaled = values - col_max
 
     # Eq. (15), p. 334 IJRS (2017)
     choice_prob = np.exp(values_scaled / taste_shock_scale) / np.sum(
-        np.exp(values_scaled / taste_shock_scale), axis=0
+        np.exp(values_scaled / taste_shock_scale)
     )
 
     return choice_prob
@@ -258,12 +258,12 @@ def calc_exp_max_value(
             2d array of shape (n_quad_stochastic * n_grid_wealth,).
 
     """
-    col_max = np.amax(choice_specific_values, axis=0)
+    col_max = np.amax(choice_specific_values)
     choice_specific_values_scaled = choice_specific_values - col_max
 
     # Eq. (14), p. 334 IJRS (2017)
     logsum = col_max + taste_shock_scale * np.log(
-        np.sum(np.exp(choice_specific_values_scaled / taste_shock_scale), axis=0)
+        np.sum(np.exp(choice_specific_values_scaled / taste_shock_scale))
     )
 
     return logsum
