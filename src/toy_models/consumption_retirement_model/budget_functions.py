@@ -9,7 +9,7 @@ def budget_constraint(
     state: np.ndarray,
     saving: float,
     income_shock: float,
-    params: pd.DataFrame,
+    params_dict: dict,
     options: Dict[str, int],
 ) -> float:
     """Compute possible current beginning of period resources, given the savings grid of
@@ -19,8 +19,7 @@ def budget_constraint(
         state (np.ndarray): 1d array of shape (n_state_variables,) denoting
             the current child state.
         saving (float): Entry of exogenous savings grid.
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
+        params_dict (dict): Dictionary containing model parameters.
         options (dict): Options dictionary.
         income_shock (float): Stochastic shock on labor income; may or may not be
          normally distributed. Entry of income_shock_draws.
@@ -30,27 +29,25 @@ def budget_constraint(
             containing all possible next period wealths.
 
     """
-    r = params.loc[("assets", "interest_rate"), "value"]
+    r = params_dict["interest_rate"]
 
     # Calculate stochastic labor income
     _next_period_income = _calc_stochastic_income(
         state,
         wage_shock=income_shock,
-        params=params,
+        params_dict=params_dict,
         options=options,
     )
 
-    _next_period_weath = _next_period_income + (1 + r) * saving
+    _next_period_wealth = _next_period_income + (1 + r) * saving
 
     # Retirement safety net, only in retirement model
-    consump_floor_index = ("assets", "consumption_floor")
-    if (
-        consump_floor_index in params.index
-        or params.loc[consump_floor_index, "value"] > 0
-    ):
-        consump_floor = params.loc[consump_floor_index, "value"]
 
-        _next_period_wealth = max(consump_floor, _next_period_weath)
+
+    if "consumption_floor" in params_dict:
+        if params_dict["consumption_floor"]>0:
+            consump_floor = params_dict["consumption_floor"]
+            _next_period_wealth = max(consump_floor, _next_period_wealth)
 
     return _next_period_wealth
 
@@ -58,7 +55,7 @@ def budget_constraint(
 def _calc_stochastic_income(
     child_state: np.ndarray,
     wage_shock: float,
-    params: pd.DataFrame,
+    params_dict: dict,
     options: Dict[str, int],
 ) -> float:
     """Computes the current level of deterministic and stochastic income.
@@ -78,8 +75,7 @@ def _calc_stochastic_income(
             the current child state.
         wage_shock (float): Stochastic shock on labor income; may or may not be normally
             distributed. Entry of income_shock_draws.
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
+        params_dict (dict): Dictionary containing model parameters.
             Relevant here are the coefficients of the wage equation.
         options (dict): Options dictionary.
 
@@ -96,7 +92,7 @@ def _calc_stochastic_income(
 
         # Determinisctic component of income depending on experience:
         # constant + alpha_1 * age + alpha_2 * age**2
-        exp_coeffs = np.asarray(params.loc["wage", "value"])
+        exp_coeffs = np.array([params_dict["constant"], params_dict["exp"], params_dict["exp_squared"]])
         labor_income = exp_coeffs @ (age ** np.arange(len(exp_coeffs)))
         stochastic_income = math.exp(labor_income + wage_shock)
     elif child_state[1] == 1:  # retired

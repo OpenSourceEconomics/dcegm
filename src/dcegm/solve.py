@@ -10,7 +10,7 @@ from dcegm.integration import quadrature_legendre
 from dcegm.marg_utilities_and_exp_value import (
     get_child_state_marginal_util_and_exp_max_value,
 )
-from dcegm.pre_processing import create_multi_dim_arrays
+from dcegm.pre_processing import create_multi_dim_arrays, params_todict
 from dcegm.pre_processing import get_partial_functions
 from dcegm.state_space import get_child_indexes
 from dcegm.upper_envelope import upper_envelope
@@ -28,8 +28,7 @@ def solve_dcegm(
     """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
     Args:
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
+        params_dict (dict): Dictionary containing model parameters.
         options (dict): Options dictionary.
         utility_functions (Dict[str, callable]): Dictionary of three user-supplied
             functions for computation of:
@@ -66,7 +65,13 @@ def solve_dcegm(
             v(M, d), for each state and each discrete choice.
 
     """
-    max_wealth = params.loc[("assets", "max_wealth"), "value"]
+    params_dict = params_todict(params)
+
+    taste_shock_scale = params_dict["lambda"]
+    interest_rate = params_dict["interest_rate"]
+    discount_factor = params_dict["beta"]
+    max_wealth = params_dict["max_wealth"]
+
     n_periods = options["n_periods"]
     n_grid_wealth = options["grid_points_wealth"]
     exogenous_savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
@@ -81,8 +86,9 @@ def solve_dcegm(
     # ToDo: Some day make user supplied draw function.
     income_shock_draws, income_shock_weights = quadrature_legendre(
         options["quadrature_points_stochastic"],
-        params.loc[("shocks", "sigma"), "value"],
+        params_dict["sigma"]
     )
+
 
     (
         compute_utility,
@@ -92,7 +98,7 @@ def solve_dcegm(
         compute_next_period_wealth,
         transition_vector_by_state,
     ) = get_partial_functions(
-        params,
+        params_dict,
         options,
         user_utility_functions=utility_functions,
         user_budget_constraint=budget_constraint,
@@ -108,14 +114,11 @@ def solve_dcegm(
         compute_utility=compute_utility,
     )
 
-    taste_shock_scale = params.loc[("shocks", "lambda"), "value"]
-    interest_rate = params.loc[("assets", "interest_rate"), "value"]
-    discount_factor = params.loc[("beta", "beta"), "value"]
+
 
     policy_array, value_array = create_multi_dim_arrays(state_space, options)
     policy_array[_state_indices_final_period, ...] = policy_final
     value_array[_state_indices_final_period, ...] = value_final
-
     policy_array, value_array = backwards_induction(
         n_periods,
         taste_shock_scale,
