@@ -9,7 +9,7 @@ from dcegm.marg_utilities_and_exp_value import calc_choice_probability
 from dcegm.marg_utilities_and_exp_value import get_child_state_choice_specific_policy
 from dcegm.marg_utilities_and_exp_value import get_child_state_choice_specific_values
 from dcegm.marg_utilities_and_exp_value import get_child_state_marginal_util
-from dcegm.pre_processing import calc_current_value
+from dcegm.pre_processing import calc_current_value, params_todict
 from numpy.testing import assert_array_almost_equal as aaae
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
@@ -42,9 +42,12 @@ def test_get_next_period_wealth_matrices(
     model, period, labor_choice, max_wealth, n_grid_points, load_example_model
 ):
     params, options = load_example_model(f"{model}")
-    sigma = params.loc[("shocks", "sigma"), "value"]
-    consump_floor = params.loc[("assets", "consumption_floor"), "value"]
-    r = params.loc[("assets", "interest_rate"), "value"]
+
+    params_dict = params_todict(params)
+
+    sigma = params_dict["sigma"]
+    r = params_dict["interest_rate"]
+    consump_floor = params_dict["consumption_floor"]
 
     n_quad_points = options["quadrature_points_stochastic"]
     options["grid_points_wealth"] = n_grid_points
@@ -62,14 +65,14 @@ def test_get_next_period_wealth_matrices(
         child_state,
         saving=savings_grid[random_saving_ind],
         income_shock=quad_points[random_shock_ind],
-        params=params,
+        params_dict=params_dict,
         options=options,
     )
 
     _income = _calc_stochastic_income(
         child_state,
         wage_shock=quad_points[random_shock_ind],
-        params=params,
+        params_dict=params_dict,
         options=options,
     )
 
@@ -196,14 +199,15 @@ def test_interpolate_value(
     inputs_interpolate_value, value_interp_expected, load_example_model
 ):
     params, _ = load_example_model("retirement_no_taste_shocks")
+    params_dict = params_todict(params)
 
     compute_utility = partial(
         utility_func_crra,
-        params=params,
+        params_dict=params_dict,
     )
     compute_value = partial(
         calc_current_value,
-        discount_factor=params.loc[("beta", "beta"), "value"],
+        discount_factor=params_dict["beta"],
         compute_utility=compute_utility,
     )
 
@@ -225,16 +229,17 @@ def test_get_next_period_value(
     inputs_interpolate_value, value_interp_expected, load_example_model
 ):
     params, _ = load_example_model("retirement_no_taste_shocks")
+    params_dict = params_todict(params)
 
     choice_set = np.array([0])
 
     compute_utility = partial(
         utility_func_crra,
-        params=params,
+        params_dict=params_dict,
     )
     compute_value = partial(
         calc_current_value,
-        discount_factor=params.loc[("beta", "beta"), "value"],
+        discount_factor=params_dict["beta"],
         compute_utility=compute_utility,
     )
 
@@ -268,6 +273,7 @@ def test_sum_marginal_utility_over_choice_probs(
     model, child_node_choice_set, n_grid_points, n_quad_points, load_example_model
 ):
     params, _ = load_example_model(model)
+    params_dict = params_todict(params)
 
     n_choices = len(child_node_choice_set)
     n_grid_flat = n_quad_points * n_grid_points
@@ -277,8 +283,8 @@ def test_sum_marginal_utility_over_choice_probs(
     )
     next_value = np.random.rand(n_grid_flat * n_choices).reshape(n_choices, n_grid_flat)
 
-    compute_marginal_utility = partial(marginal_utility_crra, params=params)
-    taste_shock_scale = params.loc[("shocks", "lambda"), "value"]
+    compute_marginal_utility = partial(marginal_utility_crra, params_dict=params_dict)
+    taste_shock_scale = params_dict["lambda"]
 
     next_marg_util = get_child_state_marginal_util(
         child_node_choice_set,
