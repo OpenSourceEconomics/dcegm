@@ -1,4 +1,5 @@
 from functools import partial
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -7,6 +8,12 @@ from dcegm.pre_processing import calc_current_value
 from dcegm.upper_envelope_fast import fast_upper_envelope_wrapper
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
+
+# Obtain the test directory of the package.
+TEST_DIR = Path(__file__).parent
+
+# Directory with additional resources for the testing harness
+TEST_RESOURCES_DIR = TEST_DIR / "resources"
 
 
 @pytest.fixture()
@@ -3512,6 +3519,7 @@ def test_upper_envelope(test_data):
         n_grid_wealth=len(exogenous_savings_grid),
         compute_value=compute_value,
     )
+
     policy_got = policy_refined[:, ~np.isnan(policy_refined).any(axis=0)]
     value_got = value_refined[
         :,
@@ -3520,3 +3528,46 @@ def test_upper_envelope(test_data):
 
     aaae(policy_got, policy_expected)
     aaae(value_got, value_expected)
+
+
+@pytest.mark.skip
+def test_credit_constrained():
+    choice = 0
+    max_wealth = 50
+    n_grid_wealth = 500
+    exogenous_savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
+
+    _index = pd.MultiIndex.from_tuples(
+        [("utility_function", "theta"), ("delta", "delta")],
+        names=["category", "name"],
+    )
+    params = pd.DataFrame(data=[1.95, 0.35], columns=["value"], index=_index)
+    discount_factor = 1.95
+
+    compute_utility = partial(utility_func_crra, params=params)
+    compute_value = partial(
+        calc_current_value,
+        discount_factor=discount_factor,
+        compute_utility=compute_utility,
+    )
+
+    policy_egm = np.genfromtxt(
+        TEST_RESOURCES_DIR / "policy_egm_credit_constrained.csv", delimiter=","
+    )
+    value_egm = np.genfromtxt(
+        TEST_RESOURCES_DIR / "value_egm_credit_constrained.csv", delimiter=","
+    )
+
+    policy_refined, value_refined = fast_upper_envelope_wrapper(
+        policy=policy_egm,
+        value=value_egm,
+        exog_grid=exogenous_savings_grid,
+        choice=choice,
+        n_grid_wealth=len(exogenous_savings_grid),
+        compute_value=compute_value,
+    )
+    _ = policy_refined[:, ~np.isnan(policy_refined).any(axis=0)]
+    _ = value_refined[
+        :,
+        ~np.isnan(value_refined).any(axis=0),
+    ]

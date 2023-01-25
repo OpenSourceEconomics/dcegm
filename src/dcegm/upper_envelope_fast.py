@@ -14,9 +14,9 @@ def fast_upper_envelope_wrapper(
     policy: np.ndarray,
     value: np.ndarray,
     exog_grid: np.ndarray,
-    choice: int,
+    choice: int,  # noqa: 100
     n_grid_wealth: int,
-    compute_value: Callable,
+    compute_value: Callable,  # noqa: 100
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Drop suboptimal points and refine the endogenous grid, policy, and value.
 
@@ -67,34 +67,20 @@ def fast_upper_envelope_wrapper(
             Shape (2, 1.1 * n_grid_wealth).
 
     """
-    min_wealth_grid = np.min(value[0, 1:])
-
-    if value[0, 1] > min_wealth_grid:
-        expected_value_zero_wealth = value[1, 0]
-
-        policy, value = _augment_grid_credit_constrained(
-            policy,
-            value,
-            choice,
-            expected_value_zero_wealth,
-            min_wealth_grid,
-            n_grid_wealth,
-            compute_value,
-        )
-
     endog_grid = policy[0]
     policy_ = policy[1]
     value_ = value[1]
-    exog_grid = np.linspace(0, max(exog_grid), n_grid_wealth + 1)
+    exog_grid = np.linspace(0, max(exog_grid), len(endog_grid))
 
     endog_grid_refined, value_out, policy_out = fast_upper_envelope(
-        endog_grid, value_, policy_, exog_grid, jump_thresh=1
+        endog_grid, value_, policy_, exog_grid, jump_thresh=2
     )
+
+    # ================================================================================
 
     policy_removed = np.row_stack([endog_grid_refined, policy_out])
     value_removed = np.row_stack([endog_grid_refined, value_out])
 
-    # ================================================================================
     policy_refined = policy_removed
     value_refined = value_removed
 
@@ -196,38 +182,3 @@ def _forward_scan(endog_grid, value, exog_grid, jump_thresh):
                 j = i + 1
 
     return value
-
-
-def _augment_grid_credit_constrained(
-    policy: np.ndarray,
-    value: np.ndarray,
-    choice,
-    expected_value_zero_wealth: np.ndarray,
-    min_wealth_grid: float,
-    n_grid_wealth: int,
-    compute_value: Callable,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Extend grid in the credit constrained region."""
-    _new_grid_points = np.linspace(min_wealth_grid, value[0, 1], n_grid_wealth // 10)[
-        :-1
-    ]
-    _new_values = compute_value(
-        _new_grid_points,
-        expected_value_zero_wealth,
-        choice,
-    )
-
-    value_augmented = np.vstack(
-        [
-            np.append(_new_grid_points, value[0, 1:]),
-            np.append(_new_values, value[1, 1:]),
-        ]
-    )
-    policy_augmented = np.vstack(
-        [
-            np.append(_new_grid_points, policy[0, 1:]),
-            np.append(_new_grid_points, policy[1, 1:]),
-        ]
-    )
-
-    return policy_augmented, value_augmented
