@@ -14,9 +14,9 @@ def fast_upper_envelope_wrapper(
     policy: np.ndarray,
     value: np.ndarray,
     exog_grid: np.ndarray,
-    choice: int,  # noqa: 100
+    choice: int,  # noqa: U100
     n_grid_wealth: int,
-    compute_value: Callable,  # noqa: 100
+    compute_value: Callable,  # noqa: U100
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Drop suboptimal points and refine the endogenous grid, policy, and value.
 
@@ -165,20 +165,16 @@ def _forward_scan(endog_grid, value, exog_grid, jump_thresh):
             endog_grid[i + 1] - endog_grid[j]
         )
 
-        if np.isnan(value_unrefined[i + 1]):
-            pass
-        else:
-            if (
-                current_diff >= next_diff
-                and np.abs(
-                    (exog_grid[i + 1] - exog_grid[j])
-                    / (endog_grid[i + 1] - endog_grid[j])
-                )
-                > jump_thresh
-            ):
-                value[i + 1] = np.nan
+        if (
+            current_diff >= next_diff
+            and np.abs(
+                (exog_grid[i + 1] - exog_grid[j]) / (endog_grid[i + 1] - endog_grid[j])
+            )
+            > jump_thresh
+        ):
+            value[i + 1] = np.nan
 
-            else:
-                j = i + 1
+        else:
+            j = i + 1
 
     return value
