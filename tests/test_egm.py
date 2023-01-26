@@ -9,7 +9,8 @@ from dcegm.marg_utilities_and_exp_value import calc_choice_probability
 from dcegm.marg_utilities_and_exp_value import get_child_state_choice_specific_policy
 from dcegm.marg_utilities_and_exp_value import get_child_state_choice_specific_values
 from dcegm.marg_utilities_and_exp_value import get_child_state_marginal_util
-from dcegm.pre_processing import calc_current_value, params_todict
+from dcegm.pre_processing import calc_current_value
+from dcegm.pre_processing import params_todict
 from numpy.testing import assert_array_almost_equal as aaae
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm

@@ -7,31 +7,31 @@ import numpy as np
 import pandas as pd
 
 
-
 def params_todict(params):
-    """ Transforms params DataFrame into a dictionary.
-    Checks if given params DataFrame contains taste shock scale, interest rate
-    and discount factor.
+    """Transforms params DataFrame into a dictionary. Checks if given params DataFrame
+    contains taste shock scale, interest rate and discount factor.
 
     Args:
         params (pd.DataFrame): Params DataFrame.
     Returns:
         params_dict (dict): Params Data Frame without index "category" and column
         "comment" transformed into dictionary.
+
     """
 
     keys = params.index.droplevel("category").tolist()
     values = params["value"].tolist()
     params_dict = dict(zip(keys, values))
 
-    if "interest_rate" not in params_dict: # interest rate
+    if "interest_rate" not in params_dict:  # interest rate
         raise ValueError("Interest rate must be provided in params.")
-    if "lambda" not in params_dict: # taste shock scale
+    if "lambda" not in params_dict:  # taste shock scale
         raise ValueError("Taste shock scale must be provided in params.")
-    if "beta" not in params_dict: # discount factor
+    if "beta" not in params_dict:  # discount factor
         raise ValueError("Discount factor must be provided in params.")
 
     return params_dict
+
 
 def get_partial_functions(
     params_dict: dict,
@@ -95,7 +95,9 @@ def get_partial_functions(
         params_dict=params_dict,
         options=options,
     )
-    transition_function = partial(exogenous_transition_function, params_dict=params_dict)
+    transition_function = partial(
+        exogenous_transition_function, params_dict=params_dict
+    )
 
     return (
         compute_utility,
@@ -190,5 +192,3 @@ def create_multi_dim_arrays(
     value_arr[:] = np.nan
 
     return policy_arr, value_arr
-
-

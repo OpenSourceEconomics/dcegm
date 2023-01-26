@@ -3,21 +3,21 @@ from typing import Callable
 from typing import Dict
 from typing import Tuple
 
+import jax
+import jax.numpy as jnp
 import numpy as np
 import pandas as pd
-import jax
-from jax import vmap
-import jax.numpy as jnp
-
 from dcegm.egm import compute_optimal_policy_and_value
 from dcegm.integration import quadrature_legendre
 from dcegm.marg_utilities_and_exp_value import (
     get_child_state_marginal_util_and_exp_max_value,
 )
-from dcegm.pre_processing import create_multi_dim_arrays, params_todict
+from dcegm.pre_processing import create_multi_dim_arrays
 from dcegm.pre_processing import get_partial_functions
+from dcegm.pre_processing import params_todict
 from dcegm.state_space import get_child_indexes
 from dcegm.upper_envelope import upper_envelope
+from jax import vmap
 
 
 def solve_dcegm(
@@ -89,10 +89,8 @@ def solve_dcegm(
     # ToDo: Make interface with several draw possibilities.
     # ToDo: Some day make user supplied draw function.
     income_shock_draws, income_shock_weights = quadrature_legendre(
-        options["quadrature_points_stochastic"],
-        params_dict["sigma"]
+        options["quadrature_points_stochastic"], params_dict["sigma"]
     )
-
 
     (
         compute_utility,
@@ -117,8 +115,6 @@ def solve_dcegm(
         options=options,
         compute_utility=compute_utility,
     )
-
-
 
     policy_array, value_array = create_multi_dim_arrays(state_space, options)
     policy_array[_state_indices_final_period, ...] = policy_final
@@ -246,9 +242,9 @@ def backwards_induction(
     for period in range(n_periods - 2, -1, -1):
 
         possible_child_states = state_space[np.where(state_space[:, 0] == period + 1)]
-        #marginal_utilities, max_expected_values = state_vmap(possible_child_states,exogenous_savings_grid,income_shock_draws,income_shock_weights,taste_shock_scale,state_indexer, compute_next_period_wealth,  compute_marginal_utility,compute_value,marginal_utilities,max_expected_values, policy_array, value_array, get_state_specific_choice_set, state_space)
+        # marginal_utilities, max_expected_values = state_vmap(possible_child_states,exogenous_savings_grid,income_shock_draws,income_shock_weights,taste_shock_scale,state_indexer, compute_next_period_wealth,  compute_marginal_utility,compute_value,marginal_utilities,max_expected_values, policy_array, value_array, get_state_specific_choice_set, state_space)
         for child_state in possible_child_states:
-            #marginal_utilities, max_expected_values = state_get_child_state_marg_util_and_exp_max_value(child_state,exogenous_savings_grid,income_shock_draws,income_shock_weights,taste_shock_scale,state_indexer, compute_next_period_wealth,  compute_marginal_utility,compute_value,marginal_utilities,max_expected_values, policy_array, value_array, get_state_specific_choice_set, state_space)
+            # marginal_utilities, max_expected_values = state_get_child_state_marg_util_and_exp_max_value(child_state,exogenous_savings_grid,income_shock_draws,income_shock_weights,taste_shock_scale,state_indexer, compute_next_period_wealth,  compute_marginal_utility,compute_value,marginal_utilities,max_expected_values, policy_array, value_array, get_state_specific_choice_set, state_space)
 
             child_state_index = state_indexer[tuple(child_state)]
             choice_policies_child = policy_array[child_state_index]
@@ -358,4 +354,7 @@ def backwards_induction(
     return policy_array, value_array
 
 
-shocks_vmap = vmap(get_child_state_marginal_util_and_exp_max_value, in_axes=(None, 0, 0, None, None, None, None, None, None, None, None))
+shocks_vmap = vmap(
+    get_child_state_marginal_util_and_exp_max_value,
+    in_axes=(None, 0, 0, None, None, None, None, None, None, None, None),
+)

@@ -1,5 +1,6 @@
 import math
 from typing import Dict
+
 import numpy as np
 
 
@@ -41,9 +42,8 @@ def budget_constraint(
 
     # Retirement safety net, only in retirement model
 
-
     if "consumption_floor" in params_dict:
-        if params_dict["consumption_floor"]>0:
+        if params_dict["consumption_floor"] > 0:
             consump_floor = params_dict["consumption_floor"]
             _next_period_wealth = max(consump_floor, _next_period_wealth)
 
@@ -90,7 +90,9 @@ def _calc_stochastic_income(
 
         # Determinisctic component of income depending on experience:
         # constant + alpha_1 * age + alpha_2 * age**2
-        exp_coeffs = np.array([params_dict["constant"], params_dict["exp"], params_dict["exp_squared"]])
+        exp_coeffs = np.array(
+            [params_dict["constant"], params_dict["exp"], params_dict["exp_squared"]]
+        )
         labor_income = exp_coeffs @ (age ** np.arange(len(exp_coeffs)))
         stochastic_income = math.exp(labor_income + wage_shock)
     elif child_state[1] == 1:  # retired

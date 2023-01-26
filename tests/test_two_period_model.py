@@ -26,14 +26,17 @@ def flow_util(consumption, choice, params_dict):
     u = consumption ** (1 - rho) / (1 - rho) - delta * (1 - choice)
     return u
 
+
 def marginal_utility(consumption, params_dict):
     rho = params_dict["rho"]
     u_prime = consumption ** (-rho)
     return u_prime
 
+
 def inverse_marginal_utility(marginal_utility, params_dict):
     rho = params_dict["rho"]
     return marginal_utility ** (-1 / rho)
+
 
 def budget_dcegm(state, saving, income_shock, params_dict, options):  # noqa: 100
     interest_factor = 1 + params_dict["interest_rate"]
@@ -46,6 +49,7 @@ def budget_dcegm(state, saving, income_shock, params_dict, options):  # noqa: 10
     )
     return max(resource, 0.5)
 
+
 def transitions_dcegm(state, params_dict):
     p = params_dict["ltc_prob"]
     if state[-1] == 1:
@@ -53,7 +57,10 @@ def transitions_dcegm(state, params_dict):
     elif state[-1] == 0:
         return np.array([1 - p, p])
 
-def budget(lagged_resources, lagged_consumption, lagged_choice, wage, health, params_dict):
+
+def budget(
+    lagged_resources, lagged_consumption, lagged_choice, wage, health, params_dict
+):
     interest_factor = 1 + params_dict["interest_rate"]
     health_costs = params_dict["ltc_cost"]
     resources = (
@@ -67,6 +74,7 @@ def budget(lagged_resources, lagged_consumption, lagged_choice, wage, health, pa
 def wage(nu, params_dict):
     wage = params_dict["wage_avg"] + nu
     return wage
+
 
 def prob_long_term_care_patient(params_dict, lag_health, health):
     p = params_dict["ltc_prob"]
@@ -83,12 +91,14 @@ def prob_long_term_care_patient(params_dict, lag_health, health):
 
     return pi
 
+
 def choice_probs(cons, d, params_dict):
     v = flow_util(cons, d, params_dict)
     v_0 = flow_util(cons, 0, params_dict)
     v_1 = flow_util(cons, 1, params_dict)
     choice_prob = np.exp(v) / (np.exp(v_0) + np.exp(v_1))
     return choice_prob
+
 
 def m_util_aux(init_cond, params_dict, choice_1, nu, consumption):
     """Return the expected marginal utility for one realization of the wage shock."""
@@ -115,6 +125,7 @@ def m_util_aux(init_cond, params_dict, choice_1, nu, consumption):
 
     return weighted_marginal
 
+
 def euler_rhs(init_cond, params_dict, draws, weights, choice_1, consumption):
     beta = params_dict["beta"]
     interest_factor = 1 + params_dict["interest_rate"]
@@ -124,6 +135,7 @@ def euler_rhs(init_cond, params_dict, draws, weights, choice_1, consumption):
         marg_util_draw = m_util_aux(init_cond, params_dict, choice_1, draw, consumption)
         rhs += weights[index_draw] * marg_util_draw
     return rhs * beta * interest_factor
+
 
 WEALTH_GRID_POINTS = 100
 
@@ -175,6 +187,7 @@ def input_data():
     out["policy"] = policy_calculated
     out["options"] = options
     return out
+
 
 TEST_CASES = list(product(list(range(WEALTH_GRID_POINTS)), list(range(4))))
 
