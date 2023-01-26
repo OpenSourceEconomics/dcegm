@@ -5,6 +5,10 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
+import jax
+from jax import vmap
+import jax.numpy as jnp
+
 from dcegm.egm import compute_optimal_policy_and_value
 from dcegm.integration import quadrature_legendre
 from dcegm.marg_utilities_and_exp_value import (
@@ -242,8 +246,9 @@ def backwards_induction(
     for period in range(n_periods - 2, -1, -1):
 
         possible_child_states = state_space[np.where(state_space[:, 0] == period + 1)]
-
+        #marginal_utilities, max_expected_values = state_vmap(possible_child_states,exogenous_savings_grid,income_shock_draws,income_shock_weights,taste_shock_scale,state_indexer, compute_next_period_wealth,  compute_marginal_utility,compute_value,marginal_utilities,max_expected_values, policy_array, value_array, get_state_specific_choice_set, state_space)
         for child_state in possible_child_states:
+            #marginal_utilities, max_expected_values = state_get_child_state_marg_util_and_exp_max_value(child_state,exogenous_savings_grid,income_shock_draws,income_shock_weights,taste_shock_scale,state_indexer, compute_next_period_wealth,  compute_marginal_utility,compute_value,marginal_utilities,max_expected_values, policy_array, value_array, get_state_specific_choice_set, state_space)
 
             child_state_index = state_indexer[tuple(child_state)]
             choice_policies_child = policy_array[child_state_index]
@@ -255,6 +260,7 @@ def backwards_induction(
 
             for savings_index in range(len(exogenous_savings_grid)):
                 saving = exogenous_savings_grid[savings_index]
+
                 for shock_index in range(len(income_shock_draws)):
                     income_shock = income_shock_draws[shock_index]
                     income_shock_weight = income_shock_weights[shock_index]
@@ -350,3 +356,6 @@ def backwards_induction(
                 ] = current_value
 
     return policy_array, value_array
+
+
+shocks_vmap = vmap(get_child_state_marginal_util_and_exp_max_value, in_axes=(None, 0, 0, None, None, None, None, None, None, None, None))
