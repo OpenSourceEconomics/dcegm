@@ -155,7 +155,6 @@ def get_child_state_choice_specific_policy(
             (n_choices, n_quad_stochastic * n_grid_wealth).
 
     """
-
     next_period_policy_interp = np.empty(child_node_choice_set.shape[0])
 
     for index, choice in enumerate(child_node_choice_set):
