@@ -162,6 +162,7 @@ def get_child_state_choice_specific_policy(
         next_period_policy_interp[index] = interpolate_policy(
             next_period_wealth, next_period_policy[choice]
         )
+
     return next_period_policy_interp
 
 
