@@ -3,8 +3,6 @@ from typing import Callable
 from typing import Dict
 from typing import Tuple
 
-import jax
-import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 from dcegm.egm import compute_optimal_policy_and_value
@@ -260,15 +258,14 @@ def backwards_induction(
                 child_state, state_space, state_indexer
             )
 
-            for savings_index in range(len(exogenous_savings_grid)):
-                saving = exogenous_savings_grid[savings_index]
-
+            for saving_index, saving in enumerate(exogenous_savings_grid):
                 for shock_id, income_shock in enumerate(income_shock_draws):
+
                     (
-                        marginal_utilities_shockes,
+                        marginal_util_weighted_shock,
                         max_exp_values_shocks,
                     ) = get_child_state_marginal_util_and_exp_max_value(
-                        next_period_wealt_mat[state_num, savings_index, shock_id],
+                        next_period_wealt_mat[shock_id, saving_index, state_num],
                         saving,
                         income_shock,
                         income_shock_weights[shock_id],
@@ -283,10 +280,10 @@ def backwards_induction(
                     )
                     marginal_utilities[
                         child_state_index, savings_index
-                    ] += marginal_utilities_shockes
+                    ] += marginal_util_weighted_shock
                     max_expected_values[
                         child_state_index, savings_index
-                    ] += max_exp_values_shocks
+                    ] += max_exp_value_weighted_shock
 
         index_periods = np.where(state_space[:, 0] == period)[0]
         state_subspace = state_space[index_periods]

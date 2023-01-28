@@ -3,7 +3,6 @@ from typing import Callable
 import numpy as np
 from dcegm.interpolate import interpolate_policy
 from dcegm.interpolate import interpolate_value
-from jax import vmap
 
 
 def get_child_state_marginal_util_and_exp_max_value(
