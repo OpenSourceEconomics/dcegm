@@ -263,7 +263,7 @@ def backwards_induction(
 
                     (
                         marginal_util_weighted_shock,
-                        max_exp_values_shocks,
+                        max_exp_value_weighted_shock,
                     ) = get_child_state_marginal_util_and_exp_max_value(
                         next_period_wealt_mat[shock_id, saving_index, state_num],
                         saving,
@@ -279,10 +279,10 @@ def backwards_induction(
                         compute_value,
                     )
                     marginal_utilities[
-                        child_state_index, savings_index
+                        child_state_index, saving_index
                     ] += marginal_util_weighted_shock
                     max_expected_values[
-                        child_state_index, savings_index
+                        child_state_index, saving_index
                     ] += max_exp_value_weighted_shock
 
         index_periods = np.where(state_space[:, 0] == period)[0]
