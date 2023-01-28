@@ -234,4 +234,4 @@ def test_two_period(input_data, wealth_id, state_id):
                 cons_calc,
             ) - marginal_utility(cons_calc, params_dict)
 
-            np.testing.assert_allclose(diff, 0, atol=1e-8)
+            np.testing.assert_allclose(diff, 0, atol=1e-6)

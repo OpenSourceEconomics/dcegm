@@ -15,6 +15,7 @@ from dcegm.pre_processing import get_partial_functions
 from dcegm.pre_processing import params_todict
 from dcegm.state_space import get_child_indexes
 from dcegm.upper_envelope import upper_envelope
+from jax import jit
 from jax import vmap
 
 
@@ -241,12 +242,14 @@ def backwards_induction(
 
         possible_child_states = state_space[np.where(state_space[:, 0] == period + 1)]
 
-        next_period_wealt_mat = vmap(
+        next_period_wealt_mat = jit(
             vmap(
-                vmap(compute_next_period_wealth, in_axes=(None, None, 0)),
-                in_axes=(None, 0, None),
-            ),
-            in_axes=(0, None, None),
+                vmap(
+                    vmap(compute_next_period_wealth, in_axes=(None, None, 0)),
+                    in_axes=(None, 0, None),
+                ),
+                in_axes=(0, None, None),
+            )
         )(possible_child_states, exogenous_savings_grid, income_shock_draws)
 
         for state_num, child_state in enumerate(possible_child_states):

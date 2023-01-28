@@ -41,11 +41,11 @@ def budget_constraint(
 
     _next_period_wealth = _next_period_income + (1 + r) * saving
 
-    # Retirement safety net, only in retirement model
-    if "consumption_floor" in params_dict:
-        if params_dict["consumption_floor"] > 0:
-            consump_floor = params_dict["consumption_floor"]
-            _next_period_wealth = jnp.maximum(_next_period_wealth, consump_floor)
+    # Retirement safety net, only in retirement model, but we require to have it always
+    # as a parameter
+    _next_period_wealth = jnp.maximum(
+        _next_period_wealth, params_dict["consumption_floor"]
+    )
 
     return _next_period_wealth
 
