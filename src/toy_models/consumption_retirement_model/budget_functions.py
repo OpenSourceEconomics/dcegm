@@ -1,6 +1,7 @@
-import math
 from typing import Dict
 
+import jax
+import jax.numpy as jnp
 import numpy as np
 
 
@@ -41,15 +42,15 @@ def budget_constraint(
     _next_period_wealth = _next_period_income + (1 + r) * saving
 
     # Retirement safety net, only in retirement model
-
     if "consumption_floor" in params_dict:
         if params_dict["consumption_floor"] > 0:
             consump_floor = params_dict["consumption_floor"]
-            _next_period_wealth = max(consump_floor, _next_period_wealth)
+            _next_period_wealth = jnp.maximum(_next_period_wealth, consump_floor)
 
     return _next_period_wealth
 
 
+@jax.jit
 def _calc_stochastic_income(
     child_state: np.ndarray,
     wage_shock: float,
@@ -83,18 +84,15 @@ def _calc_stochastic_income(
             i.e. age-dependent labor income, and a stochastic shock.
 
     """
-    if child_state[1] == 0:  # working
-        # For simplicity, assume current_age - min_age = experience
-        min_age = options["min_age"]
-        age = child_state[0] + min_age
+    # For simplicity, assume current_age - min_age = experience
+    min_age = options["min_age"]
+    age = child_state[0] + min_age
 
-        # Determinisctic component of income depending on experience:
-        # constant + alpha_1 * age + alpha_2 * age**2
-        exp_coeffs = np.array(
-            [params_dict["constant"], params_dict["exp"], params_dict["exp_squared"]]
-        )
-        labor_income = exp_coeffs @ (age ** np.arange(len(exp_coeffs)))
-        stochastic_income = math.exp(labor_income + wage_shock)
-    elif child_state[1] == 1:  # retired
-        stochastic_income = 0
-    return stochastic_income
+    # Determinisctic component of income depending on experience:
+    # constant + alpha_1 * age + alpha_2 * age**2
+    exp_coeffs = jnp.array(
+        [params_dict["constant"], params_dict["exp"], params_dict["exp_squared"]]
+    )
+    labor_income = exp_coeffs @ (age ** np.arange(len(exp_coeffs)))
+    working_income = jnp.exp(labor_income + wage_shock)
+    return (1 - child_state[1]) * working_income

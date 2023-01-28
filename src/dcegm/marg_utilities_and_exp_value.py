@@ -3,9 +3,11 @@ from typing import Callable
 import numpy as np
 from dcegm.interpolate import interpolate_policy
 from dcegm.interpolate import interpolate_value
+from jax import vmap
 
 
 def get_child_state_marginal_util_and_exp_max_value(
+    next_period_wealth,
     saving: float,
     income_shock: float,
     income_shock_weight: float,
@@ -58,12 +60,6 @@ def get_child_state_marginal_util_and_exp_max_value(
             weighted by the vector of income shocks. Shape (n_grid_wealth,).
 
     """
-
-    next_period_wealth = compute_next_period_wealth(
-        child_state,
-        saving=saving,
-        income_shock=income_shock,
-    )
     # Interpolate next period policy and values to match the
     # contemporary matrix of potential next period wealths
     child_policy = get_child_state_choice_specific_policy(
@@ -160,13 +156,13 @@ def get_child_state_choice_specific_policy(
             (n_choices, n_quad_stochastic * n_grid_wealth).
 
     """
+
     next_period_policy_interp = np.empty(child_node_choice_set.shape[0])
 
     for index, choice in enumerate(child_node_choice_set):
         next_period_policy_interp[index] = interpolate_policy(
             next_period_wealth, next_period_policy[choice]
         )
-
     return next_period_policy_interp
 
 
