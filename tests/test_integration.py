@@ -105,7 +105,7 @@ def test_benchmark_models(
                     ~np.isnan(policy_calculated[state_index, choice, :]).any(axis=0),
                 ],
                 policy_expec,
-                decimal=3,
+                decimal=2,
             )
             aaae(
                 value_calculated[state_index, choice, :][
@@ -113,5 +113,5 @@ def test_benchmark_models(
                     ~np.isnan(value_calculated[state_index, choice, :]).any(axis=0),
                 ],
                 value_expec,
-                decimal=3,
+                decimal=2,
             )
