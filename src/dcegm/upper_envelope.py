@@ -67,9 +67,11 @@ def upper_envelope(
             function have been added. Shape (2, 1.1 * n_grid_wealth).
 
     """
+    # The first one is always 0. Only positive wealth is allowed.
     min_wealth_grid = np.min(value[0, 1:])
     credit_constr = False
 
+    # This checks if some points in the wealth grid are below the first one.
     if value[0, 1] <= min_wealth_grid:
         segments_non_mono = locate_non_concave_regions(value)
     else:
