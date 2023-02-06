@@ -178,22 +178,20 @@ def locate_non_concave_regions(
         return []
     else:
         non_monotone_segments = []
+        # ToDo: This code can't handle consecutive non-monotonicities.
+        #  The old one could!
         for segment_num, index in enumerate(index_non_monotonic):
-            # If there are more than one, then we need to distinguish if they are
-            # consecutive or not. Cluster all consecutive in one array. Then continue.
-            # Otherwise, the same structure as above.
-            if index + 1 in index_non_monotonic:
-                continue
+            if segment_num == 0:
+                index_min = 0
             else:
-                if segment_num == 0:
-                    index_min = 0
-                else:
-                    index_min = index_non_monotonic[segment_num - 1] + 1
+                index_min = index_non_monotonic[segment_num - 1] + 1
 
-                non_monotone_segments += [
-                    value[:, index_min : index + 1],  # Array until the non-monotonicity
-                    value[:, index : index + 2],
-                ]
+            non_monotone_segments += [
+                # Array until the non-monotonicity and containing it
+                value[:, index_min : index + 1],
+                # Array containing the value before and after the non-monotonicity
+                value[:, index : index + 2],
+            ]
 
         non_monotone_segments += [value[:, index_non_monotonic[-1] + 1 :]]
 
