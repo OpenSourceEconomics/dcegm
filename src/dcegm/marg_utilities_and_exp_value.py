@@ -61,6 +61,13 @@ def get_child_state_marginal_util_and_exp_max_value(
             weighted by the vector of income shocks. Shape (n_grid_wealth,).
 
     """
+    # Interpolate next period policy and values to match the
+    # contemporary matrix of potential next period wealths
+    child_policy = get_child_state_choice_specific_policy(
+        child_node_choice_set,
+        next_period_wealth,
+        next_period_policy=choice_policies_child,
+    )
     choice_child_values = get_child_state_choice_specific_values(
         child_node_choice_set,
         next_period_wealth=next_period_wealth,
