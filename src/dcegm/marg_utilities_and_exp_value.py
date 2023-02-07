@@ -100,7 +100,7 @@ def get_child_state_marginal_util(
     next_period_value: np.ndarray,
     compute_marginal_utility: Callable,
     taste_shock_scale: float,
-) -> np.ndarray:
+) -> float:
     """We aggregate the marginal utility of the discrete choices in the next period with
     the choice probabilities following from the choice-specific value functions.
 
@@ -122,7 +122,7 @@ def get_child_state_marginal_util(
         (float): The marginal utility in the child state.
 
     """
-    child_state_marg_util = 0
+    child_state_marg_util = 0.0
 
     choice_probabilites = calc_choice_probability(next_period_value, taste_shock_scale)
 

@@ -69,10 +69,7 @@ def interpolate_value(
     )
     indicator_constrained = int(flat_wealth < value[0, 1])
 
-    value_final = (
-        indicator_constrained * value_interp_calc
-        + (1 - indicator_constrained) * value_interp_interpol
-    )
+    value_final = [indicator_constrained, value_interp_calc][indicator_constrained]
 
     return value_final
 
@@ -96,7 +93,7 @@ def linear_interpolation_with_extrapolation_jax(x, y, x_new):
 
     # make sure that the function also works for unsorted x-arrays
     # taken from scipy.interpolate.interp1d
-    ind = np.argsort(x, kind="mergesort")
+    ind = np.argsort(x)
     x = jnp.take(x, ind)
     y = jnp.take(y, ind)
 
@@ -137,7 +134,7 @@ def linear_interpolation_with_extrapolation(x, y, x_new):
 
     # make sure that the function also works for unsorted x-arrays
     # taken from scipy.interpolate.interp1d
-    ind = np.argsort(x, kind="mergesort")
+    ind = np.argsort(x)
     x = x[ind]
     y = np.take(y, ind)
 
