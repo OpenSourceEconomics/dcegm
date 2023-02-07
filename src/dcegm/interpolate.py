@@ -69,7 +69,7 @@ def interpolate_value(
     )
     indicator_constrained = int(flat_wealth < value[0, 1])
 
-    value_final = [indicator_constrained, value_interp_calc][indicator_constrained]
+    value_final = [value_interp_interpol, value_interp_calc][indicator_constrained]
 
     return value_final
 
