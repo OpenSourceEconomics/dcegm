@@ -134,7 +134,6 @@ def get_child_state_marginal_util(
     return child_state_marg_util
 
 
-@jit
 def get_child_state_choice_specific_policy(
     child_node_choice_set,
     next_period_wealth: float,
@@ -159,13 +158,14 @@ def get_child_state_choice_specific_policy(
 
     """
 
-    next_period_policy_interp = []
-    for index, choice in enumerate(child_node_choice_set):
-        next_period_policy_interp += [
-            interpolate_policy(next_period_wealth, next_period_policy[choice])
-        ]
+    next_period_policy_interp = np.empty(child_node_choice_set.shape[0])
 
-    return jnp.array(next_period_policy_interp)
+    for index, choice in enumerate(child_node_choice_set):
+        next_period_policy_interp[index] = interpolate_policy(
+            next_period_wealth, next_period_policy[choice]
+        )
+
+    return next_period_policy_interp
 
 
 def get_child_state_choice_specific_values(
