@@ -1,8 +1,11 @@
 from typing import Callable
 
+import jax.numpy as jnp
 import numpy as np
+from jax import jit
 
 
+@jit
 def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarray:
     """Interpolate the agent's policy for given flat wealth matrix.
 
@@ -20,15 +23,14 @@ def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarra
             (n_quad_stochastic * n_grid_wealth,).
 
     """
-    policy = policy[:, ~np.isnan(policy).any(axis=0)]
-    policy_interp = linear_interpolation_with_extrapolation(
+    policy_interp = linear_interpolation_with_extrapolation_jax(
         x=policy[0, :], y=policy[1, :], x_new=flat_wealth
     )
     return policy_interp
 
 
 def interpolate_value(
-    flat_wealth: np.ndarray,
+    flat_wealth: float,
     value: np.ndarray,
     choice: int,
     compute_value: Callable,
@@ -54,24 +56,65 @@ def interpolate_value(
             (n_quad_stochastic * n_grid_wealth,).
 
     """
-    value = value[:, ~np.isnan(value).any(axis=0)]
+    # Calculate t+1 value function in constrained region using
+    # the analytical part
+    value_interp_calc = compute_value(
+        flat_wealth,
+        next_period_value=value[1, 0],
+        choice=choice,
+    )
 
-    if flat_wealth < value[0, 1]:
+    value_interp_interpol = linear_interpolation_with_extrapolation_jax(
+        x=value[0, :], y=value[1, :], x_new=flat_wealth
+    )
+    indicator_constrained = int(flat_wealth < value[0, 1])
 
-        # Calculate t+1 value function in constrained region using
-        # the analytical part
-        value_interp = compute_value(
-            flat_wealth,
-            next_period_value=value[1, 0],
-            choice=choice,
-        )
-    else:
+    value_final = (
+        indicator_constrained * value_interp_calc
+        + (1 - indicator_constrained) * value_interp_interpol
+    )
 
-        value_interp = linear_interpolation_with_extrapolation(
-            x=value[0, :], y=value[1, :], x_new=flat_wealth
-        )
+    return value_final
 
-    return value_interp
+
+@jit
+def linear_interpolation_with_extrapolation_jax(x, y, x_new):
+    """Linear interpolation with extrapolation.
+
+    Args:
+        x (np.ndarray): 1d array of shape (n,) containing the x-values.
+        y (np.ndarray): 1d array of shape (n,) containing the y-values
+            corresponding to the x-values.
+        x_new (float): The new x-value at which to evaluate the interpolation function.
+
+    Returns:
+        float: The new y-value corresponding to the new x-value.
+            In case x_new contains a value outside of the range of x, these
+            values are extrapolated.
+
+    """
+
+    # make sure that the function also works for unsorted x-arrays
+    # taken from scipy.interpolate.interp1d
+    ind = np.argsort(x, kind="mergesort")
+    x = jnp.take(x, ind)
+    y = jnp.take(y, ind)
+
+    ind_high = jnp.searchsorted(x, x_new).clip(max=(x.shape[0] - 1), min=1)
+    ind_high -= jnp.isnan(x[ind_high]).astype(int)
+
+    ind_low = ind_high - 1
+
+    y_high = jnp.take(y, ind_high)
+    y_low = jnp.take(y, ind_low)
+    x_high = jnp.take(x, ind_high)
+    x_low = jnp.take(x, ind_low)
+
+    interpolate_dist = x_new - x_low
+    interpolate_slope = (y_high - y_low) / (x_high - x_low)
+    interpol_res = (interpolate_slope * interpolate_dist) + y_low
+
+    return interpol_res
 
 
 def linear_interpolation_with_extrapolation(x, y, x_new):
