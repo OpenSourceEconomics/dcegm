@@ -295,6 +295,24 @@ def compute_upper_envelope(
                         np.vstack([values_first_segment, values_second_segment])
                     )
                 ) and np.all(np.abs(values_first_segment - values_second_segment) > 0):
+                    id_first = np.where(
+                        segments[index_second_segment - 1][0] == first_grid_point
+                    )[0][0]
+                    id_second = np.where(
+                        segments[index_second_segment][0] == second_grid_point
+                    )[0][0]
+
+                    # intersect_point = linear_intersection(
+                    #     x1=segments[index_second_segment - 1][0][id_first],
+                    #     y1=segments[index_second_segment - 1][1][id_first],
+                    #     x2=segments[index_second_segment - 1][0][id_first - 1],
+                    #     y2=segments[index_second_segment - 1][1][id_first - 1],
+                    #     x3=segments[index_second_segment][0][id_second],
+                    #     y3=segments[index_second_segment][1][id_second],
+                    #     x4=segments[index_second_segment][0][id_second + 1],
+                    #     y4=segments[index_second_segment][1][id_second + 1],
+                    # )
+
                     intersect_point = root(
                         _subtract_values,
                         first_grid_point,
@@ -304,6 +322,7 @@ def compute_upper_envelope(
                             segments[index_second_segment],
                         ),
                     )
+
                     value_intersect = (
                         linear_interpolation_with_inserting_missing_values(
                             x=segments[index_first_segment][0],
@@ -597,3 +616,12 @@ def _subtract_values(grid_point: float, first_segment, second_segment):
     diff_values_segments = values_first_segment - values_second_segment
 
     return diff_values_segments
+
+
+def linear_intersection(x1, y1, x2, y2, x3, y3, x4, y4):
+    slope1 = (y2 - y1) / (x2 - x1)
+    slope2 = (y4 - y3) / (x4 - x3)
+
+    x_intersection = (slope1 * x1 - slope2 * x3 + y3 - y1) / (slope1 - slope2)
+
+    return x_intersection
