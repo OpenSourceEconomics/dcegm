@@ -29,6 +29,7 @@ def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarra
     return policy_interp
 
 
+@jit
 def interpolate_value(
     flat_wealth: float,
     value: np.ndarray,

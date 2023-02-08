@@ -73,9 +73,11 @@ def get_partial_functions(
             transition vector for each state.
 
     """
-    compute_utility = partial(
-        user_utility_functions["utility"],
-        params_dict=params_dict,
+    compute_utility = jax.jit(
+        partial(
+            user_utility_functions["utility"],
+            params_dict=params_dict,
+        )
     )
     compute_marginal_utility = partial(
         user_utility_functions["marginal_utility"],
@@ -86,11 +88,14 @@ def get_partial_functions(
         params_dict=params_dict,
     )
 
-    compute_value = partial(
-        calc_current_value,
-        discount_factor=params_dict["beta"],
-        compute_utility=compute_utility,
+    compute_value = jax.jit(
+        partial(
+            calc_current_value,
+            discount_factor=params_dict["beta"],
+            compute_utility=compute_utility,
+        )
     )
+
     compute_next_period_wealth = jax.jit(
         partial(
             user_budget_constraint,
