@@ -68,6 +68,7 @@ def get_child_state_marginal_util_and_exp_max_value(
         next_period_wealth,
         next_period_policy=choice_policies_child,
     )
+
     choice_child_values = get_child_state_choice_specific_values(
         child_node_choice_set,
         next_period_wealth=next_period_wealth,
@@ -158,14 +159,14 @@ def get_child_state_choice_specific_policy(
 
     """
 
-    next_period_policy_interp = np.empty(child_node_choice_set.shape[0])
+    next_period_policy_interp = np.empty(next_period_policy.shape[0])
 
-    for index, choice in enumerate(child_node_choice_set):
+    for index in range(next_period_policy.shape[0]):
         next_period_policy_interp[index] = interpolate_policy(
-            next_period_wealth, next_period_policy[choice]
+            next_period_wealth, next_period_policy[index]
         )
 
-    return next_period_policy_interp
+    return np.take(next_period_policy_interp, child_node_choice_set)
 
 
 def get_child_state_choice_specific_values(
