@@ -1,6 +1,7 @@
 from functools import partial
 from itertools import product
 
+import jax
 import numpy as np
 import pytest
 from dcegm.interpolate import interpolate_policy
@@ -207,14 +208,18 @@ def test_interpolate_value(
     params, _ = load_example_model("retirement_no_taste_shocks")
     params_dict = params_todict(params)
 
-    compute_utility = partial(
-        utility_func_crra,
-        params_dict=params_dict,
+    compute_utility = jax.jit(
+        partial(
+            utility_func_crra,
+            params_dict=params_dict,
+        )
     )
-    compute_value = partial(
-        calc_current_value,
-        discount_factor=params_dict["beta"],
-        compute_utility=compute_utility,
+    compute_value = jax.jit(
+        partial(
+            calc_current_value,
+            discount_factor=params_dict["beta"],
+            compute_utility=compute_utility,
+        )
     )
 
     matrix_next_wealth, next_value = inputs_interpolate_value
@@ -243,10 +248,12 @@ def test_get_next_period_value(
         utility_func_crra,
         params_dict=params_dict,
     )
-    compute_value = partial(
-        calc_current_value,
-        discount_factor=params_dict["beta"],
-        compute_utility=compute_utility,
+    compute_value = jax.jit(
+        partial(
+            calc_current_value,
+            discount_factor=params_dict["beta"],
+            compute_utility=compute_utility,
+        )
     )
 
     matrix_next_wealth, _next_value = inputs_interpolate_value

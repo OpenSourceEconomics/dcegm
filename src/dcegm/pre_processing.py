@@ -87,6 +87,7 @@ def get_partial_functions(
         user_utility_functions["inverse_marginal_utility"],
         params_dict=params_dict,
     )
+    breakpoint()
 
     compute_value = jax.jit(
         partial(

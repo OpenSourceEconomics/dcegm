@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Callable
 
 import jax.numpy as jnp
@@ -29,7 +30,7 @@ def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarra
     return policy_interp
 
 
-@jit
+@partial(jit, static_argnums=(3,))
 def interpolate_value(
     flat_wealth: float,
     value: np.ndarray,
@@ -68,9 +69,11 @@ def interpolate_value(
     value_interp_interpol = linear_interpolation_with_extrapolation_jax(
         x=value[0, :], y=value[1, :], x_new=flat_wealth
     )
-    indicator_constrained = int(flat_wealth < value[0, 1])
+    indicator_constrained = (flat_wealth < value[0, 1]).astype(int)
 
-    value_final = [value_interp_interpol, value_interp_calc][indicator_constrained]
+    value_final = jnp.take(
+        jnp.append(value_interp_interpol, value_interp_calc), indicator_constrained
+    )
 
     return value_final
 
