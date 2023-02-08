@@ -296,7 +296,9 @@ def test_sum_marginal_utility_over_choice_probs(
     )
     next_value = np.random.rand(n_grid_flat * n_choices).reshape(n_choices, n_grid_flat)
 
-    compute_marginal_utility = jax.jit(partial(marginal_utility_crra, params_dict=params_dict))
+    compute_marginal_utility = jax.jit(
+        partial(marginal_utility_crra, params_dict=params_dict)
+    )
     taste_shock_scale = params_dict["lambda"]
 
     next_marg_util = get_child_state_marginal_util(

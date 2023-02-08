@@ -87,7 +87,7 @@ def get_partial_functions(
     )
 
     compute_inverse_marginal_utility = jax.jit(
-            partial(
+        partial(
             user_utility_functions["inverse_marginal_utility"],
             params_dict=params_dict,
         )
@@ -109,10 +109,7 @@ def get_partial_functions(
         )
     )
     transition_function = jax.jit(
-        partial(
-            exogenous_transition_function,
-            params_dict=params_dict
-        )
+        partial(exogenous_transition_function, params_dict=params_dict)
     )
 
     return (
