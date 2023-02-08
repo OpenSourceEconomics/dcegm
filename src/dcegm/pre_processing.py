@@ -79,15 +79,19 @@ def get_partial_functions(
             params_dict=params_dict,
         )
     )
-    compute_marginal_utility = partial(
-        user_utility_functions["marginal_utility"],
-        params_dict=params_dict,
+    compute_marginal_utility = jax.jit(
+        partial(
+            user_utility_functions["marginal_utility"],
+            params_dict=params_dict,
+        )
     )
-    compute_inverse_marginal_utility = partial(
-        user_utility_functions["inverse_marginal_utility"],
-        params_dict=params_dict,
+
+    compute_inverse_marginal_utility = jax.jit(
+            partial(
+            user_utility_functions["inverse_marginal_utility"],
+            params_dict=params_dict,
+        )
     )
-    breakpoint()
 
     compute_value = jax.jit(
         partial(
@@ -104,8 +108,11 @@ def get_partial_functions(
             options=options,
         )
     )
-    transition_function = partial(
-        exogenous_transition_function, params_dict=params_dict
+    transition_function = jax.jit(
+        partial(
+            exogenous_transition_function,
+            params_dict=params_dict
+        )
     )
 
     return (
