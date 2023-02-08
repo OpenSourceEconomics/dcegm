@@ -9,6 +9,7 @@ function interp1d.
 import numpy as np
 import pytest
 from dcegm.interpolate import linear_interpolation_with_extrapolation
+from dcegm.interpolate import linear_interpolation_with_extrapolation_jax
 from dcegm.interpolate import linear_interpolation_with_inserting_missing_values
 from numpy.testing import assert_allclose
 from scipy.interpolate import interp1d
@@ -35,6 +36,16 @@ def test_linear_interpolation_with_extrapolation(random_test_data):
     expected = interp1d(x, y, fill_value="extrapolate")(x_new)
 
     assert_allclose(got, expected, atol=1e-10)
+
+
+def test_linear_interpolation_with_extrapolation_jax(random_test_data):
+    x, y, x_new, _ = random_test_data
+
+    for x_new_float in x_new:
+        got = linear_interpolation_with_extrapolation_jax(x, y, x_new_float)
+        expected = interp1d(x, y, fill_value="extrapolate")(x_new_float)
+
+        assert_allclose(got, expected, atol=1e-6)
 
 
 def test_linear_interpolation_with_missing_values(random_test_data):

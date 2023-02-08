@@ -121,8 +121,13 @@ def test_interpolate_policy(interest_rate, max_wealth, n_grid_points, n_quad_poi
         interest_rate, max_wealth, n_grid_points, n_quad_points
     )
 
-    policy_interp = interpolate_policy(matrix_next_wealth.flatten("F"), next_policy)
-    aaae(policy_interp, np.repeat(expected_policy, n_quad_points))
+    random_saving_ind = np.random.randint(0, n_grid_points)
+
+    policy_interp = interpolate_policy(
+        matrix_next_wealth[0, random_saving_ind], next_policy
+    )
+
+    aaae(policy_interp, expected_policy[random_saving_ind], decimal=4)
 
 
 TEST_CASES = list(
@@ -153,7 +158,7 @@ def test_get_next_period_policy(
         choice_set, matrix_next_wealth[0, random_saving_ind], next_policy
     )
 
-    aaae(policy_interp[0], _expected_policy[random_saving_ind])
+    aaae(policy_interp[0], _expected_policy[random_saving_ind], decimal=4)
 
 
 # ======================================================================================

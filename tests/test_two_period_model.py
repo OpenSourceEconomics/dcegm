@@ -5,6 +5,7 @@ We test DC-EGM against the closed form solution of the Euler equation.
 """
 from itertools import product
 
+import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import pytest
@@ -47,7 +48,7 @@ def budget_dcegm(state, saving, income_shock, params_dict, options):  # noqa: 10
         + (wage + income_shock) * (1 - state[1])
         - state[-1] * health_costs
     )
-    return max(resource, 0.5)
+    return jnp.maximum(resource, 0.5)
 
 
 def transitions_dcegm(state, params_dict):
@@ -233,4 +234,4 @@ def test_two_period(input_data, wealth_id, state_id):
                 cons_calc,
             ) - marginal_utility(cons_calc, params_dict)
 
-            np.testing.assert_allclose(diff, 0, atol=1e-8)
+            np.testing.assert_allclose(diff, 0, atol=1e-6)

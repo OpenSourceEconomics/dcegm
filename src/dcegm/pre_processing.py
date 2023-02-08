@@ -3,6 +3,7 @@ from typing import Callable
 from typing import Dict
 from typing import Tuple
 
+import jax
 import numpy as np
 import pandas as pd
 
@@ -90,10 +91,12 @@ def get_partial_functions(
         discount_factor=params_dict["beta"],
         compute_utility=compute_utility,
     )
-    compute_next_period_wealth = partial(
-        user_budget_constraint,
-        params_dict=params_dict,
-        options=options,
+    compute_next_period_wealth = jax.jit(
+        partial(
+            user_budget_constraint,
+            params_dict=params_dict,
+            options=options,
+        )
     )
     transition_function = partial(
         exogenous_transition_function, params_dict=params_dict
