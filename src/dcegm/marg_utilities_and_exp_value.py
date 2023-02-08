@@ -5,6 +5,7 @@ import numpy as np
 from dcegm.interpolate import interpolate_policy
 from dcegm.interpolate import interpolate_value
 from jax import jit
+from jax import vmap
 
 
 def get_child_state_marginal_util_and_exp_max_value(
@@ -135,6 +136,7 @@ def get_child_state_marginal_util(
     return child_state_marg_util
 
 
+@jit
 def get_child_state_choice_specific_policy(
     child_node_choice_set,
     next_period_wealth: float,
@@ -159,14 +161,11 @@ def get_child_state_choice_specific_policy(
 
     """
 
-    next_period_policy_interp = np.empty(next_period_policy.shape[0])
+    next_period_policy_interp = vmap(interpolate_policy, in_axes=(None, 0))(
+        next_period_wealth, next_period_policy
+    )
 
-    for index in range(next_period_policy.shape[0]):
-        next_period_policy_interp[index] = interpolate_policy(
-            next_period_wealth, next_period_policy[index]
-        )
-
-    return np.take(next_period_policy_interp, child_node_choice_set)
+    return jnp.take(next_period_policy_interp, child_node_choice_set)
 
 
 def get_child_state_choice_specific_values(

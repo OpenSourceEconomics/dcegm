@@ -93,7 +93,7 @@ def linear_interpolation_with_extrapolation_jax(x, y, x_new):
 
     # make sure that the function also works for unsorted x-arrays
     # taken from scipy.interpolate.interp1d
-    ind = np.argsort(x)
+    ind = jnp.argsort(x)
     x = jnp.take(x, ind)
     y = jnp.take(y, ind)
 
