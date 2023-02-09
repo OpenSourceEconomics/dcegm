@@ -15,10 +15,10 @@ def get_child_state_marginal_util_and_exp_max_value(
     income_shock: float,
     income_shock_weight: float,
     child_state: np.ndarray,
-    child_node_choice_set: np.ndarray,
-    taste_shock_scale: float,
+    choice_set_indices: np.ndarray,
     choice_policies_child: np.ndarray,
     choice_values_child: np.ndarray,
+    taste_shock_scale: float,
     compute_next_period_wealth: Callable,
     compute_marginal_utility: Callable,
     compute_value: Callable,
@@ -33,7 +33,7 @@ def get_child_state_marginal_util_and_exp_max_value(
         income_shock_weight (float): Weight of stochastic shock draw.
         child_state (np.ndarray): The child state to do calculations for. Shape is
             (n_num_state_variables,).
-        child_node_choice_set (np.ndarray): The agent's (restricted) choice set in the
+        choice_set_indices (np.ndarray): The agent's (restricted) choice set in the
             given state of shape (n_admissible_choices,).
         taste_shock_scale (float): The taste shock scale parameter.
         choice_policies_child (np.ndarray): Multi-dimensional np.ndarray storing the
@@ -63,23 +63,23 @@ def get_child_state_marginal_util_and_exp_max_value(
             weighted by the vector of income shocks. Shape (n_grid_wealth,).
 
     """
+
     next_period_wealth = compute_next_period_wealth(child_state, saving, income_shock)
     # Interpolate next period policy and values to match the
     # contemporary matrix of potential next period wealths
     child_policy = get_child_state_choice_specific_policy(
-        child_node_choice_set,
         next_period_wealth,
         next_period_policy=choice_policies_child,
     )
 
     choice_child_values = get_child_state_choice_specific_values(
-        child_node_choice_set,
         next_period_wealth=next_period_wealth,
         next_period_value=choice_values_child,
         compute_value=compute_value,
     )
 
     child_state_marginal_utility = get_child_state_marginal_util(
+        choice_set_indices=choice_set_indices,
         next_period_policy=child_policy,
         next_period_value=choice_child_values,
         taste_shock_scale=taste_shock_scale,
@@ -87,7 +87,7 @@ def get_child_state_marginal_util_and_exp_max_value(
     )
 
     child_state_exp_max_value = calc_exp_max_value(
-        choice_child_values, taste_shock_scale
+        choice_child_values, choice_set_indices, taste_shock_scale
     )
 
     marginal_utility_weighted = child_state_marginal_utility * income_shock_weight
@@ -97,8 +97,9 @@ def get_child_state_marginal_util_and_exp_max_value(
     return marginal_utility_weighted, expected_max_value_weighted
 
 
-@partial(jit, static_argnums=(2,))
+@partial(jit, static_argnums=(3,))
 def get_child_state_marginal_util(
+    choice_set_indices,
     next_period_policy: np.ndarray,
     next_period_value: np.ndarray,
     compute_marginal_utility: Callable,
@@ -124,7 +125,9 @@ def get_child_state_marginal_util(
 
     """
 
-    choice_probabilities = calc_choice_probability(next_period_value, taste_shock_scale)
+    choice_probabilities = calc_choice_probability(
+        next_period_value, choice_set_indices, taste_shock_scale
+    )
 
     marginal_utility_next_period_policy = vmap(compute_marginal_utility, in_axes=0)(
         next_period_policy
@@ -137,7 +140,6 @@ def get_child_state_marginal_util(
 
 @jit
 def get_child_state_choice_specific_policy(
-    child_node_choice_set,
     next_period_wealth: float,
     next_period_policy: np.ndarray,
 ) -> np.ndarray:
@@ -164,12 +166,11 @@ def get_child_state_choice_specific_policy(
         next_period_wealth, next_period_policy
     )
 
-    return jnp.take(next_period_policy_interp, child_node_choice_set)
+    return next_period_policy_interp
 
 
-@partial(jit, static_argnums=(3,))
+@partial(jit, static_argnums=(2,))
 def get_child_state_choice_specific_values(
-    child_node_choice_set: np.ndarray,
     next_period_wealth: float,
     next_period_value: np.ndarray,
     compute_value: Callable,
@@ -200,12 +201,13 @@ def get_child_state_choice_specific_values(
         jnp.arange(next_period_value.shape[0]),
         compute_value,
     )
-    return jnp.take(next_period_value_interp, child_node_choice_set)
+    return next_period_value_interp
 
 
 @jit
 def calc_choice_probability(
     values: np.ndarray,
+    choice_set_indices,
     taste_shock_scale: float,
 ) -> np.ndarray:
     """Calculate the next period probability of picking a given choice.
@@ -223,18 +225,17 @@ def calc_choice_probability(
     col_max = jnp.amax(values)
     values_scaled = values - col_max
 
-    breakpoint()
+    values_scaled_exp = jnp.exp(values_scaled / taste_shock_scale) * choice_set_indices
+
     # Eq. (15), p. 334 IJRS (2017)
-    choice_prob = jnp.exp(values_scaled / taste_shock_scale) / jnp.sum(
-        jnp.exp(values_scaled / taste_shock_scale)
-    )
+    choice_prob = values_scaled_exp / jnp.sum(values_scaled_exp)
 
     return choice_prob
 
 
 @jit
 def calc_exp_max_value(
-    choice_specific_values: np.ndarray, taste_shock_scale: float
+    choice_specific_values: np.ndarray, choice_set_indices, taste_shock_scale: float
 ) -> np.ndarray:
     """Calculate the expected maximum value given choice specific values.
 
@@ -256,11 +257,11 @@ def calc_exp_max_value(
 
     """
     col_max = jnp.amax(choice_specific_values)
-    choice_specific_values_scaled = choice_specific_values - col_max
+    values_scaled = choice_specific_values - col_max
+
+    values_scaled_exp = jnp.exp(values_scaled / taste_shock_scale) * choice_set_indices
 
     # Eq. (14), p. 334 IJRS (2017)
-    logsum = col_max + taste_shock_scale * jnp.log(
-        np.sum(jnp.exp(choice_specific_values_scaled / taste_shock_scale))
-    )
+    logsum = col_max + taste_shock_scale * jnp.log(np.sum(values_scaled_exp))
 
     return logsum

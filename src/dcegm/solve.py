@@ -13,6 +13,7 @@ from dcegm.marg_utilities_and_exp_value import (
 )
 from dcegm.pre_processing import create_multi_dim_arrays
 from dcegm.pre_processing import get_partial_functions
+from dcegm.pre_processing import get_possible_choices_array
 from dcegm.pre_processing import params_todict
 from dcegm.state_space import get_child_indexes
 from dcegm.upper_envelope import upper_envelope
@@ -106,6 +107,13 @@ def solve_dcegm(
         exogenous_transition_function=user_transition_function,
     )
 
+    choice_set_array = get_possible_choices_array(
+        state_space,
+        state_indexer,
+        state_space_functions["get_state_specific_choice_set"],
+        options,
+    )
+
     _state_indices_final_period = np.where(state_space[:, 0] == n_periods - 1)
     states_final_period = state_space[_state_indices_final_period]
     policy_final, value_final = solve_final_period(
@@ -133,6 +141,7 @@ def solve_dcegm(
         compute_value,
         compute_next_period_wealth,
         get_state_specific_choice_set,
+        choice_set_array,
         transition_vector_by_state,
         policy_array,
         value_array,
@@ -156,6 +165,7 @@ def backwards_induction(
     compute_value: Callable,
     compute_next_period_wealth: Callable,
     get_state_specific_choice_set: Callable,
+    choice_set_array,
     transition_vector_by_state: Callable,
     policy_array: np.ndarray,
     value_array: np.ndarray,
@@ -238,44 +248,42 @@ def backwards_induction(
         fill_value=0,
         dtype=float,
     )
+
     for period in range(n_periods - 2, -1, -1):
         state_cond = np.where(state_space[:, 0] == period + 1)
 
         possible_child_states = state_space[state_cond]
-        # choice_policies_states = policy_array[state_cond]
-        # choice_values_states = value_array[state_cond]
+        policies_child_states = policy_array[state_cond]
+        values_child_states = value_array[state_cond]
+        choices_child_states = choice_set_array[state_cond]
 
-        for state_num, child_state in enumerate(possible_child_states):
-            child_state_index = state_indexer[tuple(child_state)]
-            choice_policies_child = policy_array[state_num]
-            choice_values_child = value_array[state_num]
+        partial_marginal_utils = partial(
+            get_child_state_marginal_util_and_exp_max_value,
+            taste_shock_scale=taste_shock_scale,
+            compute_next_period_wealth=compute_next_period_wealth,
+            compute_marginal_utility=compute_marginal_utility,
+            compute_value=compute_value,
+        )
+        (marginal_util_weighted_shock, max_exp_value_weighted_shock,) = vmap(
+            vmap(
+                vmap(
+                    partial_marginal_utils, in_axes=(None, 0, 0, None, None, None, None)
+                ),
+                in_axes=(0, None, None, None, None, None, None),
+            ),
+            in_axes=(None, None, None, 0, 0, 0, 0),
+        )(
+            exogenous_savings_grid,
+            income_shock_draws,
+            income_shock_weights,
+            possible_child_states,
+            choices_child_states,
+            policies_child_states,
+            values_child_states,
+        )
 
-            child_node_choice_set = get_state_specific_choice_set(
-                child_state, state_space, state_indexer
-            )
-
-            partial_marginal_utils = partial(
-                get_child_state_marginal_util_and_exp_max_value,
-                child_state=child_state,
-                child_node_choice_set=child_node_choice_set,
-                taste_shock_scale=taste_shock_scale,
-                choice_policies_child=choice_policies_child,
-                choice_values_child=choice_values_child,
-                compute_next_period_wealth=compute_next_period_wealth,
-                compute_marginal_utility=compute_marginal_utility,
-                compute_value=compute_value,
-            )
-            (marginal_util_weighted_shock, max_exp_value_weighted_shock,) = vmap(
-                vmap(partial_marginal_utils, in_axes=(None, 0, 0)),
-                in_axes=(0, None, None),
-            )(exogenous_savings_grid, income_shock_draws, income_shock_weights)
-
-            marginal_utilities[child_state_index, :] = marginal_util_weighted_shock.sum(
-                axis=1
-            )
-            max_expected_values[
-                child_state_index, :
-            ] = max_exp_value_weighted_shock.sum(axis=1)
+        marginal_utilities[state_cond, :] = marginal_util_weighted_shock.sum(axis=2)
+        max_expected_values[state_cond, :] = max_exp_value_weighted_shock.sum(axis=2)
 
         index_periods = np.where(state_space[:, 0] == period)[0]
         state_subspace = state_space[index_periods]

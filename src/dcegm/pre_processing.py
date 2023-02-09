@@ -5,7 +5,6 @@ from typing import Tuple
 
 import jax
 import numpy as np
-import pandas as pd
 
 
 def params_todict(params):
@@ -229,7 +228,7 @@ def get_possible_choices_array(
 
     """
     n_choices = options["n_discrete_choices"]
-    choices_array = np.zeros((state_space.shape[0], n_choices))
+    choices_array = np.zeros((state_space.shape[0], n_choices), dtype=int)
     for index in range(state_space.shape[0]):
         state = state_space[index]
         choice_set = get_state_specific_choice_set(state, state_space, state_indexer)
