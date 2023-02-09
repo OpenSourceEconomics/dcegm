@@ -73,11 +73,9 @@ def get_partial_functions(
             transition vector for each state.
 
     """
-    compute_utility = jax.jit(
-        partial(
-            user_utility_functions["utility"],
-            params_dict=params_dict,
-        )
+    compute_utility = partial(
+        user_utility_functions["utility"],
+        params_dict=params_dict,
     )
     compute_marginal_utility = jax.jit(
         partial(
@@ -108,10 +106,9 @@ def get_partial_functions(
             options=options,
         )
     )
-    transition_function = jax.jit(
-        partial(exogenous_transition_function, params_dict=params_dict)
+    transition_function = partial(
+        exogenous_transition_function, params_dict=params_dict
     )
-
     return (
         compute_utility,
         compute_marginal_utility,

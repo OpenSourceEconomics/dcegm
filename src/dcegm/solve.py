@@ -241,13 +241,13 @@ def backwards_induction(
 
         possible_child_states = state_space[np.where(state_space[:, 0] == period + 1)]
 
-        next_period_wealt_mat = vmap(
-            vmap(
-                vmap(compute_next_period_wealth, in_axes=(None, None, 0)),
-                in_axes=(None, 0, None),
-            ),
-            in_axes=(0, None, None),
-        )(possible_child_states, exogenous_savings_grid, income_shock_draws)
+        # next_period_wealt_mat = vmap(
+        #     vmap(
+        #         vmap(compute_next_period_wealth, in_axes=(None, None, 0)),
+        #         in_axes=(None, 0, None),
+        #     ),
+        #     in_axes=(0, None, None),
+        # )(possible_child_states, exogenous_savings_grid, income_shock_draws)
 
         for state_num, child_state in enumerate(possible_child_states):
             child_state_index = state_indexer[tuple(child_state)]
@@ -269,7 +269,6 @@ def backwards_induction(
                         marginal_util_weighted_shock,
                         max_exp_value_weighted_shock,
                     ) = get_child_state_marginal_util_and_exp_max_value(
-                        next_period_wealt_mat[state_num, savings_index, shock_index],
                         saving,
                         income_shock,
                         income_shock_weight,

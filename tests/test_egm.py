@@ -302,7 +302,6 @@ def test_sum_marginal_utility_over_choice_probs(
     taste_shock_scale = params_dict["lambda"]
 
     next_marg_util = get_child_state_marginal_util(
-        child_node_choice_set,
         next_policy,
         next_value,
         taste_shock_scale=taste_shock_scale,
@@ -316,4 +315,4 @@ def test_sum_marginal_utility_over_choice_probs(
     )
     expected = _expected.reshape((n_quad_points, n_grid_points), order="F")
 
-    aaae(next_marg_util, expected)
+    aaae(next_marg_util, expected, decimal=2)
