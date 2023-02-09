@@ -223,6 +223,7 @@ def calc_choice_probability(
     col_max = jnp.amax(values)
     values_scaled = values - col_max
 
+    breakpoint()
     # Eq. (15), p. 334 IJRS (2017)
     choice_prob = jnp.exp(values_scaled / taste_shock_scale) / jnp.sum(
         jnp.exp(values_scaled / taste_shock_scale)

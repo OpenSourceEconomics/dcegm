@@ -1,4 +1,5 @@
 """Interface for the DC-EGM algorithm."""
+from functools import partial
 from typing import Callable
 from typing import Dict
 from typing import Tuple
@@ -238,55 +239,43 @@ def backwards_induction(
         dtype=float,
     )
     for period in range(n_periods - 2, -1, -1):
+        state_cond = np.where(state_space[:, 0] == period + 1)
 
-        possible_child_states = state_space[np.where(state_space[:, 0] == period + 1)]
-
-        # next_period_wealt_mat = vmap(
-        #     vmap(
-        #         vmap(compute_next_period_wealth, in_axes=(None, None, 0)),
-        #         in_axes=(None, 0, None),
-        #     ),
-        #     in_axes=(0, None, None),
-        # )(possible_child_states, exogenous_savings_grid, income_shock_draws)
+        possible_child_states = state_space[state_cond]
+        choice_policies_states = policy_array[state_cond]
+        choice_values_states = value_array[state_cond]
 
         for state_num, child_state in enumerate(possible_child_states):
             child_state_index = state_indexer[tuple(child_state)]
-            choice_policies_child = policy_array[child_state_index]
-            choice_values_child = value_array[child_state_index]
+            choice_policies_child = policy_array[state_num]
+            choice_values_child = value_array[state_num]
 
             child_node_choice_set = get_state_specific_choice_set(
                 child_state, state_space, state_indexer
             )
 
-            for savings_index in range(len(exogenous_savings_grid)):
-                saving = exogenous_savings_grid[savings_index]
+            partial_marginal_utils = partial(
+                get_child_state_marginal_util_and_exp_max_value,
+                child_state=child_state,
+                child_node_choice_set=child_node_choice_set,
+                taste_shock_scale=taste_shock_scale,
+                choice_policies_child=choice_policies_child,
+                choice_values_child=choice_values_child,
+                compute_next_period_wealth=compute_next_period_wealth,
+                compute_marginal_utility=compute_marginal_utility,
+                compute_value=compute_value,
+            )
+            (marginal_util_weighted_shock, max_exp_value_weighted_shock,) = vmap(
+                vmap(partial_marginal_utils, in_axes=(None, 0, 0)),
+                in_axes=(0, None, None),
+            )(exogenous_savings_grid, income_shock_draws, income_shock_weights)
 
-                for shock_index in range(len(income_shock_draws)):
-                    income_shock = income_shock_draws[shock_index]
-                    income_shock_weight = income_shock_weights[shock_index]
-
-                    (
-                        marginal_util_weighted_shock,
-                        max_exp_value_weighted_shock,
-                    ) = get_child_state_marginal_util_and_exp_max_value(
-                        saving,
-                        income_shock,
-                        income_shock_weight,
-                        child_state,
-                        child_node_choice_set,
-                        taste_shock_scale,
-                        choice_policies_child,
-                        choice_values_child,
-                        compute_next_period_wealth,
-                        compute_marginal_utility,
-                        compute_value,
-                    )
-                    marginal_utilities[
-                        child_state_index, savings_index
-                    ] += marginal_util_weighted_shock
-                    max_expected_values[
-                        child_state_index, savings_index
-                    ] += max_exp_value_weighted_shock
+            marginal_utilities[child_state_index, :] = marginal_util_weighted_shock.sum(
+                axis=1
+            )
+            max_expected_values[
+                child_state_index, :
+            ] = max_exp_value_weighted_shock.sum(axis=1)
 
         index_periods = np.where(state_space[:, 0] == period)[0]
         state_subspace = state_space[index_periods]
