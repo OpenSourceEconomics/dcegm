@@ -242,8 +242,8 @@ def backwards_induction(
         state_cond = np.where(state_space[:, 0] == period + 1)
 
         possible_child_states = state_space[state_cond]
-        choice_policies_states = policy_array[state_cond]
-        choice_values_states = value_array[state_cond]
+        # choice_policies_states = policy_array[state_cond]
+        # choice_values_states = value_array[state_cond]
 
         for state_num, child_state in enumerate(possible_child_states):
             child_state_index = state_indexer[tuple(child_state)]

@@ -202,3 +202,37 @@ def create_multi_dim_arrays(
     value_arr[:] = np.nan
 
     return policy_arr, value_arr
+
+
+def get_possible_choices_array(
+    state_space: np.ndarray,
+    state_indexer: np.ndarray,
+    get_state_specific_choice_set: Callable,
+    options: Dict[str, int],
+) -> np.ndarray:
+    """Create binary array for storing the possible choices for each state.
+
+    Args:
+        state_space (np.ndarray): Collection of all possible states.
+        state_indexer (np.ndarray): 2d array of shape (n_periods, n_choices) containing
+            the indexer object that maps states to indices in the state space.
+        get_state_specific_choice_set (Callable): User-supplied function returning for
+            each state all possible choices.
+        options (dict): Options dictionary.
+
+    Returns:
+        choices_array (np.ndarray): binary array storing the possible choices for
+        each state. If choices_array[state_index, choice] = 1, then the choice
+        is contained in the set of possible choices of the state. If
+        choices_array[state_index, choice] = 0, then the choice is not contained
+        in the set of possible choices of the state.
+
+    """
+    n_choices = options["n_discrete_choices"]
+    choices_array = np.zeros((state_space.shape[0], n_choices))
+    for index in range(state_space.shape[0]):
+        state = state_space[index]
+        choice_set = get_state_specific_choice_set(state, state_space, state_indexer)
+        choices_array[index, choice_set] = 1
+
+    return choices_array
