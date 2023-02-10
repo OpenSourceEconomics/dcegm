@@ -6,6 +6,8 @@ The results are compared to the ones from scipy's linear interpolation
 function interp1d.
 
 """
+import jax
+import jax.numpy as jnp
 import numpy as np
 import pytest
 from dcegm.interpolate import linear_interpolation_with_extrapolation
@@ -23,7 +25,7 @@ def random_test_data():
 
     x = np.random.rand(n)
     y = np.random.rand(n)
-    x_new = np.random.rand(m)
+    x_new = np.random.rand(m) * 2
     missing_value = np.random.rand(1)
 
     return x, y, x_new, missing_value
@@ -35,17 +37,22 @@ def test_linear_interpolation_with_extrapolation(random_test_data):
     got = linear_interpolation_with_extrapolation(x, y, x_new)
     expected = interp1d(x, y, fill_value="extrapolate")(x_new)
 
-    assert_allclose(got, expected, atol=1e-10)
+    assert_allclose(got, expected)
 
 
 def test_linear_interpolation_with_extrapolation_jax(random_test_data):
     x, y, x_new, _ = random_test_data
+    jax.config.update("jax_enable_x64", True)
 
     for x_new_float in x_new:
-        got = linear_interpolation_with_extrapolation_jax(x, y, x_new_float)
+        got = linear_interpolation_with_extrapolation_jax(
+            jnp.array(x, dtype=jnp.float64),
+            jnp.array(y, dtype=jnp.float64),
+            jnp.array(x_new_float, dtype=jnp.float64),
+        )
         expected = interp1d(x, y, fill_value="extrapolate")(x_new_float)
 
-        assert_allclose(got, expected, atol=1e-6)
+        assert_allclose(got, expected)
 
 
 def test_linear_interpolation_with_missing_values(random_test_data):
@@ -54,4 +61,4 @@ def test_linear_interpolation_with_missing_values(random_test_data):
     got = linear_interpolation_with_inserting_missing_values(x, y, x_new, missing_value)
     expected = interp1d(x, y, bounds_error=False, fill_value=missing_value)(x_new)
 
-    assert_allclose(got, expected, atol=1e-10)
+    assert_allclose(got, expected)
