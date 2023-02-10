@@ -32,7 +32,7 @@ def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarra
 
 @partial(jit, static_argnums=(3,))
 def interpolate_value(
-    flat_wealth: float,
+    wealth: float,
     value: np.ndarray,
     choice: int,
     compute_value: Callable,
@@ -40,7 +40,7 @@ def interpolate_value(
     """Interpolate the agent's value for given flat wealth matrix.
 
     Args:
-        flat_wealth (np.ndarray): Flat array of shape
+        wealth (np.ndarray): Flat array of shape
             (n_quad_stochastic * n_grid_wealth,) containing the agent's
             potential wealth matrix in given period.
         value (np.ndarray): Value array of shape (2, 1.1 * n_grid_wealth).
@@ -61,15 +61,15 @@ def interpolate_value(
     # Calculate t+1 value function in constrained region using
     # the analytical part
     value_interp_calc = compute_value(
-        flat_wealth,
+        wealth,
         next_period_value=value[1, 0],
         choice=choice,
     )
 
     value_interp_interpol = linear_interpolation_with_extrapolation_jax(
-        x=value[0, :], y=value[1, :], x_new=flat_wealth
+        x=value[0, :], y=value[1, :], x_new=wealth
     )
-    indicator_constrained = (flat_wealth < value[0, 1]).astype(int)
+    indicator_constrained = (wealth < value[0, 1]).astype(int)
 
     value_final = jnp.take(
         jnp.append(value_interp_interpol, value_interp_calc), indicator_constrained

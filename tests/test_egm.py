@@ -2,13 +2,12 @@ from functools import partial
 from itertools import product
 
 import jax
+import jax.numpy as jnp
 import numpy as np
 import pytest
 from dcegm.interpolate import interpolate_policy
 from dcegm.interpolate import interpolate_value
 from dcegm.marg_utilities_and_exp_value import calc_choice_probability
-from dcegm.marg_utilities_and_exp_value import get_child_state_choice_specific_policy
-from dcegm.marg_utilities_and_exp_value import get_child_state_choice_specific_values
 from dcegm.marg_utilities_and_exp_value import get_child_state_marginal_util
 from dcegm.pre_processing import calc_current_value
 from dcegm.pre_processing import params_todict
@@ -84,7 +83,7 @@ def test_get_next_period_wealth_matrices(
 
 
 # ======================================================================================
-# interpolate_policy & get_next_period_policy
+# interpolate_policy
 # ======================================================================================
 
 
@@ -136,34 +135,8 @@ TEST_CASES = list(
 )
 
 
-@pytest.mark.parametrize(
-    "choice_set, interest_rate, max_wealth, n_grid_points, n_quad_points",
-    TEST_CASES,
-)
-def test_get_next_period_policy(
-    choice_set, interest_rate, max_wealth, n_grid_points, n_quad_points
-):
-
-    (
-        matrix_next_wealth,
-        _next_policy,
-        _expected_policy,
-    ) = get_inputs_and_expected_interpolate_policy(
-        interest_rate, max_wealth, n_grid_points, n_quad_points
-    )
-    next_policy = np.repeat(_next_policy[np.newaxis, ...], len(choice_set), axis=0)
-
-    random_saving_ind = np.random.randint(0, n_grid_points)
-
-    policy_interp = get_child_state_choice_specific_policy(
-        choice_set, matrix_next_wealth[0, random_saving_ind], next_policy
-    )
-
-    aaae(policy_interp[0], _expected_policy[random_saving_ind], decimal=4)
-
-
 # ======================================================================================
-# interpolate_value & get_next_period_value
+# interpolate_value
 # ======================================================================================
 
 
@@ -227,46 +200,12 @@ def test_interpolate_value(
     random_saving_ind = np.random.randint(0, matrix_next_wealth.shape[1])
 
     value_interp = interpolate_value(
-        flat_wealth=matrix_next_wealth[0, random_saving_ind],
+        wealth=matrix_next_wealth[0, random_saving_ind],
         value=next_value,
         choice=0,
         compute_value=compute_value,
     )
 
-    aaae(value_interp, value_interp_expected[random_saving_ind])
-
-
-def test_get_next_period_value(
-    inputs_interpolate_value, value_interp_expected, load_example_model
-):
-    params, _ = load_example_model("retirement_no_taste_shocks")
-    params_dict = params_todict(params)
-
-    choice_set = np.array([0])
-
-    compute_utility = partial(
-        utility_func_crra,
-        params_dict=params_dict,
-    )
-    compute_value = jax.jit(
-        partial(
-            calc_current_value,
-            discount_factor=params_dict["beta"],
-            compute_utility=compute_utility,
-        )
-    )
-
-    matrix_next_wealth, _next_value = inputs_interpolate_value
-    next_value = np.repeat(_next_value[np.newaxis, ...], len(choice_set), axis=0)
-
-    random_saving_ind = np.random.randint(0, matrix_next_wealth.shape[1])
-
-    value_interp = get_child_state_choice_specific_values(
-        choice_set,
-        matrix_next_wealth[0, random_saving_ind],
-        next_value,
-        compute_value,
-    )
     aaae(value_interp, value_interp_expected[random_saving_ind])
 
 
@@ -302,14 +241,17 @@ def test_sum_marginal_utility_over_choice_probs(
     taste_shock_scale = params_dict["lambda"]
 
     next_marg_util = get_child_state_marginal_util(
-        next_policy,
-        next_value,
+        choice_set_indices=jnp.ones(n_choices, dtype=jnp.int32),
+        next_period_policy=next_policy,
+        next_period_value=next_value,
         taste_shock_scale=taste_shock_scale,
         compute_marginal_utility=compute_marginal_utility,
     ).reshape((n_quad_points, n_grid_points), order="F")
 
     _choice_index = 0
-    _choice_probabilites = calc_choice_probability(next_value, taste_shock_scale)
+    _choice_probabilites = calc_choice_probability(
+        next_value, jnp.ones(n_choices, dtype=jnp.int32), taste_shock_scale
+    )
     _expected = _choice_probabilites[_choice_index] * compute_marginal_utility(
         next_policy[_choice_index]
     )

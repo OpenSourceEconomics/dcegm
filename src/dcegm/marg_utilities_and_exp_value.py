@@ -67,15 +67,15 @@ def get_child_state_marginal_util_and_exp_max_value(
     next_period_wealth = compute_next_period_wealth(child_state, saving, income_shock)
     # Interpolate next period policy and values to match the
     # contemporary matrix of potential next period wealths
-    child_policy = get_child_state_choice_specific_policy(
-        next_period_wealth,
-        next_period_policy=choice_policies_child,
+    child_policy = vmap(interpolate_policy, in_axes=(None, 0))(
+        next_period_wealth, choice_policies_child
     )
 
-    choice_child_values = get_child_state_choice_specific_values(
-        next_period_wealth=next_period_wealth,
-        next_period_value=choice_values_child,
-        compute_value=compute_value,
+    choice_child_values = vmap(interpolate_value, in_axes=(None, 0, None, None))(
+        next_period_wealth,
+        choice_values_child,
+        jnp.arange(choice_values_child.shape[0]),
+        compute_value,
     )
 
     child_state_marginal_utility = get_child_state_marginal_util(
@@ -136,72 +136,6 @@ def get_child_state_marginal_util(
         choice_probabilities * marginal_utility_next_period_policy, axis=0
     )
     return child_state_marg_util
-
-
-@jit
-def get_child_state_choice_specific_policy(
-    next_period_wealth: float,
-    next_period_policy: np.ndarray,
-) -> np.ndarray:
-    """Compute next-period policy via linear interpolation.
-
-    Extrapolate linearly in wealth regions beyond the grid, i.e. larger
-    than "max_wealth", which is specified in the ``params`` dictionary.
-
-    Args:
-        child_node_choice_set (np.ndarray): 1d array of shape (n_admissible_choices,)
-            containing the agent's choice set at the current child node in the state
-            space.
-        next_period_wealth (float): possible next period wealth
-        next_period_policy (np.ndarray): Array of the next period policy
-            for all choices. Shape (n_choices, 2, 1.1 * int(n_grid_wealth) + 1).
-
-    Returns:
-        (np.ndarray): 2d array of interpolated next period consumption of shape
-            (n_choices, n_quad_stochastic * n_grid_wealth).
-
-    """
-
-    next_period_policy_interp = vmap(interpolate_policy, in_axes=(None, 0))(
-        next_period_wealth, next_period_policy
-    )
-
-    return next_period_policy_interp
-
-
-@partial(jit, static_argnums=(2,))
-def get_child_state_choice_specific_values(
-    next_period_wealth: float,
-    next_period_value: np.ndarray,
-    compute_value: Callable,
-) -> np.ndarray:
-    """Map next-period value onto this period's matrix of next-period wealth.
-
-    Args:
-        child_node_choice_set (np.ndarray): 1d array of shape (n_choices_in_state)
-            containing the set of all possible choices in the given child state.
-        next_period_wealth (float): possible next period wealth
-        next_period_value (np.ndarray): Array of the next period value
-            for all choices. Shape (n_choices, 2, 1.1 * n_grid_wealth + 1).
-        compute_value (callable): Function for calculating the value from consumption
-            level, discrete choice and expected value. The inputs ```discount_rate```
-            and ```compute_utility``` are already partialled in.
-
-    Returns:
-        (np.ndarray): Array containing interpolated values of next period
-            choice-specific value function. We use interpolation to the actual next
-            period value function onto the current period grid of potential next
-            period wealths. Shape (n_choices, n_quad_stochastic * n_grid_wealth).
-
-    """
-
-    next_period_value_interp = vmap(interpolate_value, in_axes=(None, 0, None, None))(
-        next_period_wealth,
-        next_period_value,
-        jnp.arange(next_period_value.shape[0]),
-        compute_value,
-    )
-    return next_period_value_interp
 
 
 @jit
