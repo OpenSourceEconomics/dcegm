@@ -7,10 +7,6 @@ import numpy as np
 import pytest
 from dcegm.interpolate import interpolate_policy
 from dcegm.interpolate import interpolate_value
-from dcegm.marg_utilities_and_exp_value import (
-    aggregate_marg_utilites_and_values_over_choices,
-)
-from dcegm.marg_utilities_and_exp_value import calc_choice_probability
 from dcegm.pre_processing import calc_current_value
 from dcegm.pre_processing import params_todict
 from numpy.testing import assert_array_almost_equal as aaae

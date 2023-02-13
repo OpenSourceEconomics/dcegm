@@ -4,6 +4,29 @@ from typing import Callable
 import jax.numpy as jnp
 import numpy as np
 from jax import jit
+from jax import vmap
+
+
+@partial(jit, static_argnums=(0,))
+def interpolate_and_calc_marginal_utilities(
+    compute_marginal_utility: Callable,
+    next_period_wealth: jnp.ndarray,
+    choice_policies_child: jnp.ndarray,
+):
+    """Interpolate marginal utilities.
+
+    Returns:
+        Callable: Interpolated marginal utility function.
+
+    """
+    policy_child_state_choice_specific = vmap(interpolate_policy, in_axes=(None, 0))(
+        next_period_wealth, choice_policies_child
+    )
+
+    marg_utilities_child_state_choice_specific = vmap(
+        compute_marginal_utility, in_axes=0
+    )(policy_child_state_choice_specific)
+    return marg_utilities_child_state_choice_specific
 
 
 @jit
@@ -33,7 +56,7 @@ def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarra
 @partial(jit, static_argnums=(3,))
 def interpolate_value(
     wealth: float,
-    value: np.ndarray,
+    value: jnp.ndarray,
     choice: int,
     compute_value: Callable,
 ) -> np.ndarray:
