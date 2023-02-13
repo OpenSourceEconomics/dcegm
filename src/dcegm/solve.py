@@ -238,12 +238,12 @@ def backwards_induction(
             state_space.shape[0],
             exogenous_savings_grid.shape[0],
         ),
-        fill_value=0,
+        fill_value=np.nan,
         dtype=float,
     )
     max_expected_values = np.full(
         shape=(state_space.shape[0], exogenous_savings_grid.shape[0]),
-        fill_value=0,
+        fill_value=np.nan,
         dtype=float,
     )
 
