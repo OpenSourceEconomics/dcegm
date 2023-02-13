@@ -9,7 +9,7 @@ from jax import jit
 from jax import vmap
 
 
-# @partial(jit, static_argnums=(0, 1, 2))
+@partial(jit, static_argnums=(0, 1, 2))
 def get_child_state_marginal_util_and_exp_max_value(
     compute_next_period_wealth: Callable,
     compute_marginal_utility: Callable,
@@ -23,6 +23,46 @@ def get_child_state_marginal_util_and_exp_max_value(
     policies_child_states: jnp.ndarray,
     values_child_states: jnp.ndarray,
 ):
+    """Compute the child-state specific marginal utility and expected maximum value.
+
+    The underlying algorithm is the Endogenous-Grid-Method (EGM).
+
+    Args:
+        saving (float): Entry of exogenous savings grid.
+        income_shock (float): Entry of income_shock_draws.
+        income_shock_weight (float): Weight of stochastic shock draw.
+        child_state (jnp.ndarray): The child state to do calculations for. Shape is
+            (n_num_state_variables,).
+        choice_set_indices (jnp.ndarray): The agent's (restricted) choice set in the
+            given state of shape (n_admissible_choices,).
+        taste_shock_scale (float): The taste shock scale parameter.
+        choice_policies_child (jnp.ndarray): Multi-dimensional jnp.ndarray storing the
+             corresponding value of the policy function
+            c(M, d), for each state and each discrete choice.; of shape
+            [n_states, n_discrete_choices, 1.1 * n_grid_wealth + 1].
+        choice_values_child (jnp.ndarray): Multi-dimensional jnp.ndarray storing the
+            corresponding value of the value function
+            v(M, d), for each state and each discrete choice; of shape
+            [n_states, n_discrete_choices, 1.1 * n_grid_wealth + 1].
+        compute_next_period_wealth (callable): User-defined function to compute the
+            agent's wealth  of the next period (t + 1). The inputs
+            ```saving```, ```income_shock```, ```params``` and ```options```
+            are already partialled in.
+        compute_marginal_utility (callable): User-defined function to compute the
+            agent's marginal utility. The input ```params``` is already partialled in.
+        compute_value (callable): User-defined function to compute
+            the agent's value function in the credit-constrained area. The inputs
+            ```params``` and ```compute_utility``` are already partialled in.
+
+    Returns:
+        tuple:
+
+        - (float): 1d array of the child-state specific marginal utility,
+            weighted by the vector of income shocks. Shape (n_grid_wealth,).
+        - (jnp.ndarray): 1d array of the child-state specific expected maximum value,
+            weighted by the vector of income shocks. Shape (n_grid_wealth,).
+
+    """
     (marginal_util_weighted_shock, max_exp_value_weighted_shock,) = vmap(
         vmap(
             vmap(
@@ -45,12 +85,13 @@ def get_child_state_marginal_util_and_exp_max_value(
         policies_child_states,
         values_child_states,
     )
+
     return marginal_util_weighted_shock.sum(axis=2), max_exp_value_weighted_shock.sum(
         axis=2
     )
 
 
-# @partial(jit, static_argnums=(0, 1, 2))
+@partial(jit, static_argnums=(0, 1, 2))
 def vectorized_marginal_util_and_exp_max_value(
     compute_next_period_wealth: Callable,
     compute_marginal_utility: Callable,
@@ -172,7 +213,7 @@ def aggregate_marg_utilites_and_values_over_choices(
         (float): The expected maximum value in the child state.
 
     """
-    values_filtered = jnp.nan_to_num(values, nan=0.0)
+    values_filtered = jnp.nan_to_num(values, nan=-jnp.inf)
     marg_utilities_filtered = jnp.nan_to_num(marg_utilities, nan=0.0)
 
     choice_restricted_exp_values, rescale_factor = rescale_values_and_restrict_choices(
