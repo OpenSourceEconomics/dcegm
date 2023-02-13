@@ -81,6 +81,7 @@ def interpolate_value(
             (n_quad_stochastic * n_grid_wealth,).
 
     """
+
     # Calculate t+1 value function in constrained region using
     # the analytical part
     value_interp_calc = compute_value(

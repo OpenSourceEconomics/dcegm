@@ -11,34 +11,32 @@ from jax import vmap
 
 @partial(jit, static_argnums=(0, 1, 2))
 def get_child_state_marginal_util_and_exp_max_value(
-    compute_next_period_wealth,
-    compute_marginal_utility,
-    compute_value,
-    exogenous_savings_grid,
-    income_shock_draws,
-    income_shock_weights,
-    possible_child_states,
-    choices_child_states,
-    policies_child_states,
-    values_child_states,
-    taste_shock_scale,
+    compute_next_period_wealth: Callable,
+    compute_marginal_utility: Callable,
+    compute_value: Callable,
+    taste_shock_scale: float,
+    exogenous_savings_grid: jnp.ndarray,
+    income_shock_draws: jnp.ndarray,
+    income_shock_weights: jnp.ndarray,
+    possible_child_states: jnp.ndarray,
+    choices_child_states: jnp.ndarray,
+    policies_child_states: jnp.ndarray,
+    values_child_states: jnp.ndarray,
 ):
-    partial_marginal_utils = partial(
-        get_child_state_marginal_util_and_exp_max_value,
-        compute_next_period_wealth=compute_next_period_wealth,
-        compute_marginal_utility=compute_marginal_utility,
-        compute_value=compute_value,
-    )
     (marginal_util_weighted_shock, max_exp_value_weighted_shock,) = vmap(
         vmap(
             vmap(
-                partial_marginal_utils,
-                in_axes=(None, 0, 0, None, None, None, None, None),
+                vectorized_marginal_util_and_exp_max_value,
+                in_axes=(None, None, None, None, None, 0, 0, None, None, None, None),
             ),
-            in_axes=(0, None, None, None, None, None, None, None),
+            in_axes=(None, None, None, None, 0, None, None, None, None, None, None),
         ),
-        in_axes=(None, None, None, 0, 0, 0, 0, None),
+        in_axes=(None, None, None, None, None, None, None, 0, 0, 0, 0),
     )(
+        compute_next_period_wealth,
+        compute_marginal_utility,
+        compute_value,
+        taste_shock_scale,
         exogenous_savings_grid,
         income_shock_draws,
         income_shock_weights,
@@ -46,15 +44,18 @@ def get_child_state_marginal_util_and_exp_max_value(
         choices_child_states,
         policies_child_states,
         values_child_states,
-        taste_shock_scale,
     )
     return marginal_util_weighted_shock.sum(axis=2), max_exp_value_weighted_shock.sum(
         axis=2
     )
 
 
-@partial(jit, static_argnums=(8, 9, 10))
+@partial(jit, static_argnums=(0, 1, 2))
 def vectorized_marginal_util_and_exp_max_value(
+    compute_next_period_wealth: Callable,
+    compute_marginal_utility: Callable,
+    compute_value: Callable,
+    taste_shock_scale: float,
     saving: float,
     income_shock: float,
     income_shock_weight: float,
@@ -62,10 +63,6 @@ def vectorized_marginal_util_and_exp_max_value(
     choice_set_indices: jnp.ndarray,
     choice_policies_child: jnp.ndarray,
     choice_values_child: jnp.ndarray,
-    taste_shock_scale: float,
-    compute_next_period_wealth: Callable,
-    compute_marginal_utility: Callable,
-    compute_value: Callable,
 ) -> Tuple[float, float]:
     """Compute the child-state specific marginal utility and expected maximum value.
 

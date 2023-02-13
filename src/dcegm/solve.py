@@ -262,6 +262,7 @@ def backwards_induction(
             compute_next_period_wealth=compute_next_period_wealth,
             compute_marginal_utility=compute_marginal_utility,
             compute_value=compute_value,
+            taste_shock_scale=taste_shock_scale,
             exogenous_savings_grid=exogenous_savings_grid,
             income_shock_draws=income_shock_draws,
             income_shock_weights=income_shock_weights,
@@ -269,7 +270,6 @@ def backwards_induction(
             choices_child_states=choices_child_states,
             policies_child_states=policies_child_states,
             values_child_states=values_child_states,
-            taste_shock_scale=taste_shock_scale,
         )
 
         index_periods = np.where(state_space[:, 0] == period)[0]
@@ -299,6 +299,7 @@ def backwards_induction(
             max_expected_values_child_states = np.take(
                 max_expected_values, child_states_indexes, axis=0
             )
+
             trans_vec_state = transition_vector_by_state(state)
 
             for choice_index, choice in enumerate(choice_set):
