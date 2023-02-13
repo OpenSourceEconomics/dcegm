@@ -172,16 +172,21 @@ def aggregate_marg_utilites_and_values_over_choices(
         (float): The expected maximum value in the child state.
 
     """
+    values_filtered = jnp.nan_to_num(values, nan=0.0)
+    marg_utilities_filtered = jnp.nan_to_num(marg_utilities, nan=0.0)
+
     choice_restricted_exp_values, rescale_factor = rescale_values_and_restrict_choices(
-        values, taste_shock_scale, choice_set_indices
+        values_filtered, taste_shock_scale, choice_set_indices
     )
 
     sum_exp_values = jnp.sum(choice_restricted_exp_values, axis=0)
 
     # Compute the choice probabilities
     choice_probabilities = choice_restricted_exp_values / sum_exp_values
-    # Aggregate marginal utilities with choice probabilities
-    child_state_marg_util = jnp.sum(choice_probabilities * marg_utilities, axis=0)
+    # Aggregate marginal utilities with choice probabilities and filter before
+    child_state_marg_util = jnp.sum(
+        choice_probabilities * marg_utilities_filtered, axis=0
+    )
     # Calculate the expected maximum value with the log-sum formula
     child_state_exp_max_value = rescale_factor + taste_shock_scale * jnp.log(
         sum_exp_values
