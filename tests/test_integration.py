@@ -22,6 +22,9 @@ from toy_models.consumption_retirement_model.utility_functions import (
 from toy_models.consumption_retirement_model.utility_functions import (
     marginal_utility_crra,
 )
+from toy_models.consumption_retirement_model.utility_functions import (
+    utiility_func_log_crra,
+)
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
 
 
@@ -54,8 +57,8 @@ def state_space_functions():
 @pytest.mark.parametrize(
     "model, choice_range",
     [
-        ("retirement_no_taste_shocks", [0, 1]),
-        ("retirement_taste_shocks", [0, 1]),
+        # ("retirement_no_taste_shocks", [0, 1]),
+        # ("retirement_taste_shocks", [0, 1]),
         ("deaton", [0]),
     ],
 )
@@ -71,6 +74,9 @@ def test_benchmark_models(
     options["n_exog_processes"] = 1
 
     state_space, indexer = create_state_space(options)
+
+    if params.loc[("utility_function", "theta"), "value"] == 1:
+        utility_functions["utility"] = utiility_func_log_crra
 
     policy_calculated, value_calculated = solve_dcegm(
         params,

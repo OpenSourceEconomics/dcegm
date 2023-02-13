@@ -53,7 +53,7 @@ def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarra
     return policy_interp
 
 
-@partial(jit, static_argnums=(3,))
+# @partial(jit, static_argnums=(3,))
 def interpolate_value(
     wealth: float,
     value: jnp.ndarray,

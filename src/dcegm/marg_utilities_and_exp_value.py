@@ -9,7 +9,7 @@ from jax import jit
 from jax import vmap
 
 
-@partial(jit, static_argnums=(0, 1, 2))
+# @partial(jit, static_argnums=(0, 1, 2))
 def get_child_state_marginal_util_and_exp_max_value(
     compute_next_period_wealth: Callable,
     compute_marginal_utility: Callable,
@@ -50,7 +50,7 @@ def get_child_state_marginal_util_and_exp_max_value(
     )
 
 
-@partial(jit, static_argnums=(0, 1, 2))
+# @partial(jit, static_argnums=(0, 1, 2))
 def vectorized_marginal_util_and_exp_max_value(
     compute_next_period_wealth: Callable,
     compute_marginal_utility: Callable,
