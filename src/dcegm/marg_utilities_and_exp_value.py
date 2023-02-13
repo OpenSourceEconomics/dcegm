@@ -9,8 +9,52 @@ from jax import jit
 from jax import vmap
 
 
-@partial(jit, static_argnums=(8, 9, 10))
+@partial(jit, static_argnums=(0, 1, 2))
 def get_child_state_marginal_util_and_exp_max_value(
+    compute_next_period_wealth,
+    compute_marginal_utility,
+    compute_value,
+    exogenous_savings_grid,
+    income_shock_draws,
+    income_shock_weights,
+    possible_child_states,
+    choices_child_states,
+    policies_child_states,
+    values_child_states,
+    taste_shock_scale,
+):
+    partial_marginal_utils = partial(
+        get_child_state_marginal_util_and_exp_max_value,
+        compute_next_period_wealth=compute_next_period_wealth,
+        compute_marginal_utility=compute_marginal_utility,
+        compute_value=compute_value,
+    )
+    (marginal_util_weighted_shock, max_exp_value_weighted_shock,) = vmap(
+        vmap(
+            vmap(
+                partial_marginal_utils,
+                in_axes=(None, 0, 0, None, None, None, None, None),
+            ),
+            in_axes=(0, None, None, None, None, None, None, None),
+        ),
+        in_axes=(None, None, None, 0, 0, 0, 0, None),
+    )(
+        exogenous_savings_grid,
+        income_shock_draws,
+        income_shock_weights,
+        possible_child_states,
+        choices_child_states,
+        policies_child_states,
+        values_child_states,
+        taste_shock_scale,
+    )
+    return marginal_util_weighted_shock.sum(axis=2), max_exp_value_weighted_shock.sum(
+        axis=2
+    )
+
+
+@partial(jit, static_argnums=(8, 9, 10))
+def vectorized_marginal_util_and_exp_max_value(
     saving: float,
     income_shock: float,
     income_shock_weight: float,
@@ -64,8 +108,13 @@ def get_child_state_marginal_util_and_exp_max_value(
 
     """
 
-    next_period_wealth = compute_next_period_wealth(state=child_state, saving=saving, income_shock=income_shock)
+    # Calculate the next periods wealth with the consumer's defined budget function
+    next_period_wealth = compute_next_period_wealth(
+        state=child_state, saving=saving, income_shock=income_shock
+    )
 
+    # Interpolate the optimal consumption choice on the wealth grid and calculate the
+    # corresponding marginal utilities.
     marg_utilities_child_state_choice_specific = (
         interpolate_and_calc_marginal_utilities(
             compute_marginal_utility=compute_marginal_utility,
@@ -74,12 +123,14 @@ def get_child_state_marginal_util_and_exp_max_value(
         )
     )
 
+    full_choice_set = jnp.arange(choice_values_child.shape[0], dtype=jnp.int32)
+    # Interpolate the value function on the wealth grid.
     values_child_state_choice_specific = vmap(
-        interpolate_value, in_axes=(None, 0, None, None)
+        interpolate_value, in_axes=(None, 0, 0, None)
     )(
         next_period_wealth,
         choice_values_child,
-        jnp.arange(choice_values_child.shape[0]),
+        full_choice_set,
         compute_value,
     )
 
@@ -93,6 +144,7 @@ def get_child_state_marginal_util_and_exp_max_value(
         taste_shock_scale=taste_shock_scale,
     )
 
+    # Weight the results by the weight of the income shock draw.
     marginal_utility_weighted = child_state_marginal_utility * income_shock_weight
 
     expected_max_value_weighted = child_state_exp_max_value * income_shock_weight
