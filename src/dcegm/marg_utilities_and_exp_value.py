@@ -64,7 +64,7 @@ def get_child_state_marginal_util_and_exp_max_value(
 
     """
 
-    next_period_wealth = compute_next_period_wealth(child_state, saving, income_shock)
+    next_period_wealth = compute_next_period_wealth(state=child_state, saving=saving, income_shock=income_shock)
 
     marg_utilities_child_state_choice_specific = (
         interpolate_and_calc_marginal_utilities(
