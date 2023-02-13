@@ -1,5 +1,6 @@
 from functools import partial
 from typing import Callable
+from typing import Tuple
 
 import jax.numpy as jnp
 import numpy as np
@@ -67,27 +68,31 @@ def get_child_state_marginal_util_and_exp_max_value(
     next_period_wealth = compute_next_period_wealth(child_state, saving, income_shock)
     # Interpolate next period policy and values to match the
     # contemporary matrix of potential next period wealths
-    child_policy = vmap(interpolate_policy, in_axes=(None, 0))(
+    policy_child_state_choice_specific = vmap(interpolate_policy, in_axes=(None, 0))(
         next_period_wealth, choice_policies_child
     )
 
-    choice_child_values = vmap(interpolate_value, in_axes=(None, 0, None, None))(
+    marg_utilities_child_state_choice_specific = vmap(
+        compute_marginal_utility, in_axes=0
+    )(policy_child_state_choice_specific)
+
+    values_child_state_choice_specific = vmap(
+        interpolate_value, in_axes=(None, 0, None, None)
+    )(
         next_period_wealth,
         choice_values_child,
         jnp.arange(choice_values_child.shape[0]),
         compute_value,
     )
 
-    child_state_marginal_utility = get_child_state_marginal_util(
+    (
+        child_state_marginal_utility,
+        child_state_exp_max_value,
+    ) = aggregate_marg_utilites_and_values_over_choices(
         choice_set_indices=choice_set_indices,
-        next_period_policy=child_policy,
-        next_period_value=choice_child_values,
+        marg_utilities=marg_utilities_child_state_choice_specific,
+        values=values_child_state_choice_specific,
         taste_shock_scale=taste_shock_scale,
-        compute_marginal_utility=compute_marginal_utility,
-    )
-
-    child_state_exp_max_value = calc_exp_max_value(
-        choice_child_values, choice_set_indices, taste_shock_scale
     )
 
     marginal_utility_weighted = child_state_marginal_utility * income_shock_weight
@@ -97,105 +102,68 @@ def get_child_state_marginal_util_and_exp_max_value(
     return marginal_utility_weighted, expected_max_value_weighted
 
 
-@partial(jit, static_argnums=(3,))
-def get_child_state_marginal_util(
-    choice_set_indices,
-    next_period_policy: np.ndarray,
-    next_period_value: np.ndarray,
-    compute_marginal_utility: Callable,
+@jit
+def aggregate_marg_utilites_and_values_over_choices(
+    choice_set_indices: jnp.ndarray,
+    marg_utilities: jnp.ndarray,
+    values: np.ndarray,
     taste_shock_scale: float,
-) -> float:
+) -> Tuple[float, float]:
     """We aggregate the marginal utility of the discrete choices in the next period with
     the choice probabilities following from the choice-specific value functions.
 
     Args:
-        next_period_policy (np.ndarray): 2d array of shape
-            (n_choices, n_quad_stochastic * n_grid_wealth) containing the agent's
-            interpolated next period policy.
-        next_period_value (np.ndarray): Array containing values of next period
-            choice-specific value function.
-            Shape (n_choices, n_quad_stochastic * n_grid_wealth).
-        compute_marginal_utility (callable): Partial function that calculates marginal
-            utility, where the input ```params``` has already been partialed in.
+        marg_utilities (np.ndarray): 1d array of size (n_choices) containing the
+            agent's interpolated next period policy.
+        values (np.ndarray): 1d array of size (n_choices) containing the agent's
+            interpolated values of next period choice-specific value function.
         taste_shock_scale (float): Taste shock scale parameter.
 
 
     Returns:
         (float): The marginal utility in the child state.
+        (float): The expected maximum value in the child state.
 
     """
-
-    choice_probabilities = calc_choice_probability(
-        next_period_value, choice_set_indices, taste_shock_scale
+    choice_restricted_exp_values, rescale_factor = rescale_values_and_restrict_choices(
+        values, taste_shock_scale, choice_set_indices
     )
 
-    marginal_utility_next_period_policy = vmap(compute_marginal_utility, in_axes=0)(
-        next_period_policy
+    sum_exp_values = jnp.sum(choice_restricted_exp_values, axis=0)
+
+    # Compute the choice probabilities
+    choice_probabilities = choice_restricted_exp_values / sum_exp_values
+    # Aggregate marginal utilities with choice probabilities
+    child_state_marg_util = jnp.sum(choice_probabilities * marg_utilities, axis=0)
+    # Calculate the expected maximum value with the log-sum formula
+    child_state_exp_max_value = rescale_factor + taste_shock_scale * jnp.log(
+        sum_exp_values
     )
-    child_state_marg_util = jnp.sum(
-        choice_probabilities * marginal_utility_next_period_policy, axis=0
-    )
-    return child_state_marg_util
+
+    return child_state_marg_util, child_state_exp_max_value
 
 
 @jit
-def calc_choice_probability(
-    values: np.ndarray,
-    choice_set_indices,
-    taste_shock_scale: float,
-) -> np.ndarray:
-    """Calculate the next period probability of picking a given choice.
+def rescale_values_and_restrict_choices(
+    values: np.ndarray, taste_shock_scale: float, choice_set_indices: jnp.ndarray
+) -> Tuple[jnp.ndarray, float]:
+    """Rescale the choice-restricted values.
 
     Args:
-        values (np.ndarray): Array containing choice-specific values of the
-            value function. Shape (n_choices, n_quad_stochastic * n_grid_wealth).
-        taste_shock_scale (float): The taste shock scale parameter.
-
-    Returns:
-        (np.ndarray): Probability of picking the given choice next period.
-            1d array of shape (n_quad_stochastic * n_grid_wealth,).
-
-    """
-    col_max = jnp.amax(values)
-    values_scaled = values - col_max
-
-    values_scaled_exp = jnp.exp(values_scaled / taste_shock_scale) * choice_set_indices
-
-    # Eq. (15), p. 334 IJRS (2017)
-    choice_prob = values_scaled_exp / jnp.sum(values_scaled_exp)
-
-    return choice_prob
-
-
-@jit
-def calc_exp_max_value(
-    choice_specific_values: np.ndarray, choice_set_indices, taste_shock_scale: float
-) -> np.ndarray:
-    """Calculate the expected maximum value given choice specific values.
-
-    With the general extreme value assumption on the taste shocks, this reduces
-    to the log-sum.
-
-    The log-sum formula may also be referred to as the 'smoothed max function',
-    see eq. (50), p. 335 (Appendix).
-
-    Args:
-        choice_specific_values (np.ndarray): Array containing values of the
+        values (np.ndarray): Array containing values of next period
             choice-specific value function.
-            Shape (n_choices, n_quad_stochastic * n_grid_wealth).
+            Shape (n_choices).
         taste_shock_scale (float): Taste shock scale parameter.
+        choice_set_indices (np.ndarray): The agent's (restricted) choice set in the
+            given state of shape (n_choices,).
 
     Returns:
-        (np.ndarray): Log-sum formula inside the expected value function.
-            2d array of shape (n_quad_stochastic * n_grid_wealth,).
+        (np.ndarray): Rescaled choice-restricted values.
+        (float): Rescaling factor.
 
     """
-    col_max = jnp.amax(choice_specific_values)
-    values_scaled = choice_specific_values - col_max
+    rescale_factor = jnp.amax(values)
+    exp_values_scaled = np.exp((values - rescale_factor) / taste_shock_scale)
+    choice_restricted_exp_values = exp_values_scaled * choice_set_indices
 
-    values_scaled_exp = jnp.exp(values_scaled / taste_shock_scale) * choice_set_indices
-
-    # Eq. (14), p. 334 IJRS (2017)
-    logsum = col_max + taste_shock_scale * jnp.log(np.sum(values_scaled_exp))
-
-    return logsum
+    return choice_restricted_exp_values, rescale_factor

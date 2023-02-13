@@ -25,10 +25,7 @@ def utility_func_crra(
     theta = params_dict["theta"]
     delta = params_dict["delta"]
 
-    if theta == 1:
-        utility_consumption = np.log(consumption)
-    else:
-        utility_consumption = (consumption ** (1 - theta) - 1) / (1 - theta)
+    utility_consumption = (consumption ** (1 - theta) - 1) / (1 - theta)
 
     utility = utility_consumption - (1 - choice) * delta
 
