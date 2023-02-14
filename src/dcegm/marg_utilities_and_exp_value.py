@@ -10,7 +10,7 @@ from jax import vmap
 
 
 @partial(jit, static_argnums=(0, 1, 2))
-def get_child_state_marginal_util_and_exp_max_value(
+def marginal_util_and_exp_max_value_states_period(
     compute_next_period_wealth: Callable,
     compute_marginal_utility: Callable,
     compute_value: Callable,
@@ -40,27 +40,31 @@ def get_child_state_marginal_util_and_exp_max_value(
         taste_shock_scale (float): The taste shock scale parameter.
         exogenous_savings_grid (jnp.array): Exogenous savings grid.
         income_shock_draws (jnp.array): Stochastic income shock draws.
+            Shape (n_stochastic_points).
         income_shock_weights (jnp.array): Weights of stochastic shock draw.
+            Shape (n_stochastic_points).
         possible_child_states (jnp.ndarray): Multi-dimensional jnp.ndarray containing
-            the possible child_states; of shape (len(state_cond),num_state_variables).
+            the possible child_states; of shape (n_states_period,num_state_variables).
         choices_child_states (jnp.ndarray): Multi-dimensional binary jnp.ndarray
             indicating for each child state if choice is possible; of shape
-            (len(state_cond),num_state_variables).
+            (n_states_period,num_state_variables).
         policies_child_states (jnp.ndarray): Multi-dimensional jnp.ndarray storing the
              corresponding value of the policy function c(M, d), for each child state
              and each discrete choice; of shape
-            [n_states, n_discrete_choices, 1.1 * n_grid_wealth + 1].
+            [n_states_period, n_discrete_choices, 1.1 * n_grid_wealth + 1].
         values_child_states (jnp.ndarray): Multi-dimensional jnp.ndarray storing the
             corresponding value of the value function v(M,d), for each child state
             and each discrete choice; of shape
-            [n_states, n_discrete_choices, 1.1 * n_grid_wealth + 1].
+            [n_states_period, n_discrete_choices, 1.1 * n_grid_wealth + 1].
 
     Returns:
         tuple:
         - (jnp.ndarray): 1d array of the child-state specific marginal utility,
-            weighted by the vector of income shocks. Shape (n_grid_wealth,).
+            weighted by the vector of income shocks.
+            Shape (n_states_period, n_grid_wealth).
         - (jnp.ndarray): 1d array of the child-state specific expected maximum value,
-            weighted by the vector of income shocks. Shape (n_grid_wealth,).
+            weighted by the vector of income shocks.
+            Shape (n_states_period, n_grid_wealth).
 
     """
     (marginal_util_weighted_shock, max_exp_value_weighted_shock,) = vmap(

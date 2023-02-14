@@ -8,7 +8,7 @@ import pandas as pd
 from dcegm.egm import compute_optimal_policy_and_value
 from dcegm.integration import quadrature_legendre
 from dcegm.marg_utilities_and_exp_value import (
-    get_child_state_marginal_util_and_exp_max_value,
+    marginal_util_and_exp_max_value_states_period,
 )
 from dcegm.pre_processing import create_multi_dim_arrays
 from dcegm.pre_processing import get_partial_functions
@@ -258,7 +258,7 @@ def backwards_induction(
         (
             marginal_utilities[state_cond, :],
             max_expected_values[state_cond, :],
-        ) = get_child_state_marginal_util_and_exp_max_value(
+        ) = marginal_util_and_exp_max_value_states_period(
             compute_next_period_wealth=compute_next_period_wealth,
             compute_marginal_utility=compute_marginal_utility,
             compute_value=compute_value,
