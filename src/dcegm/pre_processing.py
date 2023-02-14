@@ -47,7 +47,6 @@ def get_partial_functions(
         options (dict): Options dictionary.
         user_utility_functions (Dict[str, callable]): Dictionary of three user-supplied
             functions for computation of:
-
             (i) utility
             (ii) inverse marginal utility
             (iii) next period marginal utility
@@ -76,6 +75,7 @@ def get_partial_functions(
         user_utility_functions["utility"],
         params_dict=params_dict,
     )
+
     compute_marginal_utility = jax.jit(
         partial(
             user_utility_functions["marginal_utility"],
@@ -170,8 +170,8 @@ def create_multi_dim_arrays(
     and value functions).
 
     Args:
-        options (dict): Options dictionary.
         state_space (np.ndarray): Collection of all possible states.
+        options (dict): Options dictionary.
 
 
     Returns:
@@ -220,11 +220,7 @@ def get_possible_choices_array(
         options (dict): Options dictionary.
 
     Returns:
-        choices_array (np.ndarray): binary array storing the possible choices for
-        each state. If choices_array[state_index, choice] = 1, then the choice
-        is contained in the set of possible choices of the state. If
-        choices_array[state_index, choice] = 0, then the choice is not contained
-        in the set of possible choices of the state.
+        choices_array (np.ndarray): binary array indicating if choice is possible.
 
     """
     n_choices = options["n_discrete_choices"]

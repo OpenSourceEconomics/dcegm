@@ -28,22 +28,6 @@ def get_child_state_marginal_util_and_exp_max_value(
     The underlying algorithm is the Endogenous-Grid-Method (EGM).
 
     Args:
-        saving (float): Entry of exogenous savings grid.
-        income_shock (float): Entry of income_shock_draws.
-        income_shock_weight (float): Weight of stochastic shock draw.
-        child_state (jnp.ndarray): The child state to do calculations for. Shape is
-            (n_num_state_variables,).
-        choice_set_indices (jnp.ndarray): The agent's (restricted) choice set in the
-            given state of shape (n_admissible_choices,).
-        taste_shock_scale (float): The taste shock scale parameter.
-        choice_policies_child (jnp.ndarray): Multi-dimensional jnp.ndarray storing the
-             corresponding value of the policy function
-            c(M, d), for each state and each discrete choice.; of shape
-            [n_states, n_discrete_choices, 1.1 * n_grid_wealth + 1].
-        choice_values_child (jnp.ndarray): Multi-dimensional jnp.ndarray storing the
-            corresponding value of the value function
-            v(M, d), for each state and each discrete choice; of shape
-            [n_states, n_discrete_choices, 1.1 * n_grid_wealth + 1].
         compute_next_period_wealth (callable): User-defined function to compute the
             agent's wealth  of the next period (t + 1). The inputs
             ```saving```, ```income_shock```, ```params``` and ```options```
@@ -53,11 +37,27 @@ def get_child_state_marginal_util_and_exp_max_value(
         compute_value (callable): User-defined function to compute
             the agent's value function in the credit-constrained area. The inputs
             ```params``` and ```compute_utility``` are already partialled in.
+        taste_shock_scale (float): The taste shock scale parameter.
+        exogenous_savings_grid (jnp.array): Exogenous savings grid.
+        income_shock_draws (jnp.array): Stochastic income shock draws.
+        income_shock_weights (jnp.array): Weights of stochastic shock draw.
+        possible_child_states (jnp.ndarray): Multi-dimensional jnp.ndarray containing
+            the possible child_states; of shape (len(state_cond),num_state_variables).
+        choices_child_states (jnp.ndarray): Multi-dimensional binary jnp.ndarray
+            indicating for each child state if choice is possible; of shape
+            (len(state_cond),num_state_variables).
+        policies_child_states (jnp.ndarray): Multi-dimensional jnp.ndarray storing the
+             corresponding value of the policy function c(M, d), for each child state
+             and each discrete choice; of shape
+            [n_states, n_discrete_choices, 1.1 * n_grid_wealth + 1].
+        values_child_states (jnp.ndarray): Multi-dimensional jnp.ndarray storing the
+            corresponding value of the value function v(M,d), for each child state
+            and each discrete choice; of shape
+            [n_states, n_discrete_choices, 1.1 * n_grid_wealth + 1].
 
     Returns:
         tuple:
-
-        - (float): 1d array of the child-state specific marginal utility,
+        - (jnp.ndarray): 1d array of the child-state specific marginal utility,
             weighted by the vector of income shocks. Shape (n_grid_wealth,).
         - (jnp.ndarray): 1d array of the child-state specific expected maximum value,
             weighted by the vector of income shocks. Shape (n_grid_wealth,).
@@ -110,22 +110,6 @@ def vectorized_marginal_util_and_exp_max_value(
     The underlying algorithm is the Endogenous-Grid-Method (EGM).
 
     Args:
-        saving (float): Entry of exogenous savings grid.
-        income_shock (float): Entry of income_shock_draws.
-        income_shock_weight (float): Weight of stochastic shock draw.
-        child_state (jnp.ndarray): The child state to do calculations for. Shape is
-            (n_num_state_variables,).
-        choice_set_indices (jnp.ndarray): The agent's (restricted) choice set in the
-            given state of shape (n_admissible_choices,).
-        taste_shock_scale (float): The taste shock scale parameter.
-        choice_policies_child (jnp.ndarray): Multi-dimensional jnp.ndarray storing the
-             corresponding value of the policy function
-            c(M, d), for each state and each discrete choice.; of shape
-            [n_states, n_discrete_choices, 1.1 * n_grid_wealth + 1].
-        choice_values_child (jnp.ndarray): Multi-dimensional jnp.ndarray storing the
-            corresponding value of the value function
-            v(M, d), for each state and each discrete choice; of shape
-            [n_states, n_discrete_choices, 1.1 * n_grid_wealth + 1].
         compute_next_period_wealth (callable): User-defined function to compute the
             agent's wealth  of the next period (t + 1). The inputs
             ```saving```, ```income_shock```, ```params``` and ```options```
@@ -135,6 +119,22 @@ def vectorized_marginal_util_and_exp_max_value(
         compute_value (callable): User-defined function to compute
             the agent's value function in the credit-constrained area. The inputs
             ```params``` and ```compute_utility``` are already partialled in.
+        taste_shock_scale (float): The taste shock scale parameter.
+        saving (float): Entry of exogenous savings grid.
+        income_shock (float): Entry of income_shock_draws.
+        income_shock_weight (float): Weight of stochastic shock draw.
+        child_state (jnp.ndarray): The child state to do calculations for. Shape is
+            (n_num_state_variables,).
+        choice_set_indices (jnp.ndarray): The agent's (restricted) choice set in the
+            given state of shape (n_choices,).
+        choice_policies_child (jnp.ndarray): Multi-dimensional jnp.ndarray storing the
+             corresponding value of the policy function c(M, d), for each state and
+             each discrete choice; of shape
+            [n_states, n_discrete_choices, 1.1 * n_grid_wealth + 1].
+        choice_values_child (jnp.ndarray): Multi-dimensional jnp.ndarray storing the
+            corresponding value of the value function
+            v(M, d), for each state and each discrete choice; of shape
+            [n_states, n_discrete_choices, 1.1 * n_grid_wealth + 1].
 
     Returns:
         tuple:
@@ -201,12 +201,13 @@ def aggregate_marg_utilites_and_values_over_choices(
     the choice probabilities following from the choice-specific value functions.
 
     Args:
+        choice_set_indices (jnp.ndarray): The agent's (restricted) choice set in the
+            given state of shape (n_choices,).
         marg_utilities (jnp.ndarray): 1d array of size (n_choices) containing the
             agent's interpolated next period policy.
         values (jnp.ndarray): 1d array of size (n_choices) containing the agent's
             interpolated values of next period choice-specific value function.
         taste_shock_scale (float): Taste shock scale parameter.
-
 
     Returns:
         (float): The marginal utility in the child state.
@@ -244,8 +245,7 @@ def rescale_values_and_restrict_choices(
 
     Args:
         values (jnp.ndarray): Array containing values of next period
-            choice-specific value function.
-            Shape (n_choices).
+            choice-specific value function; of shape (n_choices,).
         taste_shock_scale (float): Taste shock scale parameter.
         choice_set_indices (jnp.ndarray): The agent's (restricted) choice set in the
             given state of shape (n_choices,).
