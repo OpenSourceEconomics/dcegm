@@ -9,7 +9,7 @@ from jax import jit
 from jax import vmap
 
 
-@partial(jit, static_argnums=(0, 1, 2))
+# @partail(jit, static_argnums=(0, 1, 2))
 def marginal_util_and_exp_max_value_states_period(
     compute_next_period_wealth: Callable,
     compute_marginal_utility: Callable,
@@ -95,7 +95,7 @@ def marginal_util_and_exp_max_value_states_period(
     )
 
 
-@partial(jit, static_argnums=(0, 1, 2))
+# @partial(jit, static_argnums=(0, 1, 2))
 def vectorized_marginal_util_and_exp_max_value(
     compute_next_period_wealth: Callable,
     compute_marginal_utility: Callable,
@@ -194,7 +194,7 @@ def vectorized_marginal_util_and_exp_max_value(
     return marginal_utility_weighted, expected_max_value_weighted
 
 
-@jit
+# @jit
 def aggregate_marg_utilites_and_values_over_choices(
     choice_set_indices: jnp.ndarray,
     marg_utilities: jnp.ndarray,
@@ -241,7 +241,7 @@ def aggregate_marg_utilites_and_values_over_choices(
     return child_state_marg_util, child_state_exp_max_value
 
 
-@jit
+# @jit
 def rescale_values_and_restrict_choices(
     values: jnp.ndarray, taste_shock_scale: float, choice_set_indices: jnp.ndarray
 ) -> Tuple[jnp.ndarray, float]:

@@ -137,3 +137,4 @@ venv.bak/
 
 # Local jupyter fle
 test.ipynb
+jax_max.ipynb

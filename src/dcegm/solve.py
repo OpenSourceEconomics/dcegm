@@ -254,8 +254,7 @@ def backwards_induction(
         policies_child_states = policy_array[state_cond]
         values_child_states = value_array[state_cond]
         choices_child_states = choice_set_array[state_cond]
-        if period == 5:
-            breakpoint()
+
         (
             marginal_utilities[state_cond, :],
             max_expected_values[state_cond, :],
@@ -272,8 +271,6 @@ def backwards_induction(
             policies_child_states=policies_child_states,
             values_child_states=values_child_states,
         )
-        if period == 5:
-            breakpoint()
 
         index_periods = np.where(state_space[:, 0] == period)[0]
         state_subspace = state_space[index_periods]

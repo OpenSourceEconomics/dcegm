@@ -7,7 +7,7 @@ from jax import jit
 from jax import vmap
 
 
-@partial(jit, static_argnums=(0,))
+# @partial(jit, static_argnums=(0,))
 def interpolate_and_calc_marginal_utilities(
     compute_marginal_utility: Callable,
     next_period_wealth: jnp.ndarray,
@@ -29,7 +29,7 @@ def interpolate_and_calc_marginal_utilities(
     return marg_utilities_child_state_choice_specific
 
 
-@jit
+# @jit
 def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarray:
     """Interpolate the agent's policy for given flat wealth matrix.
 
@@ -53,7 +53,7 @@ def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarra
     return policy_interp
 
 
-@partial(jit, static_argnums=(3,))
+# @partial(jit, static_argnums=(3,))
 def interpolate_value(
     wealth: float,
     value: jnp.ndarray,
@@ -102,7 +102,7 @@ def interpolate_value(
     return value_final
 
 
-@jit
+# @jit
 def linear_interpolation_with_extrapolation_jax(x, y, x_new):
     """Linear interpolation with extrapolation.
 
@@ -121,6 +121,7 @@ def linear_interpolation_with_extrapolation_jax(x, y, x_new):
 
     # make sure that the function also works for unsorted x-arrays
     # taken from scipy.interpolate.interp1d
+    # ToDo: Is x after the envelope monotone?
     ind = jnp.argsort(x)
     x = jnp.take(x, ind)
     y = jnp.take(y, ind)
