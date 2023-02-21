@@ -15,7 +15,7 @@ repos:
         args: [--branch, main]
     -   id: trailing-whitespace
 -   repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.9.0
+    rev: v1.10.0
     hooks:
     -   id: python-check-blanket-noqa
     -   id: python-check-mock-methods
@@ -43,17 +43,17 @@ repos:
     -   id: docformatter
         args: [--in-place, --wrap-summaries, "88", --wrap-descriptions, "88", --blank]
 -   repo: https://github.com/psf/black
-    rev: 22.12.0
+    rev: 23.1.0
     hooks:
     -   id: black
         language_version: python3.10
 -   repo: https://github.com/asottile/blacken-docs
-    rev: v1.12.1
+    rev: 1.13.0
     hooks:
     -   id: blacken-docs
         additional_dependencies: [black==22.3.0]
 -   repo: https://github.com/PyCQA/flake8
-    rev: 5.0.4
+    rev: 6.0.0
     hooks:
     -   id: flake8
         additional_dependencies: [
