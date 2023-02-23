@@ -1,11 +1,8 @@
-from functools import partial
 from typing import Callable
 from typing import Tuple
 
 import jax.numpy as jnp
-from dcegm.interpolate import interpolate_and_calc_marginal_utilities
-from dcegm.interpolate import interpolate_value
-from jax import jit
+from dcegm.interpolate import get_values_and_marginal_utilities
 from jax import vmap
 
 
@@ -157,23 +154,15 @@ def vectorized_marginal_util_and_exp_max_value(
 
     # Interpolate the optimal consumption choice on the wealth grid and calculate the
     # corresponding marginal utilities.
-    marg_utilities_child_state_choice_specific = (
-        interpolate_and_calc_marginal_utilities(
-            compute_marginal_utility=compute_marginal_utility,
-            next_period_wealth=next_period_wealth,
-            choice_policies_child=choice_policies_child,
-        )
-    )
-
-    full_choice_set = jnp.arange(choice_values_child.shape[0], dtype=jnp.int32)
-    # Interpolate the value function on the wealth grid.
-    values_child_state_choice_specific = vmap(
-        interpolate_value, in_axes=(None, 0, 0, None)
-    )(
-        next_period_wealth,
-        choice_values_child,
-        full_choice_set,
-        compute_value,
+    (
+        marg_utilities_child_state_choice_specific,
+        values_child_state_choice_specific,
+    ) = get_values_and_marginal_utilities(
+        compute_marginal_utility=compute_marginal_utility,
+        compute_value=compute_value,
+        next_period_wealth=next_period_wealth,
+        choice_policies_child=choice_policies_child,
+        value_functions_child=choice_values_child,
     )
 
     (

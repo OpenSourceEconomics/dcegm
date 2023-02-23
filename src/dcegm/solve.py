@@ -1,4 +1,5 @@
 """Interface for the DC-EGM algorithm."""
+from functools import partial
 from typing import Callable
 from typing import Dict
 from typing import Tuple
@@ -16,6 +17,7 @@ from dcegm.pre_processing import get_possible_choices_array
 from dcegm.pre_processing import params_todict
 from dcegm.state_space import get_child_indexes
 from dcegm.upper_envelope import upper_envelope
+from jax import jit
 
 
 def solve_dcegm(
@@ -246,6 +248,18 @@ def backwards_induction(
         fill_value=np.nan,
         dtype=float,
     )
+    marginal_util_and_exp_max_value_states_period_jitted = jit(
+        partial(
+            marginal_util_and_exp_max_value_states_period,
+            compute_next_period_wealth=compute_next_period_wealth,
+            compute_marginal_utility=compute_marginal_utility,
+            compute_value=compute_value,
+            taste_shock_scale=taste_shock_scale,
+            exogenous_savings_grid=exogenous_savings_grid,
+            income_shock_draws=income_shock_draws,
+            income_shock_weights=income_shock_weights,
+        )
+    )
 
     for period in range(n_periods - 2, -1, -1):
         state_cond = np.where(state_space[:, 0] == period + 1)[0]
@@ -258,14 +272,7 @@ def backwards_induction(
         (
             marginal_utilities[state_cond, :],
             max_expected_values[state_cond, :],
-        ) = marginal_util_and_exp_max_value_states_period(
-            compute_next_period_wealth=compute_next_period_wealth,
-            compute_marginal_utility=compute_marginal_utility,
-            compute_value=compute_value,
-            taste_shock_scale=taste_shock_scale,
-            exogenous_savings_grid=exogenous_savings_grid,
-            income_shock_draws=income_shock_draws,
-            income_shock_weights=income_shock_weights,
+        ) = marginal_util_and_exp_max_value_states_period_jitted(
             possible_child_states=possible_child_states,
             choices_child_states=choices_child_states,
             policies_child_states=policies_child_states,

@@ -5,7 +5,6 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from dcegm.interpolate import interpolate_policy
 from dcegm.interpolate import interpolate_value
 from dcegm.pre_processing import calc_current_value
 from dcegm.pre_processing import params_todict
@@ -84,53 +83,53 @@ def test_get_next_period_wealth_matrices(
 # interpolate_policy
 # ======================================================================================
 
-
-def get_inputs_and_expected_interpolate_policy(
-    interest_rate, max_wealth, n_grid_points, n_quad_points
-):
-    _savings = np.linspace(0, max_wealth, n_grid_points)
-    matrix_next_wealth = np.full(
-        (n_quad_points, n_grid_points), _savings * (1 + interest_rate)
-    )
-    next_policy = np.tile(_savings[np.newaxis], (2, 1))
-
-    expected_policy = np.linspace(0, max_wealth * (1 + interest_rate), n_grid_points)
-
-    return matrix_next_wealth, next_policy, expected_policy
-
-
-choice_set = [np.array([0, 1]), np.arange(7)]
-interest_rate = [0.05, 0.123]
-n_quad_points = [5, 10]
-
-TEST_CASES = list(product(interest_rate, max_wealth, n_grid_points, n_quad_points))
-
-
-@pytest.mark.parametrize(
-    "interest_rate, max_wealth, n_grid_points, n_quad_points",
-    TEST_CASES,
-)
-def test_interpolate_policy(interest_rate, max_wealth, n_grid_points, n_quad_points):
-    (
-        matrix_next_wealth,
-        next_policy,
-        expected_policy,
-    ) = get_inputs_and_expected_interpolate_policy(
-        interest_rate, max_wealth, n_grid_points, n_quad_points
-    )
-
-    random_saving_ind = np.random.randint(0, n_grid_points)
-
-    policy_interp = interpolate_policy(
-        matrix_next_wealth[0, random_saving_ind], next_policy
-    )
-
-    aaae(policy_interp, expected_policy[random_saving_ind], decimal=4)
-
-
-TEST_CASES = list(
-    product(choice_set, interest_rate, max_wealth, n_grid_points, n_quad_points)
-)
+#
+# def get_inputs_and_expected_interpolate_policy(
+#     interest_rate, max_wealth, n_grid_points, n_quad_points
+# ):
+#     _savings = np.linspace(0, max_wealth, n_grid_points)
+#     matrix_next_wealth = np.full(
+#         (n_quad_points, n_grid_points), _savings * (1 + interest_rate)
+#     )
+#     next_policy = np.tile(_savings[np.newaxis], (2, 1))
+#
+#     expected_policy = np.linspace(0, max_wealth * (1 + interest_rate), n_grid_points)
+#
+#     return matrix_next_wealth, next_policy, expected_policy
+#
+#
+# choice_set = [np.array([0, 1]), np.arange(7)]
+# interest_rate = [0.05, 0.123]
+# n_quad_points = [5, 10]
+#
+# TEST_CASES = list(product(interest_rate, max_wealth, n_grid_points, n_quad_points))
+#
+#
+# @pytest.mark.parametrize(
+#     "interest_rate, max_wealth, n_grid_points, n_quad_points",
+#     TEST_CASES,
+# )
+# def test_interpolate_policy(interest_rate, max_wealth, n_grid_points, n_quad_points):
+#     (
+#         matrix_next_wealth,
+#         next_policy,
+#         expected_policy,
+#     ) = get_inputs_and_expected_interpolate_policy(
+#         interest_rate, max_wealth, n_grid_points, n_quad_points
+#     )
+#
+#     random_saving_ind = np.random.randint(0, n_grid_points)
+#
+#     policy_interp = interpolate_policy(
+#         matrix_next_wealth[0, random_saving_ind], next_policy
+#     )
+#
+#     aaae(policy_interp, expected_policy[random_saving_ind], decimal=4)
+#
+#
+# TEST_CASES = list(
+#     product(choice_set, interest_rate, max_wealth, n_grid_points, n_quad_points)
+# )
 
 
 # ======================================================================================
@@ -211,8 +210,8 @@ def test_interpolate_value(
 # sum_marginal_utilities_over_choice_probs
 # ======================================================================================
 
-child_node_choice_set = [np.array([0]), np.array([1])]
-TEST_CASES = list(product(model, child_node_choice_set, n_grid_points, n_quad_points))
+# child_node_choice_set = [np.array([0]), np.array([1])]
+# TEST_CASES = list(product(model, child_node_choice_set, n_grid_points, n_quad_points))
 
 
 # @pytest.mark.parametrize(

@@ -3,57 +3,86 @@ from typing import Callable
 
 import jax.numpy as jnp
 import numpy as np
-from jax import jit
+from jax import lax
 from jax import vmap
 
 
-# @partial(jit, static_argnums=(0,))
-def interpolate_and_calc_marginal_utilities(
+def get_values_and_marginal_utilities(
     compute_marginal_utility: Callable,
+    compute_value: Callable,
     next_period_wealth: jnp.ndarray,
     choice_policies_child: jnp.ndarray,
+    value_functions_child: jnp.ndarray,
 ):
-    """Interpolate marginal utilities.
+    """Interpolate marginal utilities and value functions.
 
     Returns:
         Callable: Interpolated marginal utility function.
 
     """
-    policy_child_state_choice_specific = vmap(interpolate_policy, in_axes=(None, 0))(
-        next_period_wealth, choice_policies_child
+    full_choice_set = jnp.arange(choice_policies_child.shape[0], dtype=jnp.int32)
+
+    marg_utilities_choice_specific, value_choice_specific = vmap(
+        interpolate_and_calc_marginal_utilities, in_axes=(None, None, 0, 0, None, 0)
+    )(
+        compute_marginal_utility,
+        next_period_wealth,
+        choice_policies_child,
+        value_functions_child,
+        compute_value,
+        full_choice_set,
     )
 
-    marg_utilities_child_state_choice_specific = vmap(
-        compute_marginal_utility, in_axes=0
-    )(policy_child_state_choice_specific)
-    return marg_utilities_child_state_choice_specific
+    return marg_utilities_choice_specific, value_choice_specific
 
 
-# @jit
-def interpolate_policy(flat_wealth: np.ndarray, policy: np.ndarray) -> np.ndarray:
-    """Interpolate the agent's policy for given flat wealth matrix.
-
+def interpolate_and_calc_marginal_utilities(
+    compute_marginal_utility: Callable,
+    wealth: float,
+    policies: jnp.ndarray,
+    value: jnp.ndarray,
+    compute_value: Callable,
+    choice: int,
+):
+    """Interpolate marginal utilities.
     Args:
-        flat_wealth (np.ndarray): Flat array of shape
+        compute_marginal_utility (callable): User-defined function to compute the
+            agent's marginal utility. The input ```params``` is already partialled in.
+        wealth (np.ndarray): Flat array of shape
             (n_quad_stochastic * n_grid_wealth,) containing the agent's
             potential wealth matrix in given period.
-        policy (np.ndarray): Policy array of shape (2, 1.1 * n_grid_wealth).
+        policies (np.ndarray): Policy array of shape (2, 1.1 * n_grid_wealth).
             Position [0, :] of the arrays contain the endogenous grid over wealth M,
             and [1, :] stores the corresponding value of the (consumption) policy
             function c(M, d), for each time period and each discrete choice.
+        value (np.ndarray): Value array of shape (2, 1.1 * n_grid_wealth).
+            Position [0, :] of the array contains the endogenous grid over wealth M,
+            and [1, :] stores the corresponding value of the value function v(M, d),
+            for each time period and each discrete choice.
+        compute_value (callable): Function for calculating the value from consumption
+            level, discrete choice and expected value. The inputs ```discount_rate```
+            and ```compute_utility``` are already partialled in.
+        choice (int): Discrete choice of an agent.
+
 
     Returns:
         np.ndarray: Interpolated flat policy function of shape
             (n_quad_stochastic * n_grid_wealth,).
+    Returns:
+        Callable: Interpolated marginal utility function.
 
     """
     policy_interp = linear_interpolation_with_extrapolation_jax(
-        x=policy[0, :], y=policy[1, :], x_new=flat_wealth
+        x=policies[0, :], y=policies[1, :], x_new=wealth
     )
-    return policy_interp
+    marg_utility = compute_marginal_utility(policy_interp)
+    value_interp = interpolate_value(
+        wealth=wealth, value=value, choice=choice, compute_value=compute_value
+    )
+
+    return marg_utility, value_interp
 
 
-# @partial(jit, static_argnums=(3,))
 def interpolate_value(
     wealth: float,
     value: jnp.ndarray,
@@ -74,6 +103,8 @@ def interpolate_value(
         compute_value (callable): Function for calculating the value from consumption
             level, discrete choice and expected value. The inputs ```discount_rate```
             and ```compute_utility``` are already partialled in.
+        ind_high (int): Index of the value in the wealth grid which is higher than x_new.
+            Or in case of extrapolation last or first index of not nan element.
 
 
     Returns:
@@ -82,27 +113,20 @@ def interpolate_value(
 
     """
 
-    # Calculate t+1 value function in constrained region using
-    # the analytical part
-    value_interp_calc = compute_value(
+    value_final = lax.cond(
+        wealth < value[0, 1],
+        lambda wealth_var: compute_value(
+            consumption=wealth_var, next_period_value=value[1, 0], choice=choice
+        ),
+        lambda wealth_var: linear_interpolation_with_extrapolation_jax(
+            x=value[0, :], y=value[1, :], x_new=wealth_var
+        ),
         wealth,
-        next_period_value=value[1, 0],
-        choice=choice,
-    )
-
-    value_interp_interpol = linear_interpolation_with_extrapolation_jax(
-        x=value[0, :], y=value[1, :], x_new=wealth
-    )
-    indicator_constrained = (wealth < value[0, 1]).astype(int)
-
-    value_final = jnp.take(
-        jnp.append(value_interp_interpol, value_interp_calc), indicator_constrained
     )
 
     return value_final
 
 
-# @jit
 def linear_interpolation_with_extrapolation_jax(x, y, x_new):
     """Linear interpolation with extrapolation.
 
@@ -111,6 +135,8 @@ def linear_interpolation_with_extrapolation_jax(x, y, x_new):
         y (np.ndarray): 1d array of shape (n,) containing the y-values
             corresponding to the x-values.
         x_new (float): The new x-value at which to evaluate the interpolation function.
+        ind_high (int): Index of the value in the wealth grid which is higher than x_new.
+            Or in case of extrapolation last or first index of not nan element.
 
     Returns:
         float: The new y-value corresponding to the new x-value.
@@ -118,7 +144,6 @@ def linear_interpolation_with_extrapolation_jax(x, y, x_new):
             values are extrapolated.
 
     """
-
     # make sure that the function also works for unsorted x-arrays
     # taken from scipy.interpolate.interp1d
     # ToDo: Is x after the envelope monotone?
@@ -126,8 +151,7 @@ def linear_interpolation_with_extrapolation_jax(x, y, x_new):
     x = jnp.take(x, ind)
     y = jnp.take(y, ind)
 
-    ind_high = jnp.searchsorted(x, x_new).clip(max=(x.shape[0] - 1), min=1)
-    ind_high -= jnp.isnan(x[ind_high]).astype(int)
+    ind_high = get_index_high(x=x, x_new=x_new)
 
     ind_low = ind_high - 1
 
@@ -141,6 +165,23 @@ def linear_interpolation_with_extrapolation_jax(x, y, x_new):
     interpol_res = (interpolate_slope * interpolate_dist) + y_low
 
     return interpol_res
+
+
+def get_index_high(x, x_new):
+    """Get index of the highest value in x that is smaller than x_new.
+
+    Args:
+        x (np.ndarray): 1d array of shape (n,) containing the x-values.
+        x_new (float): The new x-value at which to evaluate the interpolation function.
+
+    Returns:
+        int: Index of the value in the wealth grid which is higher than x_new. Or in case
+            of extrapolation last or first index of not nan element.
+
+    """
+    ind_high = jnp.searchsorted(x, x_new).clip(max=(x.shape[0] - 1), min=1)
+    ind_high -= jnp.isnan(x[ind_high]).astype(int)
+    return ind_high
 
 
 def linear_interpolation_with_extrapolation(x, y, x_new):

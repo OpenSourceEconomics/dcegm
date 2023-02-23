@@ -121,3 +121,8 @@ def test_benchmark_models(
                 value_expec,
                 decimal=1,
             )
+            # aaae(
+            #     policy_expec[0, :],
+            #     value_expec[0, :],
+            #     decimal=1,
+            # )
