@@ -168,36 +168,72 @@ def locate_non_concave_regions(
             where *n_dominated_points* is of variable length.
 
     """
-    # Find non-monotonicity in the endogenous wealth grid. Each non-monotonicity has a
-    # False here.
-    is_increasing = value[0, 1:] > value[0, :-1]
+    segments_non_mono = []
 
-    # Get the indexes of all False
-    index_non_monotonic = np.where(~is_increasing)[0]
+    is_monotonic = value[0, 1:] > value[0, :-1]
 
-    if len(index_non_monotonic) == 0:
-        # If there is none non-monotonicity, return an empty list
-        return []
-    else:
-        non_monotone_segments = []
-        # ToDo: This code can't handle consecutive non-monotonicities.
-        #  The old one could!
-        for segment_num, index in enumerate(index_non_monotonic):
-            if segment_num == 0:
-                index_min = 0
-            else:
-                index_min = index_non_monotonic[segment_num - 1] + 1
+    niter = 0
+    move_right = True
 
-            non_monotone_segments += [
-                # Array until the non-monotonicity and containing it
-                value[:, index_min : index + 1],
-                # Array containing the value before and after the non-monotonicity
-                value[:, index : index + 2],
-            ]
+    while move_right:
+        index_non_monotonic = np.where(is_monotonic != is_monotonic[0])[0]
 
-        non_monotone_segments += [value[:, index_non_monotonic[-1] + 1 :]]
+        # Check if we are beyond the starting (left-most) point
+        if len(index_non_monotonic) == 0:
+            if niter > 0:
+                segments_non_mono += [value]
+            move_right = False
+            break
 
-    return non_monotone_segments
+        else:
+            index_non_monotonic = min(index_non_monotonic)  # left-most point
+
+            part_one, part_two = _partition_grid(value, index_non_monotonic)
+            segments_non_mono += [part_one]
+            value = part_two
+
+            # Move point of first non-monotonicity to the right
+            is_monotonic = is_monotonic[index_non_monotonic:]
+
+            niter += 1
+
+    return segments_non_mono
+
+
+def _partition_grid(
+    value_correspondence: np.ndarray, j: int
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Splits the grid into two parts, 1,..., j and j, j+1,..., J.
+    Note that the index ``j``, after which the separation occurs,
+    is also included in the second partition.
+    Args:
+        value_correspondence (np.ndarray):  Array storing the choice-specific
+            value function "correspondences". Shape (2, *n_endog_wealth_grid*), where
+            *n_endog_wealth_grid* is of variable length depending on the number of
+            kinks and non-concave regions in the value function.
+            In the presence of kinks, the value function is a "correspondence"
+            rather than a function due to non-concavities.
+        j (int): Index denoting the location where the endogenous wealth grid is
+            separated.
+    Returns:
+        part_one (np.ndarray): Array of shape (2, : ``j`` + 1) containing the first
+            partition.
+        part_two (np.ndarray): Array of shape (2, ``j``:) containing the second
+            partition.
+    """
+    j = value_correspondence.shape[1] if j > value_correspondence.shape[1] else j
+
+    part_one = np.vstack(
+        [
+            value_correspondence[0, : j + 1],  # endogenous wealth grid
+            value_correspondence[1, : j + 1],  # value function
+        ]
+    )
+
+    # Include boundary points in both partitions
+    part_two = np.vstack([value_correspondence[0, j:], value_correspondence[1, j:]])
+
+    return part_one, part_two
 
 
 def compute_upper_envelope(
@@ -295,12 +331,12 @@ def compute_upper_envelope(
                         np.vstack([values_first_segment, values_second_segment])
                     )
                 ) and np.all(np.abs(values_first_segment - values_second_segment) > 0):
-                    id_first = np.where(
-                        segments[index_second_segment - 1][0] == first_grid_point
-                    )[0][0]
-                    id_second = np.where(
-                        segments[index_second_segment][0] == second_grid_point
-                    )[0][0]
+                    # id_first = np.where(
+                    #     segments[index_second_segment - 1][0] == first_grid_point
+                    # )[0][0]
+                    # id_second = np.where(
+                    #     segments[index_second_segment][0] == second_grid_point
+                    # )[0][0]
 
                     # intersect_point = linear_intersection(
                     #     x1=segments[index_second_segment - 1][0][id_first],
