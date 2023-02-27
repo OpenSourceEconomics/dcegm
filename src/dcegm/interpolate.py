@@ -64,23 +64,21 @@ def interpolate_and_calc_marginal_utilities(
             and ```compute_utility``` are already partialled in.
         choice (int): Discrete choice of an agent.
 
+    Returns:
+        float: Interpolated marginal utility function.
+        float: Interpolated value function.
 
-    Returns:
-        np.ndarray: Interpolated flat policy function of shape
-            (n_quad_stochastic * n_grid_wealth,).
-    Returns:
-        Callable: Interpolated marginal utility function.
 
     """
     policy_interp = linear_interpolation_with_extrapolation_jax(
         x=policies[0, :], y=policies[1, :], x_new=wealth
     )
-    marg_utility = compute_marginal_utility(policy_interp)
+    marg_utility_interp = compute_marginal_utility(policy_interp)
     value_interp = interpolate_value(
         wealth=wealth, value=value, choice=choice, compute_value=compute_value
     )
 
-    return marg_utility, value_interp
+    return marg_utility_interp, value_interp
 
 
 def interpolate_value(
