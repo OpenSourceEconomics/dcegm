@@ -99,10 +99,10 @@ def fast_upper_envelope_wrapper(
 
 
 def fast_upper_envelope(
-    endog_grid: np.ndarray,
+    endog_wealth_grid: np.ndarray,
     value: np.ndarray,
     policy: np.ndarray,
-    exog_grid: np.ndarray,
+    exog_wealth_grid: np.ndarray,
     jump_thresh: Optional[float] = 2,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Remove suboptimal points from the endogenous grid, policy, and value function.
@@ -132,49 +132,98 @@ def fast_upper_envelope(
             the optimal points are kept.
 
     """
-    value = np.take(value, np.argsort(endog_grid))
-    policy = np.take(policy, np.argsort(endog_grid))
-    exog_grid = np.take(exog_grid, np.argsort(endog_grid[~np.isnan(endog_grid)]))
-    endog_grid = np.sort(endog_grid)
+    value = np.take(value, np.argsort(endog_wealth_grid))
+    policy = np.take(policy, np.argsort(endog_wealth_grid))
+    exog_wealth_grid = np.take(
+        exog_wealth_grid, np.argsort(endog_wealth_grid[~np.isnan(endog_wealth_grid)])
+    )
+    endog_wealth_grid = np.sort(endog_wealth_grid)
 
-    endog_grid = endog_grid[np.where(~np.isnan(value))]
+    endog_wealth_grid = endog_wealth_grid[np.where(~np.isnan(value))]
     policy = policy[np.where(~np.isnan(value))]
-    exog_grid = exog_grid[np.where(~np.isnan(value))]
+    exog_wealth_grid = exog_wealth_grid[np.where(~np.isnan(value))]
 
-    value_clean_with_nans = _forward_scan(endog_grid, value, exog_grid, jump_thresh)
+    value_clean_with_nans = _scan_value_correspondence(
+        endog_wealth_grid, value, exog_wealth_grid, jump_thresh
+    )
 
-    endog_grid_refined = (endog_grid[np.where(~np.isnan(value_clean_with_nans))],)
+    endog_grid_refined = (
+        endog_wealth_grid[np.where(~np.isnan(value_clean_with_nans))],
+    )
     value_refined = (value_clean_with_nans[np.where(~np.isnan(value_clean_with_nans))],)
     policy_refined = (policy[np.where(~np.isnan(value_clean_with_nans))],)
 
     return endog_grid_refined, value_refined, policy_refined
 
 
-def _forward_scan(endog_grid, value, exog_grid, jump_thresh):
+def _scan_value_correspondence(endog_wealth_grid, value, exog_wealth_grid, jump_thresh):
     value_unrefined = np.copy(value)
 
-    j = 2
+    k = 2
 
-    for i in range(2, len(endog_grid) - 2):
+    for j in range(2, len(endog_wealth_grid) - 2):
 
-        current_diff = (value_unrefined[j] - value_unrefined[j - 1]) / (
-            endog_grid[j] - endog_grid[j - 1]
+        current_diff = (value_unrefined[k] - value_unrefined[k - 1]) / (
+            endog_wealth_grid[k] - endog_wealth_grid[k - 1]
         )
 
-        next_diff = (value_unrefined[i + 1] - value[j]) / (
-            endog_grid[i + 1] - endog_grid[j]
+        next_diff = (value_unrefined[j + 1] - value[k]) / (
+            endog_wealth_grid[j + 1] - endog_wealth_grid[k]
         )
 
         if (
             current_diff >= next_diff
             and np.abs(
-                (exog_grid[i + 1] - exog_grid[j]) / (endog_grid[i + 1] - endog_grid[j])
+                (exog_wealth_grid[j + 1] - exog_wealth_grid[k])
+                / (endog_wealth_grid[j + 1] - endog_wealth_grid[k])
             )
             > jump_thresh
         ):
-            value[i + 1] = np.nan
+            # _forward_scan
+            value[j + 1] = np.nan
 
         else:
-            j = i + 1
+            k = j + 1
 
     return value
+
+
+def _forward_scan(
+    endog_grid,
+    exog_grid,
+    value_unrefined,
+    current_diff,  # noqa: U100
+    next_diff,
+    j,
+    k,
+    n_steps,
+    jump_thresh,
+):
+
+    j = k + 2
+
+    for j in range(k + 1, n_steps + k + 2):
+        g_j_l_plus_1 = (value_unrefined[j] - value_unrefined[j + 1]) / (
+            endog_grid[j] - endog_grid[j + 1]
+        )
+        g_j_k = (value_unrefined[j] - value_unrefined[k]) / (
+            endog_grid[j] - endog_grid[k]
+        )
+        g_grid_j_k = (exog_grid[j] - exog_grid[k]) / (endog_grid[j] - endog_grid[k])
+
+        if (
+            g_j_l_plus_1 > 0
+            and g_j_l_plus_1 > next_diff
+            and g_j_k < next_diff
+            and np.abs(g_grid_j_k) > jump_thresh
+        ):
+            break
+        elif (
+            g_j_l_plus_1 < 0
+            and g_j_l_plus_1 > next_diff
+            and g_j_k < next_diff
+            and np.abs(g_grid_j_k) > jump_thresh
+        ):
+            break
+        elif j == n_steps + k + 2:
+            d = k  # noqa: F841
