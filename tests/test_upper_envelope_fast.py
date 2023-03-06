@@ -3542,7 +3542,7 @@ def test_credit_constrained():
         names=["category", "name"],
     )
     params = pd.DataFrame(data=[1.95, 0.35], columns=["value"], index=_index)
-    discount_factor = 1.95
+    discount_factor = 0.95  # beta
 
     compute_utility = partial(utility_func_crra, params=params)
     compute_value = partial(
