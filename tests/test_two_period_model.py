@@ -206,10 +206,8 @@ def test_two_period(input_data, wealth_id, state_id):
     values = params["value"].tolist()
     params_dict = dict(zip(keys, values))
     state_space, _ = create_state_space(input_data["options"])
-
     initial_cond = {}
     state = state_space[state_id, :]
-
     if state[1] == 1:
         choice_range = [1]
     else:
