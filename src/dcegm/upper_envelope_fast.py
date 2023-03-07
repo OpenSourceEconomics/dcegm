@@ -134,7 +134,7 @@ def fast_upper_envelope(
 
     """
 
-    # To-Do: determine locations where enogenous grid points are
+    # TODO: determine locations where enogenous grid points are # noqa: T000
     # equal to the lower bound
     mask = endog_grid <= b
     if np.any(mask):
@@ -154,11 +154,13 @@ def fast_upper_envelope(
 
     # ================================================================================
 
-    value_clean_with_nans = scan_value_correspondence(
+    value_clean_with_nans, endog_clean_with_nans = scan_value_correspondence(
         value, endog_grid, exog_grid, jump_thresh=jump_thresh
     )
 
-    endog_grid_refined = (endog_grid[np.where(~np.isnan(value_clean_with_nans))],)
+    endog_grid_refined = (
+        endog_clean_with_nans[np.where(~np.isnan(endog_clean_with_nans))],
+    )
     value_refined = (value_clean_with_nans[np.where(~np.isnan(value_clean_with_nans))],)
     policy_refined = (policy[np.where(~np.isnan(value_clean_with_nans))],)
 
@@ -187,7 +189,8 @@ def scan_value_correspondence(
 
     """
     value_refined = np.copy(value)
-    suboptimal_points = np.zeros(n_points_to_scan)
+    endog_grid_refined = np.copy(endog_grid)
+    suboptimal_points = np.empty(n_points_to_scan)
 
     j = 1
     k = 0
@@ -203,46 +206,45 @@ def scan_value_correspondence(
             > jump_thresh
         )
 
-        # if right turn is made and jump registered
-        # remove point or perform forward scan
         if grad_next <= grad_current and switch_value_func:
             keep_next_point = False
-            grad_next_arr, switch_value_func_forward = _forward_scan(
+            grad_next_arr, stay_on_value_func = _forward_scan(
                 value,
                 endog_grid,
                 exog_grid,
                 jump_thresh=jump_thresh,
                 idx_current=j,
                 idx_next=i + 1,
-                n_points_to_scan=10,
+                n_points_to_scan=n_points_to_scan,
             )
 
-            if np.sum(switch_value_func_forward) > 0:
-                idx_next_on_value = np.where(switch_value_func_forward)[0][0]
+            if np.sum(stay_on_value_func) > 0:
+                idx_next_on_value = np.where(stay_on_value_func)[0][0]
                 grad_next_forward = grad_next_arr[idx_next_on_value]
 
                 if grad_next > grad_next_forward:
                     keep_next_point = True
 
-            if not keep_next_point:
-                value_refined[i + 1] = np.nan
-                suboptimal_points = _append_new_point(suboptimal_points, i + 1)
-            else:
+            if keep_next_point:
                 k = j
                 j = i + 1
+            else:
+                value_refined[i + 1] = np.nan
+                endog_grid_refined[i + 1] = np.nan
+                suboptimal_points = _append_new_point(suboptimal_points, i + 1)
 
         elif value[i + 1] - value[j] < 0:
             value_refined[i + 1] = np.nan
+            endog_grid_refined[i + 1] = np.nan
             suboptimal_points = _append_new_point(suboptimal_points, i + 1)
 
         elif grad_next < grad_current and exog_grid[i + 1] - exog_grid[j] < 0:
             value_refined[i + 1] = np.nan
+            endog_grid_refined[i + 1] = np.nan
             suboptimal_points = _append_new_point(suboptimal_points, i + 1)
 
-        # if left turn is made or right turn with no jump, then
-        # keep point provisionally and conduct backward scan
         else:
-            grad_before_arr, switch_value_func_backward = _backward_scan(
+            grad_before_arr, stay_on_value_func = _backward_scan(
                 value,
                 endog_grid,
                 exog_grid,
@@ -253,9 +255,9 @@ def scan_value_correspondence(
             )
             keep_current_point = True
 
-            if np.sum(switch_value_func_backward) > 0:
-                idx_before_on_value = np.where(switch_value_func_backward)[0][-1]
-                g_m_vf = grad_before_arr[idx_before_on_value]
+            if np.sum(stay_on_value_func) > 0:
+                idx_before_on_value = np.where(stay_on_value_func)[0][-1]
+                grad_before = grad_before_arr[idx_before_on_value]
             else:
                 idx_before_on_value = 0
                 keep_current_point = True
@@ -264,27 +266,35 @@ def scan_value_correspondence(
 
             if (
                 grad_next > grad_current
-                and grad_current >= g_m_vf
+                and grad_current >= grad_before
                 and switch_value_func
             ):
                 keep_current_point = False
 
             if not keep_current_point:
-                pj = np.array([endog_grid[j], value[j]])
-                pi1 = np.array([endog_grid[i + 1], value[i + 1]])
-                pk = np.array([endog_grid[k], value[k]])
-                pm = np.array([endog_grid[idx_suboptimal], value[idx_suboptimal]])
-                intrsect = seg_intersect(pj, pk, pi1, pm)
+                a1 = np.array([endog_grid[j], value[j]])
+                a2 = np.array([endog_grid[k], value[k]])
+                b1 = np.array([endog_grid[i + 1], value[i + 1]])
+                b2 = np.array([endog_grid[idx_suboptimal], value[idx_suboptimal]])
+                (
+                    intersect_grid,
+                    intersect_value,
+                ) = find_intersection_point_grid_and_value(a1, a2, b1, b2)
 
-                value_refined[j] = np.nan
-                value[j] = intrsect[1]
-                endog_grid[j] = intrsect[0]
+                value[j] = intersect_value
+                endog_grid[j] = intersect_grid
+                value_refined[j] = intersect_value  # np.nan # noqa: U100
+                endog_grid_refined[i + 1] = intersect_grid  # np.nan # noqa: U100
+
+                # TODO: Interpolate policy # noqa: T000
+
                 j = i + 1
+
             else:
                 k = j
                 j = i + 1
 
-    return value_refined
+    return value_refined, endog_grid_refined
 
 
 def _forward_scan(
@@ -313,21 +323,21 @@ def _forward_scan(
 
     """
     grad_next_arr = np.empty(n_points_to_scan)
-    switch_value_func = np.empty(n_points_to_scan)
+    stay_on_value_func = np.empty(n_points_to_scan)
 
     for i in range(1, n_points_to_scan + 1):
         grad_next_arr[i - 1] = (value[idx_next] - value[idx_next + i]) / (
             endog_grid[idx_next] - endog_grid[idx_next + 1 + i]
         )
-        switch_value_func[i - 1] = (
+        stay_on_value_func[i - 1] = (
             np.abs(
                 (exog_grid[idx_current] - exog_grid[idx_next + i])
                 / (endog_grid[idx_current] - endog_grid[idx_next + i])
             )
-            > jump_thresh
+            < jump_thresh
         )
 
-    return grad_next_arr, switch_value_func
+    return grad_next_arr, stay_on_value_func
 
 
 def _backward_scan(
@@ -375,7 +385,7 @@ def _backward_scan(
     return grad_arr_next, switch_value_func
 
 
-def seg_intersect(a1, a2, b1, b2):
+def find_intersection_point_grid_and_value(a1, a2, b1, b2):
     """Find the intersection of two lines.
 
     Args:
@@ -392,9 +402,9 @@ def seg_intersect(a1, a2, b1, b2):
     db = b2 - b1
     dp = a1 - b1
     dap = np.array([-da[1], da[0]])
-    denom = np.dot(dap, db)
-    num = np.dot(dap, dp)
-    return (num / denom) * db + b1
+    denom = dap @ db
+    num = dap @ dp
+    return tuple((num / denom) * db + b1)
 
 
 def _append_new_point(x_array, m):
