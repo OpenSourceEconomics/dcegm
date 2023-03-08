@@ -150,7 +150,7 @@ def fast_upper_envelope(
 
     value = np.take(value, np.argsort(endog_grid))
     policy = np.take(policy, np.argsort(endog_grid))
-    exog_grid = np.take(exog_grid, np.argsort(endog_grid[~np.isnan(endog_grid)]))
+    exog_grid = np.take(exog_grid, np.argsort(endog_grid))
     endog_grid = np.sort(endog_grid)
 
     # ================================================================================
@@ -167,7 +167,9 @@ def fast_upper_envelope(
         endog_clean_with_nans[np.where(~np.isnan(endog_clean_with_nans))],
     )
     value_refined = (value_clean_with_nans[np.where(~np.isnan(value_clean_with_nans))],)
-    policy_refined = (policy[np.where(~np.isnan(policy_clean_with_nans))],)
+    policy_refined = (
+        policy_clean_with_nans[np.where(~np.isnan(policy_clean_with_nans))],
+    )
 
     return endog_grid_refined, value_refined, policy_refined
 
@@ -219,6 +221,7 @@ def scan_value_correspondence(
         )
 
         if grad_next <= grad_current and switch_value_func:
+            # Fedor just drops the point, without doing a forward scan?
             keep_next_point = False
             grad_next_arr, stay_on_value_func = _forward_scan(
                 value,
@@ -245,8 +248,9 @@ def scan_value_correspondence(
                 k = j
                 j = i + 1
             else:
-                value[i + 1] = np.nan
                 suboptimal_points = _append_new_point(suboptimal_points, i + 1)
+
+                # =======================================================================
 
         elif value[i + 1] - value[j] < 0:
             suboptimal_points = _append_new_point(suboptimal_points, i + 1)
@@ -272,6 +276,7 @@ def scan_value_correspondence(
             else:
                 idx_before_on_value = 0
                 grad_before = grad_before_arr[0]
+                # grad_before = (value[j] - value[0]) / (endog_grid[j] - endog_grid[0])
 
             idx_suboptimal = int(suboptimal_points[idx_before_on_value])
 
@@ -291,7 +296,7 @@ def scan_value_correspondence(
                 #     intersect_grid,
                 #     intersect_value,
                 # ) = find_intersection_point_grid_and_value(a1, a2, b1, b2)
-                (intersect_grid, intersect_value,) = linear_intersection(
+                intersect_grid, intersect_value = linear_intersection(
                     x1=endog_grid[j],
                     y1=value[j],
                     x2=endog_grid[k],
@@ -333,6 +338,11 @@ def scan_value_correspondence(
                 policy_refined[refined_counter] = intersect_value_right
                 endog_grid_refined[refined_counter] = intersect_grid
                 refined_counter += 1
+
+                # value_refined[refined_counter] = np.nan
+                # policy_refined[refined_counter] = np.nan
+                # endog_grid_refined[refined_counter] = np.nan
+                # refined_counter += 1
 
                 j = i + 1
 
@@ -416,12 +426,12 @@ def _backward_scan(
             switch value functions at the corresponding points.
 
     """
-    grad_arr_next = np.empty(len(suboptimal_points))
+    grad_arr_before = np.empty(len(suboptimal_points))
     switch_value_func = np.empty(len(suboptimal_points))
 
     for m in range(len(switch_value_func)):
         m_int = int(suboptimal_points[m])
-        grad_arr_next[m] = (value[idx_current] - value[m_int]) / (
+        grad_arr_before[m] = (value[idx_current] - value[m_int]) / (
             endog_grid[idx_current] - endog_grid[m_int]
         )
         switch_value_func[m] = (
@@ -432,7 +442,7 @@ def _backward_scan(
             > jump_thresh
         )
 
-    return grad_arr_next, switch_value_func
+    return grad_arr_before, switch_value_func
 
 
 def find_intersection_point_grid_and_value(a1, a2, b1, b2):
