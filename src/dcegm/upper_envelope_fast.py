@@ -155,21 +155,25 @@ def fast_upper_envelope(
 
     # ================================================================================
 
-    value_clean_with_nans, endog_clean_with_nans = scan_value_correspondence(
-        value, endog_grid, exog_grid, jump_thresh=jump_thresh
+    (
+        value_clean_with_nans,
+        policy_clean_with_nans,
+        endog_clean_with_nans,
+    ) = scan_value_correspondence(
+        value, policy, endog_grid, exog_grid, jump_thresh=jump_thresh
     )
 
     endog_grid_refined = (
         endog_clean_with_nans[np.where(~np.isnan(endog_clean_with_nans))],
     )
     value_refined = (value_clean_with_nans[np.where(~np.isnan(value_clean_with_nans))],)
-    policy_refined = (policy[np.where(~np.isnan(value_clean_with_nans))],)
+    policy_refined = (policy[np.where(~np.isnan(policy_clean_with_nans))],)
 
     return endog_grid_refined, value_refined, policy_refined
 
 
 def scan_value_correspondence(
-    value, endog_grid, exog_grid, jump_thresh=2, n_points_to_scan=10
+    value, policy, endog_grid, exog_grid, jump_thresh=2, n_points_to_scan=10
 ):
     """Scan the value function to remove suboptimal points.
 
@@ -191,10 +195,12 @@ def scan_value_correspondence(
     """
     value_refined = np.copy(value)
     endog_grid_refined = np.copy(endog_grid)
-    suboptimal_points = np.empty(n_points_to_scan)
+    policy_refined = policy
+    suboptimal_points = np.zeros(n_points_to_scan)
 
     j = 1
     k = 0
+    offset = 0
 
     for i in range(2, len(endog_grid) - 2):
 
@@ -232,16 +238,19 @@ def scan_value_correspondence(
                 j = i + 1
             else:
                 value_refined[i + 1] = np.nan
+                policy_refined[i + 1] = np.nan
                 endog_grid_refined[i + 1] = np.nan
                 suboptimal_points = _append_new_point(suboptimal_points, i + 1)
 
         elif value[i + 1] - value[j] < 0:
             value_refined[i + 1] = np.nan
+            policy_refined[i + 1] = np.nan
             endog_grid_refined[i + 1] = np.nan
             suboptimal_points = _append_new_point(suboptimal_points, i + 1)
 
         elif grad_next < grad_current and exog_grid[i + 1] - exog_grid[j] < 0:
             value_refined[i + 1] = np.nan
+            policy_refined[i + 1] = np.nan
             endog_grid_refined[i + 1] = np.nan
             suboptimal_points = _append_new_point(suboptimal_points, i + 1)
 
@@ -293,7 +302,7 @@ def scan_value_correspondence(
                     y4=value[idx_suboptimal],
                 )
 
-                # # The next two interpolations is jus to show that from interpolatong from
+                # # The next two interpolations is just to show that from interpolatong from
                 # # each side leads to the same result
                 # intersect_value_2_left = linear_interpolation_with_extrapolation(
                 #     x=np.array([endog_grid[j], endog_grid[k]]),
@@ -314,7 +323,12 @@ def scan_value_correspondence(
                 value[j] = intersect_value
                 endog_grid[j] = intersect_grid
                 value_refined[j] = intersect_value  # np.nan # noqa: U100
-                endog_grid_refined[i + 1] = intersect_grid  # np.nan # noqa: U100
+                # policy_refined[j] = intersect_policy  # np.nan # noqa: U100
+                endog_grid_refined[j] = intersect_grid  # np.nan # noqa: U100
+
+                # value_refined[j + 1 + offset] = intersect_value # noqa: U100
+                # policy_refined[j + 1 + offset] = intersect_policy # noqa: U100
+                offset += 1
 
                 j = i + 1
 
@@ -322,7 +336,7 @@ def scan_value_correspondence(
                 k = j
                 j = i + 1
 
-    return value_refined, endog_grid_refined
+    return value_refined, policy_refined, endog_grid_refined
 
 
 def _forward_scan(
