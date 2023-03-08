@@ -245,6 +245,7 @@ def scan_value_correspondence(
                 k = j
                 j = i + 1
             else:
+                value[i + 1] = np.nan
                 suboptimal_points = _append_new_point(suboptimal_points, i + 1)
 
         elif value[i + 1] - value[j] < 0:
@@ -270,6 +271,7 @@ def scan_value_correspondence(
                 grad_before = grad_before_arr[idx_before_on_value]
             else:
                 idx_before_on_value = 0
+                grad_before = grad_before_arr[0]
 
             idx_suboptimal = int(suboptimal_points[idx_before_on_value])
 
