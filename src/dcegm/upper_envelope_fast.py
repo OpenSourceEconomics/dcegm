@@ -195,12 +195,17 @@ def scan_value_correspondence(
     """
     value_refined = np.copy(value)
     endog_grid_refined = np.copy(endog_grid)
-    policy_refined = policy
+    policy_refined = np.copy(policy)
+    value_refined[3:] = np.nan
+    endog_grid_refined[3:] = np.nan
+    policy_refined[3:] = np.nan
+
     suboptimal_points = np.zeros(n_points_to_scan)
 
     j = 1
     k = 0
-    offset = 0
+
+    refined_counter = 3
 
     for i in range(2, len(endog_grid) - 2):
 
@@ -224,7 +229,6 @@ def scan_value_correspondence(
                 idx_next=i + 1,
                 n_points_to_scan=n_points_to_scan,
             )
-            breakpoint()
 
             if np.sum(stay_on_value_func) > 0:
                 idx_next_on_value = np.where(stay_on_value_func)[0][0]
@@ -234,24 +238,19 @@ def scan_value_correspondence(
                     keep_next_point = True
 
             if keep_next_point:
+                value_refined[refined_counter] = value[i + 1]
+                policy_refined[refined_counter] = policy[i + 1]
+                endog_grid_refined[refined_counter] = endog_grid[i + 1]
+                refined_counter += 1
                 k = j
                 j = i + 1
             else:
-                value_refined[i + 1] = np.nan
-                policy_refined[i + 1] = np.nan
-                endog_grid_refined[i + 1] = np.nan
                 suboptimal_points = _append_new_point(suboptimal_points, i + 1)
 
         elif value[i + 1] - value[j] < 0:
-            value_refined[i + 1] = np.nan
-            policy_refined[i + 1] = np.nan
-            endog_grid_refined[i + 1] = np.nan
             suboptimal_points = _append_new_point(suboptimal_points, i + 1)
 
         elif grad_next < grad_current and exog_grid[i + 1] - exog_grid[j] < 0:
-            value_refined[i + 1] = np.nan
-            policy_refined[i + 1] = np.nan
-            endog_grid_refined[i + 1] = np.nan
             suboptimal_points = _append_new_point(suboptimal_points, i + 1)
 
         else:
@@ -271,7 +270,6 @@ def scan_value_correspondence(
                 grad_before = grad_before_arr[idx_before_on_value]
             else:
                 idx_before_on_value = 0
-                keep_current_point = True
 
             idx_suboptimal = int(suboptimal_points[idx_before_on_value])
 
@@ -304,16 +302,16 @@ def scan_value_correspondence(
 
                 # # The next two interpolations is just to show that from interpolatong from
                 # # each side leads to the same result
-                # intersect_value_2_left = linear_interpolation_with_extrapolation(
-                #     x=np.array([endog_grid[j], endog_grid[k]]),
-                #     y=np.array([value[j], value[k]]),
-                #     x_new=intersect_grid,
-                # )
-                # intersect_value_2_right = linear_interpolation_with_extrapolation(
-                #     x=np.array([endog_grid[i + 1], endog_grid[idx_suboptimal]]),
-                #     y=np.array([value[i + 1], value[idx_suboptimal]]),
-                #     x_new=intersect_grid,
-                # )
+                intersect_value_left = linear_interpolation_with_extrapolation(
+                    x=np.array([endog_grid[j], endog_grid[k]]),
+                    y=np.array([policy[j], policy[k]]),
+                    x_new=intersect_grid,
+                )
+                intersect_value_right = linear_interpolation_with_extrapolation(
+                    x=np.array([endog_grid[i + 1], endog_grid[idx_suboptimal]]),
+                    y=np.array([policy[i + 1], policy[idx_suboptimal]]),
+                    x_new=intersect_grid,
+                )
 
                 # TODO: Interpolate policy from left on intersection point and noqa: T000
                 # from right on intersection point. Then insert value twice the
@@ -322,17 +320,25 @@ def scan_value_correspondence(
 
                 value[j] = intersect_value
                 endog_grid[j] = intersect_grid
-                value_refined[j] = intersect_value  # np.nan # noqa: U100
-                # policy_refined[j] = intersect_policy  # np.nan # noqa: U100
-                endog_grid_refined[j] = intersect_grid  # np.nan # noqa: U100
+                policy[j] = intersect_value_right
 
-                # value_refined[j + 1 + offset] = intersect_value # noqa: U100
-                # policy_refined[j + 1 + offset] = intersect_policy # noqa: U100
-                offset += 1
+                value_refined[refined_counter] = intersect_value
+                policy_refined[refined_counter] = intersect_value_left
+                endog_grid_refined[refined_counter] = intersect_grid
+                refined_counter += 1
+
+                value_refined[refined_counter] = intersect_value
+                policy_refined[refined_counter] = intersect_value_right
+                endog_grid_refined[refined_counter] = intersect_grid
+                refined_counter += 1
 
                 j = i + 1
 
             else:
+                value_refined[refined_counter] = value[i + 1]
+                policy_refined[refined_counter] = policy[i + 1]
+                endog_grid_refined[refined_counter] = endog_grid[i + 1]
+                refined_counter += 1
                 k = j
                 j = i + 1
 
