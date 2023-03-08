@@ -8,6 +8,7 @@ from typing import Optional
 from typing import Tuple
 
 import numpy as np
+from dcegm.interpolate import linear_interpolation_with_extrapolation
 
 
 def fast_upper_envelope_wrapper(
@@ -217,6 +218,7 @@ def scan_value_correspondence(
                 idx_next=i + 1,
                 n_points_to_scan=n_points_to_scan,
             )
+            breakpoint()
 
             if np.sum(stay_on_value_func) > 0:
                 idx_next_on_value = np.where(stay_on_value_func)[0][0]
@@ -272,21 +274,47 @@ def scan_value_correspondence(
                 keep_current_point = False
 
             if not keep_current_point:
-                a1 = np.array([endog_grid[j], value[j]])
-                a2 = np.array([endog_grid[k], value[k]])
-                b1 = np.array([endog_grid[i + 1], value[i + 1]])
-                b2 = np.array([endog_grid[idx_suboptimal], value[idx_suboptimal]])
-                (
-                    intersect_grid,
-                    intersect_value,
-                ) = find_intersection_point_grid_and_value(a1, a2, b1, b2)
+                # a1 = np.array([endog_grid[j], value[j]])
+                # a2 = np.array([endog_grid[k], value[k]])
+                # b1 = np.array([endog_grid[i + 1], value[i + 1]])
+                # b2 = np.array([endog_grid[idx_suboptimal], value[idx_suboptimal]])
+                # (
+                #     intersect_grid,
+                #     intersect_value,
+                # ) = find_intersection_point_grid_and_value(a1, a2, b1, b2)
+                (intersect_grid, intersect_value,) = linear_intersection(
+                    x1=endog_grid[j],
+                    y1=value[j],
+                    x2=endog_grid[k],
+                    y2=value[k],
+                    x3=endog_grid[i + 1],
+                    y3=value[i + 1],
+                    x4=endog_grid[idx_suboptimal],
+                    y4=value[idx_suboptimal],
+                )
+
+                # # The next two interpolations is jus to show that from interpolatong from
+                # # each side leads to the same result
+                # intersect_value_2_left = linear_interpolation_with_extrapolation(
+                #     x=np.array([endog_grid[j], endog_grid[k]]),
+                #     y=np.array([value[j], value[k]]),
+                #     x_new=intersect_grid,
+                # )
+                # intersect_value_2_right = linear_interpolation_with_extrapolation(
+                #     x=np.array([endog_grid[i + 1], endog_grid[idx_suboptimal]]),
+                #     y=np.array([value[i + 1], value[idx_suboptimal]]),
+                #     x_new=intersect_grid,
+                # )
+
+                # TODO: Interpolate policy from left on intersection point and noqa: T000
+                # from right on intersection point. Then insert value twice the
+                # intersection point in the endogenous grid, twice the value function,
+                # and the policy interpolation from left first and then after from right.
 
                 value[j] = intersect_value
                 endog_grid[j] = intersect_grid
                 value_refined[j] = intersect_value  # np.nan # noqa: U100
                 endog_grid_refined[i + 1] = intersect_grid  # np.nan # noqa: U100
-
-                # TODO: Interpolate policy # noqa: T000
 
                 j = i + 1
 
@@ -414,3 +442,13 @@ def _append_new_point(x_array, m):
 
     x_array[-1] = m
     return x_array
+
+
+def linear_intersection(x1, y1, x2, y2, x3, y3, x4, y4):
+    slope1 = (y2 - y1) / (x2 - x1)
+    slope2 = (y4 - y3) / (x4 - x3)
+
+    x_intersection = (slope1 * x1 - slope2 * x3 + y3 - y1) / (slope1 - slope2)
+    y_intersection = slope1 * (x_intersection - x1) + y1
+
+    return x_intersection, y_intersection
