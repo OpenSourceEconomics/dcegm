@@ -172,9 +172,9 @@ def fast_upper_envelope(
     #     policy_clean_with_nans[np.where(~np.isnan(value_clean_with_nans))],
     # )
 
-    endog_grid_refined = endog_grid[np.where(~np.isnan(value_clean_with_nans))]
-    value_refined = value_clean_with_nans[np.where(~np.isnan(value_clean_with_nans))]
-    policy_refined = policy[np.where(~np.isnan(value_clean_with_nans))]
+    endog_grid_refined = endog_grid[~np.isnan(value_clean_with_nans)]
+    value_refined = value_clean_with_nans[~np.isnan(value_clean_with_nans)]
+    policy_refined = policy[~np.isnan(value_clean_with_nans)]
 
     return endog_grid_refined, value_refined, policy_refined
 
