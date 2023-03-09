@@ -229,6 +229,7 @@ def _scan(
     k = 0
 
     refined_counter = 3
+    breakpoint()
 
     for i in range(2, len(endog_grid) - 2):
 
