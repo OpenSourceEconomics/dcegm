@@ -8,7 +8,7 @@ from typing import Optional
 from typing import Tuple
 
 import numpy as np
-from dcegm.interpolate import linear_interpolation_with_extrapolation
+from dcegm.interpolate import linear_interpolation_with_extrapolation  # noqa: F401
 
 
 def fast_upper_envelope_wrapper(
@@ -155,10 +155,14 @@ def fast_upper_envelope(
 
     # ================================================================================
 
-    value_clean_with_nans = _scan_org(
-        endog_grid, value, policy, exog_grid, m_bar=jump_thresh, LB=10
+    value_clean_with_nans = _scan(
+        endog_grid,
+        value,
+        policy,
+        exog_grid,
+        jump_thresh=jump_thresh,
+        n_points_to_scan=10,
     )
-    # _scan_org(e_grid, vf, c, a_prime, m_bar, LB, fwd_scan_do=True)
 
     endog_grid_refined = (endog_grid[np.where(~np.isnan(value_clean_with_nans))],)
     value_refined = (value_clean_with_nans[np.where(~np.isnan(value_clean_with_nans))],)
@@ -170,239 +174,286 @@ def fast_upper_envelope(
 # ================================================================================
 
 
-def append_push(x_array, m):
-    """Delete first value of array, pushes back index of all undeleted values and
-    appends m to final index."""
+def _scan(
+    endog_grid,
+    value,
+    policy,  # noqa: U100
+    exog_grid,
+    jump_thresh,
+    n_points_to_scan,
+    do_forward_scan=True,
+):
+    """Scan the value function to remove suboptimal points.
 
+    Args:
+        value (np.ndarray): 1d array containing the unrefined value correspondence
+            of shape (n_grid_wealth + 1,).
+        polcy (np.ndarray): 1d array containing the unrefined policy correspondence
+            of shape (n_grid_wealth + 1,).
+        endog_grid (np.ndarray): 1d array containing the unrefined endogenous wealth
+            grid of shape (n_grid_wealth + 1,).
+        exog_grid (np.ndarray): 1d array containing the exogenous wealth grid
+            of shape (n_grid_wealth + 1,).
+        jump_thresh (float): Jump detection threshold.
+        n_points_to_scan (int): Number of points to scan for suboptimal points.
+
+    Returns:
+        value_refined (np.ndarray): 1d array containing the refined value function
+            of shape (n_grid_clean,). Overlapping segments have been removed and only
+            the optimal points are kept.
+
+    """
+    # leading index for optimal values j
+    # leading index for value to be `checked' is i+1
+
+    value_unrefined = np.copy(value)
+    suboptimal_points = np.zeros(n_points_to_scan)
+
+    j = 1
+    k = 0
+
+    for i in range(2, len(endog_grid) - 2):
+
+        # value function gradient between previous two optimal points
+        grad_previous = (value_unrefined[j] - value_unrefined[k]) / (
+            endog_grid[j] - endog_grid[k]
+        )
+
+        # gradient with leading index to be checked
+        grad_next = (value_unrefined[i + 1] - value_unrefined[j]) / (
+            endog_grid[i + 1] - endog_grid[j]
+        )
+
+        switch_value_func = (
+            np.abs(
+                (exog_grid[i + 1] - exog_grid[j]) / (endog_grid[i + 1] - endog_grid[j])
+            )
+            > jump_thresh
+        )
+
+        # if right turn is made and jump registered
+        # remove point or perform forward scan
+        if grad_next < grad_previous and switch_value_func:
+            keep_next = False
+
+            if do_forward_scan:
+                gradients_f_vf, on_same_value_func = _forward_scan(
+                    value=value,
+                    endog_grid=endog_grid,
+                    exog_grid=exog_grid,
+                    jump_thresh=jump_thresh,
+                    idx_current=j,
+                    idx_next=i + 1,
+                    n_points_to_scan=n_points_to_scan,
+                )
+
+                # get index of closest next point with same discrete choice as point j
+                if np.sum(on_same_value_func) > 0:
+                    idx_next_on_same_value = np.where(on_same_value_func)[0][0]
+                    grad_next_forward = gradients_f_vf[idx_next_on_same_value]
+
+                    if grad_next > grad_next_forward:
+                        keep_next = True
+
+                if not keep_next:
+                    value[i + 1] = np.nan
+                    suboptimal_points = _append_new_point(suboptimal_points, i + 1)
+                else:
+                    k = j
+                    j = i + 1
+
+        elif value_unrefined[i + 1] - value_unrefined[j] < 0:
+            value[i + 1] = np.nan
+            suboptimal_points = _append_new_point(suboptimal_points, i + 1)
+
+        # assume value is monotone in policy and delete if not satisfied
+        elif grad_next < grad_previous and exog_grid[i + 1] - exog_grid[j] < 0:
+            value[i + 1] = np.nan
+            suboptimal_points = _append_new_point(suboptimal_points, i + 1)
+
+        # if left turn is made or right turn with no jump, then
+        # keep point provisionally and conduct backward scan
+        else:
+            gradients_m_vf, gradients_m_a = _backward_scan(
+                value_unrefined=value_unrefined,
+                endog_grid=endog_grid,
+                exog_grid=exog_grid,
+                suboptimal_points=suboptimal_points,
+                jump_thresh=jump_thresh,
+                idx_current=j,
+                idx_next=i + 1,
+            )
+            keep_current = True
+
+            # index m of last point that is deleted and does not jump from
+            # leading point where left turn is made.
+            # this is the closest previous point on the same
+            # discrete choice specific
+            # policy as the leading value we have just jumped to
+            if np.sum(gradients_m_a) > 0:
+                idx_before_on_same_value = np.where(gradients_m_a)[0][-1]
+                grad_next_forward = gradients_m_vf[idx_before_on_same_value]
+
+            else:
+                idx_before_on_same_value = 0
+                keep_current = True
+
+            idx_suboptimal = int(suboptimal_points[idx_before_on_same_value])
+
+            # if the gradient joining the leading point i+1 (we have just
+            # jumped to) and the point m(the last point on the same
+            # choice specific policy) is shallower than the
+            # gradient joining the i+1 and j, then delete j'th point
+
+            if (
+                grad_next > grad_previous
+                and grad_next >= grad_next_forward
+                and switch_value_func
+            ):
+                keep_current = False
+
+            if not keep_current:
+                pj = np.array([endog_grid[j], value_unrefined[j]])
+                pk = np.array([endog_grid[k], value_unrefined[k]])
+                pi1 = np.array([endog_grid[i + 1], value_unrefined[i + 1]])
+                pm = np.array(
+                    [endog_grid[idx_suboptimal], value_unrefined[idx_suboptimal]]
+                )
+                intersect = find_intersection_point_grid_and_value(pj, pk, pi1, pm)
+
+                value[j] = np.nan
+                value_unrefined[j] = intersect[1]
+                endog_grid[j] = intersect[0]
+                j = i + 1
+
+            else:
+                k = j
+                j = i + 1
+
+    return value
+
+
+def _forward_scan(
+    value, endog_grid, exog_grid, jump_thresh, idx_current, idx_next, n_points_to_scan
+):
+    """Scan forward to find the next optimal point.
+
+    Args:
+        value (np.ndarray): 1d array containing the value function of shape
+            (n_grid_wealth + 1,).
+        endog_grid (np.ndarray): 1d array containing the endogenous wealth grid of
+            shape (n_grid_wealth + 1,).
+        exog_grid (np.ndarray): 1d array containing the exogenous wealth grid of
+            shape (n_grid_wealth + 1,).
+        jump_thresh (float): Threshold for the jump in the value function.
+        idx_current (int): Index of the current point in the value function.
+        idx_next (int): Index of the next point in the value function.
+
+    Returns:
+        tuple:
+
+        - grad_next_arr (np.ndarray): 1d array containing the gradient of the
+            value function at the next point.
+        - switch_value_func (np.ndarray): 1d array of booleans denoting whether we
+            switch value functions at the corresponding points.
+
+    """
+
+    grad_next_arr = np.empty(n_points_to_scan)
+    stay_on_value_func = np.empty(n_points_to_scan)
+
+    for i in range(n_points_to_scan):
+        grad_next_arr[i] = (value[idx_next] - value[idx_next + 1 + i]) / (
+            endog_grid[idx_next] - endog_grid[idx_next + 1 + i]
+        )
+        stay_on_value_func[i] = (
+            np.abs(
+                (exog_grid[idx_current] - exog_grid[idx_next + 1 + i])
+                / (endog_grid[idx_current] - endog_grid[idx_next + 1 + i])
+            )
+            < jump_thresh
+        )
+
+    return grad_next_arr, stay_on_value_func
+
+
+def _backward_scan(
+    value_unrefined,
+    endog_grid,
+    exog_grid,
+    suboptimal_points,
+    jump_thresh,
+    idx_current,
+    idx_next,
+):
+    """Scan backward to find the previous optimal point.
+
+    Args:
+        value (np.ndarray): 1d array containing the value function of shape
+            (n_grid_wealth + 1,).
+        endog_grid (np.ndarray): 1d array containing the endogenous wealth grid of
+            shape (n_grid_wealth + 1,).
+        exog_grid (np.ndarray): 1d array containing the exogenous wealth grid of
+            shape (n_grid_wealth + 1,).
+        suboptimal_points (list): List of suboptimal points in the value function.
+        jump_thresh (float): Threshold for the jump in the value function.
+        idx_current (int): Index of the current point in the value function.
+        idx_next (int): Index of the next point in the value function.
+
+    Returns:
+        tuple:
+
+        - grad_arr_next (np.ndarray): 1d array containing the gradients of the next
+            points in the value function.
+        - switch_value_func (np.ndarray): 1d array of booleans denoting whether we
+            switch value functions at the corresponding points.
+
+    """
+    grad_arr_before = np.empty(len(suboptimal_points))
+    switch_value_func = np.empty(len(suboptimal_points))
+
+    for i in range(len(switch_value_func)):
+        idx_suboptimal = int(suboptimal_points[i])
+        grad_arr_before[i] = (
+            value_unrefined[idx_current] - value_unrefined[idx_suboptimal]
+        ) / (endog_grid[idx_current] - endog_grid[idx_suboptimal])
+        switch_value_func[i] = (
+            np.abs(
+                (exog_grid[idx_next] - exog_grid[idx_suboptimal])
+                / (endog_grid[idx_next] - endog_grid[idx_suboptimal])
+            )
+            < jump_thresh
+        )
+
+    return grad_arr_before, switch_value_func
+
+
+def find_intersection_point_grid_and_value(a1, a2, b1, b2):
+    """Find the intersection of two lines.
+
+    Args:
+        a1 (np.ndarray): 1d array containing the first point of the first line.
+        a2 (np.ndarray): 1d array containing the second point of the first line.
+        b1 (np.ndarray): 1d array containing the first point of the second line.
+        b2 (np.ndarray): 1d array containing the second point of the second line.
+
+    Returns:
+        np.ndarray: 1d array containing the intersection point of the two lines.
+
+    """
+    da = a2 - a1
+    db = b2 - b1
+    dp = a1 - b1
+    dap = np.array([-da[1], da[0]])
+    denom = dap @ db
+    num = dap @ dp
+    return tuple((num / denom) * db + b1)
+
+
+def _append_new_point(x_array, m):
+    """Append a new point to an array."""
     for i in range(len(x_array) - 1):
         x_array[i] = x_array[i + 1]
 
     x_array[-1] = m
     return x_array
-
-
-def back_scan_gradients(m_array, a_prime, vf_full, e_grid, j, q):
-    """Compute gradients of value correspondence points and policy points with respect
-    to all m values and policy points in m_array See Figure 5, right panel in DS
-    (2023)"""
-
-    gradients_m_vf = np.zeros(len(m_array))
-    gradients_m_a = np.zeros(len(m_array))
-
-    for m in range(len(gradients_m_a)):
-        m_int = int(m_array[m])
-        gradients_m_vf[m] = (vf_full[j] - vf_full[m_int]) / (e_grid[j] - e_grid[m_int])
-        gradients_m_a[m] = np.abs(
-            (a_prime[q] - a_prime[m_int]) / (e_grid[q] - e_grid[m_int])
-        )
-
-    return gradients_m_vf, gradients_m_a
-
-
-def fwd_scan_gradients(a_prime, vf_full, e_grid, j, q, LB):
-    """Computes gradients of value correspondence points and  policy points with respect
-    to values and policy points for next LB points in grid See Figure 5, left panel in
-    DS (2023)"""
-
-    gradients_f_vf = np.zeros(LB)
-    gradients_f_a = np.zeros(LB)
-
-    for f in range(LB):
-        gradients_f_vf[f] = (vf_full[q] - vf_full[q + 1 + f]) / (
-            e_grid[q] - e_grid[q + 1 + f]
-        )
-        gradients_f_a[f] = np.abs(
-            (a_prime[j] - a_prime[q + 1 + f]) / (e_grid[j] - e_grid[q + 1 + f])
-        )
-
-    return gradients_f_vf, gradients_f_a
-
-
-def perp(a):
-    """Finds perpendicilar line to 1D line
-    Parameters
-    ----------
-    a: 1D array
-        points (b, 1/m)
-    Returns
-    -------
-    b: 1D array
-        b[0] = -1/m, b[1]= b
-    """
-    b = np.empty(np.shape(a))
-    b[0] = -a[1]
-    b[1] = a[0]
-
-    return b
-
-
-def seg_intersect(a1, a2, b1, b2):
-    """Intersection of two 1D line segments
-    Parameters
-    ----------
-    a1: 1D array
-         First point of first line seg
-    a2: 1D array
-         Second point of first line seg
-    b1: 1D array
-         First point of first line seg
-    b2: 1D array
-         Second point of first line seg
-    Returns
-    -------
-    c: 1D array
-        intersection point
-    """
-    da = a2 - a1
-    db = b2 - b1
-    dp = a1 - b1
-    dap = perp(da)
-    denom = np.dot(dap, db)
-    num = np.dot(dap, dp)
-    return (num / denom) * db + b1
-
-
-def _scan_org(e_grid, vf, c, a_prime, m_bar, LB, fwd_scan_do=True):
-    """ " Implements the scan for FUES."""
-
-    # leading index for optimal values j
-    # leading index for value to be `checked' is i+1
-
-    # create copy of value function
-    # this copy remains intact as the unrefined set of points
-    vf_full = np.copy(vf)
-
-    # empty array to store policy function gradient
-    dela = np.zeros(len(vf))
-
-    # array of previously sub-optimal indices to be used in backward scan
-    m_array = np.zeros(LB)
-
-    # FUES scan
-    for i in range(len(e_grid) - 2):
-
-        # inital two points are optimal (assumption)
-        if i <= 1:
-            j = np.copy(np.array([i]))[0]
-            k = np.copy(np.array([j - 1]))[0]
-            previous_opt_is_intersect = False
-            k_minus_1 = np.copy(np.array([k]))[0] - 1
-
-        else:
-            # value function gradient betweeen previous two optimal points
-            g_j_minus_1 = (vf_full[j] - vf_full[k]) / (e_grid[j] - e_grid[k])
-
-            # gradient with leading index to be checked
-            g_1 = (vf_full[i + 1] - vf_full[j]) / (e_grid[i + 1] - e_grid[j])
-
-            # policy gradient with leading index to be checked
-            g_tilde_a = np.abs(
-                (a_prime[i + 1] - a_prime[j]) / (e_grid[i + 1] - e_grid[j])
-            )
-
-            # if right turn is made and jump registered
-            # remove point or perform forward scan
-            if g_1 < g_j_minus_1 and g_tilde_a > m_bar:
-                keep_i_1_point = False
-
-                if fwd_scan_do:
-                    gradients_f_vf, gradients_f_a = fwd_scan_gradients(
-                        a_prime, vf_full, e_grid, j, i + 1, LB
-                    )
-
-                    # get index of closest next point with same
-                    # discrete choice as point j
-                    if len(np.where(gradients_f_a < m_bar)[0]) > 0:
-                        m_index_fwd = np.where(gradients_f_a < m_bar)[0][0]
-                        g_m_vf = gradients_f_vf[m_index_fwd]
-                        g_m_a = gradients_f_a[m_index_fwd]
-
-                        if g_1 > g_m_vf:
-                            keep_i_1_point = True
-                        else:
-                            pass
-                    else:
-                        pass
-
-                    if not keep_i_1_point:
-                        vf[i + 1] = np.nan
-                        m_array = append_push(m_array, i + 1)
-                    else:
-                        previous_opt_is_intersect = True
-                        k = np.copy(np.array([j]))[0]
-                        j = np.copy(np.array([i]))[0] + 1
-
-            # If value falls, remove points
-            elif vf_full[i + 1] - vf_full[j] < 0:
-                vf[i + 1] = np.nan
-                # append index array of previously deleted points
-                m_array = append_push(m_array, i + 1)
-
-            # assume value is monotone in policy and delete if not
-            # satisfied
-            elif g_1 < g_j_minus_1 and a_prime[i + 1] - a_prime[j] < 0:
-                vf[i + 1] = np.nan
-                m_array = append_push(m_array, i + 1)
-
-            # if left turn is made or right turn with no jump, then
-            # keep point provisionally and conduct backward scan
-            else:
-                # backward scan
-                # compute value gradients (from i+1) and
-                # policy gradients (from j)
-                # wrt to LB previously deleted values
-                gradients_m_vf, gradients_m_a = back_scan_gradients(
-                    m_array, a_prime, vf_full, e_grid, j, i + 1
-                )
-                keep_j_point = True
-
-                # index m of last point that is deleted and does not jump from
-                # leading point where left turn is made.
-                # this is the closest previous point on the same
-                # discrete choice specific
-                # policy as the leading value we have just jumped to
-                if len(np.where(gradients_m_a < m_bar)[0]) > 0:
-                    m_index_bws = np.where(gradients_m_a < m_bar)[0][-1]
-
-                    # gradient of vf and policy to the m'th point
-                    g_m_vf = gradients_m_vf[m_index_bws]
-                    g_m_a = gradients_m_a[m_index_bws]
-
-                else:
-                    m_index_bws = 0
-                    keep_j_point = True
-
-                # index of m'th point on the e_grid
-                m_ind = int(m_array[m_index_bws])
-
-                # if the gradient joining the leading point i+1 (we have just
-                # jumped to) and the point m(the last point on the same
-                # choice specific policy) is shallower than the
-                # gradient joining the i+1 and j, then delete j'th point
-
-                if g_1 > g_j_minus_1 and g_1 >= g_m_vf and g_tilde_a > m_bar:
-                    keep_j_point = False
-
-                if not keep_j_point:
-                    pj = np.copy(np.array([e_grid[j], vf_full[j]]))
-                    pi1 = np.copy(np.array([e_grid[i + 1], vf_full[i + 1]]))
-                    pk = np.copy(np.array([e_grid[k], vf_full[k]]))
-                    pm = np.copy(np.array([e_grid[m_ind], vf_full[m_ind]]))
-                    intrsect = seg_intersect(pj, pk, pi1, pm)
-
-                    vf[j] = np.nan
-                    vf_full[j] = intrsect[1]
-                    e_grid[j] = intrsect[0]
-                    previous_opt_is_intersect = True
-                    j = np.copy(np.array([i]))[0] + 1
-
-                else:
-
-                    previous_opt_is_intersect = False
-                    if g_1 > g_j_minus_1:
-                        previous_opt_is_intersect = True
-
-                    k = np.copy(np.array([j]))[0]
-                    j = np.copy(np.array([i]))[0] + 1
-
-    return vf

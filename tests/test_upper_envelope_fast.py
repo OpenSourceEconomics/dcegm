@@ -8,6 +8,7 @@ import pytest
 from dcegm.pre_processing import calc_current_value
 from dcegm.upper_envelope import upper_envelope
 from dcegm.upper_envelope_fast import fast_upper_envelope_wrapper
+from dcegm.upper_envelope_fast_bug import fast_upper_envelope_wrapper_bug
 from dcegm.upper_envelope_fast_org import fast_upper_envelope_wrapper_org
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
@@ -3544,6 +3545,7 @@ def test_fast_upper_envelope_against_org_code():
     ]
 
     aaae(policy_got, policy_expected)
+    aaae(value_got, value_expected)
 
 
 @pytest.mark.skip
@@ -3573,7 +3575,7 @@ def test_fast_upper_envelope_against_fedor():
         compute_utility=compute_utility,
     )
 
-    policy_refined, value_refined = fast_upper_envelope_wrapper(
+    policy_refined, value_refined = fast_upper_envelope_wrapper_bug(
         policy=policy_egm,
         value=value_egm,
         exog_grid=exogenous_savings_grid,
@@ -3600,12 +3602,16 @@ def test_fast_upper_envelope_against_fedor():
         ~np.isnan(value_fedor).any(axis=0),
     ]
 
-    # save
-    # np.savetxt("plot_fues_against_fedor_policy_10_fues.csv", policy_got, delimiter=",")
     # np.savetxt(
-    #     "plot_fues_against_fedor_policy_10_fedor.csv", policy_expected, delimiter=","
-    # )
-    # a. next-period consumption function
+    #     "plot_fues_against_fedor_policy_10_fues.csv",
+    #     policy_got,
+    #     delimiter="," # noqa: E800
+    # ) # noqa: E800
+    # np.savetxt(
+    #     "plot_fues_against_fedor_policy_10_fedor.csv",
+    #     policy_expected, # noqa: E800
+    #     delimiter="," # noqa: E800
+    # ) # noqa: E800
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
@@ -3649,7 +3655,7 @@ def test_upper_envelope(test_data):
         compute_utility=compute_utility,
     )
 
-    policy_refined, value_refined = fast_upper_envelope_wrapper(
+    policy_refined, value_refined = fast_upper_envelope_wrapper_bug(
         policy=policy_egm,
         value=value_egm,
         exog_grid=exogenous_savings_grid,
@@ -3696,7 +3702,7 @@ def test_credit_constrained():
         TEST_RESOURCES_DIR / "value_egm_credit_constrained.csv", delimiter=","
     )
 
-    policy_refined, value_refined = fast_upper_envelope_wrapper(
+    policy_refined, value_refined = fast_upper_envelope_wrapper_bug(
         policy=policy_egm,
         value=value_egm,
         exog_grid=exogenous_savings_grid,
