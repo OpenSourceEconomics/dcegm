@@ -214,14 +214,14 @@ def _scan(
     # leading index for optimal values j
     # leading index for value to be `checked' is i+1
 
-    value_full = np.copy(value_full)
-    value = np.copy(value_full)
+    value_to_read = np.copy(value_full)
+    value_refined = np.copy(value_full)
     policy_refined = np.copy(policy)
     endog_grid_refined = np.copy(endog_grid)
 
-    # value[3:] = np.nan
-    # endog_grid_refined[3:] = np.nan
-    # policy_refined[3:] = np.nan
+    value_refined[3:] = np.nan
+    endog_grid_refined[3:] = np.nan
+    policy_refined[3:] = np.nan
 
     suboptimal_points = np.zeros(n_points_to_scan)
 
@@ -274,23 +274,25 @@ def _scan(
                         keep_next = True
 
                 if not keep_next:
-                    value[i + 1] = np.nan
+                    # value_refined[i + 1] = np.nan
                     suboptimal_points = _append_new_point(suboptimal_points, i + 1)
                 else:
-                    # value[refined_counter] = value_full[i + 1]
+                    if i + 1 == 13:
+                        breakpoint()
+                    value_refined[refined_counter] = value_to_read[i + 1]
                     # policy_refined[refined_counter] = policy[i + 1]
                     # endog_grid_refined[refined_counter] = endog_grid[i + 1]
-                    # refined_counter += 1
+                    refined_counter += 1
                     k = j
                     j = i + 1
 
         elif value_full[i + 1] - value_full[j] < 0:
-            value[i + 1] = np.nan
+            # value_refined[i + 1] = np.nan
             suboptimal_points = _append_new_point(suboptimal_points, i + 1)
 
         # assume value is monotone in policy and delete if not satisfied
         elif grad_next < grad_previous and exog_grid[i + 1] - exog_grid[j] < 0:
-            value[i + 1] = np.nan
+            # value_refined[i + 1] = np.nan
             suboptimal_points = _append_new_point(suboptimal_points, i + 1)
 
         # if left turn is made or right turn with no jump, then
@@ -384,7 +386,7 @@ def _scan(
                 # intersection point in the endogenous grid, twice the value function,
                 # and the policy interpolation from left first and then after from right.
 
-                value[j] = np.nan
+                value_refined[refined_counter - 1] = value_to_read[i + 1]
                 value_full[j] = intersect_value
                 endog_grid[j] = intersect_grid
                 policy[j] = intersect_value_right
@@ -407,17 +409,17 @@ def _scan(
                 j = i + 1
 
             else:
-                # value[refined_counter] = value_full[i + 1]
+                value_refined[refined_counter] = value_to_read[i + 1]
                 # policy_refined[refined_counter] = policy[i + 1]
                 # endog_grid_refined[refined_counter] = endog_grid[i + 1]
-                # refined_counter += 1
+                refined_counter += 1
                 k = j
                 j = i + 1
 
     # The last point is in there by definition?!
-    # value_refined[refined_counter] = value_full[-1]
+    value_refined[refined_counter] = value_to_read[-1]
 
-    return value, policy_refined, endog_grid_refined
+    return value_refined, policy_refined, endog_grid_refined
 
 
 def _forward_scan(
