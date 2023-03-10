@@ -351,24 +351,24 @@ def _scan(
                 # value_unrefined[j] = intersect[1]
                 # endog_grid[j] = intersect[0]
                 # j = i + 1
-                a1 = np.array([endog_grid[j], value_full[j]])
-                a2 = np.array([endog_grid[k], value_full[k]])
-                b1 = np.array([endog_grid[i + 1], value_full[i + 1]])
-                b2 = np.array([endog_grid[idx_suboptimal], value_full[idx_suboptimal]])
-                (
-                    intersect_grid,
-                    intersect_value,
-                ) = find_intersection_point_grid_and_value(a1, a2, b1, b2)
-                # intersect_grid, intersect_value = _linear_intersection(
-                #     x1=endog_grid[j],
-                #     y1=value_full[j],
-                #     x2=endog_grid[k],
-                #     y2=value_full[k],
-                #     x3=endog_grid[i + 1],
-                #     y3=value_full[i + 1],
-                #     x4=endog_grid[idx_suboptimal],
-                #     y4=value_full[idx_suboptimal],
-                # )
+                # a1 = np.array([endog_grid[j], value_full[j]])
+                # a2 = np.array([endog_grid[k], value_full[k]])
+                # b1 = np.array([endog_grid[i + 1], value_full[i + 1]])
+                # b2 = np.array([endog_grid[idx_suboptimal], value_full[idx_suboptimal]])
+                # (
+                #     intersect_grid,
+                #     intersect_value,
+                # ) = find_intersection_point_grid_and_value(a1, a2, b1, b2)
+                intersect_grid, intersect_value = _linear_intersection(
+                    x1=endog_grid[j],
+                    y1=value_full[j],
+                    x2=endog_grid[k],
+                    y2=value_full[k],
+                    x3=endog_grid[i + 1],
+                    y3=value_full[i + 1],
+                    x4=endog_grid[idx_suboptimal],
+                    y4=value_full[idx_suboptimal],
+                )
 
                 # # The next two interpolations is just to show that from interpolatong from
                 # # each side leads to the same result
