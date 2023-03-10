@@ -3571,14 +3571,13 @@ def test_fast_upper_envelope_against_fedor():
         compute_utility=compute_utility,
     )
 
-    policy_refined, value_refined = fast_upper_envelope_wrapper_bug(
-        policy=policy_egm,
-        value=value_egm,
-        exog_grid=exogenous_savings_grid,
-        choice=choice,
-        n_grid_wealth=len(exogenous_savings_grid),
-        compute_value=compute_value,
+    endog_grid_refined, value_refined, policy_refined = fast_upper_envelope(
+        endog_grid=policy_egm[0],
+        value=value_egm[1],
+        policy=policy_egm[1],
+        exog_grid=np.append(0, exogenous_savings_grid),
     )
+
     _policy_refined_fedor, _value_refine_fedor = upper_envelope(  # noqa: U100
         policy=policy_egm,
         value=value_egm,
@@ -3587,11 +3586,6 @@ def test_fast_upper_envelope_against_fedor():
         compute_value=compute_value,
     )
 
-    policy_got = policy_refined[:, ~np.isnan(policy_refined).any(axis=0)]
-    value_got = value_refined[  # noqa: F841
-        :,
-        ~np.isnan(value_refined).any(axis=0),
-    ]
     policy_expected = policy_fedor[:, ~np.isnan(policy_fedor).any(axis=0)]
     value_expected = value_fedor[  # noqa: F841
         :,
@@ -3609,23 +3603,23 @@ def test_fast_upper_envelope_against_fedor():
     #     delimiter="," # noqa: E800
     # ) # noqa: E800
 
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
-    ax.plot(policy_expected[0], policy_expected[1], "o", c="g", ms=0.5)
-    ax.set_title("refined - Fedor")
-    ax.set_xlabel("$m_t$")
-    ax.set_ylabel("$c_t$")
-    fig.savefig("fedor_pol10.png", dpi=300)
+    # fig = plt.figure()
+    # ax = fig.add_subplot(1, 1, 1)
+    # ax.plot(policy_expected[0], policy_expected[1], "o", c="g", ms=0.5)
+    # ax.set_title("refined - Fedor")
+    # ax.set_xlabel("$m_t$")
+    # ax.set_ylabel("$c_t$")
+    # fig.savefig("fedor_pol10.png", dpi=300)
+    #
+    # fig = plt.figure()
+    # ax = fig.add_subplot(1, 1, 1)
+    # ax.plot(policy_got[0], policy_got[1], "o", ms=0.5)
+    # ax.set_title("refined - FUES")
+    # ax.set_xlabel("$m_t$")
+    # ax.set_ylabel("$c_t$")
+    # fig.savefig("fues_pol10.png", dpi=300)
 
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
-    ax.plot(policy_got[0], policy_got[1], "o", ms=0.5)
-    ax.set_title("refined - FUES")
-    ax.set_xlabel("$m_t$")
-    ax.set_ylabel("$c_t$")
-    fig.savefig("fues_pol10.png", dpi=300)
-
-    aaae(policy_got[0], policy_expected[0])
+    aaae(value_refined, value_expected[1, :])
 
 
 @pytest.mark.skip

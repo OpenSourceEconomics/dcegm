@@ -229,6 +229,7 @@ def _scan(
     k = 0
 
     refined_counter = 3
+    last_point_intersection = False
 
     for i in range(2, len(endog_grid) - 2):
 
@@ -277,6 +278,7 @@ def _scan(
                     # value_refined[i + 1] = np.nan
                     suboptimal_points = _append_new_point(suboptimal_points, i + 1)
                 else:
+                    last_point_intersection = False
                     value_refined[refined_counter] = value_to_read[i + 1]
                     # policy_refined[refined_counter] = policy[i + 1]
                     # endog_grid_refined[refined_counter] = endog_grid[i + 1]
@@ -384,7 +386,16 @@ def _scan(
                 # intersection point in the endogenous grid, twice the value function,
                 # and the policy interpolation from left first and then after from right.
 
+                # if last_point_intersection:
+                #     value_refined[refined_counter - 2] = intersect_value
+                #     value_refined[refined_counter - 1] = value_to_read[i + 1]
+                # else:
+                #     value_refined[refined_counter - 1] = intersect_value
+                #     value_refined[refined_counter] = value_to_read[i + 1]
+                #     refined_counter += 1
+
                 value_refined[refined_counter - 1] = value_to_read[i + 1]
+                # value_refined[j] = np.nan
                 value_full[j] = intersect_value
                 endog_grid[j] = intersect_grid
                 policy[j] = intersect_value_right
@@ -403,10 +414,13 @@ def _scan(
                 # policy_refined[refined_counter] = np.nan
                 # endog_grid_refined[refined_counter] = np.nan
                 # refined_counter += 1
-
+                last_point_intersection = True
                 j = i + 1
 
             else:
+                last_point_intersection = False
+                if grad_next > grad_previous:
+                    last_point_intersection = True
                 value_refined[refined_counter] = value_to_read[i + 1]
                 # policy_refined[refined_counter] = policy[i + 1]
                 # endog_grid_refined[refined_counter] = endog_grid[i + 1]
