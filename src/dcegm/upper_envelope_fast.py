@@ -380,9 +380,6 @@ def _scan(
                     y=np.array([policy[i + 1], policy[idx_suboptimal]]),
                     x_new=intersect_grid,
                 )
-                value_full[j] = intersect_value
-                endog_grid[j] = intersect_grid
-                policy[j] = intersect_value_right
 
                 # TODO: Interpolate policy from left on intersection point and noqa: T000
                 # from right on intersection point. Then insert value twice the
@@ -390,8 +387,9 @@ def _scan(
                 # and the policy interpolation from left first and then after from right.
 
                 value_refined[refined_counter - 1] = value_to_read[i + 1]
-                value_refined[refined_counter] = value_to_read[i + 1]
-                refined_counter += 1
+                value_full[j] = intersect_value
+                endog_grid[j] = intersect_grid
+                policy[j] = intersect_value_right
 
                 # value_refined[refined_counter] = intersect_value
                 # policy_refined[refined_counter] = intersect_value_left
