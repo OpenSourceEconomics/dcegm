@@ -3,12 +3,15 @@
 Based on Akshay Shanker, University of Sydney, akshay.shanker@me.com.
 
 """
+from functools import partial
 from typing import Callable
 from typing import Optional
 from typing import Tuple
 
+import jax.numpy as jnp
 import numpy as np
 from dcegm.interpolate import linear_interpolation_with_extrapolation  # noqa: F401
+from jax import jit
 
 
 def fast_upper_envelope_wrapper(
@@ -163,14 +166,6 @@ def fast_upper_envelope(
         jump_thresh=jump_thresh,
         n_points_to_scan=10,
     )
-
-    # endog_grid_refined = (
-    #     endog_grid_clean_with_nans[np.where(~np.isnan(value_clean_with_nans))],
-    # )
-    # value_refined = (value_clean_with_nans[np.where(~np.isnan(value_clean_with_nans))],)
-    # policy_refined = (
-    #     policy_clean_with_nans[np.where(~np.isnan(value_clean_with_nans))],
-    # )
 
     endog_grid_refined = endog_grid_clean_with_nans[
         ~np.isnan(endog_grid_clean_with_nans)
@@ -342,8 +337,8 @@ def _scan(
                         y4=value_full[idx_suboptimal],
                     )
 
-                    # # The next two interpolations is just to show that from interpolatong from
-                    # # each side leads to the same result
+                    # # The next two interpolations is just to show that from
+                    # interpolation from each side leads to the same result
                     intersect_value_left = linear_interpolation_with_extrapolation(
                         x=np.array([endog_grid[j], endog_grid[k]]),
                         y=np.array([policy[j], policy[k]]),
@@ -419,6 +414,7 @@ def _scan(
     return value_refined, policy_refined, endog_grid_refined
 
 
+@partial(jit, static_argnums=(6))
 def _forward_scan(
     value,
     endog_grid,
@@ -456,28 +452,35 @@ def _forward_scan(
     """
 
     first_grad_on_same_value_func = 0
-    first_point_on_same_value_func = -1
-    any_point_on_same_value_func = False
+    first_point_on_same_value_func = 0
+    any_point_on_same_value_func = 0
 
-    for i in range(n_points_to_scan):
+    for i in range(1, n_points_to_scan + 1):
         stay_on_value_func = (
-            np.abs(
-                (exog_grid[idx_current] - exog_grid[idx_next + 1 + i])
-                / (endog_grid[idx_current] - endog_grid[idx_next + 1 + i])
+            jnp.abs(
+                (exog_grid[idx_current] - exog_grid[idx_next + i])
+                / (endog_grid[idx_current] - endog_grid[idx_next + i])
             )
             < jump_thresh
         )
 
-        no_point_found = first_point_on_same_value_func == -1
-        is_first_point = stay_on_value_func and no_point_found
+        is_first_point = stay_on_value_func * (1 - any_point_on_same_value_func)
 
         first_grad_on_same_value_func = (
-            (value[idx_next] - value[idx_next + 1 + i])
-            / (endog_grid[idx_next] - endog_grid[idx_next + 1 + i])
+            (value[idx_next] - value[idx_next + i])
+            / (endog_grid[idx_next] - endog_grid[idx_next + i])
         ) * is_first_point + (1 - is_first_point) * first_grad_on_same_value_func
-        first_point_on_same_value_func = i * is_first_point
+
+        # Asign new value only if it is the first point on the value function
+        first_point_on_same_value_func = (i - 1) * is_first_point + (
+            1 - is_first_point
+        ) * first_point_on_same_value_func
+
+        # Logic or with booalean indicator functions
         any_point_on_same_value_func = (
-            any_point_on_same_value_func or stay_on_value_func
+            (any_point_on_same_value_func * stay_on_value_func)
+            + (1 - stay_on_value_func) * any_point_on_same_value_func
+            + stay_on_value_func * (1 - any_point_on_same_value_func)
         )
 
     return (
