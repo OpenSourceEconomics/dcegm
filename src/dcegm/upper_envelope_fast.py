@@ -215,7 +215,6 @@ def _scan(
     # leading index for optimal values j
     # leading index for value to be `checked' is i+1
 
-    value_to_read = np.copy(value_full)
     value_refined = np.copy(value_full)
     policy_refined = np.copy(policy)
     endog_grid_refined = np.copy(endog_grid)
@@ -229,8 +228,7 @@ def _scan(
     j = 1
     k = 0
 
-    refined_counter = 3
-    last_point_intersection = False
+    idx_refined = 3
 
     for i in range(2, len(endog_grid) - 2):
 
@@ -275,24 +273,19 @@ def _scan(
                     keep_next = True
 
             if not keep_next:
-                # value_refined[i + 1] = np.nan
                 suboptimal_points = _append_new_point(suboptimal_points, i + 1)
             else:
-                last_point_intersection = False
-                value_refined[refined_counter] = value_to_read[i + 1]
-                policy_refined[refined_counter] = policy[i + 1]
-                endog_grid_refined[refined_counter] = endog_grid[i + 1]
-                refined_counter += 1
+                value_refined[idx_refined] = value_full[i + 1]
+                policy_refined[idx_refined] = policy[i + 1]
+                endog_grid_refined[idx_refined] = endog_grid[i + 1]
+                idx_refined += 1
                 k = j
                 j = i + 1
 
         elif value_full[i + 1] - value_full[j] < 0:
-            # value_refined[i + 1] = np.nan
             suboptimal_points = _append_new_point(suboptimal_points, i + 1)
 
-        # assume value is monotone in policy and delete if not satisfied
         elif grad_previous > grad_next and exog_grid[i + 1] - exog_grid[j] < 0:
-            # value_refined[i + 1] = np.nan
             suboptimal_points = _append_new_point(suboptimal_points, i + 1)
 
         # if left turn is made or right turn with no jump, then
@@ -337,26 +330,6 @@ def _scan(
                 keep_current = False
 
             if not keep_current:
-                # pj = np.array([endog_grid[j], value_unrefined[j]])
-                # pk = np.array([endog_grid[k], value_unrefined[k]])
-                # pi1 = np.array([endog_grid[i + 1], value_unrefined[i + 1]])
-                # pm = np.array(
-                #     [endog_grid[idx_suboptimal], value_unrefined[idx_suboptimal]]
-                # )
-                # intersect = find_intersection_point_grid_and_value(pj, pk, pi1, pm)
-
-                # value[j] = np.nan
-                # value_unrefined[j] = intersect[1]
-                # endog_grid[j] = intersect[0]
-                # j = i + 1
-                # a1 = np.array([endog_grid[j], value_full[j]])
-                # a2 = np.array([endog_grid[k], value_full[k]])
-                # b1 = np.array([endog_grid[i + 1], value_full[i + 1]])
-                # b2 = np.array([endog_grid[idx_suboptimal], value_full[idx_suboptimal]])
-                # (
-                #     intersect_grid,
-                #     intersect_value,
-                # ) = find_intersection_point_grid_and_value(a1, a2, b1, b2)
                 intersect_grid, intersect_value = _linear_intersection(
                     x1=endog_grid[j],
                     y1=value_full[j],
@@ -381,54 +354,24 @@ def _scan(
                     x_new=intersect_grid,
                 )
 
-                # TODO: Interpolate policy from left on intersection point and noqa: T000
-                # from right on intersection point. Then insert value twice the
-                # intersection point in the endogenous grid, twice the value function,
-                # and the policy interpolation from left first and then after from right.
-
-                # if last_point_intersection:
-                #     value_refined[refined_counter - 2] = intersect_value
-                #     value_refined[refined_counter - 1] = value_to_read[i + 1]
-                # else:
-                #     value_refined[refined_counter - 1] = intersect_value
-                #     value_refined[refined_counter] = value_to_read[i + 1]
-                #     refined_counter += 1
-                value_refined[refined_counter - 1] = intersect_value
-                value_refined[refined_counter] = value_to_read[i + 1]
-                policy_refined[refined_counter - 1] = intersect_value_left
-                policy_refined[refined_counter] = policy[i + 1]
-                endog_grid_refined[refined_counter - 1] = intersect_grid
-                endog_grid_refined[refined_counter] = endog_grid[i + 1]
-                refined_counter += 1
-                # policy_refined[refined_counter - 1] = policy[i + 1]
-                # endog_grid_refined[refined_counter - 1] = endog_grid[i + 1]
-                # value_refined[j] = np.nan
+                value_refined[idx_refined - 1] = intersect_value
+                value_refined[idx_refined] = value_full[i + 1]
+                policy_refined[idx_refined - 1] = intersect_value_left
+                policy_refined[idx_refined] = policy[i + 1]
+                endog_grid_refined[idx_refined - 1] = intersect_grid
+                endog_grid_refined[idx_refined] = endog_grid[i + 1]
+                idx_refined += 1
                 value_full[j] = intersect_value
                 endog_grid[j] = intersect_grid
                 policy[j] = intersect_value_right
 
-                # value_refined[refined_counter] = intersect_value
-                # policy_refined[refined_counter] = intersect_value_left
-                # endog_grid_refined[refined_counter] = intersect_grid
-                # refined_counter += 1
-
-                # value_refined[refined_counter] = intersect_value
-                # policy_refined[refined_counter] = intersect_value_right
-                # endog_grid_refined[refined_counter] = intersect_grid
-                # refined_counter += 1
-
-                # value_refined[refined_counter] = np.nan
-                # policy_refined[refined_counter] = np.nan
-                # endog_grid_refined[refined_counter] = np.nan
-                # refined_counter += 1
                 j = i + 1
 
             else:
                 # ================== NEW CODE ==================
                 if grad_next > grad_previous and switch_value_func:
 
-                    # lower curve
-                    gradients_f_vf, on_same_value_func = _forward_scan(
+                    _, on_same_value_func = _forward_scan(
                         value=value_full,
                         endog_grid=endog_grid,
                         exog_grid=exog_grid,
@@ -438,10 +381,8 @@ def _scan(
                         n_points_to_scan=10,
                     )
 
-                    # get index of closest next point with same discrete choice as point j
                     if np.sum(on_same_value_func) > 0:
                         idx_next_on_same_value = np.where(on_same_value_func)[0][0]
-                        grad_next_forward = gradients_f_vf[idx_next_on_same_value]
 
                     idx_next_lower = j + 2 + idx_next_on_same_value
 
@@ -455,23 +396,23 @@ def _scan(
                         x4=endog_grid[idx_suboptimal],
                         y4=value_full[idx_suboptimal],
                     )
-                    value_refined[refined_counter] = intersect_value
-                    endog_grid_refined[refined_counter] = intersect_grid
-                    refined_counter += 1
+                    value_refined[idx_refined] = intersect_value
+                    endog_grid_refined[idx_refined] = intersect_grid
+                    idx_refined += 1
 
                 # ================== OLD CODE ==================
 
-                value_refined[refined_counter] = value_to_read[i + 1]
-                policy_refined[refined_counter] = policy[i + 1]
-                endog_grid_refined[refined_counter] = endog_grid[i + 1]
-                refined_counter += 1
+                value_refined[idx_refined] = value_full[i + 1]
+                policy_refined[idx_refined] = policy[i + 1]
+                endog_grid_refined[idx_refined] = endog_grid[i + 1]
+                idx_refined += 1
                 k = j
                 j = i + 1
 
     # The last point is in there by definition?!
-    value_refined[refined_counter] = value_to_read[-1]
-    endog_grid_refined[refined_counter] = endog_grid[-1]
-    policy_refined[refined_counter] = policy[-1]
+    value_refined[idx_refined] = value_full[-1]
+    endog_grid_refined[idx_refined] = endog_grid[-1]
+    policy_refined[idx_refined] = policy[-1]
 
     return value_refined, policy_refined, endog_grid_refined
 
@@ -603,6 +544,24 @@ def _append_new_point(x_array, m):
 
 
 def _linear_intersection(x1, y1, x2, y2, x3, y3, x4, y4):
+    """Find the intersection of two lines.
+
+    Args:
+
+        x1 (float): x-coordinate of the first point of the first line.
+        y1 (float): y-coordinate of the first point of the first line.
+        x2 (float): x-coordinate of the second point of the first line.
+        y2 (float): y-coordinate of the second point of the first line.
+        x3 (float): x-coordinate of the first point of the second line.
+        y3 (float): y-coordinate of the first point of the second line.
+        x4 (float): x-coordinate of the second point of the second line.
+        y4 (float): y-coordinate of the second point of the second line.
+
+    Returns:
+        tuple: x and y coordinates of the intersection point.
+
+    """
+
     slope1 = (y2 - y1) / (x2 - x1)
     slope2 = (y4 - y3) / (x4 - x3)
 
