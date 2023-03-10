@@ -277,8 +277,6 @@ def _scan(
                     # value_refined[i + 1] = np.nan
                     suboptimal_points = _append_new_point(suboptimal_points, i + 1)
                 else:
-                    if i + 1 == 13:
-                        breakpoint()
                     value_refined[refined_counter] = value_to_read[i + 1]
                     # policy_refined[refined_counter] = policy[i + 1]
                     # endog_grid_refined[refined_counter] = endog_grid[i + 1]
