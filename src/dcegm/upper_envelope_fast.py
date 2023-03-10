@@ -191,7 +191,6 @@ def _scan(
     exog_grid,
     jump_thresh,
     n_points_to_scan,
-    do_forward_scan=True,
 ):
     """Scan the value function to remove suboptimal points.
 
@@ -257,36 +256,35 @@ def _scan(
         if grad_next < grad_previous and switch_value_func:
             keep_next = False
 
-            if do_forward_scan:
-                gradients_f_vf, on_same_value_func = _forward_scan(
-                    value=value_full,
-                    endog_grid=endog_grid,
-                    exog_grid=exog_grid,
-                    jump_thresh=jump_thresh,
-                    idx_current=j,
-                    idx_next=i + 1,
-                    n_points_to_scan=n_points_to_scan,
-                )
+            gradients_f_vf, on_same_value_func = _forward_scan(
+                value=value_full,
+                endog_grid=endog_grid,
+                exog_grid=exog_grid,
+                jump_thresh=jump_thresh,
+                idx_current=j,
+                idx_next=i + 1,
+                n_points_to_scan=n_points_to_scan,
+            )
 
-                # get index of closest next point with same discrete choice as point j
-                if np.sum(on_same_value_func) > 0:
-                    idx_next_on_same_value = np.where(on_same_value_func)[0][0]
-                    grad_next_forward = gradients_f_vf[idx_next_on_same_value]
+            # get index of closest next point with same discrete choice as point j
+            if np.sum(on_same_value_func) > 0:
+                idx_next_on_same_value = np.where(on_same_value_func)[0][0]
+                grad_next_forward = gradients_f_vf[idx_next_on_same_value]
 
-                    if grad_next > grad_next_forward:
-                        keep_next = True
+                if grad_next > grad_next_forward:
+                    keep_next = True
 
-                if not keep_next:
-                    # value_refined[i + 1] = np.nan
-                    suboptimal_points = _append_new_point(suboptimal_points, i + 1)
-                else:
-                    last_point_intersection = False
-                    value_refined[refined_counter] = value_to_read[i + 1]
-                    policy_refined[refined_counter] = policy[i + 1]
-                    endog_grid_refined[refined_counter] = endog_grid[i + 1]
-                    refined_counter += 1
-                    k = j
-                    j = i + 1
+            if not keep_next:
+                # value_refined[i + 1] = np.nan
+                suboptimal_points = _append_new_point(suboptimal_points, i + 1)
+            else:
+                last_point_intersection = False
+                value_refined[refined_counter] = value_to_read[i + 1]
+                policy_refined[refined_counter] = policy[i + 1]
+                endog_grid_refined[refined_counter] = endog_grid[i + 1]
+                refined_counter += 1
+                k = j
+                j = i + 1
 
         elif value_full[i + 1] - value_full[j] < 0:
             # value_refined[i + 1] = np.nan
