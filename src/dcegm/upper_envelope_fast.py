@@ -393,10 +393,15 @@ def _scan(
                 #     value_refined[refined_counter - 1] = intersect_value
                 #     value_refined[refined_counter] = value_to_read[i + 1]
                 #     refined_counter += 1
-
-                value_refined[refined_counter - 1] = value_to_read[i + 1]
-                policy_refined[refined_counter - 1] = policy[i + 1]
-                endog_grid_refined[refined_counter - 1] = endog_grid[i + 1]
+                value_refined[refined_counter - 1] = intersect_value
+                value_refined[refined_counter] = value_to_read[i + 1]
+                policy_refined[refined_counter - 1] = intersect_value_left
+                policy_refined[refined_counter] = policy[i + 1]
+                endog_grid_refined[refined_counter - 1] = intersect_grid
+                endog_grid_refined[refined_counter] = endog_grid[i + 1]
+                refined_counter += 1
+                # policy_refined[refined_counter - 1] = policy[i + 1]
+                # endog_grid_refined[refined_counter - 1] = endog_grid[i + 1]
                 # value_refined[j] = np.nan
                 value_full[j] = intersect_value
                 endog_grid[j] = intersect_grid
@@ -416,13 +421,23 @@ def _scan(
                 # policy_refined[refined_counter] = np.nan
                 # endog_grid_refined[refined_counter] = np.nan
                 # refined_counter += 1
-                last_point_intersection = True
                 j = i + 1
 
             else:
-                last_point_intersection = False
-                if grad_next > grad_previous:
-                    last_point_intersection = True
+                if (grad_next > grad_previous) & switch_value_func:
+                    intersect_grid, intersect_value = _linear_intersection(
+                        x1=endog_grid[j],
+                        y1=value_full[j],
+                        x2=endog_grid[k],
+                        y2=value_full[k],
+                        x3=endog_grid[i + 1],
+                        y3=value_full[i + 1],
+                        x4=endog_grid[i + 2],
+                        y4=value_full[i + 2],
+                    )
+                    value_refined[refined_counter] = intersect_value
+                    endog_grid_refined[refined_counter] = intersect_grid
+                    refined_counter += 1
                 value_refined[refined_counter] = value_to_read[i + 1]
                 policy_refined[refined_counter] = policy[i + 1]
                 endog_grid_refined[refined_counter] = endog_grid[i + 1]

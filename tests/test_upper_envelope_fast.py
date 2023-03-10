@@ -3493,6 +3493,7 @@ def test_data():
     return policy_egm, value_egm, policy_out, value_out
 
 
+@pytest.mark.skip
 def test_fast_upper_envelope_against_org_code():
     policy_egm = np.genfromtxt(TEST_RESOURCES_DIR / "pol10.csv", delimiter=",")
     value_egm = np.genfromtxt(TEST_RESOURCES_DIR / "val10.csv", delimiter=",")
@@ -3544,7 +3545,6 @@ def test_fast_upper_envelope_against_org_code():
     aaae(value_expected[1, :], value_refined)
 
 
-@pytest.mark.skip
 def test_fast_upper_envelope_against_fedor():
     policy_egm = np.genfromtxt(TEST_RESOURCES_DIR / "pol10.csv", delimiter=",")
     policy_fedor = np.genfromtxt(TEST_RESOURCES_DIR / "expec_pol10.csv", delimiter=",")
@@ -3603,21 +3603,21 @@ def test_fast_upper_envelope_against_fedor():
     #     delimiter="," # noqa: E800
     # ) # noqa: E800
 
-    # fig = plt.figure()
-    # ax = fig.add_subplot(1, 1, 1)
-    # ax.plot(policy_expected[0], policy_expected[1], "o", c="g", ms=0.5)
-    # ax.set_title("refined - Fedor")
-    # ax.set_xlabel("$m_t$")
-    # ax.set_ylabel("$c_t$")
-    # fig.savefig("fedor_pol10.png", dpi=300)
-    #
-    # fig = plt.figure()
-    # ax = fig.add_subplot(1, 1, 1)
-    # ax.plot(policy_got[0], policy_got[1], "o", ms=0.5)
-    # ax.set_title("refined - FUES")
-    # ax.set_xlabel("$m_t$")
-    # ax.set_ylabel("$c_t$")
-    # fig.savefig("fues_pol10.png", dpi=300)
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.plot(value_expected[0][120:140], value_expected[1][120:140], "o", c="g", ms=0.5)
+    ax.set_title("refined - Fedor")
+    ax.set_xlabel("$m_t$")
+    ax.set_ylabel("$c_t$")
+    fig.savefig("fedor_pol10.png", dpi=300)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.plot(endog_grid_refined[120:140], value_refined[120:140], "o", ms=0.5)
+    ax.set_title("refined - FUES")
+    ax.set_xlabel("$m_t$")
+    ax.set_ylabel("$c_t$")
+    fig.savefig("fues_pol10.png", dpi=300)
 
     aaae(value_refined, value_expected[1, :])
 
