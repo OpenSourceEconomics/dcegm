@@ -172,9 +172,11 @@ def fast_upper_envelope(
     #     policy_clean_with_nans[np.where(~np.isnan(value_clean_with_nans))],
     # )
 
-    endog_grid_refined = endog_grid[~np.isnan(value_clean_with_nans)]
+    endog_grid_refined = endog_grid_clean_with_nans[
+        ~np.isnan(endog_grid_clean_with_nans)
+    ]
     value_refined = value_clean_with_nans[~np.isnan(value_clean_with_nans)]
-    policy_refined = policy[~np.isnan(value_clean_with_nans)]
+    policy_refined = policy_clean_with_nans[~np.isnan(policy_clean_with_nans)]
 
     return endog_grid_refined, value_refined, policy_refined
 
@@ -280,8 +282,8 @@ def _scan(
                 else:
                     last_point_intersection = False
                     value_refined[refined_counter] = value_to_read[i + 1]
-                    # policy_refined[refined_counter] = policy[i + 1]
-                    # endog_grid_refined[refined_counter] = endog_grid[i + 1]
+                    policy_refined[refined_counter] = policy[i + 1]
+                    endog_grid_refined[refined_counter] = endog_grid[i + 1]
                     refined_counter += 1
                     k = j
                     j = i + 1
@@ -395,6 +397,8 @@ def _scan(
                 #     refined_counter += 1
 
                 value_refined[refined_counter - 1] = value_to_read[i + 1]
+                policy_refined[refined_counter - 1] = policy[i + 1]
+                endog_grid_refined[refined_counter - 1] = endog_grid[i + 1]
                 # value_refined[j] = np.nan
                 value_full[j] = intersect_value
                 endog_grid[j] = intersect_grid
@@ -422,14 +426,16 @@ def _scan(
                 if grad_next > grad_previous:
                     last_point_intersection = True
                 value_refined[refined_counter] = value_to_read[i + 1]
-                # policy_refined[refined_counter] = policy[i + 1]
-                # endog_grid_refined[refined_counter] = endog_grid[i + 1]
+                policy_refined[refined_counter] = policy[i + 1]
+                endog_grid_refined[refined_counter] = endog_grid[i + 1]
                 refined_counter += 1
                 k = j
                 j = i + 1
 
     # The last point is in there by definition?!
     value_refined[refined_counter] = value_to_read[-1]
+    endog_grid_refined[refined_counter] = endog_grid[-1]
+    policy_refined[refined_counter] = policy[-1]
 
     return value_refined, policy_refined, endog_grid_refined
 
