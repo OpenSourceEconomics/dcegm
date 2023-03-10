@@ -253,7 +253,7 @@ def _scan(
 
         # if right turn is made and jump registered
         # remove point or perform forward scan
-        if grad_next < grad_previous and switch_value_func:
+        if grad_previous > grad_next and switch_value_func:
             keep_next = False
 
             gradients_f_vf, on_same_value_func = _forward_scan(
@@ -291,7 +291,7 @@ def _scan(
             suboptimal_points = _append_new_point(suboptimal_points, i + 1)
 
         # assume value is monotone in policy and delete if not satisfied
-        elif grad_next < grad_previous and exog_grid[i + 1] - exog_grid[j] < 0:
+        elif grad_previous > grad_next and exog_grid[i + 1] - exog_grid[j] < 0:
             # value_refined[i + 1] = np.nan
             suboptimal_points = _append_new_point(suboptimal_points, i + 1)
 
@@ -330,7 +330,7 @@ def _scan(
             # gradient joining the i+1 and j, then delete j'th point
 
             if (
-                grad_next > grad_previous
+                grad_previous < grad_next
                 and grad_next >= grad_next_forward
                 and switch_value_func
             ):
