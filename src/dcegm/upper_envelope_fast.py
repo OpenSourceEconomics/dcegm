@@ -424,20 +424,43 @@ def _scan(
                 j = i + 1
 
             else:
-                if (grad_next > grad_previous) & switch_value_func:
+                # ================== NEW CODE ==================
+                if grad_next > grad_previous and switch_value_func:
+
+                    # lower curve
+                    gradients_f_vf, on_same_value_func = _forward_scan(
+                        value=value_full,
+                        endog_grid=endog_grid,
+                        exog_grid=exog_grid,
+                        jump_thresh=jump_thresh,
+                        idx_current=j,
+                        idx_next=i + 1,
+                        n_points_to_scan=10,
+                    )
+
+                    # get index of closest next point with same discrete choice as point j
+                    if np.sum(on_same_value_func) > 0:
+                        idx_next_on_same_value = np.where(on_same_value_func)[0][0]
+                        grad_next_forward = gradients_f_vf[idx_next_on_same_value]
+
+                    idx_next_lower = j + 2 + idx_next_on_same_value
+
                     intersect_grid, intersect_value = _linear_intersection(
-                        x1=endog_grid[j],
-                        y1=value_full[j],
-                        x2=endog_grid[k],
-                        y2=value_full[k],
+                        x1=endog_grid[idx_next_lower],
+                        y1=value_full[idx_next_lower],
+                        x2=endog_grid[j],
+                        y2=value_full[j],
                         x3=endog_grid[i + 1],
                         y3=value_full[i + 1],
-                        x4=endog_grid[i + 2],
-                        y4=value_full[i + 2],
+                        x4=endog_grid[idx_suboptimal],
+                        y4=value_full[idx_suboptimal],
                     )
                     value_refined[refined_counter] = intersect_value
                     endog_grid_refined[refined_counter] = intersect_grid
                     refined_counter += 1
+
+                # ================== OLD CODE ==================
+
                 value_refined[refined_counter] = value_to_read[i + 1]
                 policy_refined[refined_counter] = policy[i + 1]
                 endog_grid_refined[refined_counter] = endog_grid[i + 1]
