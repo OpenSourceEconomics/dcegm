@@ -23,5 +23,6 @@ coverage:
           - end_to_end
 
 ignore:
-  - ".tox/**/*"
-  - "setup.py"
+  - .tox/**/*
+  - setup.py
+  - src/dcegm/upper_envelope_fast_org.py
