@@ -226,12 +226,10 @@ def _scan(
     idx_refined = 3
 
     for i in range(2, len(endog_grid) - 2):
-
         if value[i + 1] - value[j] < 0:
             suboptimal_points = _append_new_point(suboptimal_points, i + 1)
 
         else:
-
             # value function gradient between previous two optimal points
             grad_before = (value[j] - value[k]) / (endog_grid[j] - endog_grid[k])
 
@@ -263,7 +261,6 @@ def _scan(
 
                 # get index of closest next point with same discrete choice as point j
                 if found_next_point_on_same_value:
-
                     if grad_next > grad_next_forward:
                         keep_next = True
 
@@ -351,7 +348,6 @@ def _scan(
                 else:
                     # ================== NEW CODE ==================
                     if grad_next > grad_before and switch_value_func:
-
                         (
                             grad_next_forward,
                             dist_next_point_on_same_value,
