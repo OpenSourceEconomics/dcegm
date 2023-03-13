@@ -55,7 +55,6 @@ def solve_final_period(
     # In last period, nothing is saved for the next period (since there is none).
     # Hence, everything is consumed, c_T(M, d) = M
     for state_index in range(n_states):
-
         for choice_index, _ in enumerate(choice_range):
             policy_final[state_index, choice_index, :, 0] = 0
             policy_final[state_index, choice_index, 0, 1:end_grid] = savings_grid  # M
