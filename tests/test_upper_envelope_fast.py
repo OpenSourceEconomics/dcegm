@@ -1,7 +1,7 @@
 from functools import partial
 from pathlib import Path
 
-import matplotlib.pylab as plt
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
