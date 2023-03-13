@@ -278,7 +278,6 @@ def _scan_org(e_grid, vf, c, a_prime, m_bar, lb, fwd_scan_do=True):  # noqa: U10
 
     # FUES scan
     for i in range(len(e_grid) - 2):
-
         # initial two points are optimal (assumption)
         if i <= 1:
             j = np.copy(np.array([i]))[0]
@@ -395,7 +394,6 @@ def _scan_org(e_grid, vf, c, a_prime, m_bar, lb, fwd_scan_do=True):  # noqa: U10
                     j = np.copy(np.array([i]))[0] + 1
 
                 else:
-
                     previous_opt_is_intersect = False  # noqa: F841
                     if g_1 > g_j_minus_1:
                         previous_opt_is_intersect = True  # noqa: F841

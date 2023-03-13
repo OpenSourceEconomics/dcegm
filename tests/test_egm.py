@@ -133,7 +133,6 @@ TEST_CASES = list(
 def test_get_next_period_policy(
     choice_set, interest_rate, max_wealth, n_grid_points, n_quad_points
 ):
-
     (
         matrix_next_wealth,
         _next_policy,
