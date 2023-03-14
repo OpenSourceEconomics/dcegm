@@ -145,5 +145,15 @@ def test_fast_upper_envelope_against_fedor():
     ax.set_ylabel("$c_t$")
     fig.savefig("fues_pol10.png", dpi=300)
 
-    # aaae(value_refined, value_expected[1, :]) # noqa: F841
-    aaae(policy_refined, policy_expected[1, :])
+    # In Fedor's upper envelope, there are two endogenous wealth grids;
+    # one for the value function and a longer one for the policy function.
+    # Since we want to unify the two endogoenous grids and want the refined value and
+    # policy array to be of equal length, our refined value function is longer than
+    # Fedor's.
+    # Hence, we interpolate Fedor's refined value function to our refined grid.
+    value_expected_interp = np.interp(
+        endog_grid_refined, value_expected[0], value_expected[1]
+    )
+    aaae(value_refined, value_expected_interp)
+    aaae(policy_refined, policy_expected[1])
+    aaae(endog_grid_refined, policy_expected[0])
