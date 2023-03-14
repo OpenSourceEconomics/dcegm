@@ -72,10 +72,11 @@ def fast_upper_envelope_wrapper(
 
     """
     n_grid_wealth = len(exog_grid)
+    exog_grid = np.append(0, exog_grid)
+
     endog_grid = policy[0]
     policy_ = policy[1]
     value_ = value[1]
-    exog_grid = np.append(0, exog_grid)
 
     endog_grid_refined, value_out, policy_out = fast_upper_envelope(
         endog_grid, value_, policy_, exog_grid, jump_thresh=2
@@ -332,14 +333,19 @@ def _scan(
                         x_new=intersect_grid,
                     )
 
-                    value_refined[idx_refined - 1] = intersect_value
-                    policy_refined[idx_refined - 1] = intersect_policy_left
-                    endog_grid_refined[idx_refined - 1] = intersect_grid
+                    # =================================================================
 
-                    value_refined[idx_refined] = intersect_value
-                    policy_refined[idx_refined] = intersect_policy_right
-                    endog_grid_refined[idx_refined] = intersect_grid
-                    idx_refined += 1
+                    if idx_before_on_upper_curve > 0:
+                        value_refined[idx_refined - 1] = intersect_value
+                        policy_refined[idx_refined - 1] = intersect_policy_left
+                        endog_grid_refined[idx_refined - 1] = intersect_grid
+
+                        value_refined[idx_refined] = intersect_value
+                        policy_refined[idx_refined] = intersect_policy_right
+                        endog_grid_refined[idx_refined] = intersect_grid
+                        idx_refined += 1
+
+                    # =================================================================
 
                     value_refined[idx_refined] = value[i + 1]
                     policy_refined[idx_refined] = policy[i + 1]
