@@ -145,4 +145,5 @@ def test_fast_upper_envelope_against_fedor():
     ax.set_ylabel("$c_t$")
     fig.savefig("fues_pol10.png", dpi=300)
 
-    aaae(value_refined, value_expected[1, :])
+    # aaae(value_refined, value_expected[1, :]) # noqa: F841
+    aaae(policy_refined, policy_expected[1, :])

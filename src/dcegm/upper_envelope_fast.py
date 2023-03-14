@@ -332,16 +332,22 @@ def _scan(
                     )
 
                     value_refined[idx_refined - 1] = intersect_value
-                    value_refined[idx_refined] = value[i + 1]
                     policy_refined[idx_refined - 1] = intersect_policy_left
-                    policy_refined[idx_refined] = policy[i + 1]
                     endog_grid_refined[idx_refined - 1] = intersect_grid
+
+                    value_refined[idx_refined] = intersect_value
+                    policy_refined[idx_refined] = intersect_policy_right
+                    endog_grid_refined[idx_refined] = intersect_grid
+                    idx_refined += 1
+
+                    value_refined[idx_refined] = value[i + 1]
+                    policy_refined[idx_refined] = policy[i + 1]
                     endog_grid_refined[idx_refined] = endog_grid[i + 1]
                     idx_refined += 1
 
                     value[j] = intersect_value
-                    endog_grid[j] = intersect_grid
                     policy[j] = intersect_policy_right
+                    endog_grid[j] = intersect_grid
 
                     j = i + 1
 
@@ -374,7 +380,36 @@ def _scan(
                             x4=endog_grid[idx_before_on_upper_curve],
                             y4=value[idx_before_on_upper_curve],
                         )
+
+                        intersect_policy_left = linear_interpolation_with_extrapolation(
+                            x=np.array(
+                                [endog_grid[idx_next_on_lower_curve], endog_grid[j]]
+                            ),
+                            y=np.array([policy[idx_next_on_lower_curve], policy[j]]),
+                            x_new=intersect_grid,
+                        )
+                        intersect_policy_right = (
+                            linear_interpolation_with_extrapolation(
+                                x=np.array(
+                                    [
+                                        endog_grid[i + 1],
+                                        endog_grid[idx_before_on_upper_curve],
+                                    ]
+                                ),
+                                y=np.array(
+                                    [policy[i + 1], policy[idx_before_on_upper_curve]]
+                                ),
+                                x_new=intersect_grid,
+                            )
+                        )
+
                         value_refined[idx_refined] = intersect_value
+                        policy_refined[idx_refined] = intersect_policy_left
+                        endog_grid_refined[idx_refined] = intersect_grid
+                        idx_refined += 1
+
+                        value_refined[idx_refined] = intersect_value
+                        policy_refined[idx_refined] = intersect_policy_right
                         endog_grid_refined[idx_refined] = intersect_grid
                         idx_refined += 1
 
