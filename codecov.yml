@@ -1,3 +1,4 @@
+---
 codecov:
   notify:
     require_ci_to_pass: true
@@ -12,8 +13,4 @@ coverage:
     project:
       default:
         target: 90%
-
-ignore:
-  - .tox/**/*
-  - src/dcegm/upper_envelope_fast_org.py
-  - setup.py
+ignore: [.tox/**/*, src/dcegm/upper_envelope_fast_org.py, setup.py]
