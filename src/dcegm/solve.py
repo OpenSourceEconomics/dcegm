@@ -235,11 +235,9 @@ def backwards_induction(
         dtype=float,
     )
     for period in range(n_periods - 2, -1, -1):
-
         possible_child_states = state_space[np.where(state_space[:, 0] == period + 1)]
 
         for child_state in possible_child_states:
-
             child_state_index = state_indexer[tuple(child_state)]
             # We could parralelize here also over the savings grid!
             # We aggregate here already over the income shocks!
@@ -267,7 +265,6 @@ def backwards_induction(
         state_subspace = state_space[index_periods]
 
         for state in state_subspace:
-
             current_state_index = state_indexer[tuple(state)]
             # The choice set and the indexes are different/of different shape
             # for each state. For jax we should go over all states.
@@ -293,7 +290,6 @@ def backwards_induction(
             trans_vec_state = transition_vector_by_state(state)
 
             for choice_index, choice in enumerate(choice_set):
-
                 current_policy, current_value = compute_optimal_policy_and_value(
                     marginal_utilities_child_states[choice_index, :],
                     max_expected_values_child_states[choice_index, :],
