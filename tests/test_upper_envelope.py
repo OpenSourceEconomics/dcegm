@@ -20,6 +20,7 @@ TEST_RESOURCES_DIR = TEST_DIR / "resources"
 def test_data():
     choice = 0
     n_grid_wealth = 500
+    exogenous_savings_grid = np.linspace(0, 50, n_grid_wealth)
 
     _index = pd.MultiIndex.from_tuples(
         [("utility_function", "theta"), ("delta", "delta")],
@@ -48,8 +49,8 @@ def test_data():
     return (
         policy,
         value,
+        exogenous_savings_grid,
         choice,
-        n_grid_wealth,
         compute_value,
         expected_policy,
         expected_value,
@@ -60,8 +61,8 @@ def test_upper_envelope(test_data):
     (
         policy,
         value,
+        exogenous_savings_grid,
         choice,
-        n_grid_wealth,
         compute_value,
         expected_policy,
         expected_value,
@@ -70,8 +71,8 @@ def test_upper_envelope(test_data):
     got_policy, got_value = upper_envelope(
         policy=policy,
         value=value,
+        exog_grid=exogenous_savings_grid,
         choice=choice,
-        n_grid_wealth=n_grid_wealth,
         compute_value=compute_value,
     )
 
