@@ -19,7 +19,6 @@ def fast_upper_envelope_wrapper(
     value: np.ndarray,
     exog_grid: np.ndarray,
     choice: int,  # noqa: U100
-    n_grid_wealth: int,
     compute_value: Callable,  # noqa: U100
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Drop suboptimal points and refine the endogenous grid, policy, and value.
@@ -56,8 +55,9 @@ def fast_upper_envelope_wrapper(
             Position [0, :] of the array contains the endogenous grid over wealth M,
             and [1, :] stores the corresponding value of the value function v(M, d),
             for each time period and each discrete choice.
+        exog_grid (np.ndarray): 1d array of exogenous savings grid of shape
+            (n_grid_wealth,).
         choice (int): The current choice.
-        n_grid_wealth (int): Number of grid points in the exogenous wealth grid.
         compute_value (callable): Function to compute the agent's value.
 
     Returns:
@@ -71,6 +71,7 @@ def fast_upper_envelope_wrapper(
             Shape (2, 1.1 * n_grid_wealth).
 
     """
+    n_grid_wealth = len(exog_grid)
     endog_grid = policy[0]
     policy_ = policy[1]
     value_ = value[1]
@@ -138,7 +139,7 @@ def fast_upper_envelope(
 
     """
 
-    # TODO: determine locations where enogenous grid points are # noqa: T000
+    # TODO: determine locations where endogenous grid points are # noqa: T000
     # equal to the lower bound
     mask = endog_grid <= b
     if np.any(mask):

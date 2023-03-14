@@ -14,8 +14,8 @@ eps = 2.2204e-16
 def upper_envelope(
     policy: np.ndarray,
     value: np.ndarray,
+    exog_grid: np.ndarray,
     choice: int,
-    n_grid_wealth: int,
     compute_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Runs the Upper Envelope algorithm and drops sub-optimal points.
@@ -52,11 +52,14 @@ def upper_envelope(
             Position [0, :] of the array contains the endogenous grid over wealth M,
             and [1, :] stores the corresponding value of the value function v(M, d),
             for each time period and each discrete choice.
+        exog_grid (np.ndarray): 1d array of exogenous savings grid of shape
+            (n_grid_wealth,).
         choice (int): The current choice.
-        n_grid_wealth (int): Number of grid points in the exogenous wealth grid.
         compute_value (callable): Function to compute the agent's value.
+
     Returns:
         (tuple) Tuple containing
+
         - policy_refined (np.ndarray): Worker's *refined* (consumption) policy
             function of the current period, where suboptimal points have been dropped
             and the kink points along with the corresponding interpolated values of
@@ -67,6 +70,7 @@ def upper_envelope(
             function have been added. Shape (2, 1.1 * n_grid_wealth).
 
     """
+    n_grid_wealth = len(exog_grid)
     min_wealth_grid = np.min(value[0, 1:])
     credit_constr = False
 

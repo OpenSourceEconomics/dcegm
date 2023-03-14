@@ -4,7 +4,6 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import pytest
 from dcegm.pre_processing import calc_current_value
 from dcegm.upper_envelope import upper_envelope
 from dcegm.upper_envelope_fast import fast_upper_envelope
@@ -19,7 +18,7 @@ TEST_DIR = Path(__file__).parent
 TEST_RESOURCES_DIR = TEST_DIR / "resources"
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_fast_upper_envelope_against_org_code():
     policy_egm = np.genfromtxt(TEST_RESOURCES_DIR / "pol10.csv", delimiter=",")
     value_egm = np.genfromtxt(TEST_RESOURCES_DIR / "val10.csv", delimiter=",")
@@ -55,20 +54,19 @@ def test_fast_upper_envelope_against_org_code():
         value=value_egm,
         exog_grid=exogenous_savings_grid,
         choice=choice,
-        n_grid_wealth=len(exogenous_savings_grid),
         compute_value=compute_value,
     )
 
     policy_expected = policy_org[:, ~np.isnan(policy_org).any(axis=0)]
-    value_expected = value_org[  # noqa: F841
+    value_expected = value_org[
         :,
         ~np.isnan(value_org).any(axis=0),
     ]
 
-    aaae(policy_expected[0, :], endog_grid_refined)
-    aaae(policy_expected[1, :], policy_refined)
-    aaae(value_expected[0, :], endog_grid_refined)
-    aaae(value_expected[1, :], value_refined)
+    assert np.all(np.in1d(value_expected[0, :], endog_grid_refined))
+    assert np.all(np.in1d(value_expected[1, :], value_refined))
+    assert np.all(np.in1d(policy_expected[0, :], endog_grid_refined))
+    assert np.all(np.in1d(policy_expected[1, :], policy_refined))
 
 
 def test_fast_upper_envelope_against_fedor():
@@ -107,8 +105,8 @@ def test_fast_upper_envelope_against_fedor():
     _policy_refined_fedor, _value_refine_fedor = upper_envelope(  # noqa: U100
         policy=policy_egm,
         value=value_egm,
+        exog_grid=exogenous_savings_grid,
         choice=choice,
-        n_grid_wealth=len(exogenous_savings_grid),
         compute_value=compute_value,
     )
 
