@@ -1,3 +1,4 @@
+---
 codecov:
   branch: main
 coverage:
@@ -12,5 +13,4 @@ coverage:
     project:
       default:
         target: 90%
-        
 ignore: [.tox/**/*, setup.py]
