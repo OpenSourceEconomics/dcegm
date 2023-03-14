@@ -1,3 +1,4 @@
+---
 n_periods: 25
 min_age: 20
 n_discrete_choices: 2

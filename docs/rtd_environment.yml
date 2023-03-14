@@ -1,20 +1,13 @@
+---
 name: rtd_dcegm
-
-channels:
-  - conda-forge
-  - nodefaults
-
+channels: [conda-forge, nodefaults]
 dependencies:
   - python=3.9
   - pip
-
   - ipython
   - nbsphinx
   - numpydoc
   - sphinx
   - sphinx-autobuild
   - sphinx-autoapi
-
-  - pip:
-    - sphinx-tabs
-    - furo
+  - pip: [sphinx-tabs, furo]
