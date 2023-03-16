@@ -17,7 +17,7 @@ repos:
     rev: v4.4.0
     hooks:
       - id: check-added-large-files
-        args: [--maxkb=25]
+        args: [--maxkb=100]
       - id: check-case-conflict
       - id: check-merge-conflict
       - id: check-vcs-permalinks
@@ -62,6 +62,7 @@ repos:
           - --wrap-descriptions
           - '88'
           - --blank
+        exclude: src/dcegm/upper_envelope_fast_org.py
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     rev: v0.0.254
     hooks:
