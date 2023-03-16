@@ -1,4 +1,6 @@
 """Interface for the DC-EGM algorithm."""
+from __future__ import annotations
+
 from typing import Callable
 from typing import Dict
 from typing import Tuple

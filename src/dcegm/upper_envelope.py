@@ -1,4 +1,6 @@
 """Implementation of the Upper Envelope algorithm."""
+from __future__ import annotations
+
 from typing import Callable
 from typing import List
 from typing import Tuple
