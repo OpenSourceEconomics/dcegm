@@ -1,4 +1,6 @@
 """Implementation of the Upper Envelope algorithm."""
+from __future__ import annotations
+
 from typing import Callable
 from typing import List
 from typing import Tuple
@@ -17,6 +19,7 @@ def upper_envelope(
     exog_grid: np.ndarray,
     choice: int,
     compute_value: Callable,
+    period: int,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Runs the Upper Envelope algorithm and drops sub-optimal points.
 
@@ -95,7 +98,19 @@ def upper_envelope(
             n_grid_wealth,
             compute_value,
         )
+        # if period == 9:
+        #     breakpoint()
 
+        #     np.savetxt(
+        #         "policy9_augment.csv", policy, delimiter=","  # noqa: E800
+        #     )  # noqa: E800
+
+        #     np.savetxt(
+        #         "value9_augment.csv", value, delimiter=","  # noqa: E800
+        #     )  # noqa: E800
+        #     breakpoint()
+
+        # breakpoint()
         segments_non_mono = locate_non_concave_regions(value)
 
     if len(segments_non_mono) > 1:
@@ -617,7 +632,8 @@ def _partition_grid(
             partition.
 
     """
-    j = value_correspondence.shape[1] if j > value_correspondence.shape[1] else j
+    # j = value_correspondence.shape[1] if j > value_correspondence.shape[1] else j
+    j = min(j, value_correspondence.shape[1])
 
     part_one = np.vstack(
         [

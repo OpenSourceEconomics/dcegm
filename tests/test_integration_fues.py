@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pickle
 from pathlib import Path
 
@@ -84,9 +86,9 @@ def test_benchmark_models(
     )
 
     policy_expected = pickle.load(
-        open(TEST_RESOURCES_DIR / f"policy_{model}.pkl", "rb")
+        (TEST_RESOURCES_DIR / f"policy_{model}.pkl").open("rb")
     )
-    value_expected = pickle.load(open(TEST_RESOURCES_DIR / f"value_{model}.pkl", "rb"))
+    value_expected = pickle.load((TEST_RESOURCES_DIR / f"value_{model}.pkl").open("rb"))
 
     for period in range(23, -1, -1):
         relevant_subset_state = state_space[np.where(state_space[:, 0] == period)][0]
@@ -100,20 +102,20 @@ def test_benchmark_models(
                 policy_expec = policy_expected[period][1 - choice].T
                 value_expec = value_expected[period][1 - choice].T
 
-            if period in [4, 3, 2, 1, 0]:
+            if period in (4, 3, 2, 1, 0):
                 policy_got = policy_calculated[state_index, choice, :][
                     :,
                     ~np.isnan(policy_calculated[state_index, choice, :]).any(axis=0),
                 ]
 
                 aaae(policy_got, policy_expec, decimal=5)
-
                 # In Fedor's upper envelope, there are two endogenous wealth grids;
                 # one for the value function and a longer one for the policy function.
                 # Since we want to unify the two endogoenous grids and want the refined
-                # value and policy array to be of equal length, our refined value function
-                # is longer than Fedor's.
-                # Hence, we interpolate Fedor's refined value function to our refined grid.
+                # value and policy array to be of equal length, our refined value
+                # function is longer than Fedor's.
+                # Hence, we interpolate Fedor's refined value function to our refined
+                # grid.
                 value_expec_interp = np.interp(
                     policy_expec[0], value_expec[0], value_expec[1]
                 )
