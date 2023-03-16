@@ -5,15 +5,15 @@ Based on Akshay Shanker, University of Sydney, akshay.shanker@me.com.
 """
 from __future__ import annotations
 
-from functools import partial
+from functools import partial  # noqa: F401
 from typing import Callable
 from typing import Optional
 from typing import Tuple
 
-import jax.numpy as jnp
+import jax.numpy as jnp  # noqa: F401
 import numpy as np
 from dcegm.interpolate import linear_interpolation_with_extrapolation  # noqa: F401
-from jax import jit
+from jax import jit  # noqa: F401
 
 
 def fast_upper_envelope_wrapper(
@@ -414,7 +414,7 @@ def _scan(
                     #         n_points_to_scan=n_points_to_scan,
                     #     )
 
-                    #     idx_next_on_lower_curve = j + dist_next_point_on_same_value + 2
+                    #     idx_next_on_lower_curve = j + dist_next_point_on_same_value + 2 # noqa: E501
                     #     idx_next_on_upper_curve = (
                     #         i + 3 + dist_next_upper_point_on_same_value
                     #     )
@@ -431,7 +431,7 @@ def _scan(
                     #     )
                     #     breakpoint()
 
-                    #     intersect_policy_left = linear_interpolation_with_extrapolation(
+                    #     intersect_policy_left = linear_interpolation_with_extrapolation( # noqa: E501
                     #         x=np.array(
                     #             [endog_grid[idx_next_on_lower_curve], endog_grid[j]]
                     #         ),
