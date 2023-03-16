@@ -632,7 +632,6 @@ def _partition_grid(
             partition.
 
     """
-    # j = value_correspondence.shape[1] if j > value_correspondence.shape[1] else j
     j = min(j, value_correspondence.shape[1])
 
     part_one = np.vstack(
