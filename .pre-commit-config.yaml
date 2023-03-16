@@ -66,7 +66,11 @@ repos:
     rev: v0.0.254
     hooks:
       - id: ruff
-        exclude: docs/source/conf.py
+        exclude: |
+          (?x)^(
+              src/dcegm/sandbox/benchmark_cases.ipynbpath/to/file1.py|
+              docs/source/conf.py|
+          )$
   - repo: https://github.com/dosisod/refurb
     rev: v1.13.0
     hooks:

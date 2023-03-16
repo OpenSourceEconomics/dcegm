@@ -84,9 +84,9 @@ def test_benchmark_models(
     )
 
     policy_expected = pickle.load(
-        open(TEST_RESOURCES_DIR / f"policy_{model}.pkl", "rb")
+        (TEST_RESOURCES_DIR / f"policy_{model}.pkl").open("rb")
     )
-    value_expected = pickle.load(open(TEST_RESOURCES_DIR / f"value_{model}.pkl", "rb"))
+    value_expected = pickle.load((TEST_RESOURCES_DIR / f"value_{model}.pkl").open("rb"))
 
     for period in range(23, -1, -1):
         relevant_subset_state = state_space[np.where(state_space[:, 0] == period)][0]

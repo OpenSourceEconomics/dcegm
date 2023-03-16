@@ -22,7 +22,7 @@ def fast_upper_envelope_wrapper(
     exog_grid: np.ndarray,
     choice: int,  # noqa: U100
     compute_value: Callable,  # noqa: U100
-    period,
+    period,  # noqa: U100
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Drop suboptimal points and refine the endogenous grid, policy, and value.
 

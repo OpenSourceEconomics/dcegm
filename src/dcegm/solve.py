@@ -323,6 +323,7 @@ def backwards_induction(
                         exog_grid=exogenous_savings_grid,
                         choice=choice,
                         compute_value=compute_value,
+                        period=period,
                     )
 
                 policy_array[
