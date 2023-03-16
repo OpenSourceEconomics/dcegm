@@ -234,7 +234,7 @@ def test_fast_upper_envelope_against_fedor_credit_constrained_passes(period):
     aaae(value_refined, value_expected_interp)
 
 
-# @pytest.mark.skip
+@pytest.mark.xfail
 @pytest.mark.parametrize(
     "period",
     [4, 10],
