@@ -18,7 +18,7 @@ TEST_DIR = Path(__file__).parent
 TEST_RESOURCES_DIR = TEST_DIR / "resources"
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_fast_upper_envelope_against_org_code():
     policy_egm = np.genfromtxt(TEST_RESOURCES_DIR / "pol10.csv", delimiter=",")
     value_egm = np.genfromtxt(TEST_RESOURCES_DIR / "val10.csv", delimiter=",")
@@ -33,7 +33,7 @@ def test_fast_upper_envelope_against_org_code():
         names=["category", "name"],
     )
     params = pd.DataFrame(data=[1.95, 0.35], columns=["value"], index=_index)
-    discount_factor = 1.95
+    discount_factor = 0.95
 
     compute_utility = partial(utility_func_crra, params=params)
     compute_value = partial(
@@ -69,7 +69,7 @@ def test_fast_upper_envelope_against_org_code():
     assert np.all(np.in1d(policy_expected[1, :], policy_refined))
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 @pytest.mark.parametrize(
     "period",
     [10],
@@ -95,7 +95,7 @@ def test_fast_upper_envelope_against_fedor(period):
         names=["category", "name"],
     )
     params = pd.DataFrame(data=[1.95, 0.35], columns=["value"], index=_index)
-    discount_factor = 1.95
+    discount_factor = 0.95
 
     compute_utility = partial(utility_func_crra, params=params)
     compute_value = partial(
@@ -141,7 +141,7 @@ def test_fast_upper_envelope_against_fedor(period):
 
 
 # @pytest.mark.skip
-@pytest.mark.parametrize("period", [9])
+@pytest.mark.parametrize("period", [18, 9])
 def test_fast_upper_envelope_against_fedor_credit_constrained_passes(period):
     policy_egm = np.genfromtxt(TEST_RESOURCES_DIR / f"pol{period}.csv", delimiter=",")
     policy_fedor = np.genfromtxt(
@@ -152,17 +152,17 @@ def test_fast_upper_envelope_against_fedor_credit_constrained_passes(period):
     value_fedor = np.genfromtxt(
         TEST_RESOURCES_DIR / f"expec_val{period}.csv", delimiter=","
     )
-    endog_grid_egm = policy_egm[0]
+    # endog_grid_egm = policy_egm[0]
 
-    policy_egm_augmented_ = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"policy{period}_augment.csv", delimiter=","
-    )
-    value_egm_augmented_ = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"value{period}_augment.csv", delimiter=","
-    )
-    policy_egm_augmented = policy_egm_augmented_
-    value_egm_augmented = value_egm_augmented_
-    endog_grid_egm_augmented = policy_egm_augmented_[0]
+    # policy_egm_augmented_fedor = np.genfromtxt(
+    #     TEST_RESOURCES_DIR / f"policy{period}_augment.csv", delimiter=","
+    # )
+    # value_egm_augmented_fedor = np.genfromtxt(
+    #     TEST_RESOURCES_DIR / f"value{period}_augment.csv", delimiter=","
+    # )
+    # # policy_egm_augmented = policy_egm_augmented_
+    # # value_egm_augmented = value_egm_augmented_
+    # endog_grid_egm_augmented = policy_egm_augmented_fedor[0]
 
     choice = 0
     max_wealth = 50
@@ -174,7 +174,7 @@ def test_fast_upper_envelope_against_fedor_credit_constrained_passes(period):
         names=["category", "name"],
     )
     params = pd.DataFrame(data=[1.95, 0.35], columns=["value"], index=_index)
-    discount_factor = 1.95
+    discount_factor = 0.95
 
     compute_utility = partial(utility_func_crra, params=params)
     compute_value = partial(
@@ -192,30 +192,33 @@ def test_fast_upper_envelope_against_fedor_credit_constrained_passes(period):
     # # Solution: Value function to the left of the first point is analytical,
     # # so we just need to add some points to the left of the first grid point.
 
-    # expected_value_zero_wealth = value_egm[1, 0]
+    expected_value_zero_wealth = value_egm[1, 0]
 
-    # policy_egm_augmented, value_egm_augmented = _augment_grid(
-    #     policy_egm,
-    #     value_egm,
-    #     choice,
-    #     expected_value_zero_wealth,
-    #     min_wealth_grid,
-    #     n_grid_wealth,
-    #     compute_value,
-    # )
-    # endog_grid_egm_augmented = policy_egm_augmented[0]
+    policy_egm_augmented, value_egm_augmented = _augment_grid(
+        policy_egm,
+        value_egm,
+        choice,
+        expected_value_zero_wealth,
+        min_wealth_grid,
+        n_grid_wealth,
+        compute_value,
+    )
+    endog_grid_egm_augmented = policy_egm_augmented[0]
 
-    grid_points_to_add = np.linspace(
-        min_wealth_grid, value_egm[0, 1], n_grid_wealth // 10
-    )[:-1]
-    exog_grid_augmented = np.append(grid_points_to_add, exogenous_savings_grid[:])
+    # aaae(policy_egm_augmented, policy_egm_augmented_fedor)
+    # aaae(value_egm_augmented, value_egm_augmented_fedor)
     # # ================================================================================
 
+    exog_grid_augmented = np.linspace(
+        exogenous_savings_grid[1], exogenous_savings_grid[2], n_grid_wealth // 10 + 1
+    )
     endog_grid_refined, value_refined, policy_refined = fast_upper_envelope(
         endog_grid=np.append(0, endog_grid_egm_augmented),
         value=np.append(value_egm[1, 0], value_egm_augmented[1]),
         policy=np.append(policy_egm[1, 0], policy_egm_augmented[1]),
-        exog_grid=np.append([0], exog_grid_augmented),
+        exog_grid=np.append(
+            [0], np.append(exog_grid_augmented, exogenous_savings_grid[2:])
+        ),
     )
     # endog_grid_refined, value_refined, policy_refined = fast_upper_envelope(
     #     endog_grid=endog_grid_egm,
@@ -291,8 +294,7 @@ def test_fast_upper_envelope_against_fedor_credit_constrained_passes(period):
     # Hence, we interpolate Fedor's refined value function to our refined grid.
 
     aaae(endog_grid_refined, policy_expected[0])
-    aaae(endog_grid_refined[5:], policy_expected[0][54:])
-    breakpoint()
+    # breakpoint()
     aaae(policy_refined, policy_expected[1])
     value_expected_interp = np.interp(
         endog_grid_refined, value_expected[0], value_expected[1]
@@ -300,6 +302,7 @@ def test_fast_upper_envelope_against_fedor_credit_constrained_passes(period):
     aaae(value_refined, value_expected_interp)
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize("period", [18])
 def test_fast_upper_envelope_against_fedor_credit_constrained_fails(period):
     policy_egm = np.genfromtxt(TEST_RESOURCES_DIR / f"pol{period}.csv", delimiter=",")
@@ -403,9 +406,17 @@ def test_fast_upper_envelope_against_fedor_credit_constrained_fails(period):
     # Fedor's.
     # Hence, we interpolate Fedor's refined value function to our refined grid.
 
-    aaae(endog_grid_refined[3:], policy_expected[0][50:])
-    aaae(policy_refined[3:], policy_expected[1][50:])
+    # aaae(endog_grid_refined[3:], policy_expected[0][50:])
+    # aaae(policy_refined[3:], policy_expected[1][50:])
+    # value_expected_interp = np.interp(
+    #     endog_grid_refined[3:], value_expected[0][50:], value_expected[1][50:]
+    # )
+    # aaae(value_refined[3:], value_expected_interp)
+
+    aaae(endog_grid_refined, policy_expected[0])
+    # breakpoint()
+    aaae(policy_refined, policy_expected[1])
     value_expected_interp = np.interp(
-        endog_grid_refined[3:], value_expected[0][50:], value_expected[1][50:]
+        endog_grid_refined, value_expected[0], value_expected[1]
     )
-    aaae(value_refined[3:], value_expected_interp)
+    aaae(value_refined, value_expected_interp)

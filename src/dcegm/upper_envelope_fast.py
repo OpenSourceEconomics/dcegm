@@ -20,6 +20,7 @@ def fast_upper_envelope_wrapper(
     exog_grid: np.ndarray,
     choice: int,  # noqa: U100
     compute_value: Callable,  # noqa: U100
+    period,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Drop suboptimal points and refine the endogenous grid, policy, and value.
 
@@ -72,11 +73,10 @@ def fast_upper_envelope_wrapper(
 
     """
     n_grid_wealth = len(exog_grid)
-    exog_grid = np.append(0, exog_grid)
 
     # ================================================================================
     min_wealth_grid = np.min(value[0, 1:])
-    if value[0, 1] <= min_wealth_grid:
+    if value[0, 1] > min_wealth_grid:
         # Non-concave region coincides with credit constraint.
         # This happens when there is a non-monotonicity in the endogenous wealth grid
         # that goes below the first point.
@@ -94,12 +94,19 @@ def fast_upper_envelope_wrapper(
             n_grid_wealth,
             compute_value,
         )
-        endog_grid_ = policy_[0]
-        breakpoint()
+        endog_grid_ = np.append(0, policy_[0])
+        policy_ = np.append(policy[1, 0], policy_[1])
+        value_ = np.append(value[1, 0], value_[1])
+        exog_grid_augmented = np.linspace(
+            exog_grid[1], exog_grid[2], n_grid_wealth // 10 + 1
+        )
+        exog_grid = np.append([0], np.append(exog_grid_augmented, exog_grid[2:]))
+        # breakpoint()
     else:
         endog_grid_ = policy[0]
         policy_ = policy[1]
         value_ = value[1]
+        exog_grid = np.append(0, exog_grid)
 
     # ================================================================================
 
@@ -165,8 +172,8 @@ def fast_upper_envelope(
 
     """
 
-    # # TODO: determine locations where endogenous grid points are # noqa: T000
-    # # equal to the lower bound
+    # TODO: determine locations where endogenous grid points are # noqa: T000
+    # equal to the lower bound
     # mask = endog_grid <= b
     # if np.any(mask):
     #     max_value_lower_bound = np.nanmax(value[mask])
@@ -178,10 +185,11 @@ def fast_upper_envelope(
     exog_grid = exog_grid[np.where(~np.isnan(value))]
     value = value[np.where(~np.isnan(value))]
 
-    value = np.take(value, np.argsort(endog_grid))
-    policy = np.take(policy, np.argsort(endog_grid))
-    exog_grid = np.take(exog_grid, np.argsort(endog_grid))
-    endog_grid = np.sort(endog_grid)
+    idx_sort = np.argsort(endog_grid, kind="mergesort")
+    value = np.take(value, idx_sort)
+    policy = np.take(policy, idx_sort)
+    exog_grid = np.take(exog_grid, idx_sort)
+    endog_grid = np.take(endog_grid, idx_sort)
 
     # ================================================================================
 
@@ -256,8 +264,6 @@ def _scan(
     idx_refined = 2
 
     for i in range(1, len(endog_grid) - 2):
-        # if i == 1:
-        #     breakpoint()
         if value[i + 1] - value[j] < 0:
             suboptimal_points = _append_new_point(suboptimal_points, i + 1)
 
@@ -469,7 +475,7 @@ def _scan(
     return value_refined, policy_refined, endog_grid_refined
 
 
-@partial(jit, static_argnums=(6))
+# @partial(jit, static_argnums=(6))
 def _forward_scan(
     value,
     endog_grid,
@@ -512,7 +518,7 @@ def _forward_scan(
 
     for i in range(1, n_points_to_scan + 1):
         is_on_same_value = (
-            jnp.abs(
+            np.abs(
                 (exog_grid[idx_current] - exog_grid[idx_next + i])
                 / (endog_grid[idx_current] - endog_grid[idx_next + i])
             )
@@ -541,7 +547,7 @@ def _forward_scan(
     )
 
 
-@jit
+# @jit
 def _backward_scan(
     value_unrefined,
     endog_grid,
@@ -583,7 +589,7 @@ def _backward_scan(
 
     for i, idx_before_on_same_value in enumerate(suboptimal_points[::-1]):
         is_on_same_value = (
-            jnp.abs(
+            np.abs(
                 (exog_grid[idx_next] - exog_grid[idx_before_on_same_value])
                 / (endog_grid[idx_next] - endog_grid[idx_before_on_same_value])
             )
