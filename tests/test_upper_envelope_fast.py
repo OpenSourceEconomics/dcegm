@@ -1,12 +1,16 @@
+from __future__ import annotations
+
 from functools import partial
 from pathlib import Path
-import pytest
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pytest
 from dcegm.pre_processing import calc_current_value
 from dcegm.upper_envelope import upper_envelope
-from dcegm.upper_envelope_fast import fast_upper_envelope, _augment_grid
+from dcegm.upper_envelope_fast import _augment_grid
+from dcegm.upper_envelope_fast import fast_upper_envelope
 from dcegm.upper_envelope_fast_org import fast_upper_envelope_wrapper_org
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
@@ -69,78 +73,6 @@ def test_fast_upper_envelope_against_org_code():
     assert np.all(np.in1d(policy_expected[1, :], policy_refined))
 
 
-# @pytest.mark.skip
-@pytest.mark.parametrize(
-    "period",
-    [10],
-)
-def test_fast_upper_envelope_against_fedor(period):
-    policy_egm = np.genfromtxt(TEST_RESOURCES_DIR / f"pol{period}.csv", delimiter=",")
-    policy_fedor = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"expec_pol{period}.csv", delimiter=","
-    )
-
-    value_egm = np.genfromtxt(TEST_RESOURCES_DIR / f"val{period}.csv", delimiter=",")
-    value_fedor = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"expec_val{period}.csv", delimiter=","
-    )
-
-    choice = 0
-    max_wealth = 50
-    n_grid_wealth = 500
-    exogenous_savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
-
-    _index = pd.MultiIndex.from_tuples(
-        [("utility_function", "theta"), ("delta", "delta")],
-        names=["category", "name"],
-    )
-    params = pd.DataFrame(data=[1.95, 0.35], columns=["value"], index=_index)
-    discount_factor = 0.95
-
-    compute_utility = partial(utility_func_crra, params=params)
-    compute_value = partial(
-        calc_current_value,
-        discount_factor=discount_factor,
-        compute_utility=compute_utility,
-    )
-
-    endog_grid_refined, value_refined, policy_refined = fast_upper_envelope(
-        endog_grid=policy_egm[0],
-        value=value_egm[1],
-        policy=policy_egm[1],
-        exog_grid=np.append(0, exogenous_savings_grid),
-    )
-
-    _policy_refined_fedor, _value_refine_fedor = upper_envelope(  # noqa: U100
-        policy=policy_egm,
-        value=value_egm,
-        exog_grid=exogenous_savings_grid,
-        choice=choice,
-        compute_value=compute_value,
-        period=period,
-    )
-
-    policy_expected = policy_fedor[:, ~np.isnan(policy_fedor).any(axis=0)]  # noqa: F841
-    value_expected = value_fedor[  # noqa: F841
-        :,
-        ~np.isnan(value_fedor).any(axis=0),
-    ]
-
-    # In Fedor's upper envelope, there are two endogenous wealth grids;
-    # one for the value function and a longer one for the policy function.
-    # Since we want to unify the two endogoenous grids and want the refined value and
-    # policy array to be of equal length, our refined value function is longer than
-    # Fedor's.
-    # Hence, we interpolate Fedor's refined value function to our refined grid.
-    aaae(endog_grid_refined, policy_expected[0])
-    aaae(policy_refined, policy_expected[1])
-    value_expected_interp = np.interp(
-        endog_grid_refined, value_expected[0], value_expected[1]
-    )
-    aaae(value_refined, value_expected_interp)
-
-
-# @pytest.mark.skip
 @pytest.mark.parametrize("period", [18, 9])
 def test_fast_upper_envelope_against_fedor_credit_constrained_passes(period):
     policy_egm = np.genfromtxt(TEST_RESOURCES_DIR / f"pol{period}.csv", delimiter=",")
@@ -272,7 +204,7 @@ def test_fast_upper_envelope_against_fedor_credit_constrained_passes(period):
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    ax.plot(policy_expected[0][:], policy_expected[1][:], "o", c="g", ms=0.5)
+    ax.plot(policy_expected[0][:10], policy_expected[1][:10], "o", c="g", ms=0.5)
     ax.set_title("refined - Fedor")
     ax.set_xlabel("$m_t$")
     ax.set_ylabel("$c_t$")
@@ -280,7 +212,7 @@ def test_fast_upper_envelope_against_fedor_credit_constrained_passes(period):
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    ax.plot(endog_grid_refined[:], policy_refined[:], "o", ms=0.5)
+    ax.plot(endog_grid_refined, policy_refined, "o", ms=0.5)
     ax.set_title("refined - FUES")
     ax.set_xlabel("$m_t$")
     ax.set_ylabel("$c_t$")
@@ -302,9 +234,12 @@ def test_fast_upper_envelope_against_fedor_credit_constrained_passes(period):
     aaae(value_refined, value_expected_interp)
 
 
-@pytest.mark.skip
-@pytest.mark.parametrize("period", [18])
-def test_fast_upper_envelope_against_fedor_credit_constrained_fails(period):
+# @pytest.mark.skip
+@pytest.mark.parametrize(
+    "period",
+    [4, 10],
+)
+def test_fast_upper_envelope_against_fedor(period):
     policy_egm = np.genfromtxt(TEST_RESOURCES_DIR / f"pol{period}.csv", delimiter=",")
     policy_fedor = np.genfromtxt(
         TEST_RESOURCES_DIR / f"expec_pol{period}.csv", delimiter=","
@@ -325,7 +260,7 @@ def test_fast_upper_envelope_against_fedor_credit_constrained_fails(period):
         names=["category", "name"],
     )
     params = pd.DataFrame(data=[1.95, 0.35], columns=["value"], index=_index)
-    discount_factor = 1.95
+    discount_factor = 0.95
 
     compute_utility = partial(utility_func_crra, params=params)
     compute_value = partial(
@@ -356,20 +291,9 @@ def test_fast_upper_envelope_against_fedor_credit_constrained_fails(period):
         ~np.isnan(value_fedor).any(axis=0),
     ]
 
-    # np.savetxt(
-    #     "plot_fues_against_fedor_policy_10_fues.csv",
-    #     policy_got,
-    #     delimiter="," # noqa: E800
-    # ) # noqa: E800
-    np.savetxt(
-        "plot_fues_against_fedor_policy_18_fedor.csv",
-        _policy_refined_fedor,  # noqa: E800
-        delimiter=",",  # noqa: E800
-    )  # noqa: E800
-
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    ax.plot(value_expected[0], value_expected[1], "o", c="g", ms=0.5)
+    ax.plot(value_expected[0][:10], value_expected[1][:10], "o", c="g", ms=0.5)
     ax.set_title("refined - Fedor")
     ax.set_xlabel("$m_t$")
     ax.set_ylabel("$c_t$")
@@ -377,7 +301,7 @@ def test_fast_upper_envelope_against_fedor_credit_constrained_fails(period):
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    ax.plot(endog_grid_refined, value_refined, "o", ms=0.5)
+    ax.plot(endog_grid_refined[:10], value_refined[:10], "o", ms=0.5)
     ax.set_title("refined - FUES")
     ax.set_xlabel("$m_t$")
     ax.set_ylabel("$c_t$")
@@ -385,7 +309,7 @@ def test_fast_upper_envelope_against_fedor_credit_constrained_fails(period):
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    ax.plot(policy_expected[0], policy_expected[1], "o", c="g", ms=0.5)
+    ax.plot(policy_expected[0][:10], policy_expected[1][:10], "o", c="g", ms=0.5)
     ax.set_title("refined - Fedor")
     ax.set_xlabel("$m_t$")
     ax.set_ylabel("$c_t$")
@@ -393,7 +317,7 @@ def test_fast_upper_envelope_against_fedor_credit_constrained_fails(period):
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    ax.plot(endog_grid_refined, policy_refined, "o", ms=0.5)
+    ax.plot(endog_grid_refined[:10], policy_refined[:10], "o", ms=0.5)
     ax.set_title("refined - FUES")
     ax.set_xlabel("$m_t$")
     ax.set_ylabel("$c_t$")
@@ -405,16 +329,7 @@ def test_fast_upper_envelope_against_fedor_credit_constrained_fails(period):
     # policy array to be of equal length, our refined value function is longer than
     # Fedor's.
     # Hence, we interpolate Fedor's refined value function to our refined grid.
-
-    # aaae(endog_grid_refined[3:], policy_expected[0][50:])
-    # aaae(policy_refined[3:], policy_expected[1][50:])
-    # value_expected_interp = np.interp(
-    #     endog_grid_refined[3:], value_expected[0][50:], value_expected[1][50:]
-    # )
-    # aaae(value_refined[3:], value_expected_interp)
-
     aaae(endog_grid_refined, policy_expected[0])
-    # breakpoint()
     aaae(policy_refined, policy_expected[1])
     value_expected_interp = np.interp(
         endog_grid_refined, value_expected[0], value_expected[1]

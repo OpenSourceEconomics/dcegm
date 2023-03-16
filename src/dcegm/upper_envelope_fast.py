@@ -3,6 +3,8 @@
 Based on Akshay Shanker, University of Sydney, akshay.shanker@me.com.
 
 """
+from __future__ import annotations
+
 from functools import partial
 from typing import Callable
 from typing import Optional
@@ -335,6 +337,8 @@ def _scan(
                 # jumped to) and the point m(the last point on the same
                 # choice specific policy) is shallower than the
                 # gradient joining the i+1 and j, then delete j'th point
+                # if i == 1 | i == 2:
+                # breakpoint()
                 if (
                     grad_before < grad_next
                     and grad_next >= grad_next_backward
@@ -343,6 +347,8 @@ def _scan(
                     keep_current = False
 
                 if not keep_current:
+                    # if i == 2:
+                    #     breakpoint()
                     intersect_grid, intersect_value = _linear_intersection(
                         x1=endog_grid[j],
                         y1=value[j],
@@ -370,8 +376,7 @@ def _scan(
                     )
 
                     # =================================================================
-
-                    if idx_before_on_upper_curve > 0:
+                    if idx_before_on_upper_curve > 0 and i > 1:
                         value_refined[idx_refined - 1] = intersect_value
                         policy_refined[idx_refined - 1] = intersect_policy_left
                         endog_grid_refined[idx_refined - 1] = intersect_grid
@@ -380,8 +385,83 @@ def _scan(
                         policy_refined[idx_refined] = intersect_policy_right
                         endog_grid_refined[idx_refined] = intersect_grid
                         idx_refined += 1
-                    # else:
-                    #     value_refined[idx_refined] =
+                    # elif i > 1:
+                    #     # breakpoint()
+                    #     (
+                    #         grad_next_forward,
+                    #         dist_next_point_on_same_value,
+                    #         _,
+                    #     ) = _forward_scan(
+                    #         value=value,
+                    #         endog_grid=endog_grid,
+                    #         exog_grid=exog_grid,
+                    #         jump_thresh=jump_thresh,
+                    #         idx_current=j,
+                    #         idx_next=i + 1,
+                    #         n_points_to_scan=n_points_to_scan,
+                    #     )
+                    #     (
+                    #         grad_next_upper_forward,
+                    #         dist_next_upper_point_on_same_value,
+                    #         _,
+                    #     ) = _forward_scan(
+                    #         value=value,
+                    #         endog_grid=endog_grid,
+                    #         exog_grid=exog_grid,
+                    #         jump_thresh=jump_thresh,
+                    #         idx_current=i + 1,
+                    #         idx_next=i + 2,
+                    #         n_points_to_scan=n_points_to_scan,
+                    #     )
+
+                    #     idx_next_on_lower_curve = j + dist_next_point_on_same_value + 2
+                    #     idx_next_on_upper_curve = (
+                    #         i + 3 + dist_next_upper_point_on_same_value
+                    #     )
+
+                    #     intersect_grid, intersect_value = _linear_intersection(
+                    #         x1=endog_grid[idx_next_on_lower_curve],
+                    #         y1=value[idx_next_on_lower_curve],
+                    #         x2=endog_grid[j],
+                    #         y2=value[j],
+                    #         x3=endog_grid[i + 1],
+                    #         y3=value[i + 1],
+                    #         x4=endog_grid[idx_next_on_upper_curve],
+                    #         y4=value[idx_next_on_upper_curve],
+                    #     )
+                    #     breakpoint()
+
+                    #     intersect_policy_left = linear_interpolation_with_extrapolation(
+                    #         x=np.array(
+                    #             [endog_grid[idx_next_on_lower_curve], endog_grid[j]]
+                    #         ),
+                    #         y=np.array([policy[idx_next_on_lower_curve], policy[j]]),
+                    #         x_new=intersect_grid,
+                    #     )
+                    #     intersect_policy_right = (
+                    #         linear_interpolation_with_extrapolation(
+                    #             x=np.array(
+                    #                 [
+                    #                     endog_grid[i + 1],
+                    #                     endog_grid[idx_next_on_upper_curve],
+                    #                 ]
+                    #             ),
+                    #             y=np.array(
+                    #                 [policy[i + 1], policy[idx_next_on_upper_curve]]
+                    #             ),
+                    #             x_new=intersect_grid,
+                    #         )
+                    #     )
+
+                    #     value_refined[idx_refined - 1] = intersect_value
+                    #     policy_refined[idx_refined - 1] = intersect_policy_left
+                    #     endog_grid_refined[idx_refined - 1] = intersect_grid
+                    #     # idx_refined += 1
+
+                    #     value_refined[idx_refined] = intersect_value
+                    #     policy_refined[idx_refined] = intersect_policy_right
+                    #     endog_grid_refined[idx_refined] = intersect_grid
+                    #     idx_refined += 1
 
                     # =================================================================
 
