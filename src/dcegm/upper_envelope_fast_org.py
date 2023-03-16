@@ -262,7 +262,7 @@ def seg_intersect(a1, a2, b1, b2):
 
 
 def _scan_org(e_grid, vf, c, a_prime, m_bar, lb, fwd_scan_do=True):  # noqa: U100
-    """" Implements the scan for FUES."""
+    """ " Implements the scan for FUES."""
 
     # leading index for optimal values j
     # leading index for value to be `checked' is i+1
