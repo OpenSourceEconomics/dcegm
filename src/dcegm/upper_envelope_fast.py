@@ -74,12 +74,37 @@ def fast_upper_envelope_wrapper(
     n_grid_wealth = len(exog_grid)
     exog_grid = np.append(0, exog_grid)
 
-    endog_grid = policy[0]
-    policy_ = policy[1]
-    value_ = value[1]
+    # ================================================================================
+    min_wealth_grid = np.min(value[0, 1:])
+    if value[0, 1] <= min_wealth_grid:
+        # Non-concave region coincides with credit constraint.
+        # This happens when there is a non-monotonicity in the endogenous wealth grid
+        # that goes below the first point.
+        # Solution: Value function to the left of the first point is analytical,
+        # so we just need to add some points to the left of the first grid point.
+
+        expected_value_zero_wealth = value[1, 0]
+
+        policy_, value_ = _augment_grid(
+            policy,
+            value,
+            choice,
+            expected_value_zero_wealth,
+            min_wealth_grid,
+            n_grid_wealth,
+            compute_value,
+        )
+        endog_grid_ = policy_[0]
+        breakpoint()
+    else:
+        endog_grid_ = policy[0]
+        policy_ = policy[1]
+        value_ = value[1]
+
+    # ================================================================================
 
     endog_grid_refined, value_out, policy_out = fast_upper_envelope(
-        endog_grid, value_, policy_, exog_grid, jump_thresh=2
+        endog_grid_, value_, policy_, exog_grid, jump_thresh=2
     )
 
     # ================================================================================
@@ -140,13 +165,13 @@ def fast_upper_envelope(
 
     """
 
-    # TODO: determine locations where endogenous grid points are # noqa: T000
-    # equal to the lower bound
-    mask = endog_grid <= b
-    if np.any(mask):
-        max_value_lower_bound = np.nanmax(value[mask])
-        mask &= value < max_value_lower_bound
-        value[mask] = np.nan
+    # # TODO: determine locations where endogenous grid points are # noqa: T000
+    # # equal to the lower bound
+    # mask = endog_grid <= b
+    # if np.any(mask):
+    #     max_value_lower_bound = np.nanmax(value[mask])
+    #     mask &= value < max_value_lower_bound
+    #     value[mask] = np.nan
 
     endog_grid = endog_grid[np.where(~np.isnan(value))]
     policy = policy[np.where(~np.isnan(value))]
@@ -216,18 +241,23 @@ def _scan(
     policy_refined = np.copy(policy)
     endog_grid_refined = np.copy(endog_grid)
 
-    value_refined[3:] = np.nan
-    endog_grid_refined[3:] = np.nan
-    policy_refined[3:] = np.nan
+    # policy[0] = 4.93466161
+    # endog_grid[0] = 4.95469546
+
+    value_refined[2:] = np.nan
+    endog_grid_refined[2:] = np.nan
+    policy_refined[2:] = np.nan
 
     suboptimal_points = np.zeros(n_points_to_scan, dtype=int)
 
     j = 1
     k = 0
 
-    idx_refined = 3
+    idx_refined = 2
 
-    for i in range(2, len(endog_grid) - 2):
+    for i in range(1, len(endog_grid) - 2):
+        # if i == 1:
+        #     breakpoint()
         if value[i + 1] - value[j] < 0:
             suboptimal_points = _append_new_point(suboptimal_points, i + 1)
 
@@ -344,6 +374,8 @@ def _scan(
                         policy_refined[idx_refined] = intersect_policy_right
                         endog_grid_refined[idx_refined] = intersect_grid
                         idx_refined += 1
+                    # else:
+                    #     value_refined[idx_refined] =
 
                     # =================================================================
 
@@ -636,3 +668,65 @@ def _linear_intersection(x1, y1, x2, y2, x3, y3, x4, y4):
     y_intersection = slope1 * (x_intersection - x1) + y1
 
     return x_intersection, y_intersection
+
+
+def _augment_grid(
+    policy: np.ndarray,
+    value: np.ndarray,
+    choice,
+    expected_value_zero_wealth: np.ndarray,
+    min_wealth_grid: float,
+    n_grid_wealth: int,
+    compute_value: Callable,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Extends the endogenous wealth grid, value, and policy function to the left.
+    Args:
+        policy (np.ndarray):  Array storing the choice-specific
+            policy function. Shape (2, *n_endog_wealth_grid*), where
+            *n_endog_wealth_grid* is of variable length depending on the number of
+            discontinuities in the policy function.
+            In the presence of discontinuities, the policy function is a
+            "correspondence" rather than a function due to multiple local optima.
+        value (np.ndarray):  Array storing the choice-specific
+            value function. Shape (2, *n_endog_wealth_grid*), where
+            *n_endog_wealth_grid* is of variable length depending on the number of
+            kinks and non-concave regions in the value function.
+            In the presence of kinks, the value function is a "correspondence"
+            rather than a function due to non-concavities.
+        expected_value_zero_wealth (float): The agent's expected value given that she
+            has a wealth of zero.
+        min_wealth_grid (float): Minimal wealth level in the endogenous wealth grid.
+        n_grid_wealth (int): Number of grid points in the exogenous wealth grid.
+        compute_value (callable): Function to compute the agent's value.
+    Returns:
+        policy_augmented (np.ndarray): Array containing endogenous grid and
+            policy function with ancillary points added to the left.
+            Shape (2, *n_grid_augmented*).
+        value_augmented (np.ndarray): Array containing endogenous grid and
+            value function with ancillary points added to the left.
+            Shape (2, *n_grid_augmented*).
+
+    """
+    grid_points_to_add = np.linspace(min_wealth_grid, value[0, 1], n_grid_wealth // 10)[
+        :-1
+    ]
+    values_to_add = compute_value(
+        grid_points_to_add,
+        expected_value_zero_wealth,
+        choice,
+    )
+
+    value_augmented = np.vstack(
+        [
+            np.append(grid_points_to_add, value[0, 1:]),
+            np.append(values_to_add, value[1, 1:]),
+        ]
+    )
+    policy_augmented = np.vstack(
+        [
+            np.append(grid_points_to_add, policy[0, 1:]),
+            np.append(grid_points_to_add, policy[1, 1:]),
+        ]
+    )
+
+    return policy_augmented, value_augmented
