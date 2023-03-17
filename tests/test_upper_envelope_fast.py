@@ -3,13 +3,10 @@ from __future__ import annotations
 from functools import partial
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
 from dcegm.pre_processing import calc_current_value
-from dcegm.upper_envelope import upper_envelope
-from dcegm.upper_envelope_fast import _augment_grid
 from dcegm.upper_envelope_fast import fast_upper_envelope
 from dcegm.upper_envelope_fast import fast_upper_envelope_wrapper
 from dcegm.upper_envelope_fast_org import fast_upper_envelope_wrapper_org
