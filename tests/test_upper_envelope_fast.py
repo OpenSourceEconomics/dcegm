@@ -25,12 +25,16 @@ TEST_RESOURCES_DIR = TEST_DIR / "resources"
 
 @pytest.mark.parametrize("period", [2, 4, 10, 18, 9])
 def test_fues_wrapper(period):
-    policy_egm = np.genfromtxt(TEST_RESOURCES_DIR / f"period_tests/pol{period}.csv", delimiter=",")
+    policy_egm = np.genfromtxt(
+        TEST_RESOURCES_DIR / f"period_tests/pol{period}.csv", delimiter=","
+    )
     policy_fedor = np.genfromtxt(
         TEST_RESOURCES_DIR / f"period_tests/expec_pol{period}.csv", delimiter=","
     )
 
-    value_egm = np.genfromtxt(TEST_RESOURCES_DIR / f"period_tests/val{period}.csv", delimiter=",")
+    value_egm = np.genfromtxt(
+        TEST_RESOURCES_DIR / f"period_tests/val{period}.csv", delimiter=","
+    )
     value_fedor = np.genfromtxt(
         TEST_RESOURCES_DIR / f"period_tests/expec_val{period}.csv", delimiter=","
     )
@@ -82,8 +86,12 @@ def test_fues_wrapper(period):
 
 
 def test_fast_upper_envelope_against_org_code():
-    policy_egm = np.genfromtxt(TEST_RESOURCES_DIR / "period_tests/pol10.csv", delimiter=",")
-    value_egm = np.genfromtxt(TEST_RESOURCES_DIR / "period_tests/val10.csv", delimiter=",")
+    policy_egm = np.genfromtxt(
+        TEST_RESOURCES_DIR / "period_tests/pol10.csv", delimiter=","
+    )
+    value_egm = np.genfromtxt(
+        TEST_RESOURCES_DIR / "period_tests/val10.csv", delimiter=","
+    )
 
     choice = 0
     max_wealth = 50
