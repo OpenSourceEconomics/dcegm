@@ -17,7 +17,6 @@ def upper_envelope(
     exog_grid: np.ndarray,
     choice: int,
     compute_value: Callable,
-    period: int,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Runs the Upper Envelope algorithm and drops sub-optimal points.
     Calculates the upper envelope over the overlapping segments of the
