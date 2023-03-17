@@ -1,4 +1,6 @@
 """Auxiliary functions for the EGM algorithm."""
+from __future__ import annotations
+
 from typing import Callable
 from typing import Tuple
 
