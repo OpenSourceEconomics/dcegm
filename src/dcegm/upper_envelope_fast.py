@@ -17,7 +17,6 @@ from jax import jit  # noqa: F401
 
 
 def fast_upper_envelope_wrapper(
-    endog_grid: np.ndarray,
     policy: np.ndarray,
     value: np.ndarray,
     exog_grid: np.ndarray,
@@ -76,6 +75,7 @@ def fast_upper_envelope_wrapper(
 
     """
     n_grid_wealth = len(exog_grid)
+    endog_grid = np.copy(policy[0])
 
     # ================================================================================
     min_wealth_grid = np.min(endog_grid[1:])
@@ -86,9 +86,9 @@ def fast_upper_envelope_wrapper(
         # Solution: Value function to the left of the first point is analytical,
         # so we just need to add some points to the left of the first grid point.
 
-        expected_value_zero_wealth = value[0]
+        expected_value_zero_wealth = value[1, 0]
 
-        endog_grid_, policy_, value_ = _augment_grid(
+        policy_, value_ = _augment_grid(
             policy,
             value,
             choice,
@@ -97,17 +97,17 @@ def fast_upper_envelope_wrapper(
             n_grid_wealth,
             compute_value,
         )
-        endog_grid_ = np.append(0, endog_grid_)
-        policy_ = np.append(policy[0], policy_)
-        value_ = np.append(value[0], value_)
+        endog_grid_ = np.append(0, policy_[0])
+        policy_ = np.append(policy[1, 0], policy_[1])
+        value_ = np.append(value[1, 0], value_[1])
         exog_grid_augmented = np.linspace(
             exog_grid[1], exog_grid[2], n_grid_wealth // 10 + 1
         )
         exog_grid = np.append([0], np.append(exog_grid_augmented, exog_grid[2:]))
     else:
-        endog_grid_ = endog_grid
-        policy_ = policy
-        value_ = value
+        endog_grid_ = policy[0]
+        policy_ = policy[1]
+        value_ = value[1]
         exog_grid = np.append(0, exog_grid)
 
     # ================================================================================
@@ -123,21 +123,19 @@ def fast_upper_envelope_wrapper(
     value_refined = value_out
 
     # Fill array with nans to fit 10% extra grid points
-    endog_grid_refined_with_nans = np.empty((int(1.1 * n_grid_wealth)))
-    policy_refined_with_nans = np.empty((int(1.1 * n_grid_wealth)))
-    value_refined_with_nans = np.empty((int(1.1 * n_grid_wealth)))
-    endog_grid_refined_with_nans[:] = np.nan
+    policy_refined_with_nans = np.empty((2, int(1.1 * n_grid_wealth)))
+    value_refined_with_nans = np.empty((2, int(1.1 * n_grid_wealth)))
     policy_refined_with_nans[:] = np.nan
     value_refined_with_nans[:] = np.nan
 
-    endog_grid_refined_with_nans[: endog_grid_refined.shape[0]] = endog_grid_refined
-    policy_refined_with_nans[: policy_refined.shape[0]] = policy_refined
-    value_refined_with_nans[: value_refined.shape[0]] = value_refined
+    policy_refined_with_nans[0, : policy_refined.shape[0]] = endog_grid_refined
+    policy_refined_with_nans[1, : policy_refined.shape[0]] = policy_refined
+    value_refined_with_nans[0, : value_refined.shape[0]] = endog_grid_refined
+    value_refined_with_nans[1, : value_refined.shape[0]] = value_refined
 
     # ================================================================================
 
     return (
-        endog_grid_refined_with_nans,
         policy_refined_with_nans,
         value_refined_with_nans,
     )

@@ -317,10 +317,6 @@ def backwards_induction(
                     # For the upper envelope we cannot parallelize over the wealth grid
                     # as here we need to inspect the value function on the whole wealth
                     # grid.
-
-                    # if period == 2:
-                    #     np.savetxt(f"pol{period}.csv", current_policy, delimiter=",")
-                    #     np.savetxt(f"val{period}.csv", current_value, delimiter=",")
                     current_policy, current_value = compute_upper_envelope(
                         policy=current_policy,
                         value=current_value,
@@ -329,14 +325,6 @@ def backwards_induction(
                         compute_value=compute_value,
                         period=period,
                     )
-                    # if period == 2:
-                    #     np.savetxt(
-                    #         f"expec_pol{period}.csv", current_policy, delimiter=","
-                    #     )
-                    #     np.savetxt(
-                    #         f"expec_val{period}.csv", current_value, delimiter=","
-                    #     )
-                    #     breakpoint()
 
                 policy_array[
                     current_state_index,

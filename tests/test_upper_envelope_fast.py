@@ -55,9 +55,8 @@ def test_fues_wrapper(period):
     )
 
     endog_grid_refined, policy_refined, value_refined = fast_upper_envelope_wrapper(
-        endog_grid=policy_egm[0],
-        value=value_egm[1],
-        policy=policy_egm[1],
+        value=value_egm,
+        policy=policy_egm,
         exog_grid=np.append(0, exogenous_savings_grid),
         choice=choice,
         compute_value=compute_value,
