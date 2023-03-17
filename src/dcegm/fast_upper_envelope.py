@@ -9,8 +9,8 @@ from typing import Tuple
 
 import jax.numpy as jnp  # noqa: F401
 import numpy as np
-from dcegm.interpolate import linear_interpolation_with_extrapolation
 from jax import jit  # noqa: F401
+from numba import njit
 
 
 def fast_upper_envelope_wrapper(
@@ -164,11 +164,11 @@ def fast_upper_envelope(
     """
     # TODO: determine locations where endogenous grid points are # noqa: T000
     # equal to the lower bound
-    # mask = endog_grid <= lower_bound_wealth
-    # if np.any(mask):
-    #     max_value_lower_bound = np.nanmax(value[mask])
-    #     mask &= value < max_value_lower_bound
-    #     value[mask] = np.nan
+    mask = endog_grid <= lower_bound_wealth
+    if np.any(mask):
+        max_value_lower_bound = np.nanmax(value[mask])
+        mask &= value < max_value_lower_bound
+        value[mask] = np.nan
 
     endog_grid = endog_grid[np.where(~np.isnan(value))]
     policy = policy[np.where(~np.isnan(value))]
@@ -239,7 +239,7 @@ def scan_value_function(
     endog_grid_refined[2:] = np.nan
     policy_refined[2:] = np.nan
 
-    suboptimal_points = np.zeros(n_points_to_scan, dtype=int)
+    suboptimal_points = np.zeros(n_points_to_scan, dtype=np.int64)
 
     j = 1
     k = 0
@@ -326,7 +326,6 @@ def scan_value_function(
                         y2=policy[j],
                         point_to_evaluate=intersect_grid,
                     )
-
                     intersect_policy_right = _evaluate_point_on_line(
                         x1=endog_grid[i + 1],
                         y1=policy[i + 1],
@@ -369,7 +368,7 @@ def scan_value_function(
                 idx_before_on_upper_curve = suboptimal_points[dist_before_on_same_value]
 
                 # # This should better a bool from the backwards scan
-                grad_next_forward, *_ = _forward_scan(
+                grad_next_forward, _, _ = _forward_scan(
                     value=value,
                     endog_grid=endog_grid,
                     exog_grid=exog_grid,
@@ -407,17 +406,19 @@ def scan_value_function(
 
                     # The next two interpolations is just to show that from
                     # interpolation from each side leads to the same result
-                    intersect_policy_left = linear_interpolation_with_extrapolation(
-                        x=np.array([endog_grid[j], endog_grid[k]]),
-                        y=np.array([policy[j], policy[k]]),
-                        x_new=intersect_grid,
+                    intersect_policy_left = _evaluate_point_on_line(
+                        x1=endog_grid[k],
+                        y1=policy[k],
+                        x2=endog_grid[j],
+                        y2=policy[j],
+                        point_to_evaluate=intersect_grid,
                     )
-                    intersect_policy_right = linear_interpolation_with_extrapolation(
-                        x=np.array(
-                            [endog_grid[i + 1], endog_grid[idx_before_on_upper_curve]]
-                        ),
-                        y=np.array([policy[i + 1], policy[idx_before_on_upper_curve]]),
-                        x_new=intersect_grid,
+                    intersect_policy_right = _evaluate_point_on_line(
+                        x1=endog_grid[i + 1],
+                        y1=policy[i + 1],
+                        x2=endog_grid[idx_before_on_upper_curve],
+                        y2=policy[idx_before_on_upper_curve],
+                        point_to_evaluate=intersect_grid,
                     )
 
                     if idx_before_on_upper_curve > 0 and i > 1:
@@ -468,26 +469,19 @@ def scan_value_function(
                             y4=value[idx_before_on_upper_curve],
                         )
 
-                        intersect_policy_left = linear_interpolation_with_extrapolation(
-                            x=np.array(
-                                [endog_grid[idx_next_on_lower_curve], endog_grid[j]]
-                            ),
-                            y=np.array([policy[idx_next_on_lower_curve], policy[j]]),
-                            x_new=intersect_grid,
+                        intersect_policy_left = _evaluate_point_on_line(
+                            x1=endog_grid[idx_next_on_lower_curve],
+                            y1=policy[idx_next_on_lower_curve],
+                            x2=endog_grid[j],
+                            y2=policy[j],
+                            point_to_evaluate=intersect_grid,
                         )
-                        intersect_policy_right = (
-                            linear_interpolation_with_extrapolation(
-                                x=np.array(
-                                    [
-                                        endog_grid[i + 1],
-                                        endog_grid[idx_before_on_upper_curve],
-                                    ]
-                                ),
-                                y=np.array(
-                                    [policy[i + 1], policy[idx_before_on_upper_curve]]
-                                ),
-                                x_new=intersect_grid,
-                            )
+                        intersect_policy_right = _evaluate_point_on_line(
+                            x1=endog_grid[i + 1],
+                            y1=policy[i + 1],
+                            x2=endog_grid[idx_before_on_upper_curve],
+                            y2=policy[idx_before_on_upper_curve],
+                            point_to_evaluate=intersect_grid,
                         )
 
                         value_refined[idx_refined] = intersect_value
@@ -514,6 +508,7 @@ def scan_value_function(
     return value_refined, policy_refined, endog_grid_refined
 
 
+@njit
 def _forward_scan(
     value,
     endog_grid,
@@ -554,7 +549,7 @@ def _forward_scan(
     idx_on_same_value = 0
     grad_next_on_same_value = 0
 
-    idx_max = exog_grid.shape[0] - 1
+    idx_max = len(exog_grid) - 1
 
     for i in range(1, n_points_to_scan + 1):
         idx_to_check = min(idx_next + i, idx_max)
@@ -589,6 +584,7 @@ def _forward_scan(
     )
 
 
+@njit
 def _backward_scan(
     value_unrefined,
     endog_grid,
@@ -659,6 +655,7 @@ def _backward_scan(
     )
 
 
+@njit
 def _evaluate_point_on_line(x1, y1, x2, y2, point_to_evaluate):
     """Evaluate a point on a line.
 
@@ -676,6 +673,7 @@ def _evaluate_point_on_line(x1, y1, x2, y2, point_to_evaluate):
     return (y2 - y1) / (x2 - x1) * (point_to_evaluate - x1) + y1
 
 
+@njit
 def _linear_intersection(x1, y1, x2, y2, x3, y3, x4, y4):
     """Find the intersection of two lines.
 
@@ -702,6 +700,16 @@ def _linear_intersection(x1, y1, x2, y2, x3, y3, x4, y4):
     y_intersection = slope1 * (x_intersection - x1) + y1
 
     return x_intersection, y_intersection
+
+
+@njit
+def _append_new_point(x_array, m):
+    """Append a new point to an array."""
+    for i in range(len(x_array) - 1):
+        x_array[i] = x_array[i + 1]
+
+    x_array[-1] = m
+    return x_array
 
 
 def _augment_grids(
@@ -755,7 +763,7 @@ def _augment_grids(
         min_wealth_grid, endog_grid[1], n_grid_wealth // 10
     )[:-1]
 
-    endog_grid_augmented = np.append(grid_points_to_add, endog_grid[1:])
+    grid_augmented = np.append(grid_points_to_add, endog_grid[1:])
     values_to_add = compute_value(
         grid_points_to_add,
         expected_value_zero_wealth,
@@ -764,13 +772,4 @@ def _augment_grids(
     value_augmented = np.append(values_to_add, value[1:])
     policy_augmented = np.append(grid_points_to_add, policy[1:])
 
-    return endog_grid_augmented, value_augmented, policy_augmented
-
-
-def _append_new_point(x_array, m):
-    """Append a new point to an array."""
-    for i in range(len(x_array) - 1):
-        x_array[i] = x_array[i + 1]
-
-    x_array[-1] = m
-    return x_array
+    return grid_augmented, value_augmented, policy_augmented
