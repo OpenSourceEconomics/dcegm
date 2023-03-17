@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from dcegm.integration import quadrature_hermite
 from numpy.testing import assert_allclose
 

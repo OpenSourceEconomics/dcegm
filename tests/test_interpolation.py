@@ -6,8 +6,6 @@ The results are compared to the ones from scipy's linear interpolation
 function interp1d.
 
 """
-from __future__ import annotations
-
 import numpy as np
 import pytest
 from dcegm.interpolate import linear_interpolation_with_extrapolation

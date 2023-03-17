@@ -3,8 +3,6 @@
 Based on Akshay Shanker, University of Sydney, akshay.shanker@me.com.
 
 """
-from __future__ import annotations
-
 from typing import Callable
 from typing import Optional
 from typing import Tuple
