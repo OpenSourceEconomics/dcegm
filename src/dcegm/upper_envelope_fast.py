@@ -15,6 +15,7 @@ import numpy as np
 from dcegm.interpolate import linear_interpolation_with_extrapolation  # noqa: F401
 from jax import jit  # noqa: F401
 
+
 def fast_upper_envelope_wrapper(
     policy: np.ndarray,
     value: np.ndarray,
@@ -214,6 +215,7 @@ def fast_upper_envelope(
 
 # ================================================================================
 
+
 def _scan(
     endog_grid,
     value,
@@ -331,10 +333,13 @@ def _scan(
                 current_i_is_optimal = True
                 idx_before_on_upper_curve = suboptimal_points[dist_before_on_same_value]
 
-
                 # # This should better a bool from the backwards scan
                 if suboptimal_points.sum() == 0:
-                    grad_next_forward, _, found_next_point_on_same_value_as_j = _forward_scan(
+                    (
+                        grad_next_forward,
+                        _,
+                        found_next_point_on_same_value_as_j,
+                    ) = _forward_scan(
                         value=value,
                         endog_grid=endog_grid,
                         exog_grid=exog_grid,
@@ -358,7 +363,7 @@ def _scan(
                 ):
                     keep_current = False
 
-                if (not keep_current )& current_i_is_optimal:
+                if (not keep_current) & current_i_is_optimal:
                     # We do not keep j
                     intersect_grid, intersect_value = _linear_intersection(
                         x1=endog_grid[j],
@@ -540,9 +545,9 @@ def _forward_scan(
                 < jump_thresh
             )
             is_next = is_on_same_value * (1 - is_next_on_same_value)
-            idx_on_same_value = idx_to_check * is_next + (
-                1 - is_next
-            ) * idx_on_same_value
+            idx_on_same_value = (
+                idx_to_check * is_next + (1 - is_next) * idx_on_same_value
+            )
 
             grad_next_on_same_value = (
                 (value[idx_next] - value[idx_to_check])
@@ -630,6 +635,8 @@ def _backward_scan(
         grad_before_on_same_value,
         dist_before_on_same_value,
     )
+
+
 def _append_new_point(x_array, m):
     """Append a new point to an array."""
     for i in range(len(x_array) - 1):
@@ -637,6 +644,7 @@ def _append_new_point(x_array, m):
 
     x_array[-1] = m
     return x_array
+
 
 def _linear_intersection(x1, y1, x2, y2, x3, y3, x4, y4):
     """Find the intersection of two lines.
