@@ -333,10 +333,13 @@ def _scan(
                 current_i_is_optimal = True
                 idx_before_on_upper_curve = suboptimal_points[dist_before_on_same_value]
 
-
                 # # This should better a bool from the backwards scan
                 if suboptimal_points.sum() == 0:
-                    grad_next_forward, _, found_next_point_on_same_value_as_j = _forward_scan(
+                    (
+                        grad_next_forward,
+                        _,
+                        found_next_point_on_same_value_as_j,
+                    ) = _forward_scan(
                         value=value,
                         endog_grid=endog_grid,
                         exog_grid=exog_grid,
@@ -360,7 +363,7 @@ def _scan(
                 ):
                     keep_current = False
 
-                if (not keep_current )& current_i_is_optimal:
+                if (not keep_current) & current_i_is_optimal:
                     # We do not keep j
                     intersect_grid, intersect_value = _linear_intersection(
                         x1=endog_grid[j],
