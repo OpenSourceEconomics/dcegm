@@ -19,7 +19,6 @@ def fast_upper_envelope_wrapper(
     exog_grid: np.ndarray,
     choice: int,  # noqa: U100
     compute_value: Callable,  # noqa: U100
-    period,  # noqa: U100
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Drop suboptimal points and refine the endogenous grid, policy, and value.
 
@@ -59,7 +58,6 @@ def fast_upper_envelope_wrapper(
             (n_grid_wealth,).
         choice (int): The current choice.
         compute_value (callable): Function to compute the agent's value.
-        period (int): The current period.
 
     Returns:
         tuple:
