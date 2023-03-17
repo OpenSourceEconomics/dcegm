@@ -63,7 +63,6 @@ def test_fues_wrapper(period, setup_model):
         exog_grid=np.append(0, exogenous_savings_grid),
         choice=choice,
         compute_value=compute_value,
-        period=period,
     )
 
     policy_expected = policy_fedor[:, ~np.isnan(policy_fedor).any(axis=0)]

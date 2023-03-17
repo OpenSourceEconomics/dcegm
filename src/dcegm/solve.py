@@ -17,7 +17,6 @@ from dcegm.pre_processing import get_partial_functions
 from dcegm.pre_processing import get_possible_choices_array
 from dcegm.pre_processing import params_todict
 from dcegm.state_space import get_child_indexes
-from dcegm.upper_envelope import upper_envelope
 from jax import jit
 
 
@@ -29,7 +28,6 @@ def solve_dcegm(
     state_space_functions: Dict[str, Callable],
     solve_final_period: Callable,
     user_transition_function: Callable,
-    fast_upper_envelope: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
@@ -54,7 +52,7 @@ def solve_dcegm(
             state a transition matrix vector.
 
     Returns:
-        (tuple): Tuple containing:
+        tuple:
 
         - policy (np.ndarray): Multi-dimensional np.ndarray storing the
             choice-specific policy function; of shape
@@ -71,10 +69,7 @@ def solve_dcegm(
             v(M, d), for each state and each discrete choice.
 
     """
-    if fast_upper_envelope:
-        compute_upper_envelope = fast_upper_envelope_wrapper
-    else:
-        compute_upper_envelope = upper_envelope
+    compute_upper_envelope = fast_upper_envelope_wrapper
 
     params_dict = params_todict(params)
 
@@ -339,7 +334,6 @@ def backwards_induction(
                         exog_grid=exogenous_savings_grid,
                         choice=choice,
                         compute_value=compute_value,
-                        period=period,
                     )
 
                 policy_array[

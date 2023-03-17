@@ -19,7 +19,6 @@ def fast_upper_envelope_wrapper(
     exog_grid: np.ndarray,
     choice: int,  # noqa: U100
     compute_value: Callable,  # noqa: U100
-    period,  # noqa: U100
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Drop suboptimal points and refine the endogenous grid, policy, and value.
 
@@ -59,7 +58,6 @@ def fast_upper_envelope_wrapper(
             (n_grid_wealth,).
         choice (int): The current choice.
         compute_value (callable): Function to compute the agent's value.
-        period (int): The current period.
 
     Returns:
         tuple:
@@ -186,10 +184,10 @@ def fast_upper_envelope(
         policy_clean_with_nans,
         endog_grid_clean_with_nans,
     ) = scan_value_function(
-        endog_grid,
-        value,
-        policy,
-        exog_grid,
+        endog_grid=endog_grid,
+        value=value,
+        policy=policy,
+        exog_grid=exog_grid,
         jump_thresh=jump_thresh,
         n_points_to_scan=10,
     )
@@ -204,12 +202,12 @@ def fast_upper_envelope(
 
 
 def scan_value_function(
-    endog_grid,
-    value,
-    policy,
-    exog_grid,
-    jump_thresh,
-    n_points_to_scan=10,
+    endog_grid: np.ndarray,
+    value: np.ndarray,
+    policy: np.ndarray,
+    exog_grid: np.ndarray,
+    jump_thresh: float,
+    n_points_to_scan: Optional[int] = 0,
 ):
     """Scan the value function to remove suboptimal points and add itersection points.
 
@@ -248,7 +246,7 @@ def scan_value_function(
 
     for i in range(1, len(endog_grid) - 2):
         if value[i + 1] - value[j] < 0:
-            suboptimal_points = _append_new_point(suboptimal_points, i + 1)
+            suboptimal_points = _append_index(suboptimal_points, i + 1)
 
         else:
             # value function gradient between previous two optimal points
@@ -266,7 +264,7 @@ def scan_value_function(
             )
 
             if grad_before > grad_next and exog_grid[i + 1] - exog_grid[j] < 0:
-                suboptimal_points = _append_new_point(suboptimal_points, i + 1)
+                suboptimal_points = _append_index(suboptimal_points, i + 1)
 
             # if right turn is made and jump registered
             # remove point or perform forward scan
@@ -293,10 +291,13 @@ def scan_value_function(
                         keep_next = True
 
                 if not keep_next:
-                    suboptimal_points = _append_new_point(suboptimal_points, i + 1)
+                    suboptimal_points = _append_index(suboptimal_points, i + 1)
                 else:
-                    grad_next_backward, dist_before_on_same_value = _backward_scan(
-                        value_unrefined=value,
+                    (
+                        grad_next_backward,
+                        sub_idx_point_before_on_same_value,
+                    ) = _backward_scan(
+                        value=value,
                         endog_grid=endog_grid,
                         exog_grid=exog_grid,
                         suboptimal_points=suboptimal_points,
@@ -305,7 +306,7 @@ def scan_value_function(
                         idx_next=i + 1,
                     )
                     idx_before_on_upper_curve = suboptimal_points[
-                        dist_before_on_same_value
+                        sub_idx_point_before_on_same_value
                     ]
 
                     intersect_grid, intersect_value = _linear_intersection(
@@ -354,8 +355,8 @@ def scan_value_function(
             # if left turn is made or right turn with no jump, then
             # keep point provisionally and conduct backward scan
             else:
-                grad_next_backward, dist_before_on_same_value = _backward_scan(
-                    value_unrefined=value,
+                grad_next_backward, sub_idx_point_before_on_same_value = _backward_scan(
+                    value=value,
                     endog_grid=endog_grid,
                     exog_grid=exog_grid,
                     suboptimal_points=suboptimal_points,
@@ -365,7 +366,9 @@ def scan_value_function(
                 )
                 keep_current = True
                 current_is_optimal = True
-                idx_before_on_upper_curve = suboptimal_points[dist_before_on_same_value]
+                idx_before_on_upper_curve = suboptimal_points[
+                    sub_idx_point_before_on_same_value
+                ]
 
                 # # This should better a bool from the backwards scan
                 grad_next_forward, _, _ = _forward_scan(
@@ -378,7 +381,7 @@ def scan_value_function(
                     n_points_to_scan=n_points_to_scan,
                 )
                 if grad_next_forward > grad_next and switch_value_func:
-                    suboptimal_points = _append_new_point(suboptimal_points, i + 1)
+                    suboptimal_points = _append_index(suboptimal_points, i + 1)
                     current_is_optimal = False
 
                 # if the gradient joining the leading point i+1 (we have just
@@ -510,14 +513,14 @@ def scan_value_function(
 
 @njit
 def _forward_scan(
-    value,
-    endog_grid,
-    exog_grid,
-    jump_thresh,
-    idx_current,
-    idx_next,
-    n_points_to_scan,
-):
+    value: np.ndarray,
+    endog_grid: np.ndarray,
+    exog_grid: np.ndarray,
+    jump_thresh: float,
+    idx_current: int,
+    idx_next: int,
+    n_points_to_scan: int,
+) -> Tuple[float, int, int]:
     """Scan forward to check whether next point is optimal.
 
     Args:
@@ -531,7 +534,6 @@ def _forward_scan(
         idx_current (int): Index of the current point in the value function.
         idx_next (int): Index of the next point in the value function.
         n_points_to_scan (int): The number of points to scan forward.
-        index_on_curve_to_pick (int): The index on the curve to pick.
 
     Returns:
         tuple:
@@ -586,14 +588,14 @@ def _forward_scan(
 
 @njit
 def _backward_scan(
-    value_unrefined,
-    endog_grid,
-    exog_grid,
-    suboptimal_points,
-    jump_thresh,
-    idx_current,
-    idx_next,
-):
+    value: np.ndarray,
+    endog_grid: np.ndarray,
+    exog_grid: np.ndarray,
+    suboptimal_points: np.ndarray,
+    jump_thresh: float,
+    idx_current: int,
+    idx_next: int,
+) -> Tuple[float, int]:
     """Scan backward to check whether current point is optimal.
 
     Args:
@@ -619,7 +621,7 @@ def _backward_scan(
     """
 
     is_before_on_same_value = 0
-    dist_before_on_same_value = 0
+    sub_idx_point_before_on_same_value = 0
     grad_before_on_same_value = 0
 
     indexes_reversed = len(suboptimal_points) - 1
@@ -634,12 +636,12 @@ def _backward_scan(
                 < jump_thresh
             )
             is_before = is_on_same_value * (1 - is_before_on_same_value)
-            dist_before_on_same_value = (indexes_reversed - i) * is_before + (
+            sub_idx_point_before_on_same_value = (indexes_reversed - i) * is_before + (
                 1 - is_before
-            ) * dist_before_on_same_value
+            ) * sub_idx_point_before_on_same_value
 
             grad_before_on_same_value = (
-                (value_unrefined[idx_current] - value_unrefined[idx_to_check])
+                (value[idx_current] - value[idx_to_check])
                 / (endog_grid[idx_current] - endog_grid[idx_to_check])
             ) * is_before + (1 - is_before) * grad_before_on_same_value
 
@@ -651,12 +653,14 @@ def _backward_scan(
 
     return (
         grad_before_on_same_value,
-        dist_before_on_same_value,
+        sub_idx_point_before_on_same_value,
     )
 
 
 @njit
-def _evaluate_point_on_line(x1, y1, x2, y2, point_to_evaluate):
+def _evaluate_point_on_line(
+    x1: float, y1: float, x2: float, y2: float, point_to_evaluate: float
+) -> float:
     """Evaluate a point on a line.
 
     Args:
@@ -674,7 +678,16 @@ def _evaluate_point_on_line(x1, y1, x2, y2, point_to_evaluate):
 
 
 @njit
-def _linear_intersection(x1, y1, x2, y2, x3, y3, x4, y4):
+def _linear_intersection(
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    x3: float,
+    y3: float,
+    x4: float,
+    y4: float,
+) -> Tuple[float, float]:
     """Find the intersection of two lines.
 
     Args:
@@ -703,7 +716,7 @@ def _linear_intersection(x1, y1, x2, y2, x3, y3, x4, y4):
 
 
 @njit
-def _append_new_point(x_array, m):
+def _append_index(x_array: np.ndarray, m: int):
     """Append a new point to an array."""
     for i in range(len(x_array) - 1):
         x_array[i] = x_array[i + 1]
