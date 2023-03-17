@@ -236,7 +236,7 @@ def test_fast_upper_envelope_against_fedor_credit_constrained_passes(period):
 
 @pytest.mark.parametrize(
     "period",
-    [4, 10],
+    [2, 4, 10],
 )
 def test_fast_upper_envelope_against_fedor(period):
     policy_egm = np.genfromtxt(TEST_RESOURCES_DIR / f"pol{period}.csv", delimiter=",")
