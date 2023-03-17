@@ -292,7 +292,7 @@ def test_fast_upper_envelope_against_fedor(period):
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    ax.plot(value_expected[0][:10], value_expected[1][:10], "o", c="g", ms=0.5)
+    ax.plot(value_expected[0][300:320], value_expected[1][300:320], "o", c="g", ms=0.5)
     ax.set_title("refined - Fedor")
     ax.set_xlabel("$m_t$")
     ax.set_ylabel("$c_t$")
@@ -300,7 +300,7 @@ def test_fast_upper_envelope_against_fedor(period):
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    ax.plot(endog_grid_refined[:10], value_refined[:10], "o", ms=0.5)
+    ax.plot(endog_grid_refined[300:320], value_refined[300:320], "o", ms=0.5)
     ax.set_title("refined - FUES")
     ax.set_xlabel("$m_t$")
     ax.set_ylabel("$c_t$")
@@ -308,7 +308,9 @@ def test_fast_upper_envelope_against_fedor(period):
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    ax.plot(policy_expected[0][:10], policy_expected[1][:10], "o", c="g", ms=0.5)
+    ax.plot(
+        policy_expected[0][300:320], policy_expected[1][300:320], "o", c="g", ms=0.5
+    )
     ax.set_title("refined - Fedor")
     ax.set_xlabel("$m_t$")
     ax.set_ylabel("$c_t$")
@@ -316,7 +318,7 @@ def test_fast_upper_envelope_against_fedor(period):
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    ax.plot(endog_grid_refined[:10], policy_refined[:10], "o", ms=0.5)
+    ax.plot(endog_grid_refined[300:320], policy_refined[300:320], "o", ms=0.5)
     ax.set_title("refined - FUES")
     ax.set_xlabel("$m_t$")
     ax.set_ylabel("$c_t$")
