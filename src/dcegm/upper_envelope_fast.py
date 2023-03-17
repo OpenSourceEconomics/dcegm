@@ -345,23 +345,19 @@ def _scan(
                         y4=value[idx_before_on_upper_curve],
                     )
 
-                    intersect_policy_left = linear_interpolation_with_extrapolation(
-                        x=np.array(
-                            [endog_grid[idx_next_on_lower_curve], endog_grid[j]]
-                        ),
-                        y=np.array([policy[idx_next_on_lower_curve], policy[j]]),
-                        x_new=intersect_grid,
+                    intersect_policy_left = evaluate_point_on_line(x1=endog_grid[idx_next_on_lower_curve],
+                                           y1=policy[idx_next_on_lower_curve],
+                                           x2=endog_grid[j],
+                                             y2=policy[j],
+                                            point_to_evaluate=intersect_grid,
                     )
-                    intersect_policy_right = linear_interpolation_with_extrapolation(
-                        x=np.array(
-                            [
-                                endog_grid[i + 1],
-                                endog_grid[idx_before_on_upper_curve],
-                            ]
-                        ),
-                        y=np.array([policy[i + 1], policy[idx_before_on_upper_curve]]),
-                        x_new=intersect_grid,
-                    )
+
+                    intersect_policy_right = evaluate_point_on_line(x1=endog_grid[i + 1],
+                                             y1=policy[i + 1],
+                                                x2=endog_grid[idx_before_on_upper_curve],
+                                                y2=policy[idx_before_on_upper_curve],
+                                                point_to_evaluate=intersect_grid)
+
 
                     value_refined[idx_refined] = intersect_value
                     policy_refined[idx_refined] = intersect_policy_left
@@ -709,6 +705,22 @@ def _append_new_point(x_array, m):
     x_array[-1] = m
     return x_array
 
+
+def evaluate_point_on_line(x1, y1, x2, y2, point_to_evaluate):
+    """Evaluate a point on a line.
+
+    Args:
+        x1 (float): x coordinate of the first point.
+        y1 (float): y coordinate of the first point.
+        x2 (float): x coordinate of the second point.
+        y2 (float): y coordinate of the second point.
+        point_to_evaluate (float): The point to evaluate.
+
+    Returns:
+        float: The value of the point on the line.
+
+    """
+    return (y2 - y1) / (x2 - x1) * (point_to_evaluate - x1) + y1
 
 def _linear_intersection(x1, y1, x2, y2, x3, y3, x4, y4):
     """Find the intersection of two lines.
