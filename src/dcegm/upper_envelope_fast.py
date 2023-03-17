@@ -345,19 +345,21 @@ def _scan(
                         y4=value[idx_before_on_upper_curve],
                     )
 
-                    intersect_policy_left = evaluate_point_on_line(x1=endog_grid[idx_next_on_lower_curve],
-                                           y1=policy[idx_next_on_lower_curve],
-                                           x2=endog_grid[j],
-                                             y2=policy[j],
-                                            point_to_evaluate=intersect_grid,
+                    intersect_policy_left = evaluate_point_on_line(
+                        x1=endog_grid[idx_next_on_lower_curve],
+                        y1=policy[idx_next_on_lower_curve],
+                        x2=endog_grid[j],
+                        y2=policy[j],
+                        point_to_evaluate=intersect_grid,
                     )
 
-                    intersect_policy_right = evaluate_point_on_line(x1=endog_grid[i + 1],
-                                             y1=policy[i + 1],
-                                                x2=endog_grid[idx_before_on_upper_curve],
-                                                y2=policy[idx_before_on_upper_curve],
-                                                point_to_evaluate=intersect_grid)
-
+                    intersect_policy_right = evaluate_point_on_line(
+                        x1=endog_grid[i + 1],
+                        y1=policy[i + 1],
+                        x2=endog_grid[idx_before_on_upper_curve],
+                        y2=policy[idx_before_on_upper_curve],
+                        point_to_evaluate=intersect_grid,
+                    )
 
                     value_refined[idx_refined] = intersect_value
                     policy_refined[idx_refined] = intersect_policy_left
@@ -721,6 +723,7 @@ def evaluate_point_on_line(x1, y1, x2, y2, point_to_evaluate):
 
     """
     return (y2 - y1) / (x2 - x1) * (point_to_evaluate - x1) + y1
+
 
 def _linear_intersection(x1, y1, x2, y2, x3, y3, x4, y4):
     """Find the intersection of two lines.
