@@ -74,7 +74,6 @@ def test_upper_envelope(test_data):
         exog_grid=exogenous_savings_grid,
         choice=choice,
         compute_value=compute_value,
-        period=999,
     )
 
     aaae(got_policy, expected_policy)
