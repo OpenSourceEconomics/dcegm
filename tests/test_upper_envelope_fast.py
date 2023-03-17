@@ -11,6 +11,7 @@ from dcegm.pre_processing import calc_current_value
 from dcegm.upper_envelope import upper_envelope
 from dcegm.upper_envelope_fast import _augment_grid
 from dcegm.upper_envelope_fast import fast_upper_envelope
+from dcegm.upper_envelope_fast import fast_upper_envelope_wrapper
 from dcegm.upper_envelope_fast_org import fast_upper_envelope_wrapper_org
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
@@ -20,6 +21,65 @@ TEST_DIR = Path(__file__).parent
 
 # Directory with additional resources for the testing harness
 TEST_RESOURCES_DIR = TEST_DIR / "resources"
+
+
+@pytest.mark.parametrize("period", [10])
+def test_fues_wrapper(period):
+    policy_egm = np.genfromtxt(TEST_RESOURCES_DIR / f"pol{period}.csv", delimiter=",")
+    policy_fedor = np.genfromtxt(
+        TEST_RESOURCES_DIR / f"expec_pol{period}.csv", delimiter=","
+    )
+
+    value_egm = np.genfromtxt(TEST_RESOURCES_DIR / f"val{period}.csv", delimiter=",")
+    value_fedor = np.genfromtxt(
+        TEST_RESOURCES_DIR / f"expec_val{period}.csv", delimiter=","
+    )
+
+    choice = 0
+    max_wealth = 50
+    n_grid_wealth = 500
+    exogenous_savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
+
+    _index = pd.MultiIndex.from_tuples(
+        [("utility_function", "theta"), ("delta", "delta")],
+        names=["category", "name"],
+    )
+    params = pd.DataFrame(data=[1.95, 0.35], columns=["value"], index=_index)
+    discount_factor = 0.95
+
+    compute_utility = partial(utility_func_crra, params=params)
+    compute_value = partial(
+        calc_current_value,
+        discount_factor=discount_factor,
+        compute_utility=compute_utility,
+    )
+
+    endog_grid_refined, policy_refined, value_refined = fast_upper_envelope_wrapper(
+        endog_grid=policy_egm[0],
+        value=value_egm[1],
+        policy=policy_egm[1],
+        exog_grid=np.append(0, exogenous_savings_grid),
+        choice=choice,
+        compute_value=compute_value,
+        period=period,
+    )
+
+    policy_expected = policy_fedor[:, ~np.isnan(policy_fedor).any(axis=0)]  # noqa: F841
+    value_expected = value_fedor[  # noqa: F841
+        :,
+        ~np.isnan(value_fedor).any(axis=0),
+    ]
+
+    endog_grid_got = endog_grid_refined[~np.isnan(endog_grid_refined),]
+    policy_got = policy_refined[~np.isnan(policy_refined),]
+    value_got = value_refined[~np.isnan(value_refined)]
+
+    aaae(endog_grid_got, policy_expected[0])
+    aaae(policy_got, policy_expected[1])
+    value_expected_interp = np.interp(
+        endog_grid_got, value_expected[0], value_expected[1]
+    )
+    aaae(value_got, value_expected_interp)
 
 
 def test_fast_upper_envelope_against_org_code():
