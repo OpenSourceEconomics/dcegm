@@ -284,6 +284,8 @@ def _scan(
                 > jump_thresh
             )
 
+            # if idx_refined == 311:
+            #     breakpoint()
             if grad_before > grad_next and exog_grid[i + 1] - exog_grid[j] < 0:
                 suboptimal_points = _append_new_point(suboptimal_points, i + 1)
 
@@ -292,7 +294,11 @@ def _scan(
             elif grad_before > grad_next and switch_value_func:
                 keep_next = False
 
-                grad_next_forward, _, found_next_point_on_same_value = _forward_scan(
+                (
+                    grad_next_forward,
+                    idx_next_on_lower_curve,
+                    found_next_point_on_same_value,
+                ) = _forward_scan(
                     value=value,
                     endog_grid=endog_grid,
                     exog_grid=exog_grid,
@@ -310,6 +316,62 @@ def _scan(
                 if not keep_next:
                     suboptimal_points = _append_new_point(suboptimal_points, i + 1)
                 else:
+                    # ===================== NEW CODE ===========================
+
+                    grad_next_backward, dist_before_on_same_value = _backward_scan(
+                        value_unrefined=value,
+                        endog_grid=endog_grid,
+                        exog_grid=exog_grid,
+                        suboptimal_points=suboptimal_points,
+                        jump_thresh=jump_thresh,
+                        idx_current=j,
+                        idx_next=i + 1,
+                    )
+                    idx_before_on_upper_curve = suboptimal_points[
+                        dist_before_on_same_value
+                    ]
+
+                    intersect_grid, intersect_value = _linear_intersection(
+                        x1=endog_grid[idx_next_on_lower_curve],
+                        y1=value[idx_next_on_lower_curve],
+                        x2=endog_grid[j],
+                        y2=value[j],
+                        x3=endog_grid[i + 1],
+                        y3=value[i + 1],
+                        x4=endog_grid[idx_before_on_upper_curve],
+                        y4=value[idx_before_on_upper_curve],
+                    )
+
+                    intersect_policy_left = linear_interpolation_with_extrapolation(
+                        x=np.array(
+                            [endog_grid[idx_next_on_lower_curve], endog_grid[j]]
+                        ),
+                        y=np.array([policy[idx_next_on_lower_curve], policy[j]]),
+                        x_new=intersect_grid,
+                    )
+                    intersect_policy_right = linear_interpolation_with_extrapolation(
+                        x=np.array(
+                            [
+                                endog_grid[i + 1],
+                                endog_grid[idx_before_on_upper_curve],
+                            ]
+                        ),
+                        y=np.array([policy[i + 1], policy[idx_before_on_upper_curve]]),
+                        x_new=intersect_grid,
+                    )
+
+                    value_refined[idx_refined] = intersect_value
+                    policy_refined[idx_refined] = intersect_policy_left
+                    endog_grid_refined[idx_refined] = intersect_grid
+                    idx_refined += 1
+
+                    value_refined[idx_refined] = intersect_value
+                    policy_refined[idx_refined] = intersect_policy_right
+                    endog_grid_refined[idx_refined] = intersect_grid
+                    idx_refined += 1
+
+                    # =================================================================
+
                     value_refined[idx_refined] = value[i + 1]
                     policy_refined[idx_refined] = policy[i + 1]
                     endog_grid_refined[idx_refined] = endog_grid[i + 1]

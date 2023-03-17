@@ -22,7 +22,6 @@ TEST_DIR = Path(__file__).parent
 TEST_RESOURCES_DIR = TEST_DIR / "resources"
 
 
-# @pytest.mark.skip
 def test_fast_upper_envelope_against_org_code():
     policy_egm = np.genfromtxt(TEST_RESOURCES_DIR / "pol10.csv", delimiter=",")
     value_egm = np.genfromtxt(TEST_RESOURCES_DIR / "val10.csv", delimiter=",")
