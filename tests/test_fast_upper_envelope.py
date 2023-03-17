@@ -26,7 +26,7 @@ def setup_model():
     exogenous_savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
 
     discount_factor = 0.95
-    params_dict={}
+    params_dict = {}
     params_dict["theta"] = 1.95
     params_dict["delta"] = 0.35
 

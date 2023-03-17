@@ -64,7 +64,10 @@ def marginal_util_and_exp_max_value_states_period(
             Shape (n_states_period, n_grid_wealth).
 
     """
-    (marginal_util_weighted_shock, max_exp_value_weighted_shock,) = vmap(
+    (
+        marginal_util_weighted_shock,
+        max_exp_value_weighted_shock,
+    ) = vmap(
         vmap(
             vmap(
                 vectorized_marginal_util_and_exp_max_value,

@@ -7,7 +7,6 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 from dcegm.egm import compute_optimal_policy_and_value
-
 from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
 from dcegm.integration import quadrature_legendre
 from dcegm.marg_utilities_and_exp_value import (

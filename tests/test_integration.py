@@ -69,7 +69,6 @@ def test_benchmark_models(
     state_space_functions,
     load_example_model,
 ):
-
     params, options = load_example_model(f"{model}")
     options["n_exog_processes"] = 1
 
