@@ -14,11 +14,12 @@ eps = 2.2204e-16
 def upper_envelope(
     policy: np.ndarray,
     value: np.ndarray,
+    exog_grid: np.ndarray,
     choice: int,
-    n_grid_wealth: int,
     compute_value: Callable,
+    period: int,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Run the Upper Envelope algorithm and drop sub-optimal points.
+    """Runs the Upper Envelope algorithm and drops sub-optimal points.
 
     Calculates the upper envelope over the overlapping segments of the
     decision-specific value functions, which in fact are value "correspondences"
@@ -38,7 +39,7 @@ def upper_envelope(
     increasing number of discontinuities in the consumption functions
     in earlier periods of the life cycle.
     These discontinuities in consumption rules in period t are caused by the
-    worker’s anticipation of landing exactly at the kink points in the
+    worker's anticipation of landing exactly at the kink points in the
     subsequent periods t + 1, t + 2, ..., T under the optimal consumption policy.
 
     Args:
@@ -52,8 +53,9 @@ def upper_envelope(
             Position [0, :] of the array contains the endogenous grid over wealth M,
             and [1, :] stores the corresponding value of the value function v(M, d),
             for each time period and each discrete choice.
+        exog_grid (np.ndarray): 1d array of exogenous savings grid of shape
+            (n_grid_wealth,).
         choice (int): The current choice.
-        n_grid_wealth (int): Number of grid points in the exogenous wealth grid.
         compute_value (callable): Function to compute the agent's value.
 
     Returns:
@@ -69,20 +71,20 @@ def upper_envelope(
             function have been added. Shape (2, 1.1 * n_grid_wealth).
 
     """
+    n_grid_wealth = len(exog_grid)
     min_wealth_grid = np.min(value[0, 1:])
+    credit_constr = False
 
     if value[0, 1] <= min_wealth_grid:
-        (
-            value_refined,
-            points_to_add,
-            index_dominated_points,
-        ) = locate_non_concave_regions_and_refine(value)
+        segments_non_mono = locate_non_concave_regions(value)
     else:
         # Non-concave region coincides with credit constraint.
         # This happens when there is a non-monotonicity in the endogenous wealth grid
         # that goes below the first point.
         # Solution: Value function to the left of the first point is analytical,
         # so we just need to add some points to the left of the first grid point.
+
+        credit_constr = True
         expected_value_zero_wealth = value[1, 0]
 
         policy, value = _augment_grid(
@@ -94,24 +96,29 @@ def upper_envelope(
             n_grid_wealth,
             compute_value,
         )
+        segments_non_mono = locate_non_concave_regions(value)
 
-        (
-            value_refined,
-            points_to_add,
-            index_dominated_points,
-        ) = locate_non_concave_regions_and_refine(value)
-
-        value_refined = np.hstack(
-            [np.array([[0], [expected_value_zero_wealth]]), value_refined]
+    if len(segments_non_mono) > 1:
+        _value_refined, points_to_add = compute_upper_envelope(segments_non_mono)
+        index_dominated_points = find_dominated_points(
+            value, _value_refined, significance=10
         )
 
-    if len(index_dominated_points) > 0:
+        if credit_constr:
+            value_refined = np.hstack(
+                [np.array([[0], [expected_value_zero_wealth]]), _value_refined]
+            )
+        else:
+            value_refined = _value_refined
+
         policy_refined = refine_policy(policy, index_dominated_points, points_to_add)
+
     else:
+        value_refined = value
         policy_refined = policy
 
-    # Fill array with nans to fit 10% extra grid points, as the true shape is
-    # unknown ex ante
+    # Fill array with nans to fit 10% extra grid points,
+    # as the true shape is unknown ex ante
     policy_refined_with_nans = np.empty((2, int(1.1 * n_grid_wealth)))
     value_refined_with_nans = np.empty((2, int(1.1 * n_grid_wealth)))
     policy_refined_with_nans[:] = np.nan
@@ -123,18 +130,21 @@ def upper_envelope(
     return policy_refined_with_nans, value_refined_with_nans
 
 
-def locate_non_concave_regions_and_refine(
-    value,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Locates non-concave regions and refines the value "correspondence".
+def locate_non_concave_regions(
+    value: np.ndarray,
+) -> List[np.ndarray]:
+    """Locates non-concave regions.
+
+    Find non-monotonicity in the endogenous wealth grid where a grid point
+    to the right is smaller than its preceding point. Put differently, the
+    value function bends "backwards".
 
     Non-concave regions in the value function are reflected by non-monotonous
     regions in the underlying endogenous wealth grid.
     Multiple solutions to the Euler equation cause the standard EGM loop to
-    produce a “value correspondence” rather than a value function.
+    produce a "value correspondence" rather than a value function.
     The elimination of suboptimal grid points converts this correspondence back
     to a proper function.
-
 
     Args:
         value (np.ndarray):  Array storing the choice-specific value function
@@ -160,14 +170,11 @@ def locate_non_concave_regions_and_refine(
             where *n_dominated_points* is of variable length.
 
     """
-    value_correspondence = value
     segments_non_mono = []
 
-    # Find non-monotonicity in the endogenous wealth grid where grid point
-    # to the right is smaller than the preceding one.
-    is_monotonic = value_correspondence[0, 1:] > value_correspondence[0, :-1]
+    is_monotonic = value[0, 1:] > value[0, :-1]
 
-    lap = 1
+    niter = 0
     move_right = True
 
     while move_right:
@@ -175,161 +182,37 @@ def locate_non_concave_regions_and_refine(
 
         # Check if we are beyond the starting (left-most) point
         if len(index_non_monotonic) == 0:
-            if lap > 1:
-                segments_non_mono += [value_correspondence]
+            if niter > 0:
+                segments_non_mono += [value]
             move_right = False
+            break
 
         else:
             index_non_monotonic = min(index_non_monotonic)  # left-most point
 
-            part_one, part_two = _partition_grid(
-                value_correspondence, index_non_monotonic
-            )
+            part_one, part_two = _partition_grid(value, index_non_monotonic)
             segments_non_mono += [part_one]
-            value_correspondence = part_two
+            value = part_two
 
             # Move point of first non-monotonicity to the right
             is_monotonic = is_monotonic[index_non_monotonic:]
 
-            lap += 1
+            niter += 1
 
-    if len(segments_non_mono) > 1:
-        value_refined, points_to_add = _compute_upper_envelope(segments_non_mono)
-        index_dominated_points = _find_dominated_points(value, value_refined, 10)
-
-    else:
-        value_refined = value
-        points_to_add = np.vstack([np.array([]), np.array([])])
-        index_dominated_points = np.array([])
-
-    return value_refined, points_to_add, index_dominated_points
+    return segments_non_mono
 
 
-def refine_policy(
-    policy: np.ndarray, index_dominated_points: np.ndarray, points_to_add: np.ndarray
-) -> np.ndarray:
-    """Drops suboptimal points from policy "correspondence" and adds new optimal ones.
-
-    Args:
-        points_to_add (np.ndarray): Array of shape (*n_kink_points*,),
-            containing the kink points and corresponding interpolated values of
-            the refined value function, where *n_kink_points* is of variable
-            length.
-        index_dominated_points (np.ndarray): Array of shape (*n_dominated_points*,)
-            containing the indices of dominated points in the endogenous wealth grid,
-            where *n_dominated_points* is of variable length.
-
-    Returns:
-        policy_refined (np.ndarray): Array of shape (2, *n_grid_refined*)
-            containing the *refined* choice-specific policy function, which means that
-            suboptimal points have been removed from the endogenous wealth grid and
-            the policy "correspondence". Furthermore, kink points and the
-            corresponding interpolated values of the policy function have been added.
-
-    """
-    # Remove suboptimal consumption points
-    endog_wealth_grid = np.delete(policy[0, :], index_dominated_points)
-    optimal_consumption = np.delete(policy[1, :], index_dominated_points)
-
-    # Add new optimal consumption points
-    new_points_policy_interp = []
-
-    for new_grid_point in range(len(points_to_add[0, :])):
-        all_points_to_the_left = np.where(
-            policy[0, :] < points_to_add[0, new_grid_point]
-        )[0]
-        all_points_to_the_right = np.where(
-            policy[0, :] > points_to_add[0, new_grid_point]
-        )[0]
-
-        last_point_to_the_left = max(
-            all_points_to_the_left[
-                ~np.isin(all_points_to_the_left, index_dominated_points)
-            ]
-        )
-
-        # Find (scalar) point interpolated from the left
-        interp_from_the_left = linear_interpolation_with_extrapolation(
-            x=policy[0, :][last_point_to_the_left : last_point_to_the_left + 2],
-            y=policy[1, :][last_point_to_the_left : last_point_to_the_left + 2],
-            x_new=points_to_add[0][new_grid_point],
-        )  # single point
-
-        first_point_to_the_right = min(
-            all_points_to_the_right[
-                ~np.isin(all_points_to_the_right, index_dominated_points)
-            ]
-        )
-
-        # Find (scalar) point interpolated from the right
-        interp_from_the_right = linear_interpolation_with_extrapolation(
-            x=policy[0, :][first_point_to_the_right - 1 : first_point_to_the_right + 1],
-            y=policy[1, :][first_point_to_the_right - 1 : first_point_to_the_right + 1],
-            x_new=points_to_add[0, new_grid_point],
-        )
-
-        new_points_policy_interp += [
-            np.array(
-                [
-                    points_to_add[0, new_grid_point],
-                    interp_from_the_left,
-                    interp_from_the_right,
-                ]
-            )
-        ]
-
-    # Insert new points into the endogenous wealth grid and consumption policy
-    for to_add in range(len(new_points_policy_interp)):
-        index_insert = np.where(
-            endog_wealth_grid > new_points_policy_interp[to_add][0]
-        )[0][0]
-
-        # 1) Add new points to policy TWICE to accurately describe discontinuities
-        endog_wealth_grid = np.insert(
-            endog_wealth_grid,
-            index_insert,
-            new_points_policy_interp[to_add][0],
-        )
-        endog_wealth_grid = np.insert(
-            endog_wealth_grid,
-            index_insert + 1,
-            new_points_policy_interp[to_add][0] - 0.001 * 2.2204e-16,
-        )
-
-        # 2a) Add new optimal consumption point, interpolated from the left
-        optimal_consumption = np.insert(
-            optimal_consumption,
-            index_insert,
-            new_points_policy_interp[to_add][1],
-        )
-        # 2b) Add new optimal consumption point, interpolated from the right
-        optimal_consumption = np.insert(
-            optimal_consumption,
-            index_insert + 1,
-            new_points_policy_interp[to_add][2],
-        )
-
-    policy_refined = np.stack([endog_wealth_grid, optimal_consumption])
-
-    # Make sure first element in endogenous wealth grid and optiomal consumption policy
-    # are both 0.
-    if policy_refined[0, 0] != 0.0:
-        policy_refined = np.hstack([np.zeros((2, 1)), policy_refined])
-
-    return policy_refined
-
-
-def _compute_upper_envelope(
+def compute_upper_envelope(
     segments: List[np.ndarray],
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Computes upper envelope and refines value function "correspondence".
+    """Compute upper envelope and refines value function correspondence.
 
     The upper envelope algorithm detects suboptimal points in the value function
-    "correspondence". Consequently, (i) the suboptimal points are removed and the
+    correspondence. Consequently, (i) the suboptimal points are removed and the
     (ii) kink points along with their corresponding interpolated values are included.
     The elimination of suboptimal grid points converts the value
-    "correspondence" back to a proper function. Applying both (i) and (ii)
-    yields the *refined* endogenous wealth grid and the *refined* value function.
+    correspondence back to a proper function. Applying both (i) and (ii)
+    yields the refined endogenous wealth grid and the *refined* value function.
 
     Args:
         segments (List[np.ndarray]): List of non-monotonous segments in the
@@ -379,16 +262,14 @@ def _compute_upper_envelope(
     intersect_points_upper_env = []
     values_intersect_upper_env = []
 
-    # Index of top segment, starting at first (left-most) grid point
-    index_first_segment = np.where(top_segments[:, 0] == 1)[0][0]
-
     move_right = True
 
     while move_right:
+        # Index of top segment, starting at first (left-most) grid point
         index_first_segment = np.where(top_segments[:, 0])[0][0]
 
         for i in range(1, len(endog_wealth_grid)):
-            index_second_segment = np.where(top_segments[:, i])[0][0]
+            index_second_segment = np.where(top_segments[:, i] == 1)[0][0]
 
             if index_second_segment != index_first_segment:
                 first_segment = index_first_segment
@@ -465,14 +346,6 @@ def _compute_upper_envelope(
 
                         if second_segment == index_second_segment:
                             move_right = False
-                        else:
-                            first_segment = second_segment
-                            first_grid_point = intersect_point
-                            second_segment = index_second_segment
-                            second_grid_point = endog_wealth_grid[i]
-                    else:
-                        second_segment = index_max_value_intersect
-                        second_grid_point = intersect_point
 
             # Add point if it lies currently on the highest segment
             if (
@@ -495,6 +368,168 @@ def _compute_upper_envelope(
     return points_upper_env_refined, points_to_add
 
 
+def find_dominated_points(
+    value_correspondence: np.ndarray,
+    value_refined: np.ndarray,
+    significance: int = 10,
+) -> np.ndarray:
+    """Returns indexes of dominated points in the value function correspondence.
+
+    Equality is measured up to 10**(-``significance``).
+
+    Args:
+        value_correspondence (np.ndarray):  Array storing the choice-specific
+            value function correspondences. Shape (2, n_endog_wealth_grid), where
+            n_endog_wealth_grid is of variable length depending on the number of
+            kinks and non-concave regions in the value function.
+            In the presence of kinks, the value function is a correspondence
+            rather than a function due to non-concavities.
+        value_refined (np.ndarray): Array of refined value function, where
+            suboptimal points have been dropped and kink points along with the
+            corresponding interpolated values of the value function have been added.
+            Shape (2, n_grid_refined), where n_grid_refined is the length of
+            the refined endogenous grid.
+        significance (float): Level of significance. Equality is measured up to
+            10**(-``significance``).
+
+    Returns:
+        index_dominated_points (np.ndarray): Array of shape (n_dominated_points,)
+            containing the indices of dominated points in the endogenous wealth grid,
+            where n_dominated_points is of variable length.
+
+    """
+    sig_pos = 10**significance
+    sig_neg = 10 ** (-significance)
+
+    grid_all = np.round(value_correspondence[0, :] * sig_pos) * sig_neg
+    grid_refined_sig = np.round(value_refined[0, :] * sig_pos) * sig_neg
+
+    value_all = np.round(value_correspondence[1, :] * sig_pos) * sig_neg
+    value_refined_sig = np.round(value_refined[1, :] * sig_pos) * sig_neg
+
+    index_all = np.arange(len(grid_all))
+    index_dominated_points = np.union1d(
+        index_all[~np.isin(grid_all, grid_refined_sig)],
+        index_all[~np.isin(value_all, value_refined_sig)],
+    )
+
+    return index_dominated_points
+
+
+def refine_policy(
+    policy: np.ndarray, index_dominated_points: np.ndarray, points_to_add: np.ndarray
+) -> np.ndarray:
+    """Drop suboptimal points from policy correspondence and add new optimal ones.
+
+    Args:
+        points_to_add (np.ndarray): Array of shape (*n_kink_points*,),
+            containing the kink points and corresponding interpolated values of
+            the refined value function, where *n_kink_points* is of variable
+            length.
+        index_dominated_points (np.ndarray): Array of shape (*n_dominated_points*,)
+            containing the indices of dominated points in the endogenous wealth grid,
+            where *n_dominated_points* is of variable length.
+
+    Returns:
+        (np.ndarray): Array of shape (2, *n_grid_refined*)
+            containing the *refined* choice-specific policy function, which means that
+            suboptimal points have been removed from the endogenous wealth grid and
+            the policy "correspondence". Furthermore, kink points and the
+            corresponding interpolated values of the policy function have been added.
+
+    """
+    # Remove suboptimal consumption points
+    endog_wealth_grid = np.delete(policy[0, :], index_dominated_points)
+    optimal_consumption = np.delete(policy[1, :], index_dominated_points)
+
+    # Add new optimal consumption points
+    new_points_policy_interp = []
+
+    for new_grid_point in range(len(points_to_add[0, :])):
+        all_points_to_the_left = np.where(
+            policy[0, :] < points_to_add[0, new_grid_point]
+        )[0]
+        all_points_to_the_right = np.where(
+            policy[0, :] > points_to_add[0, new_grid_point]
+        )[0]
+
+        last_point_to_the_left = max(
+            all_points_to_the_left[
+                ~np.isin(all_points_to_the_left, index_dominated_points)
+            ]
+        )
+
+        # Find (scalar) point interpolated from the left
+        interp_from_the_left = linear_interpolation_with_extrapolation(
+            x=policy[0, :][last_point_to_the_left : last_point_to_the_left + 2],
+            y=policy[1, :][last_point_to_the_left : last_point_to_the_left + 2],
+            x_new=points_to_add[0][new_grid_point],
+        )
+
+        first_point_to_the_right = min(
+            all_points_to_the_right[
+                ~np.isin(all_points_to_the_right, index_dominated_points)
+            ]
+        )
+
+        # Find (scalar) point interpolated from the right
+        interp_from_the_right = linear_interpolation_with_extrapolation(
+            x=policy[0, :][first_point_to_the_right - 1 : first_point_to_the_right + 1],
+            y=policy[1, :][first_point_to_the_right - 1 : first_point_to_the_right + 1],
+            x_new=points_to_add[0, new_grid_point],
+        )
+
+        new_points_policy_interp += [
+            np.array(
+                [
+                    points_to_add[0, new_grid_point],
+                    interp_from_the_left,
+                    interp_from_the_right,
+                ]
+            )
+        ]
+
+    # Insert new points into the endogenous wealth grid and consumption policy
+    for to_add in range(len(new_points_policy_interp)):
+        index_insert = np.where(
+            endog_wealth_grid > new_points_policy_interp[to_add][0]
+        )[0][0]
+
+        # 1) Add new points to policy TWICE to accurately describe discontinuities
+        endog_wealth_grid = np.insert(
+            endog_wealth_grid,
+            index_insert,
+            new_points_policy_interp[to_add][0],
+        )
+        endog_wealth_grid = np.insert(
+            endog_wealth_grid,
+            index_insert + 1,
+            new_points_policy_interp[to_add][0] - 0.001 * 2.2204e-16,
+        )
+
+        # 2a) Add new optimal consumption point, interpolated from the left
+        optimal_consumption = np.insert(
+            optimal_consumption,
+            index_insert,
+            new_points_policy_interp[to_add][1],
+        )
+        # 2b) Add new optimal consumption point, interpolated from the right
+        optimal_consumption = np.insert(
+            optimal_consumption,
+            index_insert + 1,
+            new_points_policy_interp[to_add][2],
+        )
+
+    policy_refined = np.stack([endog_wealth_grid, optimal_consumption])
+
+    # Make sure first element in endogenous wealth grid and optiomal consumption policy
+    # are both 0.
+    if policy_refined[0, 0] != 0.0:
+        policy_refined = np.hstack([np.zeros((2, 1)), policy_refined])
+
+    return policy_refined
+
+
 def _augment_grid(
     policy: np.ndarray,
     value: np.ndarray,
@@ -505,7 +540,6 @@ def _augment_grid(
     compute_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Extends the endogenous wealth grid, value, and policy function to the left.
-
     Args:
         policy (np.ndarray):  Array storing the choice-specific
             policy function. Shape (2, *n_endog_wealth_grid*), where
@@ -524,7 +558,6 @@ def _augment_grid(
         min_wealth_grid (float): Minimal wealth level in the endogenous wealth grid.
         n_grid_wealth (int): Number of grid points in the exogenous wealth grid.
         compute_value (callable): Function to compute the agent's value.
-
     Returns:
         policy_augmented (np.ndarray): Array containing endogenous grid and
             policy function with ancillary points added to the left.
@@ -584,12 +617,12 @@ def _partition_grid(
             partition.
 
     """
-    j = value_correspondence.shape[1] if j > value_correspondence.shape[1] else j
+    j = min(j, value_correspondence.shape[1])
 
     part_one = np.vstack(
         [
             value_correspondence[0, : j + 1],  # endogenous wealth grid
-            value_correspondence[1, : j + 1],  # corresponding value function
+            value_correspondence[1, : j + 1],  # value function
         ]
     )
 
@@ -597,56 +630,6 @@ def _partition_grid(
     part_two = np.vstack([value_correspondence[0, j:], value_correspondence[1, j:]])
 
     return part_one, part_two
-
-
-def _find_dominated_points(
-    value_correspondence: np.ndarray,
-    value_refined: np.ndarray,
-    significance: int = 10,
-) -> np.ndarray:
-    """Returns indexes of dominated points in the value function "correspondence".
-
-    Equality is measured up to 10**(-``significance``).
-
-    Args:
-        value_correspondence (np.ndarray):  Array storing the choice-specific
-            value function "correspondences". Shape (2, *n_endog_wealth_grid*), where
-            *n_endog_wealth_grid* is of variable length depending on the number of
-            kinks and non-concave regions in the value function.
-            In the presence of kinks, the value function is a "correspondence"
-            rather than a function due to non-concavities.
-        value_refined (np.ndarray): Array of *refined* value function, where
-            suboptimal points have been dropped and kink points along with the
-            corresponding interpolated values of the value function have been added.
-            Shape (2, *n_grid_refined*), where *n_grid_refined* is the length of
-            the *refined* endogenous grid.
-        significance (float): Level of significance. Equality is measured up to
-            10**(-``significance``).
-
-    Returns:
-        index_dominated_points (np.ndarray): Array of shape (*n_dominated_points*,)
-            containing the indices of dominated points in the endogenous wealth grid,
-            where *n_dominated_points* is of variable length.
-
-    """
-    sig_pos = 10**significance
-    sig_neg = 10 ** (-significance)
-
-    # Endogenous wealth grid
-    correspond_grid = np.round(value_correspondence[0, :] * sig_pos) * sig_neg
-    refined_grid = np.round(value_refined[0, :] * sig_pos) * sig_neg
-
-    # Value function
-    correspond_value = np.round(value_correspondence[1, :] * sig_pos) * sig_neg
-    refined_value = np.round(value_refined[1, :] * sig_pos) * sig_neg
-
-    index_all = np.arange(len(correspond_grid))
-    index_dominated_points = np.union1d(
-        index_all[~np.isin(correspond_grid, refined_grid)],
-        index_all[~np.isin(correspond_value, refined_value)],
-    )
-
-    return index_dominated_points
 
 
 def _subtract_values(grid_point: float, first_segment, second_segment):

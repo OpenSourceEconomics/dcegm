@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from dcegm.egm import compute_optimal_policy_and_value
 from dcegm.egm import get_child_state_marginal_util_and_exp_max_value
+from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
 from dcegm.integration import quadrature_legendre
 from dcegm.pre_processing import create_multi_dim_arrays
 from dcegm.pre_processing import get_partial_functions
@@ -22,6 +23,7 @@ def solve_dcegm(
     state_space_functions: Dict[str, Callable],
     solve_final_period: Callable,
     user_transition_function: Callable,
+    fast_upper_envelope: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
@@ -64,6 +66,11 @@ def solve_dcegm(
             v(M, d), for each state and each discrete choice.
 
     """
+    if fast_upper_envelope:
+        compute_upper_envelope = fast_upper_envelope_wrapper
+    else:
+        compute_upper_envelope = upper_envelope
+
     max_wealth = params.loc[("assets", "max_wealth"), "value"]
     n_periods = options["n_periods"]
     n_grid_wealth = options["grid_points_wealth"]
@@ -132,6 +139,7 @@ def solve_dcegm(
         transition_vector_by_state,
         policy_array,
         value_array,
+        compute_upper_envelope=compute_upper_envelope,
     )
 
     return policy_array, value_array
@@ -155,6 +163,7 @@ def backwards_induction(
     transition_vector_by_state: Callable,
     policy_array: np.ndarray,
     value_array: np.ndarray,
+    compute_upper_envelope: Callable,
 ):
     """Do backwards induction and solve for optimal policy and value function.
 
@@ -303,15 +312,16 @@ def backwards_induction(
                 )
 
                 if policy_array.shape[1] > 1:
-                    # For the upper envelope we cannot parralize over the wealth grid
+                    # For the upper envelope we cannot parallelize over the wealth grid
                     # as here we need to inspect the value function on the whole wealth
                     # grid.
-                    current_policy, current_value = upper_envelope(
-                        current_policy,
-                        current_value,
-                        choice,
-                        n_grid_wealth=exogenous_savings_grid.shape[0],
+                    current_policy, current_value = compute_upper_envelope(
+                        policy=current_policy,
+                        value=current_value,
+                        exog_grid=exogenous_savings_grid,
+                        choice=choice,
                         compute_value=compute_value,
+                        period=period,
                     )
 
                 policy_array[

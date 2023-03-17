@@ -1,21 +1,16 @@
 ---
 codecov:
-  branch: main
+  notify:
+    require_ci_to_pass: true
 coverage:
   precision: 2
   round: down
-  range: 80...100
+  range: 60...100
   status:
+    patch:
+      default:
+        target: 70%
     project:
       default:
-        threshold: 1%
-      unit:
-        threshold: 1%
-        flags: [unit]
-      integration:
-        threshold: 1%
-        flags: [integration]
-      end_to_end:
-        threshold: 1%
-        flags: [end_to_end]
-ignore: [.tox/**/*, setup.py]
+        target: 90%
+ignore: [.tox/**/*, src/dcegm/upper_envelope_fast_org.py, setup.py]

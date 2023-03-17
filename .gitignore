@@ -137,3 +137,7 @@ venv.bak/
 
 # Local jupyter fle
 test.ipynb
+
+
+# Debugging files should be ignored
+*.png
