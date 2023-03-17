@@ -104,7 +104,6 @@ def test_benchmark_models(
                 policy_expec = policy_expected[period][1 - choice].T
                 value_expec = value_expected[period][1 - choice].T
 
-
             policy_got = policy_calculated[state_index, choice, :][
                 :,
                 ~np.isnan(policy_calculated[state_index, choice, :]).any(axis=0),
