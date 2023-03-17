@@ -33,7 +33,6 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
     for period in range(n_periods):
         for last_period_decision in range(n_choices):
             for exog_process in range(n_exog_process):
-
                 indexer[period, last_period_decision, exog_process] = i
 
                 row = [period, last_period_decision, exog_process]

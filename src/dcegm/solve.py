@@ -7,6 +7,8 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 from dcegm.egm import compute_optimal_policy_and_value
+
+from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
 from dcegm.integration import quadrature_legendre
 from dcegm.marg_utilities_and_exp_value import (
     marginal_util_and_exp_max_value_states_period,
@@ -28,6 +30,7 @@ def solve_dcegm(
     state_space_functions: Dict[str, Callable],
     solve_final_period: Callable,
     user_transition_function: Callable,
+    fast_upper_envelope: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
@@ -69,6 +72,11 @@ def solve_dcegm(
             v(M, d), for each state and each discrete choice.
 
     """
+    if fast_upper_envelope:
+        compute_upper_envelope = fast_upper_envelope_wrapper
+    else:
+        compute_upper_envelope = upper_envelope
+
     params_dict = params_todict(params)
 
     taste_shock_scale = params_dict["lambda"]
@@ -145,6 +153,7 @@ def solve_dcegm(
         transition_vector_by_state,
         policy_array,
         value_array,
+        compute_upper_envelope=compute_upper_envelope,
     )
 
     return policy_array, value_array
@@ -169,6 +178,7 @@ def backwards_induction(
     transition_vector_by_state: Callable,
     policy_array: np.ndarray,
     value_array: np.ndarray,
+    compute_upper_envelope: Callable,
 ):
     """Do backwards induction and solve for optimal policy and value function.
 
@@ -278,12 +288,10 @@ def backwards_induction(
             policies_child_states=policies_child_states,
             values_child_states=values_child_states,
         )
-
         index_periods = np.where(state_space[:, 0] == period)[0]
         state_subspace = state_space[index_periods]
 
         for state in state_subspace:
-
             current_state_index = state_indexer[tuple(state)]
             # The choice set and the indexes are different/of different shape
             # for each state. For jax we should go over all states.
@@ -310,7 +318,6 @@ def backwards_induction(
             trans_vec_state = transition_vector_by_state(state)
 
             for choice_index, choice in enumerate(choice_set):
-
                 current_policy, current_value = compute_optimal_policy_and_value(
                     marginal_utilities_child_states[choice_index, :],
                     max_expected_values_child_states[choice_index, :],
@@ -324,15 +331,16 @@ def backwards_induction(
                 )
 
                 if policy_array.shape[1] > 1:
-                    # For the upper envelope we cannot parralize over the wealth grid
+                    # For the upper envelope we cannot parallelize over the wealth grid
                     # as here we need to inspect the value function on the whole wealth
                     # grid.
-                    current_policy, current_value = upper_envelope(
-                        current_policy,
-                        current_value,
-                        choice,
-                        n_grid_wealth=exogenous_savings_grid.shape[0],
+                    current_policy, current_value = compute_upper_envelope(
+                        policy=current_policy,
+                        value=current_value,
+                        exog_grid=exogenous_savings_grid,
+                        choice=choice,
                         compute_value=compute_value,
+                        period=period,
                     )
 
                 policy_array[

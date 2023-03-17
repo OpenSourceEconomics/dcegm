@@ -81,11 +81,11 @@ def prob_long_term_care_patient(params_dict, lag_health, health):
     p = params_dict["ltc_prob"]
     if (lag_health == 0) and (health == 1):
         pi = p
-    elif (lag_health == 0) and (health == 0):
+    elif lag_health == health == 0:
         pi = 1 - p
-    elif (lag_health == 1) and (health == 0):
+    elif lag_health == 1 and health == 0:
         pi = 0
-    elif (lag_health == 1) and (health == 1):
+    elif lag_health == health == 1:
         pi = 1
     else:
         raise ValueError("Health state not defined.")
@@ -107,8 +107,8 @@ def m_util_aux(init_cond, params_dict, choice_1, nu, consumption):
     health_state_1 = init_cond["health"]
 
     weighted_marginal = 0
-    for health_state_2 in [0, 1]:
-        for choice_2 in [0, 1]:
+    for health_state_2 in (0, 1):
+        for choice_2 in (0, 1):
             budget_2 = budget(
                 budget_1,
                 consumption,

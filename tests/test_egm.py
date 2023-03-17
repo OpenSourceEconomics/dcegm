@@ -131,7 +131,6 @@ def test_get_next_period_wealth_matrices(
 #     product(choice_set, interest_rate, max_wealth, n_grid_points, n_quad_points)
 # )
 
-
 # ======================================================================================
 # interpolate_value
 # ======================================================================================
