@@ -125,7 +125,6 @@ def test_benchmark_models(
                 decimal=5,
             )
 
-
             aaae(policy_got, policy_expec, decimal=5)
             # In Fedor's upper envelope, there are two endogenous wealth grids;
             # one for the value function and a longer one for the policy function.
