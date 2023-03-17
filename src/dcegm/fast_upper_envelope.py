@@ -3,14 +3,13 @@
 Based on Akshay Shanker, University of Sydney, akshay.shanker@me.com.
 
 """
-from functools import partial  # noqa: F401
 from typing import Callable
 from typing import Optional
 from typing import Tuple
 
 import jax.numpy as jnp  # noqa: F401
 import numpy as np
-from dcegm.interpolate import linear_interpolation_with_extrapolation  # noqa: F401
+from dcegm.interpolate import linear_interpolation_with_extrapolation
 from jax import jit  # noqa: F401
 
 
@@ -60,22 +59,24 @@ def fast_upper_envelope_wrapper(
             (n_grid_wealth,).
         choice (int): The current choice.
         compute_value (callable): Function to compute the agent's value.
+        period (int): The current period.
 
     Returns:
         tuple:
 
-        - policy_refined (np.ndarray): Worker's *refined* (consumption) policy
+        - policy_refined_with_nans (np.ndarray): Worker's *refined* (consumption) policy
             function of the current period, where suboptimal points have been dropped.
             Shape (2, 1.1 * n_grid_wealth).
-        - value_refined (np.ndarray): Worker's *refined* value function of the
+        - value_refined_with_nans (np.ndarray): Worker's *refined* value function of the
             current period, where suboptimal points have been dropped.
             Shape (2, 1.1 * n_grid_wealth).
 
     """
-    n_grid_wealth = len(exog_grid)
     endog_grid = np.copy(policy[0])
+    value = np.copy(value[1])
+    policy = np.copy(policy[1])
+    n_grid_wealth = len(exog_grid)
 
-    # ================================================================================
     min_wealth_grid = np.min(endog_grid[1:])
     if endog_grid[1] > min_wealth_grid:
         # Non-concave region coincides with credit constraint.
@@ -84,41 +85,29 @@ def fast_upper_envelope_wrapper(
         # Solution: Value function to the left of the first point is analytical,
         # so we just need to add some points to the left of the first grid point.
 
-        expected_value_zero_wealth = value[1, 0]
-
-        policy_, value_ = _augment_grid(
-            policy,
-            value,
-            choice,
-            expected_value_zero_wealth,
-            min_wealth_grid,
-            n_grid_wealth,
-            compute_value,
+        endog_grid_augmented, value_augmented, policy_augmented = _augment_grids(
+            endog_grid=endog_grid,
+            value=value,
+            policy=policy,
+            choice=choice,
+            expected_value_zero_wealth=value[0],
+            min_wealth_grid=min_wealth_grid,
+            n_grid_wealth=n_grid_wealth,
+            compute_value=compute_value,
         )
-        endog_grid_ = np.append(0, policy_[0])
-        policy_ = np.append(policy[1, 0], policy_[1])
-        value_ = np.append(value[1, 0], value_[1])
+        endog_grid = np.append(0, endog_grid_augmented)
+        policy = np.append(policy[0], policy_augmented)
+        value = np.append(value[0], value_augmented)
         exog_grid_augmented = np.linspace(
             exog_grid[1], exog_grid[2], n_grid_wealth // 10 + 1
         )
         exog_grid = np.append([0], np.append(exog_grid_augmented, exog_grid[2:]))
     else:
-        endog_grid_ = policy[0]
-        policy_ = policy[1]
-        value_ = value[1]
         exog_grid = np.append(0, exog_grid)
 
-    # ================================================================================
-
-    endog_grid_out, value_out, policy_out = fast_upper_envelope(
-        endog_grid_, value_, policy_, exog_grid, jump_thresh=2
+    endog_grid_refined, value_refined, policy_refined = fast_upper_envelope(
+        endog_grid, value, policy, exog_grid, jump_thresh=2
     )
-
-    # ================================================================================
-
-    endog_grid_refined = endog_grid_out
-    policy_refined = policy_out
-    value_refined = value_out
 
     # Fill array with nans to fit 10% extra grid points
     policy_refined_with_nans = np.empty((2, int(1.1 * n_grid_wealth)))
@@ -130,8 +119,6 @@ def fast_upper_envelope_wrapper(
     policy_refined_with_nans[1, : policy_refined.shape[0]] = policy_refined
     value_refined_with_nans[0, : value_refined.shape[0]] = endog_grid_refined
     value_refined_with_nans[1, : value_refined.shape[0]] = value_refined
-
-    # ================================================================================
 
     return (
         policy_refined_with_nans,
@@ -145,7 +132,7 @@ def fast_upper_envelope(
     policy: np.ndarray,
     exog_grid: np.ndarray,
     jump_thresh: Optional[float] = 2,
-    b: Optional[float] = 1e-10,
+    lower_bound_wealth: Optional[float] = 1e-10,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Remove suboptimal points from the endogenous grid, policy, and value function.
 
@@ -159,6 +146,7 @@ def fast_upper_envelope(
         exog_grid (np.ndarray): 1d array containing the exogenous wealth grid
             of shape (n_grid_wealth + 1,).
         jump_thresh (float): Jump detection threshold.
+        lower_bound_wealth (float): Lower bound on wealth.
 
     Returns:
         tuple:
@@ -174,10 +162,9 @@ def fast_upper_envelope(
             the optimal points are kept.
 
     """
-
     # TODO: determine locations where endogenous grid points are # noqa: T000
     # equal to the lower bound
-    # mask = endog_grid <= b
+    # mask = endog_grid <= lower_bound_wealth
     # if np.any(mask):
     #     max_value_lower_bound = np.nanmax(value[mask])
     #     mask &= value < max_value_lower_bound
@@ -194,9 +181,11 @@ def fast_upper_envelope(
     exog_grid = np.take(exog_grid, idx_sort)
     endog_grid = np.take(endog_grid, idx_sort)
 
-    # ================================================================================
-
-    value_clean_with_nans, policy_clean_with_nans, endog_grid_clean_with_nans = _scan(
+    (
+        value_clean_with_nans,
+        policy_clean_with_nans,
+        endog_grid_clean_with_nans,
+    ) = scan_value_function(
         endog_grid,
         value,
         policy,
@@ -214,10 +203,7 @@ def fast_upper_envelope(
     return endog_grid_refined, value_refined, policy_refined
 
 
-# ================================================================================
-
-
-def _scan(
+def scan_value_function(
     endog_grid,
     value,
     policy,
@@ -225,7 +211,7 @@ def _scan(
     jump_thresh,
     n_points_to_scan=10,
 ):
-    """Scan the value function to remove suboptimal points.
+    """Scan the value function to remove suboptimal points and add itersection points.
 
     Args:
         value (np.ndarray): 1d array containing the unrefined value correspondence
@@ -245,15 +231,9 @@ def _scan(
             the optimal points are kept.
 
     """
-    # leading index for optimal values j
-    # leading index for value to be `checked' is i+1
-
     value_refined = np.copy(value)
     policy_refined = np.copy(policy)
     endog_grid_refined = np.copy(endog_grid)
-
-    # policy[0] = 4.93466161
-    # endog_grid[0] = 4.95469546
 
     value_refined[2:] = np.nan
     endog_grid_refined[2:] = np.nan
@@ -285,8 +265,6 @@ def _scan(
                 > jump_thresh
             )
 
-            # if idx_refined == 311:
-            #     breakpoint()
             if grad_before > grad_next and exog_grid[i + 1] - exog_grid[j] < 0:
                 suboptimal_points = _append_new_point(suboptimal_points, i + 1)
 
@@ -317,8 +295,6 @@ def _scan(
                 if not keep_next:
                     suboptimal_points = _append_new_point(suboptimal_points, i + 1)
                 else:
-                    # ===================== NEW CODE ===========================
-
                     grad_next_backward, dist_before_on_same_value = _backward_scan(
                         value_unrefined=value,
                         endog_grid=endog_grid,
@@ -343,7 +319,7 @@ def _scan(
                         y4=value[idx_before_on_upper_curve],
                     )
 
-                    intersect_policy_left = evaluate_point_on_line(
+                    intersect_policy_left = _evaluate_point_on_line(
                         x1=endog_grid[idx_next_on_lower_curve],
                         y1=policy[idx_next_on_lower_curve],
                         x2=endog_grid[j],
@@ -351,7 +327,7 @@ def _scan(
                         point_to_evaluate=intersect_grid,
                     )
 
-                    intersect_policy_right = evaluate_point_on_line(
+                    intersect_policy_right = _evaluate_point_on_line(
                         x1=endog_grid[i + 1],
                         y1=policy[i + 1],
                         x2=endog_grid[idx_before_on_upper_curve],
@@ -368,8 +344,6 @@ def _scan(
                     policy_refined[idx_refined] = intersect_policy_right
                     endog_grid_refined[idx_refined] = intersect_grid
                     idx_refined += 1
-
-                    # =================================================================
 
                     value_refined[idx_refined] = value[i + 1]
                     policy_refined[idx_refined] = policy[i + 1]
@@ -391,15 +365,11 @@ def _scan(
                     idx_next=i + 1,
                 )
                 keep_current = True
-                current_i_is_optimal = True
+                current_is_optimal = True
                 idx_before_on_upper_curve = suboptimal_points[dist_before_on_same_value]
 
                 # # This should better a bool from the backwards scan
-                (
-                    grad_next_forward,
-                    _,
-                    found_next_point_on_same_value_as_j,
-                ) = _forward_scan(
+                grad_next_forward, *_ = _forward_scan(
                     value=value,
                     endog_grid=endog_grid,
                     exog_grid=exog_grid,
@@ -408,9 +378,9 @@ def _scan(
                     idx_next=i + 1,
                     n_points_to_scan=n_points_to_scan,
                 )
-                if (grad_next_forward > grad_next) & switch_value_func:
+                if grad_next_forward > grad_next and switch_value_func:
                     suboptimal_points = _append_new_point(suboptimal_points, i + 1)
-                    current_i_is_optimal = False
+                    current_is_optimal = False
 
                 # if the gradient joining the leading point i+1 (we have just
                 # jumped to) and the point m(the last point on the same
@@ -423,8 +393,7 @@ def _scan(
                 ):
                     keep_current = False
 
-                if (not keep_current) & current_i_is_optimal:
-                    # We do not keep j
+                if not keep_current and current_is_optimal:
                     intersect_grid, intersect_value = _linear_intersection(
                         x1=endog_grid[j],
                         y1=value[j],
@@ -451,7 +420,6 @@ def _scan(
                         x_new=intersect_grid,
                     )
 
-                    # =================================================================
                     if idx_before_on_upper_curve > 0 and i > 1:
                         value_refined[idx_refined - 1] = intersect_value
                         policy_refined[idx_refined - 1] = intersect_policy_left
@@ -461,7 +429,6 @@ def _scan(
                         policy_refined[idx_refined] = intersect_policy_right
                         endog_grid_refined[idx_refined] = intersect_grid
                         idx_refined += 1
-                    # =================================================================
 
                     value_refined[idx_refined] = value[i + 1]
                     policy_refined[idx_refined] = policy[i + 1]
@@ -474,8 +441,7 @@ def _scan(
 
                     j = i + 1
 
-                elif keep_current & current_i_is_optimal:
-                    # ================== NEW CODE ==================
+                elif keep_current and current_is_optimal:
                     if grad_next > grad_before and switch_value_func:
                         (
                             grad_next_forward,
@@ -534,8 +500,6 @@ def _scan(
                         endog_grid_refined[idx_refined] = intersect_grid
                         idx_refined += 1
 
-                    # ================== OLD CODE ==================
-
                     value_refined[idx_refined] = value[i + 1]
                     policy_refined[idx_refined] = policy[i + 1]
                     endog_grid_refined[idx_refined] = endog_grid[i + 1]
@@ -543,7 +507,6 @@ def _scan(
                     k = j
                     j = i + 1
 
-    # The last point is in there by definition?!
     value_refined[idx_refined] = value[-1]
     endog_grid_refined[idx_refined] = endog_grid[-1]
     policy_refined[idx_refined] = policy[-1]
@@ -551,7 +514,6 @@ def _scan(
     return value_refined, policy_refined, endog_grid_refined
 
 
-# @partial(jit, static_argnums=(6))
 def _forward_scan(
     value,
     endog_grid,
@@ -561,7 +523,7 @@ def _forward_scan(
     idx_next,
     n_points_to_scan,
 ):
-    """Scan forward to find the next optimal point.
+    """Scan forward to check whether next point is optimal.
 
     Args:
         value (np.ndarray): 1d array containing the value function of shape
@@ -636,7 +598,7 @@ def _backward_scan(
     idx_current,
     idx_next,
 ):
-    """Scan backward to find the previous optimal point.
+    """Scan backward to check whether current point is optimal.
 
     Args:
         value (np.ndarray): 1d array containing the value function of shape
@@ -697,16 +659,7 @@ def _backward_scan(
     )
 
 
-def _append_new_point(x_array, m):
-    """Append a new point to an array."""
-    for i in range(len(x_array) - 1):
-        x_array[i] = x_array[i + 1]
-
-    x_array[-1] = m
-    return x_array
-
-
-def evaluate_point_on_line(x1, y1, x2, y2, point_to_evaluate):
+def _evaluate_point_on_line(x1, y1, x2, y2, point_to_evaluate):
     """Evaluate a point on a line.
 
     Args:
@@ -751,63 +704,73 @@ def _linear_intersection(x1, y1, x2, y2, x3, y3, x4, y4):
     return x_intersection, y_intersection
 
 
-def _augment_grid(
-    policy: np.ndarray,
+def _augment_grids(
+    endog_grid: np.ndarray,
     value: np.ndarray,
-    choice,
+    policy: np.ndarray,
+    choice: int,
     expected_value_zero_wealth: np.ndarray,
     min_wealth_grid: float,
     n_grid_wealth: int,
     compute_value: Callable,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Extends the endogenous wealth grid, value, and policy function to the left.
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Extends the endogenous wealth grid, value, and policy functions to the left.
+
     Args:
-        policy (np.ndarray):  Array storing the choice-specific
-            policy function. Shape (2, *n_endog_wealth_grid*), where
-            *n_endog_wealth_grid* is of variable length depending on the number of
-            discontinuities in the policy function.
-            In the presence of discontinuities, the policy function is a
-            "correspondence" rather than a function due to multiple local optima.
-        value (np.ndarray):  Array storing the choice-specific
-            value function. Shape (2, *n_endog_wealth_grid*), where
-            *n_endog_wealth_grid* is of variable length depending on the number of
+        endog_grid (np.ndarray): 1d array containing the endogenous wealth grid of
+            shape (n_endog_wealth_grid,), where n_endog_wealth_grid is of variable
+            length depending on the number of kinks and non-concave regions in the
+            value function.
+        value (np.ndarray):  1d array storing the choice-specific
+            value function of shape (n_endog_wealth_grid,), where
+            n_endog_wealth_grid is of variable length depending on the number of
             kinks and non-concave regions in the value function.
             In the presence of kinks, the value function is a "correspondence"
             rather than a function due to non-concavities.
+        policy (np.ndarray):  1d array storing the choice-specific
+            policy function of shape (n_endog_wealth_grid,), where
+            n_endog_wealth_grid is of variable length depending on the number of
+            discontinuities in the policy function.
+            In the presence of discontinuities, the policy function is a
+            "correspondence" rather than a function due to multiple local optima.
+        choice (int): The agent's choice.
         expected_value_zero_wealth (float): The agent's expected value given that she
             has a wealth of zero.
         min_wealth_grid (float): Minimal wealth level in the endogenous wealth grid.
         n_grid_wealth (int): Number of grid points in the exogenous wealth grid.
         compute_value (callable): Function to compute the agent's value.
+
     Returns:
-        policy_augmented (np.ndarray): Array containing endogenous grid and
+        tuple:
+
+        - grid_augmented (np.ndarray): 1d array containing the augmented
+            endogenous wealth grid with ancillary points added to the left.
+        - policy_augmented (np.ndarray): 1d array containing the augmented
             policy function with ancillary points added to the left.
-            Shape (2, *n_grid_augmented*).
-        value_augmented (np.ndarray): Array containing endogenous grid and
+        - value_augmented (np.ndarray): 1d array containing the augmented
             value function with ancillary points added to the left.
-            Shape (2, *n_grid_augmented*).
 
     """
-    grid_points_to_add = np.linspace(min_wealth_grid, value[0, 1], n_grid_wealth // 10)[
-        :-1
-    ]
+    grid_points_to_add = np.linspace(
+        min_wealth_grid, endog_grid[1], n_grid_wealth // 10
+    )[:-1]
+
+    endog_grid_augmented = np.append(grid_points_to_add, endog_grid[1:])
     values_to_add = compute_value(
         grid_points_to_add,
         expected_value_zero_wealth,
         choice,
     )
+    value_augmented = np.append(values_to_add, value[1:])
+    policy_augmented = np.append(grid_points_to_add, policy[1:])
 
-    value_augmented = np.vstack(
-        [
-            np.append(grid_points_to_add, value[0, 1:]),
-            np.append(values_to_add, value[1, 1:]),
-        ]
-    )
-    policy_augmented = np.vstack(
-        [
-            np.append(grid_points_to_add, policy[0, 1:]),
-            np.append(grid_points_to_add, policy[1, 1:]),
-        ]
-    )
+    return endog_grid_augmented, value_augmented, policy_augmented
 
-    return policy_augmented, value_augmented
+
+def _append_new_point(x_array, m):
+    """Append a new point to an array."""
+    for i in range(len(x_array) - 1):
+        x_array[i] = x_array[i + 1]
+
+    x_array[-1] = m
+    return x_array

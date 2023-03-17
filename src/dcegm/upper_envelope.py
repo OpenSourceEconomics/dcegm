@@ -96,19 +96,6 @@ def upper_envelope(
             n_grid_wealth,
             compute_value,
         )
-        # if period == 9:
-        #     breakpoint()
-
-        #     np.savetxt(
-        #         "policy9_augment.csv", policy, delimiter=","  # noqa: E800
-        #     )  # noqa: E800
-
-        #     np.savetxt(
-        #         "value9_augment.csv", value, delimiter=","  # noqa: E800
-        #     )  # noqa: E800
-        #     breakpoint()
-
-        # breakpoint()
         segments_non_mono = locate_non_concave_regions(value)
 
     if len(segments_non_mono) > 1:

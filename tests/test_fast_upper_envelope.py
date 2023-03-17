@@ -4,10 +4,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+from dcegm.fast_upper_envelope import fast_upper_envelope
+from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
+from dcegm.fast_upper_envelope_org import fast_upper_envelope_wrapper_org
 from dcegm.pre_processing import calc_current_value
-from dcegm.upper_envelope_fast import fast_upper_envelope
-from dcegm.upper_envelope_fast import fast_upper_envelope_wrapper
-from dcegm.upper_envelope_fast_org import fast_upper_envelope_wrapper_org
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
 
@@ -18,22 +18,8 @@ TEST_DIR = Path(__file__).parent
 TEST_RESOURCES_DIR = TEST_DIR / "resources"
 
 
-@pytest.mark.parametrize("period", [2, 4, 10, 18, 9])
-def test_fues_wrapper(period):
-    policy_egm = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"period_tests/pol{period}.csv", delimiter=","
-    )
-    policy_fedor = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"period_tests/expec_pol{period}.csv", delimiter=","
-    )
-
-    value_egm = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"period_tests/val{period}.csv", delimiter=","
-    )
-    value_fedor = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"period_tests/expec_val{period}.csv", delimiter=","
-    )
-
+@pytest.fixture
+def setup_model():
     choice = 0
     max_wealth = 50
     n_grid_wealth = 500
@@ -53,6 +39,26 @@ def test_fues_wrapper(period):
         compute_utility=compute_utility,
     )
 
+    return choice, exogenous_savings_grid, compute_value
+
+
+@pytest.mark.parametrize("period", [2, 4, 10, 9, 18])
+def test_fues_wrapper(period, setup_model):
+    policy_egm = np.genfromtxt(
+        TEST_RESOURCES_DIR / f"period_tests/pol{period}.csv", delimiter=","
+    )
+    policy_fedor = np.genfromtxt(
+        TEST_RESOURCES_DIR / f"period_tests/expec_pol{period}.csv", delimiter=","
+    )
+    value_egm = np.genfromtxt(
+        TEST_RESOURCES_DIR / f"period_tests/val{period}.csv", delimiter=","
+    )
+    value_fedor = np.genfromtxt(
+        TEST_RESOURCES_DIR / f"period_tests/expec_val{period}.csv", delimiter=","
+    )
+
+    choice, exogenous_savings_grid, compute_value = setup_model
+
     policy_refined, value_refined = fast_upper_envelope_wrapper(
         value=value_egm,
         policy=policy_egm,
@@ -62,8 +68,8 @@ def test_fues_wrapper(period):
         period=period,
     )
 
-    policy_expected = policy_fedor[:, ~np.isnan(policy_fedor).any(axis=0)]  # noqa: F841
-    value_expected = value_fedor[  # noqa: F841
+    policy_expected = policy_fedor[:, ~np.isnan(policy_fedor).any(axis=0)]
+    value_expected = value_fedor[
         :,
         ~np.isnan(value_fedor).any(axis=0),
     ]
@@ -80,32 +86,14 @@ def test_fues_wrapper(period):
     aaae(value_got, value_expected_interp)
 
 
-def test_fast_upper_envelope_against_org_code():
+def test_fast_upper_envelope_against_org_code(setup_model):
     policy_egm = np.genfromtxt(
         TEST_RESOURCES_DIR / "period_tests/pol10.csv", delimiter=","
     )
     value_egm = np.genfromtxt(
         TEST_RESOURCES_DIR / "period_tests/val10.csv", delimiter=","
     )
-
-    choice = 0
-    max_wealth = 50
-    n_grid_wealth = 500
-    exogenous_savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
-
-    _index = pd.MultiIndex.from_tuples(
-        [("utility_function", "theta"), ("delta", "delta")],
-        names=["category", "name"],
-    )
-    params = pd.DataFrame(data=[1.95, 0.35], columns=["value"], index=_index)
-    discount_factor = 0.95
-
-    compute_utility = partial(utility_func_crra, params=params)
-    compute_value = partial(
-        calc_current_value,
-        discount_factor=discount_factor,
-        compute_utility=compute_utility,
-    )
+    choice, exogenous_savings_grid, compute_value = setup_model
 
     endog_grid_refined, value_refined, policy_refined = fast_upper_envelope(
         endog_grid=policy_egm[0],

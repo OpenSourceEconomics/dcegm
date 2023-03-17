@@ -7,12 +7,12 @@ import numpy as np
 import pandas as pd
 from dcegm.egm import compute_optimal_policy_and_value
 from dcegm.egm import get_child_state_marginal_util_and_exp_max_value
+from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
 from dcegm.integration import quadrature_legendre
 from dcegm.pre_processing import create_multi_dim_arrays
 from dcegm.pre_processing import get_partial_functions
 from dcegm.state_space import get_child_indexes
 from dcegm.upper_envelope import upper_envelope
-from dcegm.upper_envelope_fast import fast_upper_envelope_wrapper
 
 
 def solve_dcegm(
