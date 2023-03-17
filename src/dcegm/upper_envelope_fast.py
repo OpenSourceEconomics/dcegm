@@ -334,23 +334,22 @@ def _scan(
                 idx_before_on_upper_curve = suboptimal_points[dist_before_on_same_value]
 
                 # # This should better a bool from the backwards scan
-                if suboptimal_points.sum() == 0:
-                    (
-                        grad_next_forward,
-                        _,
-                        found_next_point_on_same_value_as_j,
-                    ) = _forward_scan(
-                        value=value,
-                        endog_grid=endog_grid,
-                        exog_grid=exog_grid,
-                        jump_thresh=jump_thresh,
-                        idx_current=j,
-                        idx_next=i + 1,
-                        n_points_to_scan=n_points_to_scan,
-                    )
-                    if grad_next_forward > grad_next:
-                        suboptimal_points = _append_new_point(suboptimal_points, i + 1)
-                        current_i_is_optimal = False
+                (
+                    grad_next_forward,
+                    _,
+                    found_next_point_on_same_value_as_j,
+                ) = _forward_scan(
+                    value=value,
+                    endog_grid=endog_grid,
+                    exog_grid=exog_grid,
+                    jump_thresh=jump_thresh,
+                    idx_current=j,
+                    idx_next=i + 1,
+                    n_points_to_scan=n_points_to_scan,
+                )
+                if (grad_next_forward > grad_next) & switch_value_func:
+                    suboptimal_points = _append_new_point(suboptimal_points, i + 1)
+                    current_i_is_optimal = False
 
                 # if the gradient joining the leading point i+1 (we have just
                 # jumped to) and the point m(the last point on the same
