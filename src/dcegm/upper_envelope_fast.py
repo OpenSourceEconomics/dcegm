@@ -284,9 +284,12 @@ def _scan(
                 > jump_thresh
             )
 
+            if grad_before > grad_next and exog_grid[i + 1] - exog_grid[j] < 0:
+                suboptimal_points = _append_new_point(suboptimal_points, i + 1)
+
             # if right turn is made and jump registered
             # remove point or perform forward scan
-            if grad_before > grad_next and switch_value_func:
+            elif grad_before > grad_next and switch_value_func:
                 keep_next = False
 
                 grad_next_forward, _, found_next_point_on_same_value = _forward_scan(
@@ -314,9 +317,6 @@ def _scan(
                     k = j
                     j = i + 1
 
-            elif grad_before > grad_next and exog_grid[i + 1] - exog_grid[j] < 0:
-                suboptimal_points = _append_new_point(suboptimal_points, i + 1)
-
             # if left turn is made or right turn with no jump, then
             # keep point provisionally and conduct backward scan
             else:
@@ -330,15 +330,29 @@ def _scan(
                     idx_next=i + 1,
                 )
                 keep_current = True
-
+                current_i_is_optimal = True
                 idx_before_on_upper_curve = suboptimal_points[dist_before_on_same_value]
+
+
+                # # This should better a bool from the backwards scan
+                if suboptimal_points.sum() == 0:
+                    grad_next_forward, _, found_next_point_on_same_value_as_j = _forward_scan(
+                        value=value,
+                        endog_grid=endog_grid,
+                        exog_grid=exog_grid,
+                        jump_thresh=jump_thresh,
+                        idx_current=j,
+                        idx_next=i + 1,
+                        n_points_to_scan=n_points_to_scan,
+                    )
+                    if grad_next_forward > grad_next:
+                        suboptimal_points = _append_new_point(suboptimal_points, i + 1)
+                        current_i_is_optimal = False
 
                 # if the gradient joining the leading point i+1 (we have just
                 # jumped to) and the point m(the last point on the same
                 # choice specific policy) is shallower than the
                 # gradient joining the i+1 and j, then delete j'th point
-                # if i == 1 | i == 2:
-                # breakpoint()
                 if (
                     grad_before < grad_next
                     and grad_next >= grad_next_backward
@@ -346,9 +360,8 @@ def _scan(
                 ):
                     keep_current = False
 
-                if not keep_current:
-                    # if i == 2:
-                    #     breakpoint()
+                if (not keep_current )& current_i_is_optimal:
+                    # We do not keep j
                     intersect_grid, intersect_value = _linear_intersection(
                         x1=endog_grid[j],
                         y1=value[j],
@@ -476,7 +489,7 @@ def _scan(
 
                     j = i + 1
 
-                else:
+                elif keep_current & current_i_is_optimal:
                     # ================== NEW CODE ==================
                     if grad_next > grad_before and switch_value_func:
                         (
