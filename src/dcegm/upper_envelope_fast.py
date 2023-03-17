@@ -15,7 +15,6 @@ import numpy as np
 from dcegm.interpolate import linear_interpolation_with_extrapolation  # noqa: F401
 from jax import jit  # noqa: F401
 
-
 def fast_upper_envelope_wrapper(
     policy: np.ndarray,
     value: np.ndarray,
@@ -215,7 +214,6 @@ def fast_upper_envelope(
 
 # ================================================================================
 
-
 def _scan(
     endog_grid,
     value,
@@ -398,84 +396,6 @@ def _scan(
                         policy_refined[idx_refined] = intersect_policy_right
                         endog_grid_refined[idx_refined] = intersect_grid
                         idx_refined += 1
-                    # elif i > 1:
-                    #     # breakpoint()
-                    #     (
-                    #         grad_next_forward,
-                    #         dist_next_point_on_same_value,
-                    #         _,
-                    #     ) = _forward_scan(
-                    #         value=value,
-                    #         endog_grid=endog_grid,
-                    #         exog_grid=exog_grid,
-                    #         jump_thresh=jump_thresh,
-                    #         idx_current=j,
-                    #         idx_next=i + 1,
-                    #         n_points_to_scan=n_points_to_scan,
-                    #     )
-                    #     (
-                    #         grad_next_upper_forward,
-                    #         dist_next_upper_point_on_same_value,
-                    #         _,
-                    #     ) = _forward_scan(
-                    #         value=value,
-                    #         endog_grid=endog_grid,
-                    #         exog_grid=exog_grid,
-                    #         jump_thresh=jump_thresh,
-                    #         idx_current=i + 1,
-                    #         idx_next=i + 2,
-                    #         n_points_to_scan=n_points_to_scan,
-                    #     )
-
-                    #     idx_next_on_lower_curve = j + dist_next_point_on_same_value + 2 # noqa: E501
-                    #     idx_next_on_upper_curve = (
-                    #         i + 3 + dist_next_upper_point_on_same_value
-                    #     )
-
-                    #     intersect_grid, intersect_value = _linear_intersection(
-                    #         x1=endog_grid[idx_next_on_lower_curve],
-                    #         y1=value[idx_next_on_lower_curve],
-                    #         x2=endog_grid[j],
-                    #         y2=value[j],
-                    #         x3=endog_grid[i + 1],
-                    #         y3=value[i + 1],
-                    #         x4=endog_grid[idx_next_on_upper_curve],
-                    #         y4=value[idx_next_on_upper_curve],
-                    #     )
-                    #     breakpoint()
-
-                    #     intersect_policy_left = linear_interpolation_with_extrapolation( # noqa: E501
-                    #         x=np.array(
-                    #             [endog_grid[idx_next_on_lower_curve], endog_grid[j]]
-                    #         ),
-                    #         y=np.array([policy[idx_next_on_lower_curve], policy[j]]),
-                    #         x_new=intersect_grid,
-                    #     )
-                    #     intersect_policy_right = (
-                    #         linear_interpolation_with_extrapolation(
-                    #             x=np.array(
-                    #                 [
-                    #                     endog_grid[i + 1],
-                    #                     endog_grid[idx_next_on_upper_curve],
-                    #                 ]
-                    #             ),
-                    #             y=np.array(
-                    #                 [policy[i + 1], policy[idx_next_on_upper_curve]]
-                    #             ),
-                    #             x_new=intersect_grid,
-                    #         )
-                    #     )
-
-                    #     value_refined[idx_refined - 1] = intersect_value
-                    #     policy_refined[idx_refined - 1] = intersect_policy_left
-                    #     endog_grid_refined[idx_refined - 1] = intersect_grid
-                    #     # idx_refined += 1
-
-                    #     value_refined[idx_refined] = intersect_value
-                    #     policy_refined[idx_refined] = intersect_policy_right
-                    #     endog_grid_refined[idx_refined] = intersect_grid
-                    #     idx_refined += 1
-
                     # =================================================================
 
                     value_refined[idx_refined] = value[i + 1]
@@ -494,7 +414,7 @@ def _scan(
                     if grad_next > grad_before and switch_value_func:
                         (
                             grad_next_forward,
-                            dist_next_point_on_same_value,
+                            idx_next_on_lower_curve,
                             _,
                         ) = _forward_scan(
                             value=value,
@@ -505,8 +425,6 @@ def _scan(
                             idx_next=i + 1,
                             n_points_to_scan=n_points_to_scan,
                         )
-
-                        idx_next_on_lower_curve = j + dist_next_point_on_same_value + 2
 
                         intersect_grid, intersect_value = _linear_intersection(
                             x1=endog_grid[idx_next_on_lower_curve],
@@ -606,41 +524,44 @@ def _forward_scan(
     """
 
     is_next_on_same_value = 0
-    dist_next_on_same_value = 0
+    idx_on_same_value = 0
     grad_next_on_same_value = 0
 
+    idx_max = exog_grid.shape[0] - 1
+
     for i in range(1, n_points_to_scan + 1):
-        is_on_same_value = (
-            np.abs(
-                (exog_grid[idx_current] - exog_grid[idx_next + i])
-                / (endog_grid[idx_current] - endog_grid[idx_next + i])
+        idx_to_check = min(idx_next + i, idx_max)
+        if endog_grid[idx_current] < endog_grid[idx_to_check]:
+            is_on_same_value = (
+                np.abs(
+                    (exog_grid[idx_current] - exog_grid[idx_to_check])
+                    / (endog_grid[idx_current] - endog_grid[idx_to_check])
+                )
+                < jump_thresh
             )
-            < jump_thresh
-        )
-        is_next = is_on_same_value * (1 - is_next_on_same_value)
-        dist_next_on_same_value = (i - 1) * is_next + (
-            1 - is_next
-        ) * dist_next_on_same_value
+            is_next = is_on_same_value * (1 - is_next_on_same_value)
+            idx_on_same_value = idx_to_check * is_next + (
+                1 - is_next
+            ) * idx_on_same_value
 
-        grad_next_on_same_value = (
-            (value[idx_next] - value[idx_next + i])
-            / (endog_grid[idx_next] - endog_grid[idx_next + i])
-        ) * is_next + (1 - is_next) * grad_next_on_same_value
+            grad_next_on_same_value = (
+                (value[idx_next] - value[idx_to_check])
+                / (endog_grid[idx_next] - endog_grid[idx_to_check])
+            ) * is_next + (1 - is_next) * grad_next_on_same_value
 
-        is_next_on_same_value = (
-            is_next_on_same_value * is_on_same_value
-            + (1 - is_on_same_value) * is_next_on_same_value
-            + is_on_same_value * (1 - is_next_on_same_value)
-        )
+            is_next_on_same_value = (
+                is_next_on_same_value * is_on_same_value
+                + (1 - is_on_same_value) * is_next_on_same_value
+                + is_on_same_value * (1 - is_next_on_same_value)
+            )
 
     return (
         grad_next_on_same_value,
-        dist_next_on_same_value,
+        idx_on_same_value,
         is_next_on_same_value,
     )
 
 
-# @jit
 def _backward_scan(
     value_unrefined,
     endog_grid,
@@ -680,58 +601,35 @@ def _backward_scan(
 
     indexes_reversed = len(suboptimal_points) - 1
 
-    for i, idx_before_on_same_value in enumerate(suboptimal_points[::-1]):
-        is_on_same_value = (
-            np.abs(
-                (exog_grid[idx_next] - exog_grid[idx_before_on_same_value])
-                / (endog_grid[idx_next] - endog_grid[idx_before_on_same_value])
+    for i, idx_to_check in enumerate(suboptimal_points[::-1]):
+        if endog_grid[idx_current] > endog_grid[idx_to_check]:
+            is_on_same_value = (
+                np.abs(
+                    (exog_grid[idx_next] - exog_grid[idx_to_check])
+                    / (endog_grid[idx_next] - endog_grid[idx_to_check])
+                )
+                < jump_thresh
             )
-            < jump_thresh
-        )
-        is_before = is_on_same_value * (1 - is_before_on_same_value)
-        dist_before_on_same_value = (indexes_reversed - i) * is_before + (
-            1 - is_before
-        ) * dist_before_on_same_value
+            is_before = is_on_same_value * (1 - is_before_on_same_value)
+            dist_before_on_same_value = (indexes_reversed - i) * is_before + (
+                1 - is_before
+            ) * dist_before_on_same_value
 
-        grad_before_on_same_value = (
-            (value_unrefined[idx_current] - value_unrefined[idx_before_on_same_value])
-            / (endog_grid[idx_current] - endog_grid[idx_before_on_same_value])
-        ) * is_before + (1 - is_before) * grad_before_on_same_value
+            grad_before_on_same_value = (
+                (value_unrefined[idx_current] - value_unrefined[idx_to_check])
+                / (endog_grid[idx_current] - endog_grid[idx_to_check])
+            ) * is_before + (1 - is_before) * grad_before_on_same_value
 
-        is_before_on_same_value = (
-            (is_before_on_same_value * is_on_same_value)
-            + (1 - is_on_same_value) * is_before_on_same_value
-            + is_on_same_value * (1 - is_before_on_same_value)
-        )
+            is_before_on_same_value = (
+                (is_before_on_same_value * is_on_same_value)
+                + (1 - is_on_same_value) * is_before_on_same_value
+                + is_on_same_value * (1 - is_before_on_same_value)
+            )
 
     return (
         grad_before_on_same_value,
         dist_before_on_same_value,
     )
-
-
-def find_intersection_point_grid_and_value(a1, a2, b1, b2):
-    """Find the intersection of two lines.
-
-    Args:
-        a1 (np.ndarray): 1d array containing the first point of the first line.
-        a2 (np.ndarray): 1d array containing the second point of the first line.
-        b1 (np.ndarray): 1d array containing the first point of the second line.
-        b2 (np.ndarray): 1d array containing the second point of the second line.
-
-    Returns:
-        np.ndarray: 1d array containing the intersection point of the two lines.
-
-    """
-    da = a2 - a1
-    db = b2 - b1
-    dp = a1 - b1
-    dap = np.array([-da[1], da[0]])
-    denom = dap @ db
-    num = dap @ dp
-    return tuple((num / denom) * db + b1)
-
-
 def _append_new_point(x_array, m):
     """Append a new point to an array."""
     for i in range(len(x_array) - 1):
@@ -739,7 +637,6 @@ def _append_new_point(x_array, m):
 
     x_array[-1] = m
     return x_array
-
 
 def _linear_intersection(x1, y1, x2, y2, x3, y3, x4, y4):
     """Find the intersection of two lines.

@@ -53,7 +53,7 @@ def state_space_functions():
     }
 
 
-@pytest.mark.xfail
+# @pytest.mark.xfail
 @pytest.mark.parametrize(
     "model, choice_range",
     [
