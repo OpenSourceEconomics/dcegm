@@ -87,8 +87,8 @@ def prob_long_term_care_patient(params, lag_health, health):
         pi = 0
     elif lag_health == health == 1:
         pi = 1
-    else:
-        raise ValueError("Health state not defined.")
+    # else: # noqa: E800
+    #     raise ValueError("Health state not defined.") # noqa: E800
 
     return pi
 
