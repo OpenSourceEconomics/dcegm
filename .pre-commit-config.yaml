@@ -70,7 +70,7 @@ repos:
       - id: ruff
         exclude: |
           (?x)^(
-              src/dcegm/sandbox/benchmark_cases.ipynbpath/to/file1.py|
+              src/dcegm/sandbox/benchmark_cases.ipynb|
               docs/source/conf.py|
           )$
   - repo: https://github.com/dosisod/refurb

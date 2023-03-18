@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -9,6 +10,8 @@ TEST_DIR = Path(__file__).parent
 
 # Directory with additional resources for the testing harness
 TEST_RESOURCES_DIR = TEST_DIR / "resources"
+
+os.environ["NUMBA_DISABLE_JIT"] = "1"
 
 
 @pytest.fixture()

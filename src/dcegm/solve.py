@@ -64,7 +64,6 @@ def solve_dcegm(
             v(M, d), for each state and each discrete choice.
 
     """
-    compute_upper_envelope = fast_upper_envelope_wrapper
 
     max_wealth = params.loc[("assets", "max_wealth"), "value"]
     n_periods = options["n_periods"]
@@ -134,7 +133,6 @@ def solve_dcegm(
         transition_vector_by_state,
         policy_array,
         value_array,
-        compute_upper_envelope=compute_upper_envelope,
     )
 
     return policy_array, value_array
@@ -158,7 +156,6 @@ def backwards_induction(
     transition_vector_by_state: Callable,
     policy_array: np.ndarray,
     value_array: np.ndarray,
-    compute_upper_envelope: Callable,
 ):
     """Do backwards induction and solve for optimal policy and value function.
 
@@ -208,7 +205,7 @@ def backwards_induction(
             v(M, d), for each state and each discrete choice.
 
     Returns:
-        (tuple): Tuple containing:
+        tuple:
 
         - policy (np.ndarray): Multi-dimensional np.ndarray storing the
             choice-specific policy function; of shape
@@ -310,7 +307,7 @@ def backwards_induction(
                     # For the upper envelope we cannot parallelize over the wealth grid
                     # as here we need to inspect the value function on the whole wealth
                     # grid.
-                    current_policy, current_value = compute_upper_envelope(
+                    current_policy, current_value = fast_upper_envelope_wrapper(
                         policy=current_policy,
                         value=current_value,
                         exog_grid=exogenous_savings_grid,
