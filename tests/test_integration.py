@@ -9,7 +9,9 @@ from toy_models.consumption_retirement_model.budget_functions import budget_cons
 from toy_models.consumption_retirement_model.exogenous_processes import (
     get_transition_matrix_by_state,
 )
-from toy_models.consumption_retirement_model.final_period import solve_final_period
+from toy_models.consumption_retirement_model.final_period_solution import (
+    final_period_wrapper,
+)
 from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space,
 )
@@ -82,7 +84,7 @@ def test_benchmark_models(
         options,
         utility_functions,
         budget_constraint=budget_constraint,
-        solve_final_period=solve_final_period,
+        final_period_wrapper=final_period_wrapper,
         state_space_functions=state_space_functions,
         user_transition_function=get_transition_matrix_by_state,
     )

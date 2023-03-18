@@ -26,7 +26,7 @@ def solve_dcegm(
     utility_functions: Dict[str, Callable],
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable],
-    solve_final_period: Callable,
+    final_period_wrapper: Callable,
     user_transition_function: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
@@ -46,7 +46,7 @@ def solve_dcegm(
 
             (i) create the state space
             (ii) get the state specific choice set
-        solve_final_period (callable): User-supplied function for solving the agent's
+        final_period_wrapper (callable): User-supplied function for solving the agent's
             last period.
         user_transition_function (callable): User-supplied function returning for each
             state a transition matrix vector.
@@ -118,7 +118,7 @@ def solve_dcegm(
 
     _state_indices_final_period = np.where(state_space[:, 0] == n_periods - 1)
     states_final_period = state_space[_state_indices_final_period]
-    policy_final, value_final = solve_final_period(
+    policy_final, value_final = final_period_wrapper(
         states=states_final_period,
         savings_grid=exogenous_savings_grid,
         options=options,

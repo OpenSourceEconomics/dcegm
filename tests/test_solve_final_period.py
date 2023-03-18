@@ -3,8 +3,11 @@ from itertools import product
 
 import numpy as np
 import pytest
+from dcegm.final_period import final_period_wrapper
 from numpy.testing import assert_array_almost_equal as aaae
-from toy_models.consumption_retirement_model.final_period import solve_final_period
+from toy_models.consumption_retirement_model.final_period_solution import (
+    solve_final_period,
+)
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
 
 model = ["deaton", "retirement_taste_shocks", "retirement_no_taste_shocks"]
@@ -34,17 +37,17 @@ def test_consume_everything_in_final_period(
     n_states = states_final_period.shape[0]
     compute_utility = partial(utility_func_crra, params=params)
 
-    policy_final, value_final = solve_final_period(
+    policy_final, value_final = final_period_wrapper(
         states=states_final_period,
         savings_grid=savings_grid,
         options=options,
         compute_utility=compute_utility,
+        final_period_solution=solve_final_period,
     )
 
-    _savings_grid = np.concatenate(([0], savings_grid))
-    policy_final_expected = np.tile(_savings_grid, (2, 1))
+    policy_final_expected = np.tile(savings_grid, (2, 1))
     value_final_expected = np.row_stack(
-        (np.ones_like(_savings_grid) * np.inf, np.zeros_like(_savings_grid))
+        (np.ones_like(savings_grid) * np.inf, np.zeros_like(savings_grid))
     )
 
     for state_index in range(n_states):

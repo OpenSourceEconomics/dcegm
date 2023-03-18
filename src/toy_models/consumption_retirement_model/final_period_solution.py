@@ -6,10 +6,11 @@ import numpy as np
 
 
 def solve_final_period(
-    states: np.ndarray,
-    savings_grid: np.ndarray,
+    state: np.ndarray,
+    begin_of_period_resources: np.ndarray,
     options: Dict[str, int],
-    compute_utility: Callable,  # noqa: U100
+    params_dict: Callable,  # noqa: U100
+    compute_utility: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Computes solution to final period for policy and value function.
 
@@ -39,32 +40,7 @@ def solve_final_period(
             v(M, d), for each state and each discrete choice.
 
     """
-    n_choices = options["n_discrete_choices"]
-    choice_range = [1] if n_choices < 2 else range(n_choices)
-    n_states = states.shape[0]
+    consumption = begin_of_period_resources
+    value = np.inf
 
-    policy_final = np.empty(
-        (n_states, n_choices, 2, int(1.1 * (len(savings_grid) + 1)))
-    )
-    value_final = np.empty((n_states, n_choices, 2, int(1.1 * (len(savings_grid) + 1))))
-    policy_final[:] = np.nan
-    value_final[:] = np.nan
-
-    end_grid = len(savings_grid) + 1
-
-    # In last period, nothing is saved for the next period (since there is none).
-    # Hence, everything is consumed, c_T(M, d) = M
-    for state_index in range(n_states):
-        for choice_index, _ in enumerate(choice_range):
-            policy_final[state_index, choice_index, :, 0] = 0
-            policy_final[state_index, choice_index, 0, 1:end_grid] = savings_grid  # M
-            policy_final[
-                state_index, choice_index, 1, 1:end_grid
-            ] = savings_grid  # c(M, d)
-
-            value_final[state_index, choice_index, 0, :end_grid] = (
-                np.ones(end_grid) * np.inf
-            )
-            value_final[state_index, choice_index, 1, :end_grid] = np.zeros(end_grid)
-
-    return policy_final, value_final
+    return consumption, value
