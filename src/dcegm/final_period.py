@@ -4,24 +4,25 @@ from typing import Dict
 from typing import Tuple
 
 import numpy as np
+from dcegm.marg_utilities_and_exp_value import (
+    aggregate_marg_utilites_and_values_over_choices_and_weight,
+)
 from jax import vmap
 
 
 def final_period_wrapper(
     final_period_states: np.ndarray,
-    savings_grid: np.ndarray,
     options: Dict[str, int],
     compute_utility: Callable,
     final_period_solution,  # noqa: U100
     choices_child,
     compute_next_period_wealth,
     compute_marginal_utility,
-    compute_value,
     taste_shock_scale,
     exogenous_savings_grid,
     income_shock_draws,
     income_shock_weights,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Computes solution to final period for policy and value function.
 
     In the last period, everything is consumed, i.e. consumption = savings.
@@ -51,7 +52,6 @@ def final_period_wrapper(
 
     """
     n_choices = options["n_discrete_choices"]
-    n_states = final_period_states.shape[0]
 
     resources_last_period = vmap(
         vmap(
@@ -61,40 +61,51 @@ def final_period_wrapper(
         in_axes=(0, None, None),
     )(final_period_states, exogenous_savings_grid, income_shock_draws)
 
-    policy_final = np.empty((n_states, n_choices, 2, savings_grid.shape[0]))
-    value_final = np.empty((n_states, n_choices, 2, savings_grid.shape[0]))
-
     final_period_solution_partial = partial(
         final_period_solution,
         options=options,
         params_dict={},
         compute_utility=compute_utility,
+        compute_marginal_utility=compute_marginal_utility,
     )
-    # In last period, nothing is saved for the next period (since there is none).
-    # Hence, everything is consumed, c_T(M, d) = M
-    for state_index in range(n_states):
-        for i, saving in enumerate(savings_grid):
-            for choice in range(n_choices):
-                consumption, value = final_period_solution_partial(
-                    state=final_period_states[state_index],
-                    begin_of_period_resources=saving,
-                    choice=choice,
-                )
+    final_policy, final_value, marginal_utilities_choices = vmap(
+        vmap(
+            vmap(
+                vmap(
+                    final_period_solution_partial,
+                    in_axes=(None, 0, None),
+                ),
+                in_axes=(None, 0, None),
+            ),
+            in_axes=(None, None, 0),
+        ),
+        in_axes=(0, 0, None),
+    )(final_period_states, resources_last_period, np.arange(n_choices, dtype=int))
 
-                policy_final[state_index, choice, 0, i] = saving
-                policy_final[state_index, choice, 1, i] = consumption
+    partial_aggregate = partial(
+        aggregate_marg_utilites_and_values_over_choices_and_weight,
+        taste_shock_scale=taste_shock_scale,
+    )
 
-                value_final[state_index, choice, 0, i] = saving
-                value_final[state_index, choice, 1, i] = value
+    marginal_utils_draws, max_exp_values_draws = vmap(
+        vmap(
+            vmap(partial_aggregate, in_axes=(None, 1, 1, 0)), in_axes=(None, 1, 1, None)
+        ),
+        in_axes=(0, 0, 0, None),
+    )(
+        choices_child,
+        marginal_utilities_choices,
+        final_value,
+        income_shock_weights,
+    )
 
-        # (
-        #     marginal_utilities[final_state_cond, :],
-        #     max_expected_values[final_state_cond, :],
-        # ) = marginal_util_and_exp_max_value_states_period_jitted(
-        #     possible_child_states=states_final_period,
-        #     choices_child_states=choices_child_states,
-        #     policies_child_states=policy_final,
-        #     values_child_states=value_final,
-        # )
+    marginal_utils = marginal_utils_draws.sum(axis=2)
+    max_exp_values = max_exp_values_draws.sum(axis=2)
+    middle_of_draws = int(income_shock_draws.shape[0] + 1 / 2)
 
-    return policy_final, value_final
+    return (
+        final_policy[:, :, :, middle_of_draws],
+        final_value[:, :, :, middle_of_draws],
+        marginal_utils,
+        max_exp_values,
+    )

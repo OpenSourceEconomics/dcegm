@@ -169,28 +169,25 @@ def vectorized_marginal_util_and_exp_max_value(
     )
 
     (
-        child_state_marginal_utility,
-        child_state_exp_max_value,
-    ) = aggregate_marg_utilites_and_values_over_choices(
+        child_state_marginal_utility_weighted,
+        child_state_exp_max_value_weighted,
+    ) = aggregate_marg_utilites_and_values_over_choices_and_weight(
         choice_set_indices=choice_set_indices,
         marg_utilities=marg_utilities_child_state_choice_specific,
         values=values_child_state_choice_specific,
+        income_shock_weight=income_shock_weight,
         taste_shock_scale=taste_shock_scale,
     )
 
-    # Weight the results by the weight of the income shock draw.
-    marginal_utility_weighted = child_state_marginal_utility * income_shock_weight
-
-    expected_max_value_weighted = child_state_exp_max_value * income_shock_weight
-
-    return marginal_utility_weighted, expected_max_value_weighted
+    return child_state_marginal_utility_weighted, child_state_exp_max_value_weighted
 
 
 # @jit
-def aggregate_marg_utilites_and_values_over_choices(
+def aggregate_marg_utilites_and_values_over_choices_and_weight(
     choice_set_indices: jnp.ndarray,
     marg_utilities: jnp.ndarray,
     values: jnp.ndarray,
+    income_shock_weight: float,
     taste_shock_scale: float,
 ) -> Tuple[float, float]:
     """We aggregate the marginal utility of the discrete choices in the next period with
@@ -229,6 +226,10 @@ def aggregate_marg_utilites_and_values_over_choices(
     child_state_exp_max_value = rescale_factor + taste_shock_scale * jnp.log(
         sum_exp_values
     )
+
+    # Last step weight outpouts
+    child_state_marg_util *= income_shock_weight
+    child_state_exp_max_value *= income_shock_weight
 
     return child_state_marg_util, child_state_exp_max_value
 

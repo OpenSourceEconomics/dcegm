@@ -8,10 +8,11 @@ import numpy as np
 def solve_final_period(
     state: np.ndarray,
     begin_of_period_resources: float,
-    options: Dict[str, int],
     choice,
+    options: Dict[str, int],
     params_dict: Callable,  # noqa: U100
     compute_utility: Callable,
+    compute_marginal_utility: Callable,
 ) -> Tuple[float, float]:
     """Computes solution to final period for policy and value function.
 
@@ -43,5 +44,6 @@ def solve_final_period(
     """
     consumption = begin_of_period_resources
     value = compute_utility(begin_of_period_resources, choice)
+    marginal_utility = compute_marginal_utility(begin_of_period_resources)
 
-    return consumption, value
+    return consumption, value, marginal_utility

@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 from dcegm.final_period import final_period_wrapper
 from dcegm.pre_processing import get_partial_functions
+from dcegm.pre_processing import get_possible_choices_array
 from dcegm.pre_processing import params_todict
 from jax import vmap
 from numpy.testing import assert_array_almost_equal as aaae
@@ -14,6 +15,12 @@ from toy_models.consumption_retirement_model.exogenous_processes import (
 )
 from toy_models.consumption_retirement_model.final_period_solution import (
     solve_final_period,
+)
+from toy_models.consumption_retirement_model.state_space_objects import (
+    create_state_space,
+)
+from toy_models.consumption_retirement_model.state_space_objects import (
+    get_state_specific_choice_set,
 )
 from toy_models.consumption_retirement_model.utility_functions import (
     marginal_utility_crra,
@@ -34,23 +41,27 @@ def test_consume_everything_in_final_period(
     model, max_wealth, n_grid_points, load_example_model
 ):
     params, options = load_example_model(f"{model}")
+    options["n_exog_processes"] = 1
     # Avoid small values. This test ist just numeric if our solve
     # final period is doing the right thing!
     savings_grid = np.linspace(100, max_wealth + 100, n_grid_points)
 
     n_periods = options["n_periods"]
     n_choices = options["n_discrete_choices"]
-    _periods = np.arange(n_periods)
-    _choices = np.arange(n_choices)
+    state_space, state_indexer = create_state_space(options)
 
-    state_space = np.column_stack(
-        [np.repeat(_periods, n_choices), np.tile(_choices, n_periods)]
+    choice_set_array = get_possible_choices_array(
+        state_space,
+        state_indexer,
+        get_state_specific_choice_set,
+        options,
     )
+
     params_dict = params_todict(params)
 
     condition_final_period = np.where(state_space[:, 0] == n_periods - 1)
     states_final_period = state_space[condition_final_period]
-    n_states = states_final_period.shape[0]
+    choice_array_final = choice_set_array[condition_final_period]
 
     if np.allclose(params_dict["theta"], 1):
         util_func = utiility_func_log_crra
@@ -78,35 +89,37 @@ def test_consume_everything_in_final_period(
         exogenous_transition_function=get_transition_matrix_by_state,
     )
 
-    policy_final, value_final = final_period_wrapper(
+    income_draws = np.array([0, 0, 0])
+
+    policy_final, value_final, _, _ = final_period_wrapper(
         final_period_states=states_final_period,
-        savings_grid=savings_grid,
         options=options,
         compute_utility=compute_utility,
         final_period_solution=solve_final_period,
-        choices_child=np.array([0, 1]),
+        choices_child=choice_array_final,
         compute_next_period_wealth=compute_next_period_wealth,
         compute_marginal_utility=compute_marginal_utility,
-        compute_value=compute_value,
         taste_shock_scale=params_dict["lambda"],
         exogenous_savings_grid=savings_grid,
-        income_shock_draws=np.array([0, 0, 0]),
+        income_shock_draws=income_draws,
         income_shock_weights=np.array([0, 0, 0]),
     )
 
-    policy_final_expected = np.tile(savings_grid, (2, 1))
-
-    for state_index in range(n_states):
+    for state_ind, state in enumerate(states_final_period):
         for choice in range(n_choices):
-            expected_value = vmap(compute_utility, in_axes=(0, None))(
-                savings_grid, choice
-            )
+            begin_of_period_resources = vmap(
+                compute_next_period_wealth, in_axes=(None, 0, None)
+            )(state, savings_grid, 0.00)
 
             aaae(
-                policy_final[state_index, choice, :],
-                policy_final_expected,
+                policy_final[state_ind, choice, :],
+                begin_of_period_resources,
+            )
+
+            expected_value = vmap(compute_utility, in_axes=(0, None))(
+                begin_of_period_resources, choice
             )
             aaae(
-                value_final[state_index, choice, 1],
+                value_final[state_ind, choice, :],
                 expected_value,
             )
