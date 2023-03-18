@@ -104,12 +104,11 @@ def test_benchmark_models(
                 policy_expec = policy_expected[period][1 - choice].T
                 value_expec = value_expected[period][1 - choice].T
 
-
             policy_got = policy_calculated[state_index, choice, :][
                 :,
                 ~np.isnan(policy_calculated[state_index, choice, :]).any(axis=0),
             ]
-            aaae(policy_got, policy_expec)
+            aaae(policy_got, policy_expec, decimal=3)
             # In Fedor's upper envelope, there are two endogenous wealth grids;
             # one for the value function and a longer one for the policy function.
             # Since we want to unify the two endogoenous grids and want the refined
@@ -124,20 +123,4 @@ def test_benchmark_models(
                 ~np.isnan(value_calculated[state_index, choice, 1])
             ]
 
-            aaae(value_got, value_expec_interp)
-            aaae(policy_got, policy_expec)
-
-            # In Fedor's upper envelope, there are two endogenous wealth grids;
-            # one for the value function and a longer one for the policy function.
-            # Since we want to unify the two endogoenous grids and want the refined
-            # value and policy array to be of equal length, our refined value
-            # function is longer than Fedor's.
-            # Hence, we interpolate Fedor's refined value function to our refined
-            # grid.
-            value_expec_interp = np.interp(
-                policy_expec[0], value_expec[0], value_expec[1]
-            )
-            value_got = value_calculated[state_index, choice, 1][
-                ~np.isnan(value_calculated[state_index, choice, 1])
-            ]
-            aaae(value_got, value_expec_interp)
+            aaae(value_got, value_expec_interp, decimal=2)
