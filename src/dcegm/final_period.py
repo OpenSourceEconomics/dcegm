@@ -15,14 +15,14 @@ def final_period_wrapper(
     options: Dict[str, int],
     compute_utility: Callable,
     final_period_solution,  # noqa: U100
-    choices_child,
+    choices_final,
     compute_next_period_wealth,
     compute_marginal_utility,
     taste_shock_scale,
     exogenous_savings_grid,
     income_shock_draws,
     income_shock_weights,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Computes solution to final period for policy and value function.
 
     In the last period, everything is consumed, i.e. consumption = savings.
@@ -93,7 +93,7 @@ def final_period_wrapper(
         ),
         in_axes=(0, 0, 0, None),
     )(
-        choices_child,
+        choices_final,
         marginal_utilities_choices,
         final_value,
         income_shock_weights,
@@ -104,6 +104,7 @@ def final_period_wrapper(
     middle_of_draws = int(income_shock_draws.shape[0] + 1 / 2)
 
     return (
+        resources_last_period[:, :, middle_of_draws],
         final_policy[:, :, :, middle_of_draws],
         final_value[:, :, :, middle_of_draws],
         marginal_utils,

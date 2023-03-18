@@ -268,13 +268,17 @@ def backwards_induction(
     final_state_cond = np.where(state_space[:, 0] == n_periods - 1)[0]
     states_final_period = state_space[final_state_cond]
 
-    policy_final, value_final = final_period_partial(
+    (
+        resources_final,
+        policy_final,
+        value_final,
+        marginal_utils,
+        max_exp_values,
+    ) = final_period_partial(
         final_period_states=states_final_period,
-        savings_grid=exogenous_savings_grid,
-        choices_child=choice_set_array[final_state_cond],
+        choices_final=choice_set_array[final_state_cond],
         compute_next_period_wealth=compute_next_period_wealth,
         compute_marginal_utility=compute_marginal_utility,
-        compute_value=compute_value,
         taste_shock_scale=taste_shock_scale,
         exogenous_savings_grid=exogenous_savings_grid,
         income_shock_draws=income_shock_draws,
@@ -282,9 +286,9 @@ def backwards_induction(
     )
 
     policy_array[
-        final_state_cond, :, :, : exogenous_savings_grid.shape[0]
+        final_state_cond, :, 1, : exogenous_savings_grid.shape[0]
     ] = policy_final
-    value_array[final_state_cond, :, :, : exogenous_savings_grid.shape[0]] = value_final
+    value_array[final_state_cond, :, 1, : exogenous_savings_grid.shape[0]] = value_final
 
     for period in range(n_periods - 2, -1, -1):
         periods_state_cond = np.where(state_space[:, 0] == period)[0]

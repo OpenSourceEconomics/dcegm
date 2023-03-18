@@ -91,12 +91,12 @@ def test_consume_everything_in_final_period(
 
     income_draws = np.array([0, 0, 0])
 
-    policy_final, value_final, _, _ = final_period_wrapper(
+    resources_final, policy_final, value_final, _, _ = final_period_wrapper(
         final_period_states=states_final_period,
         options=options,
         compute_utility=compute_utility,
         final_period_solution=solve_final_period,
-        choices_child=choice_array_final,
+        choices_final=choice_array_final,
         compute_next_period_wealth=compute_next_period_wealth,
         compute_marginal_utility=compute_marginal_utility,
         taste_shock_scale=params_dict["lambda"],
@@ -110,6 +110,11 @@ def test_consume_everything_in_final_period(
             begin_of_period_resources = vmap(
                 compute_next_period_wealth, in_axes=(None, 0, None)
             )(state, savings_grid, 0.00)
+
+            aaae(
+                resources_final[state_ind],
+                begin_of_period_resources,
+            )
 
             aaae(
                 policy_final[state_ind, choice, :],
