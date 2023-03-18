@@ -54,24 +54,21 @@ def final_period_wrapper(
     # In last period, nothing is saved for the next period (since there is none).
     # Hence, everything is consumed, c_T(M, d) = M
     for state_index in range(n_states):
-        for choice_index, _ in enumerate(choice_range):
+        for choice_index, choice in enumerate(choice_range):
             for i, saving in enumerate(savings_grid):
                 consumption, value = final_period_solution(
                     state=states[state_index],
                     begin_of_period_resources=saving,
                     options=options,
                     params_dict={},
+                    choice=choice,
                     compute_utility=compute_utility,
                 )
 
                 policy_final[state_index, choice_index, 0, i] = saving
                 policy_final[state_index, choice_index, 1, i] = consumption
 
-            value_final[state_index, choice_index, 0, : savings_grid.shape[0]] = (
-                np.ones(savings_grid.shape[0]) * np.inf
-            )
-            value_final[
-                state_index, choice_index, 1, : savings_grid.shape[0]
-            ] = np.zeros(savings_grid.shape[0])
+                value_final[state_index, choice_index, 0, i] = saving
+                value_final[state_index, choice_index, 1, i] = value
 
     return policy_final, value_final

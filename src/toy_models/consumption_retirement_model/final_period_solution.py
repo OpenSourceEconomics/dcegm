@@ -9,6 +9,7 @@ def solve_final_period(
     state: np.ndarray,
     begin_of_period_resources: np.ndarray,
     options: Dict[str, int],
+    choice,
     params_dict: Callable,  # noqa: U100
     compute_utility: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -41,6 +42,6 @@ def solve_final_period(
 
     """
     consumption = begin_of_period_resources
-    value = np.inf
+    value = compute_utility(begin_of_period_resources, choice)
 
     return consumption, value
