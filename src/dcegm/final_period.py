@@ -6,7 +6,7 @@ import numpy as np
 
 
 def final_period_wrapper(
-    states: np.ndarray,
+    final_period_states: np.ndarray,
     savings_grid: np.ndarray,
     options: Dict[str, int],
     compute_utility: Callable,
@@ -41,23 +41,18 @@ def final_period_wrapper(
 
     """
     n_choices = options["n_discrete_choices"]
-    choice_range = [1] if n_choices < 2 else range(n_choices)
-    n_states = states.shape[0]
+    n_states = final_period_states.shape[0]
 
-    policy_final = np.empty(
-        (n_states, n_choices, 2, int(1.1 * (len(savings_grid) + 1)))
-    )
-    value_final = np.empty((n_states, n_choices, 2, int(1.1 * (len(savings_grid) + 1))))
-    policy_final[:] = np.nan
-    value_final[:] = np.nan
+    policy_final = np.empty((n_states, n_choices, 2, savings_grid.shape[0]))
+    value_final = np.empty((n_states, n_choices, 2, savings_grid.shape[0]))
 
     # In last period, nothing is saved for the next period (since there is none).
     # Hence, everything is consumed, c_T(M, d) = M
     for state_index in range(n_states):
-        for choice_index, choice in enumerate(choice_range):
-            for i, saving in enumerate(savings_grid):
+        for i, saving in enumerate(savings_grid):
+            for choice in range(n_choices):
                 consumption, value = final_period_solution(
-                    state=states[state_index],
+                    state=final_period_states[state_index],
                     begin_of_period_resources=saving,
                     options=options,
                     params_dict={},
@@ -65,10 +60,10 @@ def final_period_wrapper(
                     compute_utility=compute_utility,
                 )
 
-                policy_final[state_index, choice_index, 0, i] = saving
-                policy_final[state_index, choice_index, 1, i] = consumption
+                policy_final[state_index, choice, 0, i] = saving
+                policy_final[state_index, choice, 1, i] = consumption
 
-                value_final[state_index, choice_index, 0, i] = saving
-                value_final[state_index, choice_index, 1, i] = value
+                value_final[state_index, choice, 0, i] = np.inf
+                value_final[state_index, choice, 1, i] = value
 
     return policy_final, value_final

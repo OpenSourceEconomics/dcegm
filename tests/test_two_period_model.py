@@ -13,7 +13,7 @@ from dcegm.solve import solve_dcegm
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 from toy_models.consumption_retirement_model.final_period_solution import (
-    final_period_wrapper,
+    solve_final_period,
 )
 from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space,
@@ -180,7 +180,7 @@ def input_data():
         options,
         utility_functions,
         budget_constraint=budget_dcegm,
-        final_period_wrapper=final_period_wrapper,
+        final_period_solution=solve_final_period,
         state_space_functions=state_space_functions,
         user_transition_function=transitions_dcegm,
     )

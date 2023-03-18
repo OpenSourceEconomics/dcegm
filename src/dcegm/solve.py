@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from dcegm.egm import compute_optimal_policy_and_value
 from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
+from dcegm.final_period import final_period_wrapper
 from dcegm.integration import quadrature_legendre
 from dcegm.marg_utilities_and_exp_value import (
     marginal_util_and_exp_max_value_states_period,
@@ -18,6 +19,7 @@ from dcegm.pre_processing import get_possible_choices_array
 from dcegm.pre_processing import params_todict
 from dcegm.state_space import get_child_indexes
 from jax import jit
+from jax import vmap
 
 
 def solve_dcegm(
@@ -26,7 +28,7 @@ def solve_dcegm(
     utility_functions: Dict[str, Callable],
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable],
-    final_period_wrapper: Callable,
+    final_period_solution: Callable,
     user_transition_function: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
@@ -109,6 +111,13 @@ def solve_dcegm(
         exogenous_transition_function=user_transition_function,
     )
 
+    final_period_partial = partial(
+        final_period_wrapper,
+        options=options,
+        compute_utility=compute_utility,
+        final_period_solution=final_period_solution,
+    )
+
     choice_set_array = get_possible_choices_array(
         state_space,
         state_indexer,
@@ -116,18 +125,8 @@ def solve_dcegm(
         options,
     )
 
-    _state_indices_final_period = np.where(state_space[:, 0] == n_periods - 1)
-    states_final_period = state_space[_state_indices_final_period]
-    policy_final, value_final = final_period_wrapper(
-        states=states_final_period,
-        savings_grid=exogenous_savings_grid,
-        options=options,
-        compute_utility=compute_utility,
-    )
-
     policy_array, value_array = create_multi_dim_arrays(state_space, options)
-    policy_array[_state_indices_final_period, ...] = policy_final
-    value_array[_state_indices_final_period, ...] = value_final
+
     policy_array, value_array = backwards_induction(
         n_periods,
         taste_shock_scale,
@@ -148,6 +147,7 @@ def solve_dcegm(
         policy_array,
         value_array,
         compute_upper_envelope=compute_upper_envelope,
+        final_period_partial=final_period_partial,
     )
 
     return policy_array, value_array
@@ -173,6 +173,7 @@ def backwards_induction(
     policy_array: np.ndarray,
     value_array: np.ndarray,
     compute_upper_envelope: Callable,
+    final_period_partial,
 ):
     """Do backwards induction and solve for optimal policy and value function.
 
@@ -265,25 +266,35 @@ def backwards_induction(
         )
     )
 
+    final_state_cond = np.where(state_space[:, 0] == n_periods - 1)[0]
+    states_final_period = state_space[final_state_cond]
+
+    policy_final, value_final = final_period_partial(
+        final_period_states=states_final_period,
+        savings_grid=exogenous_savings_grid,
+    )
+
+    states_final_period = state_space[final_state_cond]
+    choices_child_states = choice_set_array[final_state_cond]
+
+    (
+        marginal_utilities[final_state_cond, :],
+        max_expected_values[final_state_cond, :],
+    ) = marginal_util_and_exp_max_value_states_period_jitted(
+        possible_child_states=states_final_period,
+        choices_child_states=choices_child_states,
+        policies_child_states=policy_final,
+        values_child_states=value_final,
+    )
+
+    policy_array[
+        final_state_cond, :, :, : exogenous_savings_grid.shape[0]
+    ] = policy_final
+    value_array[final_state_cond, :, :, : exogenous_savings_grid.shape[0]] = value_final
+
     for period in range(n_periods - 2, -1, -1):
-        state_cond = np.where(state_space[:, 0] == period + 1)[0]
-
-        possible_child_states = state_space[state_cond]
-        policies_child_states = policy_array[state_cond]
-        values_child_states = value_array[state_cond]
-        choices_child_states = choice_set_array[state_cond]
-
-        (
-            marginal_utilities[state_cond, :],
-            max_expected_values[state_cond, :],
-        ) = marginal_util_and_exp_max_value_states_period_jitted(
-            possible_child_states=possible_child_states,
-            choices_child_states=choices_child_states,
-            policies_child_states=policies_child_states,
-            values_child_states=values_child_states,
-        )
-        index_periods = np.where(state_space[:, 0] == period)[0]
-        state_subspace = state_space[index_periods]
+        periods_state_cond = np.where(state_space[:, 0] == period)[0]
+        state_subspace = state_space[periods_state_cond]
 
         for state in state_subspace:
             current_state_index = state_indexer[tuple(state)]
@@ -348,5 +359,20 @@ def backwards_induction(
                     :,
                     : current_value.shape[1],
                 ] = current_value
+
+            possible_child_states = state_space[periods_state_cond]
+            policies_child_states = policy_array[periods_state_cond]
+            values_child_states = value_array[periods_state_cond]
+            choices_child_states = choice_set_array[periods_state_cond]
+
+            (
+                marginal_utilities[periods_state_cond, :],
+                max_expected_values[periods_state_cond, :],
+            ) = marginal_util_and_exp_max_value_states_period_jitted(
+                possible_child_states=possible_child_states,
+                choices_child_states=choices_child_states,
+                policies_child_states=policies_child_states,
+                values_child_states=values_child_states,
+            )
 
     return policy_array, value_array
