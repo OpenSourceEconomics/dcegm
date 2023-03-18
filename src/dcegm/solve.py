@@ -274,8 +274,8 @@ def backwards_induction(
         savings_grid=exogenous_savings_grid,
     )
 
-    states_final_period = state_space[final_state_cond]
     choices_child_states = choice_set_array[final_state_cond]
+    breakpoint()
 
     (
         marginal_utilities[final_state_cond, :],
