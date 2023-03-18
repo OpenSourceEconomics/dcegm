@@ -10,7 +10,7 @@ from typing import Tuple
 import jax.numpy as jnp  # noqa: F401
 import numpy as np
 from jax import jit  # noqa: F401
-from numba import njit
+from numba import njit  # noqa: F401
 
 
 def fast_upper_envelope_wrapper(
@@ -511,7 +511,7 @@ def scan_value_function(
     return value_refined, policy_refined, endog_grid_refined
 
 
-@njit
+# @njit # noqa: F821
 def _forward_scan(
     value: np.ndarray,
     endog_grid: np.ndarray,
@@ -586,7 +586,7 @@ def _forward_scan(
     )
 
 
-@njit
+# @njit # noqa: F821
 def _backward_scan(
     value: np.ndarray,
     endog_grid: np.ndarray,
@@ -657,7 +657,7 @@ def _backward_scan(
     )
 
 
-@njit
+# @njit # noqa: F821
 def _evaluate_point_on_line(
     x1: float, y1: float, x2: float, y2: float, point_to_evaluate: float
 ) -> float:
@@ -677,7 +677,7 @@ def _evaluate_point_on_line(
     return (y2 - y1) / (x2 - x1) * (point_to_evaluate - x1) + y1
 
 
-@njit
+# @njit # noqa: F821
 def _linear_intersection(
     x1: float,
     y1: float,
@@ -715,7 +715,7 @@ def _linear_intersection(
     return x_intersection, y_intersection
 
 
-@njit
+# @njit # noqa: F821
 def _append_index(x_array: np.ndarray, m: int):
     """Append a new point to an array."""
     for i in range(len(x_array) - 1):
