@@ -19,7 +19,6 @@ from dcegm.pre_processing import get_possible_choices_array
 from dcegm.pre_processing import params_todict
 from dcegm.state_space import get_child_indexes
 from jax import jit
-from jax import vmap
 
 
 def solve_dcegm(
@@ -272,19 +271,14 @@ def backwards_induction(
     policy_final, value_final = final_period_partial(
         final_period_states=states_final_period,
         savings_grid=exogenous_savings_grid,
-    )
-
-    choices_child_states = choice_set_array[final_state_cond]
-    breakpoint()
-
-    (
-        marginal_utilities[final_state_cond, :],
-        max_expected_values[final_state_cond, :],
-    ) = marginal_util_and_exp_max_value_states_period_jitted(
-        possible_child_states=states_final_period,
-        choices_child_states=choices_child_states,
-        policies_child_states=policy_final,
-        values_child_states=value_final,
+        choices_child=choice_set_array[final_state_cond],
+        compute_next_period_wealth=compute_next_period_wealth,
+        compute_marginal_utility=compute_marginal_utility,
+        compute_value=compute_value,
+        taste_shock_scale=taste_shock_scale,
+        exogenous_savings_grid=exogenous_savings_grid,
+        income_shock_draws=income_shock_draws,
+        income_shock_weights=income_shock_weights,
     )
 
     policy_array[

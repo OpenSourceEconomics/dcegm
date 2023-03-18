@@ -4,11 +4,19 @@ from itertools import product
 import numpy as np
 import pytest
 from dcegm.final_period import final_period_wrapper
+from dcegm.pre_processing import get_partial_functions
 from dcegm.pre_processing import params_todict
 from jax import vmap
 from numpy.testing import assert_array_almost_equal as aaae
+from toy_models.consumption_retirement_model.budget_functions import budget_constraint
+from toy_models.consumption_retirement_model.exogenous_processes import (
+    get_transition_matrix_by_state,
+)
 from toy_models.consumption_retirement_model.final_period_solution import (
     solve_final_period,
+)
+from toy_models.consumption_retirement_model.utility_functions import (
+    marginal_utility_crra,
 )
 from toy_models.consumption_retirement_model.utility_functions import (
     utiility_func_log_crra,
@@ -45,9 +53,30 @@ def test_consume_everything_in_final_period(
     n_states = states_final_period.shape[0]
 
     if np.allclose(params_dict["theta"], 1):
-        compute_utility = partial(utiility_func_log_crra, params_dict=params_dict)
+        util_func = utiility_func_log_crra
     else:
-        compute_utility = partial(utility_func_crra, params_dict=params_dict)
+        util_func = utility_func_crra
+
+    user_utility_functions = {
+        "utility": util_func,
+        "marginal_utility": marginal_utility_crra,
+        "inverse_marginal_utility": marginal_utility_crra,  # Doesn't matter here
+    }
+
+    (
+        compute_utility,
+        compute_marginal_utility,
+        compute_inverse_marginal_utility,
+        compute_value,
+        compute_next_period_wealth,
+        transition_vector_by_state,
+    ) = get_partial_functions(
+        params_dict=params_dict,
+        options=options,
+        user_utility_functions=user_utility_functions,
+        user_budget_constraint=budget_constraint,
+        exogenous_transition_function=get_transition_matrix_by_state,
+    )
 
     policy_final, value_final = final_period_wrapper(
         final_period_states=states_final_period,
@@ -55,6 +84,14 @@ def test_consume_everything_in_final_period(
         options=options,
         compute_utility=compute_utility,
         final_period_solution=solve_final_period,
+        choices_child=np.array([0, 1]),
+        compute_next_period_wealth=compute_next_period_wealth,
+        compute_marginal_utility=compute_marginal_utility,
+        compute_value=compute_value,
+        taste_shock_scale=params_dict["lambda"],
+        exogenous_savings_grid=savings_grid,
+        income_shock_draws=np.array([0, 0, 0]),
+        income_shock_weights=np.array([0, 0, 0]),
     )
 
     policy_final_expected = np.tile(savings_grid, (2, 1))

@@ -42,6 +42,6 @@ def solve_final_period(
 
     """
     consumption = begin_of_period_resources
-    value = 0.00
+    value = compute_utility(begin_of_period_resources, choice)
 
     return consumption, value
