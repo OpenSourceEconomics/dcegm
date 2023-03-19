@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -11,6 +12,10 @@ TEST_DIR = Path(__file__).parent
 # Directory with additional resources for the testing harness
 TEST_RESOURCES_DIR = TEST_DIR / "resources"
 
+# Add the utils directory to the path so that we can import helper functions.
+sys.path.append(os.path.join(os.path.dirname(__file__), "utils"))
+
+# Disable JIT compilation for tests so that code coverage is calculated correctly.
 os.environ["NUMBA_DISABLE_JIT"] = "1"
 
 

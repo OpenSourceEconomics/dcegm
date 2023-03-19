@@ -1,6 +1,7 @@
 """Implementation of the Fast Upper-Envelope Scan.
 
 Based on Akshay Shanker, University of Sydney, akshay.shanker@me.com.
+https://github.com/akshayshanker/FUES_EGM/blob/main/FUES/FUES.py
 
 """
 from typing import Callable
