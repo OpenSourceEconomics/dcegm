@@ -126,3 +126,8 @@ def test_benchmark_models(
             ]
 
             aaae(value_got, value_expec_interp, decimal=2)
+
+            aaae(
+                policy_calculated[state_index, choice, 0],
+                value_calculated[state_index, choice, 0],
+            )

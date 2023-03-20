@@ -144,14 +144,11 @@ def linear_interpolation_with_extrapolation_jax(x, y, x_new):
     """
     # make sure that the function also works for unsorted x-arrays
     # taken from scipy.interpolate.interp1d
-    # ToDo: Is x after the envelope monotone?
     ind = jnp.argsort(x)
     x = jnp.take(x, ind)
     y = jnp.take(y, ind)
 
-    ind_high = get_index_high(x=x, x_new=x_new)
-
-    ind_low = ind_high - 1
+    ind_high, ind_low = get_index_high_and_low(x=x, x_new=x_new)
 
     y_high = jnp.take(y, ind_high)
     y_low = jnp.take(y, ind_low)
@@ -165,7 +162,7 @@ def linear_interpolation_with_extrapolation_jax(x, y, x_new):
     return interpol_res
 
 
-def get_index_high(x, x_new):
+def get_index_high_and_low(x, x_new):
     """Get index of the highest value in x that is smaller than x_new.
 
     Args:
@@ -179,7 +176,7 @@ def get_index_high(x, x_new):
     """
     ind_high = jnp.searchsorted(x, x_new).clip(max=(x.shape[0] - 1), min=1)
     ind_high -= jnp.isnan(x[ind_high]).astype(int)
-    return ind_high
+    return ind_high, ind_high - 1
 
 
 def linear_interpolation_with_extrapolation(x, y, x_new):

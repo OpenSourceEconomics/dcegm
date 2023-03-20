@@ -252,17 +252,15 @@ def backwards_induction(
         fill_value=np.nan,
         dtype=float,
     )
-    marginal_util_and_exp_max_value_states_period_jitted = jit(
-        partial(
-            marginal_util_and_exp_max_value_states_period,
-            compute_next_period_wealth=compute_next_period_wealth,
-            compute_marginal_utility=compute_marginal_utility,
-            compute_value=compute_value,
-            taste_shock_scale=taste_shock_scale,
-            exogenous_savings_grid=exogenous_savings_grid,
-            income_shock_draws=income_shock_draws,
-            income_shock_weights=income_shock_weights,
-        )
+    marginal_util_and_exp_max_value_states_period_jitted = partial(
+        marginal_util_and_exp_max_value_states_period,
+        compute_next_period_wealth=compute_next_period_wealth,
+        compute_marginal_utility=compute_marginal_utility,
+        compute_value=compute_value,
+        taste_shock_scale=taste_shock_scale,
+        exogenous_savings_grid=exogenous_savings_grid,
+        income_shock_draws=income_shock_draws,
+        income_shock_weights=income_shock_weights,
     )
 
     final_state_cond = np.where(state_space[:, 0] == n_periods - 1)[0]
@@ -370,8 +368,9 @@ def backwards_induction(
             ) = marginal_util_and_exp_max_value_states_period_jitted(
                 possible_child_states=possible_child_states,
                 choices_child_states=choices_child_states,
-                policies_child_states=policies_child_states,
-                values_child_states=values_child_states,
+                engog_grid_child_states=policies_child_states[:, :, 0, :],
+                policies_child_states=policies_child_states[:, :, 1, :],
+                values_child_states=values_child_states[:, :, 1, :],
             )
 
     return policy_array, value_array
