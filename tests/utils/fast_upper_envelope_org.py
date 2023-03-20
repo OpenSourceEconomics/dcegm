@@ -1,7 +1,8 @@
 """Implementation of the Fast Upper-Envelope Scan.
 
-Based on Akshay Shanker, University of Sydney, akshay.shanker@me.com.
-https://github.com/akshayshanker/FUES_EGM/blob/main/FUES/FUES.py
+The algorithm is based on Loretti I. Dobrescu and Akshay Shanker (2022):
+'Fast Upper-Envelope Scan for Solving Dynamic Optimization Problems',
+https://dx.doi.org/10.2139/ssrn.4181302
 
 """
 from typing import Callable
@@ -76,13 +77,8 @@ def fast_upper_envelope_wrapper_org(
         endog_grid, value_, policy_, exog_grid, jump_thresh=2
     )
 
-    # ================================================================================
-
-    policy_removed = np.row_stack([endog_grid_refined, policy_out])
-    value_removed = np.row_stack([endog_grid_refined, value_out])
-
-    policy_refined = policy_removed
-    value_refined = value_removed
+    policy_refined = np.row_stack([endog_grid_refined, policy_out])
+    value_refined = np.row_stack([endog_grid_refined, value_out])
 
     # Fill array with nans to fit 10% extra grid points
     policy_refined_with_nans = np.empty((2, int(1.1 * n_grid_wealth)))
@@ -92,8 +88,6 @@ def fast_upper_envelope_wrapper_org(
 
     policy_refined_with_nans[:, : policy_refined.shape[1]] = policy_refined
     value_refined_with_nans[:, : value_refined.shape[1]] = value_refined
-
-    # ================================================================================
 
     return policy_refined_with_nans, value_refined_with_nans
 
@@ -152,8 +146,6 @@ def fast_upper_envelope(
     exog_grid = np.take(exog_grid, np.argsort(endog_grid))
     endog_grid = np.sort(endog_grid)
 
-    # ================================================================================
-
     value_clean_with_nans = _scan_org(
         endog_grid, value, policy, exog_grid, m_bar=jump_thresh, lb=10
     )
@@ -163,101 +155,6 @@ def fast_upper_envelope(
     policy_refined = (policy[np.where(~np.isnan(value_clean_with_nans))],)
 
     return endog_grid_refined, value_refined, policy_refined
-
-
-# ================================================================================
-
-
-def append_push(x_array, m):
-    """Delete first value of array, pushes back index of all undeleted values and
-    appends m to final index."""
-
-    for i in range(len(x_array) - 1):
-        x_array[i] = x_array[i + 1]
-
-    x_array[-1] = m
-    return x_array
-
-
-def back_scan_gradients(m_array, a_prime, vf_full, e_grid, j, q):
-    """Compute gradients of value correspondence points and policy points with respect
-    to all m values and policy points in m_array See Figure 5, right panel in DS
-    (2023)"""
-
-    gradients_m_vf = np.zeros(len(m_array))
-    gradients_m_a = np.zeros(len(m_array))
-
-    for m in range(len(gradients_m_a)):
-        m_int = int(m_array[m])
-        gradients_m_vf[m] = (vf_full[j] - vf_full[m_int]) / (e_grid[j] - e_grid[m_int])
-        gradients_m_a[m] = np.abs(
-            (a_prime[q] - a_prime[m_int]) / (e_grid[q] - e_grid[m_int])
-        )
-
-    return gradients_m_vf, gradients_m_a
-
-
-def fwd_scan_gradients(a_prime, vf_full, e_grid, j, q, lb):
-    """Computes gradients of value correspondence points and  policy points with respect
-    to values and policy points for next LB points in grid See Figure 5, left panel in
-    DS (2023)"""
-
-    gradients_f_vf = np.zeros(lb)
-    gradients_f_a = np.zeros(lb)
-
-    for f in range(lb):
-        gradients_f_vf[f] = (vf_full[q] - vf_full[q + 1 + f]) / (
-            e_grid[q] - e_grid[q + 1 + f]
-        )
-        gradients_f_a[f] = np.abs(
-            (a_prime[j] - a_prime[q + 1 + f]) / (e_grid[j] - e_grid[q + 1 + f])
-        )
-
-    return gradients_f_vf, gradients_f_a
-
-
-def perp(a):
-    """Finds perpendicilar line to 1D line
-    Parameters
-    ----------
-    a: 1D array
-        points (b, 1/m)
-    Returns
-    -------
-    b: 1D array
-        b[0] = -1/m, b[1]= b
-    """
-    b = np.empty(np.shape(a))
-    b[0] = -a[1]
-    b[1] = a[0]
-
-    return b
-
-
-def seg_intersect(a1, a2, b1, b2):
-    """Intersection of two 1D line segments
-    Parameters
-    ----------
-    a1: 1D array
-         First point of first line seg
-    a2: 1D array
-         Second point of first line seg
-    b1: 1D array
-         First point of first line seg
-    b2: 1D array
-         Second point of first line seg
-    Returns
-    -------
-    c: 1D array
-        intersection point
-    """
-    da = a2 - a1
-    db = b2 - b1
-    dp = a1 - b1
-    dap = perp(da)
-    denom = np.dot(dap, db)
-    num = np.dot(dap, dp)
-    return (num / denom) * db + b1
 
 
 def _scan_org(e_grid, vf, c, a_prime, m_bar, lb, fwd_scan_do=True):  # noqa: U100
@@ -402,3 +299,95 @@ def _scan_org(e_grid, vf, c, a_prime, m_bar, lb, fwd_scan_do=True):  # noqa: U10
                     j = np.copy(np.array([i]))[0] + 1
 
     return vf
+
+
+def append_push(x_array, m):
+    """Delete first value of array, pushes back index of all undeleted values and
+    appends m to final index."""
+
+    for i in range(len(x_array) - 1):
+        x_array[i] = x_array[i + 1]
+
+    x_array[-1] = m
+    return x_array
+
+
+def back_scan_gradients(m_array, a_prime, vf_full, e_grid, j, q):
+    """Compute gradients of value correspondence points and policy points with respect
+    to all m values and policy points in m_array See Figure 5, right panel in DS
+    (2023)"""
+
+    gradients_m_vf = np.zeros(len(m_array))
+    gradients_m_a = np.zeros(len(m_array))
+
+    for m in range(len(gradients_m_a)):
+        m_int = int(m_array[m])
+        gradients_m_vf[m] = (vf_full[j] - vf_full[m_int]) / (e_grid[j] - e_grid[m_int])
+        gradients_m_a[m] = np.abs(
+            (a_prime[q] - a_prime[m_int]) / (e_grid[q] - e_grid[m_int])
+        )
+
+    return gradients_m_vf, gradients_m_a
+
+
+def fwd_scan_gradients(a_prime, vf_full, e_grid, j, q, lb):
+    """Computes gradients of value correspondence points and  policy points with respect
+    to values and policy points for next LB points in grid See Figure 5, left panel in
+    DS (2023)"""
+
+    gradients_f_vf = np.zeros(lb)
+    gradients_f_a = np.zeros(lb)
+
+    for f in range(lb):
+        gradients_f_vf[f] = (vf_full[q] - vf_full[q + 1 + f]) / (
+            e_grid[q] - e_grid[q + 1 + f]
+        )
+        gradients_f_a[f] = np.abs(
+            (a_prime[j] - a_prime[q + 1 + f]) / (e_grid[j] - e_grid[q + 1 + f])
+        )
+
+    return gradients_f_vf, gradients_f_a
+
+
+def perp(a):
+    """Finds perpendicilar line to 1D line
+    Parameters
+    ----------
+    a: 1D array
+        points (b, 1/m)
+    Returns
+    -------
+    b: 1D array
+        b[0] = -1/m, b[1]= b
+    """
+    b = np.empty(np.shape(a))
+    b[0] = -a[1]
+    b[1] = a[0]
+
+    return b
+
+
+def seg_intersect(a1, a2, b1, b2):
+    """Intersection of two 1D line segments
+    Parameters
+    ----------
+    a1: 1D array
+         First point of first line seg
+    a2: 1D array
+         Second point of first line seg
+    b1: 1D array
+         First point of first line seg
+    b2: 1D array
+         Second point of first line seg
+    Returns
+    -------
+    c: 1D array
+        intersection point
+    """
+    da = a2 - a1
+    db = b2 - b1
+    dp = a1 - b1
+    dap = perp(da)
+    denom = np.dot(dap, db)
+    num = np.dot(dap, dp)
+    return (num / denom) * db + b1
