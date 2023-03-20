@@ -1,6 +1,8 @@
-"""Implementation of the Fast Upper-Envelope Scan.
+"""Extension of the Fast Upper-Envelope Scan.
 
-Based on Akshay Shanker, University of Sydney, akshay.shanker@me.com.
+The original algorithm is based on Loretti I. Dobrescu and Akshay Shanker (2022) 'Fast
+Upper-Envelope Scan for Solving Dynamic Optimization Problems',
+https://dx.doi.org/10.2139/ssrn.4181302
 
 """
 from typing import Callable
@@ -17,8 +19,8 @@ def fast_upper_envelope_wrapper(
     policy: np.ndarray,
     value: np.ndarray,
     exog_grid: np.ndarray,
-    choice: int,  # noqa: U100
-    compute_value: Callable,  # noqa: U100
+    choice: int,
+    compute_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Drop suboptimal points and refine the endogenous grid, policy, and value.
 
