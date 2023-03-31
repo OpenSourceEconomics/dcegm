@@ -74,7 +74,6 @@ def marginal_util_and_exp_max_value_states_period(
         ),
         in_axes=(0, None, None),
     )(possible_child_states, exogenous_savings_grid, income_shock_draws)
-    breakpoint()
 
     index_high, index_low = vmap(
         vmap(
@@ -83,6 +82,7 @@ def marginal_util_and_exp_max_value_states_period(
         ),
         in_axes=(0, 0),
     )(engog_grid_child_states, resources_next_period)
+
     pol_high = jnp.take(policies_child_states, index_high)
     pol_low = jnp.take(policies_child_states, index_low)
 
