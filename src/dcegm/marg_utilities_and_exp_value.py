@@ -2,7 +2,6 @@ from typing import Callable
 from typing import Tuple
 
 import jax.numpy as jnp
-from dcegm.interpolate import get_index_high_and_low
 from dcegm.interpolate import get_values_and_marginal_utilities
 from jax import vmap
 
@@ -81,17 +80,18 @@ def marginal_util_and_exp_max_value_states_period(
         vmap(
             vmap(
                 vectorized_marginal_util_and_exp_max_value,
-                in_axes=(None, None, None, 0, 0, None, None, None),
+                in_axes=(None, None, None, 0, 0, None, None, None, None),
             ),
-            in_axes=(None, None, None, None, 0, None, None, None),
+            in_axes=(None, None, None, None, 0, None, None, None, None),
         ),
-        in_axes=(None, None, None, None, 0, 0, 0, 0),
+        in_axes=(None, None, None, None, 0, 0, 0, 0, 0),
     )(
         compute_marginal_utility,
         compute_value,
         taste_shock_scale,
         income_shock_weights,
         resources_next_period,
+        engog_grid_child_states,
         choices_child_states,
         policies_child_states,
         values_child_states,
@@ -109,6 +109,7 @@ def vectorized_marginal_util_and_exp_max_value(
     taste_shock_scale: float,
     income_shock_weight: float,
     next_period_wealth,
+    engog_grid_child_states,
     choice_set_indices: jnp.ndarray,
     choice_policies_child: jnp.ndarray,
     choice_values_child: jnp.ndarray,
@@ -118,21 +119,13 @@ def vectorized_marginal_util_and_exp_max_value(
     The underlying algorithm is the Endogenous-Grid-Method (EGM).
 
     Args:
-        compute_next_period_wealth (callable): User-defined function to compute the
-            agent's wealth  of the next period (t + 1). The inputs
-            ```saving```, ```income_shock```, ```params``` and ```options```
-            are already partialled in.
         compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility. The input ```params``` is already partialled in.
         compute_value (callable): User-defined function to compute
             the agent's value function in the credit-constrained area. The inputs
             ```params``` and ```compute_utility``` are already partialled in.
         taste_shock_scale (float): The taste shock scale parameter.
-        saving (float): Entry of exogenous savings grid.
-        income_shock (float): Entry of income_shock_draws.
         income_shock_weight (float): Weight of stochastic shock draw.
-        child_state (jnp.ndarray): The child state to do calculations for. Shape is
-            (n_num_state_variables,).
         choice_set_indices (jnp.ndarray): The agent's (restricted) choice set in the
             given state of shape (n_choices,).
         choice_policies_child (jnp.ndarray): Multi-dimensional jnp.ndarray storing the
@@ -165,6 +158,7 @@ def vectorized_marginal_util_and_exp_max_value(
         next_period_wealth=next_period_wealth,
         choice_policies_child=choice_policies_child,
         value_functions_child=choice_values_child,
+        endog_grid=engog_grid_child_states,
     )
 
     (
@@ -199,6 +193,7 @@ def aggregate_marg_utilites_and_values_over_choices_and_weight(
             agent's interpolated next period policy.
         values (jnp.ndarray): 1d array of size (n_choices) containing the agent's
             interpolated values of next period choice-specific value function.
+        income_shock_weight (float): Weight of stochastic shock draw.
         taste_shock_scale (float): Taste shock scale parameter.
 
     Returns:

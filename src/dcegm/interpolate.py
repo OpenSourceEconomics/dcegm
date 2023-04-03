@@ -11,6 +11,7 @@ def get_values_and_marginal_utilities(
     next_period_wealth: jnp.ndarray,
     choice_policies_child: jnp.ndarray,
     value_functions_child: jnp.ndarray,
+    endog_grid: jnp.array,
 ):
     """Interpolate marginal utilities and value functions.
 
@@ -21,12 +22,13 @@ def get_values_and_marginal_utilities(
     full_choice_set = jnp.arange(choice_policies_child.shape[0], dtype=jnp.int32)
 
     marg_utilities_choice_specific, value_choice_specific = vmap(
-        interpolate_and_calc_marginal_utilities, in_axes=(None, None, 0, 0, None, 0)
+        interpolate_and_calc_marginal_utilities, in_axes=(None, None, 0, 0, 0, None, 0)
     )(
         compute_marginal_utility,
         next_period_wealth,
         choice_policies_child,
         value_functions_child,
+        endog_grid,
         compute_value,
         full_choice_set,
     )
@@ -39,6 +41,7 @@ def interpolate_and_calc_marginal_utilities(
     wealth: float,
     policies: jnp.ndarray,
     value: jnp.ndarray,
+    endog_grid: jnp.array,
     compute_value: Callable,
     choice: int,
 ):
@@ -69,17 +72,17 @@ def interpolate_and_calc_marginal_utilities(
 
     """
     value_calc = compute_value(
-        consumption=wealth, next_period_value=value[1, 0], choice=choice
+        consumption=wealth, next_period_value=value[0], choice=choice
     )
 
     policy_interp, value_interp = interpolate_policy_and_value(
-        policy=policies[1, :],
-        value=value[1, :],
-        endog_grid=policies[0, :],
+        policy=policies,
+        value=value,
+        endog_grid=endog_grid,
         wealth_new=wealth,
     )
 
-    constraint = wealth < value[0, 1]
+    constraint = wealth < endog_grid[1]
     value_final = constraint * value_calc + (1 - constraint) * value_interp
 
     marg_utility_interp = compute_marginal_utility(policy_interp)
