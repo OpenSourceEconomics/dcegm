@@ -76,13 +76,7 @@ def marginal_util_and_exp_max_value_states_period(
         marginal_util_weighted_shock,
         max_exp_value_weighted_shock,
     ) = vmap(
-        vmap(
-            vmap(
-                vectorized_marginal_util_and_exp_max_value,
-                in_axes=(None, None, None, 0, 0, None, None, None, None),
-            ),
-            in_axes=(None, None, None, None, 0, None, None, None, None),
-        ),
+        vectorized_marginal_util_and_exp_max_value,
         in_axes=(None, None, None, None, 0, 0, 0, 0, 0),
     )(
         compute_marginal_utility,
@@ -162,12 +156,18 @@ def vectorized_marginal_util_and_exp_max_value(
     (
         child_state_marginal_utility_weighted,
         child_state_exp_max_value_weighted,
-    ) = aggregate_marg_utilites_and_values_over_choices_and_weight(
-        choice_set_indices=choice_set_indices,
-        marg_utilities=marg_utilities_child_state_choice_specific,
-        values=values_child_state_choice_specific,
-        income_shock_weight=income_shock_weight,
-        taste_shock_scale=taste_shock_scale,
+    ) = vmap(
+        vmap(
+            aggregate_marg_utilites_and_values_over_choices_and_weight,
+            in_axes=(None, 1, 1, 0, None),
+        ),
+        in_axes=(None, 1, 1, None, None),
+    )(
+        choice_set_indices,
+        marg_utilities_child_state_choice_specific,
+        values_child_state_choice_specific,
+        income_shock_weight,
+        taste_shock_scale,
     )
 
     return child_state_marginal_utility_weighted, child_state_exp_max_value_weighted

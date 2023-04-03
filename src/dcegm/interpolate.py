@@ -72,22 +72,59 @@ def interpolate_and_calc_marginal_utilities(
 
     """
     ind_high, ind_low = get_index_high_and_low(x=endog_grid, x_new=wealth)
+    marg_utils, value_final = vmap(
+        vmap(
+            calc_interpolated_values_and_marg_utils,
+            in_axes=(0, 0, 0, 0, 0, 0, 0, None, None, None, None, None),
+        ),
+        in_axes=(0, 0, 0, 0, 0, 0, 0, None, None, None, None, None),
+    )(
+        policies[ind_high],
+        value[ind_high],
+        endog_grid[ind_high],
+        policies[ind_low],
+        value[ind_low],
+        endog_grid[ind_low],
+        wealth,
+        compute_value,
+        compute_marginal_utility,
+        endog_grid[1],
+        value[0],
+        choice,
+    )
 
+    return marg_utils, value_final
+
+
+def calc_interpolated_values_and_marg_utils(
+    policy_high: jnp.ndarray,
+    value_high: jnp.array,
+    wealth_high: jnp.array,
+    policy_low: jnp.ndarray,
+    value_low: jnp.ndarray,
+    wealth_low: jnp.ndarray,
+    new_wealth: jnp.ndarray,
+    compute_value: Callable,
+    compute_marginal_utility: Callable,
+    endog_grid_min: float,
+    value_min: float,
+    choice: int,
+):
     policy_interp, value_interp = interpolate_policy_and_value(
-        policy_high=policies[ind_high],
-        value_high=value[ind_high],
-        wealth_high=endog_grid[ind_high],
-        policy_low=policies[ind_low],
-        value_low=value[ind_low],
-        wealth_low=endog_grid[ind_low],
-        wealth_new=wealth,
+        policy_high=policy_high,
+        value_high=value_high,
+        wealth_high=wealth_high,
+        policy_low=policy_low,
+        value_low=value_low,
+        wealth_low=wealth_low,
+        wealth_new=new_wealth,
     )
 
     value_calc = compute_value(
-        consumption=wealth, next_period_value=value[0], choice=choice
+        consumption=new_wealth, next_period_value=value_min, choice=choice
     )
 
-    constraint = wealth < endog_grid[1]
+    constraint = new_wealth < endog_grid_min
     value_final = constraint * value_calc + (1 - constraint) * value_interp
 
     marg_utility_interp = compute_marginal_utility(policy_interp)
