@@ -71,15 +71,20 @@ def interpolate_and_calc_marginal_utilities(
 
 
     """
-    value_calc = compute_value(
-        consumption=wealth, next_period_value=value[0], choice=choice
-    )
+    ind_high, ind_low = get_index_high_and_low(x=endog_grid, x_new=wealth)
 
     policy_interp, value_interp = interpolate_policy_and_value(
-        policy=policies,
-        value=value,
-        endog_grid=endog_grid,
+        policy_high=policies[ind_high],
+        value_high=value[ind_high],
+        wealth_high=endog_grid[ind_high],
+        policy_low=policies[ind_low],
+        value_low=value[ind_low],
+        wealth_low=endog_grid[ind_low],
         wealth_new=wealth,
+    )
+
+    value_calc = compute_value(
+        consumption=wealth, next_period_value=value[0], choice=choice
     )
 
     constraint = wealth < endog_grid[1]
@@ -90,7 +95,15 @@ def interpolate_and_calc_marginal_utilities(
     return marg_utility_interp, value_final
 
 
-def interpolate_policy_and_value(policy, value, endog_grid, wealth_new):
+def interpolate_policy_and_value(
+    policy_high: jnp.ndarray,
+    value_high: jnp.ndarray,
+    wealth_high: jnp.ndarray,
+    policy_low: jnp.ndarray,
+    value_low: jnp.ndarray,
+    wealth_low: jnp.ndarray,
+    wealth_new: jnp.ndarray,
+):
     """Interpolate policy and value functions.
 
     Args:
@@ -109,14 +122,6 @@ def interpolate_policy_and_value(policy, value, endog_grid, wealth_new):
         np.ndarray: 1d array of shape (n,) containing the interpolated value
 
     """
-    ind_high, ind_low = get_index_high_and_low(x=endog_grid, x_new=wealth_new)
-
-    wealth_high = endog_grid[ind_high]
-    wealth_low = endog_grid[ind_low]
-    policy_high = policy[ind_high]
-    policy_low = policy[ind_low]
-    value_high = value[ind_high]
-    value_low = value[ind_low]
 
     interpolate_dist = wealth_new - wealth_low
     interpolate_slope_policy = (policy_high - policy_low) / (wealth_high - wealth_low)
