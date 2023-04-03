@@ -68,57 +68,60 @@ def interpolate_and_calc_marginal_utilities(
 
 
     """
-    policy_interp = linear_interpolation_with_extrapolation_jax(
-        x=policies[0, :], y=policies[1, :], x_new=wealth
-    )
-    marg_utility_interp = compute_marginal_utility(policy_interp)
-    value_interp = interpolate_value(
-        wealth=wealth, value=value, choice=choice, compute_value=compute_value
-    )
-
-    return marg_utility_interp, value_interp
-
-
-def interpolate_value(
-    wealth: float,
-    value: jnp.ndarray,
-    choice: int,
-    compute_value: Callable,
-) -> np.ndarray:
-    """Interpolate the agent's value for given flat wealth matrix.
-
-    Args:
-        wealth (np.ndarray): Flat array of shape
-            (n_quad_stochastic * n_grid_wealth,) containing the agent's
-            potential wealth matrix in given period.
-        value (np.ndarray): Value array of shape (2, 1.1 * n_grid_wealth).
-            Position [0, :] of the array contains the endogenous grid over wealth M,
-            and [1, :] stores the corresponding value of the value function v(M, d),
-            for each time period and each discrete choice.
-        choice (int): Choice of the agent, e.g. 0 = "retirement", 1 = "working".
-        compute_value (callable): Function for calculating the value from consumption
-            level, discrete choice and expected value. The inputs ```discount_rate```
-            and ```compute_utility``` are already partialled in.
-        ind_high (int): Index of the value in the wealth grid which is higher than
-            x_new. Or in case of extrapolation last or first index of not nan element.
-
-
-    Returns:
-        np.ndarray: Interpolated flat value function of shape
-            (n_quad_stochastic * n_grid_wealth,).
-
-    """
     value_calc = compute_value(
         consumption=wealth, next_period_value=value[1, 0], choice=choice
     )
-    value_interp = linear_interpolation_with_extrapolation_jax(
-        x=value[0, :], y=value[1, :], x_new=wealth
+
+    policy_interp, value_interp = interpolate_policy_and_value(
+        policy=policies[1, :],
+        value=value[1, :],
+        endog_grid=policies[0, :],
+        wealth_new=wealth,
     )
 
     constraint = wealth < value[0, 1]
     value_final = constraint * value_calc + (1 - constraint) * value_interp
 
-    return value_final
+    marg_utility_interp = compute_marginal_utility(policy_interp)
+
+    return marg_utility_interp, value_final
+
+
+def interpolate_policy_and_value(policy, value, endog_grid, wealth_new):
+    """Interpolate policy and value functions.
+
+    Args:
+        policy (np.ndarray): 1d array of shape (n,) containing the policy function
+            values.
+        value (np.ndarray): 1d array of shape (n,) containing the value function
+            values.
+        endog_grid (np.ndarray): 1d array of shape (n,) containing the endogenous
+            grid.
+        wealth_new (np.ndarray): 1d array of shape (n,) containing the new wealth
+            values at which to evaluate the interpolation function.
+
+    Returns:
+        np.ndarray: 1d array of shape (n,) containing the interpolated policy
+            function values.
+        np.ndarray: 1d array of shape (n,) containing the interpolated value
+
+    """
+    ind_high, ind_low = get_index_high_and_low(x=endog_grid, x_new=wealth_new)
+
+    wealth_high = endog_grid[ind_high]
+    wealth_low = endog_grid[ind_low]
+    policy_high = policy[ind_high]
+    policy_low = policy[ind_low]
+    value_high = value[ind_high]
+    value_low = value[ind_low]
+
+    interpolate_dist = wealth_new - wealth_low
+    interpolate_slope_policy = (policy_high - policy_low) / (wealth_high - wealth_low)
+    interpolate_slope_value = (value_high - value_low) / (wealth_high - wealth_low)
+    policy_new = (interpolate_slope_policy * interpolate_dist) + policy_low
+    value_new = (interpolate_slope_value * interpolate_dist) + value_low
+
+    return policy_new, value_new
 
 
 def linear_interpolation_with_extrapolation_jax(x, y, x_new):
