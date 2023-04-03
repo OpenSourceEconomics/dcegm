@@ -66,7 +66,6 @@ def marginal_util_and_exp_max_value_states_period(
             Shape (n_states_period, n_grid_wealth).
 
     """
-
     resources_next_period = vmap(
         vmap(
             vmap(compute_next_period_wealth, in_axes=(None, None, 0)),
@@ -75,20 +74,6 @@ def marginal_util_and_exp_max_value_states_period(
         in_axes=(0, None, None),
     )(possible_child_states, exogenous_savings_grid, income_shock_draws)
 
-    index_high, index_low = vmap(
-        vmap(
-            vmap(vmap(get_index_high_and_low, in_axes=(0, None)), in_axes=(None, 0)),
-            in_axes=(None, 0),
-        ),
-        in_axes=(0, 0),
-    )(engog_grid_child_states, resources_next_period)
-
-    pol_high = jnp.take(policies_child_states, index_high)
-    pol_low = jnp.take(policies_child_states, index_low)
-
-    val_high = jnp.take(values_child_states, index_high)
-    val_low = jnp.take(policies_child_states, index_low)
-
     (
         marginal_util_weighted_shock,
         max_exp_value_weighted_shock,
@@ -96,17 +81,17 @@ def marginal_util_and_exp_max_value_states_period(
         vmap(
             vmap(
                 vectorized_marginal_util_and_exp_max_value,
-                in_axes=(None, None, None, None, None, 0, 0, None, None, None, None),
+                in_axes=(None, None, None, 0, 0, None, None, None),
             ),
-            in_axes=(None, None, None, None, 0, None, None, None, None, None, None),
+            in_axes=(None, None, None, None, 0, None, None, None),
         ),
-        in_axes=(None, None, None, None, None, None, None, 0, 0, 0, 0),
+        in_axes=(None, None, None, None, 0, 0, 0, 0),
     )(
-        next_period_wealth,
         compute_marginal_utility,
         compute_value,
         taste_shock_scale,
         income_shock_weights,
+        resources_next_period,
         choices_child_states,
         policies_child_states,
         values_child_states,
@@ -119,11 +104,11 @@ def marginal_util_and_exp_max_value_states_period(
 
 # @partial(jit, static_argnums=(0, 1, 2))
 def vectorized_marginal_util_and_exp_max_value(
-    next_period_wealth: float,
     compute_marginal_utility: Callable,
     compute_value: Callable,
     taste_shock_scale: float,
     income_shock_weight: float,
+    next_period_wealth,
     choice_set_indices: jnp.ndarray,
     choice_policies_child: jnp.ndarray,
     choice_values_child: jnp.ndarray,

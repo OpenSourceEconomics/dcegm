@@ -369,8 +369,8 @@ def backwards_induction(
                 possible_child_states=possible_child_states,
                 choices_child_states=choices_child_states,
                 engog_grid_child_states=policies_child_states[:, :, 0, :],
-                policies_child_states=policies_child_states[:, :, 1, :],
-                values_child_states=values_child_states[:, :, 1, :],
+                policies_child_states=policies_child_states,
+                values_child_states=values_child_states,
             )
 
     return policy_array, value_array
