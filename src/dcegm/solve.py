@@ -252,15 +252,17 @@ def backwards_induction(
         fill_value=np.nan,
         dtype=float,
     )
-    marginal_util_and_exp_max_value_states_period_jitted = partial(
-        marginal_util_and_exp_max_value_states_period,
-        compute_next_period_wealth=compute_next_period_wealth,
-        compute_marginal_utility=compute_marginal_utility,
-        compute_value=compute_value,
-        taste_shock_scale=taste_shock_scale,
-        exogenous_savings_grid=exogenous_savings_grid,
-        income_shock_draws=income_shock_draws,
-        income_shock_weights=income_shock_weights,
+    marginal_util_and_exp_max_value_states_period_jitted = jit(
+        partial(
+            marginal_util_and_exp_max_value_states_period,
+            compute_next_period_wealth=compute_next_period_wealth,
+            compute_marginal_utility=compute_marginal_utility,
+            compute_value=compute_value,
+            taste_shock_scale=taste_shock_scale,
+            exogenous_savings_grid=exogenous_savings_grid,
+            income_shock_draws=income_shock_draws,
+            income_shock_weights=income_shock_weights,
+        )
     )
 
     final_state_cond = np.where(state_space[:, 0] == n_periods - 1)[0]
@@ -282,12 +284,15 @@ def backwards_induction(
         income_shock_draws=income_shock_draws,
         income_shock_weights=income_shock_weights,
     )
-    policy_array[
-        final_state_cond, :, 0, : exogenous_savings_grid.shape[0]
-    ] = resources_final
-    value_array[
-        final_state_cond, :, 0, : exogenous_savings_grid.shape[0]
-    ] = resources_final
+
+    # Endogenous grid constant among choices.
+    for choice in range(policy_array.shape[1]):
+        policy_array[
+            final_state_cond, choice, 0, : exogenous_savings_grid.shape[0]
+        ] = resources_final
+        value_array[
+            final_state_cond, choice, 0, : exogenous_savings_grid.shape[0]
+        ] = resources_final
 
     for period in range(n_periods - 2, -1, -1):
         periods_state_cond = np.where(state_space[:, 0] == period)[0]

@@ -1,9 +1,7 @@
-from functools import partial
 from typing import Callable
 
 import jax.numpy as jnp
 import numpy as np
-from jax import lax
 from jax import vmap
 
 
@@ -101,8 +99,8 @@ def interpolate_value(
         compute_value (callable): Function for calculating the value from consumption
             level, discrete choice and expected value. The inputs ```discount_rate```
             and ```compute_utility``` are already partialled in.
-        ind_high (int): Index of the value in the wealth grid which is higher than x_new.
-            Or in case of extrapolation last or first index of not nan element.
+        ind_high (int): Index of the value in the wealth grid which is higher than
+            x_new. Or in case of extrapolation last or first index of not nan element.
 
 
     Returns:
@@ -110,17 +108,15 @@ def interpolate_value(
             (n_quad_stochastic * n_grid_wealth,).
 
     """
-
-    value_final = lax.cond(
-        wealth < value[0, 1],
-        lambda wealth_var: compute_value(
-            consumption=wealth_var, next_period_value=value[1, 0], choice=choice
-        ),
-        lambda wealth_var: linear_interpolation_with_extrapolation_jax(
-            x=value[0, :], y=value[1, :], x_new=wealth_var
-        ),
-        wealth,
+    value_calc = compute_value(
+        consumption=wealth, next_period_value=value[1, 0], choice=choice
     )
+    value_interp = linear_interpolation_with_extrapolation_jax(
+        x=value[0, :], y=value[1, :], x_new=wealth
+    )
+
+    constraint = wealth < value[0, 1]
+    value_final = constraint * value_calc + (1 - constraint) * value_interp
 
     return value_final
 
@@ -133,8 +129,8 @@ def linear_interpolation_with_extrapolation_jax(x, y, x_new):
         y (np.ndarray): 1d array of shape (n,) containing the y-values
             corresponding to the x-values.
         x_new (float): The new x-value at which to evaluate the interpolation function.
-        ind_high (int): Index of the value in the wealth grid which is higher than x_new.
-            Or in case of extrapolation last or first index of not nan element.
+        ind_high (int): Index of the value in the wealth grid which is higher than
+            x_new. Or in case of extrapolation last or first index of not nan element.
 
     Returns:
         float: The new y-value corresponding to the new x-value.
@@ -170,8 +166,8 @@ def get_index_high_and_low(x, x_new):
         x_new (float): The new x-value at which to evaluate the interpolation function.
 
     Returns:
-        int: Index of the value in the wealth grid which is higher than x_new. Or in case
-            of extrapolation last or first index of not nan element.
+        int: Index of the value in the wealth grid which is higher than x_new. Or in
+            case of extrapolation last or first index of not nan element.
 
     """
     ind_high = jnp.searchsorted(x, x_new).clip(max=(x.shape[0] - 1), min=1)
