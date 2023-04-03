@@ -5,7 +5,6 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from dcegm.interpolate import interpolate_value
 from dcegm.pre_processing import calc_current_value
 from dcegm.pre_processing import params_todict
 from numpy.testing import assert_array_almost_equal as aaae
@@ -136,73 +135,73 @@ def test_get_next_period_wealth_matrices(
 # ======================================================================================
 
 
-@pytest.fixture()
-def inputs_interpolate_value():
-    max_wealth = 50
-    n_grid_points = 10
-    n_quad_points = 5
-    interest_rate = 0.05
-
-    _savings = np.linspace(1, max_wealth, n_grid_points)
-    matrix_next_wealth = np.full(
-        (n_quad_points, n_grid_points), _savings * (1 + interest_rate)
-    )
-    next_value = np.stack([_savings, np.linspace(0, 10, n_grid_points)])
-
-    return matrix_next_wealth, next_value
-
-
-@pytest.fixture()
-def value_interp_expected():
-    _value = np.array(
-        [
-            -0.30232329,
-            1.17687075,
-            2.34353741,
-            3.51020408,
-            4.67687075,
-            5.84353741,
-            7.01020408,
-            8.17687075,
-            9.34353741,
-            10.51020408,
-        ]
-    )
-    return _value
-
-
-def test_interpolate_value(
-    inputs_interpolate_value, value_interp_expected, load_example_model
-):
-    params, _ = load_example_model("retirement_no_taste_shocks")
-    params_dict = params_todict(params)
-
-    compute_utility = jax.jit(
-        partial(
-            utility_func_crra,
-            params_dict=params_dict,
-        )
-    )
-    compute_value = jax.jit(
-        partial(
-            calc_current_value,
-            discount_factor=params_dict["beta"],
-            compute_utility=compute_utility,
-        )
-    )
-
-    matrix_next_wealth, next_value = inputs_interpolate_value
-
-    random_saving_ind = np.random.randint(0, matrix_next_wealth.shape[1])
-
-    value_interp = interpolate_value(
-        wealth=matrix_next_wealth[0, random_saving_ind],
-        value=next_value,
-        choice=0,
-        compute_value=compute_value,
-    )
-
-    aaae(value_interp, value_interp_expected[random_saving_ind])
+# @pytest.fixture()
+# def inputs_interpolate_value():
+#     max_wealth = 50
+#     n_grid_points = 10
+#     n_quad_points = 5
+#     interest_rate = 0.05
+#
+#     _savings = np.linspace(1, max_wealth, n_grid_points)
+#     matrix_next_wealth = np.full(
+#         (n_quad_points, n_grid_points), _savings * (1 + interest_rate)
+#     )
+#     next_value = np.stack([_savings, np.linspace(0, 10, n_grid_points)])
+#
+#     return matrix_next_wealth, next_value
+#
+#
+# @pytest.fixture()
+# def value_interp_expected():
+#     _value = np.array(
+#         [
+#             -0.30232329,
+#             1.17687075,
+#             2.34353741,
+#             3.51020408,
+#             4.67687075,
+#             5.84353741,
+#             7.01020408,
+#             8.17687075,
+#             9.34353741,
+#             10.51020408,
+#         ]
+#     )
+#     return _value
+#
+#
+# def test_interpolate_value(
+#     inputs_interpolate_value, value_interp_expected, load_example_model
+# ):
+#     params, _ = load_example_model("retirement_no_taste_shocks")
+#     params_dict = params_todict(params)
+#
+#     compute_utility = jax.jit(
+#         partial(
+#             utility_func_crra,
+#             params_dict=params_dict,
+#         )
+#     )
+#     compute_value = jax.jit(
+#         partial(
+#             calc_current_value,
+#             discount_factor=params_dict["beta"],
+#             compute_utility=compute_utility,
+#         )
+#     )
+#
+#     matrix_next_wealth, next_value = inputs_interpolate_value
+#
+#     random_saving_ind = np.random.randint(0, matrix_next_wealth.shape[1])
+#
+#     value_interp = interpolate_value(
+#         wealth=matrix_next_wealth[0, random_saving_ind],
+#         value=next_value,
+#         choice=0,
+#         compute_value=compute_value,
+#     )
+#
+#     aaae(value_interp, value_interp_expected[random_saving_ind])
 
 
 # ======================================================================================

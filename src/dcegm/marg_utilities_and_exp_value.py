@@ -6,7 +6,6 @@ from dcegm.interpolate import get_values_and_marginal_utilities
 from jax import vmap
 
 
-# @partail(jit, static_argnums=(0, 1, 2))
 def marginal_util_and_exp_max_value_states_period(
     compute_next_period_wealth: Callable,
     compute_marginal_utility: Callable,
@@ -102,7 +101,6 @@ def marginal_util_and_exp_max_value_states_period(
     )
 
 
-# @partial(jit, static_argnums=(0, 1, 2))
 def vectorized_marginal_util_and_exp_max_value(
     compute_marginal_utility: Callable,
     compute_value: Callable,
@@ -175,7 +173,6 @@ def vectorized_marginal_util_and_exp_max_value(
     return child_state_marginal_utility_weighted, child_state_exp_max_value_weighted
 
 
-# @jit
 def aggregate_marg_utilites_and_values_over_choices_and_weight(
     choice_set_indices: jnp.ndarray,
     marg_utilities: jnp.ndarray,
@@ -228,7 +225,6 @@ def aggregate_marg_utilites_and_values_over_choices_and_weight(
     return child_state_marg_util, child_state_exp_max_value
 
 
-# @jit
 def rescale_values_and_restrict_choices(
     values: jnp.ndarray, taste_shock_scale: float, choice_set_indices: jnp.ndarray
 ) -> Tuple[jnp.ndarray, float]:
