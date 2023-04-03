@@ -362,7 +362,6 @@ def backwards_induction(
                     : current_value.shape[1],
                 ] = current_value
 
-            possible_child_states = state_space[periods_state_cond]
             policies_child_states = policy_array[periods_state_cond]
             values_child_states = value_array[periods_state_cond]
             choices_child_states = choice_set_array[periods_state_cond]
@@ -371,7 +370,7 @@ def backwards_induction(
                 marginal_utilities[periods_state_cond, :],
                 max_expected_values[periods_state_cond, :],
             ) = marginal_util_and_exp_max_value_states_period_jitted(
-                possible_child_states=possible_child_states,
+                possible_child_states=state_subspace,
                 choices_child_states=choices_child_states,
                 engog_grid_child_states=policies_child_states[:, :, 0, :],
                 policies_child_states=policies_child_states[:, :, 1, :],
