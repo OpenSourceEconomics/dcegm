@@ -9,28 +9,44 @@ def get_values_and_marginal_utilities(
     compute_marginal_utility: Callable,
     compute_value: Callable,
     next_period_wealth: jnp.ndarray,
-    choice_policies_child: jnp.ndarray,
-    value_functions_child: jnp.ndarray,
-    endog_grid: jnp.array,
+    endog_grid_child_state: jnp.array,
+    choice_policies_child_state: jnp.ndarray,
+    choice_values_child_state: jnp.ndarray,
 ):
     """Interpolate marginal utilities and value functions.
+    Args:
+        compute_marginal_utility (callable): User-defined function to compute the
+            agent's marginal utility. The input ```params``` is already partialled in.
+        compute_value (callable): User-defined function to compute the agent's
+            value function. The input ```params``` is already partialled in.
+        next_period_wealth (jnp.ndarray): The agent's next period wealth.
+            Array of shape (n_quad_stochastic, n_grid_wealth,).
+        endog_grid_child_state (jnp.ndarray): 2d array containing the endogenous
+            wealth grid of each child state. Shape (n_choice, n_grid_wealth).
+        choice_policies_child_state (jnp.ndarray): 2d array containing the corresponding
+            policy function values of the endogenous wealth grid of each child state.
+            Shape (n_choice, n_grid_wealth).
+        choice_values_child_state (jnp.ndarray): 2d array containing the corresponding
+            value function values of the endogenous wealth grid of each child state.
+            Shape (n_choice, n_grid_wealth).
+
 
     Returns:
         Callable: Interpolated marginal utility function.
 
     """
-    full_choice_set = jnp.arange(choice_policies_child.shape[0], dtype=jnp.int32)
+    full_choice_set = jnp.arange(choice_policies_child_state.shape[0], dtype=jnp.int32)
 
     marg_utilities_choice_specific, value_choice_specific = vmap(
-        interpolate_and_calc_marginal_utilities, in_axes=(None, None, 0, 0, 0, None, 0)
+        interpolate_and_calc_marginal_utilities, in_axes=(None, None, 0, None, 0, 0, 0)
     )(
         compute_marginal_utility,
-        next_period_wealth,
-        choice_policies_child,
-        value_functions_child,
-        endog_grid,
         compute_value,
         full_choice_set,
+        next_period_wealth,
+        endog_grid_child_state,
+        choice_policies_child_state,
+        choice_values_child_state,
     )
 
     return marg_utilities_choice_specific, value_choice_specific
@@ -38,32 +54,31 @@ def get_values_and_marginal_utilities(
 
 def interpolate_and_calc_marginal_utilities(
     compute_marginal_utility: Callable,
-    wealth: float,
-    policies: jnp.ndarray,
-    value: jnp.ndarray,
-    endog_grid: jnp.array,
     compute_value: Callable,
     choice: int,
+    next_period_wealth: jnp.ndarray,
+    endog_grid_child_state_choice: jnp.array,
+    choice_policies_child_state_choice: jnp.ndarray,
+    choice_values_child_state_choice: jnp.ndarray,
 ):
     """Interpolate marginal utilities.
     Args:
         compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility. The input ```params``` is already partialled in.
-        wealth (np.ndarray): Flat array of shape
-            (n_quad_stochastic * n_grid_wealth,) containing the agent's
-            potential wealth matrix in given period.
-        policies (np.ndarray): Policy array of shape (2, 1.1 * n_grid_wealth).
-            Position [0, :] of the arrays contain the endogenous grid over wealth M,
-            and [1, :] stores the corresponding value of the (consumption) policy
-            function c(M, d), for each time period and each discrete choice.
-        value (np.ndarray): Value array of shape (2, 1.1 * n_grid_wealth).
-            Position [0, :] of the array contains the endogenous grid over wealth M,
-            and [1, :] stores the corresponding value of the value function v(M, d),
-            for each time period and each discrete choice.
         compute_value (callable): Function for calculating the value from consumption
             level, discrete choice and expected value. The inputs ```discount_rate```
             and ```compute_utility``` are already partialled in.
+        next_period_wealth (jnp.ndarray): The agent's next period wealth.
+            Array of shape (n_quad_stochastic, n_grid_wealth,).
         choice (int): Discrete choice of an agent.
+        endog_grid_child_state_choice (jnp.ndarray): 1d array containing the endogenous
+            wealth grid of the child state/choice pair. Shape (n_grid_wealth,).
+        choice_policies_child_state_choice (jnp.ndarray): 1d array containing the
+            corresponding policy function values of the endogenous wealth grid of the
+            child state/choice pair. Shape (n_grid_wealth,).
+        choice_values_child_state_choice (jnp.ndarray): 1d array containing the
+            corresponding value function values of the endogenous wealth grid of the
+            child state/choice pair. Shape (n_grid_wealth,).
 
     Returns:
         float: Interpolated marginal utility function.
@@ -71,7 +86,9 @@ def interpolate_and_calc_marginal_utilities(
 
 
     """
-    ind_high, ind_low = get_index_high_and_low(x=endog_grid, x_new=wealth)
+    ind_high, ind_low = get_index_high_and_low(
+        x=endog_grid_child_state_choice, x_new=next_period_wealth
+    )
     marg_utils, value_final = vmap(
         vmap(
             calc_interpolated_values_and_marg_utils,
@@ -79,17 +96,17 @@ def interpolate_and_calc_marginal_utilities(
         ),
         in_axes=(0, 0, 0, 0, 0, 0, 0, None, None, None, None, None),
     )(
-        policies[ind_high],
-        value[ind_high],
-        endog_grid[ind_high],
-        policies[ind_low],
-        value[ind_low],
-        endog_grid[ind_low],
-        wealth,
+        choice_policies_child_state_choice[ind_high],
+        choice_values_child_state_choice[ind_high],
+        endog_grid_child_state_choice[ind_high],
+        choice_policies_child_state_choice[ind_low],
+        choice_values_child_state_choice[ind_low],
+        endog_grid_child_state_choice[ind_low],
+        next_period_wealth,
         compute_value,
         compute_marginal_utility,
-        endog_grid[1],
-        value[0],
+        endog_grid_child_state_choice[1],
+        choice_values_child_state_choice[0],
         choice,
     )
 
@@ -97,19 +114,50 @@ def interpolate_and_calc_marginal_utilities(
 
 
 def calc_interpolated_values_and_marg_utils(
-    policy_high: jnp.ndarray,
-    value_high: jnp.array,
-    wealth_high: jnp.array,
-    policy_low: jnp.ndarray,
-    value_low: jnp.ndarray,
-    wealth_low: jnp.ndarray,
-    new_wealth: jnp.ndarray,
+    policy_high: float,
+    value_high: float,
+    wealth_high: float,
+    policy_low: float,
+    value_low: float,
+    wealth_low: float,
+    new_wealth: float,
     compute_value: Callable,
     compute_marginal_utility: Callable,
     endog_grid_min: float,
     value_min: float,
     choice: int,
 ):
+    """Calculate interpolated marginal utility and value function.
+    Args:
+        policy_high (float): Policy function value at the higher end of the
+            interpolation interval.
+        value_high (float): Value function value at the higher end of the
+            interpolation interval.
+        wealth_high (float): Endogenous wealth grid value at the higher end of the
+            interpolation interval.
+        policy_low (float): Policy function value at the lower end of the
+            interpolation interval.
+        value_low (float): Value function value at the lower end of the
+            interpolation interval.
+        wealth_low (float): Endogenous wealth grid value at the lower end of the
+            interpolation interval.
+        new_wealth (float): New endogenous wealth grid value.
+        compute_value (callable): Function for calculating the value from consumption
+            level, discrete choice and expected value. The inputs ```discount_rate```
+            and ```compute_utility``` are already partialled in.
+        compute_marginal_utility (callable): Function for calculating the marginal
+            utility from consumption level. The input ```params``` is already
+            partialled in.
+        endog_grid_min (float): Minimum endogenous wealth grid value.
+        value_min (float): Minimum value function value.
+        choice (int): Discrete choice of an agent.
+
+    Returns:
+        float: Interpolated marginal utility function.
+        float: Interpolated value function.
+
+    """
+
     policy_interp, value_interp = interpolate_policy_and_value(
         policy_high=policy_high,
         value_high=value_high,
@@ -133,33 +181,36 @@ def calc_interpolated_values_and_marg_utils(
 
 
 def interpolate_policy_and_value(
-    policy_high: jnp.ndarray,
-    value_high: jnp.ndarray,
-    wealth_high: jnp.ndarray,
-    policy_low: jnp.ndarray,
-    value_low: jnp.ndarray,
-    wealth_low: jnp.ndarray,
-    wealth_new: jnp.ndarray,
+    policy_high: float,
+    value_high: float,
+    wealth_high: float,
+    policy_low: float,
+    value_low: float,
+    wealth_low: float,
+    wealth_new: float,
 ):
     """Interpolate policy and value functions.
 
     Args:
-        policy (np.ndarray): 1d array of shape (n,) containing the policy function
-            values.
-        value (np.ndarray): 1d array of shape (n,) containing the value function
-            values.
-        endog_grid (np.ndarray): 1d array of shape (n,) containing the endogenous
-            grid.
-        wealth_new (np.ndarray): 1d array of shape (n,) containing the new wealth
-            values at which to evaluate the interpolation function.
-
+        policy_high (float): Policy function value at the higher end of the
+            interpolation interval.
+        value_high (float): Value function value at the higher end of the
+            interpolation interval.
+        wealth_high (float): Wealth value at the higher end of the interpolation
+            interval.
+        policy_low (float): Policy function value at the lower end of the
+            interpolation interval.
+        value_low (float): Value function value at the lower end of the
+            interpolation interval.
+        wealth_low (float): Wealth value at the lower end of the interpolation
+            interval.
+        wealth_new (float): Wealth value at which the policy and value functions
+            should be interpolated.
     Returns:
-        np.ndarray: 1d array of shape (n,) containing the interpolated policy
-            function values.
-        np.ndarray: 1d array of shape (n,) containing the interpolated value
+        float: Interpolated policy function value.
+        float: Interpolated value function value.
 
     """
-
     interpolate_dist = wealth_new - wealth_low
     interpolate_slope_policy = (policy_high - policy_low) / (wealth_high - wealth_low)
     interpolate_slope_value = (value_high - value_low) / (wealth_high - wealth_low)

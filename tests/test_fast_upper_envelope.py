@@ -2,7 +2,6 @@ from functools import partial
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import pytest
 from dcegm.fast_upper_envelope import fast_upper_envelope
 from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper

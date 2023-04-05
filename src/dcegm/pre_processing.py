@@ -3,7 +3,6 @@ from typing import Callable
 from typing import Dict
 from typing import Tuple
 
-import jax
 import numpy as np
 
 

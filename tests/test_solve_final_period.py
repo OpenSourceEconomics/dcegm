@@ -1,4 +1,3 @@
-from functools import partial
 from itertools import product
 
 import numpy as np
@@ -42,7 +41,7 @@ def test_consume_everything_in_final_period(
 ):
     params, options = load_example_model(f"{model}")
     options["n_exog_processes"] = 1
-    # Avoid small values. This test ist just numeric if our solve
+    # Avoid small values. This test is just numeric if our solve
     # final period is doing the right thing!
     savings_grid = np.linspace(100, max_wealth + 100, n_grid_points)
 

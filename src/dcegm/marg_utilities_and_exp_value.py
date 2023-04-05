@@ -16,7 +16,7 @@ def marginal_util_and_exp_max_value_states_period(
     income_shock_weights: jnp.ndarray,
     possible_child_states: jnp.ndarray,
     choices_child_states: jnp.ndarray,
-    engog_grid_child_states: jnp.ndarray,
+    endog_grid_child_states: jnp.ndarray,
     policies_child_states: jnp.ndarray,
     values_child_states: jnp.ndarray,
 ):
@@ -41,18 +41,20 @@ def marginal_util_and_exp_max_value_states_period(
         income_shock_weights (jnp.array): Weights of stochastic shock draw.
             Shape (n_stochastic_points).
         possible_child_states (jnp.ndarray): Multi-dimensional jnp.ndarray containing
-            the possible child_states; of shape (n_states_period,num_state_variables).
-        choices_child_states (jnp.ndarray): Multi-dimensional binary jnp.ndarray
+            the possible child_states of shape (n_states_period,num_state_variables).
+        choices_child_states (jnp.ndarray): 2d binary jnp.ndarray
             indicating for each child state if choice is possible; of shape
             (n_states_period,num_state_variables).
-        policies_child_states (jnp.ndarray): Multi-dimensional jnp.ndarray storing the
-             corresponding value of the policy function c(M, d), for each child state
-             and each discrete choice; of shape
-            [n_states_period, n_discrete_choices, 1.1 * n_grid_wealth + 1].
-        values_child_states (jnp.ndarray): Multi-dimensional jnp.ndarray storing the
-            corresponding value of the value function v(M,d), for each child state
-            and each discrete choice; of shape
-            [n_states_period, n_discrete_choices, 1.1 * n_grid_wealth + 1].
+        endog_grid_child_states (jnp.ndarray): 3d array containing the endogenous
+            wealth grid of the child_states. Shape (n_child_states_period, n_choice,
+            n_grid_wealth).
+        policies_child_states (jnp.ndarray): 3d array containing the corresponding
+            policy function values of the endogenous wealth grid of the child_states
+            shape (n_child_states_period, n_choice, n_grid_wealth).
+        values_child_states (jnp.ndarray): 3d array containing the corresponding
+            value function values of the endogenous wealth grid of the child_states
+            shape (n_child_states_period, n_choice, n_grid_wealth).
+
 
     Returns:
         tuple:
@@ -84,8 +86,8 @@ def marginal_util_and_exp_max_value_states_period(
         taste_shock_scale,
         income_shock_weights,
         resources_next_period,
-        engog_grid_child_states,
         choices_child_states,
+        endog_grid_child_states,
         policies_child_states,
         values_child_states,
     )
@@ -99,12 +101,12 @@ def vectorized_marginal_util_and_exp_max_value(
     compute_marginal_utility: Callable,
     compute_value: Callable,
     taste_shock_scale: float,
-    income_shock_weight: float,
-    next_period_wealth,
-    engog_grid_child_states,
+    income_shock_weight: jnp.ndarray,
+    next_period_wealth: jnp.ndarray,
     choice_set_indices: jnp.ndarray,
-    choice_policies_child: jnp.ndarray,
-    choice_values_child: jnp.ndarray,
+    endog_grid_child_state: jnp.ndarray,
+    choice_policies_child_state: jnp.ndarray,
+    choice_values_child_state: jnp.ndarray,
 ) -> Tuple[float, float]:
     """Compute the child-state specific marginal utility and expected maximum value.
 
@@ -117,17 +119,21 @@ def vectorized_marginal_util_and_exp_max_value(
             the agent's value function in the credit-constrained area. The inputs
             ```params``` and ```compute_utility``` are already partialled in.
         taste_shock_scale (float): The taste shock scale parameter.
-        income_shock_weight (float): Weight of stochastic shock draw.
+        income_shock_weight (jnp.ndarray): Weights of stochastic shock draws.
+        next_period_wealth (jnp.ndarray): 1d array of the agent's wealth of the next
+            period (t + 1) for each exogenous savings and income shock grid point.
+            Shape (n_grid_wealth, n_income_shocks).
         choice_set_indices (jnp.ndarray): The agent's (restricted) choice set in the
             given state of shape (n_choices,).
-        choice_policies_child (jnp.ndarray): Multi-dimensional jnp.ndarray storing the
-             corresponding value of the policy function c(M, d), for each state and
-             each discrete choice; of shape
-            [n_states, n_discrete_choices, 1.1 * n_grid_wealth + 1].
-        choice_values_child (jnp.ndarray): Multi-dimensional jnp.ndarray storing the
-            corresponding value of the value function
-            v(M, d), for each state and each discrete choice; of shape
-            [n_states, n_discrete_choices, 1.1 * n_grid_wealth + 1].
+        endog_grid_child_state (jnp.ndarray): 2d array containing the endogenous
+            wealth grid of each child state. Shape (n_choice, n_grid_wealth).
+        choice_policies_child_state (jnp.ndarray): 2d array containing the corresponding
+            policy function values of the endogenous wealth grid of each child state.
+            Shape (n_choice, n_grid_wealth).
+        choice_values_child_state (jnp.ndarray): 2d array containing the corresponding
+            value function values of the endogenous wealth grid of each child state.
+            Shape (n_choice, n_grid_wealth).
+
 
     Returns:
         tuple:
@@ -148,9 +154,9 @@ def vectorized_marginal_util_and_exp_max_value(
         compute_marginal_utility=compute_marginal_utility,
         compute_value=compute_value,
         next_period_wealth=next_period_wealth,
-        choice_policies_child=choice_policies_child,
-        value_functions_child=choice_values_child,
-        endog_grid=engog_grid_child_states,
+        endog_grid_child_state=endog_grid_child_state,
+        choice_policies_child_state=choice_policies_child_state,
+        choice_values_child_state=choice_values_child_state,
     )
 
     (
@@ -218,7 +224,7 @@ def aggregate_marg_utilites_and_values_over_choices_and_weight(
         sum_exp_values
     )
 
-    # Last step weight outpouts
+    # Last step weight outputs
     child_state_marg_util *= income_shock_weight
     child_state_exp_max_value *= income_shock_weight
 

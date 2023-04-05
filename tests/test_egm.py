@@ -1,11 +1,7 @@
-from functools import partial
 from itertools import product
 
-import jax
-import jax.numpy as jnp
 import numpy as np
 import pytest
-from dcegm.pre_processing import calc_current_value
 from dcegm.pre_processing import params_todict
 from numpy.testing import assert_array_almost_equal as aaae
 from scipy.special import roots_sh_legendre
@@ -14,10 +10,6 @@ from toy_models.consumption_retirement_model.budget_functions import (
     _calc_stochastic_income,
 )
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
-from toy_models.consumption_retirement_model.utility_functions import (
-    marginal_utility_crra,
-)
-from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
 
 # ======================================================================================
 # next_period_wealth_matrices
@@ -228,7 +220,8 @@ def test_get_next_period_wealth_matrices(
 #     next_policy = np.random.rand(n_grid_flat * n_choices).reshape(
 #         n_choices, n_grid_flat
 #     )
-#     next_value = np.random.rand(n_grid_flat * n_choices).reshape(n_choices, n_grid_flat)
+#     next_value = np.random.rand(n_grid_flat * n_choices).reshape(n_choices,
+#     n_grid_flat)
 #
 #     compute_marginal_utility = jax.jit(
 #         partial(marginal_utility_crra, params_dict=params_dict)

@@ -33,7 +33,7 @@ def solve_dcegm(
     """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
     Args:
-        params_dict (dict): Dictionary containing model parameters.
+        params (pd.DataFrame): Params DataFrame.
         options (dict): Options dictionary.
         utility_functions (Dict[str, callable]): Dictionary of three user-supplied
             functions for computation of:
@@ -221,6 +221,11 @@ def backwards_induction(
             Position [.., 0, :] contains the endogenous grid over wealth M,
             and [.., 1, :] stores the corresponding value of the value function
             v(M, d), for each state and each discrete choice.
+        compute_upper_envelope (Callable): Function for calculating the upper envelope
+            of the value function.
+        final_period_partial (Callable): Partialled function for calculating the
+            consumption as well as value function and marginal utility in the final
+            period.
 
     Returns:
         (tuple): Tuple containing:
@@ -373,7 +378,7 @@ def backwards_induction(
             ) = marginal_util_and_exp_max_value_states_period_jitted(
                 possible_child_states=state_subspace,
                 choices_child_states=choices_child_states,
-                engog_grid_child_states=policies_child_states[:, :, 0, :],
+                endog_grid_child_states=policies_child_states[:, :, 0, :],
                 policies_child_states=policies_child_states[:, :, 1, :],
                 values_child_states=values_child_states[:, :, 1, :],
             )
