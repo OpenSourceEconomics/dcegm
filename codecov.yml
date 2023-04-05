@@ -13,4 +13,8 @@ coverage:
     project:
       default:
         target: 90%
-ignore: [.tox/**/*, src/dcegm/upper_envelope_fast_org.py, setup.py]
+ignore:
+  - .tox/**/*
+  - setup.py
+  - tests/utils/upper_envelope_fedor.py
+  - tests/utils/fast_upper_envelope_org.py

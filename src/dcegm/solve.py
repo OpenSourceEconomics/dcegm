@@ -70,7 +70,6 @@ def solve_dcegm(
             v(M, d), for each state and each discrete choice.
 
     """
-    compute_upper_envelope = fast_upper_envelope_wrapper
 
     params_dict = params_todict(params)
 
@@ -228,7 +227,7 @@ def backwards_induction(
             period.
 
     Returns:
-        (tuple): Tuple containing:
+        tuple:
 
         - policy (np.ndarray): Multi-dimensional np.ndarray storing the
             choice-specific policy function; of shape
@@ -347,7 +346,7 @@ def backwards_induction(
                     # For the upper envelope we cannot parallelize over the wealth grid
                     # as here we need to inspect the value function on the whole wealth
                     # grid.
-                    current_policy, current_value = compute_upper_envelope(
+                    current_policy, current_value = fast_upper_envelope_wrapper(
                         policy=current_policy,
                         value=current_value,
                         exog_grid=exogenous_savings_grid,

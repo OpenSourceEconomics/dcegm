@@ -5,10 +5,11 @@ import numpy as np
 import pytest
 from dcegm.fast_upper_envelope import fast_upper_envelope
 from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
-from dcegm.fast_upper_envelope_org import fast_upper_envelope_wrapper_org
 from dcegm.pre_processing import calc_current_value
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
+from utils.fast_upper_envelope_org import fast_upper_envelope_wrapper_org
+from utils.upper_envelope_fedor import upper_envelope
 
 # Obtain the test directory of the package.
 TEST_DIR = Path(__file__).parent
@@ -39,20 +40,27 @@ def setup_model():
     return choice, exogenous_savings_grid, compute_value
 
 
-@pytest.mark.parametrize("period", [2, 4, 10, 9, 18])
-def test_fues_wrapper(period, setup_model):
-    policy_egm = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"period_tests/pol{period}.csv", delimiter=","
-    )
-    policy_fedor = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"period_tests/expec_pol{period}.csv", delimiter=","
-    )
+@pytest.mark.parametrize("period", [2, 4, 9, 10, 18])
+def test_fast_upper_envelope_wrapper(period, setup_model):
     value_egm = np.genfromtxt(
         TEST_RESOURCES_DIR / f"period_tests/val{period}.csv", delimiter=","
     )
-    value_fedor = np.genfromtxt(
+    policy_egm = np.genfromtxt(
+        TEST_RESOURCES_DIR / f"period_tests/pol{period}.csv", delimiter=","
+    )
+    value_refined_fedor = np.genfromtxt(
         TEST_RESOURCES_DIR / f"period_tests/expec_val{period}.csv", delimiter=","
     )
+    policy_refined_fedor = np.genfromtxt(
+        TEST_RESOURCES_DIR / f"period_tests/expec_pol{period}.csv", delimiter=","
+    )
+    policy_expected = policy_refined_fedor[
+        :, ~np.isnan(policy_refined_fedor).any(axis=0)
+    ]
+    value_expected = value_refined_fedor[
+        :,
+        ~np.isnan(value_refined_fedor).any(axis=0),
+    ]
 
     choice, exogenous_savings_grid, compute_value = setup_model
 
@@ -63,13 +71,6 @@ def test_fues_wrapper(period, setup_model):
         choice=choice,
         compute_value=compute_value,
     )
-
-    policy_expected = policy_fedor[:, ~np.isnan(policy_fedor).any(axis=0)]
-    value_expected = value_fedor[
-        :,
-        ~np.isnan(value_fedor).any(axis=0),
-    ]
-
     endog_grid_got = policy_refined[0, :][~np.isnan(policy_refined[0, :])]
     policy_got = policy_refined[1, :][~np.isnan(policy_refined[1, :]),]
     value_got = value_refined[1, :][~np.isnan(value_refined[1, :])]
@@ -82,7 +83,7 @@ def test_fues_wrapper(period, setup_model):
     aaae(value_got, value_expected_interp)
 
 
-def test_fast_upper_envelope_against_org_code(setup_model):
+def test_fast_upper_envelope_against_org_fues(setup_model):
     policy_egm = np.genfromtxt(
         TEST_RESOURCES_DIR / "period_tests/pol10.csv", delimiter=","
     )
@@ -116,3 +117,46 @@ def test_fast_upper_envelope_against_org_code(setup_model):
     assert np.all(np.in1d(value_expected[1, :], value_refined))
     assert np.all(np.in1d(policy_expected[0, :], endog_grid_refined))
     assert np.all(np.in1d(policy_expected[1, :], policy_refined))
+
+
+@pytest.mark.parametrize("period", [2, 4, 10, 9, 18])
+def test_fast_upper_envelope_against_fedor(period, setup_model):
+    value_egm = np.genfromtxt(
+        TEST_RESOURCES_DIR / f"period_tests/val{period}.csv", delimiter=","
+    )
+    policy_egm = np.genfromtxt(
+        TEST_RESOURCES_DIR / f"period_tests/pol{period}.csv", delimiter=","
+    )
+
+    choice, exogenous_savings_grid, compute_value = setup_model
+
+    _policy_fedor, _value_fedor = upper_envelope(
+        policy=policy_egm,
+        value=value_egm,
+        exog_grid=exogenous_savings_grid,
+        choice=choice,
+        compute_value=compute_value,
+    )
+    policy_expected = _policy_fedor[:, ~np.isnan(_policy_fedor).any(axis=0)]
+    value_expected = _value_fedor[
+        :,
+        ~np.isnan(_value_fedor).any(axis=0),
+    ]
+
+    _policy_fues, _value_fues = fast_upper_envelope_wrapper(
+        value=value_egm,
+        policy=policy_egm,
+        exog_grid=np.append(0, exogenous_savings_grid),
+        choice=choice,
+        compute_value=compute_value,
+    )
+    endog_grid_got = _policy_fues[0, :][~np.isnan(_policy_fues[0, :])]
+    policy_got = _policy_fues[1, :][~np.isnan(_policy_fues[1, :]),]
+    value_got = _value_fues[1, :][~np.isnan(_value_fues[1, :])]
+
+    aaae(endog_grid_got, policy_expected[0])
+    aaae(policy_got, policy_expected[1])
+    value_expected_interp = np.interp(
+        endog_grid_got, value_expected[0], value_expected[1]
+    )
+    aaae(value_got, value_expected_interp)

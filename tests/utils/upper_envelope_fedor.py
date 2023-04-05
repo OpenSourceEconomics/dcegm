@@ -1,4 +1,9 @@
-"""Implementation of the Upper Envelope algorithm."""
+"""Fedor's Upper Envelope algorithm.
+
+Based on the original MATLAB code by Fedor Iskhakov:
+https://github.com/fediskhakov/dcegm/blob/master/model_retirement.m
+
+"""
 from typing import Callable
 from typing import List
 from typing import Tuple
