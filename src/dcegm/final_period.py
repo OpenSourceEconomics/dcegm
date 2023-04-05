@@ -64,6 +64,7 @@ def final_period_wrapper(
     """
     n_choices = options["n_discrete_choices"]
 
+    # Compute beginning of period wealth in last period
     resources_last_period = vmap(
         vmap(
             vmap(compute_next_period_wealth, in_axes=(None, None, 0)),
@@ -79,6 +80,9 @@ def final_period_wrapper(
         compute_utility=compute_utility,
         compute_marginal_utility=compute_marginal_utility,
     )
+
+    # Compute for each wealth grid point the optimal policy and value function as well
+    # as the marginal utility of consumption for all choices.
     final_policy, final_value, marginal_utilities_choices = vmap(
         vmap(
             vmap(
@@ -98,6 +102,7 @@ def final_period_wrapper(
         taste_shock_scale=taste_shock_scale,
     )
 
+    # Weigh all draws and aggregate over choices
     marginal_utils_draws, max_exp_values_draws = vmap(
         vmap(
             vmap(partial_aggregate, in_axes=(None, 1, 1, 0)), in_axes=(None, 1, 1, None)
@@ -110,8 +115,11 @@ def final_period_wrapper(
         income_shock_weights,
     )
 
+    # Aggregate the weighted arrays
     marginal_utils = marginal_utils_draws.sum(axis=2)
     max_exp_values = max_exp_values_draws.sum(axis=2)
+    # Choose which draw we take for policy and value function as those are note saved
+    # with respect to the draws
     middle_of_draws = int(income_shock_draws.shape[0] + 1 / 2)
 
     return (
