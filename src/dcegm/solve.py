@@ -47,7 +47,7 @@ def solve_dcegm(
 
             (i) create the state space
             (ii) get the state specific choice set
-        final_period_wrapper (callable): User-supplied function for solving the agent's
+        final_period_solution (callable): User-supplied function for solving the agent's
             last period.
         user_transition_function (callable): User-supplied function returning for each
             state a transition matrix vector.
@@ -206,6 +206,7 @@ def backwards_induction(
             are already partialled in.
         get_state_specific_choice_set (Callable): User-supplied function returning for
             each state all possible choices.
+        choice_set_array (np.ndarray): binary array indicating if choice is possible.
         transition_vector_by_state (Callable): Partialled transition function return
             transition vector for each state.
         policy_array (np.ndarray): Multi-dimensional np.ndarray storing the

@@ -14,41 +14,52 @@ def final_period_wrapper(
     final_period_states: np.ndarray,
     options: Dict[str, int],
     compute_utility: Callable,
-    final_period_solution,  # noqa: U100
-    choices_final,
-    compute_next_period_wealth,
-    compute_marginal_utility,
-    taste_shock_scale,
-    exogenous_savings_grid,
-    income_shock_draws,
-    income_shock_weights,
+    final_period_solution: Callable,  # noqa: U100
+    choices_final: np.ndarray,
+    compute_next_period_wealth: Callable,
+    compute_marginal_utility: Callable,
+    taste_shock_scale: float,
+    exogenous_savings_grid: np.ndarray,
+    income_shock_draws: np.ndarray,
+    income_shock_weights: np.ndarray,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Computes solution to final period for policy and value function.
 
     In the last period, everything is consumed, i.e. consumption = savings.
 
     Args:
-        states (np.ndarray): Collection of all possible states.
-        savings_grid (np.ndarray): Array of shape (n_wealth_grid,) denoting the
-            exogenous savings grid.
+        final_period_states (np.ndarray): Collection of all possible states.
         options (dict): Options dictionary.
         compute_utility (callable): Function for computation of agent's utility.
+        final_period_solution (callable): User-supplied function for solving the agent's
+            last period.
+        choices_final (np.ndarray): binary array indicating if choice is possible in
+            final states.
+        compute_next_period_wealth (callable): User-defined function to compute the
+            agent's wealth of the next period (t + 1). The inputs
+            ```saving```, ```shock```, ```params``` and ```options```
+            are already partialled in.
+        compute_marginal_utility (callable): User-defined function to compute the
+            agent's marginal utility. The input ```params``` is already partialled in.
+        taste_shock_scale (float): The taste shock scale.
+        exogenous_savings_grid (np.ndarray): Array of shape (n_wealth_grid,) denoting
+            the exogenous savings grid.
+        income_shock_draws (np.ndarray): 1d array of shape (n_quad_points,) containing
+            the Hermite quadrature points.
+        income_shock_weights (np.ndarrray): Weights for each stoachstic shock draw.
+            Shape is (n_stochastic_quad_points)
 
     Returns:
         (tuple): Tuple containing
 
-        - policy (np.ndarray): Multi-dimensional np.ndarray storing the
-            choice-specific policy function; of shape
-            [n_states, n_discrete_choices, 2, 1.1 * (n_grid_wealth + 1)].
-            Position [.., 0, :] contains the endogenous grid over wealth M,
-            and [.., 1, :] stores the corresponding value of the policy function
-            c(M, d), for each state and each discrete choice.
-        - value (np.ndarray): Multi-dimensional np.ndarray storing the
-            choice-specific value functions; of shape
-            [n_states, n_discrete_choices, 2, 1.1 * (n_grid_wealth + 1)].
-            Position [.., 0, :] contains the endogenous grid over wealth M,
-            and [.., 1, :] stores the corresponding value of the value function
-            v(M, d), for each state and each discrete choice.
+        - endog_grid (np.ndarray): The endogenous wealth grid for all final states
+            and end of period assets from the period before.
+        - policy (np.ndarray): The optimal policy defined on the endogenous wealth grid.
+        - value (np.ndarray): The value function defined on the endogenous wealth grid.
+        - marginal_utilities_choices (np.ndarray): The marginal utility of consumption
+            for all final states, end of period asset and income wealth grid.
+        - max_exp_values (np.ndarray): The maximum expected value of the value function
+            for all final states, end of period asset and income wealth grid.
 
     """
     n_choices = options["n_discrete_choices"]
