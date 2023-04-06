@@ -16,5 +16,6 @@ coverage:
 ignore:
   - .tox/**/*
   - setup.py
+  - dcegm/fast_upper_envelope.py
   - tests/utils/upper_envelope_fedor.py
   - tests/utils/fast_upper_envelope_org.py

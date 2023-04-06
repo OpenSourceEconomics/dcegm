@@ -2,7 +2,7 @@ from typing import Callable
 from typing import Tuple
 
 import jax.numpy as jnp
-from dcegm.interpolate import get_values_and_marginal_utilities
+from dcegm.interpolation import get_values_and_marginal_utilities
 from jax import vmap
 
 

@@ -15,9 +15,6 @@ TEST_RESOURCES_DIR = TEST_DIR / "resources"
 # Add the utils directory to the path so that we can import helper functions.
 sys.path.append(os.path.join(os.path.dirname(__file__), "utils"))
 
-# Disable JIT compilation for tests so that code coverage is calculated correctly.
-os.environ["NUMBA_DISABLE_JIT"] = "1"
-
 
 @pytest.fixture()
 def load_example_model():

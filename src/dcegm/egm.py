@@ -44,14 +44,14 @@ def compute_optimal_policy_and_value(
     Returns:
         tuple:
 
-        - (np.ndarray): 2d array of the agent's period- and choice-specific
-            consumption policy. Shape (2, n_grid_wealth + 1).
+        - current_policy_arr (np.ndarray): 2d array of the agent's period- and
+            choice-specific consumption policy. Shape (2, n_grid_wealth + 1).
             Position [0,:] contains the endogenous grid over wealth M, and [1, :]
             stores the corresponding value of the policy function c(M, d).
-        - (np.ndarray): 2d array of the agent's period- and choice-specific
-            value function. Shape (2, n_grid_wealth + 1).  Position [0, :]
-            contains the endogenous grid over wealth M, and [1, :] stores the
-            corresponding value of the value function v(M, d).
+        - current_policy_arr (np.ndarray): 2d array of the agent's period- and
+            choice-specific value function. Shape (2, n_grid_wealth + 1).
+            Position [0, :] contains the endogenous grid over wealth M, and [1, :]
+            stores the corresponding value of the value function v(M, d).
 
     """
     current_policy, expected_value = solve_euler_equation(
@@ -103,9 +103,9 @@ def solve_euler_equation(
     Returns:
         tuple:
 
-        - (np.ndarray): 1d array of the agent's current choice-specific
+        - current_policy (np.ndarray): 1d array of the agent's current choice-specific
             consumption policy. Has shape (n_grid_wealth,).
-        - (np.ndarray): 1d array of the agent's current choice-specific
+        - current_value (np.ndarray): 1d array of the agent's current choice-specific
             expected value. Has shape (n_grid_wealth,).
 
     """
@@ -144,12 +144,12 @@ def _create_current_policy_and_value_array(
     Returns:
         tuple:
 
-        - (np.ndarray): 2d array of the agent's period- and choice-specific
-            consumption policy. Shape (2, n_grid_wealth + 1).
+        - current_policy_container (np.ndarray): 2d array of the agent's period-
+            and choice-specific consumption policy. Shape (2, n_grid_wealth + 1).
             Position [0,:] contains the endogenous grid over wealth M, and [1, :]
             stores the corresponding value of the policy function c(M, d).
-        - (np.ndarray): 2d array of the agent's period- and choice-specific
-            value function. Shape (2, n_grid_wealth + 1).
+        - current_value_container (np.ndarray): 2d array of the agent's period-
+            and choice-specific value function. Shape (2, n_grid_wealth + 1).
             Position [0, :] contains the endogenous grid over wealth M,
             and [1, :] stores the corresponding value of the value function v(M, d).
 

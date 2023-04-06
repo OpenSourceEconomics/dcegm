@@ -81,8 +81,10 @@ def interpolate_and_calc_marginal_utilities(
             child state/choice pair. Shape (n_grid_wealth,).
 
     Returns:
-        float: Interpolated marginal utility function.
-        float: Interpolated value function.
+        tuple:
+
+        - marg_utils (float): Interpolated marginal utility function.
+        - value_final (float): Interpolated value function.
 
 
     """
@@ -153,8 +155,10 @@ def calc_interpolated_values_and_marg_utils(
         choice (int): Discrete choice of an agent.
 
     Returns:
-        float: Interpolated marginal utility function.
-        float: Interpolated value function.
+        tuple:
+
+        - marg_util_interp (float): Interpolated marginal utility function.
+        - value_final (float): Interpolated value function.
 
     """
 
@@ -206,9 +210,12 @@ def interpolate_policy_and_value(
             interval.
         wealth_new (float): Wealth value at which the policy and value functions
             should be interpolated.
+
     Returns:
-        float: Interpolated policy function value.
-        float: Interpolated value function value.
+        tuple:
+
+        - policy_new (float): Interpolated policy function value.
+        - value_new (float): Interpolated value function value.
 
     """
     interpolate_dist = wealth_new - wealth_low

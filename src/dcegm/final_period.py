@@ -50,7 +50,7 @@ def final_period_wrapper(
             Shape is (n_stochastic_quad_points)
 
     Returns:
-        (tuple): Tuple containing
+        tuple:
 
         - endog_grid (np.ndarray): The endogenous wealth grid for all final states
             and end of period assets from the period before.

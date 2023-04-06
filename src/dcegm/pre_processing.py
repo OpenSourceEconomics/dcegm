@@ -7,14 +7,17 @@ import numpy as np
 
 
 def params_todict(params):
-    """Transforms params DataFrame into a dictionary. Checks if given params DataFrame
-    contains taste shock scale, interest rate and discount factor.
+    """Transforms params DataFrame into a dictionary.
+
+    Checks if given params DataFrame contains taste shock scale, interest rate
+    and discount factor.
 
     Args:
         params (pd.DataFrame): Params DataFrame.
+
     Returns:
-        params_dict (dict): Params Data Frame without index "category" and column
-        "comment" transformed into dictionary.
+        dict: Params Data Frame without index "category" and column
+            "comment" transformed into dictionary.
 
     """
 
@@ -54,6 +57,8 @@ def get_partial_functions(
             each state a transition matrix vector.
 
     Returns:
+        tuple:
+
         - compute_utility (callable): Function for computation of agent's utility.
         - compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility. The input ```params``` is already partialled in.
@@ -132,7 +137,7 @@ def calc_current_value(
         discount_factor (float): The discount factor.
 
     Returns:
-        - value (np.ndarray): The current value.
+        np.ndarray: The current value.
 
     """
     utility = compute_utility(consumption, choice)
@@ -167,7 +172,7 @@ def create_multi_dim_arrays(
 
 
     Returns:
-        (tuple): Tuple containing:
+        tuple:
 
         - policy (np.ndarray): Multi-dimensional np.ndarray storing the
             choice-specific policy function; of shape
@@ -212,7 +217,8 @@ def get_possible_choices_array(
         options (dict): Options dictionary.
 
     Returns:
-        choices_array (np.ndarray): binary array indicating if choice is possible.
+        np.ndarray: Binary 2d array of shape (n_states, n_choices)
+            indicating if choice is possible.
 
     """
     n_choices = options["n_discrete_choices"]
