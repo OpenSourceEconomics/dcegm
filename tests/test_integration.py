@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 from dcegm.solve import solve_dcegm
+from jax.config import config
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
 from toy_models.consumption_retirement_model.exogenous_processes import (
@@ -28,6 +29,8 @@ from toy_models.consumption_retirement_model.utility_functions import (
     utiility_func_log_crra,
 )
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
+
+config.update("jax_enable_x64", True)
 
 
 # Obtain the test directory of the package.
@@ -110,7 +113,7 @@ def test_benchmark_models(
                 :,
                 ~np.isnan(policy_calculated[state_index, choice, :]).any(axis=0),
             ]
-            aaae(policy_got, policy_expec, decimal=3)
+            aaae(policy_got, policy_expec)
             # In Fedor's upper envelope, there are two endogenous wealth grids;
             # one for the value function and a longer one for the policy function.
             # Since we want to unify the two endogoenous grids and want the refined
@@ -125,7 +128,7 @@ def test_benchmark_models(
                 ~np.isnan(value_calculated[state_index, choice, 1])
             ]
 
-            aaae(value_got, value_expec_interp, decimal=2)
+            aaae(value_got, value_expec_interp)
 
             aaae(
                 policy_calculated[state_index, choice, 0],
