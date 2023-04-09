@@ -84,14 +84,14 @@ def interpolate_and_calc_marginal_utilities(
         tuple:
 
         - marg_utils (float): Interpolated marginal utility function.
-        - value_final (float): Interpolated value function.
+        - value_interp (float): Interpolated value function.
 
 
     """
     ind_high, ind_low = get_index_high_and_low(
         x=endog_grid_child_state_choice, x_new=next_period_wealth
     )
-    marg_utils, value_final = vmap(
+    marg_utils, value_interp = vmap(
         vmap(
             calc_interpolated_values_and_marg_utils,
             in_axes=(0, 0, 0, 0, 0, 0, 0, None, None, None, None, None),
@@ -112,7 +112,7 @@ def interpolate_and_calc_marginal_utilities(
         choice,
     )
 
-    return marg_utils, value_final
+    return marg_utils, value_interp
 
 
 def calc_interpolated_values_and_marg_utils(
@@ -158,11 +158,11 @@ def calc_interpolated_values_and_marg_utils(
         tuple:
 
         - marg_util_interp (float): Interpolated marginal utility function.
-        - value_final (float): Interpolated value function.
+        - value_interp (float): Interpolated value function.
 
     """
 
-    policy_interp, value_interp = interpolate_policy_and_value(
+    policy_interp, value_interp_on_grid = interpolate_policy_and_value(
         policy_high=policy_high,
         value_high=value_high,
         wealth_high=wealth_high,
@@ -172,16 +172,19 @@ def calc_interpolated_values_and_marg_utils(
         wealth_new=new_wealth,
     )
 
-    value_calc = compute_value(
+    value_interp_closed_form = compute_value(
         consumption=new_wealth, next_period_value=value_min, choice=choice
     )
 
-    constraint = new_wealth < endog_grid_min
-    value_final = constraint * value_calc + (1 - constraint) * value_interp
+    credit_constraint = new_wealth < endog_grid_min
+    value_interp = (
+        credit_constraint * value_interp_closed_form
+        + (1 - credit_constraint) * value_interp_on_grid
+    )
 
     marg_utility_interp = compute_marginal_utility(policy_interp)
 
-    return marg_utility_interp, value_final
+    return marg_utility_interp, value_interp
 
 
 def interpolate_policy_and_value(
