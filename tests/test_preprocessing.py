@@ -4,7 +4,9 @@ import numpy as np
 import pytest
 from dcegm.pre_processing import calc_current_value
 from numpy.testing import assert_array_almost_equal as aaae
-from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
+from toy_models.consumption_retirement_model.utility_functions import (
+    utiility_func_log_crra,
+)
 
 
 @pytest.fixture()
@@ -18,8 +20,10 @@ def test_data(load_example_model):
     params.loc[("utility_function", "theta"), "value"] = 1
 
     delta = params.loc[("delta", "delta"), "value"]
+
     beta = params.loc[("beta", "beta"), "value"]
-    compute_utility = partial(utility_func_crra, params=params)
+    params_dict = {"delta": delta}
+    compute_utility = partial(utiility_func_log_crra, params_dict=params_dict)
 
     return consumption, next_period_value, delta, beta, compute_utility
 

@@ -9,8 +9,8 @@ from typing import List
 from typing import Tuple
 
 import numpy as np
-from dcegm.interpolate import linear_interpolation_with_extrapolation
-from dcegm.interpolate import linear_interpolation_with_inserting_missing_values
+from dcegm.interpolation import linear_interpolation_with_extrapolation
+from dcegm.interpolation import linear_interpolation_with_inserting_missing_values
 from scipy.optimize import brenth as root
 
 eps = 2.2204e-16
