@@ -21,7 +21,6 @@ def convert_params_to_dict(params):
             "comment" transformed into dictionary.
 
     """
-
     keys = params.index.droplevel("category").tolist()
     values = params["value"].tolist()
     params_dict = dict(zip(keys, values))
