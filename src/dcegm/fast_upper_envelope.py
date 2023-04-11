@@ -216,7 +216,7 @@ def scan_value_function(
     Args:
         value (np.ndarray): 1d array containing the unrefined value correspondence
             of shape (n_grid_wealth + 1,).
-        polcy (np.ndarray): 1d array containing the unrefined policy correspondence
+        policy (np.ndarray): 1d array containing the unrefined policy correspondence
             of shape (n_grid_wealth + 1,).
         endog_grid (np.ndarray): 1d array containing the unrefined endogenous wealth
             grid of shape (n_grid_wealth + 1,).
