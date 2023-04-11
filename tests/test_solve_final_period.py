@@ -3,9 +3,9 @@ from itertools import product
 import numpy as np
 import pytest
 from dcegm.final_period import final_period_wrapper
+from dcegm.pre_processing import convert_params_to_dict
 from dcegm.pre_processing import get_partial_functions
 from dcegm.pre_processing import get_possible_choices_array
-from dcegm.pre_processing import params_todict
 from jax import vmap
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
@@ -56,7 +56,7 @@ def test_consume_everything_in_final_period(
         options,
     )
 
-    params_dict = params_todict(params)
+    params_dict = convert_params_to_dict(params)
 
     condition_final_period = np.where(state_space[:, 0] == n_periods - 1)
     states_final_period = state_space[condition_final_period]
@@ -76,10 +76,11 @@ def test_consume_everything_in_final_period(
     (
         compute_utility,
         compute_marginal_utility,
-        compute_inverse_marginal_utility,
-        compute_value,
+        _compute_inverse_marginal_utility,
+        _compute_value,
         compute_next_period_wealth,
-        transition_vector_by_state,
+        _compute_upper_envelope,
+        _transition_vector_by_state,
     ) = get_partial_functions(
         params_dict=params_dict,
         options=options,
