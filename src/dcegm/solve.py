@@ -1,4 +1,5 @@
 """Interface for the DC-EGM algorithm."""
+from functools import partial
 from typing import Callable
 from typing import Dict
 from typing import Tuple
@@ -6,12 +7,17 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 from dcegm.egm import compute_optimal_policy_and_value
-from dcegm.egm import get_child_state_marginal_util_and_exp_max_value
-from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
+from dcegm.final_period import final_period_wrapper
 from dcegm.integration import quadrature_legendre
+from dcegm.marg_utilities_and_exp_value import (
+    marginal_util_and_exp_max_value_states_period,
+)
+from dcegm.pre_processing import convert_params_to_dict
 from dcegm.pre_processing import create_multi_dim_arrays
 from dcegm.pre_processing import get_partial_functions
+from dcegm.pre_processing import get_possible_choices_array
 from dcegm.state_space import get_child_indexes
+from jax import jit
 
 
 def solve_dcegm(
@@ -20,14 +26,13 @@ def solve_dcegm(
     utility_functions: Dict[str, Callable],
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable],
-    solve_final_period: Callable,
+    final_period_solution: Callable,
     user_transition_function: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
     Args:
-        params (pd.DataFrame): Model parameters indexed with multi-index of the
-            form ("category", "name") and two columns ["value", "comment"].
+        params (pd.DataFrame): Params DataFrame.
         options (dict): Options dictionary.
         utility_functions (Dict[str, callable]): Dictionary of three user-supplied
             functions for computation of:
@@ -41,7 +46,7 @@ def solve_dcegm(
 
             (i) create the state space
             (ii) get the state specific choice set
-        solve_final_period (callable): User-supplied function for solving the agent's
+        final_period_solution (callable): User-supplied function for solving the agent's
             last period.
         user_transition_function (callable): User-supplied function returning for each
             state a transition matrix vector.
@@ -64,8 +69,13 @@ def solve_dcegm(
             v(M, d), for each state and each discrete choice.
 
     """
+    params_dict = convert_params_to_dict(params)
 
-    max_wealth = params.loc[("assets", "max_wealth"), "value"]
+    taste_shock_scale = params_dict["lambda"]
+    interest_rate = params_dict["interest_rate"]
+    discount_factor = params_dict["beta"]
+    max_wealth = params_dict["max_wealth"]
+
     n_periods = options["n_periods"]
     n_grid_wealth = options["grid_points_wealth"]
     exogenous_savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
@@ -79,8 +89,7 @@ def solve_dcegm(
     # ToDo: Make interface with several draw possibilities.
     # ToDo: Some day make user supplied draw function.
     income_shock_draws, income_shock_weights = quadrature_legendre(
-        options["quadrature_points_stochastic"],
-        params.loc[("shocks", "sigma"), "value"],
+        options["quadrature_points_stochastic"], params_dict["sigma"]
     )
 
     (
@@ -88,32 +97,32 @@ def solve_dcegm(
         compute_marginal_utility,
         compute_inverse_marginal_utility,
         compute_value,
-        compute_next_wealth_matrices,
+        compute_next_period_wealth,
+        compute_upper_envelope,
         transition_vector_by_state,
     ) = get_partial_functions(
-        params,
+        params_dict,
         options,
         user_utility_functions=utility_functions,
         user_budget_constraint=budget_constraint,
         exogenous_transition_function=user_transition_function,
     )
 
-    _state_indices_final_period = np.where(state_space[:, 0] == n_periods - 1)
-    states_final_period = state_space[_state_indices_final_period]
-    policy_final, value_final = solve_final_period(
-        states=states_final_period,
-        savings_grid=exogenous_savings_grid,
+    final_period_partial = partial(
+        final_period_wrapper,
         options=options,
         compute_utility=compute_utility,
+        final_period_solution=final_period_solution,
     )
 
-    taste_shock_scale = params.loc[("shocks", "lambda"), "value"]
-    interest_rate = params.loc[("assets", "interest_rate"), "value"]
-    discount_factor = params.loc[("beta", "beta"), "value"]
+    choice_set_array = get_possible_choices_array(
+        state_space,
+        state_indexer,
+        state_space_functions["get_state_specific_choice_set"],
+        options,
+    )
 
     policy_array, value_array = create_multi_dim_arrays(state_space, options)
-    policy_array[_state_indices_final_period, ...] = policy_final
-    value_array[_state_indices_final_period, ...] = value_final
 
     policy_array, value_array = backwards_induction(
         n_periods,
@@ -128,11 +137,14 @@ def solve_dcegm(
         compute_marginal_utility,
         compute_inverse_marginal_utility,
         compute_value,
-        compute_next_wealth_matrices,
+        compute_next_period_wealth,
         get_state_specific_choice_set,
+        choice_set_array,
         transition_vector_by_state,
         policy_array,
         value_array,
+        compute_upper_envelope=compute_upper_envelope,
+        final_period_partial=final_period_partial,
     )
 
     return policy_array, value_array
@@ -151,11 +163,14 @@ def backwards_induction(
     compute_marginal_utility: Callable,
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
-    compute_next_wealth_matrices: Callable,
+    compute_next_period_wealth: Callable,
     get_state_specific_choice_set: Callable,
+    choice_set_array,
     transition_vector_by_state: Callable,
     policy_array: np.ndarray,
     value_array: np.ndarray,
+    compute_upper_envelope: Callable,
+    final_period_partial,
 ):
     """Do backwards induction and solve for optimal policy and value function.
 
@@ -183,12 +198,13 @@ def backwards_induction(
         compute_value (callable): Function for calculating the value from consumption
             level, discrete choice and expected value. The inputs ```discount_rate```
             and ```compute_utility``` are already partialled in.
-        compute_next_wealth_matrices (callable): User-defined function to compute the
-            agent's wealth matrices of the next period (t + 1). The inputs
-            ```savings_grid```, ```income_shocks```, ```params``` and ```options```
+        compute_next_period_wealth (callable): User-defined function to compute the
+            agent's wealth of the next period (t + 1). The inputs
+            ```saving```, ```shock```, ```params``` and ```options```
             are already partialled in.
         get_state_specific_choice_set (Callable): User-supplied function returning for
             each state all possible choices.
+        choice_set_array (np.ndarray): binary array indicating if choice is possible.
         transition_vector_by_state (Callable): Partialled transition function return
             transition vector for each state.
         policy_array (np.ndarray): Multi-dimensional np.ndarray storing the
@@ -203,6 +219,13 @@ def backwards_induction(
             Position [.., 0, :] contains the endogenous grid over wealth M,
             and [.., 1, :] stores the corresponding value of the value function
             v(M, d), for each state and each discrete choice.
+        compute_upper_envelope (Callable): Function for calculating the upper envelope
+            of the policy and value function. If the number of discrete choices is 1,
+            this function is a dummy function that returns the policy and value
+            function as is, without performing a fast upper envelope scan.
+        final_period_partial (Callable): Partialled function for calculating the
+            consumption as well as value function and marginal utility in the final
+            period.
 
     Returns:
         tuple:
@@ -235,35 +258,51 @@ def backwards_induction(
         fill_value=np.nan,
         dtype=float,
     )
+    marginal_util_and_exp_max_value_states_period_jitted = jit(
+        partial(
+            marginal_util_and_exp_max_value_states_period,
+            compute_next_period_wealth=compute_next_period_wealth,
+            compute_marginal_utility=compute_marginal_utility,
+            compute_value=compute_value,
+            taste_shock_scale=taste_shock_scale,
+            exogenous_savings_grid=exogenous_savings_grid,
+            income_shock_draws=income_shock_draws,
+            income_shock_weights=income_shock_weights,
+        )
+    )
+
+    final_state_cond = np.where(state_space[:, 0] == n_periods - 1)[0]
+    states_final_period = state_space[final_state_cond]
+
+    (
+        resources_final,
+        policy_array[final_state_cond, :, 1, : exogenous_savings_grid.shape[0]],
+        value_array[final_state_cond, :, 1, : exogenous_savings_grid.shape[0]],
+        marginal_utilities[final_state_cond, :],
+        max_expected_values[final_state_cond, :],
+    ) = final_period_partial(
+        final_period_states=states_final_period,
+        choices_final=choice_set_array[final_state_cond],
+        compute_next_period_wealth=compute_next_period_wealth,
+        compute_marginal_utility=compute_marginal_utility,
+        taste_shock_scale=taste_shock_scale,
+        exogenous_savings_grid=exogenous_savings_grid,
+        income_shock_draws=income_shock_draws,
+        income_shock_weights=income_shock_weights,
+    )
+
+    # Endogenous grid constant among choices.
+    for choice in range(policy_array.shape[1]):
+        policy_array[
+            final_state_cond, choice, 0, : exogenous_savings_grid.shape[0]
+        ] = resources_final
+        value_array[
+            final_state_cond, choice, 0, : exogenous_savings_grid.shape[0]
+        ] = resources_final
+
     for period in range(n_periods - 2, -1, -1):
-        possible_child_states = state_space[np.where(state_space[:, 0] == period + 1)]
-
-        for child_state in possible_child_states:
-            child_state_index = state_indexer[tuple(child_state)]
-            # We could parralelize here also over the savings grid!
-            # We aggregate here already over the income shocks!
-
-            (
-                marginal_utilities[child_state_index, :],
-                max_expected_values[child_state_index, :],
-            ) = get_child_state_marginal_util_and_exp_max_value(
-                exogenous_savings_grid,
-                income_shock_draws,
-                income_shock_weights,
-                child_state,
-                state_indexer,
-                state_space,
-                taste_shock_scale,
-                policy_array,
-                value_array,
-                compute_next_wealth_matrices,
-                compute_marginal_utility,
-                compute_value,
-                get_state_specific_choice_set,
-            )
-
-        index_periods = np.where(state_space[:, 0] == period)[0]
-        state_subspace = state_space[index_periods]
+        periods_state_cond = np.where(state_space[:, 0] == period)[0]
+        state_subspace = state_space[periods_state_cond]
 
         for state in state_subspace:
             current_state_index = state_indexer[tuple(state)]
@@ -288,6 +327,7 @@ def backwards_induction(
             max_expected_values_child_states = np.take(
                 max_expected_values, child_states_indexes, axis=0
             )
+
             trans_vec_state = transition_vector_by_state(state)
 
             for choice_index, choice in enumerate(choice_set):
@@ -303,17 +343,13 @@ def backwards_induction(
                     compute_value=compute_value,
                 )
 
-                if policy_array.shape[1] > 1:
-                    # For the upper envelope we cannot parallelize over the wealth grid
-                    # as here we need to inspect the value function on the whole wealth
-                    # grid.
-                    current_policy, current_value = fast_upper_envelope_wrapper(
-                        policy=current_policy,
-                        value=current_value,
-                        exog_grid=exogenous_savings_grid,
-                        choice=choice,
-                        compute_value=compute_value,
-                    )
+                current_policy, current_value = compute_upper_envelope(
+                    policy=current_policy,
+                    value=current_value,
+                    exog_grid=exogenous_savings_grid,
+                    choice=choice,
+                    compute_value=compute_value,
+                )
 
                 policy_array[
                     current_state_index,
@@ -327,5 +363,20 @@ def backwards_induction(
                     :,
                     : current_value.shape[1],
                 ] = current_value
+
+        policies_child_states = policy_array[periods_state_cond]
+        values_child_states = value_array[periods_state_cond]
+        choices_child_states = choice_set_array[periods_state_cond]
+
+        (
+            marginal_utilities[periods_state_cond, :],
+            max_expected_values[periods_state_cond, :],
+        ) = marginal_util_and_exp_max_value_states_period_jitted(
+            possible_child_states=state_subspace,
+            choices_child_states=choices_child_states,
+            endog_grid_child_states=policies_child_states[:, :, 0, :],
+            policies_child_states=policies_child_states[:, :, 1, :],
+            values_child_states=values_child_states[:, :, 1, :],
+        )
 
     return policy_array, value_array

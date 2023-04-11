@@ -137,6 +137,7 @@ venv.bak/
 
 # Local jupyter fle
 test.ipynb
+jax_max.ipynb
 
 
 # Debugging files should be ignored

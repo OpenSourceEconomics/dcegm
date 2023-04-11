@@ -2,7 +2,6 @@ from functools import partial
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import pytest
 from dcegm.fast_upper_envelope import fast_upper_envelope
 from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
@@ -26,14 +25,12 @@ def setup_model():
     n_grid_wealth = 500
     exogenous_savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
 
-    _index = pd.MultiIndex.from_tuples(
-        [("utility_function", "theta"), ("delta", "delta")],
-        names=["category", "name"],
-    )
-    params = pd.DataFrame(data=[1.95, 0.35], columns=["value"], index=_index)
     discount_factor = 0.95
+    params_dict = {}
+    params_dict["theta"] = 1.95
+    params_dict["delta"] = 0.35
 
-    compute_utility = partial(utility_func_crra, params=params)
+    compute_utility = partial(utility_func_crra, params_dict=params_dict)
     compute_value = partial(
         calc_current_value,
         discount_factor=discount_factor,

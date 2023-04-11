@@ -26,9 +26,9 @@ def get_child_states(
             each state all possible choices.
 
     Returns:
-        child_nodes (np.ndarray): 2d array of shape
-            (n_state_specific_choices, n_state_specific_choices) containing all child
-            nodes the agent can reach from her given state.
+        np.ndarray: 2d array of shape
+            (n_state_specific_choices, n_state_specific_choices)
+            containing all child nodes the agent can reach from her given state.
 
     """
     # Exogenous processes are always on the last entry of the state space. We also treat
@@ -76,9 +76,9 @@ def get_child_indexes(
             each state all possible choices.
 
     Returns:
-        child_nodes (np.ndarray): 2d array of shape
-            (n_state_specific_choices, n_state_specific_choices) containing all child
-            nodes the agent can reach from her given state.
+        np.ndarray: 2d array of shape
+            (n_state_specific_choices, n_state_specific_choices)
+            containing all child nodes the agent can reach from her given state.
 
     """
     child_states = get_child_states(
