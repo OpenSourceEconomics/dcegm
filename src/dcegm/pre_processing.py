@@ -4,9 +4,10 @@ from typing import Dict
 from typing import Tuple
 
 import numpy as np
+from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
 
 
-def params_todict(params):
+def convert_params_to_dict(params):
     """Transforms params DataFrame into a dictionary.
 
     Checks if given params DataFrame contains taste shock scale, interest rate
@@ -16,7 +17,7 @@ def params_todict(params):
         params (pd.DataFrame): Params DataFrame.
 
     Returns:
-        dict: Params Data Frame without index "category" and column
+        dict: Dictionary with index "category" dropped and column
             "comment" transformed into dictionary.
 
     """
@@ -71,6 +72,10 @@ def get_partial_functions(
             agent's wealth matrices of the next period (t + 1). The inputs
             ```savings_grid```, ```income_shocks```, ```params``` and ```options```
             are already partialled in.
+        - compute_upper_envelope (Callable): Function for calculating the upper envelope
+            of the policy and value function. If the number of discrete choices is 1,
+            this function is a dummy function that returns the policy and value
+            function as is, without performing a fast upper envelope scan.
         - transition_function (Callable): Partialled transition function return
             transition vector for each state.
 
@@ -105,12 +110,19 @@ def get_partial_functions(
     transition_function = partial(
         exogenous_transition_function, params_dict=params_dict
     )
+
+    if options["n_discrete_choices"] == 1:
+        compute_upper_envelope = _return_policy_and_value
+    else:
+        compute_upper_envelope = fast_upper_envelope_wrapper
+
     return (
         compute_utility,
         compute_marginal_utility,
         compute_inverse_marginal_utility,
         compute_value,
         compute_next_period_wealth,
+        compute_upper_envelope,
         transition_function,
     )
 
@@ -229,3 +241,7 @@ def get_possible_choices_array(
         choices_array[index, choice_set] = 1
 
     return choices_array
+
+
+def _return_policy_and_value(policy, value, **kwargs):
+    return policy, value

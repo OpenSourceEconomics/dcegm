@@ -7,16 +7,15 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 from dcegm.egm import compute_optimal_policy_and_value
-from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
 from dcegm.final_period import final_period_wrapper
 from dcegm.integration import quadrature_legendre
 from dcegm.marg_utilities_and_exp_value import (
     marginal_util_and_exp_max_value_states_period,
 )
+from dcegm.pre_processing import convert_params_to_dict
 from dcegm.pre_processing import create_multi_dim_arrays
 from dcegm.pre_processing import get_partial_functions
 from dcegm.pre_processing import get_possible_choices_array
-from dcegm.pre_processing import params_todict
 from dcegm.state_space import get_child_indexes
 from jax import jit
 
@@ -70,9 +69,7 @@ def solve_dcegm(
             v(M, d), for each state and each discrete choice.
 
     """
-    compute_upper_envelope = fast_upper_envelope_wrapper
-
-    params_dict = params_todict(params)
+    params_dict = convert_params_to_dict(params)
 
     taste_shock_scale = params_dict["lambda"]
     interest_rate = params_dict["interest_rate"]
@@ -101,6 +98,7 @@ def solve_dcegm(
         compute_inverse_marginal_utility,
         compute_value,
         compute_next_period_wealth,
+        compute_upper_envelope,
         transition_vector_by_state,
     ) = get_partial_functions(
         params_dict,
@@ -222,7 +220,9 @@ def backwards_induction(
             and [.., 1, :] stores the corresponding value of the value function
             v(M, d), for each state and each discrete choice.
         compute_upper_envelope (Callable): Function for calculating the upper envelope
-            of the value function.
+            of the policy and value function. If the number of discrete choices is 1,
+            this function is a dummy function that returns the policy and value
+            function as is, without performing a fast upper envelope scan.
         final_period_partial (Callable): Partialled function for calculating the
             consumption as well as value function and marginal utility in the final
             period.
@@ -343,17 +343,13 @@ def backwards_induction(
                     compute_value=compute_value,
                 )
 
-                if policy_array.shape[1] > 1:
-                    # For the upper envelope we cannot parallelize over the wealth grid
-                    # as here we need to inspect the value function on the whole wealth
-                    # grid.
-                    current_policy, current_value = compute_upper_envelope(
-                        policy=current_policy,
-                        value=current_value,
-                        exog_grid=exogenous_savings_grid,
-                        choice=choice,
-                        compute_value=compute_value,
-                    )
+                current_policy, current_value = compute_upper_envelope(
+                    policy=current_policy,
+                    value=current_value,
+                    exog_grid=exogenous_savings_grid,
+                    choice=choice,
+                    compute_value=compute_value,
+                )
 
                 policy_array[
                     current_state_index,
