@@ -122,32 +122,35 @@ def solve_dcegm(
         options,
     )
 
-    policy_array, value_array = create_multi_dim_arrays(state_space, options)
+    endog_grid_container, policy_container, value_container = create_multi_dim_arrays(
+        state_space, options
+    )
 
-    policy_array, value_array = backwards_induction(
-        n_periods,
-        taste_shock_scale,
-        discount_factor,
-        interest_rate,
-        state_indexer,
-        state_space,
-        income_shock_draws,
-        income_shock_weights,
-        exogenous_savings_grid,
-        compute_marginal_utility,
-        compute_inverse_marginal_utility,
-        compute_value,
-        compute_next_period_wealth,
-        get_state_specific_choice_set,
-        choice_set_array,
-        transition_vector_by_state,
-        policy_array,
-        value_array,
+    endog_grid_container, policy_container, value_container = backwards_induction(
+        n_periods=n_periods,
+        taste_shock_scale=taste_shock_scale,
+        discount_factor=discount_factor,
+        interest_rate=interest_rate,
+        state_indexer=state_indexer,
+        state_space=state_space,
+        income_shock_draws=income_shock_draws,
+        income_shock_weights=income_shock_weights,
+        exogenous_savings_grid=exogenous_savings_grid,
+        compute_marginal_utility=compute_marginal_utility,
+        compute_inverse_marginal_utility=compute_inverse_marginal_utility,
+        compute_value=compute_value,
+        compute_next_period_wealth=compute_next_period_wealth,
+        get_state_specific_choice_set=get_state_specific_choice_set,
+        choice_set_array=choice_set_array,
+        transition_vector_by_state=transition_vector_by_state,
+        endog_grid_container=endog_grid_container,
+        policy_container=policy_container,
+        value_container=value_container,
         compute_upper_envelope=compute_upper_envelope,
         final_period_partial=final_period_partial,
     )
 
-    return policy_array, value_array
+    return endog_grid_container, policy_container, value_container
 
 
 def backwards_induction(
@@ -167,8 +170,9 @@ def backwards_induction(
     get_state_specific_choice_set: Callable,
     choice_set_array,
     transition_vector_by_state: Callable,
-    policy_array: np.ndarray,
-    value_array: np.ndarray,
+    endog_grid_container: np.ndarray,
+    policy_container: np.ndarray,
+    value_container: np.ndarray,
     compute_upper_envelope: Callable,
     final_period_partial,
 ):
@@ -276,8 +280,8 @@ def backwards_induction(
 
     (
         resources_final,
-        policy_array[final_state_cond, :, 1, : exogenous_savings_grid.shape[0]],
-        value_array[final_state_cond, :, 1, : exogenous_savings_grid.shape[0]],
+        policy_container[final_state_cond, ..., : exogenous_savings_grid.shape[0]],
+        value_container[final_state_cond, ..., : exogenous_savings_grid.shape[0]],
         marginal_utilities[final_state_cond, :],
         max_expected_values[final_state_cond, :],
     ) = final_period_partial(
@@ -291,13 +295,11 @@ def backwards_induction(
         income_shock_weights=income_shock_weights,
     )
 
+    # !!! Rewrite
     # Endogenous grid constant among choices.
-    for choice in range(policy_array.shape[1]):
-        policy_array[
-            final_state_cond, choice, 0, : exogenous_savings_grid.shape[0]
-        ] = resources_final
-        value_array[
-            final_state_cond, choice, 0, : exogenous_savings_grid.shape[0]
+    for choice in range(policy_container.shape[1]):
+        endog_grid_container[
+            final_state_cond, choice, : len(exogenous_savings_grid)
         ] = resources_final
 
     for period in range(n_periods - 2, -1, -1):
@@ -331,7 +333,7 @@ def backwards_induction(
             trans_vec_state = transition_vector_by_state(state)
 
             for choice_index, choice in enumerate(choice_set):
-                current_policy, current_value = compute_optimal_policy_and_value(
+                endog_grid, policy, value = compute_optimal_policy_and_value(
                     marginal_utilities_child_states[choice_index, :],
                     max_expected_values_child_states[choice_index, :],
                     discount_factor,
@@ -343,29 +345,34 @@ def backwards_induction(
                     compute_value=compute_value,
                 )
 
-                current_policy, current_value = compute_upper_envelope(
-                    policy=current_policy,
-                    value=current_value,
+                endog_grid, policy, value = compute_upper_envelope(
+                    endog_grid=endog_grid,
+                    policy=policy,
+                    value=value,
                     exog_grid=exogenous_savings_grid,
                     choice=choice,
                     compute_value=compute_value,
                 )
 
-                policy_array[
+                endog_grid_container[
                     current_state_index,
                     choice,
-                    :,
-                    : current_policy.shape[1],
-                ] = current_policy
-                value_array[
+                    : endog_grid.shape[0],
+                ] = endog_grid
+                policy_container[
                     current_state_index,
                     choice,
-                    :,
-                    : current_value.shape[1],
-                ] = current_value
+                    : policy.shape[0],
+                ] = policy
+                value_container[
+                    current_state_index,
+                    choice,
+                    : value.shape[0],
+                ] = value
 
-        policies_child_states = policy_array[periods_state_cond]
-        values_child_states = value_array[periods_state_cond]
+        endog_grid_child_states = endog_grid_container[periods_state_cond]
+        values_child_states = value_container[periods_state_cond]
+        policies_child_states = policy_container[periods_state_cond]
         choices_child_states = choice_set_array[periods_state_cond]
 
         (
@@ -374,9 +381,9 @@ def backwards_induction(
         ) = marginal_util_and_exp_max_value_states_period_jitted(
             possible_child_states=state_subspace,
             choices_child_states=choices_child_states,
-            endog_grid_child_states=policies_child_states[:, :, 0, :],
-            policies_child_states=policies_child_states[:, :, 1, :],
-            values_child_states=values_child_states[:, :, 1, :],
+            endog_grid_child_states=endog_grid_child_states,
+            policies_child_states=policies_child_states,
+            values_child_states=values_child_states,
         )
 
-    return policy_array, value_array
+    return endog_grid_container, policy_container, value_container

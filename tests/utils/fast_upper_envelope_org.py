@@ -13,6 +13,7 @@ import numpy as np
 
 
 def fast_upper_envelope_wrapper_org(
+    endog_grid: np.ndarray,
     policy: np.ndarray,
     value: np.ndarray,
     exog_grid: np.ndarray,
@@ -68,28 +69,29 @@ def fast_upper_envelope_wrapper_org(
 
     """
     n_grid_wealth = len(exog_grid)
-    endog_grid = policy[0]
-    policy_ = policy[1]
-    value_ = value[1]
     exog_grid = np.append(0, exog_grid)
 
-    endog_grid_refined, value_out, policy_out = fast_upper_envelope(
-        endog_grid, value_, policy_, exog_grid, jump_thresh=2
+    endog_grid_refined, value_refined, policy_refined = fast_upper_envelope(
+        endog_grid, value, policy, exog_grid, jump_thresh=2
     )
 
-    policy_refined = np.row_stack([endog_grid_refined, policy_out])
-    value_refined = np.row_stack([endog_grid_refined, value_out])
-
     # Fill array with nans to fit 10% extra grid points
-    policy_refined_with_nans = np.empty((2, int(1.1 * n_grid_wealth)))
-    value_refined_with_nans = np.empty((2, int(1.1 * n_grid_wealth)))
+    endog_grid_refined_with_nans = np.empty(int(1.1 * n_grid_wealth))
+    policy_refined_with_nans = np.empty(int(1.1 * n_grid_wealth))
+    value_refined_with_nans = np.empty(int(1.1 * n_grid_wealth))
+    endog_grid_refined_with_nans[:] = np.nan
     policy_refined_with_nans[:] = np.nan
     value_refined_with_nans[:] = np.nan
 
-    policy_refined_with_nans[:, : policy_refined.shape[1]] = policy_refined
-    value_refined_with_nans[:, : value_refined.shape[1]] = value_refined
+    endog_grid_refined_with_nans[: len(endog_grid_refined)] = endog_grid_refined
+    policy_refined_with_nans[: len(policy_refined)] = policy_refined
+    value_refined_with_nans[: len(value_refined)] = value_refined
 
-    return policy_refined_with_nans, value_refined_with_nans
+    return (
+        endog_grid_refined_with_nans,
+        policy_refined_with_nans,
+        value_refined_with_nans,
+    )
 
 
 def fast_upper_envelope(
@@ -150,9 +152,9 @@ def fast_upper_envelope(
         endog_grid, value, policy, exog_grid, m_bar=jump_thresh, lb=10
     )
 
-    endog_grid_refined = (endog_grid[np.where(~np.isnan(value_clean_with_nans))],)
-    value_refined = (value_clean_with_nans[np.where(~np.isnan(value_clean_with_nans))],)
-    policy_refined = (policy[np.where(~np.isnan(value_clean_with_nans))],)
+    endog_grid_refined = endog_grid[np.where(~np.isnan(value_clean_with_nans))]
+    value_refined = value_clean_with_nans[np.where(~np.isnan(value_clean_with_nans))]
+    policy_refined = policy[np.where(~np.isnan(value_clean_with_nans))]
 
     return endog_grid_refined, value_refined, policy_refined
 

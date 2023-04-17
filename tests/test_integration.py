@@ -82,7 +82,7 @@ def test_benchmark_models(
     if params.loc[("utility_function", "theta"), "value"] == 1:
         utility_functions["utility"] = utiility_func_log_crra
 
-    policy_calculated, value_calculated = solve_dcegm(
+    endog_grid_calculated, policy_calculated, value_calculated = solve_dcegm(
         params,
         options,
         utility_functions,
@@ -109,11 +109,16 @@ def test_benchmark_models(
                 policy_expec = policy_expected[period][1 - choice].T
                 value_expec = value_expected[period][1 - choice].T
 
-            policy_got = policy_calculated[state_index, choice, :][
-                :,
-                ~np.isnan(policy_calculated[state_index, choice, :]).any(axis=0),
+            endog_grid_got = endog_grid_calculated[state_index, choice][
+                ~np.isnan(endog_grid_calculated[state_index, choice]),
             ]
-            aaae(policy_got, policy_expec)
+            aaae(endog_grid_got, policy_expec[0])
+
+            policy_got = policy_calculated[state_index, choice][
+                ~np.isnan(policy_calculated[state_index, choice]),
+            ]
+            aaae(policy_got, policy_expec[1])
+
             # In Fedor's upper envelope, there are two endogenous wealth grids;
             # one for the value function and a longer one for the policy function.
             # Since we want to unify the two endogoenous grids and want the refined
@@ -124,13 +129,8 @@ def test_benchmark_models(
             value_expec_interp = np.interp(
                 policy_expec[0], value_expec[0], value_expec[1]
             )
-            value_got = value_calculated[state_index, choice, 1][
-                ~np.isnan(value_calculated[state_index, choice, 1])
+            value_got = value_calculated[state_index, choice][
+                ~np.isnan(value_calculated[state_index, choice])
             ]
 
             aaae(value_got, value_expec_interp)
-
-            aaae(
-                policy_calculated[state_index, choice, 0],
-                value_calculated[state_index, choice, 0],
-            )

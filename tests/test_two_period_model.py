@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from dcegm.solve import solve_dcegm
+from numpy.testing import assert_allclose
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 from toy_models.consumption_retirement_model.final_period_solution import (
@@ -175,7 +176,7 @@ def input_data():
         "marginal_utility": marginal_utility,
     }
 
-    policy_calculated, _ = solve_dcegm(
+    endog_grid, policy, _ = solve_dcegm(
         params,
         options,
         utility_functions,
@@ -187,8 +188,9 @@ def input_data():
 
     out = {}
     out["params"] = params
-    out["policy"] = policy_calculated
     out["options"] = options
+    out["endog_grid"] = endog_grid
+    out["policy"] = policy
     return out
 
 
@@ -217,14 +219,12 @@ def test_two_period(input_data, wealth_id, state_id):
     initial_cond["health"] = state[-1]
 
     for choice_in_period_1 in choice_range:
-        calculated_policy_func = input_data["policy"][
-            state_id, choice_in_period_1, :, :
-        ]
-        wealth = calculated_policy_func[0, wealth_id + 1]
+        policy = input_data["policy"][state_id, choice_in_period_1]
+        wealth = input_data["endog_grid"][state_id, choice_in_period_1, wealth_id + 1]
         if ~np.isnan(wealth) and wealth > 0:
             initial_cond["wealth"] = wealth
 
-            cons_calc = calculated_policy_func[1, wealth_id + 1]
+            cons_calc = policy[wealth_id + 1]
             diff = euler_rhs(
                 initial_cond,
                 params_dict,
@@ -234,4 +234,4 @@ def test_two_period(input_data, wealth_id, state_id):
                 cons_calc,
             ) - marginal_utility(cons_calc, params_dict)
 
-            np.testing.assert_allclose(diff, 0, atol=1e-6)
+            assert_allclose(diff, 0, atol=1e-6)

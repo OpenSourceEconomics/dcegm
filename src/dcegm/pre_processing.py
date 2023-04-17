@@ -203,12 +203,14 @@ def create_multi_dim_arrays(
     n_choices = options["n_discrete_choices"]
     n_states = state_space.shape[0]
 
-    policy_arr = np.empty((n_states, n_choices, 2, int(1.1 * n_grid_wealth + 1)))
-    value_arr = np.empty((n_states, n_choices, 2, int(1.1 * n_grid_wealth + 1)))
+    endog_grid_arr = np.empty((n_states, n_choices, int(1.1 * n_grid_wealth + 1)))
+    policy_arr = np.empty((n_states, n_choices, int(1.1 * n_grid_wealth + 1)))
+    value_arr = np.empty((n_states, n_choices, int(1.1 * n_grid_wealth + 1)))
+    endog_grid_arr[:] = np.nan
     policy_arr[:] = np.nan
     value_arr[:] = np.nan
 
-    return policy_arr, value_arr
+    return endog_grid_arr, policy_arr, value_arr
 
 
 def get_possible_choices_array(
@@ -242,5 +244,5 @@ def get_possible_choices_array(
     return choices_array
 
 
-def _return_policy_and_value(policy, value, **kwargs):
-    return policy, value
+def _return_policy_and_value(endog_grid, policy, value, **kwargs):
+    return endog_grid, policy, value

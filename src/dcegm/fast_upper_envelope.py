@@ -16,6 +16,7 @@ from numba import njit
 
 
 def fast_upper_envelope_wrapper(
+    endog_grid: np.ndarray,
     policy: np.ndarray,
     value: np.ndarray,
     exog_grid: np.ndarray,
@@ -72,9 +73,6 @@ def fast_upper_envelope_wrapper(
             Shape (2, 1.1 * n_grid_wealth).
 
     """
-    endog_grid = np.copy(policy[0])
-    value = np.copy(value[1])
-    policy = np.copy(policy[1])
     n_grid_wealth = len(exog_grid)
 
     min_wealth_grid = np.min(endog_grid[1:])
@@ -110,17 +108,19 @@ def fast_upper_envelope_wrapper(
     )
 
     # Fill array with nans to fit 10% extra grid points
-    policy_refined_with_nans = np.empty((2, int(1.1 * n_grid_wealth)))
-    value_refined_with_nans = np.empty((2, int(1.1 * n_grid_wealth)))
+    endog_grid_refined_with_nans = np.empty(int(1.1 * n_grid_wealth))
+    policy_refined_with_nans = np.empty(int(1.1 * n_grid_wealth))
+    value_refined_with_nans = np.empty(int(1.1 * n_grid_wealth))
+    endog_grid_refined_with_nans[:] = np.nan
     policy_refined_with_nans[:] = np.nan
     value_refined_with_nans[:] = np.nan
 
-    policy_refined_with_nans[0, : policy_refined.shape[0]] = endog_grid_refined
-    policy_refined_with_nans[1, : policy_refined.shape[0]] = policy_refined
-    value_refined_with_nans[0, : value_refined.shape[0]] = endog_grid_refined
-    value_refined_with_nans[1, : value_refined.shape[0]] = value_refined
+    endog_grid_refined_with_nans[: len(endog_grid_refined)] = endog_grid_refined
+    policy_refined_with_nans[: len(policy_refined)] = policy_refined
+    value_refined_with_nans[: len(value_refined)] = value_refined
 
     return (
+        endog_grid_refined_with_nans,
         policy_refined_with_nans,
         value_refined_with_nans,
     )
@@ -170,7 +170,7 @@ def fast_upper_envelope(
         mask &= value < max_value_lower_bound
         value[mask] = np.nan
 
-    endog_grid = endog_grid[np.where(~np.isnan(value))]
+    endog_grid = endog_grid[np.where(~np.isnan(value))[0]]
     policy = policy[np.where(~np.isnan(value))]
     exog_grid = exog_grid[np.where(~np.isnan(value))]
     value = value[np.where(~np.isnan(value))]
