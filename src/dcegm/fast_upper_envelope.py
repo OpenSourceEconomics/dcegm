@@ -207,7 +207,7 @@ def scan_value_function(
     jump_thresh: float,
     n_points_to_scan: Optional[int] = 0,
 ):
-    """Scan the value function to remove suboptimal points and add itersection points.
+    """Scan the value function to remove suboptimal points and add intersection points.
 
     Args:
         value (np.ndarray): 1d array containing the unrefined value correspondence

@@ -4,10 +4,11 @@ from typing import Dict
 from typing import Tuple
 
 import numpy as np
+import pandas as pd
 from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
 
 
-def convert_params_to_dict(params):
+def convert_params_to_dict(params: pd.DataFrame) -> Dict[str, float]:
     """Transforms params DataFrame into a dictionary.
 
     Checks if given params DataFrame contains taste shock scale, interest rate
@@ -160,57 +161,53 @@ def calc_current_value(
 def create_multi_dim_arrays(
     state_space: np.ndarray,
     options: Dict[str, int],
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Create multi-dimensional array for storing the policy and value function.
-
-    Note that we add 10% extra space filled with nans, since, in the upper
-    envelope step, the endogenous wealth grid might be augmented to the left
-    in order to accurately describe potential non-monotonicities (and hence
-    discontinuities) near the start of the grid.
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Create multi-dimensional arrays for endogenous grid, policy and value function.
 
     We include one additional grid point (n_grid_wealth + 1) to M,
     since we want to set the first position (j=0) to M_t = 0 for all time
     periods.
 
-    Moreover, the lists have variable length, because the Upper Envelope step
-    drops suboptimal points from the original grid and adds new ones (kink
-    points as well as the corresponding interpolated values of the consumption
-    and value functions).
+    Moreover, we add 10% extra space filled with nans, since, in the upper
+    envelope step, the endogenous wealth grid might be augmented to the left
+    in order to accurately describe potential non-monotonicities (and hence
+    discontinuities) near the start of the grid.
+
+
+    Note that, in the Upper Envelope step, we drop suboptimal points from the original
+    grid and add new ones (kink points as well as the corresponding interpolated values
+    of the policy and value functions).
 
     Args:
         state_space (np.ndarray): Collection of all possible states.
         options (dict): Options dictionary.
 
-
     Returns:
         tuple:
 
-        - policy (np.ndarray): Multi-dimensional np.ndarray storing the
-            choice-specific policy function; of shape
-            [n_states, n_discrete_choices, 2, 1.1 * (n_grid_wealth + 1)].
-            Position [.., 0, :] contains the endogenous grid over wealth M,
-            and [.., 1, :] stores the corresponding value of the policy function
-            c(M, d), for each state and each discrete choice.
-        - value (np.ndarray): Multi-dimensional np.ndarray storing the
-            choice-specific value functions; of shape
-            [n_states, n_discrete_choices, 2, 1.1 * (n_grid_wealth + 1)].
-            Position [.., 0, :] contains the endogenous grid over wealth M,
-            and [.., 1, :] stores the corresponding value of the value function
-            v(M, d), for each state and each discrete choice.
+        - endog_grid_container (np.ndarray): "Empty" 3d np.ndarray storing the
+            endogenous grid for each state and each discrete choice.
+            Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
+        - policy_container (np.ndarray): "Empty" 3d np.ndarray storing the
+            choice-specific policy function for each state and each discrete choice
+            Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
+        - value_container (np.ndarray): "Empty" 3d np.ndarray storing the
+            choice-specific value functions for each state and each discrete choice.
+            Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
 
     """
     n_grid_wealth = options["grid_points_wealth"]
     n_choices = options["n_discrete_choices"]
     n_states = state_space.shape[0]
 
-    endog_grid_arr = np.empty((n_states, n_choices, int(1.1 * n_grid_wealth + 1)))
-    policy_arr = np.empty((n_states, n_choices, int(1.1 * n_grid_wealth + 1)))
-    value_arr = np.empty((n_states, n_choices, int(1.1 * n_grid_wealth + 1)))
-    endog_grid_arr[:] = np.nan
-    policy_arr[:] = np.nan
-    value_arr[:] = np.nan
+    endog_grid_container = np.empty((n_states, n_choices, int(1.1 * n_grid_wealth)))
+    policy_container = np.empty((n_states, n_choices, int(1.1 * n_grid_wealth)))
+    value_container = np.empty((n_states, n_choices, int(1.1 * n_grid_wealth)))
+    endog_grid_container[:] = np.nan
+    policy_container[:] = np.nan
+    value_container[:] = np.nan
 
-    return endog_grid_arr, policy_arr, value_arr
+    return endog_grid_container, policy_container, value_container
 
 
 def get_possible_choices_array(

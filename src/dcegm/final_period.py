@@ -53,12 +53,26 @@ def final_period_wrapper(
     Returns:
         tuple:
 
-        - endog_grid_final (np.ndarray): The endogenous wealth grid for all final states
-            and end of period assets from the period before.
-        - final_policy (np.ndarray): The optimal policy defined on the endogenous
-            wealth grid.
-        - final_value (np.ndarray): The value function defined on the endogenous
-            wealth grid.
+        - endog_grid_final (np.ndarray): 4d array of shape
+            (n_states, n_choices, n_grid_wealth, n_income_shocks) of the
+            endogenous wealth grid for all final states, choices, and
+            end of period assets from the period before.
+        - final_policy (np.ndarray): 4d array of shape
+            (n_states, n_choices, n_grid_wealth, n_income_shocks) of the optimal
+            policy for all final states, choices, end of period assets, and
+            income shocks.
+        - final_value (np.ndarray): 4d array of shape
+            (n_states, n_choices, n_grid_wealth, n_income_shocks) of the optimal
+            value function for all final states, choices, end of period assets, and
+            income shocks.
+        - marginal_utilities_choices (np.ndarray): 4d array of shape
+            (n_states, n_choices, n_grid_wealth, n_income_shocks) of the optimal
+            value function for all final states, choices, end of period assets, and
+            income shocks.
+        - max_exp_values (np.ndarray): 4d array of shape
+            (n_states, n_choices, n_grid_wealth, n_income_shocks) of the optimal
+            value function for all final states, choices, end of period assets, and
+            income shocks.
         - marginal_utilities_choices (np.ndarray): The marginal utility of consumption
             for all final states, end of period asset and income wealth grid.
         - max_exp_values (np.ndarray): The maximum expected value of the value function
@@ -108,13 +122,14 @@ def final_period_wrapper(
     # Weight all draws and aggregate over choices
     marginal_utils_draws, max_exp_values_draws = vmap(
         vmap(
-            vmap(partial_aggregate, in_axes=(None, 1, 1, 0)), in_axes=(None, 1, 1, None)
+            vmap(partial_aggregate, in_axes=(1, 1, None, 0)),
+            in_axes=(1, 1, None, None),
         ),
         in_axes=(0, 0, 0, None),
     )(
-        choices_final,
-        marginal_utilities_choices,
         final_value,
+        marginal_utilities_choices,
+        choices_final,
         income_shock_weights,
     )
 
@@ -126,12 +141,14 @@ def final_period_wrapper(
     # with respect to the draws
     middle_of_draws = int(income_shock_draws.shape[0] + 1 / 2)
 
+    # breakpoint()
+
     return (
         np.repeat(
             resources_last_period[:, np.newaxis, :, middle_of_draws], n_choices, axis=1
         ),
-        final_policy[:, :, :, middle_of_draws],
-        final_value[:, :, :, middle_of_draws],
+        final_policy[..., middle_of_draws],
+        final_value[..., middle_of_draws],
         marginal_utils,
         max_exp_values,
     )
