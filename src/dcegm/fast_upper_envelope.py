@@ -16,6 +16,7 @@ from numba import njit
 
 
 def fast_upper_envelope_wrapper(
+    endog_grid: np.ndarray,
     policy: np.ndarray,
     value: np.ndarray,
     exog_grid: np.ndarray,
@@ -46,35 +47,28 @@ def fast_upper_envelope_wrapper(
     subsequent periods t + 1, t + 2, ..., T under the optimal consumption policy.
 
     Args:
-        policy (np.ndarray): Array of choice-specific consumption policy
-            of shape (2, n_grid_wealth).
-            Position [0, :] of the arrays contain the endogenous grid over wealth M,
-            and [1, :] stores the corresponding value of the (consumption) policy
-            function c(M, d), for each time period and each discrete choice.
-        value (np.ndarray): Array of choice-specific value function
-            of shape (2, n_grid_wealth).
-            Position [0, :] of the array contains the endogenous grid over wealth M,
-            and [1, :] stores the corresponding value of the value function v(M, d),
-            for each time period and each discrete choice.
-        exog_grid (np.ndarray): 1d array of exogenous savings grid of shape
-            (n_grid_wealth,).
+        endog_grid (np.ndarray): 1d array of shape (n_grid_wealth + 1,)
+            containing the current state- and choice-specific endogenous grid.
+        policy (np.ndarray): 1d array of shape (n_grid_wealth + 1,)
+            containing the current state- and choice-specific policy function.
+        value (np.ndarray): 1d array of shape (n_grid_wealth + 1,)
+            containing the current state- and choice-specific value function.
+        exog_grid (np.ndarray): 1d array of shape (n_grid_wealth,) of the
+            exogenous savings grid.
         choice (int): The current choice.
         compute_value (callable): Function to compute the agent's value.
 
     Returns:
         tuple:
 
-        - policy_refined_with_nans (np.ndarray): Worker's *refined* (consumption) policy
-            function of the current period, where suboptimal points have been dropped.
-            Shape (2, 1.1 * n_grid_wealth).
-        - value_refined_with_nans (np.ndarray): Worker's *refined* value function of the
-            current period, where suboptimal points have been dropped.
-            Shape (2, 1.1 * n_grid_wealth).
+        - endog_grid_refined (np.ndarray): 1d array of shape (1.1 * n_grid_wealth,)
+            containing the refined state- and choice-specific endogenous grid.
+        - policy_refined_with_nans (np.ndarray): 1d array of shape (1.1 * n_grid_wealth)
+            containing refined state- and choice-specificconsumption policy.
+        - value_refined_with_nans (np.ndarray): 1d array of shape (1.1 * n_grid_wealth)
+            containing refined state- and choice-specific value function.
 
     """
-    endog_grid = np.copy(policy[0])
-    value = np.copy(value[1])
-    policy = np.copy(policy[1])
     n_grid_wealth = len(exog_grid)
 
     min_wealth_grid = np.min(endog_grid[1:])
@@ -110,17 +104,19 @@ def fast_upper_envelope_wrapper(
     )
 
     # Fill array with nans to fit 10% extra grid points
-    policy_refined_with_nans = np.empty((2, int(1.1 * n_grid_wealth)))
-    value_refined_with_nans = np.empty((2, int(1.1 * n_grid_wealth)))
+    endog_grid_refined_with_nans = np.empty(int(1.1 * n_grid_wealth))
+    policy_refined_with_nans = np.empty(int(1.1 * n_grid_wealth))
+    value_refined_with_nans = np.empty(int(1.1 * n_grid_wealth))
+    endog_grid_refined_with_nans[:] = np.nan
     policy_refined_with_nans[:] = np.nan
     value_refined_with_nans[:] = np.nan
 
-    policy_refined_with_nans[0, : policy_refined.shape[0]] = endog_grid_refined
-    policy_refined_with_nans[1, : policy_refined.shape[0]] = policy_refined
-    value_refined_with_nans[0, : value_refined.shape[0]] = endog_grid_refined
-    value_refined_with_nans[1, : value_refined.shape[0]] = value_refined
+    endog_grid_refined_with_nans[: len(endog_grid_refined)] = endog_grid_refined
+    policy_refined_with_nans[: len(policy_refined)] = policy_refined
+    value_refined_with_nans[: len(value_refined)] = value_refined
 
     return (
+        endog_grid_refined_with_nans,
         policy_refined_with_nans,
         value_refined_with_nans,
     )
@@ -170,7 +166,7 @@ def fast_upper_envelope(
         mask &= value < max_value_lower_bound
         value[mask] = np.nan
 
-    endog_grid = endog_grid[np.where(~np.isnan(value))]
+    endog_grid = endog_grid[np.where(~np.isnan(value))[0]]
     policy = policy[np.where(~np.isnan(value))]
     exog_grid = exog_grid[np.where(~np.isnan(value))]
     value = value[np.where(~np.isnan(value))]
@@ -211,12 +207,12 @@ def scan_value_function(
     jump_thresh: float,
     n_points_to_scan: Optional[int] = 0,
 ):
-    """Scan the value function to remove suboptimal points and add itersection points.
+    """Scan the value function to remove suboptimal points and add intersection points.
 
     Args:
         value (np.ndarray): 1d array containing the unrefined value correspondence
             of shape (n_grid_wealth + 1,).
-        polcy (np.ndarray): 1d array containing the unrefined policy correspondence
+        policy (np.ndarray): 1d array containing the unrefined policy correspondence
             of shape (n_grid_wealth + 1,).
         endog_grid (np.ndarray): 1d array containing the unrefined endogenous wealth
             grid of shape (n_grid_wealth + 1,).

@@ -527,6 +527,7 @@ def _augment_grid(
     compute_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Extends the endogenous wealth grid, value, and policy function to the left.
+
     Args:
         policy (np.ndarray):  Array storing the choice-specific
             policy function. Shape (2, *n_endog_wealth_grid*), where
@@ -552,6 +553,7 @@ def _augment_grid(
         value_augmented (np.ndarray): Array containing endogenous grid and
             value function with ancillary points added to the left.
             Shape (2, *n_grid_augmented*).
+
     """
     grid_points_to_add = np.linspace(min_wealth_grid, value[0, 1], n_grid_wealth // 10)[
         :-1
@@ -582,6 +584,7 @@ def _partition_grid(
     value_correspondence: np.ndarray, j: int
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Splits the grid into two parts, 1,..., j and j, j+1,..., J.
+
     Note that the index ``j``, after which the separation occurs,
     is also included in the second partition.
     Args:
@@ -598,6 +601,7 @@ def _partition_grid(
             partition.
         part_two (np.ndarray): Array of shape (2, ``j``:) containing the second
             partition.
+
     """
     j = min(j, value_correspondence.shape[1])
 

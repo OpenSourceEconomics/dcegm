@@ -64,16 +64,17 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
 
     choice, exogenous_savings_grid, compute_value = setup_model
 
-    policy_refined, value_refined = fast_upper_envelope_wrapper(
-        value=value_egm,
-        policy=policy_egm,
+    endog_grid_refined, policy_refined, value_refined = fast_upper_envelope_wrapper(
+        endog_grid=policy_egm[0],
+        policy=policy_egm[1],
+        value=value_egm[1],
         exog_grid=np.append(0, exogenous_savings_grid),
         choice=choice,
         compute_value=compute_value,
     )
-    endog_grid_got = policy_refined[0, :][~np.isnan(policy_refined[0, :])]
-    policy_got = policy_refined[1, :][~np.isnan(policy_refined[1, :]),]
-    value_got = value_refined[1, :][~np.isnan(value_refined[1, :])]
+    endog_grid_got = endog_grid_refined[~np.isnan(endog_grid_refined)]
+    policy_got = policy_refined[~np.isnan(policy_refined)]
+    value_got = value_refined[~np.isnan(value_refined)]
 
     aaae(endog_grid_got, policy_expected[0])
     aaae(policy_got, policy_expected[1])
@@ -99,24 +100,22 @@ def test_fast_upper_envelope_against_org_fues(setup_model):
         exog_grid=np.append(0, exogenous_savings_grid),
     )
 
-    policy_org, value_org = fast_upper_envelope_wrapper_org(
-        policy=policy_egm,
-        value=value_egm,
+    endog_grid_org, policy_org, value_org = fast_upper_envelope_wrapper_org(
+        endog_grid=policy_egm[0],
+        policy=policy_egm[1],
+        value=value_egm[1],
         exog_grid=exogenous_savings_grid,
         choice=choice,
         compute_value=compute_value,
     )
 
-    policy_expected = policy_org[:, ~np.isnan(policy_org).any(axis=0)]
-    value_expected = value_org[
-        :,
-        ~np.isnan(value_org).any(axis=0),
-    ]
+    endog_grid_expected = endog_grid_org[~np.isnan(endog_grid_org)]
+    policy_expected = policy_org[~np.isnan(policy_org)]
+    value_expected = value_org[~np.isnan(value_org)]
 
-    assert np.all(np.in1d(value_expected[0, :], endog_grid_refined))
-    assert np.all(np.in1d(value_expected[1, :], value_refined))
-    assert np.all(np.in1d(policy_expected[0, :], endog_grid_refined))
-    assert np.all(np.in1d(policy_expected[1, :], policy_refined))
+    assert np.all(np.in1d(endog_grid_expected, endog_grid_refined))
+    assert np.all(np.in1d(policy_expected, policy_refined))
+    assert np.all(np.in1d(value_expected, value_refined))
 
 
 @pytest.mark.parametrize("period", [2, 4, 10, 9, 18])
@@ -143,16 +142,17 @@ def test_fast_upper_envelope_against_fedor(period, setup_model):
         ~np.isnan(_value_fedor).any(axis=0),
     ]
 
-    _policy_fues, _value_fues = fast_upper_envelope_wrapper(
-        value=value_egm,
-        policy=policy_egm,
+    _endog_grid_fues, _policy_fues, _value_fues = fast_upper_envelope_wrapper(
+        endog_grid=policy_egm[0],
+        policy=policy_egm[1],
+        value=value_egm[1],
         exog_grid=np.append(0, exogenous_savings_grid),
         choice=choice,
         compute_value=compute_value,
     )
-    endog_grid_got = _policy_fues[0, :][~np.isnan(_policy_fues[0, :])]
-    policy_got = _policy_fues[1, :][~np.isnan(_policy_fues[1, :]),]
-    value_got = _value_fues[1, :][~np.isnan(_value_fues[1, :])]
+    endog_grid_got = _endog_grid_fues[~np.isnan(_endog_grid_fues)]
+    policy_got = _policy_fues[~np.isnan(_policy_fues)]
+    value_got = _value_fues[~np.isnan(_value_fues)]
 
     aaae(endog_grid_got, policy_expected[0])
     aaae(policy_got, policy_expected[1])

@@ -14,6 +14,7 @@ def get_values_and_marginal_utilities(
     choice_values_child_state: jnp.ndarray,
 ):
     """Interpolate marginal utilities and value functions.
+
     Args:
         compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility. The input ```params``` is already partialled in.
@@ -301,7 +302,6 @@ def linear_interpolation_with_extrapolation(x, y, x_new):
             values are extrapolated.
 
     """
-
     # make sure that the function also works for unsorted x-arrays
     # taken from scipy.interpolate.interp1d
     ind = np.argsort(x)

@@ -3,9 +3,9 @@ from itertools import product
 import numpy as np
 import pytest
 from dcegm.final_period import final_period_wrapper
+from dcegm.pre_processing import convert_params_to_dict
 from dcegm.pre_processing import get_partial_functions
 from dcegm.pre_processing import get_possible_choices_array
-from dcegm.pre_processing import params_todict
 from jax import vmap
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
@@ -13,7 +13,7 @@ from toy_models.consumption_retirement_model.exogenous_processes import (
     get_transition_matrix_by_state,
 )
 from toy_models.consumption_retirement_model.final_period_solution import (
-    solve_final_period,
+    solve_final_period_scalar,
 )
 from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space,
@@ -56,7 +56,7 @@ def test_consume_everything_in_final_period(
         options,
     )
 
-    params_dict = params_todict(params)
+    params_dict = convert_params_to_dict(params)
 
     condition_final_period = np.where(state_space[:, 0] == n_periods - 1)
     states_final_period = state_space[condition_final_period]
@@ -76,10 +76,11 @@ def test_consume_everything_in_final_period(
     (
         compute_utility,
         compute_marginal_utility,
-        compute_inverse_marginal_utility,
-        compute_value,
+        _compute_inverse_marginal_utility,
+        _compute_value,
         compute_next_period_wealth,
-        transition_vector_by_state,
+        _compute_upper_envelope,
+        _transition_vector_by_state,
     ) = get_partial_functions(
         params_dict=params_dict,
         options=options,
@@ -90,11 +91,11 @@ def test_consume_everything_in_final_period(
 
     income_draws = np.array([0, 0, 0])
 
-    resources_final, policy_final, value_final, _, _ = final_period_wrapper(
+    endog_grid_final, policy_final, value_final, _, _ = final_period_wrapper(
         final_period_states=states_final_period,
         options=options,
         compute_utility=compute_utility,
-        final_period_solution=solve_final_period,
+        final_period_solution=solve_final_period_scalar,
         choices_final=choice_array_final,
         compute_next_period_wealth=compute_next_period_wealth,
         compute_marginal_utility=compute_marginal_utility,
@@ -111,12 +112,12 @@ def test_consume_everything_in_final_period(
             )(state, savings_grid, 0.00)
 
             aaae(
-                resources_final[state_ind],
+                endog_grid_final[state_ind, choice],
                 begin_of_period_resources,
             )
 
             aaae(
-                policy_final[state_ind, choice, :],
+                policy_final[state_ind, choice],
                 begin_of_period_resources,
             )
 
@@ -124,6 +125,6 @@ def test_consume_everything_in_final_period(
                 begin_of_period_resources, choice
             )
             aaae(
-                value_final[state_ind, choice, :],
+                value_final[state_ind, choice],
                 expected_value,
             )
