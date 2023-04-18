@@ -6,7 +6,7 @@ from typing import Tuple
 import numpy as np
 
 
-def solve_final_period(
+def solve_final_period_scalar(
     state: np.ndarray,  # noqa: U100
     begin_of_period_resources: float,
     choice: int,
@@ -15,7 +15,7 @@ def solve_final_period(
     compute_utility: Callable,
     compute_marginal_utility: Callable,
 ) -> Tuple[float, float]:
-    """Computes solution to final period for policy and value function.
+    """Compute optimal consumption policy and value function in the final period.
 
     In the last period, everything is consumed, i.e. consumption = savings.
 
@@ -31,7 +31,7 @@ def solve_final_period(
     Returns:
         tuple:
 
-        - consumption (float): The agent's consumption.
+        - consumption (float): The agent's consumption in the final period.
         - value (float): The agent's value in the final period.
         - marginal_utility (float): The agent's marginal utility .
 

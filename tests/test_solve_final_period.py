@@ -13,7 +13,7 @@ from toy_models.consumption_retirement_model.exogenous_processes import (
     get_transition_matrix_by_state,
 )
 from toy_models.consumption_retirement_model.final_period_solution import (
-    solve_final_period,
+    solve_final_period_scalar,
 )
 from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space,
@@ -95,7 +95,7 @@ def test_consume_everything_in_final_period(
         final_period_states=states_final_period,
         options=options,
         compute_utility=compute_utility,
-        final_period_solution=solve_final_period,
+        final_period_solution=solve_final_period_scalar,
         choices_final=choice_array_final,
         compute_next_period_wealth=compute_next_period_wealth,
         compute_marginal_utility=compute_marginal_utility,

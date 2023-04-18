@@ -14,7 +14,7 @@ from numpy.testing import assert_allclose
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 from toy_models.consumption_retirement_model.final_period_solution import (
-    solve_final_period,
+    solve_final_period_scalar,
 )
 from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space,
@@ -181,7 +181,7 @@ def input_data():
         options,
         utility_functions,
         budget_constraint=budget_dcegm,
-        final_period_solution=solve_final_period,
+        final_period_solution=solve_final_period_scalar,
         state_space_functions=state_space_functions,
         user_transition_function=transitions_dcegm,
     )

@@ -44,14 +44,12 @@ def compute_optimal_policy_and_value(
     Returns:
         tuple:
 
-        - current_policy_arr (np.ndarray): 2d array of the agent's period- and
-            choice-specific consumption policy. Shape (2, n_grid_wealth + 1).
-            Position [0,:] contains the endogenous grid over wealth M, and [1, :]
-            stores the corresponding value of the policy function c(M, d).
-        - current_policy_arr (np.ndarray): 2d array of the agent's period- and
-            choice-specific value function. Shape (2, n_grid_wealth + 1).
-            Position [0, :] contains the endogenous grid over wealth M, and [1, :]
-            stores the corresponding value of the value function v(M, d).
+        - endog_grid (np.ndarray): 1d array of shape (n_grid_wealth + 1,)
+            containing the current state- and choice-specific endogenous grid.
+        - policy (np.ndarray): 1d array of shape (n_grid_wealth + 1,)
+            containing the current state- and choice-specific policy function.
+        - value (np.ndarray): 1d array of shape (n_grid_wealth + 1,)
+            containing the current state- and choice-specific value function.
 
     """
     n_grid_wealth = exogenous_savings_grid.shape[0]
@@ -106,10 +104,10 @@ def solve_euler_equation(
     Returns:
         tuple:
 
-        - policy (np.ndarray): 1d array of the agent's current choice-specific
-            consumption policy. Has shape (n_grid_wealth,).
-        - expected_value (np.ndarray): 1d array of the agent's current choice-specific
-            expected value. Has shape (n_grid_wealth,).
+        - policy (np.ndarray): 1d array of the agent's current state- and
+            choice-specific consumption policy. Has shape (n_grid_wealth,).
+        - expected_value (np.ndarray): 1d array of the agent's current state- and
+            choice-specific expected value. Has shape (n_grid_wealth,).
 
     """
     # Integrate out uncertainty over exogenous process
@@ -121,55 +119,3 @@ def solve_euler_equation(
     policy = compute_inverse_marginal_utility(rhs_euler)
 
     return policy, expected_value
-
-
-# def _create_current_policy_and_value_array(
-#     current_policy: np.ndarray,
-#     expected_value: np.ndarray,
-#     current_choice: float,
-#     exogenous_savings_grid: np.ndarray,
-#     compute_value,
-# ) -> Tuple[np.ndarray, np.ndarray]:
-#     """Store the current period policy and value functions.
-
-#     Args:
-#         current_policy (np.ndarray): 1d array of shape (n_grid_wealth,)
-#             containing the agent's current period policy rule.
-#         expected_value (np.ndarray): (np.ndarray): 1d array of shape (n_grid_wealth,)
-#             containing the agent's expected value of the next period.
-#         current_choice (int): The current discrete choice.
-#         exogenous_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
-#             containing the exogenous savings grid.
-#         compute_value (callable): Function for calculating the value from consumption
-#             level, discrete choice and expected value. The inputs ```discount_rate```
-#             and ```compute_utility``` are already partialled in.
-
-#     Returns:
-#         tuple:
-
-#         - current_policy_container (np.ndarray): 2d array of the agent's period-
-#             and choice-specific consumption policy. Shape (2, n_grid_wealth + 1).
-#             Position [0,:] contains the endogenous grid over wealth M, and [1, :]
-#             stores the corresponding value of the policy function c(M, d).
-#         - current_value_container (np.ndarray): 2d array of the agent's period-
-#             and choice-specific value function. Shape (2, n_grid_wealth + 1).
-#             Position [0, :] contains the endogenous grid over wealth M,
-#             and [1, :] stores the corresponding value of the value function v(M, d).
-
-#     """
-#     n_grid_wealth = exogenous_savings_grid.shape[0]
-
-#     endogenous_wealth_grid = exogenous_savings_grid + current_policy
-
-#     current_policy_container = np.zeros((2, n_grid_wealth + 1))
-#     current_policy_container[0, 1:] = endogenous_wealth_grid
-#     current_policy_container[1, 1:] = current_policy
-
-#     current_value_container = np.zeros((2, n_grid_wealth + 1))
-#     current_value_container[0, 1:] = endogenous_wealth_grid
-#     current_value_container[1, 0] = expected_value[0]
-#     current_value_container[1, 1:] = compute_value(
-#         current_policy, expected_value, current_choice
-#     )
-
-#     return current_policy_container, current_value_container

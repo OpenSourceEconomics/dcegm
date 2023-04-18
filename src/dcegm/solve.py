@@ -54,19 +54,15 @@ def solve_dcegm(
     Returns:
         tuple:
 
-        - policy (np.ndarray): Multi-dimensional np.ndarray storing the
-            choice-specific policy function; of shape
-            [n_states, n_discrete_choices, 2, 1.1 * n_grid_wealth].
-            Position [.., 0, :] contains the endogenous grid over wealth M,
-            and [.., 1, :] stores the corresponding value of the policy function
-            c(M, d), for each state and each discrete choice.
-
-        - value (np.ndarray): Multi-dimensional np.ndarray storing the
-            choice-specific value functions; of shape
-            [n_states, n_discrete_choices, 2, 1.1 * n_grid_wealth].
-            Position [.., 0, :] contains the endogenous grid over wealth M,
-            and [.., 1, :] stores the corresponding value of the value function
-            v(M, d), for each state and each discrete choice.
+        - endog_grid_container (np.ndarray): "Filled" 3d array containing the
+            endogenous grid for each state and each discrete choice.
+            Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
+        - policy_container (np.ndarray): "Filled" 3d array containing the
+            choice-specific policy function for each state and each discrete choice
+            Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
+        - value_container (np.ndarray): "Filled" 3d array containing the
+            choice-specific value functions for each state and each discrete choice.
+            Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
 
     """
     params_dict = convert_params_to_dict(params)
@@ -211,18 +207,15 @@ def backwards_induction(
         choice_set_array (np.ndarray): binary array indicating if choice is possible.
         transition_vector_by_state (Callable): Partialled transition function return
             transition vector for each state.
-        policy_array (np.ndarray): Multi-dimensional np.ndarray storing the
-            choice-specific policy function; of shape
-            [n_states, n_discrete_choices, 2, 1.1 * n_grid_wealth].
-            Position [.., 0, :] contains the endogenous grid over wealth M,
-            and [.., 1, :] stores the corresponding value of the policy function
-            c(M, d), for each state and each discrete choice.
-        value_array (np.ndarray): Multi-dimensional np.ndarray storing the
-            choice-specific value functions; of shape
-            [n_states, n_discrete_choices, 2, 1.1 * n_grid_wealth].
-            Position [.., 0, :] contains the endogenous grid over wealth M,
-            and [.., 1, :] stores the corresponding value of the value function
-            v(M, d), for each state and each discrete choice.
+        endog_grid_container (np.ndarray): "Empty" 3d np.ndarray storing the
+            endogenous grid for each state and each discrete choice.
+            Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
+        policy_container (np.ndarray): "Empty" 3d np.ndarray storing the
+            choice-specific policy function for each state and each discrete choice
+            Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
+        value_container (np.ndarray): "Empty" 3d np.ndarray storing the
+            choice-specific value functions for each state and each discrete choice.
+            Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
         compute_upper_envelope (Callable): Function for calculating the upper envelope
             of the policy and value function. If the number of discrete choices is 1,
             this function is a dummy function that returns the policy and value
@@ -234,19 +227,15 @@ def backwards_induction(
     Returns:
         tuple:
 
-        - policy (np.ndarray): Multi-dimensional np.ndarray storing the
-            choice-specific policy function; of shape
-            [n_states, n_discrete_choices, 2, 1.1 * n_grid_wealth].
-            Position [.., 0, :] contains the endogenous grid over wealth M,
-            and [.., 1, :] stores the corresponding value of the policy function
-            c(M, d), for each state and each discrete choice.
-
-        - value (np.ndarray): Multi-dimensional np.ndarray storing the
-            choice-specific value functions; of shape
-            [n_states, n_discrete_choices, 2, 1.1 * n_grid_wealth].
-            Position [.., 0, :] contains the endogenous grid over wealth M,
-            and [.., 1, :] stores the corresponding value of the value function
-            v(M, d), for each state and each discrete choice.
+        - endog_grid_container (np.ndarray): "Filled" 3d array containing the
+            endogenous grid for each state and each discrete choice.
+            Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
+        - policy_container (np.ndarray): "Filled" 3d array containing the
+            choice-specific policy function for each state and each discrete choice
+            Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
+        - value_container (np.ndarray): "Filled" 3d array containing the
+            choice-specific value functions for each state and each discrete choice.
+            Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
 
     """
     marginal_utilities = np.full(

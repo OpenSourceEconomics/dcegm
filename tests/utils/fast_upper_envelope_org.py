@@ -44,28 +44,26 @@ def fast_upper_envelope_wrapper_org(
     subsequent periods t + 1, t + 2, ..., T under the optimal consumption policy.
 
     Args:
-        policy (np.ndarray): Array of choice-specific consumption policy
-            of shape (2, n_grid_wealth).
-            Position [0, :] of the arrays contain the endogenous grid over wealth M,
-            and [1, :] stores the corresponding value of the (consumption) policy
-            function c(M, d), for each time period and each discrete choice.
-        value (np.ndarray): Array of choice-specific value function
-            of shape (2, n_grid_wealth).
-            Position [0, :] of the array contains the endogenous grid over wealth M,
-            and [1, :] stores the corresponding value of the value function v(M, d),
-            for each time period and each discrete choice.
+        endog_grid (np.ndarray): 1d array of shape (n_grid_wealth + 1,)
+            containing the current state- and choice-specific endogenous grid.
+        policy (np.ndarray): 1d array of shape (n_grid_wealth + 1,)
+            containing the current state- and choice-specific policy function.
+        value (np.ndarray): 1d array of shape (n_grid_wealth + 1,)
+            containing the current state- and choice-specific value function.
+        exog_grid (np.ndarray): 1d array of shape (n_grid_wealth,) of the
+            exogenous savings grid.
         choice (int): The current choice.
         compute_value (callable): Function to compute the agent's value.
 
     Returns:
         tuple:
 
-        - policy_refined (np.ndarray): Worker's *refined* (consumption) policy
-            function of the current period, where suboptimal points have been dropped.
-            Shape (2, 1.1 * n_grid_wealth).
-        - value_refined (np.ndarray): Worker's *refined* value function of the
-            current period, where suboptimal points have been dropped.
-            Shape (2, 1.1 * n_grid_wealth).
+        - endog_grid_refined (np.ndarray): 1d array of shape (1.1 * n_grid_wealth,)
+            containing the refined state- and choice-specific endogenous grid.
+        - policy_refined_with_nans (np.ndarray): 1d array of shape (1.1 * n_grid_wealth)
+            containing refined state- and choice-specificconsumption policy.
+        - value_refined_with_nans (np.ndarray): 1d array of shape (1.1 * n_grid_wealth)
+            containing refined state- and choice-specific value function.
 
     """
     n_grid_wealth = len(exog_grid)
