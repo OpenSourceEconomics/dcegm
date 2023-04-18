@@ -73,10 +73,6 @@ def final_period_wrapper(
             (n_states, n_choices, n_grid_wealth, n_income_shocks) of the optimal
             value function for all final states, choices, end of period assets, and
             income shocks.
-        - marginal_utilities_choices (np.ndarray): The marginal utility of consumption
-            for all final states, end of period asset and income wealth grid.
-        - max_exp_values (np.ndarray): The maximum expected value of the value function
-            for all final states, end of period asset and income wealth grid.
 
     """
     n_choices = options["n_discrete_choices"]

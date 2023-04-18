@@ -18,8 +18,8 @@ def compute_optimal_policy_and_value(
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Compute optimal choice- and child-state specific policy and value function.
 
-    Given the marginal utilities of possible child states and next period wealth we
-    compute the optimal policy and current value functions by solving the euler equation
+    Given the marginal utilities of possible child states and next period wealth, we
+    compute the optimal policy and value functions by solving the euler equation
     and using the optimal consumption level in the bellman equation.
 
     Args:

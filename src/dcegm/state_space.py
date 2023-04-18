@@ -31,9 +31,9 @@ def get_child_states(
             containing all child nodes the agent can reach from her given state.
 
     """
-    # Exogenous processes are always on the last entry of the state space. We also treat
-    # them all admissible in each period. If there exists a absorbing state, this is
-    # reflected by 0 transition probability.
+    # Exogenous processes are always on the last entry of the state space. Moreover, we
+    # treat all of them as admissible in each period. If there exists a absorbing state,
+    # this is reflected by a 0 percent transition probability.
     n_exog_processes = indexer.shape[-1]
 
     # Get all admissible choices.

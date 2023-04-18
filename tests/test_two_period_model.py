@@ -183,7 +183,7 @@ def input_data():
         budget_constraint=budget_dcegm,
         final_period_solution=solve_final_period_scalar,
         state_space_functions=state_space_functions,
-        user_transition_function=transitions_dcegm,
+        transition_function=transitions_dcegm,
     )
 
     out = {}
