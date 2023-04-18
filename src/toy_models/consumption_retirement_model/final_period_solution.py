@@ -1,3 +1,4 @@
+"""User-supplied function for the final period."""
 from typing import Callable
 from typing import Dict
 from typing import Tuple
@@ -6,10 +7,10 @@ import numpy as np
 
 
 def solve_final_period(
-    state: np.ndarray,
+    state: np.ndarray,  # noqa: U100
     begin_of_period_resources: float,
     choice: int,
-    options: Dict[str, int],
+    options: Dict[str, int],  # noqa: U100
     params_dict: dict,  # noqa: U100
     compute_utility: Callable,
     compute_marginal_utility: Callable,
@@ -28,7 +29,7 @@ def solve_final_period(
         compute_marginal_utility (callable): Function for computation of agent's
 
     Returns:
-        (tuple): Tuple containing
+        tuple:
 
         - consumption (float): The agent's consumption.
         - value (float): The agent's value in the final period.

@@ -91,7 +91,7 @@ def test_consume_everything_in_final_period(
 
     income_draws = np.array([0, 0, 0])
 
-    resources_final, policy_final, value_final, _, _ = final_period_wrapper(
+    endog_grid_final, policy_final, value_final, _, _ = final_period_wrapper(
         final_period_states=states_final_period,
         options=options,
         compute_utility=compute_utility,
@@ -112,12 +112,12 @@ def test_consume_everything_in_final_period(
             )(state, savings_grid, 0.00)
 
             aaae(
-                resources_final[state_ind],
+                endog_grid_final[state_ind, choice],
                 begin_of_period_resources,
             )
 
             aaae(
-                policy_final[state_ind, choice, :],
+                policy_final[state_ind, choice],
                 begin_of_period_resources,
             )
 
@@ -125,6 +125,6 @@ def test_consume_everything_in_final_period(
                 begin_of_period_resources, choice
             )
             aaae(
-                value_final[state_ind, choice, :],
+                value_final[state_ind, choice],
                 expected_value,
             )
