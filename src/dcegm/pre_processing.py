@@ -241,5 +241,8 @@ def get_possible_choices_array(
     return choices_array
 
 
-def _return_policy_and_value(endog_grid, policy, value, **kwargs):
+def _return_policy_and_value(endog_grid, policy, value, min_exp_value, **kwargs):
+    endog_grid = np.append(0, endog_grid)
+    policy = np.append(0, policy)
+    value = np.append(min_exp_value, value)
     return endog_grid, policy, value

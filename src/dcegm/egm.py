@@ -15,7 +15,7 @@ def compute_optimal_policy_and_value(
     choice: int,
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float]:
     """Compute optimal choice- and child-state specific policy and value function.
 
     Given the marginal utilities of possible child states and next period wealth, we
@@ -50,11 +50,10 @@ def compute_optimal_policy_and_value(
             containing the current state- and choice-specific policy function.
         - value (np.ndarray): 1d array of shape (n_grid_wealth + 1,)
             containing the current state- and choice-specific value function.
+        - expected_value_zero_savings
 
     """
-    n_grid_wealth = len(exogenous_savings_grid)
-
-    _policy, expected_value = solve_euler_equation(
+    policy, expected_value = solve_euler_equation(
         marginal_utilities=marginal_utilities_exog_process,
         maximum_values=maximum_values_exog_process,
         trans_vec_state=trans_vec_state,
@@ -62,17 +61,13 @@ def compute_optimal_policy_and_value(
         interest_rate=interest_rate,
         compute_inverse_marginal_utility=compute_inverse_marginal_utility,
     )
-    endog_grid = np.zeros(n_grid_wealth + 1)
-    endog_grid[1:] = exogenous_savings_grid + _policy
+    endog_grid = exogenous_savings_grid + policy
 
-    policy = np.zeros(n_grid_wealth + 1)
-    policy[1:] = _policy
+    value = compute_value(policy, expected_value, choice)
 
-    value = np.zeros(n_grid_wealth + 1)
-    value[0] = expected_value[0]
-    value[1:] = compute_value(_policy, expected_value, choice)
+    expected_value_zero_savings = expected_value[0]
 
-    return endog_grid, policy, value
+    return endog_grid, policy, value, expected_value_zero_savings
 
 
 def solve_euler_equation(

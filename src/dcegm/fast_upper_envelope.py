@@ -20,6 +20,7 @@ def fast_upper_envelope_wrapper(
     policy: np.ndarray,
     value: np.ndarray,
     exog_grid: np.ndarray,
+    min_exp_value,
     choice: int,
     compute_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -79,24 +80,24 @@ def fast_upper_envelope_wrapper(
         # Solution: Value function to the left of the first point is analytical,
         # so we just need to add some points to the left of the first grid point.
 
-        endog_grid_augmented, value_augmented, policy_augmented = _augment_grids(
+        endog_grid, value, policy = _augment_grids(
             endog_grid=endog_grid,
             value=value,
             policy=policy,
             choice=choice,
-            expected_value_zero_wealth=value[0],
+            expected_value_zero_wealth=min_exp_value,
             min_wealth_grid=min_wealth_grid,
             n_grid_wealth=n_grid_wealth,
             compute_value=compute_value,
         )
-        endog_grid = np.append(0, endog_grid_augmented)
-        policy = np.append(policy[0], policy_augmented)
-        value = np.append(value[0], value_augmented)
         exog_grid_augmented = np.linspace(
             exog_grid[1], exog_grid[2], n_grid_wealth // 10 + 1
         )
         exog_grid = np.append(exog_grid_augmented, exog_grid[2:])
 
+    endog_grid = np.append(0, endog_grid)
+    policy = np.append(0, policy)
+    value = np.append(min_exp_value, value)
     exog_grid = np.append(0, exog_grid)
 
     endog_grid_refined, value_refined, policy_refined = fast_upper_envelope(
@@ -804,17 +805,17 @@ def _augment_grids(
 
     """
     grid_points_to_add = np.linspace(
-        min_wealth_grid, endog_grid[1], n_grid_wealth // 10
+        min_wealth_grid, endog_grid[0], n_grid_wealth // 10
     )[:-1]
 
-    grid_augmented = np.append(grid_points_to_add, endog_grid[1:])
+    grid_augmented = np.append(grid_points_to_add, endog_grid)
     values_to_add = compute_value(
         grid_points_to_add,
         expected_value_zero_wealth,
         choice,
     )
-    value_augmented = np.append(values_to_add, value[1:])
-    policy_augmented = np.append(grid_points_to_add, policy[1:])
+    value_augmented = np.append(values_to_add, value)
+    policy_augmented = np.append(grid_points_to_add, policy)
 
     return grid_augmented, value_augmented, policy_augmented
 
