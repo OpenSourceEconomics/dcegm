@@ -95,9 +95,9 @@ def fast_upper_envelope_wrapper(
         exog_grid_augmented = np.linspace(
             exog_grid[1], exog_grid[2], n_grid_wealth // 10 + 1
         )
-        exog_grid = np.append([0], np.append(exog_grid_augmented, exog_grid[2:]))
-    else:
-        exog_grid = np.append(0, exog_grid)
+        exog_grid = np.append(exog_grid_augmented, exog_grid[2:])
+
+    exog_grid = np.append(0, exog_grid)
 
     endog_grid_refined, value_refined, policy_refined = fast_upper_envelope(
         endog_grid, value, policy, exog_grid, jump_thresh=2

@@ -42,7 +42,7 @@ def get_partial_functions(
     user_utility_functions: Dict[str, Callable],
     user_budget_constraint: Callable,
     exogenous_transition_function: Callable,
-) -> Tuple[Callable, Callable, Callable, Callable, Callable, Callable]:
+) -> Tuple[Callable, Callable, Callable, Callable, Callable, Callable, Callable]:
     """Create partial functions from user supplied functions.
 
     Args:
