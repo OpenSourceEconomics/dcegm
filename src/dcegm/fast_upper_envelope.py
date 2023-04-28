@@ -20,10 +20,10 @@ def fast_upper_envelope_wrapper(
     policy: np.ndarray,
     value: np.ndarray,
     exog_grid: np.ndarray,
-    min_exp_value,
+    expected_value_zero_savings: float,
     choice: int,
     compute_value: Callable,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Drop suboptimal points and refine the endogenous grid, policy, and value.
 
     Computes the upper envelope over the overlapping segments of the
@@ -56,6 +56,8 @@ def fast_upper_envelope_wrapper(
             containing the current state- and choice-specific value function.
         exog_grid (np.ndarray): 1d array of shape (n_grid_wealth,) of the
             exogenous savings grid.
+        expected_value_zero_savings (float): The agent's expected value given that she
+            saves zero.
         choice (int): The current choice.
         compute_value (callable): Function to compute the agent's value.
 
@@ -71,9 +73,8 @@ def fast_upper_envelope_wrapper(
 
     """
     n_grid_wealth = len(exog_grid)
-
-    min_wealth_grid = np.min(endog_grid[1:])
-    if endog_grid[1] > min_wealth_grid:
+    min_wealth_grid = np.min(endog_grid)
+    if endog_grid[0] > min_wealth_grid:
         # Non-concave region coincides with credit constraint.
         # This happens when there is a non-monotonicity in the endogenous wealth grid
         # that goes below the first point.
@@ -85,7 +86,7 @@ def fast_upper_envelope_wrapper(
             value=value,
             policy=policy,
             choice=choice,
-            expected_value_zero_wealth=min_exp_value,
+            expected_value_zero_savings=expected_value_zero_savings,
             min_wealth_grid=min_wealth_grid,
             n_grid_wealth=n_grid_wealth,
             compute_value=compute_value,
@@ -97,7 +98,7 @@ def fast_upper_envelope_wrapper(
 
     endog_grid = np.append(0, endog_grid)
     policy = np.append(0, policy)
-    value = np.append(min_exp_value, value)
+    value = np.append(expected_value_zero_savings, value)
     exog_grid = np.append(0, exog_grid)
 
     endog_grid_refined, value_refined, policy_refined = fast_upper_envelope(
@@ -762,7 +763,7 @@ def _augment_grids(
     value: np.ndarray,
     policy: np.ndarray,
     choice: int,
-    expected_value_zero_wealth: np.ndarray,
+    expected_value_zero_savings: np.ndarray,
     min_wealth_grid: float,
     n_grid_wealth: int,
     compute_value: Callable,
@@ -787,8 +788,8 @@ def _augment_grids(
             In the presence of discontinuities, the policy function is a
             "correspondence" rather than a function due to multiple local optima.
         choice (int): The agent's choice.
-        expected_value_zero_wealth (float): The agent's expected value given that she
-            has a wealth of zero.
+        expected_value_zero_savings (float): The agent's expected value given that she
+            saves zero.
         min_wealth_grid (float): Minimal wealth level in the endogenous wealth grid.
         n_grid_wealth (int): Number of grid points in the exogenous wealth grid.
         compute_value (callable): Function to compute the agent's value.
@@ -811,7 +812,7 @@ def _augment_grids(
     grid_augmented = np.append(grid_points_to_add, endog_grid)
     values_to_add = compute_value(
         grid_points_to_add,
-        expected_value_zero_wealth,
+        expected_value_zero_savings,
         choice,
     )
     value_augmented = np.append(values_to_add, value)

@@ -65,9 +65,10 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
     choice, exogenous_savings_grid, compute_value = setup_model
 
     endog_grid_refined, policy_refined, value_refined = fast_upper_envelope_wrapper(
-        endog_grid=policy_egm[0],
-        policy=policy_egm[1],
-        value=value_egm[1],
+        endog_grid=policy_egm[0, 1:],
+        policy=policy_egm[1, 1:],
+        value=value_egm[1, 1:],
+        expected_value_zero_savings=value_egm[1, 0],
         exog_grid=np.append(0, exogenous_savings_grid),
         choice=choice,
         compute_value=compute_value,
@@ -143,9 +144,10 @@ def test_fast_upper_envelope_against_fedor(period, setup_model):
     ]
 
     _endog_grid_fues, _policy_fues, _value_fues = fast_upper_envelope_wrapper(
-        endog_grid=policy_egm[0],
-        policy=policy_egm[1],
-        value=value_egm[1],
+        endog_grid=policy_egm[0, 1:],
+        policy=policy_egm[1, 1:],
+        value=value_egm[1, 1:],
+        expected_value_zero_savings=value_egm[1, 0],
         exog_grid=np.append(0, exogenous_savings_grid),
         choice=choice,
         compute_value=compute_value,

@@ -315,7 +315,12 @@ def backwards_induction(
             trans_vec_state = transition_vector_by_state(state)
 
             for choice_index, choice in enumerate(choice_set):
-                endog_grid, policy, value, expected_value_zero_savings = compute_optimal_policy_and_value(
+                (
+                    endog_grid,
+                    policy,
+                    value,
+                    expected_value_zero_savings,
+                ) = compute_optimal_policy_and_value(
                     marginal_utilities_exog_process=marginal_utilities_child_states[
                         choice_index
                     ],
@@ -335,7 +340,7 @@ def backwards_induction(
                     endog_grid=endog_grid,
                     policy=policy,
                     value=value,
-                    min_exp_value=expected_value_zero_savings,
+                    expected_value_zero_savings=expected_value_zero_savings,
                     exog_grid=exogenous_savings_grid,
                     choice=choice,
                     compute_value=compute_value,
