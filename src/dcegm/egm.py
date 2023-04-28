@@ -8,8 +8,8 @@ import numpy as np
 def compute_optimal_policy_and_value(
     marginal_utilities_exog_process: np.ndarray,
     maximum_values_exog_process: np.ndarray,
-    trans_vec_state: np.ndarray,
     exogenous_savings_grid: np.ndarray,
+    trans_vec_state: np.ndarray,
     discount_factor: float,
     interest_rate: float,
     choice: int,
@@ -25,13 +25,13 @@ def compute_optimal_policy_and_value(
     Args:
         marginal_utilities_exog_process (np.ndarray): 2d array of shape
             (n_exog_processes, n_grid_wealth).
-        maximum values_exog_process (np.ndarray): 2d array of shape
+        maximum maximum_values_exog_process (np.ndarray): 2d array of shape
             (n_exog_processes, n_grid_wealth).
+        exogenous_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
+            containing the exogenous savings grid.
         trans_vec_state (np.ndarray): A vector containing for each possible exogenous
             process state the corresponding probability.
             Shape is (n_exog_processes).
-        exogenous_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
-            containing the exogenous savings grid.
         discount_factor (float): The discount factor.
         interest_rate (float): The interest rate of capital.
         choice (int): The current discrete choice.
@@ -66,9 +66,7 @@ def compute_optimal_policy_and_value(
 
     value = compute_value(policy, expected_value, choice)
 
-    expected_value_zero_savings = expected_value[0]
-
-    return endog_grid, policy, value, expected_value_zero_savings
+    return endog_grid, policy, value, expected_value
 
 
 def solve_euler_equation(

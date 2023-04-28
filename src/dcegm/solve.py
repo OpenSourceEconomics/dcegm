@@ -18,6 +18,7 @@ from dcegm.pre_processing import get_partial_functions
 from dcegm.pre_processing import get_possible_choices_array
 from dcegm.state_space import get_child_indexes
 from jax import jit
+from jax import vmap
 
 
 def solve_dcegm(
@@ -315,32 +316,26 @@ def backwards_induction(
             trans_vec_state = transition_vector_by_state(state)
 
             for choice_index, choice in enumerate(choice_set):
-                (
-                    endog_grid,
-                    policy,
-                    value,
-                    expected_value_zero_savings,
-                ) = compute_optimal_policy_and_value(
-                    marginal_utilities_exog_process=marginal_utilities_child_states[
-                        choice_index
-                    ],
-                    maximum_values_exog_process=max_expected_values_child_states[
-                        choice_index
-                    ],
-                    trans_vec_state=trans_vec_state,
-                    exogenous_savings_grid=exogenous_savings_grid,
-                    discount_factor=discount_factor,
-                    interest_rate=interest_rate,
-                    choice=choice,
-                    compute_inverse_marginal_utility=compute_inverse_marginal_utility,
-                    compute_value=compute_value,
+                (endog_grid, policy, value, expected_value) = vmap(
+                    compute_optimal_policy_and_value,
+                    in_axes=(1, 1, 0, None, None, None, None, None, None),
+                )(
+                    marginal_utilities_child_states[choice_index],
+                    max_expected_values_child_states[choice_index],
+                    exogenous_savings_grid,
+                    trans_vec_state,
+                    discount_factor,
+                    interest_rate,
+                    choice,
+                    compute_inverse_marginal_utility,
+                    compute_value,
                 )
 
                 endog_grid, policy, value = compute_upper_envelope(
                     endog_grid=endog_grid,
                     policy=policy,
                     value=value,
-                    expected_value_zero_savings=expected_value_zero_savings,
+                    expected_value_zero_savings=expected_value[0],
                     exog_grid=exogenous_savings_grid,
                     choice=choice,
                     compute_value=compute_value,
