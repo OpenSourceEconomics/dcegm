@@ -34,7 +34,7 @@ def get_child_states_index(
     child_nodes = np.empty(
         (num_states_admissible_choices, n_exog_processes),
         dtype=int,
-    )  # (n_admissible_choices, n_exog_processes, n_state_variables)
+    )
 
     for id_state_choice in range(num_states_admissible_choices):
         state_choice = state_space_admissible_choices[id_state_choice]
