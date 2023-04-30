@@ -14,10 +14,10 @@ from dcegm.marg_utilities_and_exp_value import (
 )
 from dcegm.pre_processing import convert_params_to_dict
 from dcegm.pre_processing import create_multi_dim_arrays
-from dcegm.pre_processing import create_state_space_admissible_choices
 from dcegm.pre_processing import get_partial_functions
-from dcegm.pre_processing import get_possible_choices_array
-from dcegm.state_space import get_child_indexes
+from dcegm.state_space import create_state_space_admissible_choices
+from dcegm.state_space import get_child_states_index
+from dcegm.state_space import get_possible_choices_array
 from jax import jit
 from jax import vmap
 
@@ -113,6 +113,11 @@ def solve_dcegm(
         state_space, state_indexer, get_state_specific_choice_set
     )
 
+    child_states_ids = get_child_states_index(
+        state_space_admissible_choices=states_choice_admissible,
+        state_indexer=state_indexer,
+    )
+
     final_period_partial = partial(
         final_period_wrapper,
         options=options,
@@ -140,6 +145,7 @@ def solve_dcegm(
         state_space=state_space,
         states_choice_admissible=states_choice_admissible,
         indexer_states_admissible_choices=indexer_states_admissible_choices,
+        child_states_ids=child_states_ids,
         income_shock_draws=income_shock_draws,
         income_shock_weights=income_shock_weights,
         choice_set_array=choice_set_array,
@@ -170,6 +176,7 @@ def backwards_induction(
     state_space: np.ndarray,
     states_choice_admissible,
     indexer_states_admissible_choices,
+    child_states_ids: np.ndarray,
     income_shock_draws: np.ndarray,
     income_shock_weights: np.ndarray,
     n_periods: int,
@@ -305,28 +312,25 @@ def backwards_induction(
             0
         ]
         states_choices_subset = states_choice_admissible[period_states_choices_cond]
-        for state_choices in states_choices_subset:
+        child_states_ids_subset = child_states_ids[period_states_choices_cond]
+
+        marginal_utilities_child_states = np.take(
+            marginal_utilities, child_states_ids_subset, axis=0
+        )
+        max_expected_values_child_states = np.take(
+            max_expected_values, child_states_ids_subset, axis=0
+        )
+        for id_subspace, state_choices in enumerate(states_choices_subset):
             state = state_choices[:-1]
             choice = state_choices[-1]
             current_state_index = state_indexer[tuple(state)]
-            # The choice set and the indexes are different/of different shape
-            # for each state. For jax we should go over all states.
-            # With numba we could easily guvectorize here over states and calculate
-            # everything on the state level. This could be really fast! However, how do
-            # treat the partial functions?
-            child_states_indexes = get_child_indexes(
-                state, state_space, state_indexer, get_state_specific_choice_set
-            )
-            # With this next step is clear! Create transition vector, child indexes for
-            # each state. For index use exception handling from take! Then create arrays
-            # for all states. And then parralize over child, choice combinations for
-            # upper envelope!
-            marginal_utilities_child_states = np.take(
-                marginal_utilities, child_states_indexes, axis=0
-            )
-            max_expected_values_child_states = np.take(
-                max_expected_values, child_states_indexes, axis=0
-            )
+
+            marginal_utilities_child_state = marginal_utilities_child_states[
+                id_subspace
+            ]
+            max_expected_values_child_state = max_expected_values_child_states[
+                id_subspace
+            ]
 
             trans_vec_state = transition_vector_by_state(state)
 
@@ -334,8 +338,8 @@ def backwards_induction(
                 compute_optimal_policy_and_value,
                 in_axes=(1, 1, 0, None, None, None, None, None, None),
             )(
-                marginal_utilities_child_states[choice],
-                max_expected_values_child_states[choice],
+                marginal_utilities_child_state,
+                max_expected_values_child_state,
                 exogenous_savings_grid,
                 trans_vec_state,
                 discount_factor,

@@ -5,7 +5,7 @@ import pytest
 from dcegm.final_period import final_period_wrapper
 from dcegm.pre_processing import convert_params_to_dict
 from dcegm.pre_processing import get_partial_functions
-from dcegm.pre_processing import get_possible_choices_array
+from dcegm.state_space import get_possible_choices_array
 from jax import vmap
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint

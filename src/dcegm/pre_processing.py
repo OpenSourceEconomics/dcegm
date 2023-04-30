@@ -210,37 +210,6 @@ def create_multi_dim_arrays(
     return endog_grid_container, policy_container, value_container
 
 
-def get_possible_choices_array(
-    state_space: np.ndarray,
-    state_indexer: np.ndarray,
-    get_state_specific_choice_set: Callable,
-    options: Dict[str, int],
-) -> np.ndarray:
-    """Create binary array for storing the possible choices for each state.
-
-    Args:
-        state_space (np.ndarray): Collection of all possible states.
-        state_indexer (np.ndarray): 2d array of shape (n_periods, n_choices) containing
-            the indexer object that maps states to indices in the state space.
-        get_state_specific_choice_set (Callable): User-supplied function returning for
-            each state all possible choices.
-        options (dict): Options dictionary.
-
-    Returns:
-        np.ndarray: Binary 2d array of shape (n_states, n_choices)
-            indicating if choice is possible.
-
-    """
-    n_choices = options["n_discrete_choices"]
-    choices_array = np.zeros((state_space.shape[0], n_choices), dtype=int)
-    for index in range(state_space.shape[0]):
-        state = state_space[index]
-        choice_set = get_state_specific_choice_set(state, state_space, state_indexer)
-        choices_array[index, choice_set] = 1
-
-    return choices_array
-
-
 def _return_policy_and_value(
     endog_grid, policy, value, expected_value_zero_savings, **kwargs
 ):
@@ -248,40 +217,3 @@ def _return_policy_and_value(
     policy = np.append(0, policy)
     value = np.append(expected_value_zero_savings, value)
     return endog_grid, policy, value
-
-
-def create_state_space_admissible_choices(
-    state_space, state_indexer, get_state_specific_choice_set
-):
-    """Create a dictionary with all admissible choices for each state.
-
-    Args:
-        state_space (np.ndarray): Collection of all possible states.
-        state_indexer (np.ndarray): Indexer object that maps states to indexes.
-            The shape of this object quite complicated. For each state variable it
-             has the number of possible states as "row", i.e.
-            (n_poss_states_statesvar_1, n_poss_states_statesvar_2, ....)
-        get_state_specific_choice_set (Callable): User-supplied function returning for
-            each state all possible choices.
-
-    Returns:
-        dict: Dictionary with all admissible choices for each state.
-
-    """
-    state_space_admissible_choices = np.zeros(
-        (state_space.shape[0] * state_indexer.shape[1], state_space.shape[1] + 1),
-        dtype=int,
-    )
-    indexer_states_admissible_choices = np.full(
-        (state_space.shape[0], state_indexer.shape[1]), dtype=int, fill_value=-99
-    )
-    counter = 0
-    for index in range(state_space.shape[0]):
-        state = state_space[index]
-        choice_set = get_state_specific_choice_set(state, state_space, state_indexer)
-        for choice in choice_set:
-            state_space_admissible_choices[counter, :-1] = state
-            state_space_admissible_choices[counter, -1] = choice
-            indexer_states_admissible_choices[index, choice] = counter
-            counter += 1
-    return state_space_admissible_choices[:counter], indexer_states_admissible_choices
