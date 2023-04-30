@@ -9,10 +9,10 @@ def compute_optimal_policy_and_value(
     marginal_utilities_exog_process: np.ndarray,
     maximum_values_exog_process: np.ndarray,
     exogenous_savings_grid: np.ndarray,
-    trans_vec_state: np.ndarray,
+    transition_vector_by_state,
     discount_factor: float,
     interest_rate: float,
-    choice: int,
+    state_choice: np.ndarray,
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -54,6 +54,10 @@ def compute_optimal_policy_and_value(
             saves zero.
 
     """
+    state = state_choice[:-1]
+    choice = state_choice[-1]
+    trans_vec_state = transition_vector_by_state(state)
+
     policy, expected_value = solve_euler_equation(
         marginal_utilities=marginal_utilities_exog_process,
         maximum_values=maximum_values_exog_process,

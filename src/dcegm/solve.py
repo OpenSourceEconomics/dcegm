@@ -206,15 +206,16 @@ def backwards_induction(
             Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
         exogenous_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
             containing the exogenous savings grid.
-        choice_set_array (np.ndarray): Binary array indicating if choice is possible.
+        choice_set_array (np.ndarray): Binary array indicating if choice is
+            possible.
         state_indexer (np.ndarray): Indexer object that maps states to indexes.
             The shape of this object quite complicated. For each state variable it
              has the number of possible states as "row", i.e.
             (n_poss_states_statesvar_1, n_poss_states_statesvar_2, ....)
         state_space (np.ndarray): Collection of all possible states of shape
             (n_states, n_state_variables).
-        income_shock_draws (np.ndarray): 1d array of shape (n_quad_points,) containing
-            the Hermite quadrature points.
+        income_shock_draws (np.ndarray): 1d array of shape (n_quad_points,)
+            containing the Hermite quadrature points.
         income_shock_weights (np.ndarrray): Weights for each stoachstic shock draw.
             Shape is (n_stochastic_quad_points)
         n_periods (int): Number of periods.
@@ -222,24 +223,26 @@ def backwards_induction(
         discount_factor (float): The discount factor.
         interest_rate (float): The interest rate of capital.
         compute_marginal_utility (callable): User-defined function to compute the
-            agent's marginal utility. The input ```params``` is already partialled in.
+            agent's marginal utility. The input ```params``` is already partialled
+            in.
         compute_inverse_marginal_utility (Callable): Function for calculating the
-            inverse marginal utiFality, which takes the marginal utility as only input.
-        compute_value (callable): Function for calculating the value from consumption
-            level, discrete choice and expected value. The inputs ```discount_rate```
-            and ```compute_utility``` are already partialled in.
+            inverse marginal utiFality, which takes the marginal utility as only
+             input.
+        compute_value (callable): Function for calculating the value from
+            consumption level, discrete choice and expected value. The inputs
+            ```discount_rate``` and ```compute_utility``` are already partialled in.
         compute_next_period_wealth (callable): User-defined function to compute the
             agent's wealth of the next period (t + 1). The inputs
             ```saving```, ```shock```, ```params``` and ```options```
             are already partialled in.
-        get_state_specific_choice_set (Callable): User-supplied function returning for
-            each state all possible choices.
+        get_state_specific_choice_set (Callable): User-supplied function returning
+            for each state all possible choices.
         transition_vector_by_state (Callable): Partialled transition function return
             transition vector for each state.
-        compute_upper_envelope (Callable): Function for calculating the upper envelope
-            of the policy and value function. If the number of discrete choices is 1,
-            this function is a dummy function that returns the policy and value
-            function as is, without performing a fast upper envelope scan.
+        compute_upper_envelope (Callable): Function for calculating the upper
+            envelope of the policy and value function. If the number of discrete
+            choices is 1, this function is a dummy function that returns the policy
+            and value function as is, without performing a fast upper envelope scan.
         final_period_partial (Callable): Partialled function for calculating the
             consumption as well as value function and marginal utility in the final
             period.
@@ -320,40 +323,44 @@ def backwards_induction(
         max_expected_values_child_states = np.take(
             max_expected_values, child_states_ids_subset, axis=0
         )
+
+        (
+            endog_grid_substates,
+            policy_substates,
+            value_substates,
+            expected_value,
+        ) = vmap(
+            vmap(
+                compute_optimal_policy_and_value,
+                in_axes=(1, 1, 0, None, None, None, None, None, None),
+            ),
+            in_axes=(0, 0, None, None, None, None, 0, None, None),
+        )(
+            marginal_utilities_child_states,
+            max_expected_values_child_states,
+            exogenous_savings_grid,
+            transition_vector_by_state,
+            discount_factor,
+            interest_rate,
+            states_choices_subset,
+            compute_inverse_marginal_utility,
+            compute_value,
+        )
+
         for id_subspace, state_choices in enumerate(states_choices_subset):
             state = state_choices[:-1]
             choice = state_choices[-1]
             current_state_index = state_indexer[tuple(state)]
 
-            marginal_utilities_child_state = marginal_utilities_child_states[
-                id_subspace
-            ]
-            max_expected_values_child_state = max_expected_values_child_states[
-                id_subspace
-            ]
-
-            trans_vec_state = transition_vector_by_state(state)
-
-            (endog_grid, policy, value, expected_value) = vmap(
-                compute_optimal_policy_and_value,
-                in_axes=(1, 1, 0, None, None, None, None, None, None),
-            )(
-                marginal_utilities_child_state,
-                max_expected_values_child_state,
-                exogenous_savings_grid,
-                trans_vec_state,
-                discount_factor,
-                interest_rate,
-                choice,
-                compute_inverse_marginal_utility,
-                compute_value,
-            )
+            endog_grid = endog_grid_substates[id_subspace, :]
+            policy = policy_substates[id_subspace, :]
+            value = value_substates[id_subspace, :]
 
             endog_grid, policy, value = compute_upper_envelope(
                 endog_grid=endog_grid,
                 policy=policy,
                 value=value,
-                expected_value_zero_savings=expected_value[0],
+                expected_value_zero_savings=expected_value[id_subspace, 0],
                 exog_grid=exogenous_savings_grid,
                 choice=choice,
                 compute_value=compute_value,
