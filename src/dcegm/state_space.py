@@ -42,16 +42,18 @@ def get_child_states(
     )
 
     child_nodes = np.empty(
-        (state_specific_choice_set.shape[0], n_exog_processes, state_space.shape[1]),
+        (indexer.shape[1], n_exog_processes, state_space.shape[1]),
         dtype=int,
     )  # (n_admissible_choices, n_exog_processes, n_state_variables)
     new_state = state.copy()
     new_state[0] += 1
-    for i, choice in enumerate(state_specific_choice_set):
+    for choice in state_specific_choice_set:
         new_state[1] = choice
         for exog_proc_state in range(n_exog_processes):
             new_state[-1] = exog_proc_state
-            child_nodes[i, exog_proc_state, :] = state_space[indexer[tuple(new_state)]]
+            child_nodes[choice, exog_proc_state, :] = state_space[
+                indexer[tuple(new_state)]
+            ]
 
     return child_nodes
 
