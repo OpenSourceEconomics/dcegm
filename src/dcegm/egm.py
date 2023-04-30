@@ -15,7 +15,7 @@ def compute_optimal_policy_and_value(
     choice: int,
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Compute optimal choice- and child-state specific policy and value function.
 
     Given the marginal utilities of possible child states and next period wealth, we
