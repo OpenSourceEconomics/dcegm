@@ -56,10 +56,8 @@ def budget_dcegm(state, saving, income_shock, params_dict, options):  # noqa: 10
 
 def transitions_dcegm(state, params_dict):
     p = params_dict["ltc_prob"]
-    if state[-1] == 1:
-        return np.array([0, 1])
-    elif state[-1] == 0:
-        return np.array([1 - p, p])
+    dead = state[-1] == 1
+    return dead * jnp.array([0, 1]) + (1 - dead) * jnp.array([1 - p, p])
 
 
 def budget(
