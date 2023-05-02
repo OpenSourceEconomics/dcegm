@@ -142,7 +142,7 @@ def euler_rhs(init_cond, params_dict, draws, weights, choice_1, consumption):
 WEALTH_GRID_POINTS = 100
 
 
-@pytest.fixture()
+@pytest.fixture(scope="module")
 def input_data():
     index = pd.MultiIndex.from_tuples(
         [("utility_function", "rho"), ("utility_function", "delta")],
