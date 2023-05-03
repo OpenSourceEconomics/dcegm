@@ -6,26 +6,26 @@ import numpy as np
 
 
 def compute_optimal_policy_and_value(
-    marginal_utilities_exog_process: np.ndarray,
-    maximum_values_exog_process: np.ndarray,
+    marg_utils: np.ndarray,
+    emax: np.ndarray,
     exogenous_savings_grid: np.ndarray,
-    transition_vector_by_state,
+    transition_vector_by_state: Callable,
     discount_factor: float,
     interest_rate: float,
-    state_choice: np.ndarray,
+    state_choice_subspace: np.ndarray,
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Compute optimal choice- and child-state specific policy and value function.
+    """Compute optimal child-state- and choice-specific policy and value function.
 
     Given the marginal utilities of possible child states and next period wealth, we
     compute the optimal policy and value functions by solving the euler equation
     and using the optimal consumption level in the bellman equation.
 
     Args:
-        marginal_utilities_exog_process (np.ndarray): 2d array of shape
-            (n_exog_processes, n_grid_wealth).
-        maximum maximum_values_exog_process (np.ndarray): 2d array of shape
+        marginal_utilities_exog_process (np.ndarray): 3d array of shape
+            (n_states + 1 (choice), n_exog_processes, n_grid_wealth).
+        maximum maximum_values_exog_process (np.ndarray): 3d array of shape
             (n_exog_processes, n_grid_wealth).
         exogenous_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
             containing the exogenous savings grid.
@@ -54,14 +54,14 @@ def compute_optimal_policy_and_value(
             saves zero.
 
     """
-    state = state_choice[:-1]
-    choice = state_choice[-1]
-    trans_vec_state = transition_vector_by_state(state)
+    state_vec = state_choice_subspace[:-1]
+    choice = state_choice_subspace[-1]
+    transition_probs = transition_vector_by_state(state_vec)
 
     policy, expected_value = solve_euler_equation(
-        marginal_utilities=marginal_utilities_exog_process,
-        maximum_values=maximum_values_exog_process,
-        trans_vec_state=trans_vec_state,
+        marg_utils=marg_utils,
+        emax=emax,
+        transition_probs=transition_probs,
         discount_factor=discount_factor,
         interest_rate=interest_rate,
         compute_inverse_marginal_utility=compute_inverse_marginal_utility,
@@ -74,9 +74,9 @@ def compute_optimal_policy_and_value(
 
 
 def solve_euler_equation(
-    marginal_utilities: np.ndarray,
-    maximum_values: np.ndarray,
-    trans_vec_state: np.ndarray,
+    marg_utils: np.ndarray,
+    emax: np.ndarray,
+    transition_probs: np.ndarray,
     discount_factor: float,
     interest_rate: float,
     compute_inverse_marginal_utility: Callable,
@@ -108,8 +108,8 @@ def solve_euler_equation(
 
     """
     # Integrate out uncertainty over exogenous process
-    marginal_utility = trans_vec_state @ marginal_utilities
-    expected_value = trans_vec_state @ maximum_values
+    marginal_utility = transition_probs @ marg_utils
+    expected_value = transition_probs @ emax
 
     # RHS of Euler Eq., p. 337 IJRS (2017) by multiplying with marginal wealth
     rhs_euler = marginal_utility * (1 + interest_rate) * discount_factor

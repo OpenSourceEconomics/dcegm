@@ -5,7 +5,7 @@ import pytest
 from dcegm.final_period import final_period_wrapper
 from dcegm.pre_processing import convert_params_to_dict
 from dcegm.pre_processing import get_partial_functions
-from dcegm.state_space import get_possible_choices_array
+from dcegm.state_space import get_feasible_choice_space
 from jax import vmap
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
@@ -49,7 +49,7 @@ def test_consume_everything_in_final_period(
     n_choices = options["n_discrete_choices"]
     state_space, state_indexer = create_state_space(options)
 
-    choice_set_array = get_possible_choices_array(
+    choice_set_array = get_feasible_choice_space(
         state_space,
         state_indexer,
         get_state_specific_choice_set,
@@ -99,7 +99,7 @@ def test_consume_everything_in_final_period(
         choices_final=choice_array_final,
         compute_next_period_wealth=compute_next_period_wealth,
         compute_marginal_utility=compute_marginal_utility,
-        taste_shock_scale=params_dict["lambda"],
+        taste_shock=params_dict["lambda"],
         exogenous_savings_grid=savings_grid,
         income_shock_draws=income_draws,
         income_shock_weights=np.array([0, 0, 0]),

@@ -5,8 +5,8 @@ import numpy as np
 
 
 def get_child_states_index(
-    state_space_admissible_choices: np.ndarray,
-    state_indexer: np.ndarray,
+    state_choice_space: np.ndarray,
+    map_state_to_index: np.ndarray,
 ) -> np.ndarray:
     """Select state-specific child nodes. Will be a user defined function later.
 
@@ -14,9 +14,9 @@ def get_child_states_index(
     e.g. experience.
 
     Args:
-        state_space_admissible_choices (np.ndarray): Array with the collection of all
+        state_space_admissible_choices (np.ndarray): 2d array with the collection of all
             states with admissible choices.
-            Shape is (num_states_admissible_choices, n_state_variables + 1).
+            Shape is (n_states * n_admissible_choices, n_state_variables + 1).
         state_indexer (np.ndarray): Indexer object that maps states to indexes.
 
     Returns:
@@ -25,36 +25,43 @@ def get_child_states_index(
             containing all child nodes the agent can reach from her given state.
 
     """
-    # Exogenous processes are always on the last entry of the state space. Moreover, we
-    # treat all of them as admissible in each period. If there exists a absorbing state,
-    # this is reflected by a 0 percent transition probability.
-    n_exog_processes = state_indexer.shape[-1]
-    num_states_admissible_choices = state_space_admissible_choices.shape[0]
+    # n_periods = options["n_periods"]
+    # n_choices = options["n_discrete_choices"]
+    # n_exog_process = options["n_exog_processes"]
 
-    child_nodes = np.empty(
-        (num_states_admissible_choices, n_exog_processes),
+    # Exogenous processes are always on the last entry of the state space. Moreover, we
+    # treat all of them as admissible in each period. If there exists an absorbing
+    # state, this is reflected by a 0 percent transition probability.
+    (n_periods, _n_choices, n_exog_processes) = map_state_to_index.shape
+    n_states_times_feasible_choices = state_choice_space.shape[0]
+
+    indices_child_nodes = np.empty(
+        (n_states_times_feasible_choices, n_exog_processes),
         dtype=int,
     )
 
-    for id_state_choice in range(num_states_admissible_choices):
-        state_choice = state_space_admissible_choices[id_state_choice]
-        state = state_choice[:-1]
-        choice = state_choice[-1]
-        new_state = state.copy()
-        new_state[0] += 1
-        if new_state[0] < state_indexer.shape[0]:
-            new_state[1] = choice
-            for exog_proc_state in range(n_exog_processes):
-                new_state[-1] = exog_proc_state
-                child_nodes[id_state_choice, exog_proc_state] = state_indexer[
-                    tuple(new_state)
+    for idx in range(n_states_times_feasible_choices):
+        state_choice_vec = state_choice_space[idx]
+        state_vec = state_choice_vec[:-1]
+        lagged_choice = state_choice_vec[-1]
+
+        state_vec_next = state_vec.copy()
+        state_vec_next[0] += 1  # Increment period
+
+        if state_vec_next[0] < n_periods:
+            state_vec_next[1] = lagged_choice
+
+            for exog_process in range(n_exog_processes):
+                state_vec_next[-1] = exog_process
+                indices_child_nodes[idx, exog_process] = map_state_to_index[
+                    tuple(state_vec_next)
                 ]
 
-    return child_nodes
+    return indices_child_nodes
 
 
-def create_state_space_admissible_choices(
-    state_space, state_indexer, get_state_specific_choice_set
+def create_state_choice_space(
+    state_space, map_state_to_index, get_state_specific_choice_set
 ):
     """Create a dictionary with all admissible choices for each state.
 
@@ -74,32 +81,44 @@ def create_state_space_admissible_choices(
             state_space_admissible_choices
 
     """
-    state_space_admissible_choices = np.zeros(
-        (state_space.shape[0] * state_indexer.shape[1], state_space.shape[1] + 1),
+    n_states, n_state_variables = state_space.shape
+    n_periods, n_choices, n_exog_processes = map_state_to_index.shape
+
+    state_choice_space = np.zeros(
+        (n_states * n_choices, n_state_variables + 1),
         dtype=int,
     )
-    indexer_states_admissible_choices = np.full(
-        (state_space.shape[0], state_indexer.shape[1]), dtype=int, fill_value=-99
+    # (n_states * n_choices, n_state_variables + 1)
+    # here: n_states = n_periods + n_choices_lagged
+
+    indexer_state_choice_space = np.full(
+        (n_states, n_choices), dtype=int, fill_value=-99
     )
-    counter = 0
-    for index in range(state_space.shape[0]):
-        state = state_space[index]
-        choice_set = get_state_specific_choice_set(state, state_space, state_indexer)
-        for choice in choice_set:
-            state_space_admissible_choices[counter, :-1] = state
-            state_space_admissible_choices[counter, -1] = choice
-            indexer_states_admissible_choices[index, choice] = counter
-            counter += 1
-    return state_space_admissible_choices[:counter], indexer_states_admissible_choices
+
+    idx = 0
+    for state_idx in range(n_states):
+        state_vec = state_space[state_idx]
+
+        choice_set = get_state_specific_choice_set(
+            state_vec, state_space, map_state_to_index
+        )
+
+        for feasible_choice in choice_set:
+            state_choice_space[idx, :-1] = state_vec
+            state_choice_space[idx, -1] = feasible_choice
+            indexer_state_choice_space[state_idx, feasible_choice] = idx
+            idx += 1
+
+    return state_choice_space[:idx], indexer_state_choice_space
 
 
-def get_possible_choices_array(
+def get_feasible_choice_space(
     state_space: np.ndarray,
-    state_indexer: np.ndarray,
+    map_states_to_indices: np.ndarray,
     get_state_specific_choice_set: Callable,
     options: Dict[str, int],
 ) -> np.ndarray:
-    """Create binary array for storing the possible choices for each state.
+    """Create binary array for storing the feasible choices for each state.
 
     Args:
         state_space (np.ndarray): Collection of all possible states.
@@ -110,15 +129,22 @@ def get_possible_choices_array(
         options (dict): Options dictionary.
 
     Returns:
-        np.ndarray: Binary 2d array of shape (n_states, n_choices)
-            indicating if choice is possible.
+        np.ndarray: 2d array of shape (n_states, n_choices) indicating if choices
+            are feasible.
 
     """
     n_choices = options["n_discrete_choices"]
-    choices_array = np.zeros((state_space.shape[0], n_choices), dtype=int)
-    for index in range(state_space.shape[0]):
-        state = state_space[index]
-        choice_set = get_state_specific_choice_set(state, state_space, state_indexer)
-        choices_array[index, choice_set] = 1
+    n_states = state_space.shape[0]
 
-    return choices_array
+    choice_space = np.zeros((n_states, n_choices), dtype=int)
+
+    for state_idx in range(n_states):
+        state_vec = state_space[state_idx]
+
+        choice_set = get_state_specific_choice_set(
+            state_vec, state_space, map_states_to_indices
+        )
+
+        choice_space[state_idx, choice_set] = 1  # choice set is feasible
+
+    return choice_space

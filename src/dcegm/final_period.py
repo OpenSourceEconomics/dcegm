@@ -6,7 +6,7 @@ from typing import Tuple
 
 import numpy as np
 from dcegm.marg_utilities_and_exp_value import (
-    aggregate_marg_utilites_and_values_over_choices_and_weight,
+    aggregate_marg_utilites_and_values_over_choices,
 )
 from jax import vmap
 
@@ -19,7 +19,7 @@ def final_period_wrapper(
     choices_final: np.ndarray,
     compute_next_period_wealth: Callable,
     compute_marginal_utility: Callable,
-    taste_shock_scale: float,
+    taste_shock: float,
     exogenous_savings_grid: np.ndarray,
     income_shock_draws: np.ndarray,
     income_shock_weights: np.ndarray,
@@ -111,8 +111,8 @@ def final_period_wrapper(
     )(final_period_states, resources_last_period, np.arange(n_choices, dtype=int))
 
     partial_aggregate = partial(
-        aggregate_marg_utilites_and_values_over_choices_and_weight,
-        taste_shock_scale=taste_shock_scale,
+        aggregate_marg_utilites_and_values_over_choices,
+        taste_shock=taste_shock,
     )
 
     # Weight all draws and aggregate over choices
