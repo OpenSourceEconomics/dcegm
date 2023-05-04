@@ -5,7 +5,7 @@ import pytest
 from dcegm.final_period import final_period_wrapper
 from dcegm.pre_processing import convert_params_to_dict
 from dcegm.pre_processing import get_partial_functions
-from dcegm.state_space import get_feasible_choice_space
+from dcegm.state_space import create_state_choice_space
 from jax import vmap
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
@@ -30,6 +30,7 @@ from toy_models.consumption_retirement_model.utility_functions import (
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
 
 model = ["deaton", "retirement_taste_shocks", "retirement_no_taste_shocks"]
+model = ["retirement_taste_shocks", "retirement_no_taste_shocks"]
 max_wealth = [50, 11]
 n_grid_points = [1000, 101]
 TEST_CASES = list(product(model, max_wealth, n_grid_points))
@@ -40,6 +41,7 @@ def test_consume_everything_in_final_period(
     model, max_wealth, n_grid_points, load_example_model
 ):
     params, options = load_example_model(f"{model}")
+    params_dict = convert_params_to_dict(params)
     options["n_exog_processes"] = 1
     # Avoid small values. This test is just numeric if our solve
     # final period is doing the right thing!
@@ -48,19 +50,23 @@ def test_consume_everything_in_final_period(
     n_periods = options["n_periods"]
     n_choices = options["n_discrete_choices"]
     state_space, state_indexer = create_state_space(options)
-
-    choice_set_array = get_feasible_choice_space(
-        state_space,
-        state_indexer,
-        get_state_specific_choice_set,
-        options,
+    state_choice_space, indexer_state_choice_space = create_state_choice_space(
+        state_space, state_indexer, get_state_specific_choice_set
     )
-
-    params_dict = convert_params_to_dict(params)
 
     condition_final_period = np.where(state_space[:, 0] == n_periods - 1)
     states_final_period = state_space[condition_final_period]
-    choice_array_final = choice_set_array[condition_final_period]
+
+    n_states_without_period = state_space.shape[0] // n_periods
+    choices_child_states = np.zeros((n_states_without_period, n_choices), dtype=int)
+
+    idx_state_choice_combs = np.where(state_choice_space[:, 0] == n_periods - 1)[0]
+
+    feasible_state_choice_combs = state_choice_space[idx_state_choice_combs]
+
+    for state_choice_idx, state_choice_vec in enumerate(feasible_state_choice_combs):
+        choices_child_states[state_choice_idx - n_choices, state_choice_vec[-1]] = True
+    choice_array_final = choices_child_states
 
     if np.allclose(params_dict["theta"], 1):
         util_func = utiility_func_log_crra

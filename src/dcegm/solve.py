@@ -162,7 +162,7 @@ def backwards_induction(
     map_state_to_index: np.ndarray,
     state_space: np.ndarray,
     state_choice_space,
-    indexer_state_choice_space,
+    indexer_state_choice_space,  # needed for what?
     map_current_state_to_child_nodes: np.ndarray,
     income_shock_draws: np.ndarray,
     income_shock_weights: np.ndarray,
@@ -248,7 +248,7 @@ def backwards_induction(
             Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
 
     """
-    n_choices = map_state_to_index.shape[1]
+    n_choices = map_state_to_index.shape[1]  # use options here to extract n_choices
     n_states_without_period = state_space.shape[0] // n_periods
 
     endog_grid_child_states = np.empty(
@@ -365,7 +365,8 @@ def backwards_induction(
                 compute_value=compute_value,
             )
 
-            _idx_container = map_state_to_index[tuple(state_vec)]  #
+            # this can go soon, when we save the arrays to disc
+            _idx_container = map_state_to_index[tuple(state_vec)]
             endog_grid_container[_idx_container, choice, : len(endog_grid)] = endog_grid
             policy_container[_idx_container, choice, : len(policy)] = policy
             value_container[_idx_container, choice, : len(value)] = value
@@ -386,6 +387,9 @@ def backwards_induction(
             value_child_states=value_child_states,
         )
 
+        # ToDo: save arrays to disc
+
+    # ToDo: load arrays from disc
     return endog_grid_container, policy_container, value_container
 
 
