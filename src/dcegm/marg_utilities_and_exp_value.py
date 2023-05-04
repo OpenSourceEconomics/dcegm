@@ -8,8 +8,8 @@ from jax import vmap
 
 def marginal_util_and_exp_max_value_states_period(
     endog_grid_child_states: jnp.ndarray,
-    policies_child_states: jnp.ndarray,
-    values_child_states: jnp.ndarray,
+    policy_child_states: jnp.ndarray,
+    value_child_states: jnp.ndarray,
     exogenous_savings_grid: jnp.ndarray,
     state_space_next: jnp.ndarray,
     choices_child_states: jnp.ndarray,
@@ -28,10 +28,10 @@ def marginal_util_and_exp_max_value_states_period(
         endog_grid_child_states (jnp.ndarray): 3d array containing the endogenous
             wealth grid of the child_states. Shape (n_child_states_period, n_choice,
             n_grid_wealth).
-        policies_child_states (jnp.ndarray): 3d array containing the corresponding
+        policy_child_states (jnp.ndarray): 3d array containing the corresponding
             policy function values of the endogenous wealth grid of the child_states
             shape (n_child_states_period, n_choice, n_grid_wealth).
-        values_child_states (jnp.ndarray): 3d array containing the corresponding
+        value_child_states (jnp.ndarray): 3d array containing the corresponding
             value function values of the endogenous wealth grid of the child_states
             shape (n_child_states_period, n_choice, n_grid_wealth).
         exogenous_savings_grid (jnp.array): Exogenous savings grid.
@@ -80,8 +80,8 @@ def marginal_util_and_exp_max_value_states_period(
     )(
         endog_grid_child_states,
         resources_next_period,
-        policies_child_states,
-        values_child_states,
+        policy_child_states,
+        value_child_states,
         choices_child_states,
         income_shock_weights,
         taste_shock_scale,

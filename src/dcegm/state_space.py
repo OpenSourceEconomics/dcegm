@@ -37,7 +37,7 @@ def get_child_states_index(
     (n_periods, n_choices, n_exog_processes) = map_state_to_index.shape
     n_states_times_feasible_choices = state_choice_space.shape[0]
 
-    n_states_without_period = state_space.shape[0] // n_periods  # 4
+    n_states_without_period = state_space.shape[0] // n_periods
 
     indices_child_nodes = np.empty(
         (n_states_times_feasible_choices, n_exog_processes),

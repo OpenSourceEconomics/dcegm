@@ -258,6 +258,14 @@ def backwards_induction(
             Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
 
     """
+    n_choices = map_state_to_index.shape[1]
+    n_states_without_period = state_space.shape[0] // n_periods
+    endog_grid_child_states = np.empty(
+        (n_states_without_period, n_choices, int(len(exogenous_savings_grid) * 1.1))
+    )
+    policy_child_states = np.empty_like(endog_grid_child_states)
+    value_child_states = np.empty_like(endog_grid_child_states)
+
     get_marg_util_and_emax_jitted = jit(
         partial(
             marginal_util_and_exp_max_value_states_period,
@@ -331,11 +339,14 @@ def backwards_induction(
             compute_value,
         )
 
-        counter = 0
+        # refill all containers with nans
+        endog_grid_child_states[:] = np.nan
+        policy_child_states[:] = np.nan
+        value_child_states[:] = np.nan
+
         for state_choice_idx, state_choice_vec in enumerate(
             feasible_state_choice_combs
         ):
-            counter += 1
             state_vec = state_choice_vec[:-1]
             choice = state_choice_vec[-1]
 
@@ -360,17 +371,22 @@ def backwards_induction(
             policy_container[_idx_container, choice, : len(policy)] = policy
             value_container[_idx_container, choice, : len(value)] = value
 
-        endog_grid_child_states = endog_grid_container[idx_possible_states]
-        values_child_states = value_container[idx_possible_states]
-        policies_child_states = policy_container[idx_possible_states]
+            #
+            idx_child_state = _idx_container - period * n_states_without_period
+            endog_grid_child_states[
+                idx_child_state, choice, : len(endog_grid)
+            ] = endog_grid
+            policy_child_states[idx_child_state, choice, : len(policy)] = policy
+            value_child_states[idx_child_state, choice, : len(value)] = value
+
         choices_child_states = binary_choice_space[idx_possible_states]
 
         marg_util, emax = get_marg_util_and_emax_jitted(
             state_space_next=possible_states,
             choices_child_states=choices_child_states,
             endog_grid_child_states=endog_grid_child_states,
-            policies_child_states=policies_child_states,
-            values_child_states=values_child_states,
+            policy_child_states=policy_child_states,
+            value_child_states=value_child_states,
         )
 
     return endog_grid_container, policy_container, value_container
