@@ -1,3 +1,4 @@
+"""Functions for creating the state space and the state choice space."""
 from typing import Callable
 from typing import Dict
 
@@ -5,6 +6,7 @@ import numpy as np
 
 
 def get_child_states_index(
+    state_space: np.ndarray,
     state_choice_space: np.ndarray,
     map_state_to_index: np.ndarray,
 ) -> np.ndarray:
@@ -32,8 +34,10 @@ def get_child_states_index(
     # Exogenous processes are always on the last entry of the state space. Moreover, we
     # treat all of them as admissible in each period. If there exists an absorbing
     # state, this is reflected by a 0 percent transition probability.
-    (n_periods, _n_choices, n_exog_processes) = map_state_to_index.shape
+    (n_periods, n_choices, n_exog_processes) = map_state_to_index.shape
     n_states_times_feasible_choices = state_choice_space.shape[0]
+
+    n_states_without_period = state_space.shape[0] // n_periods  # 4
 
     indices_child_nodes = np.empty(
         (n_states_times_feasible_choices, n_exog_processes),
@@ -42,6 +46,7 @@ def get_child_states_index(
 
     for idx in range(n_states_times_feasible_choices):
         state_choice_vec = state_choice_space[idx]
+        period = state_choice_vec[0]
         state_vec = state_choice_vec[:-1]
         lagged_choice = state_choice_vec[-1]
 
@@ -53,9 +58,11 @@ def get_child_states_index(
 
             for exog_process in range(n_exog_processes):
                 state_vec_next[-1] = exog_process
-                indices_child_nodes[idx, exog_process] = map_state_to_index[
-                    tuple(state_vec_next)
-                ]
+
+                indices_child_nodes[idx, exog_process] = (
+                    map_state_to_index[tuple(state_vec_next)]
+                    - (period + 1) * n_states_without_period
+                )
 
     return indices_child_nodes
 

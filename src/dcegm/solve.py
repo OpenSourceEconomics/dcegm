@@ -109,7 +109,8 @@ def solve_dcegm(
         state_space, state_indexer, get_state_specific_choice_set
     )
 
-    child_states_ids = get_child_states_index(
+    map_current_state_to_child_nodes = get_child_states_index(
+        state_space=state_space,
         state_choice_space=state_choice_space,
         map_state_to_index=state_indexer,
     )
@@ -141,7 +142,7 @@ def solve_dcegm(
         state_space=state_space,
         state_choice_space=state_choice_space,
         indexer_state_choice_space=indexer_state_choice_space,
-        map_current_state_to_child_nodes=child_states_ids,
+        map_current_state_to_child_nodes=map_current_state_to_child_nodes,
         income_shock_draws=income_shock_draws,
         income_shock_weights=income_shock_weights,
         binary_choice_space=binary_choice_space,
@@ -271,16 +272,16 @@ def backwards_induction(
     )
 
     idx_state_space_final = np.where(state_space[:, 0] == n_periods - 1)[0]
-    states_final = state_space[idx_state_space_final]
+    possible_states = state_space[idx_state_space_final]
 
     (
         endog_grid_container[idx_state_space_final, ..., : len(exogenous_savings_grid)],
         policy_container[idx_state_space_final, ..., : len(exogenous_savings_grid)],
         value_container[idx_state_space_final, ..., : len(exogenous_savings_grid)],
-        _marg_utils_next,
-        _emax_next,
+        marg_util,
+        emax,
     ) = final_period_partial(
-        final_period_states=states_final,
+        final_period_states=possible_states,
         choices_final=binary_choice_space[idx_state_space_final],
         compute_next_period_wealth=compute_next_period_wealth,
         compute_marginal_utility=compute_marginal_utility,
@@ -291,76 +292,81 @@ def backwards_induction(
     )
 
     for period in range(n_periods - 2, -1, -1):
-        idx_state_space_current = np.where(state_space[:, 0] == period)[0]
-        idx_state_choice_space_current = np.where(state_choice_space[:, 0] == period)[0]
+        idx_possible_states = np.where(state_space[:, 0] == period)[0]
+        idx_state_choice_combs = np.where(state_choice_space[:, 0] == period)[0]
 
-        state_space_current = state_space[idx_state_space_current]
-        state_choice_space_current = state_choice_space[idx_state_choice_space_current]
+        possible_states = state_space[idx_possible_states]  # ignoring absorbing state?
+        feasible_state_choice_combs = state_choice_space[idx_state_choice_combs]
 
-        _idx_child_nodes = map_current_state_to_child_nodes[
-            idx_state_choice_space_current
-        ]
-        idx_child_nodes = _idx_child_nodes - (period + 1) * (
-            state_space.shape[0] // n_periods
+        # If we are currently at period t, the child state that arises
+        # from a particular decision made in period t would actually be the
+        # state that arises in period t+1.
+        feasible_marg_utils, feasible_emax = _get_post_decision_marg_utils_and_emax(
+            marg_util_next=marg_util,
+            emax_next=emax,
+            idx_state_choice_combs=idx_state_choice_combs,
+            map_current_state_to_child_nodes=map_current_state_to_child_nodes,
         )
-        marg_utils_next = jnp.take(_marg_utils_next, idx_child_nodes, axis=0)
-        emax_next = jnp.take(_emax_next, idx_child_nodes, axis=0)
 
         (
-            endog_grid_substates,
-            policy_substates,
-            value_substates,
-            expected_value_substates,
+            feasible_endog_grids,
+            feasible_policies,
+            feasible_values,
+            feasible_expected_values,
         ) = vmap(
             vmap(
                 compute_optimal_policy_and_value,
-                in_axes=(1, 1, 0, None, None, None, None, None, None),
+                in_axes=(1, 1, 0, None, None, None, None, None, None),  # savings grid
             ),
-            in_axes=(0, 0, None, None, None, None, 0, None, None),
+            in_axes=(0, 0, None, None, None, None, 0, None, None),  # states and choices
         )(
-            marg_utils_next,
-            emax_next,
+            feasible_marg_utils,
+            feasible_emax,
             exogenous_savings_grid,
             transition_vector_by_state,
             discount_factor,
             interest_rate,
-            state_choice_space_current,
+            feasible_state_choice_combs,
             compute_inverse_marginal_utility,
             compute_value,
         )
 
-        for idx, state_choice_vec in enumerate(state_choice_space_current):
+        counter = 0
+        for state_choice_idx, state_choice_vec in enumerate(
+            feasible_state_choice_combs
+        ):
+            counter += 1
             state_vec = state_choice_vec[:-1]
             choice = state_choice_vec[-1]
 
-            idx_state = map_state_to_index[tuple(state_vec)]  #
-
-            endog_grid = endog_grid_substates[idx, :]
-            policy = policy_substates[idx, :]
-            value = value_substates[idx, :]
+            endog_grid = feasible_endog_grids[state_choice_idx]
+            policy = feasible_policies[state_choice_idx]
+            value = feasible_values[state_choice_idx]
 
             endog_grid, policy, value = compute_upper_envelope(
                 endog_grid=endog_grid,
                 policy=policy,
                 value=value,
-                expected_value_zero_savings=expected_value_substates[idx, 0],
+                expected_value_zero_savings=feasible_expected_values[
+                    state_choice_idx, 0
+                ],
                 exog_grid=exogenous_savings_grid,
                 choice=choice,
                 compute_value=compute_value,
             )
 
-            endog_grid_container[idx_state, choice, : len(endog_grid)] = endog_grid
-            policy_container[idx_state, choice, : len(policy)] = policy
-            value_container[idx_state, choice, : len(value)] = value
+            _idx_container = map_state_to_index[tuple(state_vec)]  #
+            endog_grid_container[_idx_container, choice, : len(endog_grid)] = endog_grid
+            policy_container[_idx_container, choice, : len(policy)] = policy
+            value_container[_idx_container, choice, : len(value)] = value
 
-        endog_grid_child_states = endog_grid_container[idx_state_space_current]
-        values_child_states = value_container[idx_state_space_current]
-        policies_child_states = policy_container[idx_state_space_current]
+        endog_grid_child_states = endog_grid_container[idx_possible_states]
+        values_child_states = value_container[idx_possible_states]
+        policies_child_states = policy_container[idx_possible_states]
+        choices_child_states = binary_choice_space[idx_possible_states]
 
-        choices_child_states = binary_choice_space[idx_state_space_current]
-
-        _marg_utils_next, _emax_next = get_marg_util_and_emax_jitted(
-            state_space_next=state_space_current,
+        marg_util, emax = get_marg_util_and_emax_jitted(
+            state_space_next=possible_states,
             choices_child_states=choices_child_states,
             endog_grid_child_states=endog_grid_child_states,
             policies_child_states=policies_child_states,
@@ -368,3 +374,45 @@ def backwards_induction(
         )
 
     return endog_grid_container, policy_container, value_container
+
+
+def _get_post_decision_marg_utils_and_emax(
+    marg_util_next,
+    emax_next,
+    idx_state_choice_combs,
+    map_current_state_to_child_nodes,
+):
+    """Get the marginal utility and expected maximum value of the child states.
+
+    Args:
+        marg_util_next (np.ndarray): 2d array of shape (n_choices, n_grid_wealth)
+            containing the marginal utilities of the next period t + 1.
+        emax_next (np.ndarray): 2d array of shape (n_choices, n_grid_wealth)
+            containing the expected maximum value of the next period t + 1.
+        idx_state_choice_combs (np.ndarray): Indexer for the state choice combinations
+            that are feasible in the current period.
+        map_current_state_to_child_nodes (np.ndarray): Indexer for the child nodes
+            that can be reached from the current state.
+
+    Returns:
+        tuple:
+
+        - marg_utils_child (np.ndarray): 3d array of shape
+            (n_child_states, n_exog_processes, n_grid_wealth) containing the
+            state-choice specific marginal utilities of the child states in
+            the current period t.
+        - emax_child (np.ndarray): 3d array of shape
+            (n_child_states, n_exog_processes, n_grid_wealth) containing the
+            state-choice specific expected maximum values of the child states
+            in the current period t.
+
+    """
+    idx_post_decision_child_states = map_current_state_to_child_nodes[
+        idx_state_choice_combs
+    ]
+
+    # state-choice specific
+    marg_utils_child = jnp.take(marg_util_next, idx_post_decision_child_states, axis=0)
+    emax_child = jnp.take(emax_next, idx_post_decision_child_states, axis=0)
+
+    return marg_utils_child, emax_child

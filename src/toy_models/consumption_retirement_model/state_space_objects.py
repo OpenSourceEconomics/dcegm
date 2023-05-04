@@ -1,3 +1,4 @@
+"""User-defined functions for creating state space objects."""
 from typing import Dict
 from typing import Tuple
 
@@ -15,19 +16,20 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
     Returns:
         tuple:
 
-        - state_space (np.ndarray): Collection of all possible states of shape
-            (n_states, n_state_variables).
+        - state_space (np.ndarray): 2d array of shape
+            (n_states, n_state_variables) which contains all possible states.
+            The first column contains the period, the second column the lagged choice,
+            and the third column the exogenous process.
         - indexer (np.ndarray): Indexer object that maps states to indexes. The shape of
             this object quite complicated. For each state variable it has the number of
-            possible states as "row", i.e.
+            feasible states as "row", i.e.
             (n_poss_states_statesvar_1, n_poss_states_statesvar_2, ....)
 
     """
     n_periods = options["n_periods"]
-    n_choices = options["n_discrete_choices"]
+    n_choices = options["n_discrete_choices"]  # lagged_choice is a state variable
     n_exog_process = options["n_exog_processes"]
 
-    # the choice in the previous period is a state variable
     shape = (n_periods, n_choices, n_exog_process)
 
     indexer = np.full(shape, -9999, dtype=np.int64)
@@ -45,7 +47,6 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
                 i += 1
 
     state_space = np.array(_state_space, dtype=np.int64)
-    # breakpoint()
 
     return state_space, indexer
 
