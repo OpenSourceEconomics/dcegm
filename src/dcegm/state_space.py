@@ -1,7 +1,4 @@
 """Functions for creating the state space and the state choice space."""
-from typing import Callable
-from typing import Dict
-
 import numpy as np
 
 
@@ -119,39 +116,40 @@ def create_state_choice_space(
     return state_choice_space[:idx], indexer_state_choice_space
 
 
-def get_feasible_choice_space(
-    state_space: np.ndarray,
-    map_states_to_indices: np.ndarray,
-    get_state_specific_choice_set: Callable,
-    options: Dict[str, int],
-) -> np.ndarray:
-    """Create binary array for storing the feasible choices for each state.
+# def get_feasible_choice_space(
+#     state_space: np.ndarray,
+#     map_states_to_indices: np.ndarray,
+#     get_state_specific_choice_set: Callable,
+#     options: Dict[str, int],
+# ) -> np.ndarray:
+#     """Create binary array for storing the feasible choices for each state.
 
-    Args:
-        state_space (np.ndarray): Collection of all possible states.
-        state_indexer (np.ndarray): 2d array of shape (n_periods, n_choices) containing
-            the indexer object that maps states to indices in the state space.
-        get_state_specific_choice_set (Callable): User-supplied function returning for
-            each state all possible choices.
-        options (dict): Options dictionary.
+#     Args:
+#         state_space (np.ndarray): Collection of all possible states.
+#         state_indexer (np.ndarray): 2d array of shape (n_periods, n_choices)
+#             containing the indexer object that maps states to indices in the
+#             state space.
+#         get_state_specific_choice_set (Callable): User-supplied function returning
+#             for each state all possible choices.
+#         options (dict): Options dictionary.
 
-    Returns:
-        np.ndarray: 2d array of shape (n_states, n_choices) indicating if choices
-            are feasible.
+#     Returns:
+#         np.ndarray: 2d array of shape (n_states, n_choices) indicating if choices
+#             are feasible.
 
-    """
-    n_choices = options["n_discrete_choices"]
-    n_states = state_space.shape[0]
+#     """
+#     n_choices = options["n_discrete_choices"]
+#     n_states = state_space.shape[0]
 
-    choice_space = np.zeros((n_states, n_choices), dtype=int)
+#     choice_space = np.zeros((n_states, n_choices), dtype=int)
 
-    for state_idx in range(n_states):
-        state_vec = state_space[state_idx]
+#     for state_idx in range(n_states):
+#         state_vec = state_space[state_idx]
 
-        choice_set = get_state_specific_choice_set(
-            state_vec, state_space, map_states_to_indices
-        )
+#         choice_set = get_state_specific_choice_set(
+#             state_vec, state_space, map_states_to_indices
+#         )
 
-        choice_space[state_idx, choice_set] = 1  # choice set is feasible
+#         choice_space[state_idx, choice_set] = 1  # choice set is feasible
 
-    return choice_space
+#     return choice_space

@@ -18,7 +18,6 @@ from dcegm.pre_processing import create_multi_dim_arrays
 from dcegm.pre_processing import get_partial_functions
 from dcegm.state_space import create_state_choice_space
 from dcegm.state_space import get_child_states_index
-from dcegm.state_space import get_feasible_choice_space
 from jax import jit
 from jax import vmap
 
@@ -122,13 +121,6 @@ def solve_dcegm(
         final_period_solution=final_period_solution,
     )
 
-    binary_choice_space = get_feasible_choice_space(
-        state_space=state_space,
-        map_states_to_indices=state_indexer,
-        get_state_specific_choice_set=get_state_specific_choice_set,
-        options=options,
-    )
-
     endog_grid_container, policy_container, value_container = create_multi_dim_arrays(
         state_space, options
     )
@@ -145,7 +137,6 @@ def solve_dcegm(
         map_current_state_to_child_nodes=map_current_state_to_child_nodes,
         income_shock_draws=income_shock_draws,
         income_shock_weights=income_shock_weights,
-        binary_choice_space=binary_choice_space,
         n_periods=n_periods,
         taste_shock=taste_shock,
         discount_factor=discount_factor,
@@ -168,7 +159,6 @@ def backwards_induction(
     policy_container: np.ndarray,
     value_container: np.ndarray,
     exogenous_savings_grid: np.ndarray,
-    binary_choice_space: np.ndarray,
     map_state_to_index: np.ndarray,
     state_space: np.ndarray,
     state_choice_space,
@@ -260,11 +250,13 @@ def backwards_induction(
     """
     n_choices = map_state_to_index.shape[1]
     n_states_without_period = state_space.shape[0] // n_periods
+
     endog_grid_child_states = np.empty(
         (n_states_without_period, n_choices, int(len(exogenous_savings_grid) * 1.1))
     )
     policy_child_states = np.empty_like(endog_grid_child_states)
     value_child_states = np.empty_like(endog_grid_child_states)
+    choices_child_states = np.zeros((n_states_without_period, n_choices), dtype=int)
 
     get_marg_util_and_emax_jitted = jit(
         partial(
@@ -279,18 +271,24 @@ def backwards_induction(
         )
     )
 
-    idx_state_space_final = np.where(state_space[:, 0] == n_periods - 1)[0]
-    possible_states = state_space[idx_state_space_final]
+    idx_possible_states = np.where(state_space[:, 0] == n_periods - 1)[0]
+    idx_state_choice_combs = np.where(state_choice_space[:, 0] == n_periods - 1)[0]
+
+    possible_states = state_space[idx_possible_states]
+    feasible_state_choice_combs = state_choice_space[idx_state_choice_combs]
+
+    for state_choice_idx, state_choice_vec in enumerate(feasible_state_choice_combs):
+        choices_child_states[state_choice_idx - n_choices, state_choice_vec[-1]] = True
 
     (
-        endog_grid_container[idx_state_space_final, ..., : len(exogenous_savings_grid)],
-        policy_container[idx_state_space_final, ..., : len(exogenous_savings_grid)],
-        value_container[idx_state_space_final, ..., : len(exogenous_savings_grid)],
+        endog_grid_container[idx_possible_states, ..., : len(exogenous_savings_grid)],
+        policy_container[idx_possible_states, ..., : len(exogenous_savings_grid)],
+        value_container[idx_possible_states, ..., : len(exogenous_savings_grid)],
         marg_util,
         emax,
     ) = final_period_partial(
         final_period_states=possible_states,
-        choices_final=binary_choice_space[idx_state_space_final],
+        choices_final=choices_child_states,
         compute_next_period_wealth=compute_next_period_wealth,
         compute_marginal_utility=compute_marginal_utility,
         taste_shock=taste_shock,
@@ -339,10 +337,11 @@ def backwards_induction(
             compute_value,
         )
 
-        # refill all containers with nans
+        # reset child states
         endog_grid_child_states[:] = np.nan
         policy_child_states[:] = np.nan
         value_child_states[:] = np.nan
+        choices_child_states[:] = 0
 
         for state_choice_idx, state_choice_vec in enumerate(
             feasible_state_choice_combs
@@ -371,15 +370,13 @@ def backwards_induction(
             policy_container[_idx_container, choice, : len(policy)] = policy
             value_container[_idx_container, choice, : len(value)] = value
 
-            #
-            idx_child_state = _idx_container - period * n_states_without_period
+            _idx_child_state = state_choice_idx - n_choices
             endog_grid_child_states[
-                idx_child_state, choice, : len(endog_grid)
+                _idx_child_state, choice, : len(endog_grid)
             ] = endog_grid
-            policy_child_states[idx_child_state, choice, : len(policy)] = policy
-            value_child_states[idx_child_state, choice, : len(value)] = value
-
-        choices_child_states = binary_choice_space[idx_possible_states]
+            policy_child_states[_idx_child_state, choice, : len(policy)] = policy
+            value_child_states[_idx_child_state, choice, : len(value)] = value
+            choices_child_states[_idx_child_state, choice] = True
 
         marg_util, emax = get_marg_util_and_emax_jitted(
             state_space_next=possible_states,
