@@ -263,7 +263,7 @@ def backwards_induction(
     )
     policy_child_states = np.empty_like(endog_grid_child_states)
     value_child_states = np.empty_like(endog_grid_child_states)
-    choice_mat_child_states = np.zeros((n_states_over_periods, n_choices), dtype=int)
+    boolean_choice_mat_child_states = np.full((n_states_over_periods, n_choices), False)
 
     get_marg_util_and_emax_jitted = jit(
         partial(
@@ -271,7 +271,7 @@ def backwards_induction(
             compute_next_period_wealth=compute_next_period_wealth,
             compute_marginal_utility=compute_marginal_utility,
             compute_value=compute_value,
-            taste_shock_scale=taste_shock,
+            taste_shock=taste_shock,
             exogenous_savings_grid=exogenous_savings_grid,
             income_shock_draws=income_shock_draws,
             income_shock_weights=income_shock_weights,
@@ -285,7 +285,7 @@ def backwards_induction(
     feasible_state_choice_combs = state_choice_space[idx_state_choice_combs]
 
     for state_choice_idx, state_choice_vec in enumerate(feasible_state_choice_combs):
-        choice_mat_child_states[
+        boolean_choice_mat_child_states[
             state_choice_idx - n_choices, state_choice_vec[-1]
         ] = True
 
@@ -297,7 +297,7 @@ def backwards_induction(
         emax,
     ) = final_period_partial(
         final_period_states=possible_states,
-        choices_final=choice_mat_child_states,
+        choices_final=boolean_choice_mat_child_states,
         compute_next_period_wealth=compute_next_period_wealth,
         compute_marginal_utility=compute_marginal_utility,
         taste_shock=taste_shock,
@@ -314,8 +314,8 @@ def backwards_induction(
         feasible_state_choice_combs = state_choice_space[idx_state_choice_combs]
 
         # If we are currently at period t, the child state that arises
-        # from a particular decision made in period t would actually be the
-        # state that arises in period t+1.
+        # from a particular decision made in period t is actually the beginning
+        # of period state that arises in period t+1.
         feasible_marg_utils, feasible_emax = _get_post_decision_marg_utils_and_emax(
             marg_util_next=marg_util,
             emax_next=emax,
@@ -350,7 +350,7 @@ def backwards_induction(
         endog_grid_child_states[:] = np.nan
         policy_child_states[:] = np.nan
         value_child_states[:] = np.nan
-        choice_mat_child_states[:] = 0
+        boolean_choice_mat_child_states[:] = False
 
         for state_choice_idx, state_choice_vec in enumerate(
             feasible_state_choice_combs
@@ -380,7 +380,7 @@ def backwards_induction(
             policy_container[_idx_container, choice, : len(policy)] = policy
             value_container[_idx_container, choice, : len(value)] = value
 
-            # these are the lightweight containers we still need to get the
+            # these are the lightweight containers we still need to get
             # marg utils and emax
             _idx_child_state = state_choice_idx - n_choices
             endog_grid_child_states[
@@ -388,11 +388,11 @@ def backwards_induction(
             ] = endog_grid
             policy_child_states[_idx_child_state, choice, : len(policy)] = policy
             value_child_states[_idx_child_state, choice, : len(value)] = value
-            choice_mat_child_states[_idx_child_state, choice] = True
+            boolean_choice_mat_child_states[_idx_child_state, choice] = True
 
         marg_util, emax = get_marg_util_and_emax_jitted(
             state_space_next=possible_states,
-            choices_child_states=choice_mat_child_states,
+            choices_child_states=boolean_choice_mat_child_states,
             endog_grid_child_states=endog_grid_child_states,
             policy_child_states=policy_child_states,
             value_child_states=value_child_states,
