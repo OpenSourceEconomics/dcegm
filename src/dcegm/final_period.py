@@ -112,7 +112,7 @@ def final_period_wrapper(
 
     partial_aggregate = partial(
         aggregate_marg_utilites_and_values_over_choices,
-        taste_shock=taste_shock_scale,
+        taste_shock_scale=taste_shock_scale,
     )
 
     # Weight all draws and aggregate over choices
