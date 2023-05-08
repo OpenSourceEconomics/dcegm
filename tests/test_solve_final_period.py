@@ -96,7 +96,7 @@ def test_consume_everything_in_final_period(
         choices_final=choices_child_states,
         compute_next_period_wealth=compute_next_period_wealth,
         compute_marginal_utility=compute_marginal_utility,
-        taste_shock=params_dict["lambda"],
+        taste_shock_scale=params_dict["lambda"],
         exogenous_savings_grid=savings_grid,
         income_shock_draws=income_draws,
         income_shock_weights=np.array([0, 0, 0]),

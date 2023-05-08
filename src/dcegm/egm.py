@@ -23,17 +23,18 @@ def compute_optimal_policy_and_value(
     and using the optimal consumption level in the bellman equation.
 
     Args:
-        marginal_utilities_exog_process (np.ndarray): 3d array of shape
-            (n_states + 1 (choice), n_exog_processes, n_grid_wealth).
-        maximum maximum_values_exog_process (np.ndarray): 3d array of shape
-            (n_exog_processes, n_grid_wealth).
+        marg_utils (np.ndarray): 1d array of shape (n_exog_processes,) containing
+            the state-choice specific marginal utilities for a given point on
+            the savings grid.
+        emax (np.ndarray): 1d array of shape (n_exog_processes,) containing
+            the state-choice specific expected maximum value for a given point on
+            the savings grid.
         exogenous_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
             containing the exogenous savings grid.
-        trans_vec_state (np.ndarray): A vector containing for each possible exogenous
-            process state the corresponding probability.
-            Shape is (n_exog_processes).
+        trans_vec_state (np.ndarray): 1d array of shape (n_exog_processes,) containing
+            for each exogenous process state the corresponding transition probability.
         discount_factor (float): The discount factor.
-        interest_rate (float): The interest rate of capital.
+        interest_rate (float): The interest rate on capital.
         choice (int): The current discrete choice.
         compute_inverse_marginal_utility (Callable): Function for calculating the
             inverse marginal utility, which takes the marginal utility as only input.
@@ -87,13 +88,16 @@ def solve_euler_equation(
     then apply the inverese marginal utility function.
 
     Args:
-        marginal_utilities (np.ndarray): 2d array of shape
-            (n_exog_processes, n_grid_wealth) with marginal utilities.
-        maximum_values (np.ndarray): 2d array of shape
-        trans_vec_state (np.ndarray): 1d array of shape (n_exog_processes,)
-            containing the state probabilities of each exogenous process.
+        marg_utils (np.ndarray): 1d array of shape (n_exog_processes,) containing
+            the state-choice specific marginal utilities for a given point on
+            the savings grid.
+        emax (np.ndarray): 1d array of shape (n_exog_processes,) containing
+            the state-choice specific expected maximum value for a given point on
+            the savings grid.
+        trans_vec_state (np.ndarray): 1d array of shape (n_exog_processes,) containing
+            for each exogenous process state the corresponding transition probability.
         discount_factor (float): The discount factor.
-        interest_rate (float): The interest rate of capital.
+        interest_rate (float): The interest rate on capital.
         compute_inverse_marginal_utility (callable): Function for calculating the
             inverse marginal utility, which takes the marginal utility as only input.
             (n_exog_processes, n_grid_wealth) with the maximum values.

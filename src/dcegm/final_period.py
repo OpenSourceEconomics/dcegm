@@ -19,7 +19,7 @@ def final_period_wrapper(
     choices_final: np.ndarray,
     compute_next_period_wealth: Callable,
     compute_marginal_utility: Callable,
-    taste_shock: float,
+    taste_shock_scale: float,
     exogenous_savings_grid: np.ndarray,
     income_shock_draws: np.ndarray,
     income_shock_weights: np.ndarray,
@@ -112,7 +112,7 @@ def final_period_wrapper(
 
     partial_aggregate = partial(
         aggregate_marg_utilites_and_values_over_choices,
-        taste_shock=taste_shock,
+        taste_shock=taste_shock_scale,
     )
 
     # Weight all draws and aggregate over choices

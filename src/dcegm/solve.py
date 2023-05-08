@@ -68,7 +68,7 @@ def solve_dcegm(
 
     """
     params_dict = convert_params_to_dict(params)
-    taste_shock = params_dict["lambda"]
+    taste_shock_scale = params_dict["lambda"]
     interest_rate = params_dict["interest_rate"]
     discount_factor = params_dict["beta"]
     max_wealth = params_dict["max_wealth"]
@@ -136,7 +136,7 @@ def solve_dcegm(
         income_shock_draws=income_shock_draws,
         income_shock_weights=income_shock_weights,
         n_periods=n_periods,
-        taste_shock=taste_shock,
+        taste_shock_scale=taste_shock_scale,
         discount_factor=discount_factor,
         interest_rate=interest_rate,
         compute_marginal_utility=compute_marginal_utility,
@@ -165,7 +165,7 @@ def backwards_induction(
     income_shock_draws: np.ndarray,
     income_shock_weights: np.ndarray,
     n_periods: int,
-    taste_shock: float,
+    taste_shock_scale: float,
     discount_factor: float,
     interest_rate: float,
     compute_marginal_utility: Callable,
@@ -215,7 +215,7 @@ def backwards_induction(
         income_shock_weights (np.ndarrray): 1d array of shape
             (n_stochastic_quad_points) with weights for each stoachstic shock draw.
         n_periods (int): Number of periods.
-        taste_shock (float): The taste shock scale.
+        taste_shock_scale (float): The taste shock scale.
         discount_factor (float): The discount factor.
         interest_rate (float): The interest rate of capital.
         compute_marginal_utility (callable): User-defined function to compute the
@@ -271,7 +271,7 @@ def backwards_induction(
             compute_next_period_wealth=compute_next_period_wealth,
             compute_marginal_utility=compute_marginal_utility,
             compute_value=compute_value,
-            taste_shock=taste_shock,
+            taste_shock_scale=taste_shock_scale,
             exogenous_savings_grid=exogenous_savings_grid,
             income_shock_draws=income_shock_draws,
             income_shock_weights=income_shock_weights,
@@ -300,7 +300,7 @@ def backwards_induction(
         choices_final=boolean_choice_mat_child_states,
         compute_next_period_wealth=compute_next_period_wealth,
         compute_marginal_utility=compute_marginal_utility,
-        taste_shock=taste_shock,
+        taste_shock_scale=taste_shock_scale,
         exogenous_savings_grid=exogenous_savings_grid,
         income_shock_draws=income_shock_draws,
         income_shock_weights=income_shock_weights,

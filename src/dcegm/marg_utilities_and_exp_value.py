@@ -16,7 +16,7 @@ def marginal_util_and_exp_max_value_states_period(
     choices_child_states: np.ndarray,
     income_shock_draws: np.ndarray,
     income_shock_weights: np.ndarray,
-    taste_shock: float,
+    taste_shock_scale: float,
     compute_next_period_wealth: Callable,
     compute_marginal_utility: Callable,
     compute_value: Callable,
@@ -46,7 +46,7 @@ def marginal_util_and_exp_max_value_states_period(
             containing the Hermite quadrature points.
         income_shock_weights (np.ndarrray): 1d array of shape
             (n_stochastic_quad_points) with weights for each stoachstic shock draw.
-        taste_shock (float): The taste shock scale parameter.
+        taste_shock_scale (float): The taste shock scale parameter.
         compute_next_period_wealth (callable): User-defined function to compute the
             agent's wealth  of the next period (t + 1). The inputs
             ```saving```, ```income_shock```, ```params``` and ```options```
@@ -60,10 +60,10 @@ def marginal_util_and_exp_max_value_states_period(
     Returns:
         tuple:
 
-        - marg_utils (jnp.ndarray): 1d array of shape (n_states_period, n_grid_wealth).
+        - marg_utils (jnp.ndarray): 2d array of shape (n_states_period, n_grid_wealth).
             containing the child-state specific marginal utilities,
             weighted by the vector of income shocks.
-        - emax (jnp.ndarray): 1d array of shape (n_states_period, n_grid_wealth)
+        - emax (jnp.ndarray): 2d array of shape (n_states_period, n_grid_wealth)
             containing the child-state specific expected maximum values,
             weighted by the vector of income shocks.
 
@@ -86,7 +86,7 @@ def marginal_util_and_exp_max_value_states_period(
         value_child_states,
         choices_child_states,
         income_shock_weights,
-        taste_shock,
+        taste_shock_scale,
         compute_marginal_utility,
         compute_value,
     )
