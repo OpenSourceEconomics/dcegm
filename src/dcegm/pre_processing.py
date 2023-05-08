@@ -76,8 +76,8 @@ def get_partial_functions(
             of the policy and value function. If the number of discrete choices is 1,
             this function is a dummy function that returns the policy and value
             function as is, without performing a fast upper envelope scan.
-        - transition_function (Callable): Partialled transition function return
-            transition vector for each state.
+        - transition_function (Callable): Partialled transition function that returns
+            transition probabilities for each state.
 
     """
     compute_utility = partial(

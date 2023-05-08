@@ -91,10 +91,7 @@ def fast_upper_envelope_wrapper(
             n_grid_wealth=n_grid_wealth,
             compute_value=compute_value,
         )
-        exog_grid_augmented = np.linspace(
-            exog_grid[1], exog_grid[2], n_grid_wealth // 10 + 1
-        )
-        exog_grid = np.append(exog_grid_augmented, exog_grid[2:])
+        exog_grid = np.append(np.zeros(n_grid_wealth // 10 - 1), exog_grid)
 
     endog_grid = np.append(0, endog_grid)
     policy = np.append(0, policy)
@@ -241,31 +238,23 @@ def scan_value_function(
     j = 1
     k = 0
 
-    # endog_grid_j = endog_grid[j]
-    # value_j = value[j]
-    # policy_j = policy[j]
-
     idx_refined = 2
 
     for i in range(1, len(endog_grid) - 2):
-        # if value[i + 1] - value_j < 0:
         if value[i + 1] - value[j] < 0:
             suboptimal_points = _append_index(suboptimal_points, i + 1)
 
         else:
             # value function gradient between previous two optimal points
             grad_before = (value[j] - value[k]) / (endog_grid[j] - endog_grid[k])
-            # grad_before = (value_j - value[k]) / (endog_grid_j - endog_grid[k])
 
             # gradient with leading index to be checked
             grad_next = (value[i + 1] - value[j]) / (endog_grid[i + 1] - endog_grid[j])
-            # grad_next = (value[i + 1] - value_j) / (endog_grid[i + 1] - endog_grid_j)
 
             switch_value_func = (
                 np.abs(
                     (exog_grid[i + 1] - exog_grid[j])
                     / (endog_grid[i + 1] - endog_grid[j])
-                    # / (endog_grid[i + 1] - endog_grid_j)
                 )
                 > jump_thresh
             )
@@ -319,8 +308,6 @@ def scan_value_function(
                     intersect_grid, intersect_value = _linear_intersection(
                         x1=endog_grid[idx_next_on_lower_curve],
                         y1=value[idx_next_on_lower_curve],
-                        # x2=endog_grid_j,
-                        # y2=value_j,
                         x2=endog_grid[j],
                         y2=value[j],
                         x3=endog_grid[i + 1],
@@ -332,8 +319,6 @@ def scan_value_function(
                     intersect_policy_left = _evaluate_point_on_line(
                         x1=endog_grid[idx_next_on_lower_curve],
                         y1=policy[idx_next_on_lower_curve],
-                        # x2=endog_grid_j,
-                        # y2=policy_j,
                         x2=endog_grid[j],
                         y2=policy[j],
                         point_to_evaluate=intersect_grid,
@@ -363,9 +348,6 @@ def scan_value_function(
 
                     k = j
                     j = i + 1
-                    # endog_grid_j = endog_grid[j]
-                    # value_j = value[j]
-                    # policy_j = policy[j]
 
             # if left turn is made or right turn with no jump, then
             # keep point provisionally and conduct backward scan
@@ -412,8 +394,6 @@ def scan_value_function(
 
                 if not keep_current and current_is_optimal:
                     intersect_grid, intersect_value = _linear_intersection(
-                        # x1=endog_grid_j,
-                        # y1=value_j,
                         x1=endog_grid[j],
                         y1=value[j],
                         x2=endog_grid[k],
@@ -431,8 +411,6 @@ def scan_value_function(
                         y1=policy[k],
                         x2=endog_grid[j],
                         y2=policy[j],
-                        # x2=endog_grid_j,
-                        # y2=policy_j,
                         point_to_evaluate=intersect_grid,
                     )
                     intersect_policy_right = _evaluate_point_on_line(
@@ -461,14 +439,8 @@ def scan_value_function(
                     value[j] = intersect_value
                     policy[j] = intersect_policy_right
                     endog_grid[j] = intersect_grid
-                    # value_j = intersect_value
-                    # policy_j = intersect_policy_right
-                    # endog_grid_j = intersect_grid
 
                     j = i + 1
-                    # endog_grid_j = endog_grid[j]
-                    # value_j = value[j]
-                    # policy_j = policy[j]
 
                 elif keep_current and current_is_optimal:
                     if grad_next > grad_before and switch_value_func:
@@ -489,8 +461,6 @@ def scan_value_function(
                         intersect_grid, intersect_value = _linear_intersection(
                             x1=endog_grid[idx_next_on_lower_curve],
                             y1=value[idx_next_on_lower_curve],
-                            # x2=endog_grid_j,
-                            # y2=value_j,
                             x2=endog_grid[j],
                             y2=value[j],
                             x3=endog_grid[i + 1],
@@ -504,8 +474,6 @@ def scan_value_function(
                             y1=policy[idx_next_on_lower_curve],
                             x2=endog_grid[j],
                             y2=policy[j],
-                            # x2=endog_grid_j,
-                            # y2=policy_j,
                             point_to_evaluate=intersect_grid,
                         )
                         intersect_policy_right = _evaluate_point_on_line(
@@ -533,9 +501,6 @@ def scan_value_function(
 
                     k = j
                     j = i + 1
-                    # endog_grid_j = endog_grid[j]
-                    # value_j = value[j]
-                    # policy_j = policy[j]
 
     value_refined[idx_refined] = value[-1]
     endog_grid_refined[idx_refined] = endog_grid[-1]

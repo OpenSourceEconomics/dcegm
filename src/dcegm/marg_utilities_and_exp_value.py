@@ -38,8 +38,8 @@ def marginal_util_and_exp_max_value_states_period(
         possible_child_states (jnp.ndarray): Multi-dimensional jnp.ndarray containing
             the possible child_states of shape (n_states_period,num_state_variables).
         choices_child_states (jnp.ndarray): 2d binary jnp.ndarray
-            indicating for each child state if choice is possible; of shape
-            (n_states_period,num_state_variables).
+            indicating for each child state if choice is possible.
+            Shape (n_states_period, n_state_variables).
         income_shock_draws (jnp.array): Stochastic income shock draws.
             Shape (n_stochastic_points).
         income_shock_weights (jnp.array): Weights of stochastic shock draw.

@@ -17,7 +17,7 @@ from dcegm.pre_processing import convert_params_to_dict
 from dcegm.pre_processing import create_multi_dim_arrays
 from dcegm.pre_processing import get_partial_functions
 from dcegm.state_space import create_state_choice_space
-from dcegm.state_space import get_child_states_index
+from dcegm.state_space import get_map_from_state_to_child_nodes
 from jax import jit
 from jax import vmap
 
@@ -99,19 +99,18 @@ def solve_dcegm(
         exogenous_transition_function=transition_function,
     )
     create_state_space = state_space_functions["create_state_space"]
-    get_state_specific_choice_set = state_space_functions[
-        "get_state_specific_choice_set"
-    ]
 
-    state_space, state_indexer = create_state_space(options)
-    state_choice_space, indexer_state_choice_space = create_state_choice_space(
-        state_space, state_indexer, get_state_specific_choice_set
+    state_space, map_state_to_index = create_state_space(options)
+    state_choice_space = create_state_choice_space(
+        state_space,
+        map_state_to_index,
+        state_space_functions["get_state_specific_choice_set"],
     )
 
-    map_current_state_to_child_nodes = get_child_states_index(
+    map_state_to_post_decision_child_nodes = get_map_from_state_to_child_nodes(
         state_space=state_space,
         state_choice_space=state_choice_space,
-        map_state_to_index=state_indexer,
+        map_state_to_index=map_state_to_index,
     )
 
     final_period_partial = partial(
@@ -130,11 +129,10 @@ def solve_dcegm(
         policy_container=policy_container,
         value_container=value_container,
         exogenous_savings_grid=exogenous_savings_grid,
-        map_state_to_index=state_indexer,
         state_space=state_space,
         state_choice_space=state_choice_space,
-        indexer_state_choice_space=indexer_state_choice_space,
-        map_current_state_to_child_nodes=map_current_state_to_child_nodes,
+        map_state_to_index=map_state_to_index,
+        map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
         income_shock_draws=income_shock_draws,
         income_shock_weights=income_shock_weights,
         n_periods=n_periods,
@@ -145,11 +143,12 @@ def solve_dcegm(
         compute_inverse_marginal_utility=compute_inverse_marginal_utility,
         compute_value=compute_value,
         compute_next_period_wealth=compute_next_period_wealth,
-        get_state_specific_choice_set=get_state_specific_choice_set,
         transition_vector_by_state=transition_vector_by_state,
         compute_upper_envelope=compute_upper_envelope,
         final_period_partial=final_period_partial,
     )
+
+    # ToDo: finalize output containers
 
     return endog_grid_container, policy_container, value_container
 
@@ -159,11 +158,10 @@ def backwards_induction(
     policy_container: np.ndarray,
     value_container: np.ndarray,
     exogenous_savings_grid: np.ndarray,
-    map_state_to_index: np.ndarray,
     state_space: np.ndarray,
     state_choice_space,
-    indexer_state_choice_space,  # needed for what?
-    map_current_state_to_child_nodes: np.ndarray,
+    map_state_to_index: np.ndarray,
+    map_state_to_post_decision_child_nodes: np.ndarray,
     income_shock_draws: np.ndarray,
     income_shock_weights: np.ndarray,
     n_periods: int,
@@ -174,7 +172,6 @@ def backwards_induction(
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
     compute_next_period_wealth: Callable,
-    get_state_specific_choice_set: Callable,
     transition_vector_by_state: Callable,
     compute_upper_envelope: Callable,
     final_period_partial: Callable,
@@ -193,20 +190,32 @@ def backwards_induction(
             Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
         exogenous_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
             containing the exogenous savings grid.
-        choice_set_array (np.ndarray): Binary array indicating if choice is
-            possible.
-        state_indexer (np.ndarray): Indexer object that maps states to indexes.
-            The shape of this object quite complicated. For each state variable it
-             has the number of possible states as "row", i.e.
-            (n_poss_states_statesvar_1, n_poss_states_statesvar_2, ....)
-        state_space (np.ndarray): Collection of all possible states of shape
-            (n_states, n_state_variables).
+        state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
+            which serves as a collection of all possible states. By convention,
+            the first column must contain the period and the last column the
+            exogenous processes. Any other state variables are in between.
+            E.g. if the two state variables are period and lagged choice and all choices
+            are admissible in each period, the shape of the state space array is
+            (n_periods * n_choices, 3).
+        state_choice_space (np.ndarray): 2d array of shape
+            (n_feasible_states, n_state_and_exog_variables + 1) containing all
+            feasible state-choice combinations. By convention, the second to last
+            column contains the exogenous process. The last column always contains the
+            choice to be made (which is not a state variable).
+        map_state_to_index (np.ndarray): Indexer array that maps states to indexes.
+            The shape of this object is quite complicated. For each state variable it
+            has the number of possible states as rows, i.e.
+            (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
+        map_state_to_post_decision_child_nodes (np.ndarray): 2d array of shape
+            (n_feasible_state_choice_combs, n_choices * n_exog_processes)
+            containing indices of all child nodes the agent can reach
+            from any given state.
         income_shock_draws (np.ndarray): 1d array of shape (n_quad_points,)
             containing the Hermite quadrature points.
-        income_shock_weights (np.ndarrray): Weights for each stoachstic shock draw.
-            Shape is (n_stochastic_quad_points)
+        income_shock_weights (np.ndarrray): 1d array of shape
+            (n_stochastic_quad_points) with weights for each stoachstic shock draw.
         n_periods (int): Number of periods.
-        taste_shock_scale (float): The taste shock scale.
+        taste_shock (float): The taste shock scale.
         discount_factor (float): The discount factor.
         interest_rate (float): The interest rate of capital.
         compute_marginal_utility (callable): User-defined function to compute the
@@ -222,8 +231,6 @@ def backwards_induction(
             agent's wealth of the next period (t + 1). The inputs
             ```saving```, ```shock```, ```params``` and ```options```
             are already partialled in.
-        get_state_specific_choice_set (Callable): User-supplied function returning
-            for each state all possible choices.
         transition_vector_by_state (Callable): Partialled transition function return
             transition vector for each state.
         compute_upper_envelope (Callable): Function for calculating the upper
@@ -249,14 +256,14 @@ def backwards_induction(
 
     """
     n_choices = map_state_to_index.shape[1]  # use options here to extract n_choices
-    n_states_without_period = state_space.shape[0] // n_periods
+    n_states_over_periods = state_space.shape[0] // n_periods  # rather max n_states_t?
 
     endog_grid_child_states = np.empty(
-        (n_states_without_period, n_choices, int(len(exogenous_savings_grid) * 1.1))
+        (n_states_over_periods, n_choices, int(len(exogenous_savings_grid) * 1.1))
     )
     policy_child_states = np.empty_like(endog_grid_child_states)
     value_child_states = np.empty_like(endog_grid_child_states)
-    choices_child_states = np.zeros((n_states_without_period, n_choices), dtype=int)
+    choice_mat_child_states = np.zeros((n_states_over_periods, n_choices), dtype=int)
 
     get_marg_util_and_emax_jitted = jit(
         partial(
@@ -278,7 +285,9 @@ def backwards_induction(
     feasible_state_choice_combs = state_choice_space[idx_state_choice_combs]
 
     for state_choice_idx, state_choice_vec in enumerate(feasible_state_choice_combs):
-        choices_child_states[state_choice_idx - n_choices, state_choice_vec[-1]] = True
+        choice_mat_child_states[
+            state_choice_idx - n_choices, state_choice_vec[-1]
+        ] = True
 
     (
         endog_grid_container[idx_possible_states, ..., : len(exogenous_savings_grid)],
@@ -288,7 +297,7 @@ def backwards_induction(
         emax,
     ) = final_period_partial(
         final_period_states=possible_states,
-        choices_final=choices_child_states,
+        choices_final=choice_mat_child_states,
         compute_next_period_wealth=compute_next_period_wealth,
         compute_marginal_utility=compute_marginal_utility,
         taste_shock=taste_shock,
@@ -311,7 +320,7 @@ def backwards_induction(
             marg_util_next=marg_util,
             emax_next=emax,
             idx_state_choice_combs=idx_state_choice_combs,
-            map_current_state_to_child_nodes=map_current_state_to_child_nodes,
+            map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
         )
 
         (
@@ -341,7 +350,7 @@ def backwards_induction(
         endog_grid_child_states[:] = np.nan
         policy_child_states[:] = np.nan
         value_child_states[:] = np.nan
-        choices_child_states[:] = 0
+        choice_mat_child_states[:] = 0
 
         for state_choice_idx, state_choice_vec in enumerate(
             feasible_state_choice_combs
@@ -371,17 +380,19 @@ def backwards_induction(
             policy_container[_idx_container, choice, : len(policy)] = policy
             value_container[_idx_container, choice, : len(value)] = value
 
+            # these are the lightweight containers we still need to get the
+            # marg utils and emax
             _idx_child_state = state_choice_idx - n_choices
             endog_grid_child_states[
                 _idx_child_state, choice, : len(endog_grid)
             ] = endog_grid
             policy_child_states[_idx_child_state, choice, : len(policy)] = policy
             value_child_states[_idx_child_state, choice, : len(value)] = value
-            choices_child_states[_idx_child_state, choice] = True
+            choice_mat_child_states[_idx_child_state, choice] = True
 
         marg_util, emax = get_marg_util_and_emax_jitted(
             state_space_next=possible_states,
-            choices_child_states=choices_child_states,
+            choices_child_states=choice_mat_child_states,
             endog_grid_child_states=endog_grid_child_states,
             policy_child_states=policy_child_states,
             value_child_states=value_child_states,
@@ -389,7 +400,7 @@ def backwards_induction(
 
         # ToDo: save arrays to disc
 
-    # ToDo: load arrays from disc
+    # ToDo: return None
     return endog_grid_container, policy_container, value_container
 
 
@@ -397,18 +408,20 @@ def _get_post_decision_marg_utils_and_emax(
     marg_util_next,
     emax_next,
     idx_state_choice_combs,
-    map_current_state_to_child_nodes,
+    map_state_to_post_decision_child_nodes,
 ):
-    """Get the marginal utility and expected maximum value of the child states.
+    """Get marginal utility and expected maximum value of post-decision child states.
 
     Args:
         marg_util_next (np.ndarray): 2d array of shape (n_choices, n_grid_wealth)
-            containing the marginal utilities of the next period t + 1.
+            containing the choice-specific marginal utilities of the next period,
+            i.e. t + 1.
         emax_next (np.ndarray): 2d array of shape (n_choices, n_grid_wealth)
-            containing the expected maximum value of the next period t + 1.
+            containing the choice-specific expected maximum values of the next period,
+            i.e. t + 1.
         idx_state_choice_combs (np.ndarray): Indexer for the state choice combinations
             that are feasible in the current period.
-        map_current_state_to_child_nodes (np.ndarray): Indexer for the child nodes
+        map_state_to_post_decision_child_nodes (np.ndarray): Indexer for the child nodes
             that can be reached from the current state.
 
     Returns:
@@ -424,7 +437,7 @@ def _get_post_decision_marg_utils_and_emax(
             in the current period t.
 
     """
-    idx_post_decision_child_states = map_current_state_to_child_nodes[
+    idx_post_decision_child_states = map_state_to_post_decision_child_nodes[
         idx_state_choice_combs
     ]
 

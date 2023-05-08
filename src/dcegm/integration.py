@@ -20,13 +20,12 @@ def quadrature_hermite(
         sigma (float): Standard deviation of the normal distribution.
 
     Returns:
-        (tuple): Tuple containing:
+        tuple:
 
-        - (np.ndarray): 1d array of shape (n_quad_points,) containing the
-            Hermite quadrature points.
-
-        - (np.ndarray): 1d array of shape (n_quad_points,) containing the
-            associated Hermite quadrature weights.
+        - quad_points_scaled (np.ndarray): 1d array of shape (n_quad_points,)
+            containing the Hermite quadrature points.
+        - quad_weights (np.ndarray): 1d array of shape (n_quad_points,)
+            containing the associated Hermite quadrature weights.
 
     """
     # This should be the better quadrature. Leave out for now!
@@ -51,13 +50,12 @@ def quadrature_legendre(
         sigma (float): Standard deviation of the normal distribution.
 
     Returns:
-        (tuple): Tuple containing:
+        tuple:
 
-        - (np.ndarray): 1d array of shape (n_quad_points,) containing the
-            Hermite quadrature points.
-
-        - (np.ndarray): 1d array of shape (n_quad_points,) containing the
-            associated stochastic quadrature weights.
+        - quad_points_normal (np.ndarray): 1d array of shape (n_quad_points,)
+            containing the Hermite quadrature points.
+        - quad_weights (np.ndarray): 1d array of shape (n_quad_points,)
+            containing the associated stochastic quadrature weights.
 
     """
     quad_points, quad_weights = roots_sh_legendre(n_quad_points)

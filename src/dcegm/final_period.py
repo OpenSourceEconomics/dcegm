@@ -47,8 +47,8 @@ def final_period_wrapper(
             the exogenous savings grid.
         income_shock_draws (np.ndarray): 1d array of shape (n_quad_points,) containing
             the Hermite quadrature points.
-        income_shock_weights (np.ndarrray): Weights for each stoachstic shock draw.
-            Shape is (n_stochastic_quad_points)
+        income_shock_weights (np.ndarrray): 1d array of shape (n_stochastic_quad_points)
+            with weights for each stoachstic shock draw.
 
     Returns:
         tuple:
@@ -136,8 +136,6 @@ def final_period_wrapper(
     # Choose which draw we take for policy and value function as those are note saved
     # with respect to the draws
     middle_of_draws = int(income_shock_draws.shape[0] + 1 / 2)
-
-    # breakpoint()
 
     return (
         np.repeat(
