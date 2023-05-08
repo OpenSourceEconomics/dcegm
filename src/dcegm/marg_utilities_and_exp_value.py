@@ -176,7 +176,7 @@ def aggregate_marg_utilites_and_values_over_choices(
     marg_utilities: jnp.ndarray,
     choice_set_indices: jnp.ndarray,
     income_shock_weight: float,
-    taste_shock: float,
+    taste_shock_scale: float,
 ) -> Tuple[float, float]:
     """Aggregate marginal utilities over discrete choices and weight.
 
@@ -191,7 +191,7 @@ def aggregate_marg_utilites_and_values_over_choices(
         choice_set_indices (jnp.ndarray): 1d array of the agent's (restricted) choice
             set in the given state of shape (n_choices,).
         income_shock_weight (float): Weight of stochastic shock draw.
-        taste_shock (float): Taste shock scale parameter.
+        taste_shock_scale (float): Taste shock scale parameter.
 
     Returns:
         tuple:
@@ -206,7 +206,7 @@ def aggregate_marg_utilites_and_values_over_choices(
     choice_restricted_exp_values, rescale_factor = _rescale(
         values=values_filtered,
         choice_set_indices=choice_set_indices,
-        taste_shock=taste_shock,
+        taste_shock_scale=taste_shock_scale,
     )
 
     sum_exp_values = jnp.sum(choice_restricted_exp_values, axis=0)
@@ -214,7 +214,7 @@ def aggregate_marg_utilites_and_values_over_choices(
     choice_probabilities = choice_restricted_exp_values / sum_exp_values
 
     marg_util = jnp.sum(choice_probabilities * marg_utils_filtered, axis=0)
-    emax = rescale_factor + taste_shock * jnp.log(sum_exp_values)
+    emax = rescale_factor + taste_shock_scale * jnp.log(sum_exp_values)
 
     marg_util *= income_shock_weight
     emax *= income_shock_weight
@@ -225,7 +225,7 @@ def aggregate_marg_utilites_and_values_over_choices(
 def _rescale(
     values: jnp.ndarray,
     choice_set_indices: jnp.ndarray,
-    taste_shock: float,
+    taste_shock_scale: float,
 ) -> Tuple[jnp.ndarray, float]:
     """Rescale the choice-restricted expected values.
 
@@ -234,7 +234,7 @@ def _rescale(
             of the next-period choice-specific value function.
         choice_set_indices (jnp.ndarray): 1d array of shape (n_choices,) of
             the agent's feasible choice set in the given state.
-        taste_shock (float): Taste shock scale parameter.
+        taste_shock_scale (float): Taste shock scale parameter.
 
     Returns:
         tuple:
@@ -245,7 +245,7 @@ def _rescale(
 
     """
     rescaling_factor = jnp.amax(values)
-    exp_values_scaled = jnp.exp((values - rescaling_factor) / taste_shock)
+    exp_values_scaled = jnp.exp((values - rescaling_factor) / taste_shock_scale)
     choice_restricted_exp_values = exp_values_scaled * choice_set_indices
 
     return choice_restricted_exp_values, rescaling_factor
