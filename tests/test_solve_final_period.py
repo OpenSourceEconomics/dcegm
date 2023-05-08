@@ -24,9 +24,6 @@ from toy_models.consumption_retirement_model.state_space_objects import (
 from toy_models.consumption_retirement_model.utility_functions import (
     marginal_utility_crra,
 )
-from toy_models.consumption_retirement_model.utility_functions import (
-    utiility_func_log_crra,
-)
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
 
 model = ["deaton", "retirement_taste_shocks", "retirement_no_taste_shocks"]
@@ -67,13 +64,8 @@ def test_consume_everything_in_final_period(
     for state_choice_idx, state_choice_vec in enumerate(feasible_state_choice_combs):
         choices_child_states[state_choice_idx - n_choices, state_choice_vec[-1]] = True
 
-    if np.allclose(params_dict["theta"], 1):
-        util_func = utiility_func_log_crra
-    else:
-        util_func = utility_func_crra
-
     user_utility_functions = {
-        "utility": util_func,
+        "utility": utility_func_crra,
         "marginal_utility": marginal_utility_crra,
         "inverse_marginal_utility": marginal_utility_crra,  # Doesn't matter here
     }
