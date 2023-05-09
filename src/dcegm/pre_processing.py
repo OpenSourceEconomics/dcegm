@@ -42,7 +42,7 @@ def get_partial_functions(
     user_utility_functions: Dict[str, Callable],
     user_budget_constraint: Callable,
     exogenous_transition_function: Callable,
-) -> Tuple[Callable, Callable, Callable, Callable, Callable, Callable]:
+) -> Tuple[Callable, Callable, Callable, Callable, Callable, Callable, Callable]:
     """Create partial functions from user supplied functions.
 
     Args:
@@ -76,8 +76,8 @@ def get_partial_functions(
             of the policy and value function. If the number of discrete choices is 1,
             this function is a dummy function that returns the policy and value
             function as is, without performing a fast upper envelope scan.
-        - transition_function (Callable): Partialled transition function return
-            transition vector for each state.
+        - transition_function (Callable): Partialled transition function that returns
+            transition probabilities for each state.
 
     """
     compute_utility = partial(
@@ -210,36 +210,10 @@ def create_multi_dim_arrays(
     return endog_grid_container, policy_container, value_container
 
 
-def get_possible_choices_array(
-    state_space: np.ndarray,
-    state_indexer: np.ndarray,
-    get_state_specific_choice_set: Callable,
-    options: Dict[str, int],
-) -> np.ndarray:
-    """Create binary array for storing the possible choices for each state.
-
-    Args:
-        state_space (np.ndarray): Collection of all possible states.
-        state_indexer (np.ndarray): 2d array of shape (n_periods, n_choices) containing
-            the indexer object that maps states to indices in the state space.
-        get_state_specific_choice_set (Callable): User-supplied function returning for
-            each state all possible choices.
-        options (dict): Options dictionary.
-
-    Returns:
-        np.ndarray: Binary 2d array of shape (n_states, n_choices)
-            indicating if choice is possible.
-
-    """
-    n_choices = options["n_discrete_choices"]
-    choices_array = np.zeros((state_space.shape[0], n_choices), dtype=int)
-    for index in range(state_space.shape[0]):
-        state = state_space[index]
-        choice_set = get_state_specific_choice_set(state, state_space, state_indexer)
-        choices_array[index, choice_set] = 1
-
-    return choices_array
-
-
-def _return_policy_and_value(endog_grid, policy, value, **kwargs):
+def _return_policy_and_value(
+    endog_grid, policy, value, expected_value_zero_savings, **kwargs
+):
+    endog_grid = np.append(0, endog_grid)
+    policy = np.append(0, policy)
+    value = np.append(expected_value_zero_savings, value)
     return endog_grid, policy, value

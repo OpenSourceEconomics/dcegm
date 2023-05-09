@@ -2,19 +2,20 @@ from typing import Callable
 from typing import Tuple
 
 import jax.numpy as jnp
+import numpy as np
 from dcegm.interpolation import get_values_and_marginal_utilities
 from jax import vmap
 
 
 def marginal_util_and_exp_max_value_states_period(
-    endog_grid_child_states: jnp.ndarray,
-    policies_child_states: jnp.ndarray,
-    values_child_states: jnp.ndarray,
-    exogenous_savings_grid: jnp.ndarray,
-    possible_child_states: jnp.ndarray,
-    choices_child_states: jnp.ndarray,
-    income_shock_draws: jnp.ndarray,
-    income_shock_weights: jnp.ndarray,
+    endog_grid_child_states: np.ndarray,
+    policy_child_states: np.ndarray,
+    value_child_states: np.ndarray,
+    exogenous_savings_grid: np.ndarray,
+    state_space_next: np.ndarray,
+    choices_child_states: np.ndarray,
+    income_shock_draws: np.ndarray,
+    income_shock_weights: np.ndarray,
     taste_shock_scale: float,
     compute_next_period_wealth: Callable,
     compute_marginal_utility: Callable,
@@ -25,25 +26,26 @@ def marginal_util_and_exp_max_value_states_period(
     The underlying algorithm is the Endogenous-Grid-Method (EGM).
 
     Args:
-        endog_grid_child_states (jnp.ndarray): 3d array containing the endogenous
+        endog_grid_child_states (np.ndarray): 3d array containing the endogenous
             wealth grid of the child_states. Shape (n_child_states_period, n_choice,
             n_grid_wealth).
-        policies_child_states (jnp.ndarray): 3d array containing the corresponding
+        policy_child_states (np.ndarray): 3d array containing the corresponding
             policy function values of the endogenous wealth grid of the child_states
             shape (n_child_states_period, n_choice, n_grid_wealth).
-        values_child_states (jnp.ndarray): 3d array containing the corresponding
+        value_child_states (np.ndarray): 3d array containing the corresponding
             value function values of the endogenous wealth grid of the child_states
             shape (n_child_states_period, n_choice, n_grid_wealth).
-        exogenous_savings_grid (jnp.array): Exogenous savings grid.
-        possible_child_states (jnp.ndarray): Multi-dimensional jnp.ndarray containing
-            the possible child_states of shape (n_states_period,num_state_variables).
-        choices_child_states (jnp.ndarray): 2d binary jnp.ndarray
-            indicating for each child state if choice is possible; of shape
-            (n_states_period,num_state_variables).
-        income_shock_draws (jnp.array): Stochastic income shock draws.
-            Shape (n_stochastic_points).
-        income_shock_weights (jnp.array): Weights of stochastic shock draw.
-            Shape (n_stochastic_points).
+        exogenous_savings_grid (np.array): Exogenous savings grid.
+        state_space_next (np.ndarray): 2d array of shape
+            (n_child_states, n_state_variables + 1) containing the possible child_states
+            in the next period (t + 1) that can be reached from the current period.
+        choices_child_states (np.ndarray): 2d boolean array of shape
+            (n_states_period, n_choices) denoting if the state-choice combinations are
+            feasible in the given period.
+        income_shock_draws (np.ndarray): 1d array of shape (n_quad_points,)
+            containing the Hermite quadrature points.
+        income_shock_weights (np.ndarrray): 1d array of shape
+            (n_stochastic_quad_points) with weights for each stoachstic shock draw.
         taste_shock_scale (float): The taste shock scale parameter.
         compute_next_period_wealth (callable): User-defined function to compute the
             agent's wealth  of the next period (t + 1). The inputs
@@ -58,12 +60,12 @@ def marginal_util_and_exp_max_value_states_period(
     Returns:
         tuple:
 
-        - (jnp.ndarray): 1d array of the child-state specific marginal utility,
+        - marg_utils (jnp.ndarray): 2d array of shape (n_states_period, n_grid_wealth).
+            containing the child-state specific marginal utilities,
             weighted by the vector of income shocks.
-            Shape (n_states_period, n_grid_wealth).
-        - (jnp.ndarray): 1d array of the child-state specific expected maximum value,
+        - emax (jnp.ndarray): 2d array of shape (n_states_period, n_grid_wealth)
+            containing the child-state specific expected maximum values,
             weighted by the vector of income shocks.
-            Shape (n_states_period, n_grid_wealth).
 
     """
     resources_next_period = vmap(
@@ -72,16 +74,16 @@ def marginal_util_and_exp_max_value_states_period(
             in_axes=(None, 0, None),
         ),
         in_axes=(0, None, None),
-    )(possible_child_states, exogenous_savings_grid, income_shock_draws)
+    )(state_space_next, exogenous_savings_grid, income_shock_draws)
 
-    marginal_util_weighted_shock, max_exp_value_weighted_shock = vmap(
+    marg_utils_weighted, emax_weighted = vmap(
         vectorized_marginal_util_and_exp_max_value,
         in_axes=(0, 0, 0, 0, 0, None, None, None, None),
     )(
         endog_grid_child_states,
         resources_next_period,
-        policies_child_states,
-        values_child_states,
+        policy_child_states,
+        value_child_states,
         choices_child_states,
         income_shock_weights,
         taste_shock_scale,
@@ -89,9 +91,7 @@ def marginal_util_and_exp_max_value_states_period(
         compute_value,
     )
 
-    return marginal_util_weighted_shock.sum(axis=2), max_exp_value_weighted_shock.sum(
-        axis=2
-    )
+    return marg_utils_weighted.sum(axis=2), emax_weighted.sum(axis=2)
 
 
 def vectorized_marginal_util_and_exp_max_value(
@@ -134,19 +134,18 @@ def vectorized_marginal_util_and_exp_max_value(
     Returns:
         tuple:
 
-        - (float): 1d array of the child-state specific marginal utility,
-            weighted by the vector of income shocks. Shape (n_grid_wealth,).
-        - (jnp.ndarray): 1d array of the child-state specific expected maximum value,
-            weighted by the vector of income shocks. Shape (n_grid_wealth,).
+        - marg_utils_weighted (jnp.ndarray): 2d array of shape
+            (n_child_states, n_grid_wealth) containing the child-state specific
+            marginal utilities, weighted by the vector of income shocks.
+        - emax_weighted (jnp.ndarray): 2d array of shape (n_child_states, n_grid_wealth)
+            containing the child-state specific expected maximum values,
+            weighted by the vector of income shocks.
 
     """
 
     # Interpolate the optimal consumption choice on the wealth grid and calculate the
     # corresponding marginal utilities.
-    (
-        marg_utilities_child_state_choice_specific,
-        values_child_state_choice_specific,
-    ) = get_values_and_marginal_utilities(
+    marg_utils, values = get_values_and_marginal_utilities(
         compute_marginal_utility=compute_marginal_utility,
         compute_value=compute_value,
         next_period_wealth=next_period_wealth,
@@ -155,24 +154,24 @@ def vectorized_marginal_util_and_exp_max_value(
         choice_values_child_state=choice_values_child_state,
     )
 
-    child_state_marginal_utility_weighted, child_state_exp_max_value_weighted = vmap(
+    marg_utils_weighted, emax_weighted = vmap(
         vmap(
-            aggregate_marg_utilites_and_values_over_choices_and_weight,
+            aggregate_marg_utilites_and_values_over_choices,
             in_axes=(1, 1, None, 0, None),
         ),
         in_axes=(1, 1, None, None, None),
     )(
-        values_child_state_choice_specific,
-        marg_utilities_child_state_choice_specific,
+        values,
+        marg_utils,
         choice_set_indices,
         income_shock_weight,
         taste_shock_scale,
     )
 
-    return child_state_marginal_utility_weighted, child_state_exp_max_value_weighted
+    return marg_utils_weighted, emax_weighted
 
 
-def aggregate_marg_utilites_and_values_over_choices_and_weight(
+def aggregate_marg_utilites_and_values_over_choices(
     values: jnp.ndarray,
     marg_utilities: jnp.ndarray,
     choice_set_indices: jnp.ndarray,
@@ -197,14 +196,14 @@ def aggregate_marg_utilites_and_values_over_choices_and_weight(
     Returns:
         tuple:
 
-        - (float): The marginal utility in the child state.
-        - (float): The expected maximum value in the child state.
+        - marg_util (float): The marginal utility in the child state.
+        - emax (float): The expected maximum value in the child state.
 
     """
     values_filtered = jnp.nan_to_num(values, nan=-jnp.inf)
-    marg_utilities_filtered = jnp.nan_to_num(marg_utilities, nan=0.0)
+    marg_utils_filtered = jnp.nan_to_num(marg_utilities, nan=0.0)
 
-    choice_restricted_exp_values, rescale_factor = rescale_values_and_restrict_choices(
+    choice_restricted_exp_values, rescale_factor = _rescale(
         values=values_filtered,
         choice_set_indices=choice_set_indices,
         taste_shock_scale=taste_shock_scale,
@@ -212,47 +211,41 @@ def aggregate_marg_utilites_and_values_over_choices_and_weight(
 
     sum_exp_values = jnp.sum(choice_restricted_exp_values, axis=0)
 
-    # Compute the choice probabilities
     choice_probabilities = choice_restricted_exp_values / sum_exp_values
-    # Aggregate marginal utilities with choice probabilities and filter before
-    child_state_marg_util = jnp.sum(
-        choice_probabilities * marg_utilities_filtered, axis=0
-    )
-    # Calculate the expected maximum value with the log-sum formula
-    child_state_exp_max_value = rescale_factor + taste_shock_scale * jnp.log(
-        sum_exp_values
-    )
 
-    # Last step weight outputs
-    child_state_marg_util *= income_shock_weight
-    child_state_exp_max_value *= income_shock_weight
+    marg_util = jnp.sum(choice_probabilities * marg_utils_filtered, axis=0)
+    emax = rescale_factor + taste_shock_scale * jnp.log(sum_exp_values)
 
-    return child_state_marg_util, child_state_exp_max_value
+    marg_util *= income_shock_weight
+    emax *= income_shock_weight
+
+    return marg_util, emax
 
 
-def rescale_values_and_restrict_choices(
+def _rescale(
     values: jnp.ndarray,
     choice_set_indices: jnp.ndarray,
     taste_shock_scale: float,
 ) -> Tuple[jnp.ndarray, float]:
-    """Rescale the choice-restricted values.
+    """Rescale the choice-restricted expected values.
 
     Args:
         values (jnp.ndarray): 1d array of shape (n_choices,) containing the values
             of the next-period choice-specific value function.
-        choice_set_indices (jnp.ndarray): 1d array of shape (n_choices,) of the agent's
-            (restricted) choice set in the given state.
+        choice_set_indices (jnp.ndarray): 1d array of shape (n_choices,) of
+            the agent's feasible choice set in the given state.
         taste_shock_scale (float): Taste shock scale parameter.
 
     Returns:
         tuple:
 
-        - (jnp.ndarray): Rescaled choice-restricted values.
-        - (float): Rescaling factor.
+        - choice_restricted_exp_values (jnp.ndarray): 1d array of shape (n_choices,)
+            containing the rescaled choice-restricted values.
+        - rescaling_factor (float): Rescaling factor.
 
     """
-    rescale_factor = jnp.amax(values)
-    exp_values_scaled = jnp.exp((values - rescale_factor) / taste_shock_scale)
+    rescaling_factor = jnp.amax(values)
+    exp_values_scaled = jnp.exp((values - rescaling_factor) / taste_shock_scale)
     choice_restricted_exp_values = exp_values_scaled * choice_set_indices
 
-    return choice_restricted_exp_values, rescale_factor
+    return choice_restricted_exp_values, rescaling_factor

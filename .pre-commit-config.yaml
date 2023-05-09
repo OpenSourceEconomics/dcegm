@@ -6,7 +6,7 @@ repos:
       - id: check-useless-excludes
     # -   id: identity  # Prints all files passed to pre-commits. Debugging.
   - repo: https://github.com/adrienverge/yamllint.git
-    rev: v1.30.0
+    rev: v1.31.0
     hooks:
       - id: yamllint
   - repo: https://github.com/lyz-code/yamlfix
@@ -53,7 +53,7 @@ repos:
       - id: black
         exclude: tests/utils/fast_upper_envelope_org.py
   - repo: https://github.com/PyCQA/docformatter
-    rev: v1.6.0
+    rev: v1.6.4
     hooks:
       - id: docformatter
         args:
@@ -65,7 +65,7 @@ repos:
           - --blank
         exclude: tests/utils/fast_upper_envelope_org.py
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.0.260
+    rev: v0.0.263
     hooks:
       - id: ruff
         exclude: |
@@ -74,7 +74,7 @@ repos:
               docs/source/conf.py|
           )$
   - repo: https://github.com/dosisod/refurb
-    rev: v1.15.0
+    rev: v1.16.0
     hooks:
       - id: refurb
         args: [--python-version, '3.10']

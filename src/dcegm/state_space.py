@@ -1,96 +1,131 @@
-from typing import Callable
-
+"""Functions for creating internal state space objects."""
 import numpy as np
 
 
-def get_child_states(
-    state: np.ndarray,
+def get_map_from_state_to_child_nodes(
     state_space: np.ndarray,
-    indexer: np.ndarray,
-    get_state_specific_choice_set: Callable,
+    state_choice_space: np.ndarray,
+    map_state_to_index: np.ndarray,
 ) -> np.ndarray:
-    """Select state-specific child nodes. Will be a user defined function later.
+    """Create indexer array that maps states to state-specific child nodes.
+
+    Will be a user defined function later.
 
     ToDo: We need to think about how to incorporate updating from state variables,
     e.g. experience.
 
     Args:
-        state (np.ndarray): 1d array of shape (n_state_variables,) defining the agent's
-            state. In Ishkakov, an agent's state is defined by her (i) age (i.e. the
-            current period) and (ii) her lagged labor market choice.
-            Hence n_state_variables = 2.
-        state_space (np.ndarray): Collection of all possible states.
-        indexer (np.ndarray): 2d array of shape (n_periods, n_choices) containing
-            the indexer object that maps states to indices in the state space.
-        get_state_specific_choice_set (Callable): User-supplied function returning for
-            each state all possible choices.
+        state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
+            which serves as a collection of all possible states. By convention,
+            the first column must contain the period and the last column the
+            exogenous processes. Any other state variables are in between.
+            E.g. if the two state variables are period and lagged choice and all choices
+            are admissible in each period, the shape of the state space array is
+            (n_periods * n_choices, 3).
+        state_choice_space (np.ndarray): 2d array of shape
+            (n_feasible_states, n_state_and_exog_variables + 1) containing all feasible
+            state-choice combinations.
+        map_state_to_index (np.ndarray): Indexer array that maps states to indexes.
+            The shape of this object is quite complicated. For each state variable it
+            has the number of possible states as rows, i.e.
+            (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
 
     Returns:
         np.ndarray: 2d array of shape
-            (n_state_specific_choices, n_state_specific_choices)
-            containing all child nodes the agent can reach from her given state.
+            (n_feasible_state_choice_combs, n_choices * n_exog_processes)
+            containing indices of all child nodes the agent can reach
+            from any given state.
 
     """
-    # Exogenous processes are always on the last entry of the state space. Moreover, we
-    # treat all of them as admissible in each period. If there exists a absorbing state,
-    # this is reflected by a 0 percent transition probability.
-    n_exog_processes = indexer.shape[-1]
+    # n_periods = options["n_periods"]
+    # n_choices = options["n_discrete_choices"]
+    # n_exog_process = options["n_exog_processes"]
 
-    # Get all admissible choices.
-    state_specific_choice_set = get_state_specific_choice_set(
-        state, state_space, indexer
+    # Exogenous processes are always on the last entry of the state space. Moreover, we
+    # treat all of them as admissible in each period. If there exists an absorbing
+    # state, this is reflected by a 0 percent transition probability.
+    n_periods, n_choices, n_exog_processes = map_state_to_index.shape
+    n_feasible_state_choice_combs = state_choice_space.shape[0]
+
+    n_states_over_periods = state_space.shape[0] // n_periods
+
+    map_state_to_child_nodes = np.empty(
+        (n_feasible_state_choice_combs, n_exog_processes),
+        dtype=int,
     )
 
-    child_nodes = np.empty(
-        (state_specific_choice_set.shape[0], n_exog_processes, state_space.shape[1]),
-        dtype=int,
-    )  # (n_admissible_choices, n_exog_processes, n_state_variables)
-    new_state = state.copy()
-    new_state[0] += 1
-    for i, choice in enumerate(state_specific_choice_set):
-        new_state[1] = choice
-        for exog_proc_state in range(n_exog_processes):
-            new_state[-1] = exog_proc_state
-            child_nodes[i, exog_proc_state, :] = state_space[indexer[tuple(new_state)]]
+    for idx in range(n_feasible_state_choice_combs):
+        state_choice_vec = state_choice_space[idx]
+        period = state_choice_vec[0]
+        state_vec = state_choice_vec[:-1]
+        lagged_choice = state_choice_vec[-1]
 
-    return child_nodes
+        state_vec_next = state_vec.copy()
+        state_vec_next[0] += 1  # Increment period
+
+        if state_vec_next[0] < n_periods:
+            state_vec_next[1] = lagged_choice
+
+            for exog_process in range(n_exog_processes):
+                state_vec_next[-1] = exog_process
+
+                map_state_to_child_nodes[idx, exog_process] = (
+                    map_state_to_index[tuple(state_vec_next)]
+                    - (period + 1) * n_states_over_periods
+                )
+
+    return map_state_to_child_nodes
 
 
-def get_child_indexes(
-    state: np.ndarray,
-    state_space: np.ndarray,
-    indexer: np.ndarray,
-    get_state_specific_choice_set: Callable,
-) -> np.ndarray:
-    """Create array of child indexes.
+def create_state_choice_space(
+    state_space, map_state_to_index, get_state_specific_choice_set
+):
+    """Create state choice space of all feasible state-choice combinations.
+
+    Also conditional on any realization of exogenous processes.
 
     Args:
-        state (np.ndarray): 1d array of shape (n_state_variables,) defining the agent's
-            state. In Ishkakov, an agent's state is defined by her (i) age (i.e. the
-            current period) and (ii) her lagged labor market choice.
-            Hence n_state_variables = 2.
-        state_space (np.ndarray): Collection of all possible states.
-        indexer (np.ndarray): 2d array of shape (n_periods, n_choices) containing
-            the indexer object that maps states to indices in the state space.
-        get_state_specific_choice_set (Callable): User-supplied function returning for
-            each state all possible choices.
+        state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
+            which serves as a collection of all possible states. By convention,
+            the first column must contain the period and the last column the
+            exogenous processes. Any other state variables are in between.
+            E.g. if the two state variables are period and lagged choice and all choices
+            are admissible in each period, the shape of the state space array is
+            (n_periods * n_choices, 3).
+        map_state_to_index (np.ndarray): Indexer array that maps states to indexes.
+            The shape of this object is quite complicated. For each state variable it
+            has the number of possible states as rows, i.e.
+            (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
+        get_state_specific_choice_set (Callable): User-supplied function that returns
+            the set of feasible coices for a given state.
 
     Returns:
         np.ndarray: 2d array of shape
-            (n_state_specific_choices, n_state_specific_choices)
-            containing all child nodes the agent can reach from her given state.
+            (n_feasible_states, n_state_and_exog_variables + 1) containing all
+            feasible state-choice combinations. By convention, the second to last
+            column contains the exogenous process. The last column always contains the
+            choice to be made (which is not a state variable).
 
     """
-    child_states = get_child_states(
-        state, state_space, indexer, get_state_specific_choice_set
+    n_states, n_state_and_exog_variables = state_space.shape
+    _n_periods, n_choices, _n_exog_processes = map_state_to_index.shape
+
+    state_choice_space = np.zeros(
+        (n_states * n_choices, n_state_and_exog_variables + 1),
+        dtype=int,
     )
 
-    child_indexes = np.full(
-        (child_states.shape[0], child_states.shape[1]), fill_value=-99, dtype=int
-    )
-    for choice_ind in range(child_states.shape[0]):
-        for exog_proc_ind in range(child_states.shape[1]):
-            child_indexes[choice_ind, exog_proc_ind] = indexer[
-                tuple(child_states[choice_ind, exog_proc_ind, :])
-            ]
-    return child_indexes
+    idx = 0
+    for state_idx in range(n_states):
+        state_vec = state_space[state_idx]
+
+        choice_set = get_state_specific_choice_set(
+            state_vec, state_space, map_state_to_index
+        )
+
+        for feasible_choice in choice_set:
+            state_choice_space[idx, :-1] = state_vec
+            state_choice_space[idx, -1] = feasible_choice
+            idx += 1
+
+    return state_choice_space[:idx]

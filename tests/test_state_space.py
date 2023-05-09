@@ -2,7 +2,6 @@ from itertools import product
 
 import numpy as np
 import pytest
-from dcegm.state_space import get_child_states
 from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space,
 )
@@ -72,36 +71,3 @@ def test_state_choice_set(lagged_choice, n_periods, n_choices, n_exog_processes)
     choice_set = get_state_specific_choice_set(state, state_space, state_indexer)
 
     np.allclose(choice_set, np.arange(n_choices))
-
-
-@pytest.mark.parametrize(
-    "lagged_choice, n_periods, n_choices, n_exog_processes", TEST_CASES
-)
-def test_get_child_states(lagged_choice, n_periods, n_choices, n_exog_processes):
-    state_space, state_indexer = expected_state_space_and_indexer(
-        n_periods, n_choices, n_exog_processes
-    )
-
-    n_admissible_choices = n_choices
-
-    period = 0
-    exog_process_state = 0
-    state = np.array([period, lagged_choice, exog_process_state])
-
-    child_nodes = get_child_states(
-        state,
-        state_space,
-        state_indexer,
-        get_state_specific_choice_set=get_state_specific_choice_set,
-    )
-
-    expected_child_nodes = np.atleast_2d(
-        np.column_stack(
-            [
-                np.repeat(period + 1, n_admissible_choices * n_exog_processes),
-                np.repeat(np.arange(n_admissible_choices), n_exog_processes),
-                np.tile(np.arange(n_exog_processes), n_admissible_choices),
-            ]
-        )
-    ).reshape(n_admissible_choices, n_exog_processes, state.shape[0])
-    np.allclose(child_nodes, expected_child_nodes)

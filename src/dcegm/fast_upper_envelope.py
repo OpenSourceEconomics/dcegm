@@ -20,9 +20,10 @@ def fast_upper_envelope_wrapper(
     policy: np.ndarray,
     value: np.ndarray,
     exog_grid: np.ndarray,
+    expected_value_zero_savings: float,
     choice: int,
     compute_value: Callable,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Drop suboptimal points and refine the endogenous grid, policy, and value.
 
     Computes the upper envelope over the overlapping segments of the
@@ -55,6 +56,8 @@ def fast_upper_envelope_wrapper(
             containing the current state- and choice-specific value function.
         exog_grid (np.ndarray): 1d array of shape (n_grid_wealth,) of the
             exogenous savings grid.
+        expected_value_zero_savings (float): The agent's expected value given that she
+            saves zero.
         choice (int): The current choice.
         compute_value (callable): Function to compute the agent's value.
 
@@ -70,34 +73,30 @@ def fast_upper_envelope_wrapper(
 
     """
     n_grid_wealth = len(exog_grid)
-
-    min_wealth_grid = np.min(endog_grid[1:])
-    if endog_grid[1] > min_wealth_grid:
+    min_wealth_grid = np.min(endog_grid)
+    if endog_grid[0] > min_wealth_grid:
         # Non-concave region coincides with credit constraint.
         # This happens when there is a non-monotonicity in the endogenous wealth grid
         # that goes below the first point.
         # Solution: Value function to the left of the first point is analytical,
         # so we just need to add some points to the left of the first grid point.
 
-        endog_grid_augmented, value_augmented, policy_augmented = _augment_grids(
+        endog_grid, value, policy = _augment_grids(
             endog_grid=endog_grid,
             value=value,
             policy=policy,
             choice=choice,
-            expected_value_zero_wealth=value[0],
+            expected_value_zero_savings=expected_value_zero_savings,
             min_wealth_grid=min_wealth_grid,
             n_grid_wealth=n_grid_wealth,
             compute_value=compute_value,
         )
-        endog_grid = np.append(0, endog_grid_augmented)
-        policy = np.append(policy[0], policy_augmented)
-        value = np.append(value[0], value_augmented)
-        exog_grid_augmented = np.linspace(
-            exog_grid[1], exog_grid[2], n_grid_wealth // 10 + 1
-        )
-        exog_grid = np.append([0], np.append(exog_grid_augmented, exog_grid[2:]))
-    else:
-        exog_grid = np.append(0, exog_grid)
+        exog_grid = np.append(np.zeros(n_grid_wealth // 10 - 1), exog_grid)
+
+    endog_grid = np.append(0, endog_grid)
+    policy = np.append(0, policy)
+    value = np.append(expected_value_zero_savings, value)
+    exog_grid = np.append(0, exog_grid)
 
     endog_grid_refined, value_refined, policy_refined = fast_upper_envelope(
         endog_grid, value, policy, exog_grid, jump_thresh=2
@@ -206,7 +205,7 @@ def scan_value_function(
     exog_grid: np.ndarray,
     jump_thresh: float,
     n_points_to_scan: Optional[int] = 0,
-):
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Scan the value function to remove suboptimal points and add intersection points.
 
     Args:
@@ -222,18 +221,17 @@ def scan_value_function(
         n_points_to_scan (int): Number of points to scan for suboptimal points.
 
     Returns:
-        value_refined (np.ndarray): 1d array containing the refined value function
-            of shape (n_grid_clean,). Overlapping segments have been removed and only
+        tuple:
+
+        - (np.ndarray): 1d array of shape (n_grid_clean,) containing the refined
+            value function. Overlapping segments have been removed and only
             the optimal points are kept.
 
     """
-    value_refined = np.copy(value)
-    policy_refined = np.copy(policy)
-    endog_grid_refined = np.copy(endog_grid)
 
-    value_refined[2:] = np.nan
-    endog_grid_refined[2:] = np.nan
-    policy_refined[2:] = np.nan
+    value_refined, policy_refined, endog_grid_refined = _initialize_refined_arrays(
+        value, policy, endog_grid
+    )
 
     suboptimal_points = np.zeros(n_points_to_scan, dtype=np.int64)
 
@@ -347,6 +345,7 @@ def scan_value_function(
                     policy_refined[idx_refined] = policy[i + 1]
                     endog_grid_refined[idx_refined] = endog_grid[i + 1]
                     idx_refined += 1
+
                     k = j
                     j = i + 1
 
@@ -499,6 +498,7 @@ def scan_value_function(
                     policy_refined[idx_refined] = policy[i + 1]
                     endog_grid_refined[idx_refined] = endog_grid[i + 1]
                     idx_refined += 1
+
                     k = j
                     j = i + 1
 
@@ -728,7 +728,7 @@ def _augment_grids(
     value: np.ndarray,
     policy: np.ndarray,
     choice: int,
-    expected_value_zero_wealth: np.ndarray,
+    expected_value_zero_savings: np.ndarray,
     min_wealth_grid: float,
     n_grid_wealth: int,
     compute_value: Callable,
@@ -753,8 +753,8 @@ def _augment_grids(
             In the presence of discontinuities, the policy function is a
             "correspondence" rather than a function due to multiple local optima.
         choice (int): The agent's choice.
-        expected_value_zero_wealth (float): The agent's expected value given that she
-            has a wealth of zero.
+        expected_value_zero_savings (float): The agent's expected value given that she
+            saves zero.
         min_wealth_grid (float): Minimal wealth level in the endogenous wealth grid.
         n_grid_wealth (int): Number of grid points in the exogenous wealth grid.
         compute_value (callable): Function to compute the agent's value.
@@ -771,16 +771,34 @@ def _augment_grids(
 
     """
     grid_points_to_add = np.linspace(
-        min_wealth_grid, endog_grid[1], n_grid_wealth // 10
+        min_wealth_grid, endog_grid[0], n_grid_wealth // 10
     )[:-1]
 
-    grid_augmented = np.append(grid_points_to_add, endog_grid[1:])
+    grid_augmented = np.append(grid_points_to_add, endog_grid)
     values_to_add = compute_value(
         grid_points_to_add,
-        expected_value_zero_wealth,
+        expected_value_zero_savings,
         choice,
     )
-    value_augmented = np.append(values_to_add, value[1:])
-    policy_augmented = np.append(grid_points_to_add, policy[1:])
+    value_augmented = np.append(values_to_add, value)
+    policy_augmented = np.append(grid_points_to_add, policy)
 
     return grid_augmented, value_augmented, policy_augmented
+
+
+def _initialize_refined_arrays(
+    value: np.ndarray, policy: np.ndarray, endog_grid: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    value_refined = np.empty_like(value)
+    policy_refined = np.empty_like(policy)
+    endog_grid_refined = np.empty_like(endog_grid)
+
+    value_refined[:] = np.nan
+    policy_refined[:] = np.nan
+    endog_grid_refined[:] = np.nan
+
+    value_refined[:2] = value[:2]
+    policy_refined[:2] = policy[:2]
+    endog_grid_refined[:2] = endog_grid[:2]
+
+    return value_refined, policy_refined, endog_grid_refined
