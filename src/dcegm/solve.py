@@ -257,6 +257,7 @@ def backwards_induction(
     """
     n_choices = map_state_to_index.shape[1]  # use options here to extract n_choices
     n_states_over_periods = state_space.shape[0] // n_periods  # rather max n_states_t?
+    max_wealth = exogenous_savings_grid[-1]
 
     endog_grid_child_states = np.empty(
         (n_states_over_periods, n_choices, int(len(exogenous_savings_grid) * 1.1))
@@ -305,6 +306,13 @@ def backwards_induction(
         income_shock_draws=income_shock_draws,
         income_shock_weights=income_shock_weights,
     )
+
+    endog_grid_container[idx_possible_states, ...] = np.nan
+    policy_container[idx_possible_states, ...] = np.nan
+    value_container[idx_possible_states, ...] = np.nan
+    endog_grid_container[idx_possible_states, ..., :2] = [0, max_wealth]
+    policy_container[idx_possible_states, ..., :2] = [0, max_wealth]
+    value_container[idx_possible_states, ..., :2] = [0, max_wealth]
 
     for period in range(n_periods - 2, -1, -1):
         idx_possible_states = np.where(state_space[:, 0] == period)[0]
