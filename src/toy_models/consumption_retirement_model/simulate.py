@@ -98,7 +98,7 @@ def income(it, shock, coeffs_age_poly):
     return w
 
 
-def simulate_new(
+def simulate(
     endog_grid,
     policy,
     value,
@@ -118,10 +118,10 @@ def simulate_new(
     num_sims=10,
     seed=7134,
 ):
-    # To-Do. Fix for now, ignore exogenous proccess
-    endog_grid = endog_grid[::2]
-    policy = policy[::2]
-    value = value[::2]
+    # # To-Do. Fix for now, ignore exogenous proccess
+    # endog_grid = endog_grid[::2]
+    # policy = policy[::2]
+    # value = value[::2]
 
     # partial
     discount_factor = params.loc[("beta", "beta"), "value"]
@@ -278,7 +278,7 @@ def simulate_new(
         wealth0, wealth1, cons, worker, income_, shock, ret_age, num_sims, num_periods
     )
 
-    return df, working, prob_work, vl1
+    return df
 
 
 def sim_periods(
