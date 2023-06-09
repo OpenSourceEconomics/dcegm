@@ -32,7 +32,13 @@ from toy_models.consumption_retirement_model.utility_functions import (
     marginal_utility_crra,
 )
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
+from matplotlib.backends.backend_pdf import PdfPages
 
+from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
+
+from jax.config import config
+
+config.update("jax_enable_x64", True)
 
 # Obtain the test directory of the package.
 TEST_DIR = Path(__file__).parent
@@ -70,7 +76,7 @@ def test_simulate(utility_functions, state_space_functions, load_example_model):
     num_grid = 500
 
     # Maximum level of assets
-    mmax = 50
+    max_wealth = 50
 
     # Number of quadrature points used in calculation of expectations
     n_quad_points = 5
@@ -110,8 +116,12 @@ def test_simulate(utility_functions, state_space_functions, load_example_model):
 
     params, options = load_example_model(f"{model}")
     options["n_exog_processes"] = 1
+    max_wealth = params.loc[("assets", "max_wealth"), "value"]
 
     state_space, indexer = create_state_space(options)
+
+    if params.loc[("utility_function", "theta"), "value"] == 1:
+        utility_functions["utility"] = utiility_func_log_crra
 
     endog_grid, policy, value = solve_dcegm(
         params,
@@ -135,8 +145,26 @@ def test_simulate(utility_functions, state_space_functions, load_example_model):
     policy_fedor = np.empty([num_periods, 2, 2, num_grid + 50])
     policy_fedor[:] = np.nan
 
-    for period in range(num_periods):
-        for choice in range(2):
+    for period in range(num_periods - 1, -1, -1):
+        relevant_subset_state = state_space[np.where(state_space[:, 0] == period)][0]
+
+        state_index = indexer[tuple(relevant_subset_state)]
+        for choice in [0, 1]:
+
+            policy_expec = policy_expected[period][1 - choice].T
+            value_expec = value_expected[period][1 - choice].T
+
+            if period < num_periods - 1:
+                endog_grid_got = endog_grid[state_index, choice][
+                    ~np.isnan(endog_grid[state_index, choice]),
+                ]
+                aaae(endog_grid_got, policy_expec[0])
+
+                policy_got = policy[state_index, choice][
+                    ~np.isnan(policy[state_index, choice]),
+                ]
+                aaae(policy_got, policy_expec[1])
+
             for grid in range(2):
                 # value_fedor[t, s, e, :] = linear_interpolation_with_extrapolation(
                 #     endog_grid["a"], value_expected[t, s, e, :]
@@ -155,13 +183,17 @@ def test_simulate(utility_functions, state_space_functions, load_example_model):
                 ] = policy_expected[period][choice].T[grid]
 
     # =============================================================================
+    # breakpoint()
     _endog_grid = endog_grid[::2]
     _policy = policy[::2]
     _value = value[::2]
     policy_stacked = np.stack([_endog_grid, _policy], axis=2)
     value_stacked = np.stack([_endog_grid, _value], axis=2)
 
-    for period in range(23, -1, -1):
+    policy_fill = np.empty([num_periods, 2, 2, 550])
+    policy_fill[:] = np.nan
+
+    for period in range(num_periods - 2, -1, -1):
         relevant_subset_state = state_space[np.where(state_space[:, 0] == period)][0]
 
         state_index = indexer[tuple(relevant_subset_state)]
@@ -169,26 +201,62 @@ def test_simulate(utility_functions, state_space_functions, load_example_model):
             policy_expec = policy_expected[period][1 - choice].T
             value_expec = value_expected[period][1 - choice].T
 
-            if period < 23:
-                endog_grid_got = endog_grid[state_index, choice][
-                    ~np.isnan(endog_grid[state_index, choice]),
-                ]
-                aaae(endog_grid_got, policy_expec[0], decimal=3)
+            endog_grid_got = endog_grid[state_index, choice][
+                ~np.isnan(endog_grid[state_index, choice]),
+            ]
+            aaae(endog_grid_got, policy_expec[0])
 
-                policy_got = policy[state_index, choice][
-                    ~np.isnan(policy[state_index, choice]),
-                ]
-                aaae(policy_got, policy_expec[1], decimal=4)
+            policy_got = policy[state_index, choice][
+                ~np.isnan(policy[state_index, choice]),
+            ]
+            aaae(policy_got, policy_expec[1])
 
-            # policy_got = policy[state_index, choice][
-            #     ~np.isnan(policy[state_index, choice]),
-            # ]
-            # aaae(policy_got, policy_expec[1])
+            policy_fill[period, choice, 0, : len(endog_grid_got)] = endog_grid_got
+            policy_fill[period, choice, 1, : len(policy_got)] = policy_got
+
+    #
+    endog_grid_expec = policy_expected[24][1 - choice].T[0]
+    policy_expec = policy_expected[24][1 - choice].T[1]
+    #
+
+    # compare stacked and filled arrays
+    for period in range(num_periods - 2, -1, -1):
+        # relevant_subset_state = state_space[np.where(state_space[:, 0] == period)][0]
+        # state_index = indexer[tuple(relevant_subset_state)]
+        for choice in range(2):
+            # aaae(endog_grid_got, policy_expec[0])
+
+            aaae(policy_fill[period, choice], policy_stacked[period, choice])
+
+    aaae(policy_fill[:23], policy_stacked[:23])
+
+    # breakpoint()
+    # endog_grid_expec = policy
+
+    policy_fill[24, choice, 0, : len(endog_grid_expec)] = endog_grid_expec
+    policy_fill[24, choice, 1, : len(policy_expec)] = policy_expec
+
+    policy_fill[24, 1 - choice, 0, : len(endog_grid_expec)] = endog_grid_expec
+    policy_fill[24, 1 - choice, 1, : len(policy_expec)] = policy_expec
+
+    # last period [0, 50], [0, 50]
+    policy_stacked[num_periods - 1, choice, 0] = np.nan
+    policy_stacked[num_periods - 1, choice, 1] = np.nan
+    policy_stacked[num_periods - 1, 1 - choice, 0] = np.nan
+    policy_stacked[num_periods - 1, 1 - choice, 1] = np.nan
+    policy_stacked[num_periods - 1, choice, 0, :2] = [0, max_wealth]
+    policy_stacked[num_periods - 1, choice, 1, :2] = [0, max_wealth]
+    policy_stacked[num_periods - 1, 1 - choice, 0, :2] = [0, max_wealth]
+    policy_stacked[num_periods - 1, 1 - choice, 1, :2] = [0, max_wealth]
+
+    aaae(policy_fill[23], policy_stacked[23])
+    aaae(policy_fill[24], policy_stacked[24])
+    aaae(policy_fill, policy_stacked)
 
     df = simulate_stacked(
         # endog_grid=endog_grid,
-        policy=policy_fedor,
-        value=value_fedor,
+        policy=policy_stacked,
+        value=value_stacked,
         num_periods=num_periods,
         # cost_work,
         # theta,
@@ -212,8 +280,6 @@ def test_simulate(utility_functions, state_space_functions, load_example_model):
     dens_plot = sns.kdeplot(df["retirement_age"].loc[:, 0], fill=True, color="r")
     fig = dens_plot.get_figure()
     fig.savefig("retirement_age.png")
-
-    from matplotlib.backends.backend_pdf import PdfPages
 
     with PdfPages("wealth0.pdf") as pdf_pages:
         fig = plt.figure()
