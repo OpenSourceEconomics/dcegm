@@ -8,6 +8,8 @@ import pytest
 import seaborn as sns
 from dcegm.interpolation import linear_interpolation_with_extrapolation
 from dcegm.solve import solve_dcegm
+from jax.config import config
+from matplotlib.backends.backend_pdf import PdfPages
 from numpy.testing import assert_array_almost_equal as aaae
 from scipy.stats import norm
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
@@ -32,11 +34,6 @@ from toy_models.consumption_retirement_model.utility_functions import (
     marginal_utility_crra,
 )
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
-from matplotlib.backends.backend_pdf import PdfPages
-
-from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
-
-from jax.config import config
 
 config.update("jax_enable_x64", True)
 
@@ -150,7 +147,6 @@ def test_simulate(utility_functions, state_space_functions, load_example_model):
 
         state_index = indexer[tuple(relevant_subset_state)]
         for choice in [0, 1]:
-
             policy_expec = policy_expected[period][1 - choice].T
             value_expec = value_expected[period][1 - choice].T
 
