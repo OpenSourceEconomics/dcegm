@@ -88,16 +88,23 @@ def test_consume_everything_in_final_period(
 
     income_draws = np.array([0, 0, 0])
 
+    resources_beginning_of_period = vmap(
+        vmap(
+            vmap(compute_next_period_wealth, in_axes=(None, None, 0)),
+            in_axes=(None, 0, None),
+        ),
+        in_axes=(0, None, None),
+    )(states_final_period, savings_grid, income_draws)
+
     endog_grid_final, policy_final, value_final, *_ = final_period_wrapper(
         final_period_states=states_final_period,
         options=options,
         compute_utility=compute_utility,
         final_period_solution=solve_final_period_scalar,
         choices_final=choices_child_states,
-        compute_next_period_wealth=compute_next_period_wealth,
         compute_marginal_utility=compute_marginal_utility,
         taste_shock_scale=params_dict["lambda"],
-        exogenous_savings_grid=savings_grid,
+        resources_last_period=resources_beginning_of_period,
         income_shock_draws=income_draws,
         income_shock_weights=np.array([0, 0, 0]),
     )
