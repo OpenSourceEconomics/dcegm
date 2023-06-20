@@ -394,6 +394,14 @@ def backwards_induction(
             _idx_child_state = state_choice_idx - n_choices
             boolean_choice_mat_child_states[_idx_child_state, choice] = True
 
+        state_indexes = np.empty(dtype=int, shape=after_envelope_policy.shape[0])
+        for state_choice_idx, state_choice_vec in enumerate(
+            feasible_state_choice_combs
+        ):
+            state_indexes[state_choice_idx] = map_state_to_index[
+                tuple(state_choice_vec[:-1])
+            ]
+
         marg_util, emax = get_marg_util_and_emax_jitted(
             resources_next_period=resources_beginning_of_period[idx_possible_states],
             choices_child_states=boolean_choice_mat_child_states,

@@ -94,6 +94,4 @@ def get_state_specific_choice_set(
     else:
         choice_set = np.arange(n_state_variables)
 
-    # breakpoint()
-
     return choice_set
