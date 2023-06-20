@@ -81,16 +81,18 @@ def marginal_util_and_exp_max_value_states_period(
     )
 
     marg_utils_weighted, emax_weighted = vmap(
-        second_step_marg, in_axes=(0, 0, 0, None, None)
+        second_step_marg, in_axes=(0, 0, 0, None)
     )(
         values_pre_lim,
         marg_util_pre_lim,
         choices_child_states,
-        income_shock_weights,
         taste_shock_scale,
     )
 
-    return marg_utils_weighted.sum(axis=2), emax_weighted.sum(axis=2)
+    return (
+        marg_utils_weighted @ income_shock_weights,
+        emax_weighted @ income_shock_weights,
+    )
 
 
 def vectorized_marginal_util_and_exp_max_value(
@@ -160,20 +162,18 @@ def second_step_marg(
     values,
     marg_utils,
     choice_set_indices,
-    income_shock_weight,
     taste_shock_scale,
 ):
     marg_utils_weighted, emax_weighted = vmap(
         vmap(
             aggregate_marg_utilites_and_values_over_choices,
-            in_axes=(1, 1, None, 0, None),
+            in_axes=(1, 1, None, None),
         ),
-        in_axes=(1, 1, None, None, None),
+        in_axes=(1, 1, None, None),
     )(
         values,
         marg_utils,
         choice_set_indices,
-        income_shock_weight,
         taste_shock_scale,
     )
     return marg_utils_weighted, emax_weighted
@@ -183,7 +183,6 @@ def aggregate_marg_utilites_and_values_over_choices(
     values: jnp.ndarray,
     marg_utilities: jnp.ndarray,
     choice_set_indices: jnp.ndarray,
-    income_shock_weight: float,
     taste_shock_scale: float,
 ) -> Tuple[float, float]:
     """Aggregate marginal utilities over discrete choices and weight.
@@ -208,11 +207,9 @@ def aggregate_marg_utilites_and_values_over_choices(
         - emax (float): The expected maximum value in the child state.
 
     """
-    values_filtered = jnp.nan_to_num(values, nan=-jnp.inf)
-    marg_utils_filtered = jnp.nan_to_num(marg_utilities, nan=0.0)
 
     choice_restricted_exp_values, rescale_factor = _rescale(
-        values=values_filtered,
+        values=values,
         choice_set_indices=choice_set_indices,
         taste_shock_scale=taste_shock_scale,
     )
@@ -221,11 +218,8 @@ def aggregate_marg_utilites_and_values_over_choices(
 
     choice_probabilities = choice_restricted_exp_values / sum_exp_values
 
-    marg_util = jnp.sum(choice_probabilities * marg_utils_filtered, axis=0)
+    marg_util = jnp.sum(choice_probabilities * marg_utilities, axis=0)
     emax = rescale_factor + taste_shock_scale * jnp.log(sum_exp_values)
-
-    marg_util *= income_shock_weight
-    emax *= income_shock_weight
 
     return marg_util, emax
 

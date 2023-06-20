@@ -104,24 +104,48 @@ def final_period_wrapper(
         aggregate_marg_utilites_and_values_over_choices,
         taste_shock_scale=taste_shock_scale,
     )
+    reshape_shape = (
+        final_value.shape[0] * final_value.shape[1],
+        final_policy.shape[2],
+        final_policy.shape[3],
+    )
+    final_value_state_choice = final_value.reshape(reshape_shape)
+    marg_util_state_choice = marginal_utilities_choices.reshape(reshape_shape)
+
+    sum_state_choices_to_state = np.array([[1, 1, 0, 0], [0, 0, 1, 1]])
+    sum_state_choices_to_state_choices = np.array(
+        [[1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 1, 1], [0, 0, 1, 1]]
+    )
+    rescale_value = np.amax(final_value_state_choice)
+    exp_value = np.exp(final_value_state_choice - rescale_value)
+    sum_exp = np.tensordot(sum_state_choices_to_state, exp_value, axes=(1, 0))
+    sum_exp_per_state_choice_state = np.tensordot(
+        sum_state_choices_to_state_choices, exp_value, axes=(1, 0)
+    )
+    choice_probs = np.divide(exp_value, sum_exp_per_state_choice_state)
 
     # Weight all draws and aggregate over choices
     marginal_utils_draws, max_exp_values_draws = vmap(
         vmap(
-            vmap(partial_aggregate, in_axes=(1, 1, None, 0)),
-            in_axes=(1, 1, None, None),
+            vmap(partial_aggregate, in_axes=(1, 1, None)),
+            in_axes=(1, 1, None),
         ),
-        in_axes=(0, 0, 0, None),
+        in_axes=(0, 0, 0),
     )(
         final_value,
         marginal_utilities_choices,
         choices_final,
-        income_shock_weights,
+    )
+    max_exp_values_draws = rescale_value + taste_shock_scale * np.log(sum_exp)
+    marginal_utils_draws = np.tensordot(
+        sum_state_choices_to_state_choices,
+        np.multiply(choice_probs, marg_util_state_choice),
+        axes=(1, 0),
     )
 
     # Aggregate the weighted arrays
-    marginal_utils = marginal_utils_draws.sum(axis=2)
-    max_exp_values = max_exp_values_draws.sum(axis=2)
+    marginal_utils = marginal_utils_draws @ income_shock_weights
+    max_exp_values = max_exp_values_draws @ income_shock_weights
 
     # Choose which draw we take for policy and value function as those are note saved
     # with respect to the draws
@@ -136,3 +160,6 @@ def final_period_wrapper(
         marginal_utils,
         max_exp_values,
     )
+
+
+# def experiment_matrix(value_choice_states, marg_util_choice_states):
