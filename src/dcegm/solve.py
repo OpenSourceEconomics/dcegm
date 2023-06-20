@@ -269,14 +269,12 @@ def backwards_induction(
         in_axes=(0, None, None),
     )(state_space, exogenous_savings_grid, income_shock_draws)
 
-    get_marg_util_and_emax_jitted = jit(
-        partial(
-            marginal_util_and_exp_max_value_states_period,
-            compute_marginal_utility=compute_marginal_utility,
-            compute_value=compute_value,
-            taste_shock_scale=taste_shock_scale,
-            income_shock_weights=income_shock_weights,
-        )
+    get_marg_util_and_emax_jitted = partial(
+        marginal_util_and_exp_max_value_states_period,
+        compute_marginal_utility=compute_marginal_utility,
+        compute_value=compute_value,
+        taste_shock_scale=taste_shock_scale,
+        income_shock_weights=income_shock_weights,
     )
 
     idx_possible_states = np.where(state_space[:, 0] == n_periods - 1)[0]

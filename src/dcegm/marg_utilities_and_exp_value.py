@@ -65,7 +65,7 @@ def marginal_util_and_exp_max_value_states_period(
             weighted by the vector of income shocks.
 
     """
-    marg_utils_weighted, emax_weighted = vmap(
+    marg_util_pre_lim, values_pre_lim = vmap(
         vectorized_marginal_util_and_exp_max_value,
         in_axes=(0, 0, 0, 0, 0, None, None, None, None),
     )(
@@ -78,6 +78,16 @@ def marginal_util_and_exp_max_value_states_period(
         taste_shock_scale,
         compute_marginal_utility,
         compute_value,
+    )
+
+    marg_utils_weighted, emax_weighted = vmap(
+        second_step_marg, in_axes=(0, 0, 0, None, None)
+    )(
+        values_pre_lim,
+        marg_util_pre_lim,
+        choices_child_states,
+        income_shock_weights,
+        taste_shock_scale,
     )
 
     return marg_utils_weighted.sum(axis=2), emax_weighted.sum(axis=2)
@@ -143,6 +153,16 @@ def vectorized_marginal_util_and_exp_max_value(
         choice_values_child_state=choice_values_child_state,
     )
 
+    return marg_utils, values
+
+
+def second_step_marg(
+    values,
+    marg_utils,
+    choice_set_indices,
+    income_shock_weight,
+    taste_shock_scale,
+):
     marg_utils_weighted, emax_weighted = vmap(
         vmap(
             aggregate_marg_utilites_and_values_over_choices,
@@ -156,7 +176,6 @@ def vectorized_marginal_util_and_exp_max_value(
         income_shock_weight,
         taste_shock_scale,
     )
-
     return marg_utils_weighted, emax_weighted
 
 
