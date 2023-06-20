@@ -11,13 +11,10 @@ def marginal_util_and_exp_max_value_states_period(
     endog_grid_child_states: np.ndarray,
     policy_child_states: np.ndarray,
     value_child_states: np.ndarray,
-    exogenous_savings_grid: np.ndarray,
-    state_space_next: np.ndarray,
+    resources_next_period: np.ndarray,
     choices_child_states: np.ndarray,
-    income_shock_draws: np.ndarray,
     income_shock_weights: np.ndarray,
     taste_shock_scale: float,
-    compute_next_period_wealth: Callable,
     compute_marginal_utility: Callable,
     compute_value: Callable,
 ):
@@ -68,14 +65,6 @@ def marginal_util_and_exp_max_value_states_period(
             weighted by the vector of income shocks.
 
     """
-    resources_next_period = vmap(
-        vmap(
-            vmap(compute_next_period_wealth, in_axes=(None, None, 0)),
-            in_axes=(None, 0, None),
-        ),
-        in_axes=(0, None, None),
-    )(state_space_next, exogenous_savings_grid, income_shock_draws)
-
     marg_utils_weighted, emax_weighted = vmap(
         vectorized_marginal_util_and_exp_max_value,
         in_axes=(0, 0, 0, 0, 0, None, None, None, None),

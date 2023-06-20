@@ -180,7 +180,8 @@ def backwards_induction(
 
     Args:
         endog_grid_container (np.ndarray): "Empty" 3d np.ndarray storing the
-            endogenous grid for each state and each discrete choice.
+            endogenous grid for             compute_next_period_wealth=compute_next_period_wealth,
+each state and each discrete choice.
             Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
         policy_container (np.ndarray): "Empty" 3d np.ndarray storing the
             choice-specific policy function for each state and each discrete choice
@@ -265,15 +266,20 @@ def backwards_induction(
     value_child_states = np.empty_like(endog_grid_child_states)
     boolean_choice_mat_child_states = np.full((n_states_over_periods, n_choices), False)
 
+    resources_beginning_of_period = vmap(
+        vmap(
+            vmap(compute_next_period_wealth, in_axes=(None, None, 0)),
+            in_axes=(None, 0, None),
+        ),
+        in_axes=(0, None, None),
+    )(state_space, exogenous_savings_grid, income_shock_draws)
+
     get_marg_util_and_emax_jitted = jit(
         partial(
             marginal_util_and_exp_max_value_states_period,
-            compute_next_period_wealth=compute_next_period_wealth,
             compute_marginal_utility=compute_marginal_utility,
             compute_value=compute_value,
             taste_shock_scale=taste_shock_scale,
-            exogenous_savings_grid=exogenous_savings_grid,
-            income_shock_draws=income_shock_draws,
             income_shock_weights=income_shock_weights,
         )
     )
@@ -298,10 +304,9 @@ def backwards_induction(
     ) = final_period_partial(
         final_period_states=possible_states,
         choices_final=boolean_choice_mat_child_states,
-        compute_next_period_wealth=compute_next_period_wealth,
+        resources_last_period=resources_beginning_of_period[idx_possible_states],
         compute_marginal_utility=compute_marginal_utility,
         taste_shock_scale=taste_shock_scale,
-        exogenous_savings_grid=exogenous_savings_grid,
         income_shock_draws=income_shock_draws,
         income_shock_weights=income_shock_weights,
     )
@@ -309,8 +314,6 @@ def backwards_induction(
     for period in range(n_periods - 2, -1, -1):
         idx_possible_states = np.where(state_space[:, 0] == period)[0]
         idx_state_choice_combs = np.where(state_choice_space[:, 0] == period)[0]
-
-        possible_states = state_space[idx_possible_states]  # ignoring absorbing state?
         feasible_state_choice_combs = state_choice_space[idx_state_choice_combs]
 
         # If we are currently at period t, the child state that arises
@@ -391,7 +394,7 @@ def backwards_induction(
             boolean_choice_mat_child_states[_idx_child_state, choice] = True
 
         marg_util, emax = get_marg_util_and_emax_jitted(
-            state_space_next=possible_states,
+            resources_next_period=resources_beginning_of_period[idx_possible_states],
             choices_child_states=boolean_choice_mat_child_states,
             endog_grid_child_states=endog_grid_child_states,
             policy_child_states=policy_child_states,

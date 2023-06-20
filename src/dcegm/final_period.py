@@ -17,10 +17,9 @@ def final_period_wrapper(
     compute_utility: Callable,
     final_period_solution: Callable,
     choices_final: np.ndarray,
-    compute_next_period_wealth: Callable,
+    resources_last_period: np.ndarray,
     compute_marginal_utility: Callable,
     taste_shock_scale: float,
-    exogenous_savings_grid: np.ndarray,
     income_shock_draws: np.ndarray,
     income_shock_weights: np.ndarray,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -76,15 +75,6 @@ def final_period_wrapper(
 
     """
     n_choices = options["n_discrete_choices"]
-
-    # Compute beginning of period wealth in last period
-    resources_last_period = vmap(
-        vmap(
-            vmap(compute_next_period_wealth, in_axes=(None, None, 0)),
-            in_axes=(None, 0, None),
-        ),
-        in_axes=(0, None, None),
-    )(final_period_states, exogenous_savings_grid, income_shock_draws)
 
     final_period_solution_partial = partial(
         final_period_solution,
