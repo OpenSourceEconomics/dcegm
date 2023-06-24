@@ -12,11 +12,11 @@ from jax import vmap
 
 
 def final_period_wrapper(
-    final_period_states: np.ndarray,
+    final_period_choice_states: np.ndarray,
     options: Dict[str, int],
     compute_utility: Callable,
     final_period_solution: Callable,
-    choices_final: np.ndarray,
+    sum_state_choices_to_state,
     resources_last_period: np.ndarray,
     compute_marginal_utility: Callable,
     taste_shock_scale: float,
@@ -35,15 +35,9 @@ def final_period_wrapper(
             last period.
         choices_final (np.ndarray): binary array indicating if choice is possible in
             final states.
-        compute_next_period_wealth (callable): User-defined function to compute the
-            agent's wealth of the next period (t + 1). The inputs
-            ```saving```, ```shock```, ```params``` and ```options```
-            are already partialled in.
         compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility. The input ```params``` is already partialled in.
         taste_shock_scale (float): The taste shock scale.
-        exogenous_savings_grid (np.ndarray): Array of shape (n_wealth_grid,) denoting
-            the exogenous savings grid.
         income_shock_draws (np.ndarray): 1d array of shape (n_quad_points,) containing
             the Hermite quadrature points.
         income_shock_weights (np.ndarrray): 1d array of shape (n_stochastic_quad_points)
@@ -74,8 +68,6 @@ def final_period_wrapper(
             income shocks.
 
     """
-    n_choices = options["n_discrete_choices"]
-
     final_period_solution_partial = partial(
         final_period_solution,
         options=options,
@@ -89,58 +81,24 @@ def final_period_wrapper(
     final_policy, final_value, marginal_utilities_choices = vmap(
         vmap(
             vmap(
-                vmap(
-                    final_period_solution_partial,
-                    in_axes=(None, 0, None),
-                ),
+                final_period_solution_partial,
                 in_axes=(None, 0, None),
             ),
-            in_axes=(None, None, 0),
-        ),
-        in_axes=(0, 0, None),
-    )(final_period_states, resources_last_period, np.arange(n_choices, dtype=int))
-
-    partial_aggregate = partial(
-        aggregate_marg_utilites_and_values_over_choices,
-        taste_shock_scale=taste_shock_scale,
-    )
-    reshape_shape = (
-        final_value.shape[0] * final_value.shape[1],
-        final_policy.shape[2],
-        final_policy.shape[3],
-    )
-    final_value_state_choice = final_value.reshape(reshape_shape)
-    marg_util_state_choice = marginal_utilities_choices.reshape(reshape_shape)
-
-    sum_state_choices_to_state = np.array([[1, 1, 0, 0], [0, 0, 1, 1]])
-    sum_state_choices_to_state_choices = np.array(
-        [[1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 1, 1], [0, 0, 1, 1]]
-    )
-    rescale_value = np.amax(final_value_state_choice)
-    exp_value = np.exp(final_value_state_choice - rescale_value)
-    sum_exp = np.tensordot(sum_state_choices_to_state, exp_value, axes=(1, 0))
-    sum_exp_per_state_choice_state = np.tensordot(
-        sum_state_choices_to_state_choices, exp_value, axes=(1, 0)
-    )
-    choice_probs = np.divide(exp_value, sum_exp_per_state_choice_state)
-
-    # Weight all draws and aggregate over choices
-    marginal_utils_draws, max_exp_values_draws = vmap(
-        vmap(
-            vmap(partial_aggregate, in_axes=(1, 1, None)),
-            in_axes=(1, 1, None),
+            in_axes=(None, 0, None),
         ),
         in_axes=(0, 0, 0),
     )(
-        final_value,
-        marginal_utilities_choices,
-        choices_final,
+        final_period_choice_states[:, :-1],
+        resources_last_period,
+        final_period_choice_states[:, -1],
     )
-    max_exp_values_draws = rescale_value + taste_shock_scale * np.log(sum_exp)
-    marginal_utils_draws = np.tensordot(
-        sum_state_choices_to_state_choices,
-        np.multiply(choice_probs, marg_util_state_choice),
-        axes=(1, 0),
+
+    # Aggregate the marginal utilities and expected values over all choices
+    marginal_utils_draws, max_exp_values_draws = aggregate_marg_utils_exp_values(
+        final_value_state_choice=final_value,
+        marg_util_state_choice=marginal_utilities_choices,
+        sum_state_choices_to_state=sum_state_choices_to_state,
+        taste_shock_scale=taste_shock_scale,
     )
 
     # Aggregate the weighted arrays
@@ -152,14 +110,54 @@ def final_period_wrapper(
     middle_of_draws = int(income_shock_draws.shape[0] + 1 / 2)
 
     return (
-        np.repeat(
-            resources_last_period[:, np.newaxis, :, middle_of_draws], n_choices, axis=1
-        ),
-        final_policy[..., middle_of_draws],
-        final_value[..., middle_of_draws],
+        final_policy[:, :, middle_of_draws],
+        final_value[:, :, middle_of_draws],
         marginal_utils,
         max_exp_values,
     )
 
 
-# def experiment_matrix(value_choice_states, marg_util_choice_states):
+def aggregate_marg_utils_exp_values(
+    final_value_state_choice: np.ndarray,
+    marg_util_state_choice: np.ndarray,
+    sum_state_choices_to_state: np.ndarray,
+    taste_shock_scale: float,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Computes the aggregate marginal utilities and expected values.
+
+    Args:
+        final_value_state_choice (np.ndarray): 2d array of shape
+            (n_states * n_choices, n_income_shocks) of the value function for all
+            states, choices, and income shocks.
+        marg_util_state_choice (np.ndarray): 2d array of shape
+            (n_states * n_choices, n_income_shocks) of the marginal utility of
+            consumption for all states, choices, and income shocks.
+        sum_state_choices_to_state (np.ndarray): 2d array of shape
+            (n_states, n_states * n_choices) with state_space size  with ones, where
+            state-choice belongs to state.
+        taste_shock_scale (float): The taste shock scale.
+
+    Returns:
+        tuple:
+
+        - marginal_utils_draws (np.ndarray): 1d array of shape
+        (n_states, n_savings, n_income_shocks,) of the aggregate marginal utilities.
+        - max_exp_values_draws (np.ndarray): 1d array of shape
+        (n_states, n_savings, n_income_shocks,) of the aggregate expected values.
+
+    """
+
+    rescale_value = np.amax(final_value_state_choice)
+    exp_value = np.exp(final_value_state_choice - rescale_value)
+    sum_exp = np.tensordot(sum_state_choices_to_state, exp_value, axes=(1, 0))
+
+    max_exp_values_draws = rescale_value + taste_shock_scale * np.log(sum_exp)
+    marginal_utils_draws = np.divide(
+        np.tensordot(
+            sum_state_choices_to_state,
+            np.multiply(exp_value, marg_util_state_choice),
+            axes=(1, 0),
+        ),
+        sum_exp,
+    )
+    return marginal_utils_draws, max_exp_values_draws
