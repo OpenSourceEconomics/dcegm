@@ -101,7 +101,11 @@ def solve_dcegm(
     create_state_space = state_space_functions["create_state_space"]
 
     state_space, map_state_to_index = create_state_space(options)
-    state_choice_space = create_state_choice_space(
+    (
+        state_choice_space,
+        sum_state_choices_to_state,
+        map_state_choice_to_state,
+    ) = create_state_choice_space(
         state_space,
         map_state_to_index,
         state_space_functions["get_state_specific_choice_set"],
@@ -113,18 +117,22 @@ def solve_dcegm(
         map_state_to_index=map_state_to_index,
     )
 
-    final_period_partial = partial(
-        final_period_wrapper,
+    final_period_solution_partial = partial(
+        final_period_solution,
+        params_dict=params_dict,
         options=options,
         compute_utility=compute_utility,
-        final_period_solution=final_period_solution,
+        compute_marginal_utility=compute_marginal_utility,
     )
 
     endog_grid_container, policy_container, value_container = create_multi_dim_arrays(
-        state_space, options
+        state_choice_space, options
     )
 
     endog_grid_container, policy_container, value_container = backwards_induction(
+        sum_state_choices_to_state,
+        map_state_choice_to_state,
+        int(options["n_discrete_choices"]),
         endog_grid_container=endog_grid_container,
         policy_container=policy_container,
         value_container=value_container,
@@ -145,7 +153,7 @@ def solve_dcegm(
         compute_next_period_wealth=compute_next_period_wealth,
         transition_vector_by_state=transition_vector_by_state,
         compute_upper_envelope=compute_upper_envelope,
-        final_period_partial=final_period_partial,
+        final_period_solution_partial=final_period_solution_partial,
     )
 
     # ToDo: finalize output containers
@@ -154,6 +162,9 @@ def solve_dcegm(
 
 
 def backwards_induction(
+    sum_state_choices_to_state,
+    map_state_choice_to_state,
+    n_choices,
     endog_grid_container: np.ndarray,
     policy_container: np.ndarray,
     value_container: np.ndarray,
@@ -174,7 +185,7 @@ def backwards_induction(
     compute_next_period_wealth: Callable,
     transition_vector_by_state: Callable,
     compute_upper_envelope: Callable,
-    final_period_partial: Callable,
+    final_period_solution_partial: Callable,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Do backwards induction and solve for optimal policy and value function.
 
@@ -256,10 +267,17 @@ def backwards_induction(
                 Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
 
     """
-    n_choices = map_state_to_index.shape[1]  # use options here to extract n_choices
-    n_states_over_periods = state_space.shape[0] // n_periods  # rather max n_states_t?
 
-    boolean_choice_mat_child_states = np.full((n_states_over_periods, n_choices), False)
+    get_marg_util_and_emax_jitted = jit(
+        partial(
+            marginal_util_and_exp_max_value_states_period,
+            compute_marginal_utility=compute_marginal_utility,
+            compute_value=compute_value,
+            taste_shock_scale=taste_shock_scale,
+            income_shock_weights=income_shock_weights,
+        )
+    )
+    n_states_over_periods = state_space.shape[0] // n_periods
 
     resources_beginning_of_period = vmap(
         vmap(
@@ -269,36 +287,45 @@ def backwards_induction(
         in_axes=(0, None, None),
     )(state_space, exogenous_savings_grid, income_shock_draws)
 
-    get_marg_util_and_emax_jitted = partial(
-        marginal_util_and_exp_max_value_states_period,
-        compute_marginal_utility=compute_marginal_utility,
-        compute_value=compute_value,
-        taste_shock_scale=taste_shock_scale,
-        income_shock_weights=income_shock_weights,
-    )
+    idx_states_final_period = np.where(state_space[:, 0] == n_periods - 1)[0]
+    idx_state_choices_final_period = np.where(
+        state_choice_space[:, 0] == n_periods - 1
+    )[0]
+    map_final_state_choice_to_state = map_state_choice_to_state[
+        idx_state_choices_final_period
+    ]
+    last_period_sum_state_choices_to_state = sum_state_choices_to_state[
+        idx_states_final_period, :
+    ][:, idx_state_choices_final_period]
 
-    idx_possible_states = np.where(state_space[:, 0] == n_periods - 1)[0]
-    idx_state_choice_combs = np.where(state_choice_space[:, 0] == n_periods - 1)[0]
+    resources_last_period = resources_beginning_of_period[
+        map_final_state_choice_to_state
+    ]
+    final_period_state_choices = state_choice_space[idx_state_choices_final_period]
 
-    possible_states = state_space[idx_possible_states]
-    feasible_state_choice_combs = state_choice_space[idx_state_choice_combs]
-
-    for state_choice_idx, state_choice_vec in enumerate(feasible_state_choice_combs):
+    boolean_choice_mat_child_states = np.full((n_states_over_periods, n_choices), False)
+    for state_choice_idx, state_choice_vec in enumerate(final_period_state_choices):
         boolean_choice_mat_child_states[
             state_choice_idx - n_choices, state_choice_vec[-1]
         ] = True
 
     (
-        endog_grid_container[idx_possible_states, ..., : len(exogenous_savings_grid)],
-        policy_container[idx_possible_states, ..., : len(exogenous_savings_grid)],
-        value_container[idx_possible_states, ..., : len(exogenous_savings_grid)],
+        endog_grid_container[
+            idx_state_choices_final_period, ..., : len(exogenous_savings_grid)
+        ],
+        policy_container[
+            idx_state_choices_final_period, ..., : len(exogenous_savings_grid)
+        ],
+        value_container[
+            idx_state_choices_final_period, ..., : len(exogenous_savings_grid)
+        ],
         marg_util,
         emax,
-    ) = final_period_partial(
-        final_period_states=possible_states,
-        choices_final=boolean_choice_mat_child_states,
-        resources_last_period=resources_beginning_of_period[idx_possible_states],
-        compute_marginal_utility=compute_marginal_utility,
+    ) = final_period_wrapper(
+        final_period_choice_states=final_period_state_choices,
+        final_period_solution_partial=final_period_solution_partial,
+        resources_last_period=resources_last_period,
+        sum_state_choices_to_state=last_period_sum_state_choices_to_state,
         taste_shock_scale=taste_shock_scale,
         income_shock_draws=income_shock_draws,
         income_shock_weights=income_shock_weights,
@@ -306,8 +333,8 @@ def backwards_induction(
 
     for period in range(n_periods - 2, -1, -1):
         idx_possible_states = np.where(state_space[:, 0] == period)[0]
-        idx_state_choice_combs = np.where(state_choice_space[:, 0] == period)[0]
-        feasible_state_choice_combs = state_choice_space[idx_state_choice_combs]
+        idx_state_choices_period = np.where(state_choice_space[:, 0] == period)[0]
+        feasible_state_choice_combs = state_choice_space[idx_state_choices_period]
 
         # If we are currently at period t, the child state that arises
         # from a particular decision made in period t is actually the beginning
@@ -315,7 +342,7 @@ def backwards_induction(
         feasible_marg_utils, feasible_emax = _get_post_decision_marg_utils_and_emax(
             marg_util_next=marg_util,
             emax_next=emax,
-            idx_state_choice_combs=idx_state_choice_combs,
+            idx_state_choice_combs=idx_state_choices_period,
             map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
         )
 
@@ -341,34 +368,31 @@ def backwards_induction(
             compute_inverse_marginal_utility,
             compute_value,
         )
-        # These containers are necessary as the upper envelope can't be vectorized yet
-        # over the state-choice space
-        after_envelope_grid = np.empty(
-            (feasible_endog_grids.shape[0], endog_grid_container.shape[-1])
-        )
-        after_envelope_value = np.empty(
-            (feasible_endog_grids.shape[0], endog_grid_container.shape[-1])
-        )
-        after_envelope_policy = np.empty(
-            (feasible_endog_grids.shape[0], endog_grid_container.shape[-1])
-        )
 
+        temp_policy = np.full(
+            shape=(len(idx_possible_states), n_choices, endog_grid_container.shape[-1]),
+            fill_value=np.nan,
+        )
+        temp_value = np.full(
+            shape=(len(idx_possible_states), n_choices, endog_grid_container.shape[-1]),
+            fill_value=np.nan,
+        )
+        temp_endog_grid = np.full(
+            shape=(len(idx_possible_states), n_choices, endog_grid_container.shape[-1]),
+            fill_value=np.nan,
+        )
         boolean_choice_mat_child_states[:] = False
 
         for state_choice_idx, state_choice_vec in enumerate(
             feasible_state_choice_combs
         ):
-            state_vec = state_choice_vec[:-1]
             choice = state_choice_vec[-1]
-
-            endog_grid = feasible_endog_grids[state_choice_idx]
-            policy = feasible_policies[state_choice_idx]
-            value = feasible_values[state_choice_idx]
+            state = state_choice_vec[:-1]
 
             endog_grid, policy, value = compute_upper_envelope(
-                endog_grid=endog_grid,
-                policy=policy,
-                value=value,
+                endog_grid=feasible_endog_grids[state_choice_idx],
+                policy=feasible_policies[state_choice_idx],
+                value=feasible_values[state_choice_idx],
                 expected_value_zero_savings=feasible_expected_values[
                     state_choice_idx, 0
                 ],
@@ -376,36 +400,27 @@ def backwards_induction(
                 choice=choice,
                 compute_value=compute_value,
             )
+            idx_temp_state = np.where(
+                map_state_to_index[tuple(state)] == idx_possible_states
+            )[0]
+            temp_policy[idx_temp_state, choice, : len(policy)] = policy
+            temp_value[idx_temp_state, choice, : len(value)] = value
+            temp_endog_grid[idx_temp_state, choice, : len(endog_grid)] = endog_grid
 
-            after_envelope_grid[state_choice_idx, : len(endog_grid)] = endog_grid
-            after_envelope_policy[state_choice_idx, : len(policy)] = policy
-            after_envelope_value[state_choice_idx, : len(value)] = value
-
-            # this can go soon, when we save the arrays to disc
-            _idx_container = map_state_to_index[tuple(state_vec)]
-            endog_grid_container[_idx_container, choice, : len(endog_grid)] = endog_grid
-            policy_container[_idx_container, choice, : len(policy)] = policy
-            value_container[_idx_container, choice, : len(value)] = value
-
-            # these are the lightweight containers we still need to get
-            # marg utils and emax
             _idx_child_state = state_choice_idx - n_choices
             boolean_choice_mat_child_states[_idx_child_state, choice] = True
 
-        state_indexes = np.empty(dtype=int, shape=after_envelope_policy.shape[0])
-        for state_choice_idx, state_choice_vec in enumerate(
-            feasible_state_choice_combs
-        ):
-            state_indexes[state_choice_idx] = map_state_to_index[
-                tuple(state_choice_vec[:-1])
-            ]
+            _idx_state_choice_full = idx_state_choices_period[state_choice_idx]
+            endog_grid_container[_idx_state_choice_full, : len(endog_grid)] = endog_grid
+            policy_container[_idx_state_choice_full, : len(policy)] = policy
+            value_container[_idx_state_choice_full, : len(value)] = value
 
         marg_util, emax = get_marg_util_and_emax_jitted(
             resources_next_period=resources_beginning_of_period[idx_possible_states],
             choices_child_states=boolean_choice_mat_child_states,
-            endog_grid_child_states=endog_grid_container[idx_possible_states],
-            policy_child_states=policy_container[idx_possible_states],
-            value_child_states=value_container[idx_possible_states],
+            endog_grid_child_states=temp_endog_grid,
+            policy_child_states=temp_policy,
+            value_child_states=temp_value,
         )
 
         # ToDo: save arrays to disc

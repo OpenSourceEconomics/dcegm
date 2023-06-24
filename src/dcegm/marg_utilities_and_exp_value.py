@@ -207,9 +207,11 @@ def aggregate_marg_utilites_and_values_over_choices(
         - emax (float): The expected maximum value in the child state.
 
     """
+    values_filtered = jnp.nan_to_num(values, nan=-jnp.inf)
+    marg_utils_filtered = jnp.nan_to_num(marg_utilities, nan=0.0)
 
     choice_restricted_exp_values, rescale_factor = _rescale(
-        values=values,
+        values=values_filtered,
         choice_set_indices=choice_set_indices,
         taste_shock_scale=taste_shock_scale,
     )
@@ -218,7 +220,7 @@ def aggregate_marg_utilites_and_values_over_choices(
 
     choice_probabilities = choice_restricted_exp_values / sum_exp_values
 
-    marg_util = jnp.sum(choice_probabilities * marg_utilities, axis=0)
+    marg_util = jnp.sum(choice_probabilities * marg_utils_filtered, axis=0)
     emax = rescale_factor + taste_shock_scale * jnp.log(sum_exp_values)
 
     return marg_util, emax
@@ -249,5 +251,6 @@ def _rescale(
     rescaling_factor = jnp.amax(values)
     exp_values_scaled = jnp.exp((values - rescaling_factor) / taste_shock_scale)
     choice_restricted_exp_values = exp_values_scaled * choice_set_indices
+    breakpoint()
 
     return choice_restricted_exp_values, rescaling_factor

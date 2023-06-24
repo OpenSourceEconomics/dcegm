@@ -1,3 +1,4 @@
+from functools import partial
 from itertools import product
 
 import numpy as np
@@ -93,19 +94,28 @@ def test_consume_everything_in_final_period(
         in_axes=(0, None, None),
     )(state_space, savings_grid, income_draws)
 
-    policy_final, value_final, *_ = final_period_wrapper(
-        final_period_choice_states=final_period_state_choices,
+    last_period_sum_state_choices_to_state = sum_state_choices_to_state[
+        idx_states_final_period, :
+    ][:, idx_state_choice_combs]
+
+    resources_last_period = resources_beginning_of_period[
+        map_final_state_choice_to_state
+    ]
+
+    final_period_solution_partial = partial(
+        solve_final_period_scalar,
         options=options,
+        params_dict={},
         compute_utility=compute_utility,
-        final_period_solution=solve_final_period_scalar,
-        sum_state_choices_to_state=sum_state_choices_to_state[
-            idx_states_final_period, :
-        ][:, idx_state_choice_combs],
         compute_marginal_utility=compute_marginal_utility,
+    )
+
+    endog_grid_final, policy_final, value_final, *_ = final_period_wrapper(
+        final_period_choice_states=final_period_state_choices,
+        final_period_solution_partial=final_period_solution_partial,
+        sum_state_choices_to_state=last_period_sum_state_choices_to_state,
         taste_shock_scale=params_dict["lambda"],
-        resources_last_period=resources_beginning_of_period[
-            map_final_state_choice_to_state
-        ],
+        resources_last_period=resources_last_period,
         income_shock_draws=income_draws,
         income_shock_weights=np.array([0, 0, 0]),
     )
@@ -118,9 +128,7 @@ def test_consume_everything_in_final_period(
         )(state, savings_grid, 0.00)
 
         aaae(
-            resources_beginning_of_period[:, :, 1][map_final_state_choice_to_state][
-                state_choice_id
-            ],
+            endog_grid_final[state_choice_id],
             begin_of_period_resources,
         )
 
