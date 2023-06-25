@@ -8,6 +8,7 @@ import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 from dcegm.egm import compute_optimal_policy_and_value
+from dcegm.final_period import aggregate_marg_utils_exp_values
 from dcegm.final_period import final_period_wrapper
 from dcegm.integration import quadrature_legendre
 from dcegm.marg_utilities_and_exp_value import (
@@ -312,17 +313,10 @@ def backwards_induction(
         ] = True
 
     (
-        endog_grid_container[
-            idx_state_choices_final_period, ..., : len(exogenous_savings_grid)
-        ],
-        policy_container[
-            idx_state_choices_final_period, ..., : len(exogenous_savings_grid)
-        ],
-        value_container[
-            idx_state_choices_final_period, ..., : len(exogenous_savings_grid)
-        ],
-        marg_util,
-        emax,
+        endog_grid_final_period,
+        policy_final_period,
+        value_final_period,
+        marginal_utilities_choices,
     ) = final_period_wrapper(
         final_period_choice_states=final_period_state_choices,
         state_times_state_choice_mat=state_times_state_choice_mat[
@@ -333,6 +327,30 @@ def backwards_induction(
         sum_state_choices_to_state=last_period_sum_state_choices_to_state,
         taste_shock_scale=taste_shock_scale,
         income_shock_draws=income_shock_draws,
+        income_shock_weights=income_shock_weights,
+    )
+    # Choose which draw we take for policy and value function as those are note saved
+    # with respect to the draws
+    middle_of_draws = int(income_shock_draws.shape[0] + 1 / 2)
+    value_container[
+        idx_state_choices_final_period, ..., : len(exogenous_savings_grid)
+    ] = value_final_period[:, :, middle_of_draws]
+    endog_grid_container[
+        idx_state_choices_final_period, ..., : len(exogenous_savings_grid)
+    ] = endog_grid_final_period[:, :, middle_of_draws]
+    policy_container[
+        idx_state_choices_final_period, ..., : len(exogenous_savings_grid)
+    ] = policy_final_period[:, :, middle_of_draws]
+
+    # Aggregate the marginal utilities and expected values over all choices
+    marg_util, emax = aggregate_marg_utils_exp_values(
+        final_value_state_choice=value_final_period,
+        state_times_state_choice_mat=state_times_state_choice_mat[
+            idx_states_final_period, :
+        ],
+        marg_util_state_choice=marginal_utilities_choices,
+        sum_state_choices_to_state=last_period_sum_state_choices_to_state,
+        taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,
     )
 

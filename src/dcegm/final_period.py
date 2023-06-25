@@ -15,7 +15,7 @@ def final_period_wrapper(
     taste_shock_scale: float,
     income_shock_draws: jnp.ndarray,
     income_shock_weights: jnp.ndarray,
-) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Computes solution to final period for policy and value function.
 
     In the last period, everything is consumed, i.e. consumption = savings.
@@ -72,29 +72,11 @@ def final_period_wrapper(
         final_period_choice_states[:, -1],
     )
 
-    # Aggregate the marginal utilities and expected values over all choices
-    marginal_utils_draws, max_exp_values_draws = aggregate_marg_utils_exp_values(
-        final_value_state_choice=final_value,
-        state_times_state_choice_mat=state_times_state_choice_mat,
-        marg_util_state_choice=marginal_utilities_choices,
-        sum_state_choices_to_state=sum_state_choices_to_state,
-        taste_shock_scale=taste_shock_scale,
-    )
-
-    # Aggregate the weighted arrays
-    marginal_utils = marginal_utils_draws @ income_shock_weights
-    max_exp_values = max_exp_values_draws @ income_shock_weights
-
-    # Choose which draw we take for policy and value function as those are note saved
-    # with respect to the draws
-    middle_of_draws = int(income_shock_draws.shape[0] + 1 / 2)
-
     return (
-        resources_last_period[:, :, middle_of_draws],
-        final_policy[:, :, middle_of_draws],
-        final_value[:, :, middle_of_draws],
-        marginal_utils,
-        max_exp_values,
+        resources_last_period,
+        final_policy,
+        final_value,
+        marginal_utilities_choices,
     )
 
 
@@ -104,6 +86,7 @@ def aggregate_marg_utils_exp_values(
     marg_util_state_choice: jnp.ndarray,
     sum_state_choices_to_state: jnp.ndarray,
     taste_shock_scale: float,
+    income_shock_weights: jnp.ndarray,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Computes the aggregate marginal utilities and expected values.
 
@@ -118,6 +101,7 @@ def aggregate_marg_utils_exp_values(
             (n_states, n_states * n_choices) with state_space size  with ones, where
             state-choice belongs to state.
         taste_shock_scale (float): The taste shock scale.
+        income_shock_weights (jnp.ndarray): 1d array of shape (n_stochastic_quad_points)
 
     Returns:
         tuple:
@@ -130,7 +114,7 @@ def aggregate_marg_utils_exp_values(
     """
     max_value_per_state = jnp.take(
         final_value_state_choice,
-        state_times_state_choice_mat - state_times_state_choice_mat.min(),
+        state_times_state_choice_mat,
         axis=0,
     ).max(axis=1)
     rescale_value = jnp.tensordot(
@@ -151,4 +135,7 @@ def aggregate_marg_utils_exp_values(
         ),
         sum_exp,
     )
-    return marginal_utils_draws, max_exp_values_draws
+    return (
+        marginal_utils_draws @ income_shock_weights,
+        max_exp_values_draws @ income_shock_weights,
+    )

@@ -111,7 +111,7 @@ def test_consume_everything_in_final_period(
         compute_marginal_utility=compute_marginal_utility,
     )
 
-    endog_grid_final, policy_final, value_final, *_ = final_period_wrapper(
+    endog_grid_final, policy_final, value_final, _ = final_period_wrapper(
         state_times_state_choice_mat=state_times_state_choice_mat[
             idx_states_final_period, :
         ],

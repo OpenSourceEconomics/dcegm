@@ -120,9 +120,15 @@ def create_state_choice_space(
     state_times_state_choice_mat = np.zeros((n_states, n_choices), dtype=int)
 
     idx = 0
+    current_period = state_space[0, 0]
+    # Ensure that states are ordered.
+    period_min_idx = -1
     for state_idx in range(n_states):
         state_vec = state_space[state_idx]
 
+        if current_period == state_vec[0]:
+            period_min_idx = idx
+            current_period += 1
         choice_set = get_state_specific_choice_set(
             state_vec, state_space, map_state_to_index
         )
@@ -132,11 +138,13 @@ def create_state_choice_space(
             state_choice_space[idx, -1] = choice
             sum_state_choices_to_state[state_idx, idx] = 1
             map_state_choice_to_state[idx] = state_idx
-            state_times_state_choice_mat[state_idx, choice] = idx
+            state_times_state_choice_mat[state_idx, choice] = idx - period_min_idx
             idx += 1
         for choice in range(n_choices):
             if choice not in choice_set:
-                state_times_state_choice_mat[state_idx, choice] = idx - 1
+                state_times_state_choice_mat[state_idx, choice] = (
+                    idx - 1 - period_min_idx
+                )
 
     return (
         state_choice_space[:idx],
