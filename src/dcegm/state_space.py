@@ -152,3 +152,79 @@ def create_state_choice_space(
         map_state_choice_to_state[:idx],
         state_times_state_choice_mat,
     )
+
+
+def select_period_objects(
+    period,
+    state_space,
+    state_choice_space,
+    sum_state_choices_to_state,
+    map_state_choice_to_state,
+    state_times_state_choice_mat,
+    resources_beginning_of_period,
+):
+    """Select objects for the current period.
+
+    Args:
+        period (int): Current period.
+        state_space (np.ndarray): 2d array of shape (n_states, n_periods) containing
+            the state space.
+        state_choice_space (np.ndarray): 2d array of shape (n_state_choices, n_states + 1)
+            containing the state choice space.
+        sum_state_choices_to_state (np.ndarray): 2d array of shape (n_states, n_state_choices)
+            containing the mapping from state choices to states.
+        map_state_choice_to_state (np.ndarray): 1d array of shape (n_state_choices,)
+            containing the mapping from state choices to states.
+        state_times_state_choice_mat (np.ndarray): 2d array of shape (n_states, n_state_choices)
+            containing the mapping from states to state choices.
+        resources_beginning_of_period (np.ndarray): 3d array of shape
+            (n_states, n_exog_savings, n_stochastic_quad_points) containing the resources
+            at the beginning of the current period.
+
+    Returns:
+        tuple:
+
+        - idx_states_current_period (np.ndarray): 1d array of shape
+            (n_states_current_period,).
+        - idx_state_choices_current_period (np.ndarray): 1d array of shape
+            (n_state_choices_current_period,).
+        - current_period_sum_state_choices_to_state (np.ndarray): 2d array of shape
+            (n_states_current_period, n_state_choices_current_period) containing the
+            mapping from state choices to states for the current period.
+        - resources_current_period (np.ndarray): 3d array of shape
+            (n_state_choices_current_period, n_exog_savings, n_stochastic_quad_points)
+             containing the resources at the beginning of the current period.
+        - state_choices_current_period (np.ndarray): 1d array of shape
+            (n_state_choices_current_period,) containing the state choices for the
+            current period.
+        - state_times_state_choice_mat_period (np.ndarray): 2d array of shape
+            (n_states_current_period, n_state_choices_current_period) containing the
+            mapping from states to state choices for the current period.
+
+    """
+
+    idx_states_current_period = np.where(state_space[:, 0] == period)[0]
+    idx_state_choices_current_period = np.where(state_choice_space[:, 0] == period)[0]
+    current_period_sum_state_choices_to_state = sum_state_choices_to_state[
+        idx_states_current_period, :
+    ][:, idx_state_choices_current_period]
+
+    map_current_period_state_choices_to_state = map_state_choice_to_state[
+        idx_state_choices_current_period
+    ]
+    resources_current_period = resources_beginning_of_period[
+        map_current_period_state_choices_to_state
+    ]
+    state_choices_current_period = state_choice_space[idx_state_choices_current_period]
+    state_times_state_choice_mat_period = state_times_state_choice_mat[
+        idx_states_current_period, :
+    ]
+
+    return (
+        idx_states_current_period,
+        idx_state_choices_current_period,
+        current_period_sum_state_choices_to_state,
+        resources_current_period,
+        state_choices_current_period,
+        state_times_state_choice_mat_period,
+    )

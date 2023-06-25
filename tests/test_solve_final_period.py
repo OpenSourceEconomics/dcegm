@@ -112,16 +112,9 @@ def test_consume_everything_in_final_period(
     )
 
     endog_grid_final, policy_final, value_final, _ = solve_final_period(
-        state_times_state_choice_mat=state_times_state_choice_mat[
-            idx_states_final_period, :
-        ],
         final_period_choice_states=final_period_state_choices,
         final_period_solution_partial=final_period_solution_partial,
-        sum_state_choices_to_state=last_period_sum_state_choices_to_state,
-        taste_shock_scale=params_dict["lambda"],
         resources_last_period=resources_last_period,
-        income_shock_draws=income_draws,
-        income_shock_weights=np.array([0, 0, 0]),
     )
 
     for state_choice_id, state_choice in enumerate(final_period_state_choices):
