@@ -136,14 +136,12 @@ def solve_dcegm(
         sum_state_choices_to_state,
         map_state_choice_to_state,
         state_times_state_choice_mat,
-        int(options["n_discrete_choices"]),
         endog_grid_container=endog_grid_container,
         policy_container=policy_container,
         value_container=value_container,
         exogenous_savings_grid=exogenous_savings_grid,
         state_space=state_space,
         state_choice_space=state_choice_space,
-        map_state_to_index=map_state_to_index,
         map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
         income_shock_draws=income_shock_draws,
         income_shock_weights=income_shock_weights,
@@ -169,14 +167,12 @@ def backwards_induction(
     sum_state_choices_to_state,
     map_state_choice_to_state,
     state_times_state_choice_mat: np.ndarray,
-    n_choices,
     endog_grid_container: np.ndarray,
     policy_container: np.ndarray,
     value_container: np.ndarray,
     exogenous_savings_grid: np.ndarray,
     state_space: np.ndarray,
     state_choice_space,
-    map_state_to_index: np.ndarray,
     map_state_to_post_decision_child_nodes: np.ndarray,
     income_shock_draws: np.ndarray,
     income_shock_weights: np.ndarray,
@@ -335,7 +331,8 @@ def backwards_induction(
     sum_state_choices_to_state_period = sum_state_choices_to_state_final_period
 
     for period in range(n_periods - 2, -1, -1):
-        # Aggregate the marginal utilities and expected values over all choices
+        # Aggregate the marginal utilities and expected values over all choices and
+        # income shock draws
         marg_util, emax = aggregate_marg_utils_exp_values(
             value_state_choices=values_interpolated,
             marg_util_state_choices=marg_util_interpolated,
