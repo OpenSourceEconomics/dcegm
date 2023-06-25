@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from dcegm.solve import solve_dcegm
+from dcegm.state_space import create_state_choice_space
 from numpy.testing import assert_allclose
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
@@ -207,18 +208,26 @@ def test_two_period(input_data, wealth_id, state_id):
     keys = params.index.droplevel("category").tolist()
     values = params["value"].tolist()
     params_dict = dict(zip(keys, values))
-    state_space, _ = create_state_space(input_data["options"])
+    state_space, map_state_to_index = create_state_space(input_data["options"])
+    (
+        state_choice_space,
+        sum_state_choices_to_state,
+        map_state_choice_to_state,
+        state_times_state_choice_mat,
+    ) = create_state_choice_space(
+        state_space,
+        map_state_to_index,
+        get_state_specific_choice_set,
+    )
     initial_cond = {}
     state = state_space[state_id, :]
-    if state[1] == 1:
-        choice_range = [1]
-    else:
-        choice_range = [0, 1]
+    ids_state_choices = state_times_state_choice_mat[state_id, :]
     initial_cond["health"] = state[-1]
 
-    for choice_in_period_1 in choice_range:
-        policy = input_data["policy"][state_id, choice_in_period_1]
-        wealth = input_data["endog_grid"][state_id, choice_in_period_1, wealth_id + 1]
+    for id_state_choice in ids_state_choices:
+        choice_in_period_1 = state_choice_space[id_state_choice][-1]
+        policy = input_data["policy"][id_state_choice]
+        wealth = input_data["endog_grid"][id_state_choice, wealth_id + 1]
         if ~np.isnan(wealth) and wealth > 0:
             initial_cond["wealth"] = wealth
 
