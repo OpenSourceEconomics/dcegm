@@ -10,6 +10,7 @@ def final_period_wrapper(
     final_period_choice_states: jnp.ndarray,
     final_period_solution_partial: Callable,
     sum_state_choices_to_state,
+    state_times_state_choice_mat: jnp.ndarray,
     resources_last_period: jnp.ndarray,
     taste_shock_scale: float,
     income_shock_draws: jnp.ndarray,
@@ -70,11 +71,11 @@ def final_period_wrapper(
         resources_last_period,
         final_period_choice_states[:, -1],
     )
-    breakpoint()
 
     # Aggregate the marginal utilities and expected values over all choices
     marginal_utils_draws, max_exp_values_draws = aggregate_marg_utils_exp_values(
         final_value_state_choice=final_value,
+        state_times_state_choice_mat=state_times_state_choice_mat,
         marg_util_state_choice=marginal_utilities_choices,
         sum_state_choices_to_state=sum_state_choices_to_state,
         taste_shock_scale=taste_shock_scale,
@@ -99,6 +100,7 @@ def final_period_wrapper(
 
 def aggregate_marg_utils_exp_values(
     final_value_state_choice: jnp.ndarray,
+    state_times_state_choice_mat: jnp.ndarray,
     marg_util_state_choice: jnp.ndarray,
     sum_state_choices_to_state: jnp.ndarray,
     taste_shock_scale: float,
@@ -126,13 +128,21 @@ def aggregate_marg_utils_exp_values(
         (n_states, n_savings, n_income_shocks,) of the aggregate expected values.
 
     """
+    max_value_per_state = jnp.take(
+        final_value_state_choice,
+        state_times_state_choice_mat - state_times_state_choice_mat.min(),
+        axis=0,
+    ).max(axis=1)
+    rescale_value = jnp.tensordot(
+        sum_state_choices_to_state, max_value_per_state, axes=(0, 0)
+    )
 
-    rescale_value = jnp.amax(final_value_state_choice)
-    exp_value = jnp.exp((final_value_state_choice - rescale_value) / taste_shock_scale)
+    exp_value = jnp.exp((final_value_state_choice - rescale_value)) ** (
+        1 / taste_shock_scale
+    )
     sum_exp = jnp.tensordot(sum_state_choices_to_state, exp_value, axes=(1, 0))
-    breakpoint()
 
-    max_exp_values_draws = rescale_value + taste_shock_scale * jnp.log(sum_exp)
+    max_exp_values_draws = max_value_per_state + taste_shock_scale * jnp.log(sum_exp)
     marginal_utils_draws = jnp.divide(
         jnp.tensordot(
             sum_state_choices_to_state,

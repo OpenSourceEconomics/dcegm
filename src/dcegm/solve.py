@@ -105,6 +105,7 @@ def solve_dcegm(
         state_choice_space,
         sum_state_choices_to_state,
         map_state_choice_to_state,
+        state_times_state_choice_mat,
     ) = create_state_choice_space(
         state_space,
         map_state_to_index,
@@ -132,6 +133,7 @@ def solve_dcegm(
     endog_grid_container, policy_container, value_container = backwards_induction(
         sum_state_choices_to_state,
         map_state_choice_to_state,
+        state_times_state_choice_mat,
         int(options["n_discrete_choices"]),
         endog_grid_container=endog_grid_container,
         policy_container=policy_container,
@@ -164,6 +166,7 @@ def solve_dcegm(
 def backwards_induction(
     sum_state_choices_to_state,
     map_state_choice_to_state,
+    state_times_state_choice_mat: np.ndarray,
     n_choices,
     endog_grid_container: np.ndarray,
     policy_container: np.ndarray,
@@ -267,7 +270,6 @@ def backwards_induction(
                 Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
 
     """
-
     get_marg_util_and_emax_jitted = jit(
         partial(
             marginal_util_and_exp_max_value_states_period,
@@ -323,6 +325,9 @@ def backwards_induction(
         emax,
     ) = final_period_wrapper(
         final_period_choice_states=final_period_state_choices,
+        state_times_state_choice_mat=state_times_state_choice_mat[
+            idx_states_final_period, :
+        ],
         final_period_solution_partial=final_period_solution_partial,
         resources_last_period=resources_last_period,
         sum_state_choices_to_state=last_period_sum_state_choices_to_state,

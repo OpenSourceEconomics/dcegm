@@ -53,6 +53,7 @@ def test_consume_everything_in_final_period(
         state_choice_space,
         sum_state_choices_to_state,
         map_state_choice_to_state,
+        state_times_state_choice_mat,
     ) = create_state_choice_space(
         state_space, state_indexer, get_state_specific_choice_set
     )
@@ -111,6 +112,9 @@ def test_consume_everything_in_final_period(
     )
 
     endog_grid_final, policy_final, value_final, *_ = final_period_wrapper(
+        state_times_state_choice_mat=state_times_state_choice_mat[
+            idx_states_final_period, :
+        ],
         final_period_choice_states=final_period_state_choices,
         final_period_solution_partial=final_period_solution_partial,
         sum_state_choices_to_state=last_period_sum_state_choices_to_state,

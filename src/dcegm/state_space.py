@@ -117,6 +117,7 @@ def create_state_choice_space(
     sum_state_choices_to_state = np.zeros((n_states, n_states * n_choices), dtype=int)
 
     map_state_choice_to_state = np.zeros((n_states * n_choices), dtype=int)
+    state_times_state_choice_mat = np.zeros((n_states, n_choices), dtype=int)
 
     idx = 0
     for state_idx in range(n_states):
@@ -126,15 +127,20 @@ def create_state_choice_space(
             state_vec, state_space, map_state_to_index
         )
 
-        for feasible_choice in choice_set:
+        for choice in choice_set:
             state_choice_space[idx, :-1] = state_vec
-            state_choice_space[idx, -1] = feasible_choice
+            state_choice_space[idx, -1] = choice
             sum_state_choices_to_state[state_idx, idx] = 1
             map_state_choice_to_state[idx] = state_idx
+            state_times_state_choice_mat[state_idx, choice] = idx
             idx += 1
+        for choice in range(n_choices):
+            if choice not in choice_set:
+                state_times_state_choice_mat[state_idx, choice] = idx - 1
 
     return (
         state_choice_space[:idx],
         sum_state_choices_to_state[:, :idx],
         map_state_choice_to_state[:idx],
+        state_times_state_choice_mat,
     )

@@ -251,6 +251,5 @@ def _rescale(
     rescaling_factor = jnp.amax(values)
     exp_values_scaled = jnp.exp((values - rescaling_factor) / taste_shock_scale)
     choice_restricted_exp_values = exp_values_scaled * choice_set_indices
-    breakpoint()
 
     return choice_restricted_exp_values, rescaling_factor
