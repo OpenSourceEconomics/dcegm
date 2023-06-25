@@ -359,6 +359,7 @@ def backwards_induction(
             resources_beginning_of_period=resources_beginning_of_period,
         )
 
+        # Calculate candidate solutions.
         (
             candidate_sol_euler_endog_grid,
             candidate_sol_euler_policy,
@@ -378,6 +379,7 @@ def backwards_induction(
             compute_value=compute_value,
         )
 
+        # Run upper envolope to rule out candidates
         for state_choice_idx, state_choice_vec in enumerate(state_choices_period):
             choice = state_choice_vec[-1]
 
