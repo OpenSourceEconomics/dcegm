@@ -132,12 +132,12 @@ def test_consume_everything_in_final_period(
         )(state, savings_grid, 0.00)
 
         aaae(
-            endog_grid_final[state_choice_id],
+            endog_grid_final[state_choice_id, :, 1],
             begin_of_period_resources,
         )
 
         aaae(
-            policy_final[state_choice_id],
+            policy_final[state_choice_id, :, 1],
             begin_of_period_resources,
         )
 
@@ -145,6 +145,6 @@ def test_consume_everything_in_final_period(
             begin_of_period_resources, choice
         )
         aaae(
-            value_final[state_choice_id],
+            value_final[state_choice_id, :, 1],
             expected_value,
         )

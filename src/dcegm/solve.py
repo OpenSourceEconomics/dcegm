@@ -8,11 +8,11 @@ import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 from dcegm.egm import compute_optimal_policy_and_value
-from dcegm.final_period import aggregate_marg_utils_exp_values
 from dcegm.final_period import final_period_wrapper
 from dcegm.integration import quadrature_legendre
+from dcegm.interpolation import interpolate_and_calc_marginal_utilities
 from dcegm.marg_utilities_and_exp_value import (
-    marginal_util_and_exp_max_value_states_period,
+    aggregate_marg_utils_exp_values,
 )
 from dcegm.pre_processing import convert_params_to_dict
 from dcegm.pre_processing import create_multi_dim_arrays
@@ -271,15 +271,6 @@ def backwards_induction(
                 Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
 
     """
-    get_marg_util_and_emax_jitted = jit(
-        partial(
-            marginal_util_and_exp_max_value_states_period,
-            compute_marginal_utility=compute_marginal_utility,
-            compute_value=compute_value,
-            taste_shock_scale=taste_shock_scale,
-            income_shock_weights=income_shock_weights,
-        )
-    )
     n_states_over_periods = state_space.shape[0] // n_periods
 
     resources_beginning_of_period = vmap(
@@ -301,6 +292,9 @@ def backwards_induction(
         idx_states_final_period, :
     ][:, idx_state_choices_final_period]
 
+    map_final_state_choice_to_state = map_state_choice_to_state[
+        idx_state_choices_final_period
+    ]
     resources_last_period = resources_beginning_of_period[
         map_final_state_choice_to_state
     ]
@@ -438,12 +432,37 @@ def backwards_induction(
             policy_container[_idx_state_choice_full, : len(policy)] = policy
             value_container[_idx_state_choice_full, : len(value)] = value
 
-        marg_util, emax = get_marg_util_and_emax_jitted(
-            resources_next_period=resources_beginning_of_period[idx_possible_states],
-            choices_child_states=boolean_choice_mat_child_states,
-            endog_grid_child_states=temp_endog_grid,
-            policy_child_states=temp_policy,
-            value_child_states=temp_value,
+        map_current_state_choice_to_state = map_state_choice_to_state[
+            idx_state_choices_period
+        ]
+        resources_next_period = resources_beginning_of_period[
+            map_current_state_choice_to_state
+        ]
+
+        marg_util_pre_lim, values_pre_lim = vmap(
+            interpolate_and_calc_marginal_utilities, in_axes=(None, None, 0, 0, 0, 0, 0)
+        )(
+            compute_marginal_utility,
+            compute_value,
+            feasible_state_choice_combs[:, -1],
+            resources_next_period,
+            endog_grid_container[idx_state_choices_period, :],
+            policy_container[idx_state_choices_period, :],
+            value_container[idx_state_choices_period, :],
+        )
+        current_period_sum_state_choices_to_state = sum_state_choices_to_state[
+            idx_possible_states, :
+        ][:, idx_state_choices_period]
+        # Aggregate the marginal utilities and expected values over all choices
+        marg_util, emax = aggregate_marg_utils_exp_values(
+            final_value_state_choice=values_pre_lim,
+            state_times_state_choice_mat=state_times_state_choice_mat[
+                idx_possible_states, :
+            ],
+            marg_util_state_choice=marg_util_pre_lim,
+            sum_state_choices_to_state=current_period_sum_state_choices_to_state,
+            taste_shock_scale=taste_shock_scale,
+            income_shock_weights=income_shock_weights,
         )
 
         # ToDo: save arrays to disc
