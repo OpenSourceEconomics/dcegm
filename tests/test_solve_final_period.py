@@ -3,7 +3,7 @@ from itertools import product
 
 import numpy as np
 import pytest
-from dcegm.final_period import final_period_wrapper
+from dcegm.final_period import solve_final_period
 from dcegm.pre_processing import convert_params_to_dict
 from dcegm.pre_processing import get_partial_functions
 from dcegm.state_space import create_state_choice_space
@@ -111,7 +111,7 @@ def test_consume_everything_in_final_period(
         compute_marginal_utility=compute_marginal_utility,
     )
 
-    endog_grid_final, policy_final, value_final, _ = final_period_wrapper(
+    endog_grid_final, policy_final, value_final, _ = solve_final_period(
         state_times_state_choice_mat=state_times_state_choice_mat[
             idx_states_final_period, :
         ],

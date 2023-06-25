@@ -8,7 +8,8 @@ import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 from dcegm.egm import compute_optimal_policy_and_value
-from dcegm.final_period import final_period_wrapper
+from dcegm.final_period import save_final_period_solution
+from dcegm.final_period import solve_final_period
 from dcegm.integration import quadrature_legendre
 from dcegm.interpolation import interpolate_and_calc_marginal_utilities
 from dcegm.marg_utilities_and_exp_value import (
@@ -271,8 +272,6 @@ def backwards_induction(
                 Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
 
     """
-    n_states_over_periods = state_space.shape[0] // n_periods
-
     resources_beginning_of_period = vmap(
         vmap(
             vmap(compute_next_period_wealth, in_axes=(None, None, 0)),
@@ -281,67 +280,54 @@ def backwards_induction(
         in_axes=(0, None, None),
     )(state_space, exogenous_savings_grid, income_shock_draws)
 
-    idx_states_final_period = np.where(state_space[:, 0] == n_periods - 1)[0]
-    idx_state_choices_final_period = np.where(
-        state_choice_space[:, 0] == n_periods - 1
-    )[0]
-    map_final_state_choice_to_state = map_state_choice_to_state[
-        idx_state_choices_final_period
-    ]
-    last_period_sum_state_choices_to_state = sum_state_choices_to_state[
-        idx_states_final_period, :
-    ][:, idx_state_choices_final_period]
-
-    map_final_state_choice_to_state = map_state_choice_to_state[
-        idx_state_choices_final_period
-    ]
-    resources_last_period = resources_beginning_of_period[
-        map_final_state_choice_to_state
-    ]
-    final_period_state_choices = state_choice_space[idx_state_choices_final_period]
-
-    boolean_choice_mat_child_states = np.full((n_states_over_periods, n_choices), False)
-    for state_choice_idx, state_choice_vec in enumerate(final_period_state_choices):
-        boolean_choice_mat_child_states[
-            state_choice_idx - n_choices, state_choice_vec[-1]
-        ] = True
+    (
+        idx_states_last_period,
+        idx_state_choices_final_period,
+        last_period_sum_state_choices_to_state,
+        resources_last_period,
+        last_period_state_choices,
+        state_times_state_choice_mat_last_period,
+    ) = select_period_objects(
+        period=n_periods - 1,
+        state_space=state_space,
+        state_choice_space=state_choice_space,
+        sum_state_choices_to_state=sum_state_choices_to_state,
+        state_times_state_choice_mat=state_times_state_choice_mat,
+        map_state_choice_to_state=map_state_choice_to_state,
+        resources_beginning_of_period=resources_beginning_of_period,
+    )
 
     (
         endog_grid_final_period,
         policy_final_period,
         value_final_period,
         marginal_utilities_choices,
-    ) = final_period_wrapper(
-        final_period_choice_states=final_period_state_choices,
-        state_times_state_choice_mat=state_times_state_choice_mat[
-            idx_states_final_period, :
-        ],
+    ) = solve_final_period(
+        final_period_choice_states=last_period_state_choices,
         final_period_solution_partial=final_period_solution_partial,
         resources_last_period=resources_last_period,
-        sum_state_choices_to_state=last_period_sum_state_choices_to_state,
-        taste_shock_scale=taste_shock_scale,
-        income_shock_draws=income_shock_draws,
-        income_shock_weights=income_shock_weights,
     )
-    # Choose which draw we take for policy and value function as those are note saved
-    # with respect to the draws
-    middle_of_draws = int(income_shock_draws.shape[0] + 1 / 2)
-    value_container[
-        idx_state_choices_final_period, ..., : len(exogenous_savings_grid)
-    ] = value_final_period[:, :, middle_of_draws]
-    endog_grid_container[
-        idx_state_choices_final_period, ..., : len(exogenous_savings_grid)
-    ] = endog_grid_final_period[:, :, middle_of_draws]
-    policy_container[
-        idx_state_choices_final_period, ..., : len(exogenous_savings_grid)
-    ] = policy_final_period[:, :, middle_of_draws]
+
+    (
+        value_container,
+        endog_grid_container,
+        policy_container,
+    ) = save_final_period_solution(
+        endog_grid_container=endog_grid_container,
+        policy_container=policy_container,
+        value_container=value_container,
+        idx_state_choices_final_period=idx_state_choices_final_period,
+        endog_grid_final_period=endog_grid_final_period,
+        policy_final_period=policy_final_period,
+        value_final_period=value_final_period,
+        num_income_shock_draws=income_shock_draws.shape[0],
+        num_wealth_grid_points=exogenous_savings_grid.shape[0],
+    )
 
     # Aggregate the marginal utilities and expected values over all choices
     marg_util, emax = aggregate_marg_utils_exp_values(
         final_value_state_choice=value_final_period,
-        state_times_state_choice_mat=state_times_state_choice_mat[
-            idx_states_final_period, :
-        ],
+        state_times_state_choice_mat=state_times_state_choice_mat_last_period,
         marg_util_state_choice=marginal_utilities_choices,
         sum_state_choices_to_state=last_period_sum_state_choices_to_state,
         taste_shock_scale=taste_shock_scale,
@@ -386,25 +372,10 @@ def backwards_induction(
             compute_value,
         )
 
-        temp_policy = np.full(
-            shape=(len(idx_possible_states), n_choices, endog_grid_container.shape[-1]),
-            fill_value=np.nan,
-        )
-        temp_value = np.full(
-            shape=(len(idx_possible_states), n_choices, endog_grid_container.shape[-1]),
-            fill_value=np.nan,
-        )
-        temp_endog_grid = np.full(
-            shape=(len(idx_possible_states), n_choices, endog_grid_container.shape[-1]),
-            fill_value=np.nan,
-        )
-        boolean_choice_mat_child_states[:] = False
-
         for state_choice_idx, state_choice_vec in enumerate(
             feasible_state_choice_combs
         ):
             choice = state_choice_vec[-1]
-            state = state_choice_vec[:-1]
 
             endog_grid, policy, value = compute_upper_envelope(
                 endog_grid=feasible_endog_grids[state_choice_idx],
@@ -417,15 +388,6 @@ def backwards_induction(
                 choice=choice,
                 compute_value=compute_value,
             )
-            idx_temp_state = np.where(
-                map_state_to_index[tuple(state)] == idx_possible_states
-            )[0]
-            temp_policy[idx_temp_state, choice, : len(policy)] = policy
-            temp_value[idx_temp_state, choice, : len(value)] = value
-            temp_endog_grid[idx_temp_state, choice, : len(endog_grid)] = endog_grid
-
-            _idx_child_state = state_choice_idx - n_choices
-            boolean_choice_mat_child_states[_idx_child_state, choice] = True
 
             _idx_state_choice_full = idx_state_choices_period[state_choice_idx]
             endog_grid_container[_idx_state_choice_full, : len(endog_grid)] = endog_grid
@@ -513,3 +475,39 @@ def _get_post_decision_marg_utils_and_emax(
     emax_child = jnp.take(emax_next, idx_post_decision_child_states, axis=0)
 
     return marg_utils_child, emax_child
+
+
+def select_period_objects(
+    period,
+    state_space,
+    state_choice_space,
+    sum_state_choices_to_state,
+    map_state_choice_to_state,
+    state_times_state_choice_mat,
+    resources_beginning_of_period,
+):
+    idx_states_current_period = np.where(state_space[:, 0] == period)[0]
+    idx_state_choices_current_period = np.where(state_choice_space[:, 0] == period)[0]
+    current_period_sum_state_choices_to_state = sum_state_choices_to_state[
+        idx_states_current_period, :
+    ][:, idx_state_choices_current_period]
+
+    map_current_period_state_choices_to_state = map_state_choice_to_state[
+        idx_state_choices_current_period
+    ]
+    resources_current_period = resources_beginning_of_period[
+        map_current_period_state_choices_to_state
+    ]
+    state_choices_current_period = state_choice_space[idx_state_choices_current_period]
+    state_times_state_choice_mat_period = state_times_state_choice_mat[
+        idx_states_current_period, :
+    ]
+
+    return (
+        idx_states_current_period,
+        idx_state_choices_current_period,
+        current_period_sum_state_choices_to_state,
+        resources_current_period,
+        state_choices_current_period,
+        state_times_state_choice_mat_period,
+    )

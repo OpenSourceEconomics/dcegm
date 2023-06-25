@@ -6,15 +6,10 @@ import jax.numpy as jnp
 from jax import vmap
 
 
-def final_period_wrapper(
+def solve_final_period(
     final_period_choice_states: jnp.ndarray,
     final_period_solution_partial: Callable,
-    sum_state_choices_to_state,
-    state_times_state_choice_mat: jnp.ndarray,
     resources_last_period: jnp.ndarray,
-    taste_shock_scale: float,
-    income_shock_draws: jnp.ndarray,
-    income_shock_weights: jnp.ndarray,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Computes solution to final period for policy and value function.
 
@@ -23,11 +18,6 @@ def final_period_wrapper(
     Args:
         final_period_choice_states (np.ndarray): Collection of all possible state-choice
             combinations in the final period.
-        taste_shock_scale (float): The taste shock scale.
-        income_shock_draws (np.ndarray): 1d array of shape (n_quad_points,) containing
-            the Hermite quadrature points.
-        income_shock_weights (np.ndarrray): 1d array of shape (n_stochastic_quad_points)
-            with weights for each stoachstic shock draw.
 
     Returns:
         tuple:
@@ -41,14 +31,6 @@ def final_period_wrapper(
             policy for all final states, choices, end of period assets, and
             income shocks.
         - final_value (np.ndarray): 4d array of shape
-            (n_states, n_choices, n_grid_wealth, n_income_shocks) of the optimal
-            value function for all final states, choices, end of period assets, and
-            income shocks.
-        - marginal_utilities_choices (np.ndarray): 4d array of shape
-            (n_states, n_choices, n_grid_wealth, n_income_shocks) of the optimal
-            value function for all final states, choices, end of period assets, and
-            income shocks.
-        - max_exp_values (np.ndarray): 4d array of shape
             (n_states, n_choices, n_grid_wealth, n_income_shocks) of the optimal
             value function for all final states, choices, end of period assets, and
             income shocks.
@@ -78,3 +60,34 @@ def final_period_wrapper(
         final_value,
         marginal_utilities_choices,
     )
+
+
+def save_final_period_solution(
+    value_container: jnp.ndarray,
+    endog_grid_container: jnp.ndarray,
+    policy_container: jnp.ndarray,
+    idx_state_choices_final_period: jnp.ndarray,
+    value_final_period: jnp.ndarray,
+    endog_grid_final_period: jnp.ndarray,
+    policy_final_period: jnp.ndarray,
+    num_income_shock_draws: jnp.ndarray,
+    num_wealth_grid_points: jnp.ndarray,
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+    """Saves the final period solution to the containers.
+
+    Soon this will be save to disc.
+
+    """
+    # Choose which draw we take for policy and value function as those are note saved
+    # with respect to the draws
+    middle_of_draws = int(num_income_shock_draws + 1 / 2)
+    value_container[
+        idx_state_choices_final_period, ..., :num_wealth_grid_points
+    ] = value_final_period[:, :, middle_of_draws]
+    endog_grid_container[
+        idx_state_choices_final_period, ..., :num_wealth_grid_points
+    ] = endog_grid_final_period[:, :, middle_of_draws]
+    policy_container[
+        idx_state_choices_final_period, ..., :num_wealth_grid_points
+    ] = policy_final_period[:, :, middle_of_draws]
+    return value_container, endog_grid_container, policy_container
