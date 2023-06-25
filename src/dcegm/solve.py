@@ -4,10 +4,9 @@ from typing import Callable
 from typing import Dict
 from typing import Tuple
 
-import jax.numpy as jnp
 import numpy as np
 import pandas as pd
-from dcegm.egm import compute_optimal_policy_and_value
+from dcegm.egm import calculate_candidates_from_euler
 from dcegm.final_period import save_final_period_solution
 from dcegm.final_period import solve_final_period
 from dcegm.integration import quadrature_legendre
@@ -360,37 +359,23 @@ def backwards_induction(
             resources_beginning_of_period=resources_beginning_of_period,
         )
 
-        # If we are currently at period t, the child state that arises
-        # from a particular decision made in period t is actually the beginning
-        # of period state that arises in period t+1.
-        feasible_marg_utils, feasible_emax = _get_post_decision_marg_utils_and_emax(
-            marg_util_next=marg_util,
-            emax_next=emax,
-            idx_state_choice_combs=idx_state_choices_period,
-            map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
-        )
-
         (
             candidate_sol_euler_endog_grid,
             candidate_sol_euler_policy,
             candidate_sol_euler_value,
             expected_values,
-        ) = vmap(
-            vmap(
-                compute_optimal_policy_and_value,
-                in_axes=(1, 1, 0, None, None, None, None, None, None),  # savings grid
-            ),
-            in_axes=(0, 0, None, None, None, None, 0, None, None),  # states and choices
-        )(
-            feasible_marg_utils,
-            feasible_emax,
-            exogenous_savings_grid,
-            transition_vector_by_state,
-            discount_factor,
-            interest_rate,
-            state_choices_period,
-            compute_inverse_marginal_utility,
-            compute_value,
+        ) = calculate_candidates_from_euler(
+            marg_util=marg_util,
+            emax=emax,
+            idx_state_choices_period=idx_state_choices_period,
+            map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
+            exogenous_savings_grid=exogenous_savings_grid,
+            transition_vector_by_state=transition_vector_by_state,
+            discount_factor=discount_factor,
+            interest_rate=interest_rate,
+            state_choices_period=state_choices_period,
+            compute_inverse_marginal_utility=compute_inverse_marginal_utility,
+            compute_value=compute_value,
         )
 
         for state_choice_idx, state_choice_vec in enumerate(state_choices_period):
@@ -427,47 +412,3 @@ def backwards_induction(
 
     # ToDo: return None
     return endog_grid_container, policy_container, value_container
-
-
-def _get_post_decision_marg_utils_and_emax(
-    marg_util_next,
-    emax_next,
-    idx_state_choice_combs,
-    map_state_to_post_decision_child_nodes,
-):
-    """Get marginal utility and expected maximum value of post-decision child states.
-
-    Args:
-        marg_util_next (np.ndarray): 2d array of shape (n_choices, n_grid_wealth)
-            containing the choice-specific marginal utilities of the next period,
-            i.e. t + 1.
-        emax_next (np.ndarray): 2d array of shape (n_choices, n_grid_wealth)
-            containing the choice-specific expected maximum values of the next period,
-            i.e. t + 1.
-        idx_state_choice_combs (np.ndarray): Indexer for the state choice combinations
-            that are feasible in the current period.
-        map_state_to_post_decision_child_nodes (np.ndarray): Indexer for the child nodes
-            that can be reached from the current state.
-
-    Returns:
-        tuple:
-
-        - marg_utils_child (np.ndarray): 3d array of shape
-            (n_child_states, n_exog_processes, n_grid_wealth) containing the
-            state-choice specific marginal utilities of the child states in
-            the current period t.
-        - emax_child (np.ndarray): 3d array of shape
-            (n_child_states, n_exog_processes, n_grid_wealth) containing the
-            state-choice specific expected maximum values of the child states
-            in the current period t.
-
-    """
-    idx_post_decision_child_states = map_state_to_post_decision_child_nodes[
-        idx_state_choice_combs
-    ]
-
-    # state-choice specific
-    marg_utils_child = jnp.take(marg_util_next, idx_post_decision_child_states, axis=0)
-    emax_child = jnp.take(emax_next, idx_post_decision_child_states, axis=0)
-
-    return marg_utils_child, emax_child
