@@ -335,7 +335,7 @@ def backwards_induction(
         marg_util, emax = aggregate_marg_utils_exp_values(
             value_state_choices=values_interpolated,
             marg_util_state_choices=marg_util_interpolated,
-            state_times_state_choice_mat=state_times_state_choice_mat_period,
+            map_state_to_state_choices=state_times_state_choice_mat_period,
             sum_state_choices_to_state=sum_state_choices_to_state_period,
             taste_shock_scale=taste_shock_scale,
             income_shock_weights=income_shock_weights,

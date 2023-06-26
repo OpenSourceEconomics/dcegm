@@ -140,6 +140,9 @@ def create_state_choice_space(
             map_state_choice_to_state[idx] = state_idx
             state_times_state_choice_mat[state_idx, choice] = idx - period_min_idx
             idx += 1
+        # Fill up matrix with some state_choice index from the state, as we only use
+        # this matrix to get the maximum across state_choice values and two times the
+        # same value doesn't change the maximum. Only used in aggregation function.
         for choice in range(n_choices):
             if choice not in choice_set:
                 state_times_state_choice_mat[state_idx, choice] = (
