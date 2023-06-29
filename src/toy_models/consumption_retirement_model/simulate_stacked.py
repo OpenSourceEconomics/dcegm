@@ -1,23 +1,10 @@
-from functools import partial
-
+"""Simulation function for the consumption and retirement toy model."""
 import numpy as np
 import pandas as pd
-import scipy.interpolate as scin
-from dcegm.pre_processing import calc_current_value
+from dcegm.interpolation import linear_interpolation_with_extrapolation
 from scipy.stats import norm
-from toy_models.consumption_retirement_model.budget_functions import (
-    _calc_stochastic_income,
-)
-from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
-
-# from dcegm.retirement.ret import choice_probabilities
-# from dcegm.egm import calc_choice_probability
-
-# from dcegm.retirement.ret import income
-# from dcegm.interpolation import interpolate_value
 
 
-# from dcegm.retirement.ret import value_function
 def calc_choice_probability(
     values: np.ndarray,
     taste_shock_scale: float,
@@ -45,121 +32,123 @@ def calc_choice_probability(
     return choice_prob
 
 
-def choice_probabilities(x, lambda_):
-    """Calculate the probability of choosing work in t+1 for state worker given t+1
-    value functions."""
+# def interpolate_value(
+#     value_high: float,
+#     wealth_high: float,
+#     value_low: float,
+#     wealth_low: float,
+#     wealth_new: float,
+# ):
+#     """Interpolate policy and value functions.
 
-    mx = np.amax(x, axis=0)
-    mxx = x - mx
-    res = np.exp(mxx[1, :] / lambda_) / np.sum(np.exp(mxx / lambda_), axis=0)
+#     Args:
+#         policy_high (float): Policy function value at the higher end of the
+#             interpolation interval.
+#         value_high (float): Value function value at the higher end of the
+#             interpolation interval.
+#         wealth_high (float): Wealth value at the higher end of the interpolation
+#             interval.
+#         policy_low (float): Policy function value at the lower end of the
+#             interpolation interval.
+#         value_low (float): Value function value at the lower end of the
+#             interpolation interval.
+#         wealth_low (float): Wealth value at the lower end of the interpolation
+#             interval.
+#         wealth_new (float): Wealth value at which the policy and value functions
+#             should be interpolated.
 
-    return res
+#     Returns:
+#         tuple:
 
+#         - policy_new (float): Interpolated policy function value.
+#         - value_new (float): Interpolated value function value.
 
-def value_function(working, period, x, value, beta, theta, duw):
-    x = x.flatten("F")
-    res = np.full(x.shape, np.nan)
+#     """
+#     interpolate_dist = wealth_new - wealth_low
+#     interpolate_slope_value = (value_high - value_low) / (wealth_high - wealth_low)
+#     value_new = (interpolate_slope_value * interpolate_dist) + value_low
 
-    # Mark constrained region
-    # credit constraint between 1st (M_{t+1) = 0) and second point (A_{t+1} = 0)
-    mask = x < value[1, 0]
-
-    # Calculate t+1 value function in the constrained region
-    res[mask] = util(x[mask], working, theta, duw) + beta * value[0, 1]
-
-    # Calculate t+1 value function in non-constrained region
-    # inter- and extrapolate
-    interpolation = scin.interp1d(
-        value[0],
-        value[1],
-        bounds_error=False,
-        fill_value="extrapolate",
-        kind="linear",
-    )
-    res[~mask] = interpolation(x[~mask])
-
-    return res
-
-
-def util(consumption, working, theta, duw):
-    """CRRA utility."""
-    u = (consumption ** (1 - theta) - 1) / (1 - theta)
-    u = u - duw * working
-
-    return u
+#     return value_new
 
 
-def income(it, shock, coeffs_age_poly):
-    """Income in period t given normal shock."""
+def calc_stochastic_income(period: int, wage_shock: float, coeffs_age_poly: np.ndarray):
+    """Computes the current level of stochastic labor income.
 
-    ages = (it + 20) ** np.arange(len(coeffs_age_poly))
-    w = np.exp(coeffs_age_poly @ ages + shock)
-    return w
+    Note that income is paid at the end of the current period, i.e. after
+    the (potential) labor supply choice has been made. This is equivalent to
+    allowing income to be dependent on a lagged choice of labor supply.
+    The agent starts working in period t = 0.
+    Relevant for the wage equation (deterministic income) are age-dependent
+    coefficients of work experience:
+    labor_income = constant + alpha_1 * age + alpha_2 * age**2
+    They include a constant as well as two coefficients on age and age squared,
+    respectively. Note that the last one (alpha_2) typically has a negative sign.
+
+    Args:
+        state (jnp.ndarray): 1d array of shape (n_state_variables,) denoting
+            the current child state.
+        wage_shock (float): Stochastic shock on labor income; may or may not be normally
+            distributed. Entry of income_shock_draws.
+        params_dict (dict): Dictionary containing model parameters.
+            Relevant here are the coefficients of the wage equation.
+        options (dict): Options dictionary.
+
+    Returns:
+        stochastic_income (float): The potential end of period income. It consists of a
+            deterministic component, i.e. age-dependent labor income,
+            and a stochastic shock.
+
+    """
+    age = period + 20
+    labor_income = coeffs_age_poly @ (age ** np.arange(len(coeffs_age_poly)))
+    return np.exp(labor_income + wage_shock)
 
 
 def simulate_stacked(
-    # endog_grid,
+    endog_grid,
     value,
     policy,
     num_periods,
-    # cost_work,
-    # theta,
-    # beta,
-    lambda_,
+    taste_shock_scale,
     sigma,
     r,
     coeffs_age_poly,
-    options,  # TO-DO
-    params,  # TO-DO
+    initial_wealth,
     state_space,
     indexer,
-    init=[10, 30],
+    get_next_value,
     num_sims=10,
     seed=7134,
 ):
-    # # To-Do. Fix for now, ignore exogenous proccessoen
-    # _endog_grid = endog_grid[::2]
-    # _value = value[::2]
-    # _policy = policy[::2]
+    """Simulate the model."""
+    # To-Do. Fix for now, ignore exogenous proccessoen
+    _endog_grid = endog_grid[::2]
+    _value = value[::2]
+    _policy = policy[::2]
+    value = np.stack([_endog_grid, _value], axis=2)
+    policy = np.stack([_endog_grid, _policy], axis=2)
 
-    # value = np.stack([_endog_grid, _value], axis=2)
-    # policy = np.stack([_endog_grid, _policy], axis=2)
-    # breakpoint()
-
-    # partial
-    discount_factor = params.loc[("beta", "beta"), "value"]
-    delta = params.loc[("delta", "delta"), "value"]
-    theta = params.loc[("utility_function", "theta"), "value"]
-    compute_utility = partial(utility_func_crra, params=params)
-    compute_value = partial(
-        calc_current_value,
-        discount_factor=discount_factor,
-        compute_utility=compute_utility,
-    )
-
-    # Set seed
     np.random.seed(seed)
 
-    # Create containers
-    wealth0 = np.full((num_sims, num_periods), np.nan)
-    wealth1 = np.full((num_sims, num_periods), np.nan)
-    cons = np.full((num_sims, num_periods), np.nan)
-    shock = np.full((num_sims, num_periods), np.nan)
+    wealth_current = np.full((num_sims, num_periods), np.nan)
+    wealth_next = np.full((num_sims, num_periods), np.nan)
+    consumption = np.full((num_sims, num_periods), np.nan)
+    income_shock = np.full((num_sims, num_periods), np.nan)
     income_ = np.full((num_sims, num_periods), np.nan)
     worker = np.full((num_sims, num_periods), np.nan)
-    prob_work = np.full((num_sims, num_periods), np.nan)
-    ret_age = np.full((num_sims, 1), np.nan)
-    vl1 = np.full((2, num_sims), np.nan)
+    prob_working = np.full((num_sims, num_periods), np.nan)
+    retirement_age = np.full((num_sims, 1), np.nan)
+    value_next = np.full((2, num_sims), np.nan)
 
-    # Draw inperiodial wealth
+    # Draw initial wealth
     period = 0
-    wealth0[:, 0] = init[0] + np.random.uniform(0, 1, num_sims) * (init[1] - init[0])
+    wealth_current[:, period] = initial_wealth[0] + np.random.uniform(
+        0, 1, num_sims
+    ) * (initial_wealth[1] - initial_wealth[0])
 
-    # Set status of all individuals (given by nsims) to working, i.e. 1
+    # Set status of all individuals to working, i.e. 1
     worker[:, 0] = 1
 
-    # Fill in containers
-    # Next period value function
     value_working = value[period, 0].T[~np.isnan(value[period, 0]).any(axis=0)].T
     value_retired = value[period, 1].T[~np.isnan(value[period, 1]).any(axis=0)].T
     policy_working_next = (
@@ -169,27 +158,27 @@ def simulate_stacked(
         policy[period + 1, 1].T[~np.isnan(policy[period + 1, 1]).any(axis=0)].T
     )
 
-    vl1[0, :] = value_function(
-        0, 0, wealth0[:, 0], value_retired, discount_factor, theta, delta
+    value_next[0, :] = get_next_value(
+        choice=0,
+        wealth=wealth_current[:, period],
+        value_current=value_retired,
     )  # retirement
-    vl1[1, :] = value_function(
-        1, 0, wealth0[:, 0], value_working, discount_factor, theta, delta
+    value_next[1, :] = get_next_value(
+        choice=1,
+        wealth=wealth_current[:, period],
+        value_current=value_working,
     )  # work
 
-    # Choice probabilperiody of working
-    prob_work[:, 0] = choice_probabilities(vl1, lambda_)
+    prob_working[:, period] = calc_choice_probability(value_next, taste_shock_scale)
 
-    working = (prob_work[:, 0] > np.random.uniform(0, 1, num_sims)).astype(int)
+    working = (prob_working[:, period] > np.random.uniform(0, 1, num_sims)).astype(int)
 
-    cons[:, 0][working == 0], cons[:, 0][working == 1] = cons_t0(
-        wealth0,
-        policy_working_next,
-        policy_retired_next,
-        working,
-    )
-    wealth1[:, 0] = wealth0[:, 0] - cons[:, 0]
+    consumption[:, period][working == 1] = get_consumption(
+        wealth_current[:, period], policy_working_next
+    )[working == 1]
 
-    # Record current period choice
+    wealth_next[:, period] = wealth_current[:, period] - consumption[:, period]
+
     for period in range(1, num_periods - 1):
         value_working = value[period, 0].T[~np.isnan(value[period, 0]).any(axis=0)].T
         value_retired = value[period, 1].T[~np.isnan(value[period, 1]).any(axis=0)].T
@@ -201,56 +190,66 @@ def simulate_stacked(
         )
 
         worker[:, period] = working
-        # Shock, here no shock since set sigma = 0 for m0
-        shock[:, period][worker[:, period] == 1] = (
+
+        income_shock[:, period][worker[:, period] == 1] = (
             norm.ppf(np.random.uniform(0, 1, sum(working))) * sigma
         )
-        # Fill in retirement age
-        ret_age[(worker[:, period - 1] == 1) & (worker[:, period] == 0)] = period
 
-        wealth0, wealth1, cons, prob_work, working, shock, income_, vl1 = sim_periods(
-            wealth0,
-            wealth1,
-            cons,
+        retirement_age[(worker[:, period - 1] == 1) & (worker[:, period] == 0)] = period
+
+        (
+            wealth_current,
+            wealth_next,
+            consumption,
+            prob_working,
+            working,
+            income_shock,
+            income_,
+            value_next,
+        ) = simulate_period(
+            wealth_current,
+            wealth_next,
+            consumption,
             worker,
             num_sims,
-            prob_work,
-            shock,
+            prob_working,
+            income_shock,
             period,
-            coeffs_age_poly,
-            lambda_,
-            income_,
-            value_working,
-            value_retired,
-            policy_working_next,
-            policy_retired_next,
-            # beta,
-            # theta,
-            # cost_work,
-            r,
-            # state_index=state_index,
-            # state_index_plus_one=state_index_plus_one,
-            # child_state=[period, working],  # TO-DO
-            params=params,
-            options=options,
-            compute_value=compute_value,
+            coeffs_age_poly=coeffs_age_poly,
+            lambda_=taste_shock_scale,
+            income_=income_,
+            value_working=value_working,
+            value_retired=value_retired,
+            policy_working_next=policy_working_next,
+            policy_retired_next=policy_retired_next,
+            r=r,
+            get_next_value=get_next_value,
         )
     df = create_dataframe(
-        wealth0, wealth1, cons, worker, income_, shock, ret_age, num_sims, num_periods
+        wealth_current,
+        wealth_next,
+        consumption,
+        worker,
+        income_,
+        income_shock,
+        retirement_age,
+        num_sims,
+        num_periods,
     )
 
     return df
 
 
-def sim_periods(
-    wealth0,
-    wealth1,
-    cons,
+def simulate_period(
+    wealth_current,
+    wealth_next,
+    consumption,
     worker,
     num_sims,
-    prob_work,
-    shock,
+    prob_working,
+    income_shock,
     period,
+    *,
     coeffs_age_poly,
     lambda_,
     income_,
@@ -258,198 +257,97 @@ def sim_periods(
     value_retired,
     policy_working_next,
     policy_retired_next,
-    # beta,
-    # theta,
-    # cost_work,
     r,
-    *,
-    # child_state,
-    # state_index,
-    # state_index_plus_one,
-    params,
-    options,
-    compute_value
+    get_next_value,
 ):
-    discount_factor = params.loc[("beta", "beta"), "value"]
-    delta = params.loc[("delta", "delta"), "value"]
-    theta = params.loc[("utility_function", "theta"), "value"]
-
-    # Income
-    # income_[:, period] = 0
-    # income_[:, period][worker[:, period] == 1] = _calc_stochastic_income(
-    #     # period, shock[:, period], coeffs_age_poly
-    #     child_state=[period, 0],  # only worker
-    #     wage_shock=shock[:, period],
-    #     params=params,
-    #     options=options,
-    # )[worker[:, period] == 1]
+    """Simulate one period of the model."""
     income_[:, period] = 0
-    income_[:, period][worker[:, period] == 1] = income(
-        period, shock[:, period], coeffs_age_poly
+    income_[:, period][worker[:, period] == 1] = calc_stochastic_income(
+        period, income_shock[:, period], coeffs_age_poly
     )[worker[:, period] == 1]
 
-    # M_t+1
-    # MatLab code should be equvalent to calculating correct income for workers and retired
-    # and just adding savings times interest
-    # No extra need for further differentiating between retired and working
-    wealth0[:, period] = income_[:, period] + wealth1[:, period - 1] * (1 + r)
+    wealth_current[:, period] = income_[:, period] + wealth_next[:, period - 1] * (
+        1 + r
+    )
 
-    # Next period value function
-    vl1 = np.full((2, num_sims), np.nan)
-
-    vl1[0, :] = value_function(
-        0, period, wealth0[:, period], value_retired, discount_factor, theta, delta
+    value_next = np.full((2, num_sims), np.nan)
+    value_next[0, :] = get_next_value(
+        choice=0,
+        wealth=wealth_current[:, period],
+        value_current=value_retired,
     )  # retirement
-    vl1[1, :] = value_function(
-        1, period, wealth0[:, period], value_working, discount_factor, theta, delta
+    value_next[1, :] = get_next_value(
+        choice=1,
+        wealth=wealth_current[:, period],
+        value_current=value_working,
     )  # work
 
-    prob_work[:, period] = choice_probabilities(vl1, lambda_)
+    prob_working[:, period] = calc_choice_probability(value_next, lambda_)
 
-    working = (prob_work[:, period] > np.random.uniform(0, 1, num_sims)).astype(int)
+    working = (prob_working[:, period] > np.random.uniform(0, 1, num_sims)).astype(int)
 
     # retirement is absorbing state
     working[worker[:, period] == 0] = 0.0
 
-    # Calculate current period cons
-    # =================================================================================
-    # cons111 = np.interp(
-    #     wealth0[:, period],
-    #     policy[state_index_plus_one, 0, 0],
-    #     policy[state_index_plus_one, 0, 1],
-    # )
-    # # extrapolate linearly right of max grid point
-    # slope = (
-    #     policy[state_index_plus_one, 0, 1, -2] - policy[state_index_plus_one, 0, 1, -1]
-    # ) / (
-    #     policy[state_index_plus_one, 0, 0, -2] - policy[state_index_plus_one, 0, 0, -1]
-    # )
-    # intercept = (
-    #     policy[state_index_plus_one, 0, 1, -1]
-    #     - policy[state_index_plus_one, 0, 0, -1] * slope
-    # )
-    # cons111[cons111 == np.max(policy[state_index_plus_one, 0, 1])] = (
-    #     intercept
-    #     + slope
-    #     * wealth0[:, period][cons111 == np.max(policy[state_index_plus_one, 0, 1])]
-    # )
-    # cons11_flat = cons111.flatten("F")
+    consumption[:, period][working == 1] = get_consumption(
+        wealth_current[:, period], policy_working_next
+    )[working == 1]
+    consumption[:, period][working == 0] = get_consumption(
+        wealth_current[:, period], policy_retired_next
+    )[working == 0]
 
-    # # =================================================================================
+    wealth_next[:, period] = wealth_current[:, period] - consumption[:, period]
 
-    # cons10 = np.interp(
-    #     wealth0[:, period],
-    #     policy[state_index_plus_one, 1, 0],
-    #     policy[state_index_plus_one, 1, 1],
-    # )
-    # # extrapolate linearly right of max grid point
-    # slope = (
-    #     policy[state_index_plus_one, 1, 1, -2] - policy[state_index_plus_one, 1, 1, -1]
-    # ) / (
-    #     policy[state_index_plus_one, 1, 0, -2] - policy[state_index_plus_one, 1, 0, -1]
-    # )
-    # intercept = (
-    #     policy[state_index_plus_one, 1, 1, -1]
-    #     - policy[state_index_plus_one, 1, 0, -1] * slope
-    # )
-    # cons10[cons10 == np.max(policy[state_index_plus_one, 1, 1])] = (
-    #     intercept
-    #     + slope
-    #     * wealth0[:, period][cons10 == np.max(policy[state_index_plus_one, 1, 1])]
-    # )
-    # cons10_flat = cons10.flatten("F")
-
-    # # =================================================================================
-
-    cons[:, period][working == 0], cons[:, period][working == 1] = cons_t(
-        wealth0, period, policy_working_next, policy_retired_next, working
+    return (
+        wealth_current,
+        wealth_next,
+        consumption,
+        prob_working,
+        working,
+        income_shock,
+        income_,
+        value_next,
     )
 
-    # cons[:, period][working == 1] = cons11_flat
-    # cons[:, period][working == 0] = cons10_flat
 
-    wealth1[:, period] = wealth0[:, period] - cons[:, period]
+def get_consumption(wealth_current, policy_next):
+    """Calculate consumption in period t."""
+    consumption = linear_interpolation_with_extrapolation(
+        x=policy_next[0], y=policy_next[1], x_new=wealth_current
+    )
 
-    return wealth0, wealth1, cons, prob_work, working, shock, income_, vl1
+    if np.any(consumption == np.max(policy_next[1])):
+        slope = (policy_next[1, -2] - policy_next[1, -1]) / (
+            policy_next[0, -2] - policy_next[0, -1]
+        )
+        intercept = policy_next[1, -1] - policy_next[0, -1] * slope
+        consumption[consumption == np.max(policy_next[1])] = (
+            intercept + slope * wealth_current[consumption == np.max(policy_next[1])]
+        )
 
-
-def cons_t0(wealth0, policy_working_next, policy_retired_next, working):
-    """This function calculates the cons in period 0."""
-    cons11 = np.interp(wealth0[:, 0], policy_working_next[0], policy_working_next[1])
-    # breakpoint()
-    # extrapolate linearly right of max grid point
-    slope = (policy_working_next[1, -2] - policy_working_next[1, -1]) / (
-        policy_working_next[0, -2] - policy_working_next[0, -1]
-    )
-    intercept = policy_working_next[1, -1] - policy_working_next[0, -1] * slope
-    cons11[cons11 == np.max(policy_working_next[1])] = (
-        intercept + slope * wealth0[:, 0][cons11 == np.max(policy_working_next[1])]
-    )
-    cons1_working_flat = cons11.flatten("F")
-
-    # retirement
-    cons10 = np.interp(wealth0[:, 0], policy_retired_next[0], policy_retired_next[1])
-    # extrapolate linearly right of max grid point
-    slope = (policy_retired_next[1, -2] - policy_retired_next[1, -1]) / (
-        policy_retired_next[0, -2] - policy_retired_next[0, -1]
-    )
-    intercept = policy_retired_next[1, -1] - policy_retired_next[0, -1] * slope
-    cons10[cons10 == np.max(policy_retired_next[1])] = (
-        intercept + slope * wealth0[:, 0][cons10 == np.max(policy_retired_next[1])]
-    )
-    cons1_ret_flat = cons10.flatten("F")
-
-    return cons1_ret_flat[working == 0], cons1_working_flat[working == 1]
-
-
-def cons_t(wealth0, period, policy_working_next, policy_retired_next, working):
-    """This function calculates the cons in period 0."""
-    cons11 = np.interp(
-        wealth0[:, period], policy_working_next[0], policy_working_next[1]
-    )
-    # breakpoint()
-    # extrapolate linearly right of max grid point
-    slope = (policy_working_next[1, -2] - policy_working_next[1, -1]) / (
-        policy_working_next[0, -2] - policy_working_next[0, -1]
-    )
-    intercept = policy_working_next[1, -1] - policy_working_next[0, -1] * slope
-    cons11[cons11 == np.max(policy_working_next[1])] = (
-        intercept + slope * wealth0[:, period][cons11 == np.max(policy_working_next[1])]
-    )
-    cons1_working_flat = cons11.flatten("F")
-
-    # retirement
-    cons10 = np.interp(
-        wealth0[:, period], policy_retired_next[0], policy_retired_next[1]
-    )
-    # extrapolate linearly right of max grid point
-    slope = (policy_retired_next[1, -2] - policy_retired_next[1, -1]) / (
-        policy_retired_next[0, -2] - policy_retired_next[0, -1]
-    )
-    intercept = policy_retired_next[1, -1] - policy_retired_next[0, -1] * slope
-    cons10[cons10 == np.max(policy_retired_next[1])] = (
-        intercept + slope * wealth0[:, period][cons10 == np.max(policy_retired_next[1])]
-    )
-    cons1_ret_flat = cons10.flatten("F")
-
-    return cons1_ret_flat[working == 0], cons1_working_flat[working == 1]
+    return consumption
 
 
 def create_dataframe(
-    wealth0, wealth1, cons, worker, income_, shock, ret_age, num_sims, num_periods
+    wealth_current,
+    wealth_next,
+    consumption,
+    worker,
+    labor_income,
+    shock,
+    retirement_age,
+    n_sims,
+    n_periods,
 ):
-    """This function processes the results so that they are composed in a pandas
-    dataframe object."""
+    """Combine the simulate results in a pandas DataFrame."""
 
-    # Set up multiindex object
     index = pd.MultiIndex.from_product(
-        [np.arange(num_sims), np.arange(num_periods)], names=["identifier", "period"]
+        [np.arange(n_sims), np.arange(n_periods)], names=["person_identifier", "period"]
     )
 
-    # Define column names object
     columns = [
-        "wealth0",
-        "wealth1",
+        "wealth_beginning_of_period",
+        "wealth_end_of_period",
         "consumption",
         "working",
         "income",
@@ -457,19 +355,16 @@ def create_dataframe(
         "shock",
     ]
 
-    # Process data
-    data = np.vstack(
+    data_raw = np.vstack(
         [
-            wealth0.flatten("C"),
-            wealth1.flatten("C"),
-            cons.flatten("C"),
+            wealth_current.flatten("C"),
+            wealth_next.flatten("C"),
+            consumption.flatten("C"),
             worker.flatten("C"),
-            income_.flatten("C"),
-            ret_age.repeat(num_periods).flatten("C"),
+            labor_income.flatten("C"),
+            retirement_age.repeat(n_periods).flatten("C"),
             shock.flatten("C"),
         ]
     )
 
-    df = pd.DataFrame(data.T, index, columns)
-
-    return df
+    return pd.DataFrame(data_raw.T, index, columns)

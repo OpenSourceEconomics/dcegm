@@ -1,8 +1,12 @@
+from functools import partial
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
+from dcegm.interpolation import linear_interpolation_with_inserting_missing_values
+from dcegm.pre_processing import calc_current_value
+from dcegm.pre_processing import convert_params_to_dict
 from dcegm.solve import solve_dcegm
 from jax.config import config
 from numpy.testing import assert_array_almost_equal as aaae
@@ -47,6 +51,43 @@ def utility_functions():
     }
 
 
+def _get_next_value(
+    choice, wealth, value_current, beta, calc_current_value, compute_utility
+):
+    wealth = wealth.flatten("F")
+    value_next = np.full_like(wealth, np.nan)
+
+    endog_grid_min, value_min = value_current[:, 0]
+    credit_constraint = wealth < endog_grid_min
+    # Mark constrained region
+    # credit constraint between 1st (M_{t+1) = 0) and second point (A_{t+1} = 0)
+    # credit_constraint = wealth < value_current[1, 0]
+
+    # Calculate t+1 value function in the constrained region
+    # value_next[mask] = (
+    #     util(wealth[mask], choice, theta, disutility_of_work)
+    #     + beta * value_current[0, 1]
+    # )
+
+    value_next[~credit_constraint] = linear_interpolation_with_inserting_missing_values(
+        x=value_current[0],
+        y=value_current[1],
+        x_new=wealth[~credit_constraint],
+        missing_value=np.nan,
+    )
+
+    value_interp_closed_form = calc_current_value(
+        consumption=wealth,
+        next_period_value=value_min,
+        choice=choice,
+        discount_factor=beta,
+        compute_utility=compute_utility,
+    )
+    value_next[credit_constraint] = value_interp_closed_form[credit_constraint]
+
+    return value_next
+
+
 @pytest.fixture()
 def state_space_functions():
     """Return dict with utility functions."""
@@ -60,11 +101,19 @@ def test_simulate(utility_functions, state_space_functions, load_example_model):
     model = "retirement_no_taste_shocks"
 
     params, options = load_example_model(f"{model}")
+    options["n_exog_processes"] = 1
     params.loc[("shocks", "lambda"), "value"] = 2.2204e-16
     params.loc[("assets", "initial_wealth_low"), "value"] = 10
     params.loc[("assets", "initial_wealth_high"), "value"] = 30
+    params_dict = convert_params_to_dict(params)
 
-    options["n_exog_processes"] = 1
+    compute_utility = partial(utility_func_crra, params_dict=params_dict)
+    get_next_value = partial(
+        _get_next_value,
+        beta=params.loc[("beta", "beta"), "value"],
+        calc_current_value=calc_current_value,
+        compute_utility=compute_utility,
+    )
 
     state_space, indexer = create_state_space(options)
 
@@ -78,29 +127,25 @@ def test_simulate(utility_functions, state_space_functions, load_example_model):
         transition_function=get_transition_matrix_by_state,
     )
 
-    policy_stacked = np.stack([endog_grid[::2], policy[::2]], axis=2)
-    value_stacked = np.stack([endog_grid[::2], value[::2]], axis=2)
-
     df = simulate_stacked(
-        # endog_grid=endog_grid,
-        policy=policy_stacked,
-        value=value_stacked,
+        endog_grid=endog_grid,
+        policy=policy,
+        value=value,
         num_periods=options["n_periods"],
-        # cost_work,
-        # theta,
-        # beta,
-        lambda_=params.loc[("shocks", "lambda"), "value"],
+        # discount_factor=params.loc[("beta", "beta"), "value"],
+        # delta=params.loc[("delta", "delta"), "value"],
+        # theta=params.loc[("utility_function", "theta"), "value"],
+        taste_shock_scale=params.loc[("shocks", "lambda"), "value"],
         sigma=params.loc[("shocks", "sigma"), "value"],
         r=params.loc[("assets", "interest_rate"), "value"],
         coeffs_age_poly=params.loc[("wage"), "value"],
-        options=options,
-        params=params,
-        state_space=state_space,
-        indexer=indexer,
-        init=[
+        initial_wealth=[
             params.loc[("assets", "initial_wealth_low"), "value"],
             params.loc[("assets", "initial_wealth_high"), "value"],
         ],
+        state_space=state_space,
+        indexer=indexer,
+        get_next_value=get_next_value,
         num_sims=100,
         seed=7134,
     )
