@@ -17,7 +17,7 @@ from toy_models.consumption_retirement_model.exogenous_processes import (
 from toy_models.consumption_retirement_model.final_period_solution import (
     solve_final_period_scalar,
 )
-from toy_models.consumption_retirement_model.simulate_stacked import simulate_stacked
+from toy_models.consumption_retirement_model.simulate import simulate_stacked
 from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space,
 )
@@ -118,22 +118,33 @@ def test_simulate(utility_functions, state_space_functions, load_example_model):
         transition_function=get_transition_matrix_by_state,
     )
 
+    # TODO: Fix final period solution manually
+    _max_wealth = params.loc[("assets", "max_wealth"), "value"]
+    _idx_possible_states = np.where(state_space[:, 0] == options["n_periods"] - 1)[0]
+
+    endog_grid[_idx_possible_states, ...] = np.nan
+    policy[_idx_possible_states, ...] = np.nan
+    value[_idx_possible_states, ...] = np.nan
+    endog_grid[_idx_possible_states, ..., :2] = [0, _max_wealth]
+    policy[_idx_possible_states, ..., :2] = [0, _max_wealth]
+    value[_idx_possible_states, ..., :2] = [0, _max_wealth]
+
     df = simulate_stacked(
         endog_grid=endog_grid,
         policy=policy,
         value=value,
-        n_periods=options["n_periods"],
         # discount_factor=params.loc[("beta", "beta"), "value"],
         # delta=params.loc[("delta", "delta"), "value"],
         # theta=params.loc[("utility_function", "theta"), "value"],
-        taste_shock_scale=params.loc[("shocks", "lambda"), "value"],
-        sigma=params.loc[("shocks", "sigma"), "value"],
-        r=params.loc[("assets", "interest_rate"), "value"],
         coeffs_age_poly=params.loc[("wage"), "value"],
+        wage_shock_scale=params.loc[("shocks", "sigma"), "value"],
+        taste_shock_scale=params.loc[("shocks", "lambda"), "value"],
         initial_wealth=[
             params.loc[("assets", "initial_wealth_low"), "value"],
             params.loc[("assets", "initial_wealth_high"), "value"],
         ],
+        interest_rate=params.loc[("assets", "interest_rate"), "value"],
+        n_periods=options["n_periods"],
         state_space=state_space,
         indexer=indexer,
         interpolate_value_on_current_grid=interpolate_value_on_current_grid,
