@@ -51,7 +51,7 @@ def utility_functions():
     }
 
 
-def _get_next_value(
+def _interpolate_value_on_current_grid(
     choice, wealth, value_current, beta, calc_current_value, compute_utility
 ):
     wealth = wealth.flatten("F")
@@ -59,15 +59,6 @@ def _get_next_value(
 
     endog_grid_min, value_min = value_current[:, 0]
     credit_constraint = wealth < endog_grid_min
-    # Mark constrained region
-    # credit constraint between 1st (M_{t+1) = 0) and second point (A_{t+1} = 0)
-    # credit_constraint = wealth < value_current[1, 0]
-
-    # Calculate t+1 value function in the constrained region
-    # value_next[mask] = (
-    #     util(wealth[mask], choice, theta, disutility_of_work)
-    #     + beta * value_current[0, 1]
-    # )
 
     value_next[~credit_constraint] = linear_interpolation_with_inserting_missing_values(
         x=value_current[0],
@@ -108,8 +99,8 @@ def test_simulate(utility_functions, state_space_functions, load_example_model):
     params_dict = convert_params_to_dict(params)
 
     compute_utility = partial(utility_func_crra, params_dict=params_dict)
-    get_next_value = partial(
-        _get_next_value,
+    interpolate_value_on_current_grid = partial(
+        _interpolate_value_on_current_grid,
         beta=params.loc[("beta", "beta"), "value"],
         calc_current_value=calc_current_value,
         compute_utility=compute_utility,
@@ -131,7 +122,7 @@ def test_simulate(utility_functions, state_space_functions, load_example_model):
         endog_grid=endog_grid,
         policy=policy,
         value=value,
-        num_periods=options["n_periods"],
+        n_periods=options["n_periods"],
         # discount_factor=params.loc[("beta", "beta"), "value"],
         # delta=params.loc[("delta", "delta"), "value"],
         # theta=params.loc[("utility_function", "theta"), "value"],
@@ -145,8 +136,8 @@ def test_simulate(utility_functions, state_space_functions, load_example_model):
         ],
         state_space=state_space,
         indexer=indexer,
-        get_next_value=get_next_value,
-        num_sims=100,
+        interpolate_value_on_current_grid=interpolate_value_on_current_grid,
+        n_sims=100,
         seed=7134,
     )
 
