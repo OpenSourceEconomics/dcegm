@@ -100,48 +100,21 @@ def simulate_stacked(
     prob_working = np.full((n_sims, n_periods), np.nan)
     retirement_age = np.full((n_sims, 1), np.nan)
 
-    # Draw initial wealth
-    period = 0
-    wealth_beginning_of_period[:, period] = initial_wealth[0] + np.random.uniform(
-        0, 1, n_sims
-    ) * (initial_wealth[1] - initial_wealth[0])
-
-    # Set status of all individuals to working, i.e. 1
-    lagged_choices[:, 0] = 1
-
-    value_working = value[period, 0].T[~np.isnan(value[period, 0]).any(axis=0)].T
-    value_retired = value[period, 1].T[~np.isnan(value[period, 1]).any(axis=0)].T
-    policy_working_next = (
-        policy[period + 1, 0].T[~np.isnan(policy[period + 1, 0]).any(axis=0)].T
-    )
-
-    _values_interp_stacked = np.full((2, n_sims), np.nan)
-    _values_interp_stacked[0, :] = interpolate_value_on_current_grid(
-        choice=0,
-        wealth=wealth_beginning_of_period[:, period],
-        value_current=value_retired,
-    )  # retirement
-    _values_interp_stacked[1, :] = interpolate_value_on_current_grid(
-        choice=1,
-        wealth=wealth_beginning_of_period[:, period],
-        value_current=value_working,
-    )  # work
-
-    prob_working[:, period] = calc_choice_probability(
-        _values_interp_stacked, taste_shock_scale
-    )
-    labor_choice = (prob_working[:, period] > np.random.uniform(0, 1, n_sims)).astype(
-        int
-    )
-
-    consumption[:, period][labor_choice == 1] = get_consumption(
-        wealth_beginning_of_period[:, period], policy_working_next
-    )[
-        labor_choice == 1
-    ]  # work
-
-    wealth_end_of_period[:, period] = (
-        wealth_beginning_of_period[:, period] - consumption[:, period]
+    (
+        wealth_beginning_of_period[:, 0],
+        wealth_end_of_period[:, 0],
+        consumption[:, 0],
+        prob_working[:, 0],
+        lagged_choices[:, 0],
+        labor_choice,
+    ) = simulate_first_period(
+        policy=policy,
+        value=value,
+        consumption=consumption[:, 0],
+        initial_wealth=initial_wealth,
+        taste_shock_scale=taste_shock_scale,
+        n_sims=n_sims,
+        interpolate_value_on_current_grid=interpolate_value_on_current_grid,
     )
 
     for period in range(1, n_periods - 1):
@@ -163,7 +136,7 @@ def simulate_stacked(
             retirement_age=retirement_age,
             choice_two_periods_ago=lagged_choices[:, period - 1],
             lagged_choice=labor_choice,
-            num_sims=n_sims,
+            n_sims=n_sims,
             prob_working=prob_working[:, period],
             wage_shock=wage_shock[:, period],
             period=period,
@@ -198,7 +171,7 @@ def simulate_period(
     retirement_age,
     choice_two_periods_ago,
     lagged_choice,
-    num_sims,
+    n_sims,
     prob_working,
     wage_shock,
     period,
@@ -238,7 +211,7 @@ def simulate_period(
         1 + interest_rate
     )
 
-    _values_interp_stacked = np.full((2, num_sims), np.nan)
+    _values_interp_stacked = np.full((2, n_sims), np.nan)
     _values_interp_stacked[0, :] = interpolate_value_on_current_grid(
         choice=0,
         wealth=wealth_beginning_of_period,
@@ -251,17 +224,15 @@ def simulate_period(
     )  # work
 
     prob_working = calc_choice_probability(_values_interp_stacked, taste_shock_scale)
-    choice_current_period = (prob_working > np.random.uniform(0, 1, num_sims)).astype(
-        int
-    )
+    choice_current_period = (prob_working > np.random.uniform(0, 1, n_sims)).astype(int)
     choice_current_period[lagged_choice == 0] = 0  # retirement is absorbing state
 
-    consumption[choice_current_period == 0] = get_consumption(
+    consumption[choice_current_period == 0] = get_current_consumption(
         wealth_beginning_of_period, _policy_next_retired
     )[
         choice_current_period == 0
     ]  # retirement
-    consumption[choice_current_period == 1] = get_consumption(
+    consumption[choice_current_period == 1] = get_current_consumption(
         wealth_beginning_of_period, _policy_next_working
     )[
         choice_current_period == 1
@@ -282,8 +253,88 @@ def simulate_period(
     )
 
 
-def get_consumption(wealth_current, policy_next):
-    """Calculate consumption in period t."""
+def simulate_first_period(
+    policy,
+    value,
+    consumption,
+    initial_wealth,
+    taste_shock_scale,
+    n_sims,
+    interpolate_value_on_current_grid,
+):
+    """Simulate the first period of the model.
+
+    Note that income is paid at the end of the period, so the first period is special in
+    that it does not have any income.
+
+    """
+    period = 0
+
+    # value_working = value[period, 0].T[~np.isnan(value[period, 0]).any(axis=0)].T
+    # value_retired = value[period, 1].T[~np.isnan(value[period, 1]).any(axis=0)].T
+    # policy_working_next = (
+    #     policy[period + 1, 0].T[~np.isnan(policy[period + 1, 0]).any(axis=0)].T
+    # )
+    _value_current_working = (
+        value[period, 0].T[~np.isnan(value[period, 0]).any(axis=0)].T
+    )
+    _value_current_retired = (
+        value[period, 1].T[~np.isnan(value[period, 1]).any(axis=0)].T
+    )
+    _policy_next_working = (
+        policy[period + 1, 0].T[~np.isnan(policy[period + 1, 0]).any(axis=0)].T
+    )
+    _policy_next_retired = (
+        policy[period + 1, 1].T[~np.isnan(policy[period + 1, 1]).any(axis=0)].T
+    )
+
+    wealth_beginning_of_period = initial_wealth[0] + np.random.uniform(0, 1, n_sims) * (
+        initial_wealth[1] - initial_wealth[0]
+    )
+
+    # Set status of all individuals to working, i.e. 1
+    lagged_choice = 1
+
+    _values_interp_stacked = np.full((2, n_sims), np.nan)
+    _values_interp_stacked[0, :] = interpolate_value_on_current_grid(
+        choice=0,
+        wealth=wealth_beginning_of_period,
+        value_current=_value_current_retired,
+    )  # retirement
+    _values_interp_stacked[1, :] = interpolate_value_on_current_grid(
+        choice=1,
+        wealth=wealth_beginning_of_period,
+        value_current=_value_current_working,
+    )  # work
+
+    prob_working = calc_choice_probability(_values_interp_stacked, taste_shock_scale)
+    choice_current_period = (prob_working > np.random.uniform(0, 1, n_sims)).astype(int)
+
+    consumption[choice_current_period == 0] = get_current_consumption(
+        wealth_beginning_of_period, _policy_next_retired
+    )[
+        choice_current_period == 0
+    ]  # retirement
+    consumption[choice_current_period == 1] = get_current_consumption(
+        wealth_beginning_of_period, _policy_next_working
+    )[
+        choice_current_period == 1
+    ]  # work
+
+    wealth_end_of_period = wealth_beginning_of_period - consumption
+
+    return (
+        wealth_beginning_of_period,
+        wealth_end_of_period,
+        consumption,
+        prob_working,
+        lagged_choice,
+        choice_current_period,
+    )
+
+
+def get_current_consumption(wealth_current, policy_next):
+    """Calculate choice-specific consumption in period t."""
     consumption = linear_interpolation_with_extrapolation(
         x=policy_next[0], y=policy_next[1], x_new=wealth_current
     )

@@ -118,7 +118,7 @@ def test_simulate(utility_functions, state_space_functions, load_example_model):
         transition_function=get_transition_matrix_by_state,
     )
 
-    # TODO: Fix final period solution manually
+    # TODO: Fix final period solution in `solve.py`. For now, do manually
     _max_wealth = params.loc[("assets", "max_wealth"), "value"]
     _idx_possible_states = np.where(state_space[:, 0] == options["n_periods"] - 1)[0]
 
