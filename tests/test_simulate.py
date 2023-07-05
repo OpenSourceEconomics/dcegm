@@ -52,17 +52,20 @@ def utility_functions():
 
 
 def _interpolate_value_on_current_grid(
-    choice, wealth, value_current, beta, calc_current_value, compute_utility
+    choice, wealth, endog_grid, value, beta, calc_current_value, compute_utility
 ):
     wealth = wealth.flatten("F")
-    value_next = np.full_like(wealth, np.nan)
+    value_interp = np.full_like(wealth, np.nan)
 
-    endog_grid_min, value_min = value_current[:, 0]
+    endog_grid_min = endog_grid[0]
+    value_min = value[0]
     credit_constraint = wealth < endog_grid_min
 
-    value_next[~credit_constraint] = linear_interpolation_with_inserting_missing_values(
-        x=value_current[0],
-        y=value_current[1],
+    value_interp[
+        ~credit_constraint
+    ] = linear_interpolation_with_inserting_missing_values(
+        x=endog_grid,
+        y=value,
         x_new=wealth[~credit_constraint],
         missing_value=np.nan,
     )
@@ -74,9 +77,9 @@ def _interpolate_value_on_current_grid(
         discount_factor=beta,
         compute_utility=compute_utility,
     )
-    value_next[credit_constraint] = value_interp_closed_form[credit_constraint]
+    value_interp[credit_constraint] = value_interp_closed_form[credit_constraint]
 
-    return value_next
+    return value_interp
 
 
 @pytest.fixture()
