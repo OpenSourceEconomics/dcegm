@@ -90,8 +90,6 @@ def simulate_stacked(
     _policy = policy[::2]
     value = np.stack([_endog_grid, _value], axis=2)
     policy = np.stack([_endog_grid, _policy], axis=2)
-    # value = _value
-    # policy = _policy
 
     wealth_beginning_of_period = np.full((n_sims, n_periods), np.nan)
     wealth_end_of_period = np.full((n_sims, n_periods), np.nan)
@@ -110,7 +108,6 @@ def simulate_stacked(
         lagged_choices[:, 0],
         current_labor_choice,
     ) = simulate_first_period(
-        endog_grid=endog_grid,
         value=value,
         policy=policy,
         initial_wealth=initial_wealth,
@@ -132,7 +129,6 @@ def simulate_stacked(
             labor_income[:, period],
             retirement_age,
         ) = simulate_period(
-            endog_grid=endog_grid,
             value=value,
             policy=policy,
             wealth_from_previous_period=wealth_end_of_period[:, period - 1],
@@ -168,7 +164,6 @@ def simulate_stacked(
 
 
 def simulate_period(
-    endog_grid,
     value,
     policy,
     wealth_from_previous_period,
@@ -261,7 +256,6 @@ def simulate_period(
 
 
 def simulate_first_period(
-    endog_grid,
     value,
     policy,
     consumption,
@@ -290,23 +284,6 @@ def simulate_first_period(
     _policy_next_retired = (
         policy[period + 1, 1].T[~np.isnan(policy[period + 1, 1]).any(axis=0)].T
     )
-
-    # _endog_grid_current_retired = endog_grid[period, 1][
-    #     ~np.isnan(endog_grid[period, 1])
-    # ]
-    # _endog_gird_current_working = endog_grid[period, 0][
-    #     ~np.isnan(endog_grid[period, 0])
-    # ]
-    # _endog_grid_next_retired = endog_grid[period + 1, 1][
-    #     ~np.isnan(endog_grid[period + 1, 1])
-    # ]
-    # _endog_grid_next_working = endog_grid[period + 1, 0][
-    #     ~np.isnan(endog_grid[period + 1, 0])
-    # ]
-    # _value_current_retired = value[period, 1][~np.isnan(value[period, 1])]
-    # _value_current_working = value[period, 0][~np.isnan(value[period, 0])]
-    # _policy_next_retired = policy[period + 1, 1][~np.isnan(policy[period + 1, 1])]
-    # _policy_next_working = policy[period + 1, 0][~np.isnan(policy[period + 1, 0])]
 
     wealth_beginning_of_period = initial_wealth[0] + np.random.uniform(0, 1, n_sims) * (
         initial_wealth[1] - initial_wealth[0]
