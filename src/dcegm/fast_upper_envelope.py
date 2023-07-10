@@ -153,11 +153,6 @@ def fast_upper_envelope(
         mask &= value < max_value_lower_bound
         value[mask] = np.nan
 
-    endog_grid = endog_grid[np.where(~np.isnan(value))[0]]
-    policy = policy[np.where(~np.isnan(value))]
-    exog_grid = exog_grid[np.where(~np.isnan(value))]
-    value = value[np.where(~np.isnan(value))]
-
     idx_sort = np.argsort(endog_grid, kind="mergesort")
     value = np.take(value, idx_sort)
     policy = np.take(policy, idx_sort)
