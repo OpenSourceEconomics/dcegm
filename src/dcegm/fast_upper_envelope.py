@@ -279,16 +279,7 @@ def scan_value_function(
             # if right turn is made and jump registered
             # remove point or perform forward scan
             elif grad_before > grad_next and switch_value_func:
-                keep_next = False
-
-                # get index of closest next point with same discrete choice as point j
-                if found_next_point_on_same_value:
-                    if grad_next > grad_next_forward:
-                        keep_next = True
-
-                if not keep_next:
-                    suboptimal_points = _append_index(suboptimal_points, i + 1)
-                else:
+                if found_next_point_on_same_value and grad_next > grad_next_forward:
                     idx_before_on_upper_curve = suboptimal_points[
                         sub_idx_point_before_on_same_value
                     ]
@@ -346,11 +337,12 @@ def scan_value_function(
 
                     # k = j
                     # j = i + 1
+                else:
+                    suboptimal_points = _append_index(suboptimal_points, i + 1)
 
             # if left turn is made or right turn with no jump, then
             # keep point provisionally and conduct backward scan
             else:
-                keep_current = True
                 current_is_optimal = True
                 idx_before_on_upper_curve = suboptimal_points[
                     sub_idx_point_before_on_same_value
@@ -364,12 +356,11 @@ def scan_value_function(
                 # jumped to) and the point m(the last point on the same
                 # choice specific policy) is shallower than the
                 # gradient joining the i+1 and j, then delete j'th point
-                if (
+                keep_current = ~(
                     grad_before < grad_next
                     and grad_next >= grad_next_backward
                     and switch_value_func
-                ):
-                    keep_current = False
+                )
 
                 if not keep_current and current_is_optimal:
                     intersect_grid, intersect_value = _linear_intersection(
