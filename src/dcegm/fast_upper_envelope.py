@@ -102,22 +102,10 @@ def fast_upper_envelope_wrapper(
         endog_grid, value, policy, exog_grid, jump_thresh=2
     )
 
-    # Fill array with nans to fit 10% extra grid points
-    endog_grid_refined_with_nans = np.empty(int(1.1 * n_grid_wealth))
-    policy_refined_with_nans = np.empty(int(1.1 * n_grid_wealth))
-    value_refined_with_nans = np.empty(int(1.1 * n_grid_wealth))
-    endog_grid_refined_with_nans[:] = np.nan
-    policy_refined_with_nans[:] = np.nan
-    value_refined_with_nans[:] = np.nan
-
-    endog_grid_refined_with_nans[: len(endog_grid_refined)] = endog_grid_refined
-    policy_refined_with_nans[: len(policy_refined)] = policy_refined
-    value_refined_with_nans[: len(value_refined)] = value_refined
-
     return (
-        endog_grid_refined_with_nans,
-        policy_refined_with_nans,
-        value_refined_with_nans,
+        endog_grid_refined,
+        policy_refined,
+        value_refined,
     )
 
 
