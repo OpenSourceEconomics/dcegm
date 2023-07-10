@@ -209,8 +209,8 @@ def scan_value_function(
 
     suboptimal_points = np.zeros(n_points_to_scan, dtype=np.int64)
 
-    j = 1
-    k = 0
+    # j = 1
+    # k = 0
 
     value_j = value[1]
     endog_grid_j = endog_grid[1]
@@ -342,8 +342,8 @@ def scan_value_function(
                     policy_j = policy[i + 1]
                     exog_grid_j = endog_grid_j - policy_j
 
-                    k = j
-                    j = i + 1
+                    # k = j
+                    # j = i + 1
 
             # if left turn is made or right turn with no jump, then
             # keep point provisionally and conduct backward scan
@@ -434,16 +434,12 @@ def scan_value_function(
                     endog_grid_refined[idx_refined] = endog_grid[i + 1]
                     idx_refined += 1
 
-                    value[j] = intersect_value
-                    policy[j] = intersect_policy_right
-                    endog_grid[j] = intersect_grid
-
                     value_j = intersect_value
                     endog_grid_j = intersect_grid
                     policy_j = intersect_policy_right
                     exog_grid_j = endog_grid_j - policy_j
 
-                    j = i + 1
+                    # j = i + 1
 
                 elif keep_current and current_is_optimal:
                     if grad_next > grad_before and switch_value_func:
@@ -513,8 +509,8 @@ def scan_value_function(
                     policy_j = policy[i + 1]
                     exog_grid_j = endog_grid_j - policy_j
 
-                    k = j
-                    j = i + 1
+                    # k = j
+                    # j = i + 1
 
     value_refined[idx_refined] = value[-1]
     endog_grid_refined[idx_refined] = endog_grid[-1]
