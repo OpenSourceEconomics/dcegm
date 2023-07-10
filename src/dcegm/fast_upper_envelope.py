@@ -72,7 +72,6 @@ def fast_upper_envelope_wrapper(
             containing refined state- and choice-specific value function.
 
     """
-    n_grid_wealth = len(exog_grid)
     min_wealth_grid = np.min(endog_grid)
     if endog_grid[0] > min_wealth_grid:
         # Non-concave region coincides with credit constraint.
@@ -88,15 +87,14 @@ def fast_upper_envelope_wrapper(
             choice=choice,
             expected_value_zero_savings=expected_value_zero_savings,
             min_wealth_grid=min_wealth_grid,
-            n_grid_wealth=n_grid_wealth,
+            points_to_add=len(endog_grid) // 10,
             compute_value=compute_value,
         )
-        exog_grid = np.append(np.zeros(n_grid_wealth // 10 - 1), exog_grid)
 
     endog_grid = np.append(0, endog_grid)
     policy = np.append(0, policy)
     value = np.append(expected_value_zero_savings, value)
-    exog_grid = np.append(0, exog_grid)
+    exog_grid = endog_grid - policy
 
     endog_grid_refined, value_refined, policy_refined = fast_upper_envelope(
         endog_grid, value, policy, exog_grid, jump_thresh=2
@@ -713,7 +711,7 @@ def _augment_grids(
     choice: int,
     expected_value_zero_savings: np.ndarray,
     min_wealth_grid: float,
-    n_grid_wealth: int,
+    points_to_add: int,
     compute_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Extends the endogenous wealth grid, value, and policy functions to the left.
@@ -739,7 +737,7 @@ def _augment_grids(
         expected_value_zero_savings (float): The agent's expected value given that she
             saves zero.
         min_wealth_grid (float): Minimal wealth level in the endogenous wealth grid.
-        n_grid_wealth (int): Number of grid points in the exogenous wealth grid.
+        points_to_add (int): Number of grid points to add. Roughly num_wealth / 10.
         compute_value (callable): Function to compute the agent's value.
 
     Returns:
@@ -754,7 +752,7 @@ def _augment_grids(
 
     """
     grid_points_to_add = np.linspace(
-        min_wealth_grid, endog_grid[0], n_grid_wealth // 10
+        min_wealth_grid, endog_grid[0], points_to_add
     )[:-1]
 
     grid_augmented = np.append(grid_points_to_add, endog_grid)
