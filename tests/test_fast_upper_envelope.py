@@ -98,7 +98,6 @@ def test_fast_upper_envelope_against_org_fues(setup_model):
         endog_grid=policy_egm[0],
         value=value_egm[1],
         policy=policy_egm[1],
-        exog_grid=np.append(0, exogenous_savings_grid),
     )
 
     endog_grid_org, policy_org, value_org = fast_upper_envelope_wrapper_org(
