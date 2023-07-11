@@ -141,13 +141,13 @@ def fast_upper_envelope(
             the optimal points are kept.
 
     """
-    # TODO: determine locations where endogenous grid points are # noqa: T000
-    # equal to the lower bound
-    mask = endog_grid <= lower_bound_wealth
-    if np.any(mask):
-        max_value_lower_bound = np.nanmax(value[mask])
-        mask &= value < max_value_lower_bound
-        value[mask] = np.nan
+    # Comment by Akshay: Determine locations where endogenous grid points are
+    # equal to the lower bound. Not relevant for us.
+    # mask = endog_grid <= lower_bound_wealth
+    # if np.any(mask):
+    #     max_value_lower_bound = np.nanmax(value[mask])
+    #     mask &= value < max_value_lower_bound
+    #     value[mask] = np.nan
 
     idx_sort = np.argsort(endog_grid, kind="mergesort")
     value = np.take(value, idx_sort)
@@ -155,9 +155,9 @@ def fast_upper_envelope(
     endog_grid = np.take(endog_grid, idx_sort)
 
     (
-        value_clean_with_nans,
-        policy_clean_with_nans,
-        endog_grid_clean_with_nans,
+        value_refined,
+        policy_refined,
+        endog_grid_refined,
     ) = scan_value_function(
         endog_grid=endog_grid,
         value=value,
@@ -165,12 +165,6 @@ def fast_upper_envelope(
         jump_thresh=jump_thresh,
         n_points_to_scan=10,
     )
-
-    endog_grid_refined = endog_grid_clean_with_nans[
-        ~np.isnan(endog_grid_clean_with_nans)
-    ]
-    value_refined = value_clean_with_nans[~np.isnan(value_clean_with_nans)]
-    policy_refined = policy_clean_with_nans[~np.isnan(policy_clean_with_nans)]
 
     return endog_grid_refined, value_refined, policy_refined
 
