@@ -225,18 +225,16 @@ def scan_value_function(
     idx_refined = 2
     for i in range(1, len(endog_grid) - 2):
         # In each iteration we calculate the gradient of the value function
-        grad_before = (value_j - value_k) / (endog_grid_j - endog_grid_k)
+        grad_before_denominator = jnp.maximum(endog_grid_j - endog_grid_k, 1e-16)
+        grad_before = (value_j - value_k) / grad_before_denominator
 
         # gradient with leading index to be checked
-        grad_next = (value[i + 1] - value_j) / (endog_grid[i + 1] - endog_grid_j).clip(
-            min=1e-16
-        )
+        grad_next_denominator = jnp.maximum(endog_grid[i + 1] - endog_grid_j, 1e-16)
+        grad_next = (value[i + 1] - value_j) / grad_next_denominator
 
+        switch_value_denominator = jnp.maximum(endog_grid[i + 1] - endog_grid_j, 1e-16)
         switch_value_func = (
-            np.abs(
-                (exog_grid[i + 1] - exog_grid_j)
-                / (endog_grid[i + 1] - endog_grid_j).clip(min=1e-16)
-            )
+            np.abs((exog_grid[i + 1] - exog_grid_j) / switch_value_denominator)
             > jump_thresh
         )
 
@@ -268,22 +266,22 @@ def scan_value_function(
             endog_grid_current=endog_grid_j,
             idx_next=i + 1,
         )
+        idx_before_on_upper_curve = suboptimal_points[
+            sub_idx_point_before_on_same_value
+        ]
 
         if value[i + 1] - value_j < 0:
             suboptimal_points = _append_index(suboptimal_points, i + 1)
 
         else:
-            if grad_before > grad_next and exog_grid[i + 1] - exog_grid_j < 0:
+            # Right turn with
+            if grad_before > grad_next and exog_grid[i + 1] < exog_grid_j:
                 suboptimal_points = _append_index(suboptimal_points, i + 1)
 
             # if right turn is made and jump registered
             # remove point or perform forward scan
             elif grad_before > grad_next and switch_value_func:
-                if found_next_point_on_same_value and grad_next > grad_next_forward:
-                    idx_before_on_upper_curve = suboptimal_points[
-                        sub_idx_point_before_on_same_value
-                    ]
-
+                if grad_next > grad_next_forward:
                     intersect_grid, intersect_value = _linear_intersection(
                         x1=endog_grid[idx_next_on_lower_curve],
                         y1=value[idx_next_on_lower_curve],
@@ -343,26 +341,20 @@ def scan_value_function(
             # if left turn is made or right turn with no jump, then
             # keep point provisionally and conduct backward scan
             else:
-                current_is_optimal = True
-                idx_before_on_upper_curve = suboptimal_points[
-                    sub_idx_point_before_on_same_value
-                ]
-
-                if grad_next_forward > grad_next and switch_value_func:
-                    suboptimal_points = _append_index(suboptimal_points, i + 1)
-                    current_is_optimal = False
-
                 # if the gradient joining the leading point i+1 (we have just
                 # jumped to) and the point m(the last point on the same
                 # choice specific policy) is shallower than the
                 # gradient joining the i+1 and j, then delete j'th point
-                keep_current = ~(
+                drop_current = (
                     grad_before < grad_next
                     and grad_next >= grad_next_backward
                     and switch_value_func
                 )
 
-                if not keep_current and current_is_optimal:
+                if grad_next_forward > grad_next and switch_value_func:
+                    suboptimal_points = _append_index(suboptimal_points, i + 1)
+
+                elif drop_current:
                     intersect_grid, intersect_value = _linear_intersection(
                         x1=endog_grid_j,
                         y1=value_j,
@@ -413,7 +405,7 @@ def scan_value_function(
 
                     # j = i + 1
 
-                elif keep_current and current_is_optimal:
+                elif ~drop_current:
                     if grad_next > grad_before and switch_value_func:
                         intersect_grid, intersect_value = _linear_intersection(
                             x1=endog_grid[idx_next_on_lower_curve],
