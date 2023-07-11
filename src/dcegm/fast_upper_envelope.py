@@ -382,15 +382,14 @@ def scan_value_function(
                 point_to_evaluate=intersect_grid,
             )
 
-            if idx_before_on_upper_curve > 0 and i > 1:
-                value_refined[idx_refined - 1] = intersect_value
-                policy_refined[idx_refined - 1] = intersect_policy_left
-                endog_grid_refined[idx_refined - 1] = intersect_grid
+            value_refined[idx_refined - 1] = intersect_value
+            policy_refined[idx_refined - 1] = intersect_policy_left
+            endog_grid_refined[idx_refined - 1] = intersect_grid
 
-                value_refined[idx_refined] = intersect_value
-                policy_refined[idx_refined] = intersect_policy_right
-                endog_grid_refined[idx_refined] = intersect_grid
-                idx_refined += 1
+            value_refined[idx_refined] = intersect_value
+            policy_refined[idx_refined] = intersect_policy_right
+            endog_grid_refined[idx_refined] = intersect_grid
+            idx_refined += 1
 
             value_refined[idx_refined] = value[i + 1]
             policy_refined[idx_refined] = policy[i + 1]
