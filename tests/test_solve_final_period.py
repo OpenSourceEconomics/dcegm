@@ -111,7 +111,7 @@ def test_consume_everything_in_final_period(
         compute_marginal_utility=compute_marginal_utility,
     )
 
-    endog_grid_final, policy_final, value_final, _ = solve_final_period(
+    value_final, policy_final, _ = solve_final_period(
         final_period_choice_states=final_period_state_choices,
         final_period_solution_partial=final_period_solution_partial,
         resources_last_period=resources_last_period,
@@ -125,7 +125,7 @@ def test_consume_everything_in_final_period(
         )(state, savings_grid, 0.00)
 
         aaae(
-            endog_grid_final[state_choice_id, :, 1],
+            resources_last_period[state_choice_id, :, 1],
             begin_of_period_resources,
         )
 

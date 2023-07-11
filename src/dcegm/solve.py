@@ -39,14 +39,12 @@ def solve_dcegm(
         options (dict): Options dictionary.
         utility_functions (Dict[str, callable]): Dictionary of three user-supplied
             functions for computation of:
-
             (i) utility
             (ii) inverse marginal utility
             (iii) next period marginal utility
         budget_constraint (callable): Callable budget constraint.
         state_space_functions (Dict[str, callable]): Dictionary of two user-supplied
             functions to:
-
             (i) create the state space
             (ii) get the state specific choice set
         final_period_solution (callable): User-supplied function for solving the agent's
@@ -189,82 +187,81 @@ def backwards_induction(
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Do backwards induction and solve for optimal policy and value function.
 
-        Args:
-            endog_grid_container (np.ndarray): "Empty" 3d np.ndarray storing the
-                endogenous grid for             compute_next_period_wealth=compute_next_period_wealth,
-    each state and each discrete choice.
-                Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
-            policy_container (np.ndarray): "Empty" 3d np.ndarray storing the
-                choice-specific policy function for each state and each discrete choice
-                Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
-            value_container (np.ndarray): "Empty" 3d np.ndarray storing the
-                choice-specific value functions for each state and each discrete choice.
-                Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
-            exogenous_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
-                containing the exogenous savings grid.
-            state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
-                which serves as a collection of all possible states. By convention,
-                the first column must contain the period and the last column the
-                exogenous processes. Any other state variables are in between.
-                E.g. if the two state variables are period and lagged choice and all choices
-                are admissible in each period, the shape of the state space array is
-                (n_periods * n_choices, 3).
-            state_choice_space (np.ndarray): 2d array of shape
-                (n_feasible_states, n_state_and_exog_variables + 1) containing all
-                feasible state-choice combinations. By convention, the second to last
-                column contains the exogenous process. The last column always contains the
-                choice to be made (which is not a state variable).
-            map_state_to_index (np.ndarray): Indexer array that maps states to indexes.
-                The shape of this object is quite complicated. For each state variable it
-                has the number of possible states as rows, i.e.
-                (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
-            map_state_to_post_decision_child_nodes (np.ndarray): 2d array of shape
-                (n_feasible_state_choice_combs, n_choices * n_exog_processes)
-                containing indices of all child nodes the agent can reach
-                from any given state.
-            income_shock_draws (np.ndarray): 1d array of shape (n_quad_points,)
-                containing the Hermite quadrature points.
-            income_shock_weights (np.ndarrray): 1d array of shape
-                (n_stochastic_quad_points) with weights for each stoachstic shock draw.
-            n_periods (int): Number of periods.
-            taste_shock_scale (float): The taste shock scale.
-            discount_factor (float): The discount factor.
-            interest_rate (float): The interest rate of capital.
-            compute_marginal_utility (callable): User-defined function to compute the
-                agent's marginal utility. The input ```params``` is already partialled
-                in.
-            compute_inverse_marginal_utility (Callable): Function for calculating the
-                inverse marginal utiFality, which takes the marginal utility as only
-                 input.
-            compute_value (callable): Function for calculating the value from
-                consumption level, discrete choice and expected value. The inputs
-                ```discount_rate``` and ```compute_utility``` are already partialled in.
-            compute_next_period_wealth (callable): User-defined function to compute the
-                agent's wealth of the next period (t + 1). The inputs
-                ```saving```, ```shock```, ```params``` and ```options```
-                are already partialled in.
-            transition_vector_by_state (Callable): Partialled transition function return
-                transition vector for each state.
-            compute_upper_envelope (Callable): Function for calculating the upper
-                envelope of the policy and value function. If the number of discrete
-                choices is 1, this function is a dummy function that returns the policy
-                and value function as is, without performing a fast upper envelope scan.
-            final_period_partial (Callable): Partialled function for calculating the
-                consumption as well as value function and marginal utility in the final
-                period.
+    Args:
+        endog_grid_container (np.ndarray): "Empty" 3d np.ndarray storing the
+            endogenous grid for each state and each discrete choice.
+            Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
+        policy_container (np.ndarray): "Empty" 3d np.ndarray storing the
+            choice-specific policy function for each state and each discrete choice
+            Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
+        value_container (np.ndarray): "Empty" 3d np.ndarray storing the
+            choice-specific value functions for each state and each discrete choice.
+            Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
+        exogenous_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
+            containing the exogenous savings grid.
+        state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
+            which serves as a collection of all possible states. By convention,
+            the first column must contain the period and the last column the
+            exogenous processes. Any other state variables are in between.
+            E.g. if the two state variables are period and lagged choice and all choices
+            are admissible in each period, the shape of the state space array is
+            (n_periods * n_choices, 3).
+        state_choice_space (np.ndarray): 2d array of shape
+            (n_feasible_states, n_state_and_exog_variables + 1) containing all
+            feasible state-choice combinations. By convention, the second to last
+            column contains the exogenous process. The last column always contains the
+            choice to be made (which is not a state variable).
+        map_state_to_index (np.ndarray): Indexer array that maps states to indexes.
+            The shape of this object is quite complicated. For each state variable it
+            has the number of possible states as rows, i.e.
+            (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
+        map_state_to_post_decision_child_nodes (np.ndarray): 2d array of shape
+            (n_feasible_state_choice_combs, n_choices * n_exog_processes)
+            containing indices of all child nodes the agent can reach
+            from any given state.
+        income_shock_draws (np.ndarray): 1d array of shape (n_quad_points,)
+            containing the Hermite quadrature points.
+        income_shock_weights (np.ndarrray): 1d array of shape
+            (n_stochastic_quad_points) with weights for each stoachstic shock draw.
+        n_periods (int): Number of periods.
+        taste_shock_scale (float): The taste shock scale.
+        discount_factor (float): The discount factor.
+        interest_rate (float): The interest rate of capital.
+        compute_marginal_utility (callable): User-defined function to compute the
+            agent's marginal utility. The input ```params``` is already partialled
+            in.
+        compute_inverse_marginal_utility (Callable): Function for calculating the
+            inverse marginal utiFality, which takes the marginal utility as only
+             input.
+        compute_value (callable): Function for calculating the value from
+            consumption level, discrete choice and expected value. The inputs
+            ```discount_rate``` and ```compute_utility``` are already partialled in.
+        compute_next_period_wealth (callable): User-defined function to compute the
+            agent's wealth of the next period (t + 1). The inputs
+            ```saving```, ```shock```, ```params``` and ```options```
+            are already partialled in.
+        transition_vector_by_state (Callable): Partialled transition function return
+            transition vector for each state.
+        compute_upper_envelope (Callable): Function for calculating the upper
+            envelope of the policy and value function. If the number of discrete
+            choices is 1, this function is a dummy function that returns the policy
+            and value function as is, without performing a fast upper envelope scan.
+        final_period_partial (Callable): Partialled function for calculating the
+            consumption as well as value function and marginal utility in the final
+            period.
 
-        Returns:
-            tuple:
+    Returns:
+        tuple:
 
-            - endog_grid_container (np.ndarray): "Filled" 3d array containing the
-                endogenous grid for each state and each discrete choice.
-                Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
-            - policy_container (np.ndarray): "Filled" 3d array containing the
-                choice-specific policy function for each state and each discrete choice
-                Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
-            - value_container (np.ndarray): "Filled" 3d array containing the
-                choice-specific value functions for each state and each discrete choice.
-                Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
+        - endog_grid_container (np.ndarray): "Filled" 3d array containing the
+            endogenous grid for each state and each discrete choice.
+            Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
+        - policy_container (np.ndarray): "Filled" 3d array containing the
+            choice-specific policy function for each state and each discrete choice
+            Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
+        - value_container (np.ndarray): "Filled" 3d array containing the
+            choice-specific value functions for each state and each discrete choice.
+            Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
 
     """
     # Calculate beginning of period resources for all periods, given exogenous savings
@@ -289,23 +286,23 @@ def backwards_induction(
         period=n_periods - 1,
         state_space=state_space,
         state_choice_space=state_choice_space,
-        sum_state_choices_to_state=sum_state_choices_to_state,
-        state_times_state_choice_mat=state_times_state_choice_mat,
-        map_state_choice_to_state=map_state_choice_to_state,
+        sum_state_choice_to_state=sum_state_choices_to_state,
+        reshape_state_choice_vec_to_mat=state_times_state_choice_mat,
+        map_state_choice_combs_to_parent_state=map_state_choice_to_state,
         resources_beginning_of_period=resources_beginning_of_period,
     )
 
     # Solve last period
     (
-        endog_grid_final_period,
-        policy_final_period,
         value_final_period,
+        policy_final_period,
         marg_util_final_period,
     ) = solve_final_period(
         final_period_choice_states=state_choices_final_period,
         final_period_solution_partial=final_period_solution_partial,
         resources_last_period=resources_final_period,
     )
+    endog_grid_final_period = resources_final_period  # - policy_final_period
 
     # Save last period solution
     (
@@ -326,6 +323,7 @@ def backwards_induction(
 
     values_interpolated = value_final_period
     marg_util_interpolated = marg_util_final_period
+
     state_times_state_choice_mat_period = state_times_state_choice_mat_final_period
     sum_state_choices_to_state_period = sum_state_choices_to_state_final_period
 
@@ -333,10 +331,10 @@ def backwards_induction(
         # Aggregate the marginal utilities and expected values over all choices and
         # income shock draws
         marg_util, emax = aggregate_marg_utils_exp_values(
-            value_state_choices=values_interpolated,
-            marg_util_state_choices=marg_util_interpolated,
-            map_state_to_state_choices=state_times_state_choice_mat_period,
-            sum_state_choices_to_state=sum_state_choices_to_state_period,
+            value_state_choice_combs=values_interpolated,
+            marg_util_state_choice_combs=marg_util_interpolated,
+            reshape_state_choice_vec_to_mat=state_times_state_choice_mat_period,
+            sum_state_choice_to_state=sum_state_choices_to_state_period,
             taste_shock_scale=taste_shock_scale,
             income_shock_weights=income_shock_weights,
         )
@@ -353,9 +351,9 @@ def backwards_induction(
             period=period,
             state_space=state_space,
             state_choice_space=state_choice_space,
-            sum_state_choices_to_state=sum_state_choices_to_state,
-            state_times_state_choice_mat=state_times_state_choice_mat,
-            map_state_choice_to_state=map_state_choice_to_state,
+            sum_state_choice_to_state=sum_state_choices_to_state,
+            reshape_state_choice_vec_to_mat=state_times_state_choice_mat,
+            map_state_choice_combs_to_parent_state=map_state_choice_to_state,
             resources_beginning_of_period=resources_beginning_of_period,
         )
 

@@ -49,7 +49,7 @@ def get_map_from_state_to_child_nodes(
 
     n_states_over_periods = state_space.shape[0] // n_periods
 
-    map_state_to_child_nodes = np.empty(
+    map_state_to_feasible_child_nodes = np.empty(
         (n_feasible_state_choice_combs, n_exog_processes),
         dtype=int,
     )
@@ -69,16 +69,16 @@ def get_map_from_state_to_child_nodes(
             for exog_process in range(n_exog_processes):
                 state_vec_next[-1] = exog_process
 
-                map_state_to_child_nodes[idx, exog_process] = (
+                map_state_to_feasible_child_nodes[idx, exog_process] = (
                     map_state_to_index[tuple(state_vec_next)]
                     - (period + 1) * n_states_over_periods
                 )
 
-    return map_state_to_child_nodes
+    return map_state_to_feasible_child_nodes
 
 
 def create_state_choice_space(
-    state_space, map_state_to_index, get_state_specific_choice_set
+    state_space, map_state_to_state_space_index, get_state_specific_choice_set
 ):
     """Create state choice space of all feasible state-choice combinations.
 
@@ -108,52 +108,67 @@ def create_state_choice_space(
 
     """
     n_states, n_state_and_exog_variables = state_space.shape
-    _n_periods, n_choices, _n_exog_processes = map_state_to_index.shape
+    _n_periods, n_choices, _n_exog_processes = map_state_to_state_space_index.shape
 
     state_choice_space = np.zeros(
         (n_states * n_choices, n_state_and_exog_variables + 1),
         dtype=int,
     )
-    sum_state_choices_to_state = np.zeros((n_states, n_states * n_choices), dtype=int)
 
-    map_state_choice_to_state = np.zeros((n_states * n_choices), dtype=int)
-    state_times_state_choice_mat = np.zeros((n_states, n_choices), dtype=int)
+    map_state_choice_combs_to_parent_state = np.zeros((n_states * n_choices), dtype=int)
+
+    reshape_state_choice_vec_to_mat = np.zeros((n_states, n_choices), dtype=int)
+
+    sum_state_choice_to_state = np.full(
+        (n_states, n_states * n_choices), fill_value=False, dtype=bool
+    )
+
+    # Ensure that states are ordered.
+    period = state_space[0, 0]
 
     idx = 0
-    current_period = state_space[0, 0]
-    # Ensure that states are ordered.
-    period_min_idx = -1
+    idx_min = -1
+
     for state_idx in range(n_states):
         state_vec = state_space[state_idx]
 
-        if current_period == state_vec[0]:
-            period_min_idx = idx
-            current_period += 1
+        if period == state_vec[0]:
+            idx_min = idx
+            period += 1
+
         choice_set = get_state_specific_choice_set(
-            state_vec, state_space, map_state_to_index
+            state_vec, state_space, map_state_to_state_space_index
         )
 
         for choice in choice_set:
             state_choice_space[idx, :-1] = state_vec
             state_choice_space[idx, -1] = choice
-            sum_state_choices_to_state[state_idx, idx] = 1
-            map_state_choice_to_state[idx] = state_idx
-            state_times_state_choice_mat[state_idx, choice] = idx - period_min_idx
+
+            map_state_choice_combs_to_parent_state[idx] = state_idx
+
+            sum_state_choice_to_state[state_idx, idx] = True
+
+            reshape_state_choice_vec_to_mat[state_idx, choice] = idx - idx_min
+
             idx += 1
+
         # Fill up matrix with some state_choice index from the state, as we only use
         # this matrix to get the maximum across state_choice values and two times the
-        # same value doesn't change the maximum. Only used in aggregation function.
+        # same value doesn't change the maximum.
+        # Only used in aggregation function.
         for choice in range(n_choices):
             if choice not in choice_set:
-                state_times_state_choice_mat[state_idx, choice] = (
-                    idx - 1 - period_min_idx
-                )
+                reshape_state_choice_vec_to_mat[state_idx, choice] = idx - idx_min - 1
+
+        # breakpoint()
+
+    # breakpoint()
 
     return (
         state_choice_space[:idx],
-        sum_state_choices_to_state[:, :idx],
-        map_state_choice_to_state[:idx],
-        state_times_state_choice_mat,
+        sum_state_choice_to_state[:, :idx],
+        map_state_choice_combs_to_parent_state[:idx],
+        reshape_state_choice_vec_to_mat,
     )
 
 
@@ -161,9 +176,9 @@ def select_period_objects(
     period,
     state_space,
     state_choice_space,
-    sum_state_choices_to_state,
-    map_state_choice_to_state,
-    state_times_state_choice_mat,
+    sum_state_choice_to_state,
+    map_state_choice_combs_to_parent_state,
+    reshape_state_choice_vec_to_mat,
     resources_beginning_of_period,
 ):
     """Select objects for the current period.
@@ -206,28 +221,29 @@ def select_period_objects(
 
     """
 
-    idx_states_current_period = np.where(state_space[:, 0] == period)[0]
-    idx_state_choices_current_period = np.where(state_choice_space[:, 0] == period)[0]
-    current_period_sum_state_choices_to_state = sum_state_choices_to_state[
-        idx_states_current_period, :
-    ][:, idx_state_choices_current_period]
+    idxs_parent_states = np.where(state_space[:, 0] == period)[0]
+    idxs_state_choice_combs = np.where(state_choice_space[:, 0] == period)[0]
 
-    map_current_period_state_choices_to_state = map_state_choice_to_state[
-        idx_state_choices_current_period
+    current_sum_state_choice_to_state = sum_state_choice_to_state[
+        idxs_parent_states, :
+    ][:, idxs_state_choice_combs]
+
+    resources = resources_beginning_of_period[
+        map_state_choice_combs_to_parent_state[idxs_state_choice_combs]
     ]
-    resources_current_period = resources_beginning_of_period[
-        map_current_period_state_choices_to_state
+
+    state_choice_combs = state_choice_space[idxs_state_choice_combs]
+
+    reshape_current_state_choice_vec_to_mat = reshape_state_choice_vec_to_mat[
+        idxs_parent_states, :
     ]
-    state_choices_current_period = state_choice_space[idx_state_choices_current_period]
-    state_times_state_choice_mat_period = state_times_state_choice_mat[
-        idx_states_current_period, :
-    ]
+    # breakpoint()
 
     return (
-        idx_states_current_period,
-        idx_state_choices_current_period,
-        current_period_sum_state_choices_to_state,
-        resources_current_period,
-        state_choices_current_period,
-        state_times_state_choice_mat_period,
+        idxs_parent_states,
+        idxs_state_choice_combs,
+        current_sum_state_choice_to_state,
+        resources,
+        state_choice_combs,
+        reshape_current_state_choice_vec_to_mat,
     )

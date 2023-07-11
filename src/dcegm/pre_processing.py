@@ -179,7 +179,8 @@ def create_multi_dim_arrays(
     of the policy and value functions).
 
     Args:
-        state_space (np.ndarray): Collection of all possible states.
+        state_space (np.ndarray): Collection of all possible state and choice
+            combinations.
         options (dict): Options dictionary.
 
     Returns:
@@ -197,11 +198,11 @@ def create_multi_dim_arrays(
 
     """
     n_grid_wealth = options["grid_points_wealth"]
-    n_state_choicess = state_choice_space.shape[0]
+    n_states_choices = state_choice_space.shape[0]
 
-    endog_grid_container = np.empty((n_state_choicess, int(1.1 * n_grid_wealth)))
-    policy_container = np.empty((n_state_choicess, int(1.1 * n_grid_wealth)))
-    value_container = np.empty((n_state_choicess, int(1.1 * n_grid_wealth)))
+    endog_grid_container = np.empty((n_states_choices, int(1.1 * n_grid_wealth)))
+    policy_container = np.empty((n_states_choices, int(1.1 * n_grid_wealth)))
+    value_container = np.empty((n_states_choices, int(1.1 * n_grid_wealth)))
     endog_grid_container[:] = np.nan
     policy_container[:] = np.nan
     value_container[:] = np.nan
