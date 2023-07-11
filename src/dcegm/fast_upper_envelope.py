@@ -270,15 +270,74 @@ def scan_value_function(
             sub_idx_point_before_on_same_value
         ]
 
-        if value[i + 1] - value_j < 0:
+        # Check for suboptimality. This is either with decreasing value function, the
+        # value function not montone in consumption or
+        # if the gradient joining the leading point i+1 and the point j (the last point
+        # on the same choice specific policy) is shallower than the
+        # gradient joining the i+1 and j, then delete j'th point
+        if (
+            value[i + 1] < value_j
+            or exog_grid[i + 1] < exog_grid_j
+            or (grad_next < grad_next_forward and switch_value_func)
+        ):
             suboptimal_points = _append_index(suboptimal_points, i + 1)
 
-        else:
-            # Right turn with value function not monotone in consumption
-            if grad_before > grad_next and exog_grid[i + 1] < exog_grid_j:
-                suboptimal_points = _append_index(suboptimal_points, i + 1)
+        elif not switch_value_func:
+            value_refined[idx_refined] = value[i + 1]
+            policy_refined[idx_refined] = policy[i + 1]
+            endog_grid_refined[idx_refined] = endog_grid[i + 1]
+            idx_refined += 1
 
-            elif not switch_value_func:
+            value_k = value_j
+            endog_grid_k = endog_grid_j
+            exog_grid_k = exog_grid_j
+            policy_k = policy_j
+
+            value_j = value[i + 1]
+            endog_grid_j = endog_grid[i + 1]
+            policy_j = policy[i + 1]
+            exog_grid_j = endog_grid_j - policy_j
+
+        else:
+            # if right turn is made and jump registered
+            # remove point or perform forward scan
+            if grad_before > grad_next and grad_next > grad_next_forward:
+                intersect_grid, intersect_value = _linear_intersection(
+                    x1=endog_grid[idx_next_on_lower_curve],
+                    y1=value[idx_next_on_lower_curve],
+                    x2=endog_grid_j,
+                    y2=value_j,
+                    x3=endog_grid[i + 1],
+                    y3=value[i + 1],
+                    x4=endog_grid[idx_before_on_upper_curve],
+                    y4=value[idx_before_on_upper_curve],
+                )
+
+                intersect_policy_left = _evaluate_point_on_line(
+                    x1=endog_grid[idx_next_on_lower_curve],
+                    y1=policy[idx_next_on_lower_curve],
+                    x2=endog_grid_j,
+                    y2=policy_j,
+                    point_to_evaluate=intersect_grid,
+                )
+                intersect_policy_right = _evaluate_point_on_line(
+                    x1=endog_grid[i + 1],
+                    y1=policy[i + 1],
+                    x2=endog_grid[idx_before_on_upper_curve],
+                    y2=policy[idx_before_on_upper_curve],
+                    point_to_evaluate=intersect_grid,
+                )
+
+                value_refined[idx_refined] = intersect_value
+                policy_refined[idx_refined] = intersect_policy_left
+                endog_grid_refined[idx_refined] = intersect_grid
+                idx_refined += 1
+
+                value_refined[idx_refined] = intersect_value
+                policy_refined[idx_refined] = intersect_policy_right
+                endog_grid_refined[idx_refined] = intersect_grid
+                idx_refined += 1
+
                 value_refined[idx_refined] = value[i + 1]
                 policy_refined[idx_refined] = policy[i + 1]
                 endog_grid_refined[idx_refined] = endog_grid[i + 1]
@@ -294,79 +353,13 @@ def scan_value_function(
                 policy_j = policy[i + 1]
                 exog_grid_j = endog_grid_j - policy_j
 
-            # if right turn is made and jump registered
-            # remove point or perform forward scan
-            elif grad_before > grad_next:
-                if grad_next > grad_next_forward:
-                    intersect_grid, intersect_value = _linear_intersection(
-                        x1=endog_grid[idx_next_on_lower_curve],
-                        y1=value[idx_next_on_lower_curve],
-                        x2=endog_grid_j,
-                        y2=value_j,
-                        x3=endog_grid[i + 1],
-                        y3=value[i + 1],
-                        x4=endog_grid[idx_before_on_upper_curve],
-                        y4=value[idx_before_on_upper_curve],
-                    )
-
-                    intersect_policy_left = _evaluate_point_on_line(
-                        x1=endog_grid[idx_next_on_lower_curve],
-                        y1=policy[idx_next_on_lower_curve],
-                        x2=endog_grid_j,
-                        y2=policy_j,
-                        point_to_evaluate=intersect_grid,
-                    )
-                    intersect_policy_right = _evaluate_point_on_line(
-                        x1=endog_grid[i + 1],
-                        y1=policy[i + 1],
-                        x2=endog_grid[idx_before_on_upper_curve],
-                        y2=policy[idx_before_on_upper_curve],
-                        point_to_evaluate=intersect_grid,
-                    )
-
-                    value_refined[idx_refined] = intersect_value
-                    policy_refined[idx_refined] = intersect_policy_left
-                    endog_grid_refined[idx_refined] = intersect_grid
-                    idx_refined += 1
-
-                    value_refined[idx_refined] = intersect_value
-                    policy_refined[idx_refined] = intersect_policy_right
-                    endog_grid_refined[idx_refined] = intersect_grid
-                    idx_refined += 1
-
-                    value_refined[idx_refined] = value[i + 1]
-                    policy_refined[idx_refined] = policy[i + 1]
-                    endog_grid_refined[idx_refined] = endog_grid[i + 1]
-                    idx_refined += 1
-
-                    value_k = value_j
-                    endog_grid_k = endog_grid_j
-                    exog_grid_k = exog_grid_j
-                    policy_k = policy_j
-
-                    value_j = value[i + 1]
-                    endog_grid_j = endog_grid[i + 1]
-                    policy_j = policy[i + 1]
-                    exog_grid_j = endog_grid_j - policy_j
-
-                    # k = j
-                    # j = i + 1
-                else:
-                    suboptimal_points = _append_index(suboptimal_points, i + 1)
+                # k = j
+                # j = i + 1
 
             # if left turn is made or right turn with no jump, then
             # keep point provisionally and conduct backward scan
             else:
-                # if the gradient joining the leading point i+1 (we have just
-                # jumped to) and the point m(the last point on the same
-                # choice specific policy) is shallower than the
-                # gradient joining the i+1 and j, then delete j'th point
-                drop_current = grad_next > grad_next_backward
-
-                if grad_next_forward > grad_next:
-                    suboptimal_points = _append_index(suboptimal_points, i + 1)
-
-                elif drop_current:
+                if grad_next > grad_next_backward:
                     intersect_grid, intersect_value = _linear_intersection(
                         x1=endog_grid_j,
                         y1=value_j,
@@ -417,7 +410,7 @@ def scan_value_function(
 
                     # j = i + 1
 
-                elif ~drop_current:
+                elif grad_next < grad_next_backward:
                     intersect_grid, intersect_value = _linear_intersection(
                         x1=endog_grid[idx_next_on_lower_curve],
                         y1=value[idx_next_on_lower_curve],
