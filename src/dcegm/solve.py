@@ -99,22 +99,22 @@ def solve_dcegm(
     )
     create_state_space = state_space_functions["create_state_space"]
 
-    state_space, map_state_to_index = create_state_space(options)
+    state_space, map_state_to_state_space_index = create_state_space(options)
     (
         state_choice_space,
-        sum_state_choices_to_state,
-        map_state_choice_to_state,
-        state_times_state_choice_mat,
+        map_state_choice_vec_to_parent_state,
+        reshape_state_choice_vec_to_mat,
+        transform_between_state_and_state_choice_space,
     ) = create_state_choice_space(
         state_space,
-        map_state_to_index,
+        map_state_to_state_space_index,
         state_space_functions["get_state_specific_choice_set"],
     )
 
     map_state_to_post_decision_child_nodes = get_map_from_state_to_child_nodes(
         state_space=state_space,
         state_choice_space=state_choice_space,
-        map_state_to_index=map_state_to_index,
+        map_state_to_index=map_state_to_state_space_index,
     )
 
     final_period_solution_partial = partial(
@@ -130,9 +130,9 @@ def solve_dcegm(
     )
 
     endog_grid_container, policy_container, value_container = backwards_induction(
-        sum_state_choices_to_state,
-        map_state_choice_to_state,
-        state_times_state_choice_mat,
+        map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
+        reshape_state_choice_vec_to_mat=reshape_state_choice_vec_to_mat,
+        transform_between_state_and_state_choice_space=transform_between_state_and_state_choice_space,
         endog_grid_container=endog_grid_container,
         policy_container=policy_container,
         value_container=value_container,
@@ -155,15 +155,15 @@ def solve_dcegm(
         final_period_solution_partial=final_period_solution_partial,
     )
 
-    # ToDo: finalize output containers
+    # TODO: finalize output containers
 
     return endog_grid_container, policy_container, value_container
 
 
 def backwards_induction(
-    sum_state_choices_to_state,
-    map_state_choice_to_state,
-    state_times_state_choice_mat: np.ndarray,
+    map_state_choice_vec_to_parent_state: np.ndarray,
+    reshape_state_choice_vec_to_mat: np.ndarray,
+    transform_between_state_and_state_choice_space: np.ndarray,
     endog_grid_container: np.ndarray,
     policy_container: np.ndarray,
     value_container: np.ndarray,
@@ -276,26 +276,26 @@ def backwards_induction(
 
     (
         idxs_state_choice_combs_final_period,
-        sum_state_choices_to_state_final_period,
+        state_choice_combs_final_period,
         endog_grid_final_period,
-        state_choices_final_period,
-        state_times_state_choice_mat_final_period,
+        reshape_current_state_choice_vec_to_mat,
+        transform_between_state_and_state_choice_vec,
     ) = create_current_state_and_state_choice_objects(
         period=n_periods - 1,
         state_space=state_space,
         state_choice_space=state_choice_space,
         resources_beginning_of_period=resources_beginning_of_period,
-        map_state_choice_combs_to_parent_state=map_state_choice_to_state,
-        reshape_state_choice_vec_to_mat=state_times_state_choice_mat,
-        transform_between_state_and_state_choice_vec=sum_state_choices_to_state,
+        map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
+        reshape_state_choice_vec_to_mat=reshape_state_choice_vec_to_mat,
+        transform_between_state_and_state_choice_space=transform_between_state_and_state_choice_space,
     )
 
     (
-        value_final_period,
+        value_interpolated,
         policy_final_period,
-        marg_util_final_period,
+        marg_util_interpolated,
     ) = solve_final_period(
-        final_period_choice_states=state_choices_final_period,
+        final_period_choice_states=state_choice_combs_final_period,
         final_period_solution_partial=final_period_solution_partial,
         resources_last_period=endog_grid_final_period,
     )
@@ -311,43 +311,37 @@ def backwards_induction(
         idx_state_choices_final_period=idxs_state_choice_combs_final_period,
         endog_grid_final_period=endog_grid_final_period,
         policy_final_period=policy_final_period,
-        value_final_period=value_final_period,
+        value_final_period=value_interpolated,
         num_income_shock_draws=income_shock_draws.shape[0],
         num_wealth_grid_points=exogenous_savings_grid.shape[0],
     )
-
-    values_interpolated = value_final_period
-    marg_util_interpolated = marg_util_final_period
-
-    state_times_state_choice_mat_period = state_times_state_choice_mat_final_period
-    sum_state_choices_to_state_period = sum_state_choices_to_state_final_period
 
     for period in range(n_periods - 2, -1, -1):
         # Aggregate the marginal utilities and expected values over all choices and
         # income shock draws
         marg_util, emax = aggregate_marg_utils_exp_values(
-            value_state_choice_combs=values_interpolated,
-            marg_util_state_choice_combs=marg_util_interpolated,
-            reshape_state_choice_vec_to_mat=state_times_state_choice_mat_period,
-            transform_between_state_and_state_choice_vec=sum_state_choices_to_state_period,
+            value_state_choice_specific=value_interpolated,
+            marg_util_state_choice_specific=marg_util_interpolated,
+            reshape_state_choice_vec_to_mat=reshape_current_state_choice_vec_to_mat,
+            transform_between_state_and_state_choice_vec=transform_between_state_and_state_choice_vec,
             taste_shock_scale=taste_shock_scale,
             income_shock_weights=income_shock_weights,
         )
 
         (
             idx_state_choices_period,
-            sum_state_choices_to_state_period,
-            resources_period,
             state_choices_period,
-            state_times_state_choice_mat_period,
+            resources_period,
+            reshape_current_state_choice_vec_to_mat,
+            transform_between_state_and_state_choice_vec,
         ) = create_current_state_and_state_choice_objects(
             period=period,
             state_space=state_space,
             state_choice_space=state_choice_space,
             resources_beginning_of_period=resources_beginning_of_period,
-            map_state_choice_combs_to_parent_state=map_state_choice_to_state,
-            reshape_state_choice_vec_to_mat=state_times_state_choice_mat,
-            transform_between_state_and_state_choice_vec=sum_state_choices_to_state,
+            map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
+            reshape_state_choice_vec_to_mat=reshape_state_choice_vec_to_mat,
+            transform_between_state_and_state_choice_space=transform_between_state_and_state_choice_space,
         )
 
         (
@@ -388,7 +382,7 @@ def backwards_induction(
             policy_container[_idx_state_choice_full, : len(policy)] = policy
             value_container[_idx_state_choice_full, : len(value)] = value
 
-        marg_util_interpolated, values_interpolated = vmap(
+        marg_util_interpolated, value_interpolated = vmap(
             interpolate_and_calc_marginal_utilities, in_axes=(None, None, 0, 0, 0, 0, 0)
         )(
             compute_marginal_utility,
@@ -400,8 +394,8 @@ def backwards_induction(
             value_container[idx_state_choices_period, :],
         )
 
-        # ToDo: save arrays to disc
+        # TODO: save arrays to disc
 
-    # ToDo: return None
+    # TODO: return None
 
     return endog_grid_container, policy_container, value_container

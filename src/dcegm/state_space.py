@@ -34,13 +34,9 @@ def get_map_from_state_to_child_nodes(
         np.ndarray: 2d array of shape
             (n_feasible_state_choice_combs, n_choices * n_exog_processes)
             containing indices of all child nodes the agent can reach
-            from any given state.
+            from a given state.
 
     """
-    # n_periods = options["n_periods"]
-    # n_choices = options["n_discrete_choices"]
-    # n_exog_process = options["n_exog_processes"]
-
     # Exogenous processes are always on the last entry of the state space. Moreover, we
     # treat all of them as admissible in each period. If there exists an absorbing
     # state, this is reflected by a 0 percent transition probability.
@@ -92,19 +88,38 @@ def create_state_choice_space(
             E.g. if the two state variables are period and lagged choice and all choices
             are admissible in each period, the shape of the state space array is
             (n_periods * n_choices, 3).
-        map_state_to_index (np.ndarray): Indexer array that maps states to indexes.
+        map_state_to_state_space_index (np.ndarray): Indexer array that maps states to
+            the respective index positions in the state space.
             The shape of this object is quite complicated. For each state variable it
             has the number of possible states as rows, i.e.
             (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
         get_state_specific_choice_set (Callable): User-supplied function that returns
-            the set of feasible coices for a given state.
+            the set of feasible choices for a given state.
 
     Returns:
-        np.ndarray: 2d array of shape
-            (n_feasible_states, n_state_and_exog_variables + 1) containing all
-            feasible state-choice combinations. By convention, the second to last
-            column contains the exogenous process. The last column always contains the
-            choice to be made (which is not a state variable).
+        tuple:
+
+        - state_choice_space(np.ndarray): 2d array of shape
+            (n_feasible_state_choice_combs, n_state_and_exog_variables + 1) containing
+            the space of all feasible state-choice combinations. By convention,
+            the second to last column contains the exogenous process.
+            The last column always contains the choice to be made at the end of the period
+            (which is not a state variable).
+        - map_state_choice_vec_to_parent_state (np.ndarray): 1d array of shape
+            (n_states * n_feasible_choices,) that maps from any vector of state-choice
+            combinations to the respective parent state.
+        - reshape_state_choice_vec_to_mat (np.ndarray): 2d array of shape
+            (n_states, n_feasible_choices). For each parent state, this array can be
+            used to reshape the vector of feasible state-choice combinations
+            to a matrix of lagged and current choice combinations of
+            shape (n_choices, n_choices).
+        - transform_between_state_and_state_choice_space (jnp.ndarray): 2d boolean
+            array of shape (n_states, n_states * n_feasible_choices) indicating which
+            state belongs to which state-choice combination in the entire state and state
+            choice space. The array is used to
+            (i) contract state-choice level arrays to the state level by summing
+                over state-choice combinations.
+            (ii) to expand state level arrays to the state-choice level.
 
     """
     n_states, n_state_and_exog_variables = state_space.shape
@@ -115,7 +130,7 @@ def create_state_choice_space(
         dtype=int,
     )
 
-    map_state_choice_combs_to_parent_state = np.zeros((n_states * n_choices), dtype=int)
+    map_state_choice_vec_to_parent_state = np.zeros((n_states * n_choices), dtype=int)
     reshape_state_choice_vec_to_mat = np.zeros((n_states, n_choices), dtype=int)
     transform_between_state_and_state_choice_vec = np.full(
         (n_states, n_states * n_choices), fill_value=False, dtype=bool
@@ -142,7 +157,7 @@ def create_state_choice_space(
             state_choice_space[idx, :-1] = state_vec
             state_choice_space[idx, -1] = choice
 
-            map_state_choice_combs_to_parent_state[idx] = state_idx
+            map_state_choice_vec_to_parent_state[idx] = state_idx
             reshape_state_choice_vec_to_mat[state_idx, choice] = idx - idx_min
             transform_between_state_and_state_choice_vec[state_idx, idx] = True
 
@@ -158,9 +173,9 @@ def create_state_choice_space(
 
     return (
         state_choice_space[:idx],
-        transform_between_state_and_state_choice_vec[:, :idx],
-        map_state_choice_combs_to_parent_state[:idx],
+        map_state_choice_vec_to_parent_state[:idx],
         reshape_state_choice_vec_to_mat,
+        transform_between_state_and_state_choice_vec[:, :idx],
     )
 
 
@@ -169,47 +184,55 @@ def create_current_state_and_state_choice_objects(
     state_space,
     state_choice_space,
     resources_beginning_of_period,
-    map_state_choice_combs_to_parent_state,
+    map_state_choice_vec_to_parent_state,
     reshape_state_choice_vec_to_mat,
-    transform_between_state_and_state_choice_vec,
+    transform_between_state_and_state_choice_space,
 ):
-    """Select state and state-choice objects for the current period.
+    """Create state and state-choice objects for the current period.
 
     Args:
         period (int): Current period.
-        state_space (np.ndarray): 2d array of shape (n_states, n_periods) containing
-            the state space.
-        state_choice_space (np.ndarray): 2d array of shape (n_state_choices, n_states + 1)
-            containing the state choice space.
-        sum_state_choices_to_state (np.ndarray): 2d array of shape (n_states, n_state_choices)
-            containing the mapping from state choices to states.
-        map_state_choice_to_state (np.ndarray): 1d array of shape (n_state_choices,)
-            containing the mapping from state choices to states.
-        state_times_state_choice_mat (np.ndarray): 2d array of shape (n_states, n_state_choices)
-            containing the mapping from states to state choices.
+        state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
+            containing the state space.
+        state_choice_space (np.ndarray): 2d array of shape
+            (n_feasible_state_choice_combs, n_states + 1) containing the space of all
+            feasible state-choice combinations.
         resources_beginning_of_period (np.ndarray): 3d array of shape
-            (n_states, n_exog_savings, n_stochastic_quad_points) containing the resources
-            at the beginning of the current period.
+            (n_states, n_exog_savings, n_stochastic_quad_points) containing the
+            resourcesat the beginning of the current period for each state and
+            stochastic income shock.
+        map_state_choice_vec_to_parent_state (np.ndarray): 1d array of shape
+            (n_states * n_feasible_choices,) that maps from any vector of state-choice
+            combinations to the respective parent state.
+        reshape_state_choice_vec_to_mat (np.ndarray): 2d array of shape
+            (n_states, n_feasible_choices). For each parent state, this array can be
+            used to reshape the vector of feasible state-choice combinations
+            to a matrix of lagged and current choice combinations of
+            shape (n_choices, n_choices).
+        transform_between_state_and_state_choice_space (jnp.ndarray): 2d boolean
+            array of shape (n_states, n_states * n_feasible_choices) indicating which
+            state belongs to which state-choice combination in the entire state space
+            and state-choice space. The array is used to
+            (i) contract state-choice level arrays to the state level by summing
+                over state-choice combinations.
+            (ii) to expand state level arrays to the state-choice level.
 
     Returns:
         tuple:
 
-        - idx_states_current_period (np.ndarray): 1d array of shape
-            (n_states_current_period,).
-        - idx_state_choices_current_period (np.ndarray): 1d array of shape
-            (n_state_choices_current_period,).
-        - current_period_sum_state_choices_to_state (np.ndarray): 2d array of shape
-            (n_states_current_period, n_state_choices_current_period) containing the
-            mapping from state choices to states for the current period.
+        - idxs_state_choice_combs (np.ndarray): 1d array of shape
+            (n_state_choice_combs_current,).
         - resources_current_period (np.ndarray): 3d array of shape
-            (n_state_choices_current_period, n_exog_savings, n_stochastic_quad_points)
-             containing the resources at the beginning of the current period.
-        - state_choices_current_period (np.ndarray): 1d array of shape
-            (n_state_choices_current_period,) containing the state choices for the
-            current period.
-        - state_times_state_choice_mat_period (np.ndarray): 2d array of shape
-            (n_states_current_period, n_state_choices_current_period) containing the
-            mapping from states to state choices for the current period.
+            (n_state_choice_combs_current, n_exog_savings, n_stochastic_quad_points)
+            containing the resources at the beginning of the current period.
+        - reshape_current_state_choice_vec_to_mat (np.ndarray): 2d array of shape
+            (n_states_current, n_choices_current) that reshapes the current period
+            vector of feasible state-choice combinations to a matrix of shape
+            (n_choices, n_choices).
+        - transform_between_state_and_state_choice_vec (np.ndarray): 2d boolean
+            array of shape (n_states_current, n_feasible_state_choice_combs_current)
+            indicating which state vector belongs to which state-choice combination in
+            the current period.
 
     """
 
@@ -218,22 +241,24 @@ def create_current_state_and_state_choice_objects(
 
     state_choice_combs = state_choice_space[idxs_state_choice_combs]
 
-    resources = resources_beginning_of_period[
-        map_state_choice_combs_to_parent_state[idxs_state_choice_combs]
+    resources_current_period = resources_beginning_of_period[
+        map_state_choice_vec_to_parent_state[idxs_state_choice_combs]
     ]
 
     reshape_current_state_choice_vec_to_mat = reshape_state_choice_vec_to_mat[
-        _idxs_parent_states, :
+        _idxs_parent_states
     ]
 
-    current_sum_state_choice_to_state = transform_between_state_and_state_choice_vec[
-        _idxs_parent_states, :
-    ][:, idxs_state_choice_combs]
+    transform_between_state_and_state_choice_vec = (
+        transform_between_state_and_state_choice_space[_idxs_parent_states][
+            :, idxs_state_choice_combs
+        ]
+    )
 
     return (
         idxs_state_choice_combs,
-        current_sum_state_choice_to_state,
-        resources,
         state_choice_combs,
+        resources_current_period,
         reshape_current_state_choice_vec_to_mat,
+        transform_between_state_and_state_choice_vec,
     )
