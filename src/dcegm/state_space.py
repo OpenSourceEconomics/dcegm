@@ -132,7 +132,7 @@ def create_state_choice_space(
 
     map_state_choice_vec_to_parent_state = np.zeros((n_states * n_choices), dtype=int)
     reshape_state_choice_vec_to_mat = np.zeros((n_states, n_choices), dtype=int)
-    transform_between_state_and_state_choice_vec = np.full(
+    transform_between_state_and_state_choice_space = np.full(
         (n_states, n_states * n_choices), fill_value=False, dtype=bool
     )
 
@@ -159,7 +159,7 @@ def create_state_choice_space(
 
             map_state_choice_vec_to_parent_state[idx] = state_idx
             reshape_state_choice_vec_to_mat[state_idx, choice] = idx - idx_min
-            transform_between_state_and_state_choice_vec[state_idx, idx] = True
+            transform_between_state_and_state_choice_space[state_idx, idx] = True
 
             idx += 1
 
@@ -175,7 +175,7 @@ def create_state_choice_space(
         state_choice_space[:idx],
         map_state_choice_vec_to_parent_state[:idx],
         reshape_state_choice_vec_to_mat,
-        transform_between_state_and_state_choice_vec[:, :idx],
+        transform_between_state_and_state_choice_space[:, :idx],
     )
 
 
