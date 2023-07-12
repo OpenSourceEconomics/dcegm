@@ -8,7 +8,7 @@ def aggregate_marg_utils_exp_values(
     value_state_choice_combs: jnp.ndarray,
     marg_util_state_choice_combs: jnp.ndarray,
     reshape_state_choice_vec_to_mat: jnp.ndarray,
-    sum_state_choice_to_state: jnp.ndarray,
+    transform_between_state_and_state_choice_vec: jnp.ndarray,
     taste_shock_scale: float,
     income_shock_weights: jnp.ndarray,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
@@ -43,32 +43,30 @@ def aggregate_marg_utils_exp_values(
     ).max(axis=1)
 
     max_value_per_state_choice_comb = jnp.tensordot(
-        sum_state_choice_to_state, max_value_per_state, axes=(0, 0)
+        transform_between_state_and_state_choice_vec, max_value_per_state, axes=(0, 0)
     )
 
-    exponential_value = jnp.exp(
+    value_exp = jnp.exp(
         (value_state_choice_combs - max_value_per_state_choice_comb) / taste_shock_scale
     )
-    sum_exponential_values_per_state = jnp.tensordot(
-        sum_state_choice_to_state, exponential_value, axes=(1, 0)
+    sum_value_exp_per_state = jnp.tensordot(
+        transform_between_state_and_state_choice_vec, value_exp, axes=(1, 0)
     )
 
-    numerator_choice_probs_times_marg_util = jnp.tensordot(
-        sum_state_choice_to_state,
-        jnp.multiply(exponential_value, marg_util_state_choice_combs),
+    product_choice_probs_and_marg_util = jnp.tensordot(
+        transform_between_state_and_state_choice_vec,
+        jnp.multiply(value_exp, marg_util_state_choice_combs),
         axes=(1, 0),
     )
 
-    marginal_utils = jnp.divide(
-        numerator_choice_probs_times_marg_util,
-        sum_exponential_values_per_state,
+    marg_util = jnp.divide(
+        product_choice_probs_and_marg_util,
+        sum_value_exp_per_state,
     )
 
-    log_sum = max_value_per_state + taste_shock_scale * jnp.log(
-        sum_exponential_values_per_state
-    )
+    log_sum = max_value_per_state + taste_shock_scale * jnp.log(sum_value_exp_per_state)
 
     return (
-        marginal_utils @ income_shock_weights,
+        marg_util @ income_shock_weights,
         log_sum @ income_shock_weights,
     )

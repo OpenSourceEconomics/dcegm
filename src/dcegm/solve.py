@@ -6,7 +6,7 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
-from dcegm.egm import calculate_candidates_from_euler
+from dcegm.egm import calculate_candidate_solutions_from_euler_equation
 from dcegm.final_period import save_final_period_solution
 from dcegm.final_period import solve_final_period
 from dcegm.integration import quadrature_legendre
@@ -17,9 +17,9 @@ from dcegm.marg_utilities_and_exp_value import (
 from dcegm.pre_processing import convert_params_to_dict
 from dcegm.pre_processing import create_multi_dim_arrays
 from dcegm.pre_processing import get_partial_functions
+from dcegm.state_space import create_current_state_and_state_choice_objects
 from dcegm.state_space import create_state_choice_space
 from dcegm.state_space import get_map_from_state_to_child_nodes
-from dcegm.state_space import select_period_objects
 from jax import vmap
 
 
@@ -274,25 +274,22 @@ def backwards_induction(
         in_axes=(0, None, None),
     )(state_space, exogenous_savings_grid, income_shock_draws)
 
-    # Select relevant objects for last period
     (
-        idx_states_final_period,
-        idx_state_choices_final_period,
+        idxs_state_choice_combs_final_period,
         sum_state_choices_to_state_final_period,
-        resources_final_period,
+        endog_grid_final_period,
         state_choices_final_period,
         state_times_state_choice_mat_final_period,
-    ) = select_period_objects(
+    ) = create_current_state_and_state_choice_objects(
         period=n_periods - 1,
         state_space=state_space,
         state_choice_space=state_choice_space,
-        sum_state_choice_to_state=sum_state_choices_to_state,
-        reshape_state_choice_vec_to_mat=state_times_state_choice_mat,
-        map_state_choice_combs_to_parent_state=map_state_choice_to_state,
         resources_beginning_of_period=resources_beginning_of_period,
+        map_state_choice_combs_to_parent_state=map_state_choice_to_state,
+        reshape_state_choice_vec_to_mat=state_times_state_choice_mat,
+        transform_between_state_and_state_choice_vec=sum_state_choices_to_state,
     )
 
-    # Solve last period
     (
         value_final_period,
         policy_final_period,
@@ -300,11 +297,9 @@ def backwards_induction(
     ) = solve_final_period(
         final_period_choice_states=state_choices_final_period,
         final_period_solution_partial=final_period_solution_partial,
-        resources_last_period=resources_final_period,
+        resources_last_period=endog_grid_final_period,
     )
-    endog_grid_final_period = resources_final_period  # - policy_final_period
 
-    # Save last period solution
     (
         value_container,
         endog_grid_container,
@@ -313,7 +308,7 @@ def backwards_induction(
         endog_grid_container=endog_grid_container,
         policy_container=policy_container,
         value_container=value_container,
-        idx_state_choices_final_period=idx_state_choices_final_period,
+        idx_state_choices_final_period=idxs_state_choice_combs_final_period,
         endog_grid_final_period=endog_grid_final_period,
         policy_final_period=policy_final_period,
         value_final_period=value_final_period,
@@ -334,36 +329,33 @@ def backwards_induction(
             value_state_choice_combs=values_interpolated,
             marg_util_state_choice_combs=marg_util_interpolated,
             reshape_state_choice_vec_to_mat=state_times_state_choice_mat_period,
-            sum_state_choice_to_state=sum_state_choices_to_state_period,
+            transform_between_state_and_state_choice_vec=sum_state_choices_to_state_period,
             taste_shock_scale=taste_shock_scale,
             income_shock_weights=income_shock_weights,
         )
 
-        # Select relevant objects for current period
         (
-            idx_states_period,
             idx_state_choices_period,
             sum_state_choices_to_state_period,
             resources_period,
             state_choices_period,
             state_times_state_choice_mat_period,
-        ) = select_period_objects(
+        ) = create_current_state_and_state_choice_objects(
             period=period,
             state_space=state_space,
             state_choice_space=state_choice_space,
-            sum_state_choice_to_state=sum_state_choices_to_state,
-            reshape_state_choice_vec_to_mat=state_times_state_choice_mat,
-            map_state_choice_combs_to_parent_state=map_state_choice_to_state,
             resources_beginning_of_period=resources_beginning_of_period,
+            map_state_choice_combs_to_parent_state=map_state_choice_to_state,
+            reshape_state_choice_vec_to_mat=state_times_state_choice_mat,
+            transform_between_state_and_state_choice_vec=sum_state_choices_to_state,
         )
 
-        # Calculate candidate solutions.
         (
-            candidate_sol_euler_endog_grid,
-            candidate_sol_euler_policy,
-            candidate_sol_euler_value,
+            endog_grid_candidate,
+            value_candidate,
+            policy_candidate,
             expected_values,
-        ) = calculate_candidates_from_euler(
+        ) = calculate_candidate_solutions_from_euler_equation(
             marg_util=marg_util,
             emax=emax,
             idx_state_choices_period=idx_state_choices_period,
@@ -377,14 +369,14 @@ def backwards_induction(
             compute_value=compute_value,
         )
 
-        # Run upper envolope to rule out candidates
+        # Run upper envolope to remove suboptimal candidates
         for state_choice_idx, state_choice_vec in enumerate(state_choices_period):
             choice = state_choice_vec[-1]
 
             endog_grid, policy, value = compute_upper_envelope(
-                endog_grid=candidate_sol_euler_endog_grid[state_choice_idx],
-                policy=candidate_sol_euler_policy[state_choice_idx],
-                value=candidate_sol_euler_value[state_choice_idx],
+                endog_grid=endog_grid_candidate[state_choice_idx],
+                policy=policy_candidate[state_choice_idx],
+                value=value_candidate[state_choice_idx],
                 expected_value_zero_savings=expected_values[state_choice_idx, 0],
                 exog_grid=exogenous_savings_grid,
                 choice=choice,
@@ -411,4 +403,5 @@ def backwards_induction(
         # ToDo: save arrays to disc
 
     # ToDo: return None
+
     return endog_grid_container, policy_container, value_container

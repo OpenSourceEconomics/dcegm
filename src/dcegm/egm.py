@@ -7,7 +7,7 @@ from jax import numpy as jnp
 from jax import vmap
 
 
-def calculate_candidates_from_euler(
+def calculate_candidate_solutions_from_euler_equation(
     marg_util: np.ndarray,
     emax: np.ndarray,
     idx_state_choices_period: np.ndarray,
@@ -29,9 +29,9 @@ def calculate_candidates_from_euler(
     )
 
     (
-        candidate_sol_euler_endog_grid,
-        candidate_sol_euler_policy,
-        candidate_sol_euler_value,
+        endog_grid_candidate,
+        policy_candidate,
+        value_candiadate,
         expected_values,
     ) = vmap(
         vmap(
@@ -51,9 +51,9 @@ def calculate_candidates_from_euler(
         compute_value,
     )
     return (
-        candidate_sol_euler_endog_grid,
-        candidate_sol_euler_policy,
-        candidate_sol_euler_value,
+        endog_grid_candidate,
+        value_candiadate,
+        policy_candidate,
         expected_values,
     )
 

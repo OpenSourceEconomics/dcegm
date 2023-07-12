@@ -116,10 +116,8 @@ def create_state_choice_space(
     )
 
     map_state_choice_combs_to_parent_state = np.zeros((n_states * n_choices), dtype=int)
-
     reshape_state_choice_vec_to_mat = np.zeros((n_states, n_choices), dtype=int)
-
-    sum_state_choice_to_state = np.full(
+    transform_between_state_and_state_choice_vec = np.full(
         (n_states, n_states * n_choices), fill_value=False, dtype=bool
     )
 
@@ -145,10 +143,8 @@ def create_state_choice_space(
             state_choice_space[idx, -1] = choice
 
             map_state_choice_combs_to_parent_state[idx] = state_idx
-
-            sum_state_choice_to_state[state_idx, idx] = True
-
             reshape_state_choice_vec_to_mat[state_idx, choice] = idx - idx_min
+            transform_between_state_and_state_choice_vec[state_idx, idx] = True
 
             idx += 1
 
@@ -160,28 +156,24 @@ def create_state_choice_space(
             if choice not in choice_set:
                 reshape_state_choice_vec_to_mat[state_idx, choice] = idx - idx_min - 1
 
-        # breakpoint()
-
-    # breakpoint()
-
     return (
         state_choice_space[:idx],
-        sum_state_choice_to_state[:, :idx],
+        transform_between_state_and_state_choice_vec[:, :idx],
         map_state_choice_combs_to_parent_state[:idx],
         reshape_state_choice_vec_to_mat,
     )
 
 
-def select_period_objects(
+def create_current_state_and_state_choice_objects(
     period,
     state_space,
     state_choice_space,
-    sum_state_choice_to_state,
+    resources_beginning_of_period,
     map_state_choice_combs_to_parent_state,
     reshape_state_choice_vec_to_mat,
-    resources_beginning_of_period,
+    transform_between_state_and_state_choice_vec,
 ):
-    """Select objects for the current period.
+    """Select state and state-choice objects for the current period.
 
     Args:
         period (int): Current period.
@@ -221,26 +213,24 @@ def select_period_objects(
 
     """
 
-    idxs_parent_states = np.where(state_space[:, 0] == period)[0]
+    _idxs_parent_states = np.where(state_space[:, 0] == period)[0]
     idxs_state_choice_combs = np.where(state_choice_space[:, 0] == period)[0]
 
-    current_sum_state_choice_to_state = sum_state_choice_to_state[
-        idxs_parent_states, :
-    ][:, idxs_state_choice_combs]
+    state_choice_combs = state_choice_space[idxs_state_choice_combs]
 
     resources = resources_beginning_of_period[
         map_state_choice_combs_to_parent_state[idxs_state_choice_combs]
     ]
 
-    state_choice_combs = state_choice_space[idxs_state_choice_combs]
-
     reshape_current_state_choice_vec_to_mat = reshape_state_choice_vec_to_mat[
-        idxs_parent_states, :
+        _idxs_parent_states, :
     ]
-    # breakpoint()
+
+    current_sum_state_choice_to_state = transform_between_state_and_state_choice_vec[
+        _idxs_parent_states, :
+    ][:, idxs_state_choice_combs]
 
     return (
-        idxs_parent_states,
         idxs_state_choice_combs,
         current_sum_state_choice_to_state,
         resources,
