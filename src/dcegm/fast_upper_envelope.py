@@ -259,6 +259,7 @@ def scan_value_function(
             value_current=value_j,
             endog_grid_current=endog_grid_j,
             idx_next=i + 1,
+            n_points_to_scan=n_points_to_scan,
         )
         idx_before_on_upper_curve = suboptimal_points[
             sub_idx_point_before_on_same_value
@@ -404,7 +405,7 @@ def scan_value_function(
     return value_refined, policy_refined, endog_grid_refined
 
 
-@njit
+# @njit
 def _forward_scan(
     value: np.ndarray,
     endog_grid: np.ndarray,
@@ -441,43 +442,59 @@ def _forward_scan(
 
     """
 
-    is_next_on_same_value = 0
+    found_next_value_already = 0
     idx_on_same_value = 0
     grad_next_on_same_value = 0
 
     idx_max = len(exog_grid) - 1
 
     for i in range(1, n_points_to_scan + 1):
+        # Avoid out of bound indexing
         idx_to_check = min(idx_next + i, idx_max)
+        # Get endog grid diff from current optimal to the one checkec
         endog_grid_diff = np.minimum(
             endog_grid_current - endog_grid[idx_to_check], -1e-16
         )
+        # Check if checked point is on the same value function
         is_on_same_value = (
             np.abs((exog_grid_current - exog_grid[idx_to_check]) / (endog_grid_diff))
             < jump_thresh
         )
-        is_next = is_on_same_value * (1 - is_next_on_same_value)
-        idx_on_same_value = idx_to_check * is_next + (1 - is_next) * idx_on_same_value
-
-        grad_next_on_same_value = (
-            (value[idx_next] - value[idx_to_check])
-            / (endog_grid[idx_next] - endog_grid[idx_to_check])
-        ) * is_next + (1 - is_next) * grad_next_on_same_value
-
-        is_next_on_same_value = (
-            is_next_on_same_value * is_on_same_value
-            + (1 - is_on_same_value) * is_next_on_same_value
-            + is_on_same_value * (1 - is_next_on_same_value)
+        # Calculate gradient
+        gradient_next = (value[idx_next] - value[idx_to_check]) / (
+            endog_grid[idx_next] - endog_grid[idx_to_check]
         )
+
+        # Now check if this is the first value on the same value function
+        # This is only 1 if so far there hasn't been found a point and the point is on
+        # the same value function
+        value_is_next_on_same_value = is_on_same_value * (1 - found_next_value_already)
+        # Update if you have found a point. Always 1 (=True) if you have found a point
+        # already
+        found_next_value_already = logic_or(found_next_value_already, is_on_same_value)
+
+        # Update the first time you found a point
+        idx_on_same_value += idx_to_check * value_is_next_on_same_value
+
+        # Update the first time you found a point
+        grad_next_on_same_value = (gradient_next) * value_is_next_on_same_value + (
+            1 - value_is_next_on_same_value
+        ) * grad_next_on_same_value
 
     return (
         grad_next_on_same_value,
         idx_on_same_value,
-        is_next_on_same_value,
+        found_next_value_already,
     )
 
 
-@njit
+def logic_or(bool_ind_1, bool_ind_2):
+    both = bool_ind_1 * bool_ind_2
+    either = bool_ind_1 + bool_ind_2
+    return both + (1 - both) * either
+
+
+# @njit
 def _backward_scan(
     value: np.ndarray,
     endog_grid: np.ndarray,
@@ -487,6 +504,7 @@ def _backward_scan(
     endog_grid_current,
     value_current,
     idx_next: int,
+    n_points_to_scan: int,
 ) -> Tuple[float, int]:
     """Scan backward to check whether current point is optimal.
 
@@ -518,14 +536,16 @@ def _backward_scan(
 
     indexes_reversed = len(suboptimal_points) - 1
 
-    for i, idx_to_check in enumerate(suboptimal_points[::-1]):
+    for i, idx_to_check_suboptimal in enumerate(suboptimal_points[::-1]):
+        # idx_to_check = min(idx_next + i, idx_max)
+
         endog_grid_diff = np.maximum(
-            endog_grid_current - endog_grid[idx_to_check], 1e-16
+            endog_grid_current - endog_grid[idx_to_check_suboptimal], 1e-16
         )
         is_on_same_value = (
             np.abs(
-                (exog_grid[idx_next] - exog_grid[idx_to_check])
-                / (endog_grid[idx_next] - endog_grid[idx_to_check])
+                (exog_grid[idx_next] - exog_grid[idx_to_check_suboptimal])
+                / (endog_grid[idx_next] - endog_grid[idx_to_check_suboptimal])
             )
             < jump_thresh
         )
@@ -535,7 +555,7 @@ def _backward_scan(
         ) * sub_idx_point_before_on_same_value
 
         grad_before_on_same_value = (
-            (value_current - value[idx_to_check]) / (endog_grid_diff)
+            (value_current - value[idx_to_check_suboptimal]) / endog_grid_diff
         ) * is_before + (1 - is_before) * grad_before_on_same_value
 
         is_before_on_same_value = (
