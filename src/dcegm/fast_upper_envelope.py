@@ -235,7 +235,6 @@ def scan_value_function(
         (
             grad_next_forward,
             idx_next_on_lower_curve,
-            found_next_point_on_same_value,
         ) = _forward_scan(
             value=value,
             endog_grid=endog_grid,
@@ -249,7 +248,7 @@ def scan_value_function(
 
         (
             grad_next_backward,
-            sub_idx_point_before_on_same_value,
+            idx_before_on_upper_curve,
         ) = _backward_scan(
             value=value,
             endog_grid=endog_grid,
@@ -261,9 +260,6 @@ def scan_value_function(
             idx_next=i + 1,
             n_points_to_scan=n_points_to_scan,
         )
-        idx_before_on_upper_curve = suboptimal_points[
-            sub_idx_point_before_on_same_value
-        ]
 
         # Check for suboptimality. This is either with decreasing value function, the
         # value function not montone in consumption or
@@ -435,10 +431,7 @@ def _forward_scan(
 
         - grad_next_forward (float): The gradient of the next point on the same
             value function.
-        - is_point_on_same_value (int): Indicator for whether the next point is on
-            the same value function.
-        - dist_next_point_on_same_value (int): The distance to the next point on
-            the same value function.
+        - idx_on_same_value (int): Index of next point on the value function.
 
     """
 
@@ -446,7 +439,7 @@ def _forward_scan(
     idx_on_same_value = 0
     grad_next_on_same_value = 0
 
-    idx_max = len(exog_grid) - 1
+    idx_max = exog_grid.shape[0] - 1
 
     for i in range(1, n_points_to_scan + 1):
         # Avoid out of bound indexing
@@ -473,18 +466,15 @@ def _forward_scan(
         # already
         found_next_value_already = logic_or(found_next_value_already, is_on_same_value)
 
-        # Update the first time you found a point
+        # Update the index the first time a point is found
         idx_on_same_value += idx_to_check * value_is_next_on_same_value
 
-        # Update the first time you found a point
-        grad_next_on_same_value = (gradient_next) * value_is_next_on_same_value + (
-            1 - value_is_next_on_same_value
-        ) * grad_next_on_same_value
+        # Update the gradient the first time a point is found
+        grad_next_on_same_value += gradient_next * value_is_next_on_same_value
 
     return (
         grad_next_on_same_value,
         idx_on_same_value,
-        found_next_value_already,
     )
 
 
@@ -530,11 +520,9 @@ def _backward_scan(
 
     """
 
-    is_before_on_same_value = 0
-    sub_idx_point_before_on_same_value = 0
+    found_value_before_already = 0
+    idx_point_before_on_same_value = 0
     grad_before_on_same_value = 0
-
-    indexes_reversed = len(suboptimal_points) - 1
 
     for i, idx_to_check_suboptimal in enumerate(suboptimal_points[::-1]):
         # idx_to_check = min(idx_next + i, idx_max)
@@ -549,24 +537,26 @@ def _backward_scan(
             )
             < jump_thresh
         )
-        is_before = is_on_same_value * (1 - is_before_on_same_value)
-        sub_idx_point_before_on_same_value = (indexes_reversed - i) * is_before + (
-            1 - is_before
-        ) * sub_idx_point_before_on_same_value
-
-        grad_before_on_same_value = (
-            (value_current - value[idx_to_check_suboptimal]) / endog_grid_diff
-        ) * is_before + (1 - is_before) * grad_before_on_same_value
-
-        is_before_on_same_value = (
-            (is_before_on_same_value * is_on_same_value)
-            + (1 - is_on_same_value) * is_before_on_same_value
-            + is_on_same_value * (1 - is_before_on_same_value)
+        grad_before = (value_current - value[idx_to_check_suboptimal]) / endog_grid_diff
+        # Now check if this is the first value on the same value function
+        # This is only 1 if so far there hasn't been found a point and the point is on
+        # the same value function
+        is_before = is_on_same_value * (1 - found_value_before_already)
+        # Update if you have found a point. Always 1 (=True) if you have found a point
+        # already
+        found_value_before_already = logic_or(
+            found_value_before_already, is_on_same_value
         )
+
+        # Update the first time a new point is found
+        idx_point_before_on_same_value += idx_to_check_suboptimal * is_before
+
+        # Update the first time a new point is found
+        grad_before_on_same_value += grad_before * is_before
 
     return (
         grad_before_on_same_value,
-        sub_idx_point_before_on_same_value,
+        idx_point_before_on_same_value,
     )
 
 
