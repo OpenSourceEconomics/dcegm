@@ -449,29 +449,26 @@ def _forward_scan(
 
     for i in range(1, n_points_to_scan + 1):
         idx_to_check = min(idx_next + i, idx_max)
-        if endog_grid_current < endog_grid[idx_to_check]:
-            is_on_same_value = (
-                np.abs(
-                    (exog_grid_current - exog_grid[idx_to_check])
-                    / (endog_grid_current - endog_grid[idx_to_check])
-                )
-                < jump_thresh
-            )
-            is_next = is_on_same_value * (1 - is_next_on_same_value)
-            idx_on_same_value = (
-                idx_to_check * is_next + (1 - is_next) * idx_on_same_value
-            )
+        endog_grid_diff = np.minimum(
+            endog_grid_current - endog_grid[idx_to_check], -1e-16
+        )
+        is_on_same_value = (
+            np.abs((exog_grid_current - exog_grid[idx_to_check]) / (endog_grid_diff))
+            < jump_thresh
+        )
+        is_next = is_on_same_value * (1 - is_next_on_same_value)
+        idx_on_same_value = idx_to_check * is_next + (1 - is_next) * idx_on_same_value
 
-            grad_next_on_same_value = (
-                (value[idx_next] - value[idx_to_check])
-                / (endog_grid[idx_next] - endog_grid[idx_to_check])
-            ) * is_next + (1 - is_next) * grad_next_on_same_value
+        grad_next_on_same_value = (
+            (value[idx_next] - value[idx_to_check])
+            / (endog_grid[idx_next] - endog_grid[idx_to_check])
+        ) * is_next + (1 - is_next) * grad_next_on_same_value
 
-            is_next_on_same_value = (
-                is_next_on_same_value * is_on_same_value
-                + (1 - is_on_same_value) * is_next_on_same_value
-                + is_on_same_value * (1 - is_next_on_same_value)
-            )
+        is_next_on_same_value = (
+            is_next_on_same_value * is_on_same_value
+            + (1 - is_on_same_value) * is_next_on_same_value
+            + is_on_same_value * (1 - is_next_on_same_value)
+        )
 
     return (
         grad_next_on_same_value,
@@ -522,29 +519,30 @@ def _backward_scan(
     indexes_reversed = len(suboptimal_points) - 1
 
     for i, idx_to_check in enumerate(suboptimal_points[::-1]):
-        if endog_grid_current > endog_grid[idx_to_check]:
-            is_on_same_value = (
-                np.abs(
-                    (exog_grid[idx_next] - exog_grid[idx_to_check])
-                    / (endog_grid[idx_next] - endog_grid[idx_to_check])
-                )
-                < jump_thresh
+        endog_grid_diff = np.maximum(
+            endog_grid_current - endog_grid[idx_to_check], 1e-16
+        )
+        is_on_same_value = (
+            np.abs(
+                (exog_grid[idx_next] - exog_grid[idx_to_check])
+                / (endog_grid[idx_next] - endog_grid[idx_to_check])
             )
-            is_before = is_on_same_value * (1 - is_before_on_same_value)
-            sub_idx_point_before_on_same_value = (indexes_reversed - i) * is_before + (
-                1 - is_before
-            ) * sub_idx_point_before_on_same_value
+            < jump_thresh
+        )
+        is_before = is_on_same_value * (1 - is_before_on_same_value)
+        sub_idx_point_before_on_same_value = (indexes_reversed - i) * is_before + (
+            1 - is_before
+        ) * sub_idx_point_before_on_same_value
 
-            grad_before_on_same_value = (
-                (value_current - value[idx_to_check])
-                / (endog_grid_current - endog_grid[idx_to_check])
-            ) * is_before + (1 - is_before) * grad_before_on_same_value
+        grad_before_on_same_value = (
+            (value_current - value[idx_to_check]) / (endog_grid_diff)
+        ) * is_before + (1 - is_before) * grad_before_on_same_value
 
-            is_before_on_same_value = (
-                (is_before_on_same_value * is_on_same_value)
-                + (1 - is_on_same_value) * is_before_on_same_value
-                + is_on_same_value * (1 - is_before_on_same_value)
-            )
+        is_before_on_same_value = (
+            (is_before_on_same_value * is_on_same_value)
+            + (1 - is_on_same_value) * is_before_on_same_value
+            + is_on_same_value * (1 - is_before_on_same_value)
+        )
 
     return (
         grad_before_on_same_value,
