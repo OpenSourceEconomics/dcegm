@@ -200,9 +200,6 @@ def scan_value_function(
     value_refined, policy_refined, endog_grid_refined = _initialize_refined_arrays(
         value, policy, endog_grid
     )
-
-    suboptimal_points = np.zeros(n_points_to_scan, dtype=np.int64)
-
     # j = 1
     # k = 0
 
@@ -242,7 +239,7 @@ def scan_value_function(
             jump_thresh=jump_thresh,
             endog_grid_current=endog_grid_j,
             exog_grid_current=exog_grid_j,
-            idx_next=i + 1,
+            idx_base=i + 1,
             n_points_to_scan=n_points_to_scan,
         )
 
@@ -253,11 +250,10 @@ def scan_value_function(
             value=value,
             endog_grid=endog_grid,
             exog_grid=exog_grid,
-            suboptimal_points=suboptimal_points,
             jump_thresh=jump_thresh,
             value_current=value_j,
             endog_grid_current=endog_grid_j,
-            idx_next=i + 1,
+            idx_base=i + 1,
             n_points_to_scan=n_points_to_scan,
         )
 
@@ -271,7 +267,7 @@ def scan_value_function(
             or exog_grid[i + 1] < exog_grid_j
             or (grad_next < grad_next_forward and switch_value_func)
         ):
-            suboptimal_points = _append_index(suboptimal_points, i + 1)
+            continue
 
         elif not switch_value_func:
             value_refined[idx_refined] = value[i + 1]
@@ -409,10 +405,10 @@ def _forward_scan(
     jump_thresh: float,
     endog_grid_current: float,
     exog_grid_current: float,
-    idx_next: int,
+    idx_base: int,
     n_points_to_scan: int,
-) -> Tuple[float, int, int]:
-    """Scan forward to check whether next point is optimal.
+) -> Tuple[float, int]:
+    """Scan forward to check which point is on same value function as idx_base.
 
     Args:
         value (np.ndarray): 1d array containing the value function of shape
@@ -443,7 +439,7 @@ def _forward_scan(
 
     for i in range(1, n_points_to_scan + 1):
         # Avoid out of bound indexing
-        idx_to_check = min(idx_next + i, idx_max)
+        idx_to_check = min(idx_base + i, idx_max)
         # Get endog grid diff from current optimal to the one checkec
         endog_grid_diff = np.minimum(
             endog_grid_current - endog_grid[idx_to_check], -1e-16
@@ -454,8 +450,8 @@ def _forward_scan(
             < jump_thresh
         )
         # Calculate gradient
-        gradient_next = (value[idx_next] - value[idx_to_check]) / (
-            endog_grid[idx_next] - endog_grid[idx_to_check]
+        gradient_next = (value[idx_base] - value[idx_to_check]) / (
+            endog_grid[idx_base] - endog_grid[idx_to_check]
         )
 
         # Now check if this is the first value on the same value function
@@ -479,6 +475,16 @@ def _forward_scan(
 
 
 def logic_or(bool_ind_1, bool_ind_2):
+    """Logical or function.
+
+    Args:
+        bool_ind_1 (np.ndarray): 1d array of booleans.
+        bool_ind_2 (np.ndarray): 1d array of booleans.
+
+    Returns:
+        np.ndarray: 1d array of booleans.
+
+    """
     both = bool_ind_1 * bool_ind_2
     either = bool_ind_1 + bool_ind_2
     return both + (1 - both) * either
@@ -489,14 +495,13 @@ def _backward_scan(
     value: np.ndarray,
     endog_grid: np.ndarray,
     exog_grid: np.ndarray,
-    suboptimal_points: np.ndarray,
     jump_thresh: float,
     endog_grid_current,
     value_current,
-    idx_next: int,
+    idx_base: int,
     n_points_to_scan: int,
 ) -> Tuple[float, int]:
-    """Scan backward to check whether current point is optimal.
+    """Find point on same value function to idx_base.
 
     Args:
         value (np.ndarray): 1d array containing the value function of shape
@@ -508,7 +513,8 @@ def _backward_scan(
         suboptimal_points (list): List of suboptimal points in the value functions.
         jump_thresh (float): Threshold for the jump in the value function.
         idx_current (int): Index of the current point in the value function.
-        idx_next (int): Index of the next point in the value function.
+        idx_base (int): Index of the base point in the value function to which find a
+            point before on the same value function.
 
     Returns:
         tuple:
@@ -524,20 +530,23 @@ def _backward_scan(
     idx_point_before_on_same_value = 0
     grad_before_on_same_value = 0
 
-    for i, idx_to_check_suboptimal in enumerate(suboptimal_points[::-1]):
-        # idx_to_check = min(idx_next + i, idx_max)
+    for i in range(1, n_points_to_scan + 1):
+        idx_to_check = max(idx_base - i, 0)
 
-        endog_grid_diff = np.maximum(
-            endog_grid_current - endog_grid[idx_to_check_suboptimal], 1e-16
+        endog_grid_diff_to_current = np.maximum(
+            endog_grid_current - endog_grid[idx_to_check], 1e-16
+        )
+        endog_grid_diff_to_next = np.maximum(
+            endog_grid[idx_base] - endog_grid[idx_to_check], 1e-16
         )
         is_on_same_value = (
             np.abs(
-                (exog_grid[idx_next] - exog_grid[idx_to_check_suboptimal])
-                / (endog_grid[idx_next] - endog_grid[idx_to_check_suboptimal])
+                (exog_grid[idx_base] - exog_grid[idx_to_check])
+                / endog_grid_diff_to_next
             )
             < jump_thresh
         )
-        grad_before = (value_current - value[idx_to_check_suboptimal]) / endog_grid_diff
+        grad_before = (value_current - value[idx_to_check]) / endog_grid_diff_to_current
         # Now check if this is the first value on the same value function
         # This is only 1 if so far there hasn't been found a point and the point is on
         # the same value function
@@ -549,7 +558,7 @@ def _backward_scan(
         )
 
         # Update the first time a new point is found
-        idx_point_before_on_same_value += idx_to_check_suboptimal * is_before
+        idx_point_before_on_same_value += idx_to_check * is_before
 
         # Update the first time a new point is found
         grad_before_on_same_value += grad_before * is_before
