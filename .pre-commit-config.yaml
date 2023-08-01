@@ -6,11 +6,11 @@ repos:
       - id: check-useless-excludes
     # -   id: identity  # Prints all files passed to pre-commits. Debugging.
   - repo: https://github.com/adrienverge/yamllint.git
-    rev: v1.31.0
+    rev: v1.32.0
     hooks:
       - id: yamllint
   - repo: https://github.com/lyz-code/yamlfix
-    rev: 1.9.0
+    rev: 1.13.0
     hooks:
       - id: yamlfix
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -38,22 +38,22 @@ repos:
       - id: python-no-log-warn
       - id: python-use-type-annotations
       - id: text-unicode-replacement-char
-  - repo: https://github.com/asottile/reorder_python_imports
-    rev: v3.9.0
+  - repo: https://github.com/asottile/reorder-python-imports
+    rev: v3.10.0
     hooks:
       - id: reorder-python-imports
         args: [--py37-plus]
   - repo: https://github.com/asottile/setup-cfg-fmt
-    rev: v2.2.0
+    rev: v2.4.0
     hooks:
       - id: setup-cfg-fmt
   - repo: https://github.com/psf/black
-    rev: 23.3.0
+    rev: 23.7.0
     hooks:
       - id: black
         exclude: tests/utils/fast_upper_envelope_org.py
   - repo: https://github.com/PyCQA/docformatter
-    rev: v1.6.4
+    rev: v1.7.5
     hooks:
       - id: docformatter
         args:
@@ -64,8 +64,8 @@ repos:
           - '88'
           - --blank
         exclude: tests/utils/fast_upper_envelope_org.py
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.0.263
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.0.281
     hooks:
       - id: ruff
         exclude: |
@@ -74,7 +74,7 @@ repos:
               docs/source/conf.py|
           )$
   - repo: https://github.com/dosisod/refurb
-    rev: v1.16.0
+    rev: v1.18.0
     hooks:
       - id: refurb
         args: [--python-version, '3.10']
@@ -98,7 +98,7 @@ repos:
         args: [--wrap, '88']
         files: (README\.md)
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.2.4
+    rev: v2.2.5
     hooks:
       - id: codespell
         additional_dependencies: [tomli]
