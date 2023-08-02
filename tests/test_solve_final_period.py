@@ -51,17 +51,19 @@ def test_consume_everything_in_final_period(
     state_space, state_indexer = create_state_space(options)
     (
         state_choice_space,
-        sum_state_choices_to_state,
-        map_state_choice_to_state,
-        state_times_state_choice_mat,
+        map_state_choice_vec_to_parent_state,
+        _reshape_state_choice_vec_to_mat,
+        transform_between_state_and_state_choice_space,
     ) = create_state_choice_space(
         state_space, state_indexer, get_state_specific_choice_set
     )
     idx_states_final_period = np.where(state_space[:, 0] == n_periods - 1)[0]
 
     idx_state_choice_combs = np.where(state_choice_space[:, 0] == n_periods - 1)[0]
-    final_period_state_choices = state_choice_space[idx_state_choice_combs]
-    map_final_state_choice_to_state = map_state_choice_to_state[idx_state_choice_combs]
+    final_period_state_choice_combs = state_choice_space[idx_state_choice_combs]
+    map_final_state_choice_to_state = map_state_choice_vec_to_parent_state[
+        idx_state_choice_combs
+    ]
 
     user_utility_functions = {
         "utility": utility_func_crra,
@@ -95,9 +97,11 @@ def test_consume_everything_in_final_period(
         in_axes=(0, None, None),
     )(state_space, savings_grid, income_draws)
 
-    last_period_sum_state_choices_to_state = sum_state_choices_to_state[
-        idx_states_final_period, :
-    ][:, idx_state_choice_combs]
+    last_period_sum_state_choices_to_state = (
+        transform_between_state_and_state_choice_space[idx_states_final_period, :][
+            :, idx_state_choice_combs
+        ]
+    )
 
     resources_last_period = resources_beginning_of_period[
         map_final_state_choice_to_state
@@ -111,13 +115,13 @@ def test_consume_everything_in_final_period(
         compute_marginal_utility=compute_marginal_utility,
     )
 
-    endog_grid_final, policy_final, value_final, _ = solve_final_period(
-        final_period_choice_states=final_period_state_choices,
+    value_final, policy_final, _ = solve_final_period(
+        final_period_choice_states=final_period_state_choice_combs,
         final_period_solution_partial=final_period_solution_partial,
         resources_last_period=resources_last_period,
     )
 
-    for state_choice_id, state_choice in enumerate(final_period_state_choices):
+    for state_choice_idx, state_choice in enumerate(final_period_state_choice_combs):
         state = state_choice[:-1]
         choice = state_choice[-1]
         begin_of_period_resources = vmap(
@@ -125,12 +129,12 @@ def test_consume_everything_in_final_period(
         )(state, savings_grid, 0.00)
 
         aaae(
-            endog_grid_final[state_choice_id, :, 1],
+            resources_last_period[state_choice_idx, :, 1],
             begin_of_period_resources,
         )
 
         aaae(
-            policy_final[state_choice_id, :, 1],
+            policy_final[state_choice_idx, :, 1],
             begin_of_period_resources,
         )
 
@@ -138,6 +142,6 @@ def test_consume_everything_in_final_period(
             begin_of_period_resources, choice
         )
         aaae(
-            value_final[state_choice_id, :, 1],
+            value_final[state_choice_idx, :, 1],
             expected_value,
         )

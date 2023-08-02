@@ -22,17 +22,18 @@ def solve_final_period(
     Returns:
         tuple:
 
-        - endog_grid_final (np.ndarray): 4d array of shape
-            (n_states, n_choices, n_grid_wealth, n_income_shocks) of the
-            endogenous wealth grid for all final states, choices, and
-            end of period assets from the period before.
-        - final_policy (np.ndarray): 4d array of shape
-            (n_states, n_choices, n_grid_wealth, n_income_shocks) of the optimal
-            policy for all final states, choices, end of period assets, and
+
+        - final_value (np.ndarray): 3d array of shape
+            (n_states, n_grid_wealth, n_income_shocks) of the optimal
+            value function for all final states, end of period assets, and
             income shocks.
-        - final_value (np.ndarray): 4d array of shape
-            (n_states, n_choices, n_grid_wealth, n_income_shocks) of the optimal
-            value function for all final states, choices, end of period assets, and
+        - final_policy (np.ndarray): 3d array of shape
+            (n_states, n_grid_wealth, n_income_shocks) of the optimal
+            policy for all final states, end of period assets, and
+            income shocks.
+        - marginal_utilities_choices (np.ndarray): 3d array of shape
+            (n_states, n_grid_wealth, n_income_shocks) of the marginal utility of
+            consumption for all final states, end of period assets, and
             income shocks.
 
     """
@@ -55,9 +56,8 @@ def solve_final_period(
     )
 
     return (
-        resources_last_period,
-        final_policy,
         final_value,
+        final_policy,
         marginal_utilities_choices,
     )
 
@@ -75,7 +75,7 @@ def save_final_period_solution(
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Saves the final period solution to the containers.
 
-    Soon this will be save to disc.
+    Soon this will be saved to disc.
 
     """
     # Choose which draw we take for policy and value function as those are note saved
@@ -90,4 +90,5 @@ def save_final_period_solution(
     policy_container[
         idx_state_choices_final_period, ..., :num_wealth_grid_points
     ] = policy_final_period[:, :, middle_of_draws]
+
     return value_container, endog_grid_container, policy_container

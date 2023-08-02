@@ -197,10 +197,10 @@ TEST_CASES = list(product(list(range(WEALTH_GRID_POINTS)), list(range(4))))
 
 
 @pytest.mark.parametrize(
-    "wealth_id, state_id",
+    "wealth_idx, state_idx",
     TEST_CASES,
 )
-def test_two_period(input_data, wealth_id, state_id):
+def test_two_period(input_data, wealth_idx, state_idx):
     quad_points, quad_weights = roots_sh_legendre(5)
     quad_draws = norm.ppf(quad_points) * 1
 
@@ -211,27 +211,27 @@ def test_two_period(input_data, wealth_id, state_id):
     state_space, map_state_to_index = create_state_space(input_data["options"])
     (
         state_choice_space,
-        sum_state_choices_to_state,
-        map_state_choice_to_state,
-        state_times_state_choice_mat,
+        _map_state_choice_vec_to_parent_state,
+        reshape_state_choice_vec_to_mat,
+        _transform_between_state_and_state_choice_space,
     ) = create_state_choice_space(
         state_space,
         map_state_to_index,
         get_state_specific_choice_set,
     )
     initial_cond = {}
-    state = state_space[state_id, :]
-    ids_state_choices = state_times_state_choice_mat[state_id, :]
+    state = state_space[state_idx, :]
+    idxs_state_choice_combs = reshape_state_choice_vec_to_mat[state_idx]
     initial_cond["health"] = state[-1]
 
-    for id_state_choice in ids_state_choices:
-        choice_in_period_1 = state_choice_space[id_state_choice][-1]
-        policy = input_data["policy"][id_state_choice]
-        wealth = input_data["endog_grid"][id_state_choice, wealth_id + 1]
+    for idx_state_choice in idxs_state_choice_combs:
+        choice_in_period_1 = state_choice_space[idx_state_choice][-1]
+        policy = input_data["policy"][idx_state_choice]
+        wealth = input_data["endog_grid"][idx_state_choice, wealth_idx + 1]
         if ~np.isnan(wealth) and wealth > 0:
             initial_cond["wealth"] = wealth
 
-            cons_calc = policy[wealth_id + 1]
+            cons_calc = policy[wealth_idx + 1]
             diff = euler_rhs(
                 initial_cond,
                 params_dict,
