@@ -103,8 +103,8 @@ def create_state_choice_space(
             (n_feasible_state_choice_combs, n_state_and_exog_variables + 1) containing
             the space of all feasible state-choice combinations. By convention,
             the second to last column contains the exogenous process.
-            The last column always contains the choice to be made at the end of the period
-            (which is not a state variable).
+            The last column always contains the choice to be made at the end of the
+            period (which is not a state variable).
         - map_state_choice_vec_to_parent_state (np.ndarray): 1d array of shape
             (n_states * n_feasible_choices,) that maps from any vector of state-choice
             combinations to the respective parent state.
@@ -115,8 +115,8 @@ def create_state_choice_space(
             shape (n_choices, n_choices).
         - transform_between_state_and_state_choice_space (jnp.ndarray): 2d boolean
             array of shape (n_states, n_states * n_feasible_choices) indicating which
-            state belongs to which state-choice combination in the entire state and state
-            choice space. The array is used to
+            state belongs to which state-choice combination in the entire state and
+            state choice space. The array is used to
             (i) contract state-choice level arrays to the state level by summing
                 over state-choice combinations.
             (ii) to expand state level arrays to the state-choice level.

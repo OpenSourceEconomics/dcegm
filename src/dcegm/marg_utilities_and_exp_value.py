@@ -1,7 +1,6 @@
 from typing import Tuple
 
 import jax.numpy as jnp
-from jax import numpy as jnp
 
 
 def aggregate_marg_utils_exp_values(
@@ -37,8 +36,9 @@ def aggregate_marg_utils_exp_values(
                 over state-choice combinations.
             (ii) to expand state level arrays to the state-choice level.
         taste_shock_scale (float): The taste shock scale.
-        income_shock_weights (jnp.ndarray): 1d array of shape (n_stochastic_quad_points,)
-            containing the weights of the income shock quadrature.
+        income_shock_weights (jnp.ndarray): 1d array of shape
+            (n_stochastic_quad_points,) containing the weights of the income shock
+            quadrature.
 
     Returns:
         tuple:
