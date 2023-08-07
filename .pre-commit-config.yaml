@@ -52,6 +52,10 @@ repos:
     hooks:
       - id: black
         exclude: tests/utils/fast_upper_envelope_org.py
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.1.0
+    hooks:
+      - id: flake8
   - repo: https://github.com/PyCQA/docformatter
     rev: v1.7.5
     hooks:
@@ -64,20 +68,6 @@ repos:
           - '88'
           - --blank
         exclude: tests/utils/fast_upper_envelope_org.py
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.0.281
-    hooks:
-      - id: ruff
-        exclude: |
-          (?x)^(
-              tests/sandbox/|
-              docs/source/conf.py|
-          )$
-  - repo: https://github.com/dosisod/refurb
-    rev: v1.18.0
-    hooks:
-      - id: refurb
-        args: [--python-version, '3.10']
   - repo: https://github.com/nbQA-dev/nbQA
     rev: 1.7.0
     hooks:
