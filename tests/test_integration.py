@@ -18,7 +18,7 @@ from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space,
 )
 from toy_models.consumption_retirement_model.state_space_objects import (
-    get_state_specific_choice_set,
+    get_state_specific_feasible_choice_set,
 )
 from toy_models.consumption_retirement_model.utility_functions import (
     inverse_marginal_utility_crra,
@@ -56,7 +56,7 @@ def state_space_functions():
     """Return dict with utility functions."""
     return {
         "create_state_space": create_state_space,
-        "get_state_specific_choice_set": get_state_specific_choice_set,
+        "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
     }
 
 

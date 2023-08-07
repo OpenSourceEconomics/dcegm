@@ -21,7 +21,7 @@ from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space,
 )
 from toy_models.consumption_retirement_model.state_space_objects import (
-    get_state_specific_choice_set,
+    get_state_specific_feasible_choice_set,
 )
 
 
@@ -167,7 +167,7 @@ def input_data():
     }
     state_space_functions = {
         "create_state_space": create_state_space,
-        "get_state_specific_choice_set": get_state_specific_choice_set,
+        "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
     }
     utility_functions = {
         "utility": flow_util,
@@ -217,7 +217,7 @@ def test_two_period(input_data, wealth_idx, state_idx):
     ) = create_state_choice_space(
         state_space,
         map_state_to_index,
-        get_state_specific_choice_set,
+        get_state_specific_feasible_choice_set,
     )
     initial_cond = {}
     state = state_space[state_idx, :]

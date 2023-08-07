@@ -20,7 +20,7 @@ from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space,
 )
 from toy_models.consumption_retirement_model.state_space_objects import (
-    get_state_specific_choice_set,
+    get_state_specific_feasible_choice_set,
 )
 from toy_models.consumption_retirement_model.utility_functions import (
     marginal_utility_crra,
@@ -55,7 +55,7 @@ def test_consume_everything_in_final_period(
         _reshape_state_choice_vec_to_mat,
         transform_between_state_and_state_choice_space,
     ) = create_state_choice_space(
-        state_space, state_indexer, get_state_specific_choice_set
+        state_space, state_indexer, get_state_specific_feasible_choice_set
     )
     idx_states_final_period = np.where(state_space[:, 0] == n_periods - 1)[0]
 

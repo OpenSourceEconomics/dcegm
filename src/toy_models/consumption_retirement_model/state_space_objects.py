@@ -54,12 +54,14 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
     return state_space, map_state_to_index
 
 
-def get_state_specific_choice_set(
+def get_state_specific_feasible_choice_set(
     state: np.ndarray,
     map_state_to_index: np.ndarray,  # noqa: U100
     indexer: np.ndarray,
 ) -> np.ndarray:
-    """Select state-specific choice set. Will be a user defined function later.
+    """Select state-specific feasible choice set.
+
+    Will be a user defined function later.
 
     This is very basic in Ishkakov et al (2017).
 
