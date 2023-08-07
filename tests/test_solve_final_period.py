@@ -42,7 +42,7 @@ def test_consume_everything_in_final_period(
     params_dict = convert_params_to_dict(params)
     options["n_exog_processes"] = 1
     n_periods = options["n_periods"]
-    n_choices = options["n_discrete_choices"]
+    options["n_discrete_choices"]
 
     # Avoid small values. This test is just numeric if our solve
     # final period is doing the right thing!
@@ -97,7 +97,7 @@ def test_consume_everything_in_final_period(
         in_axes=(0, None, None),
     )(state_space, savings_grid, income_draws)
 
-    last_period_sum_state_choices_to_state = (
+    (
         transform_between_state_and_state_choice_space[idx_states_final_period, :][
             :, idx_state_choice_combs
         ]
