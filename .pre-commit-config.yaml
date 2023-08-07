@@ -10,7 +10,11 @@ repos:
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
-        exclude: docs/source/conf.py
+        exclude: |
+          (?x)^(
+            tests/sandbox/|
+            docs/source/conf.py|
+          )$
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.32.0
     hooks:
