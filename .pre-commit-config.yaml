@@ -5,6 +5,11 @@ repos:
       - id: check-hooks-apply
       - id: check-useless-excludes
     # -   id: identity  # Prints all files passed to pre-commits. Debugging.
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.0.282
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.32.0
     hooks:
@@ -53,11 +58,6 @@ repos:
       - id: black
         language_version: python3.10
         exclude: tests/utils/fast_upper_envelope_org.py
-  - repo: https://github.com/pycqa/flake8
-    rev: 6.0.0
-    hooks:
-      - id: flake8
-        language_version: python3.10
   - repo: https://github.com/PyCQA/docformatter
     rev: v1.7.5
     hooks:
