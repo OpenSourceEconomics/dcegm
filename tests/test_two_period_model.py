@@ -55,10 +55,10 @@ def budget_dcegm(state, saving, income_shock, params_dict, options):  # noqa: 10
     return jnp.maximum(resource, 0.5)
 
 
-def transitions_dcegm(state, params_dict):
+def get_transition_vector(state, params_dict):
     p = params_dict["ltc_prob"]
-    dead = state[-1] == 1
-    return dead * jnp.array([0, 1]) + (1 - dead) * jnp.array([1 - p, p])
+    ltc_patient = state[-1] == 1
+    return ltc_patient * jnp.array([0, 1]) + (1 - ltc_patient) * jnp.array([1 - p, p])
 
 
 def budget(
@@ -79,15 +79,15 @@ def wage(nu, params_dict):
     return wage
 
 
-def prob_long_term_care_patient(params_dict, lag_health, health):
+def prob_long_term_care_patient(params_dict, lagged_health, health):
     p = params_dict["ltc_prob"]
-    if (lag_health == 0) and (health == 1):
+    if (lagged_health == 0) and (health == 1):
         pi = p
-    elif lag_health == health == 0:
+    elif lagged_health == health == 0:
         pi = 1 - p
-    elif lag_health == 1 and health == 0:
+    elif lagged_health == 1 and health == 0:
         pi = 0
-    elif lag_health == health == 1:
+    elif lagged_health == health == 1:
         pi = 1
     # else: # noqa: E800
     #     raise ValueError("Health state not defined.") # noqa: E800
@@ -103,7 +103,7 @@ def choice_probs(cons, d, params_dict):
     return choice_prob
 
 
-def m_util_aux(init_cond, params_dict, choice_1, nu, consumption):
+def marginal_utility_weighted(init_cond, params_dict, choice_1, nu, consumption):
     """Return the expected marginal utility for one realization of the wage shock."""
     budget_1 = init_cond["wealth"]
     health_state_1 = init_cond["health"]
@@ -135,7 +135,9 @@ def euler_rhs(init_cond, params_dict, draws, weights, choice_1, consumption):
 
     rhs = 0
     for index_draw, draw in enumerate(draws):
-        marg_util_draw = m_util_aux(init_cond, params_dict, choice_1, draw, consumption)
+        marg_util_draw = marginal_utility_weighted(
+            init_cond, params_dict, choice_1, draw, consumption
+        )
         rhs += weights[index_draw] * marg_util_draw
     return rhs * beta * interest_factor
 
@@ -182,7 +184,7 @@ def input_data():
         budget_constraint=budget_dcegm,
         final_period_solution=solve_final_period_scalar,
         state_space_functions=state_space_functions,
-        transition_function=transitions_dcegm,
+        transition_function=get_transition_vector,
     )
 
     out = {}

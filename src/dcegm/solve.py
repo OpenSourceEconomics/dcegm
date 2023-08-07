@@ -89,7 +89,7 @@ def solve_dcegm(
         compute_value,
         compute_next_period_wealth,
         compute_upper_envelope,
-        transition_vector_by_state,
+        get_transition_vector_by_state,
     ) = get_partial_functions(
         params_dict,
         options,
@@ -150,7 +150,7 @@ def solve_dcegm(
         compute_inverse_marginal_utility=compute_inverse_marginal_utility,
         compute_value=compute_value,
         compute_next_period_wealth=compute_next_period_wealth,
-        transition_vector_by_state=transition_vector_by_state,
+        get_transition_vector_by_state=get_transition_vector_by_state,
         compute_upper_envelope=compute_upper_envelope,
         final_period_solution_partial=final_period_solution_partial,
     )
@@ -181,7 +181,7 @@ def backwards_induction(
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
     compute_next_period_wealth: Callable,
-    transition_vector_by_state: Callable,
+    get_transition_vector_by_state: Callable,
     compute_upper_envelope: Callable,
     final_period_solution_partial: Callable,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -240,8 +240,8 @@ def backwards_induction(
             agent's wealth of the next period (t + 1). The inputs
             ```saving```, ```shock```, ```params``` and ```options```
             are already partialled in.
-        transition_vector_by_state (Callable): Partialled transition function return
-            transition vector for each state.
+        get_transition_vector_by_state (Callable): Partialled transition function
+            return transition vector for each state.
         compute_upper_envelope (Callable): Function for calculating the upper
             envelope of the policy and value function. If the number of discrete
             choices is 1, this function is a dummy function that returns the policy
@@ -348,17 +348,17 @@ def backwards_induction(
             endog_grid_candidate,
             value_candidate,
             policy_candidate,
-            expected_values,
+            expected_value,
         ) = calculate_candidate_solutions_from_euler_equation(
             marg_util=marg_util,
             emax=emax,
             idx_state_choices_period=idx_state_choices_period,
             map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
             exogenous_savings_grid=exogenous_savings_grid,
-            transition_vector_by_state=transition_vector_by_state,
             discount_factor=discount_factor,
             interest_rate=interest_rate,
             state_choices_period=state_choices_period,
+            get_transition_vector_by_state=get_transition_vector_by_state,
             compute_inverse_marginal_utility=compute_inverse_marginal_utility,
             compute_value=compute_value,
         )
@@ -371,7 +371,7 @@ def backwards_induction(
                 endog_grid=endog_grid_candidate[state_choice_idx],
                 policy=policy_candidate[state_choice_idx],
                 value=value_candidate[state_choice_idx],
-                expected_value_zero_savings=expected_values[state_choice_idx, 0],
+                expected_value_zero_savings=expected_value[state_choice_idx, 0],
                 exog_grid=exogenous_savings_grid,
                 choice=choice,
                 compute_value=compute_value,

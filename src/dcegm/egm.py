@@ -13,10 +13,10 @@ def calculate_candidate_solutions_from_euler_equation(
     idx_state_choices_period: np.ndarray,
     map_state_to_post_decision_child_nodes: Callable,
     exogenous_savings_grid: np.ndarray,
-    transition_vector_by_state: Callable,
     discount_factor: float,
     interest_rate: float,
     state_choices_period: np.ndarray,
+    get_transition_vector_by_state: Callable,
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -29,10 +29,10 @@ def calculate_candidate_solutions_from_euler_equation(
     )
 
     (
-        endog_grid_candidate,
-        policy_candidate,
-        value_candiadate,
-        expected_values,
+        endog_grid,
+        policy,
+        value,
+        expected_value,
     ) = vmap(
         vmap(
             compute_optimal_policy_and_value,
@@ -43,7 +43,7 @@ def calculate_candidate_solutions_from_euler_equation(
         feasible_marg_utils,
         feasible_emax,
         exogenous_savings_grid,
-        transition_vector_by_state,
+        get_transition_vector_by_state,
         discount_factor,
         interest_rate,
         state_choices_period,
@@ -51,10 +51,10 @@ def calculate_candidate_solutions_from_euler_equation(
         compute_value,
     )
     return (
-        endog_grid_candidate,
-        value_candiadate,
-        policy_candidate,
-        expected_values,
+        endog_grid,
+        value,
+        policy,
+        expected_value,
     )
 
 
