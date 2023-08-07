@@ -6,7 +6,7 @@ from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space,
 )
 from toy_models.consumption_retirement_model.state_space_objects import (
-    get_state_specific_choice_set,
+    get_state_specific_feasible_choice_set,
 )
 
 
@@ -68,6 +68,8 @@ def test_state_choice_set(lagged_choice, n_periods, n_choices, n_exog_processes)
     period = 0
     exog_process = 0
     state = np.array([period, lagged_choice, exog_process])
-    choice_set = get_state_specific_choice_set(state, state_space, state_indexer)
+    choice_set = get_state_specific_feasible_choice_set(
+        state, state_space, state_indexer
+    )
 
     np.allclose(choice_set, np.arange(n_choices))

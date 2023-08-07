@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 from dcegm.solve import solve_dcegm
+from dcegm.state_space import create_state_choice_space
 from jax.config import config
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
@@ -17,7 +18,7 @@ from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space,
 )
 from toy_models.consumption_retirement_model.state_space_objects import (
-    get_state_specific_choice_set,
+    get_state_specific_feasible_choice_set,
 )
 from toy_models.consumption_retirement_model.utility_functions import (
     inverse_marginal_utility_crra,
@@ -55,7 +56,7 @@ def state_space_functions():
     """Return dict with utility functions."""
     return {
         "create_state_space": create_state_space,
-        "get_state_specific_choice_set": get_state_specific_choice_set,
+        "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
     }
 
 
@@ -77,7 +78,17 @@ def test_benchmark_models(
     params, options = load_example_model(f"{model}")
     options["n_exog_processes"] = 1
 
-    state_space, indexer = create_state_space(options)
+    state_space, map_state_to_index = create_state_space(options)
+    (
+        state_choice_space,
+        sum_state_choices_to_state,
+        map_state_choice_to_state,
+        _,
+    ) = create_state_choice_space(
+        state_space,
+        map_state_to_index,
+        state_space_functions["get_state_specific_choice_set"],
+    )
 
     if params.loc[("utility_function", "theta"), "value"] == 1:
         utility_functions["utility"] = utiility_func_log_crra
@@ -98,10 +109,10 @@ def test_benchmark_models(
     value_expected = pickle.load((TEST_RESOURCES_DIR / f"value_{model}.pkl").open("rb"))
 
     for period in range(23, -1, -1):
-        relevant_subset_state = state_space[np.where(state_space[:, 0] == period)][0]
+        state_choices_ids_period = np.where(state_choice_space[:, 0] == period)[0]
 
-        state_index = indexer[tuple(relevant_subset_state)]
-        for choice in choice_range:
+        for state_choice_idx in state_choices_ids_period:
+            choice = state_choice_space[state_choice_idx, -1]
             if model == "deaton":
                 policy_expec = policy_expected[period, choice]
                 value_expec = value_expected[period, choice]
@@ -109,13 +120,14 @@ def test_benchmark_models(
                 policy_expec = policy_expected[period][1 - choice].T
                 value_expec = value_expected[period][1 - choice].T
 
-            endog_grid_got = endog_grid_calculated[state_index, choice][
-                ~np.isnan(endog_grid_calculated[state_index, choice]),
+            endog_grid_got = endog_grid_calculated[state_choice_idx][
+                ~np.isnan(endog_grid_calculated[state_choice_idx]),
             ]
+
             aaae(endog_grid_got, policy_expec[0])
 
-            policy_got = policy_calculated[state_index, choice][
-                ~np.isnan(policy_calculated[state_index, choice]),
+            policy_got = policy_calculated[state_choice_idx][
+                ~np.isnan(policy_calculated[state_choice_idx]),
             ]
             aaae(policy_got, policy_expec[1])
 
@@ -129,8 +141,8 @@ def test_benchmark_models(
             value_expec_interp = np.interp(
                 policy_expec[0], value_expec[0], value_expec[1]
             )
-            value_got = value_calculated[state_index, choice][
-                ~np.isnan(value_calculated[state_index, choice])
+            value_got = value_calculated[state_choice_idx][
+                ~np.isnan(value_calculated[state_choice_idx])
             ]
 
             aaae(value_got, value_expec_interp)

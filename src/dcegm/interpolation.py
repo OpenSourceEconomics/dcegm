@@ -5,54 +5,6 @@ import numpy as np
 from jax import vmap
 
 
-def get_values_and_marginal_utilities(
-    compute_marginal_utility: Callable,
-    compute_value: Callable,
-    next_period_wealth: jnp.ndarray,
-    endog_grid_child_state: jnp.array,
-    choice_policies_child_state: jnp.ndarray,
-    choice_values_child_state: jnp.ndarray,
-):
-    """Interpolate marginal utilities and value functions.
-
-    Args:
-        compute_marginal_utility (callable): User-defined function to compute the
-            agent's marginal utility. The input ```params``` is already partialled in.
-        compute_value (callable): User-defined function to compute the agent's
-            value function. The input ```params``` is already partialled in.
-        next_period_wealth (jnp.ndarray): The agent's next period wealth.
-            Array of shape (n_quad_stochastic, n_grid_wealth,).
-        endog_grid_child_state (jnp.ndarray): 2d array containing the endogenous
-            wealth grid of each child state. Shape (n_choice, n_grid_wealth).
-        choice_policies_child_state (jnp.ndarray): 2d array containing the corresponding
-            policy function values of the endogenous wealth grid of each child state.
-            Shape (n_choice, n_grid_wealth).
-        choice_values_child_state (jnp.ndarray): 2d array containing the corresponding
-            value function values of the endogenous wealth grid of each child state.
-            Shape (n_choice, n_grid_wealth).
-
-
-    Returns:
-        Callable: Interpolated marginal utility function.
-
-    """
-    full_choice_set = jnp.arange(choice_policies_child_state.shape[0], dtype=jnp.int32)
-
-    marg_utilities_choice_specific, value_choice_specific = vmap(
-        interpolate_and_calc_marginal_utilities, in_axes=(None, None, 0, None, 0, 0, 0)
-    )(
-        compute_marginal_utility,
-        compute_value,
-        full_choice_set,
-        next_period_wealth,
-        endog_grid_child_state,
-        choice_policies_child_state,
-        choice_values_child_state,
-    )
-
-    return marg_utilities_choice_specific, value_choice_specific
-
-
 def interpolate_and_calc_marginal_utilities(
     compute_marginal_utility: Callable,
     compute_value: Callable,
