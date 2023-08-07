@@ -111,8 +111,8 @@ def test_benchmark_models(
     for period in range(23, -1, -1):
         state_choices_ids_period = np.where(state_choice_space[:, 0] == period)[0]
 
-        for id_state_choice in state_choices_ids_period:
-            choice = state_choice_space[id_state_choice, -1]
+        for state_choice_idx in state_choices_ids_period:
+            choice = state_choice_space[state_choice_idx, -1]
             if model == "deaton":
                 policy_expec = policy_expected[period, choice]
                 value_expec = value_expected[period, choice]
@@ -120,14 +120,14 @@ def test_benchmark_models(
                 policy_expec = policy_expected[period][1 - choice].T
                 value_expec = value_expected[period][1 - choice].T
 
-            endog_grid_got = endog_grid_calculated[id_state_choice][
-                ~np.isnan(endog_grid_calculated[id_state_choice]),
+            endog_grid_got = endog_grid_calculated[state_choice_idx][
+                ~np.isnan(endog_grid_calculated[state_choice_idx]),
             ]
 
             aaae(endog_grid_got, policy_expec[0])
 
-            policy_got = policy_calculated[id_state_choice][
-                ~np.isnan(policy_calculated[id_state_choice]),
+            policy_got = policy_calculated[state_choice_idx][
+                ~np.isnan(policy_calculated[state_choice_idx]),
             ]
             aaae(policy_got, policy_expec[1])
 
@@ -141,8 +141,8 @@ def test_benchmark_models(
             value_expec_interp = np.interp(
                 policy_expec[0], value_expec[0], value_expec[1]
             )
-            value_got = value_calculated[id_state_choice][
-                ~np.isnan(value_calculated[id_state_choice])
+            value_got = value_calculated[state_choice_idx][
+                ~np.isnan(value_calculated[state_choice_idx])
             ]
 
             aaae(value_got, value_expec_interp)

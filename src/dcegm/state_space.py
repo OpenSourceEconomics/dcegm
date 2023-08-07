@@ -149,11 +149,11 @@ def create_state_choice_space(
             idx_min = idx
             period += 1
 
-        choice_set = get_state_specific_choice_set(
+        feasible_choice_set = get_state_specific_choice_set(
             state_vec, state_space, map_state_to_state_space_index
         )
 
-        for choice in choice_set:
+        for choice in feasible_choice_set:
             state_choice_space[idx, :-1] = state_vec
             state_choice_space[idx, -1] = choice
 
@@ -168,7 +168,7 @@ def create_state_choice_space(
         # same value doesn't change the maximum.
         # Only used in aggregation function.
         for choice in range(n_choices):
-            if choice not in choice_set:
+            if choice not in feasible_choice_set:
                 reshape_state_choice_vec_to_mat[state_idx, choice] = idx - idx_min - 1
 
     return (

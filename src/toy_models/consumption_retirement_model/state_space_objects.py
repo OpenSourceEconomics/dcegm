@@ -90,8 +90,8 @@ def get_state_specific_choice_set(
     # Once the agent choses retirement, she can only choose retirement thereafter.
     # Hence, retirement is an absorbing state.
     if state[1] == 1:
-        choice_set = np.array([1])
+        feasible_choice_set = np.array([1])
     else:
-        choice_set = np.arange(n_choices)
+        feasible_choice_set = np.arange(n_choices)
 
-    return choice_set
+    return feasible_choice_set
