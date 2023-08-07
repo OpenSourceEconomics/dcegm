@@ -85,15 +85,13 @@ def get_state_specific_choice_set(
             agent's (restricted) feasible choice set in the given state.
 
     """
-    n_state_variables = indexer.shape[1]
+    n_choices = indexer.shape[1]  # lagged_choice is a state variable
 
     # Once the agent choses retirement, she can only choose retirement thereafter.
     # Hence, retirement is an absorbing state.
     if state[1] == 1:
         choice_set = np.array([1])
     else:
-        choice_set = np.arange(n_state_variables)
-
-    # breakpoint()
+        choice_set = np.arange(n_choices)
 
     return choice_set

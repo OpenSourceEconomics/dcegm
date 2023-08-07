@@ -159,7 +159,7 @@ def calc_current_value(
 
 
 def create_multi_dim_arrays(
-    state_space: np.ndarray,
+    state_choice_space: np.ndarray,
     options: Dict[str, int],
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Create multi-dimensional arrays for endogenous grid, policy and value function.
@@ -179,7 +179,8 @@ def create_multi_dim_arrays(
     of the policy and value functions).
 
     Args:
-        state_space (np.ndarray): Collection of all possible states.
+        state_space (np.ndarray): Collection of all possible state and choice
+            combinations.
         options (dict): Options dictionary.
 
     Returns:
@@ -197,12 +198,11 @@ def create_multi_dim_arrays(
 
     """
     n_grid_wealth = options["grid_points_wealth"]
-    n_choices = options["n_discrete_choices"]
-    n_states = state_space.shape[0]
+    n_states_choices = state_choice_space.shape[0]
 
-    endog_grid_container = np.empty((n_states, n_choices, int(1.1 * n_grid_wealth)))
-    policy_container = np.empty((n_states, n_choices, int(1.1 * n_grid_wealth)))
-    value_container = np.empty((n_states, n_choices, int(1.1 * n_grid_wealth)))
+    endog_grid_container = np.empty((n_states_choices, int(1.1 * n_grid_wealth)))
+    policy_container = np.empty((n_states_choices, int(1.1 * n_grid_wealth)))
+    value_container = np.empty((n_states_choices, int(1.1 * n_grid_wealth)))
     endog_grid_container[:] = np.nan
     policy_container[:] = np.nan
     value_container[:] = np.nan
