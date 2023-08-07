@@ -54,7 +54,7 @@ repos:
         language_version: python3.10
         exclude: tests/utils/fast_upper_envelope_org.py
   - repo: https://github.com/pycqa/flake8
-    rev: 6.1.0
+    rev: 6.0.0
     hooks:
       - id: flake8
         language_version: python3.10
