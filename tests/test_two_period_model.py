@@ -479,7 +479,6 @@ def test_two_period(input_data, input_data_two_exog_processes, wealth_idx, state
 TEST_CASES = list(product(list(range(WEALTH_GRID_POINTS)), list(range(8))))
 
 
-# @pytest.mark.skip
 @pytest.mark.parametrize(
     "wealth_idx, state_idx",
     TEST_CASES,
@@ -497,8 +496,6 @@ def test_two_period_two_exog_processes(
     state_space, map_state_to_index = create_state_space_two_exog_processes(
         input_data_two_exog_processes["options"]
     )
-    # policy = input_data["policy"]
-    # wealth = input_data["endog_grid"]
     policy = input_data_two_exog_processes["policy"]
     wealth = input_data_two_exog_processes["endog_grid"]
     (
@@ -514,7 +511,6 @@ def test_two_period_two_exog_processes(
     initial_cond = {}
     state = state_space[state_idx, :]
     idxs_state_choice_combs = reshape_state_choice_vec_to_mat[state_idx]
-    # initial_cond["health"] = state[-1]
     initial_cond["health"] = state[-1] > 1
     initial_cond["job_offer"] = 1
 
@@ -528,15 +524,6 @@ def test_two_period_two_exog_processes(
             initial_cond["wealth"] = wealth
 
             cons_calc = policy[wealth_idx + 1]
-            euler = euler_rhs(
-                initial_cond,
-                params_dict,
-                quad_draws,
-                quad_weights,
-                choice_in_period_1,
-                cons_calc,
-            )
-            marg_util = marginal_utility(cons_calc, params_dict)
             diff = euler_rhs(
                 initial_cond,
                 params_dict,
@@ -546,8 +533,4 @@ def test_two_period_two_exog_processes(
                 cons_calc,
             ) - marginal_utility(cons_calc, params_dict)
 
-            if state[0] > 0:
-                if diff > 1e-6:
-                    breakpoint()
-
-                assert_allclose(diff, 0, atol=1e-6)
+            assert_allclose(diff, 0, atol=1e-6)
