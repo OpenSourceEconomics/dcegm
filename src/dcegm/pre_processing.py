@@ -107,9 +107,10 @@ def get_partial_functions(
         options=options,
     )
 
-    transition_function = partial(
-        exogenous_transition_function, params_dict=params_dict
-    )
+    # transition_function = partial(
+    #     exogenous_transition_function,
+    #     transition_matrix=transition_matrix,
+    # )
 
     if options["n_discrete_choices"] == 1:
         compute_upper_envelope = _return_policy_and_value
@@ -123,7 +124,7 @@ def get_partial_functions(
         compute_value,
         compute_next_period_wealth,
         compute_upper_envelope,
-        transition_function,
+        # transition_function,
     )
 
 

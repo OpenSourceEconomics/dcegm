@@ -62,7 +62,7 @@ def compute_optimal_policy_and_value(
     marg_utils: np.ndarray,
     emax: np.ndarray,
     exogenous_savings_grid: np.ndarray,
-    transition_vector_by_state: Callable,
+    get_transition_vector_by_state: Callable,
     discount_factor: float,
     interest_rate: float,
     state_choice_subspace: np.ndarray,
@@ -104,13 +104,13 @@ def compute_optimal_policy_and_value(
             containing the current state- and choice-specific policy function.
         - value (np.ndarray): 1d array of shape (n_grid_wealth + 1,)
             containing the current state- and choice-specific value function.
-        expected_value_zero_savings (float): The agent's expected value given that she
+           expected_value_zero_savings (float): The agent's expected value given that she
             saves zero.
 
     """
     state_vec = state_choice_subspace[:-1]
     choice = state_choice_subspace[-1]
-    transition_probs = transition_vector_by_state(state_vec)
+    transition_probs = get_transition_vector_by_state(state_vec)
 
     policy, expected_value = solve_euler_equation(
         marg_utils=marg_utils,

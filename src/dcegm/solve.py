@@ -82,6 +82,7 @@ def solve_dcegm(
         options["quadrature_points_stochastic"], params_dict["sigma"]
     )
 
+    get_transition_vector_by_state = transition_function
     (
         compute_utility,
         compute_marginal_utility,
@@ -89,7 +90,7 @@ def solve_dcegm(
         compute_value,
         compute_next_period_wealth,
         compute_upper_envelope,
-        get_transition_vector_by_state,
+        # get_transition_vector_by_state,
     ) = get_partial_functions(
         params_dict,
         options,
@@ -100,6 +101,7 @@ def solve_dcegm(
     create_state_space = state_space_functions["create_state_space"]
 
     state_space, map_state_to_state_space_index = create_state_space(options)
+    # breakpoint()
     (
         state_choice_space,
         map_state_choice_vec_to_parent_state,
@@ -128,6 +130,8 @@ def solve_dcegm(
     endog_grid_container, policy_container, value_container = create_multi_dim_arrays(
         state_choice_space, options
     )
+
+    # breakpoint()
 
     endog_grid_container, policy_container, value_container = backwards_induction(
         map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
