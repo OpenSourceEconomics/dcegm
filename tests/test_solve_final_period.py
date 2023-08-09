@@ -40,7 +40,7 @@ def test_consume_everything_in_final_period(
 ):
     params, options = load_example_model(f"{model}")
     params_dict = convert_params_to_dict(params)
-    options["n_exog_processes"] = 1
+    options["n_exog_states"] = 1
     n_periods = options["n_periods"]
     options["n_discrete_choices"]
 
@@ -78,7 +78,6 @@ def test_consume_everything_in_final_period(
         _compute_value,
         compute_next_period_wealth,
         _compute_upper_envelope,
-        _transition_vector_by_state,
     ) = get_partial_functions(
         params_dict=params_dict,
         options=options,

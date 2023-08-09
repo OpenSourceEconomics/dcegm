@@ -104,8 +104,8 @@ def compute_optimal_policy_and_value(
             containing the current state- and choice-specific policy function.
         - value (np.ndarray): 1d array of shape (n_grid_wealth + 1,)
             containing the current state- and choice-specific value function.
-           expected_value_zero_savings (float): The agent's expected value given that she
-            saves zero.
+        - expected_value_zero_savings (float): The agent's expected value given that
+            she saves nothing.
 
     """
     state_vec = state_choice_subspace[:-1]
