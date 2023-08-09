@@ -220,12 +220,16 @@ def prob_job_offer(params_dict, lagged_job_offer, job_offer):
 
     if (lagged_job_offer == 0) and (job_offer == 1):
         pi = 0
+        pi = 0.5
     elif lagged_job_offer == job_offer == 0:
         pi = 1
+        pi = 0.5
     elif lagged_job_offer == 1 and job_offer == 0:
         pi = 0
+        # pi = 0.5
     elif lagged_job_offer == job_offer == 1:
         pi = 1
+        # pi = 0.5
 
     return pi
 
@@ -479,7 +483,8 @@ def input_data_two_exog_processes():
     }
 
     ltc_probabilities = jnp.array([[0.7, 0.3], [0, 1]])
-    job_offer_probabilities = jnp.array([[1, 0], [0, 1]])
+    # job_offer_probabilities = jnp.array([[1, 0], [0, 1]])
+    job_offer_probabilities = jnp.array([[0.5, 0.5], [0.1, 0.9]])
     transition_matrix = jnp.kron(ltc_probabilities, job_offer_probabilities)
 
     get_transition_vector_partial = partial(
@@ -540,8 +545,9 @@ def test_two_period_two_exog_processes(
     initial_cond = {}
     state = state_space[state_idx, :]
     idxs_state_choice_combs = reshape_state_choice_vec_to_mat[state_idx]
+
     initial_cond["health"] = state[-1] > 1
-    initial_cond["job_offer"] = state[1] == 0
+    initial_cond["job_offer"] = state[1] == 0  # working (no retirement) in period 0
 
     for idx_state_choice in idxs_state_choice_combs:
         choice_in_period_1 = state_choice_space[idx_state_choice][-1]
