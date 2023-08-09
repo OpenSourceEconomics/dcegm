@@ -72,12 +72,12 @@ def budget_dcegm_two_exog_processes(
     health_costs = params_dict["ltc_cost"]
     wage = params_dict["wage_avg"]
 
-    lagged_job_offer = 1
+    # lagged_job_offer = jnp.abs(state[-1] - 2) * (state[-1] > 0) * state[0]  # [1, 3]
     ltc_patient = state[-1] > 1  # [2, 3]
 
     resource = (
         interest_factor * saving
-        + (wage + income_shock) * lagged_job_offer * (1 - state[1])
+        + (wage + income_shock) * (1 - state[1])
         - health_costs * ltc_patient
     )
     return jnp.maximum(resource, 0.5)
@@ -219,9 +219,9 @@ def prob_job_offer(params_dict, lagged_job_offer, job_offer):
     # p = params_dict["job_offer_prob"]
 
     if (lagged_job_offer == 0) and (job_offer == 1):
-        pi = 1
-    elif lagged_job_offer == job_offer == 0:
         pi = 0
+    elif lagged_job_offer == job_offer == 0:
+        pi = 1
     elif lagged_job_offer == 1 and job_offer == 0:
         pi = 0
     elif lagged_job_offer == job_offer == 1:
@@ -541,7 +541,7 @@ def test_two_period_two_exog_processes(
     state = state_space[state_idx, :]
     idxs_state_choice_combs = reshape_state_choice_vec_to_mat[state_idx]
     initial_cond["health"] = state[-1] > 1
-    initial_cond["job_offer"] = 1
+    initial_cond["job_offer"] = state[1] == 0
 
     for idx_state_choice in idxs_state_choice_combs:
         choice_in_period_1 = state_choice_space[idx_state_choice][-1]
