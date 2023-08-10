@@ -83,79 +83,6 @@ def budget_dcegm_two_exog_processes(
     return jnp.maximum(resource, 0.5)
 
 
-# 2 exogenous processes, 2**n exog process states
-# example: process 1) good health, bad health (0, 1)
-# 2) wage offer: no offer, offer (0, 1)
-# 2**2 exog process states: offer_good, offer_bad, nooffer_good, nooffer_bad
-# 2 matrices
-
-
-# def create_transition_matrix(*trans_probs, params_dict):
-#     # *numpy arrays
-#     # how to unzip?
-
-#     # example: proc1, proc2
-
-#     # What if they are of different length?
-#     # 3 health states, 2 job offer states
-#     # good_job_good_job, good_job_good_nojob, good_job_medium_job,
-#   good_job_medium_no_job
-#     # good_job_bad_job, good_job_bad_no_job # 6
-#     # good_nojob ... # 6
-#     # 12 * 3 = 36
-
-#     # 3 * 3 * 3 * 3 = 27 * 3 = 81
-
-#     # multi-dim array for job offer prob given state variables
-#     # state vars: age, married, experience --> 3 + 2 = 5 dimensional
-#     # age 0,1
-#     # married 0,1
-#     # experience 0,1
-#     n_exog = 2  # job offer yes no (for health could be 3 or 4)
-#     n_age = 2
-#     n_experience = 2
-#     input_mat = np.zeros((n_exog, n_exog, n_age, 2, n_experience))
-
-#     # select via
-#     age = 0
-#     married = 1
-#     experience = 1
-#     input_mat[..., age, married, experience]
-
-#     # offer_offer, offer_no_offer, no_offer, offer, no_offer, no_offer
-#     job_offer_simple = np.array([[0.9, 0.1], [0.6, 0.4]])
-
-#     # health transition
-#     p = params_dict["ltc_prob"]
-#     input_health_mat = np.array([[1 - p, p], [0, 1]])
-
-#     # combine: (4, 4)
-
-#     # offer_good_offer_good, offer_good_offer_bad, offer_good_no_offer_good,
-# offer_good_no_offer_bad
-
-#     # medium_job, medium_no_job,
-
-
-# def get_transition_vector_by_state(state, trans_mat, params_dict):
-#     # good_good, good_bad, bad_good, bad_bad
-#     p = params_dict["ltc_prob"]
-#     # health_probabilities = np.array([[0.7, 0.3], [0, 1]])
-#     health_probabilities = np.array([[1 - p, p], [0, 1]])
-#     job_offer_probabilities = np.array([[0.9, 0.1], [0.6, 0.4]])
-#     job_offer_probabilities = np.array([[1, 0], [0, 1]])
-
-#     n_exog_procs = 2
-#     n_exog_states = np.max(len(job_offer_probabilities), len(health_probabilities))
-#     # transition_matrix = np.zeros(
-#     #     (n_exog_states**n_exog_procs, n_exog_states**n_exog_procs)
-#     # )
-#     transition_matrix = np.kron(health_probabilities, job_offer_probabilities)
-
-#     # select row
-#     return transition_matrix[state[-1]]
-
-
 def budget(
     lagged_resources,
     lagged_consumption,
@@ -209,8 +136,6 @@ def prob_long_term_care_patient(params_dict, lagged_bad_health, bad_health):
         pi = 0
     elif lagged_bad_health == bad_health == 1:
         pi = 1
-    # else: # noqa: E800
-    #     raise ValueError("Health state not defined.") # noqa: E800
 
     return pi
 
@@ -219,17 +144,13 @@ def prob_job_offer(params_dict, lagged_job_offer, job_offer):
     # p = params_dict["job_offer_prob"]
 
     if (lagged_job_offer == 0) and (job_offer == 1):
-        pi = 0
         pi = 0.5
     elif lagged_job_offer == job_offer == 0:
-        pi = 1
         pi = 0.5
     elif lagged_job_offer == 1 and job_offer == 0:
-        pi = 0
-        # pi = 0.5
+        pi = 0.1
     elif lagged_job_offer == job_offer == 1:
-        pi = 1
-        # pi = 0.5
+        pi = 0.9
 
     return pi
 
@@ -242,82 +163,113 @@ def choice_prob_retirement(cons, d, params_dict):
     return choice_prob
 
 
-def m_util_aux(init_cond, params_dict, choice_1, nu, consumption):
+def m_util_aux(
+    state,
+    init_cond,
+    params_dict,
+    retirement_choice_1,
+    nu,
+    consumption,
+    get_transition_vector_by_state,
+):
     """Return the expected marginal utility for one realization of the wage shock."""
     budget_1 = init_cond["wealth"]
-    health_state_1 = init_cond["health"]
+    # ltc_state_1 = init_cond["bad_health"]
 
     weighted_marginal = 0
-    for health_state_2 in (0, 1):
-        for choice_2 in (0, 1):
+    for ltc_state_2 in (0, 1):
+        for retirement_choice_2 in (0, 1):
             budget_2 = budget(
                 budget_1,
                 consumption,
-                choice_1,
+                retirement_choice_1,
                 wage(nu, params_dict),
-                health_state_2,
+                ltc_state_2,
                 params_dict,
             )
             marginal_util = marginal_utility(budget_2, params_dict)
-            choice_prob = choice_prob_retirement(budget_2, choice_2, params_dict)
-            health_prob = prob_long_term_care_patient(
-                params_dict, health_state_1, health_state_2
+            choice_prob = choice_prob_retirement(
+                budget_2, retirement_choice_2, params_dict
             )
-            weighted_marginal += choice_prob * health_prob * marginal_util
+            # ltc_prob = prob_long_term_care_patient(
+            #     params_dict, ltc_state_1, ltc_state_2
+            # )
+            ltc_prob = get_transition_vector_by_state[ltc_state_2]
+
+            weighted_marginal += choice_prob * ltc_prob * marginal_util
 
     return weighted_marginal
 
 
 def marginal_utility_weighted_two_exog_processes(
-    init_cond, params_dict, choice_1, nu, consumption
+    init_cond, params_dict, retirement_choice_1, nu, consumption
 ):
     """Return the expected marginal utility for one realization of the wage shock."""
     budget_1 = init_cond["wealth"]
-    health_state_1 = init_cond["health"]
+    ltc_state_1 = init_cond["bad_health"]
     job_state_1 = init_cond["job_offer"]
 
     weighted_marginal = 0
-    for health_state_2 in (0, 1):
+    for ltc_state_2 in (0, 1):
         for job_state_2 in (0, 1):
-            for choice_2 in (0, 1):
+            for retirement_choice_2 in (0, 1):
                 budget_2 = budget_two_exog_processes(
                     budget_1,
                     consumption,
-                    choice_1,
+                    retirement_choice_1,
                     wage(nu, params_dict),
-                    health_state_2,
+                    ltc_state_2,
                     job_state_1,
                     params_dict,
                 )
 
                 marginal_util = marginal_utility(budget_2, params_dict)
-                choice_prob = choice_prob_retirement(budget_2, choice_2, params_dict)
+                choice_prob = choice_prob_retirement(
+                    budget_2, retirement_choice_2, params_dict
+                )
 
-                health_prob = prob_long_term_care_patient(
-                    params_dict, health_state_1, health_state_2
+                ltc_prob = prob_long_term_care_patient(
+                    params_dict, ltc_state_1, ltc_state_2
                 )
                 job_offer_prob = prob_job_offer(params_dict, job_state_1, job_state_2)
 
                 weighted_marginal += (
-                    choice_prob * health_prob * job_offer_prob * marginal_util
+                    choice_prob * ltc_prob * job_offer_prob * marginal_util
                 )
 
     return weighted_marginal
 
 
-def euler_rhs(init_cond, params_dict, draws, weights, choice_1, consumption):
+def euler_rhs(
+    state,
+    init_cond,
+    params_dict,
+    draws,
+    weights,
+    retirement_choice_1,
+    consumption,
+    get_transition_vector_by_state,
+):
     beta = params_dict["beta"]
     interest_factor = 1 + params_dict["interest_rate"]
 
     rhs = 0
     for index_draw, draw in enumerate(draws):
-        marg_util_draw = m_util_aux(init_cond, params_dict, choice_1, draw, consumption)
+        marg_util_draw = m_util_aux(
+            state,
+            init_cond,
+            params_dict,
+            retirement_choice_1,
+            draw,
+            consumption,
+            get_transition_vector_by_state=get_transition_vector_by_state,
+        )
         rhs += weights[index_draw] * marg_util_draw
     return rhs * beta * interest_factor
 
 
 def euler_rhs_two_exog_processes(
-    init_cond, params_dict, draws, weights, choice_1, consumption
+    init_cond, params_dict, draws, weights, retirement_choice_1, consumption
 ):
     beta = params_dict["beta"]
     interest_factor = 1 + params_dict["interest_rate"]
@@ -325,7 +277,7 @@ def euler_rhs_two_exog_processes(
     rhs = 0
     for index_draw, draw in enumerate(draws):
         marg_util_draw = marginal_utility_weighted_two_exog_processes(
-            init_cond, params_dict, choice_1, draw, consumption
+            init_cond, params_dict, retirement_choice_1, draw, consumption
         )
         rhs += weights[index_draw] * marg_util_draw
     return rhs * beta * interest_factor
@@ -389,6 +341,8 @@ def input_data():
     out["options"] = options
     out["endog_grid"] = endog_grid
     out["policy"] = policy
+    out["get_transition_vector_by_state"] = get_transition_vector_partial
+
     return out
 
 
@@ -418,27 +372,31 @@ def test_two_period(input_data, wealth_idx, state_idx):
         map_state_to_index,
         get_state_specific_feasible_choice_set,
     )
-    initial_cond = {}
+    initial_conditions = {}
     state = state_space[state_idx, :]
+    trans_vec = input_data["get_transition_vector_by_state"](state)
+
     idxs_state_choice_combs = reshape_state_choice_vec_to_mat[state_idx]
-    initial_cond["health"] = state[-1]
+    initial_conditions["bad_health"] = state[-1]
 
     for idx_state_choice in idxs_state_choice_combs:
         choice_in_period_1 = state_choice_space[idx_state_choice][-1]
         policy = input_data["policy"][idx_state_choice]
         wealth = input_data["endog_grid"][idx_state_choice, wealth_idx + 1]
         if ~np.isnan(wealth) and wealth > 0:
-            initial_cond["wealth"] = wealth
+            initial_conditions["wealth"] = wealth
 
-            cons_calc = policy[wealth_idx + 1]
+            consumption = policy[wealth_idx + 1]
             diff = euler_rhs(
-                initial_cond,
+                state,
+                initial_conditions,
                 params_dict,
                 quad_draws,
                 quad_weights,
                 choice_in_period_1,
-                cons_calc,
-            ) - marginal_utility(cons_calc, params_dict)
+                consumption,
+                get_transition_vector_by_state=trans_vec,
+            ) - marginal_utility(consumption, params_dict)
 
             assert_allclose(diff, 0, atol=1e-6)
 
@@ -542,12 +500,14 @@ def test_two_period_two_exog_processes(
         map_state_to_index,
         get_state_specific_feasible_choice_set,
     )
-    initial_cond = {}
+    initial_conditions = {}
     state = state_space[state_idx, :]
     idxs_state_choice_combs = reshape_state_choice_vec_to_mat[state_idx]
 
-    initial_cond["health"] = state[-1] > 1
-    initial_cond["job_offer"] = state[1] == 0  # working (no retirement) in period 0
+    initial_conditions["bad_health"] = state[-1] > 1
+    initial_conditions["job_offer"] = (
+        state[1] == 0
+    )  # working (no retirement) in period 0
 
     for idx_state_choice in idxs_state_choice_combs:
         choice_in_period_1 = state_choice_space[idx_state_choice][-1]
@@ -556,16 +516,16 @@ def test_two_period_two_exog_processes(
             idx_state_choice, wealth_idx + 1
         ]
         if ~np.isnan(wealth) and wealth > 0:
-            initial_cond["wealth"] = wealth
+            initial_conditions["wealth"] = wealth
 
-            cons_calc = policy[wealth_idx + 1]
+            consumption = policy[wealth_idx + 1]
             diff = euler_rhs_two_exog_processes(
-                initial_cond,
+                initial_conditions,
                 params_dict,
                 quad_draws,
                 quad_weights,
                 choice_in_period_1,
-                cons_calc,
-            ) - marginal_utility(cons_calc, params_dict)
+                consumption,
+            ) - marginal_utility(consumption, params_dict)
 
             assert_allclose(diff, 0, atol=1e-6)
