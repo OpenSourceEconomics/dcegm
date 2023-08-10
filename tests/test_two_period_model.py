@@ -53,6 +53,13 @@ def get_transition_vector_dcegm(state, transition_matrix):
     return transition_matrix[state[-1]]
 
 
+def get_transition_vector_dcegm_two_exog_processes(state, transition_matrix):
+    # state[-1] is the exogenous state (combined health and job offer)
+    # state[0] is the endogenous state variable period
+    # i.e. we allow for period (age) specific transition probabilities
+    return transition_matrix[state[-1], ..., state[0]]
+
+
 def budget_dcegm(state, saving, income_shock, params_dict, options):  # noqa: 100
     interest_factor = 1 + params_dict["interest_rate"]
     health_costs = params_dict["ltc_cost"]
@@ -323,7 +330,8 @@ def input_data():
     p = params.loc[("transition", "ltc_prob"), "value"]
     transition_matrix = jnp.array([[1 - p, p], [0, 1]])
     get_transition_vector_partial = partial(
-        get_transition_vector_dcegm, transition_matrix=transition_matrix
+        get_transition_vector_dcegm,
+        transition_matrix=transition_matrix,
     )
 
     endog_grid, policy, _ = solve_dcegm(
@@ -441,12 +449,30 @@ def input_data_two_exog_processes():
     }
 
     ltc_probabilities = jnp.array([[0.7, 0.3], [0, 1]])
+
+    job_offer_probabilities = jnp.array([[0.5, 0.5], [0.1, 0.9]])
     # job_offer_probabilities = jnp.array([[1, 0], [0, 1]])
     job_offer_probabilities = jnp.array([[0.5, 0.5], [0.1, 0.9]])
-    transition_matrix = jnp.kron(ltc_probabilities, job_offer_probabilities)
+    job_offer_probabilities_period_specific = jnp.repeat(
+        job_offer_probabilities[:, :, jnp.newaxis], 2, axis=2
+    )
+
+    transition_matrix_age0 = jnp.kron(
+        ltc_probabilities, job_offer_probabilities_period_specific[..., 0]
+    )
+    transition_matrix_age1 = jnp.kron(
+        ltc_probabilities, job_offer_probabilities_period_specific[..., 1]
+    )
+    transition_matrix = jnp.dstack((transition_matrix_age0, transition_matrix_age1))
+    # Has shape (4, 4, 4)
+    # The third dimension, contains the age-specific transition matrices.
+    # Note that age (or period) is a state variable.
+    # [..., 0] is the transition matrix for age 0
+    # [..., 1] is the transition matrix for age 1
 
     get_transition_vector_partial = partial(
-        get_transition_vector_dcegm, transition_matrix=transition_matrix
+        get_transition_vector_dcegm_two_exog_processes,
+        transition_matrix=transition_matrix,
     )
 
     endog_grid, policy, _ = solve_dcegm(
