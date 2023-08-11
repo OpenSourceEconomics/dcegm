@@ -3,6 +3,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from dcegm.interpolation import linear_interpolation_with_extrapolation
 from dcegm.solve import solve_dcegm
 from dcegm.state_space import create_state_choice_space
 from jax.config import config
@@ -138,9 +139,16 @@ def test_benchmark_models(
             # function is longer than Fedor's.
             # Hence, we interpolate Fedor's refined value function to our refined
             # grid.
-            value_expec_interp = np.interp(
-                policy_expec[0], value_expec[0], value_expec[1]
+            # value_expec_interp = np.interp(
+            #     policy_expec[0], value_expec[0], value_expec[1]
+            # )
+
+            value_expec_interp = linear_interpolation_with_extrapolation(
+                x=value_expec[0],
+                y=value_expec[1],
+                x_new=policy_expec[0],
             )
+
             value_got = value_calculated[state_choice_idx][
                 ~np.isnan(value_calculated[state_choice_idx])
             ]

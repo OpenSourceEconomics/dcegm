@@ -92,6 +92,7 @@ def fast_upper_envelope_wrapper(
             compute_value=compute_value,
         )
         exog_grid = np.append(np.zeros(n_grid_wealth // 10 - 1), exog_grid)
+    #
 
     endog_grid = np.append(0, endog_grid)
     policy = np.append(0, policy)
