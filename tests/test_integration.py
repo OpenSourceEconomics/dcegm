@@ -124,13 +124,25 @@ def test_benchmark_models(
             endog_grid_got = endog_grid_calculated[state_choice_idx][
                 ~np.isnan(endog_grid_calculated[state_choice_idx]),
             ]
-
-            aaae(endog_grid_got, policy_expec[0])
-
             policy_got = policy_calculated[state_choice_idx][
                 ~np.isnan(policy_calculated[state_choice_idx]),
             ]
+
+            #
+            # policy_expec_interp = linear_interpolation_with_extrapolation(
+            #     x=policy_expec[0], y=policy_expec[1], x_new=endog_grid_got
+            # )
+            # policy_got_interp = linear_interpolation_with_extrapolation(
+            #     x=endog_grid_got, y=policy_got, x_new=policy_expec[0]
+            # )
+            # aaae(policy_got_interp, policy_expec[0])
+            # #
+
+            aaae(endog_grid_got, policy_expec[0])
+
             aaae(policy_got, policy_expec[1])
+            # aaae(policy_got, policy_expec_interp)
+            # aaae(policy_got_interp, policy_expec[1])
 
             # In Fedor's upper envelope, there are two endogenous wealth grids;
             # one for the value function and a longer one for the policy function.
