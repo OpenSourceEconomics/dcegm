@@ -1,7 +1,7 @@
 ---
 name: dcegm
 channels:
-  - conda-forge,
+  - conda-forge
   - nodefaults
 dependencies:
   - jax
