@@ -4,14 +4,11 @@ channels:
   - conda-forge,
   - nodefaults
 dependencies:
-  - setuptools_scm
-  - toml
-#   # Package dependencies
-#   - jax
-#   - numpy
-#   - pandas
+  - jax
+  - numpy
+  - pandas
 
-#   # Testing infrastructure
-#   - pytest
-#   - pytest-cov
-#   - pytest-xdist
+  # Testing infrastructure
+  - pytest
+  - pytest-cov
+  - pytest-xdist
