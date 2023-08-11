@@ -29,7 +29,6 @@ dependencies:
   - pre-commit
   - setuptools_scm
   - toml
-  - yaml
 
   # Conda
   - anaconda-client

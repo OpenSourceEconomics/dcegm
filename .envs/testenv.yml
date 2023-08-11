@@ -6,7 +6,6 @@ channels:
 dependencies:
   - setuptools_scm
   - toml
-  - yaml
 
   # Package dependencies
   - dags
@@ -19,7 +18,3 @@ dependencies:
   - pytest
   - pytest-cov
   - pytest-xdist
-
-  # Install dcegm locally
-  - pip:
-      - -e ../
