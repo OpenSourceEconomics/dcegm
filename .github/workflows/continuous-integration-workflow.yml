@@ -26,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: create build environment
-        uses: mamba-org/setup-micromamba
+        uses: mamba-org/provision-with-micromamba@main
         with:
           environment-file: ./.envs/testenv.yml
           environment-name: dcegm
