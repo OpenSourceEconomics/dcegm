@@ -31,15 +31,12 @@ jobs:
         with:
           environment-file: ./.envs/testenv.yml
           environment-name: dcegm
-          create-args: >-
-            python=3.10
           extra-specs: |
             python=${{ matrix.python-version }}
           init-shell: >-
             bash
             powershell
           cache-environment: true
-        post-cleanup: all
       - name: run pytest
         shell: bash -el {0}
         run: |
