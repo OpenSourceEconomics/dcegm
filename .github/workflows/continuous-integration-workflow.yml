@@ -1,32 +1,40 @@
 ---
 name: main
+# Automatically cancel a previous run.
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 on:
   push:
     branches: [main]
   pull_request:
     branches: ['*']
 jobs:
-  run-tests:
+  run-tests-linux:
     name: Run tests for ${{ matrix.os }} on ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: ['3.8', '3.9', '3.10']
+        python-version: ['3.9', '3.10', '3.11']
     steps:
-      - uses: actions/checkout@v2
-      - uses: conda-incubator/setup-miniconda@v2
+      - uses: actions/checkout@v3
+      - name: create build environment
+        uses: mamba-org/provision-with-micromamba@main
         with:
-          auto-update-conda: true
-          python-version: ${{ matrix.python-version }}
-      - name: Install core dependencies.
+          environment-file: ./.envs/testenv-linux.yml
+          environment-name: dcegm
+          cache-env: true
+          extra-specs: |
+            python=${{ matrix.python-version }}
+      - name: run pytest
         shell: bash -l {0}
-        run: conda install -c conda-forge tox-conda coverage
-      - name: Run unit tests and doctests.
-        shell: bash -l {0}
-        run: tox -e pytest -- src tests --cov-report=xml --cov=./ -n auto
-      - name: Upload coverage report for unit tests and doctests.
-        if: runner.os == 'Linux' && matrix.python-version == '3.9'
-        shell: bash -l {0}
-        run: bash <(curl -s https://codecov.io/bash) -F unit -c
+        run: |
+          micromamba activate dcegm
+          pytest --cov-report=xml --cov=./
+      - name: Upload coverage report.
+        if: runner.os == 'Linux' && matrix.python-version == '3.10'
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
