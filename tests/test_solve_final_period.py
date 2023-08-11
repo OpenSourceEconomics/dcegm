@@ -1,8 +1,9 @@
+from functools import partial
 from itertools import product
 
 import numpy as np
 import pytest
-from dcegm.final_period import final_period_wrapper
+from dcegm.final_period import solve_final_period
 from dcegm.pre_processing import convert_params_to_dict
 from dcegm.pre_processing import get_partial_functions
 from dcegm.state_space import create_state_choice_space
@@ -19,7 +20,7 @@ from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space,
 )
 from toy_models.consumption_retirement_model.state_space_objects import (
-    get_state_specific_choice_set,
+    get_state_specific_feasible_choice_set,
 )
 from toy_models.consumption_retirement_model.utility_functions import (
     marginal_utility_crra,
@@ -41,28 +42,28 @@ def test_consume_everything_in_final_period(
     params_dict = convert_params_to_dict(params)
     options["n_exog_processes"] = 1
     n_periods = options["n_periods"]
-    n_choices = options["n_discrete_choices"]
+    options["n_discrete_choices"]
 
     # Avoid small values. This test is just numeric if our solve
     # final period is doing the right thing!
     savings_grid = np.linspace(100, max_wealth + 100, n_grid_points)
 
     state_space, state_indexer = create_state_space(options)
-    state_choice_space = create_state_choice_space(
-        state_space, state_indexer, get_state_specific_choice_set
+    (
+        state_choice_space,
+        map_state_choice_vec_to_parent_state,
+        _reshape_state_choice_vec_to_mat,
+        transform_between_state_and_state_choice_space,
+    ) = create_state_choice_space(
+        state_space, state_indexer, get_state_specific_feasible_choice_set
     )
-
-    states_final_period = state_space[np.where(state_space[:, 0] == n_periods - 1)]
+    idx_states_final_period = np.where(state_space[:, 0] == n_periods - 1)[0]
 
     idx_state_choice_combs = np.where(state_choice_space[:, 0] == n_periods - 1)[0]
-    feasible_state_choice_combs = state_choice_space[idx_state_choice_combs]
-
-    choices_child_states = np.zeros(
-        (state_space.shape[0] // n_periods, n_choices), dtype=int
-    )
-
-    for state_choice_idx, state_choice_vec in enumerate(feasible_state_choice_combs):
-        choices_child_states[state_choice_idx - n_choices, state_choice_vec[-1]] = True
+    final_period_state_choice_combs = state_choice_space[idx_state_choice_combs]
+    map_final_state_choice_to_state = map_state_choice_vec_to_parent_state[
+        idx_state_choice_combs
+    ]
 
     user_utility_functions = {
         "utility": utility_func_crra,
@@ -88,40 +89,59 @@ def test_consume_everything_in_final_period(
 
     income_draws = np.array([0, 0, 0])
 
-    endog_grid_final, policy_final, value_final, *_ = final_period_wrapper(
-        final_period_states=states_final_period,
-        options=options,
-        compute_utility=compute_utility,
-        final_period_solution=solve_final_period_scalar,
-        choices_final=choices_child_states,
-        compute_next_period_wealth=compute_next_period_wealth,
-        compute_marginal_utility=compute_marginal_utility,
-        taste_shock_scale=params_dict["lambda"],
-        exogenous_savings_grid=savings_grid,
-        income_shock_draws=income_draws,
-        income_shock_weights=np.array([0, 0, 0]),
+    resources_beginning_of_period = vmap(
+        vmap(
+            vmap(compute_next_period_wealth, in_axes=(None, None, 0)),
+            in_axes=(None, 0, None),
+        ),
+        in_axes=(0, None, None),
+    )(state_space, savings_grid, income_draws)
+
+    (
+        transform_between_state_and_state_choice_space[idx_states_final_period, :][
+            :, idx_state_choice_combs
+        ]
     )
 
-    for state_idx, state in enumerate(states_final_period):
-        for choice in range(n_choices):
-            begin_of_period_resources = vmap(
-                compute_next_period_wealth, in_axes=(None, 0, None)
-            )(state, savings_grid, 0.00)
+    resources_last_period = resources_beginning_of_period[
+        map_final_state_choice_to_state
+    ]
 
-            aaae(
-                endog_grid_final[state_idx, choice],
-                begin_of_period_resources,
-            )
+    final_period_solution_partial = partial(
+        solve_final_period_scalar,
+        options=options,
+        params_dict={},
+        compute_utility=compute_utility,
+        compute_marginal_utility=compute_marginal_utility,
+    )
 
-            aaae(
-                policy_final[state_idx, choice],
-                begin_of_period_resources,
-            )
+    value_final, policy_final, _ = solve_final_period(
+        final_period_choice_states=final_period_state_choice_combs,
+        final_period_solution_partial=final_period_solution_partial,
+        resources_last_period=resources_last_period,
+    )
 
-            expected_value = vmap(compute_utility, in_axes=(0, None))(
-                begin_of_period_resources, choice
-            )
-            aaae(
-                value_final[state_idx, choice],
-                expected_value,
-            )
+    for state_choice_idx, state_choice in enumerate(final_period_state_choice_combs):
+        state = state_choice[:-1]
+        choice = state_choice[-1]
+        begin_of_period_resources = vmap(
+            compute_next_period_wealth, in_axes=(None, 0, None)
+        )(state, savings_grid, 0.00)
+
+        aaae(
+            resources_last_period[state_choice_idx, :, 1],
+            begin_of_period_resources,
+        )
+
+        aaae(
+            policy_final[state_choice_idx, :, 1],
+            begin_of_period_resources,
+        )
+
+        expected_value = vmap(compute_utility, in_axes=(0, None))(
+            begin_of_period_resources, choice
+        )
+        aaae(
+            value_final[state_choice_idx, :, 1],
+            expected_value,
+        )
