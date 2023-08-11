@@ -1,0 +1,25 @@
+---
+name: dcegm
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - pip
+  - setuptools_scm
+  - toml
+
+  # Package dependencies
+  - jax
+  - numpy
+  - numba
+  - pandas
+  - pyyaml
+
+  # Testing infrastructure
+  - pytest
+  - pytest-cov
+  - pytest-xdist
+
+  # Install dcegm locally
+  - pip:
+      - -e ../

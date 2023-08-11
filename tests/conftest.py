@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 import yaml
+from jax import config
 
 # Obtain the test directory of the package.
 TEST_DIR = Path(__file__).parent
@@ -27,3 +28,7 @@ def load_example_model():
         return params, options
 
     return load_options_and_params
+
+
+def pytest_sessionstart(session):  # noqa: ARG001
+    config.update("jax_enable_x64", val=True)
