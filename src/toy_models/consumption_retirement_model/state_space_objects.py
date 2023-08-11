@@ -54,12 +54,14 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
     return state_space, map_state_to_index
 
 
-def get_state_specific_choice_set(
+def get_state_specific_feasible_choice_set(
     state: np.ndarray,
     map_state_to_index: np.ndarray,  # noqa: U100
     indexer: np.ndarray,
 ) -> np.ndarray:
-    """Select state-specific choice set. Will be a user defined function later.
+    """Select state-specific feasible choice set.
+
+    Will be a user defined function later.
 
     This is very basic in Ishkakov et al (2017).
 
@@ -85,15 +87,13 @@ def get_state_specific_choice_set(
             agent's (restricted) feasible choice set in the given state.
 
     """
-    n_state_variables = indexer.shape[1]
+    n_choices = indexer.shape[1]  # lagged_choice is a state variable
 
     # Once the agent choses retirement, she can only choose retirement thereafter.
     # Hence, retirement is an absorbing state.
     if state[1] == 1:
-        choice_set = np.array([1])
+        feasible_choice_set = np.array([1])
     else:
-        choice_set = np.arange(n_state_variables)
+        feasible_choice_set = np.arange(n_choices)
 
-    # breakpoint()
-
-    return choice_set
+    return feasible_choice_set
