@@ -8,3 +8,4 @@ dependencies:
   - pytest-xdist  # dev, tests
   - numpy>=1.17.0  # run, tests
   - pandas  # run, tests
+  - yaml  # run, tests
