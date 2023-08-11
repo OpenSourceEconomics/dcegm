@@ -1,0 +1,10 @@
+---
+name: dcegm
+channels: [conda-forge, nodefaults]
+dependencies:
+  - jax
+  - pytest  # dev, tests
+  - pytest-cov  # tests
+  - pytest-xdist  # dev, tests
+  - numpy>=1.17.0  # run, tests
+  - pandas  # run, tests

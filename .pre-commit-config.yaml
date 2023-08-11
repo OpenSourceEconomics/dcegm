@@ -80,12 +80,6 @@ repos:
       - id: nbqa-black
       - id: nbqa-ruff
         exclude: tests/sandbox/
-  - repo: https://github.com/econchick/interrogate
-    rev: 1.5.0
-    hooks:
-      - id: interrogate
-        args: [-vv, --fail-under=75]
-        exclude: ^(tests/|docs/|scripts/)
   - repo: https://github.com/executablebooks/mdformat
     rev: 0.7.16
     hooks:
