@@ -1,11 +1,24 @@
 ---
 name: dcegm
-channels: [conda-forge, nodefaults]
+channels:
+  - conda-forge,
+  - nodefaults
 dependencies:
-  - jax
-  - pytest  # dev, tests
-  - pytest-cov  # tests
-  - pytest-xdist  # dev, tests
-  - numpy>=1.17.0  # run, tests
-  - pandas  # run, tests
-  - yaml  # run, tests
+  - setuptools_scm
+  - toml
+
+  # Package dependencies
+  - dags
+  - jax>=0.3.0
+  - jaxlib>=0.3.0
+  - numpy
+  - pandas
+
+  # Testing infrastructure
+  - pytest
+  - pytest-cov
+  - pytest-xdist
+
+  # Install dcegm locally
+  - pip:
+      - -e ../
