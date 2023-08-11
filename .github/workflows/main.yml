@@ -12,7 +12,7 @@ on:
     branches:
       - '*'
 jobs:
-  run-tests:
+  run-tests-linux:
     name: Run tests for ${{ matrix.os }} on ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -21,23 +21,21 @@ jobs:
         os:
           - ubuntu-latest
         python-version:
+          - '3.9'
           - '3.10'
           - '3.11'
     steps:
       - uses: actions/checkout@v3
       - name: create build environment
-        uses: mamba-org/setup-micromamba@v1
+        uses: mamba-org/provision-with-micromamba@main
         with:
           environment-file: ./.envs/testenv.yml
           environment-name: dcegm
-          create-args: |
+          cache-env: true
+          extra-specs: |
             python=${{ matrix.python-version }}
-          init-shell: >-
-            bash
-            powershell
-          cache-environment: true
       - name: run pytest
-        shell: bash -el {0}
+        shell: bash -l {0}
         run: |
           micromamba activate dcegm
           pytest --cov-report=xml --cov=./
