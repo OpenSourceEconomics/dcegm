@@ -3,10 +3,9 @@ name: dcegm
 channels:
   - conda-forge,
   - nodefaults
-# dependencies:
-#   - setuptools_scm
-#   - toml
-
+dependencies:
+  - setuptools_scm
+  - toml
 #   # Package dependencies
 #   - jax
 #   - numpy
