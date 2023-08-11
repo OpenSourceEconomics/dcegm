@@ -7,8 +7,11 @@ dependencies:
   - pip
   - setuptools_scm
   - toml
+
+  # Package dependencies
   - jax
   - numpy
+  - numba
   - pandas
   - pyyaml
 
