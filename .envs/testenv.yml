@@ -6,6 +6,7 @@ channels:
 dependencies:
   - setuptools_scm
   - toml
+  - yaml
 
   # Package dependencies
   - dags
