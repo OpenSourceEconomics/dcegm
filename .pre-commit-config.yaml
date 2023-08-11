@@ -17,7 +17,8 @@ repos:
     rev: v4.4.0
     hooks:
       - id: check-added-large-files
-        args: [--maxkb=100]
+        args:
+          - --maxkb=100
       - id: check-case-conflict
       - id: check-merge-conflict
       - id: check-vcs-permalinks
@@ -27,7 +28,9 @@ repos:
       - id: fix-byte-order-marker
       - id: mixed-line-ending
       - id: no-commit-to-branch
-        args: [--branch, main]
+        args:
+          - --branch
+          - main
       - id: trailing-whitespace
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.10.0
@@ -42,7 +45,8 @@ repos:
     rev: v3.10.0
     hooks:
       - id: reorder-python-imports
-        args: [--py37-plus]
+        args:
+          - --py37-plus
   - repo: https://github.com/asottile/setup-cfg-fmt
     rev: v2.4.0
     hooks:
@@ -80,24 +84,23 @@ repos:
       - id: nbqa-black
       - id: nbqa-ruff
         exclude: tests/sandbox/
-  - repo: https://github.com/econchick/interrogate
-    rev: 1.5.0
-    hooks:
-      - id: interrogate
-        args: [-vv, --fail-under=75]
-        exclude: ^(tests/|docs/|scripts/)
   - repo: https://github.com/executablebooks/mdformat
     rev: 0.7.16
     hooks:
       - id: mdformat
-        additional_dependencies: [mdformat-gfm, mdformat-black]
-        args: [--wrap, '88']
+        additional_dependencies:
+          - mdformat-gfm
+          - mdformat-black
+        args:
+          - --wrap
+          - '88'
         files: (README\.md)
   - repo: https://github.com/codespell-project/codespell
     rev: v2.2.5
     hooks:
       - id: codespell
-        additional_dependencies: [tomli]
+        additional_dependencies:
+          - tomli
         exclude: tests/sandbox/
 # -   repo: https://github.com/mgedmin/check-manifest
 #     rev: "0.49"

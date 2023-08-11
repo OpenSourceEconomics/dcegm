@@ -6,7 +6,6 @@ import pytest
 from dcegm.interpolation import linear_interpolation_with_extrapolation
 from dcegm.solve import solve_dcegm
 from dcegm.state_space import create_state_choice_space
-from jax.config import config
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
 from toy_models.consumption_retirement_model.exogenous_processes import (
@@ -31,8 +30,6 @@ from toy_models.consumption_retirement_model.utility_functions import (
     utiility_func_log_crra,
 )
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
-
-config.update("jax_enable_x64", True)
 
 
 # Obtain the test directory of the package.

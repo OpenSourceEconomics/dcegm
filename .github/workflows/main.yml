@@ -1,0 +1,48 @@
+---
+name: main
+# Automatically cancel a previous run.
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - '*'
+jobs:
+  run-tests:
+    name: Run tests for ${{ matrix.os }} on ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+        python-version:
+          - '3.10'
+          - '3.11'
+    steps:
+      - uses: actions/checkout@v3
+      - name: create build environment
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          environment-file: ./.envs/testenv.yml
+          environment-name: dcegm
+          create-args: |
+            python=${{ matrix.python-version }}
+          init-shell: >-
+            bash
+            powershell
+          cache-environment: true
+      - name: run pytest
+        shell: bash -el {0}
+        run: |
+          micromamba activate dcegm
+          pytest --cov-report=xml --cov=./
+      - name: Upload coverage report.
+        if: runner.os == 'Linux' && matrix.python-version == '3.10'
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
