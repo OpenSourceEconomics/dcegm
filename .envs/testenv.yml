@@ -8,9 +8,7 @@ dependencies:
   - toml
 
   # Package dependencies
-  - dags
-  - jax>=0.3.0
-  - jaxlib>=0.3.0
+  - jax
   - numpy
   - pandas
 
