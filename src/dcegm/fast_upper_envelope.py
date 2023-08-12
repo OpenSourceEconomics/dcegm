@@ -216,9 +216,9 @@ def scan_value_function(
     policy_k_and_j = policy[0], policy[1]
 
     idx_refined = 2
-    current_index_to_inspect = 2
+    idx_to_inspect = 2
     for _ in range(int(1.2 * len(endog_grid))):
-        is_this_the_last_point = current_index_to_inspect == len(endog_grid) - 1
+        is_this_the_last_point = idx_to_inspect == len(endog_grid) - 1
         # In each iteration we calculate the gradient of the value function
         grad_before_denominator = jnp.maximum(
             endog_grid_k_and_j[1] - endog_grid_k_and_j[0], 1e-16
@@ -227,21 +227,16 @@ def scan_value_function(
 
         # gradient with leading index to be checked
         grad_next_denominator = jnp.maximum(
-            endog_grid[current_index_to_inspect] - endog_grid_k_and_j[1], 1e-16
+            endog_grid[idx_to_inspect] - endog_grid_k_and_j[1], 1e-16
         )
-        grad_next = (
-            value[current_index_to_inspect] - value_k_and_j[1]
-        ) / grad_next_denominator
+        grad_next = (value[idx_to_inspect] - value_k_and_j[1]) / grad_next_denominator
 
         switch_value_denominator = jnp.maximum(
-            endog_grid[current_index_to_inspect] - endog_grid_k_and_j[1], 1e-16
+            endog_grid[idx_to_inspect] - endog_grid_k_and_j[1], 1e-16
         )
         exog_grid_j = endog_grid_k_and_j[1] - policy_k_and_j[1]
         switch_value_func = (
-            np.abs(
-                (exog_grid[current_index_to_inspect] - exog_grid_j)
-                / switch_value_denominator
-            )
+            np.abs((exog_grid[idx_to_inspect] - exog_grid_j) / switch_value_denominator)
             > jump_thresh
         )
 
@@ -255,7 +250,7 @@ def scan_value_function(
             jump_thresh=jump_thresh,
             endog_grid_current=endog_grid_k_and_j[1],
             exog_grid_current=exog_grid_j,
-            idx_base=current_index_to_inspect,
+            idx_base=idx_to_inspect,
             n_points_to_scan=n_points_to_scan,
         )
 
@@ -269,15 +264,15 @@ def scan_value_function(
             jump_thresh=jump_thresh,
             value_current=value_k_and_j[1],
             endog_grid_current=endog_grid_k_and_j[1],
-            idx_base=current_index_to_inspect,
+            idx_base=idx_to_inspect,
             n_points_to_scan=n_points_to_scan,
         )
 
         if is_this_the_last_point:
-            value_refined[idx_refined] = value[current_index_to_inspect]
-            policy_left_refined[idx_refined] = policy[current_index_to_inspect]
-            policy_right_refined[idx_refined] = policy[current_index_to_inspect]
-            endog_grid_refined[idx_refined] = endog_grid[current_index_to_inspect]
+            value_refined[idx_refined] = value[idx_to_inspect]
+            policy_left_refined[idx_refined] = policy[idx_to_inspect]
+            policy_right_refined[idx_refined] = policy[idx_to_inspect]
+            endog_grid_refined[idx_refined] = endog_grid[idx_to_inspect]
 
         # Check for suboptimality. This is either with decreasing value function, the
         # value function not montone in consumption or
@@ -285,26 +280,26 @@ def scan_value_function(
         # on the same choice specific policy) is shallower than the
         # gradient joining the i+1 and j, then delete j'th point
         elif (
-            value[current_index_to_inspect] < value_k_and_j[1]
-            or exog_grid[current_index_to_inspect] < exog_grid_j
+            value[idx_to_inspect] < value_k_and_j[1]
+            or exog_grid[idx_to_inspect] < exog_grid_j
             or (grad_next < grad_next_forward and switch_value_func)
         ):
-            current_index_to_inspect += 1
+            idx_to_inspect += 1
 
         elif not switch_value_func:
-            value_refined[idx_refined] = value[current_index_to_inspect]
-            policy_left_refined[idx_refined] = policy[current_index_to_inspect]
-            policy_right_refined[idx_refined] = policy[current_index_to_inspect]
-            endog_grid_refined[idx_refined] = endog_grid[current_index_to_inspect]
+            value_refined[idx_refined] = value[idx_to_inspect]
+            policy_left_refined[idx_refined] = policy[idx_to_inspect]
+            policy_right_refined[idx_refined] = policy[idx_to_inspect]
+            endog_grid_refined[idx_refined] = endog_grid[idx_to_inspect]
             idx_refined += 1
 
-            value_k_and_j = value_k_and_j[1], value[current_index_to_inspect]
+            value_k_and_j = value_k_and_j[1], value[idx_to_inspect]
             endog_grid_k_and_j = (
                 endog_grid_k_and_j[1],
-                endog_grid[current_index_to_inspect],
+                endog_grid[idx_to_inspect],
             )
-            policy_k_and_j = policy_k_and_j[1], policy[current_index_to_inspect]
-            current_index_to_inspect += 1
+            policy_k_and_j = policy_k_and_j[1], policy[idx_to_inspect]
+            idx_to_inspect += 1
 
         elif grad_before > grad_next or grad_next < grad_next_backward:
             intersect_grid, intersect_value = _linear_intersection(
@@ -312,8 +307,8 @@ def scan_value_function(
                 y1=value[idx_next_on_lower_curve],
                 x2=endog_grid_k_and_j[1],
                 y2=value_k_and_j[1],
-                x3=endog_grid[current_index_to_inspect],
-                y3=value[current_index_to_inspect],
+                x3=endog_grid[idx_to_inspect],
+                y3=value[idx_to_inspect],
                 x4=endog_grid[idx_before_on_upper_curve],
                 y4=value[idx_before_on_upper_curve],
             )
@@ -326,8 +321,8 @@ def scan_value_function(
                 point_to_evaluate=intersect_grid,
             )
             intersect_policy_right = _evaluate_point_on_line(
-                x1=endog_grid[current_index_to_inspect],
-                y1=policy[current_index_to_inspect],
+                x1=endog_grid[idx_to_inspect],
+                y1=policy[idx_to_inspect],
                 x2=endog_grid[idx_before_on_upper_curve],
                 y2=policy[idx_before_on_upper_curve],
                 point_to_evaluate=intersect_grid,
@@ -339,22 +334,22 @@ def scan_value_function(
             endog_grid_refined[idx_refined] = intersect_grid
             idx_refined += 1
 
-            value_refined[idx_refined] = value[current_index_to_inspect]
-            policy_left_refined[idx_refined] = policy[current_index_to_inspect]
-            policy_right_refined[idx_refined] = policy[current_index_to_inspect]
-            endog_grid_refined[idx_refined] = endog_grid[current_index_to_inspect]
+            value_refined[idx_refined] = value[idx_to_inspect]
+            policy_left_refined[idx_refined] = policy[idx_to_inspect]
+            policy_right_refined[idx_refined] = policy[idx_to_inspect]
+            endog_grid_refined[idx_refined] = endog_grid[idx_to_inspect]
             idx_refined += 1
 
-            value_k_and_j = value_k_and_j[1], value[current_index_to_inspect]
+            value_k_and_j = value_k_and_j[1], value[idx_to_inspect]
             endog_grid_k_and_j = (
                 endog_grid_k_and_j[1],
-                endog_grid[current_index_to_inspect],
+                endog_grid[idx_to_inspect],
             )
-            policy_k_and_j = policy_k_and_j[1], policy[current_index_to_inspect]
-            current_index_to_inspect += 1
+            policy_k_and_j = policy_k_and_j[1], policy[idx_to_inspect]
+            idx_to_inspect += 1
 
             # k = j
-            # j = current_index_to_inspect
+            # j = idx_to_inspect
 
         elif grad_next > grad_next_backward:
             intersect_grid, intersect_value = _linear_intersection(
@@ -362,8 +357,8 @@ def scan_value_function(
                 y1=value_k_and_j[1],
                 x2=endog_grid_k_and_j[0],
                 y2=value_k_and_j[0],
-                x3=endog_grid[current_index_to_inspect],
-                y3=value[current_index_to_inspect],
+                x3=endog_grid[idx_to_inspect],
+                y3=value[idx_to_inspect],
                 x4=endog_grid[idx_before_on_upper_curve],
                 y4=value[idx_before_on_upper_curve],
             )
@@ -378,8 +373,8 @@ def scan_value_function(
                 point_to_evaluate=intersect_grid,
             )
             intersect_policy_right = _evaluate_point_on_line(
-                x1=endog_grid[current_index_to_inspect],
-                y1=policy[current_index_to_inspect],
+                x1=endog_grid[idx_to_inspect],
+                y1=policy[idx_to_inspect],
                 x2=endog_grid[idx_before_on_upper_curve],
                 y2=policy[idx_before_on_upper_curve],
                 point_to_evaluate=intersect_grid,
@@ -390,18 +385,18 @@ def scan_value_function(
             policy_right_refined[idx_refined - 1] = intersect_policy_right
             endog_grid_refined[idx_refined - 1] = intersect_grid
 
-            value_refined[idx_refined] = value[current_index_to_inspect]
-            policy_left_refined[idx_refined] = policy[current_index_to_inspect]
-            policy_right_refined[idx_refined] = policy[current_index_to_inspect]
-            endog_grid_refined[idx_refined] = endog_grid[current_index_to_inspect]
+            value_refined[idx_refined] = value[idx_to_inspect]
+            policy_left_refined[idx_refined] = policy[idx_to_inspect]
+            policy_right_refined[idx_refined] = policy[idx_to_inspect]
+            endog_grid_refined[idx_refined] = endog_grid[idx_to_inspect]
             idx_refined += 1
 
             value_k_and_j = value_k_and_j[0], intersect_value
             endog_grid_k_and_j = endog_grid_k_and_j[0], intersect_grid
             policy_k_and_j = policy_k_and_j[0], intersect_policy_right
-            current_index_to_inspect += 1
+            idx_to_inspect += 1
 
-            # j = current_index_to_inspect
+            # j = idx_to_inspect
 
     return value_refined, policy_left_refined, policy_right_refined, endog_grid_refined
 
