@@ -240,7 +240,8 @@ def get_index_high_and_low(x, x_new):
 def interpolate_policy_and_value_on_wealth_grid(
     begin_of_period_wealth: jnp.ndarray,
     endog_wealth_grid: jnp.array,
-    policy_grid: jnp.ndarray,
+    policy_left_grid: jnp.ndarray,
+    policy_right_grid: jnp.ndarray,
     value_grid: jnp.ndarray,
 ):
     """Interpolate policy and value functions on the wealth grid.
@@ -269,10 +270,10 @@ def interpolate_policy_and_value_on_wealth_grid(
     )
 
     policy_new, value_new = interpolate_policy_and_value(
-        policy_high=jnp.take(policy_grid, ind_high),
+        policy_high=jnp.take(policy_left_grid, ind_high),
         value_high=jnp.take(value_grid, ind_high),
         wealth_high=jnp.take(endog_wealth_grid, ind_high),
-        policy_low=jnp.take(policy_grid, ind_low),
+        policy_low=jnp.take(policy_right_grid, ind_low),
         value_low=jnp.take(value_grid, ind_low),
         wealth_low=jnp.take(endog_wealth_grid, ind_low),
         wealth_new=begin_of_period_wealth,

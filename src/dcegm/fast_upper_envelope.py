@@ -23,7 +23,7 @@ def fast_upper_envelope_wrapper(
     expected_value_zero_savings: float,
     choice: int,
     compute_value: Callable,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Drop suboptimal points and refine the endogenous grid, policy, and value.
 
     Computes the upper envelope over the overlapping segments of the
@@ -95,13 +95,17 @@ def fast_upper_envelope_wrapper(
     policy = np.append(0, policy)
     value = np.append(expected_value_zero_savings, value)
 
-    endog_grid_refined, value_refined, policy_refined = fast_upper_envelope(
-        endog_grid, value, policy, jump_thresh=2
-    )
+    (
+        endog_grid_refined,
+        value_refined,
+        policy_left_refined,
+        policy_right_refined,
+    ) = fast_upper_envelope(endog_grid, value, policy, jump_thresh=2)
 
     return (
         endog_grid_refined,
-        policy_refined,
+        policy_left_refined,
+        policy_right_refined,
         value_refined,
     )
 
@@ -112,7 +116,7 @@ def fast_upper_envelope(
     policy: np.ndarray,
     jump_thresh: Optional[float] = 2,
     lower_bound_wealth: Optional[float] = 1e-10,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Remove suboptimal points from the endogenous grid, policy, and value function.
 
     Args:
@@ -156,7 +160,8 @@ def fast_upper_envelope(
 
     (
         value_refined,
-        policy_refined,
+        policy_left_refined,
+        policy_right_refined,
         endog_grid_refined,
     ) = scan_value_function(
         endog_grid=endog_grid,
@@ -166,7 +171,7 @@ def fast_upper_envelope(
         n_points_to_scan=10,
     )
 
-    return endog_grid_refined, value_refined, policy_refined
+    return endog_grid_refined, value_refined, policy_left_refined, policy_right_refined
 
 
 def scan_value_function(
@@ -175,7 +180,7 @@ def scan_value_function(
     policy: np.ndarray,
     jump_thresh: float,
     n_points_to_scan: Optional[int] = 0,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Scan the value function to remove suboptimal points and add intersection points.
 
     Args:
@@ -197,9 +202,12 @@ def scan_value_function(
 
     """
     exog_grid = endog_grid - policy
-    value_refined, policy_refined, endog_grid_refined = _initialize_refined_arrays(
-        value, policy, endog_grid
-    )
+    (
+        value_refined,
+        policy_left_refined,
+        policy_right_refined,
+        endog_grid_refined,
+    ) = _initialize_refined_arrays(value, policy, endog_grid)
     # j = 1
     # k = 0
 
@@ -271,7 +279,8 @@ def scan_value_function(
 
         elif not switch_value_func:
             value_refined[idx_refined] = value[i + 1]
-            policy_refined[idx_refined] = policy[i + 1]
+            policy_left_refined[idx_refined] = policy[i + 1]
+            policy_right_refined[idx_refined] = policy[i + 1]
             endog_grid_refined[idx_refined] = endog_grid[i + 1]
             idx_refined += 1
 
@@ -312,17 +321,14 @@ def scan_value_function(
             )
 
             value_refined[idx_refined] = intersect_value
-            policy_refined[idx_refined] = intersect_policy_left
-            endog_grid_refined[idx_refined] = intersect_grid
-            idx_refined += 1
-
-            value_refined[idx_refined] = intersect_value
-            policy_refined[idx_refined] = intersect_policy_right
+            policy_left_refined[idx_refined] = intersect_policy_left
+            policy_right_refined[idx_refined] = intersect_policy_right
             endog_grid_refined[idx_refined] = intersect_grid
             idx_refined += 1
 
             value_refined[idx_refined] = value[i + 1]
-            policy_refined[idx_refined] = policy[i + 1]
+            policy_left_refined[idx_refined] = policy[i + 1]
+            policy_right_refined[idx_refined] = policy[i + 1]
             endog_grid_refined[idx_refined] = endog_grid[i + 1]
             idx_refined += 1
 
@@ -368,16 +374,13 @@ def scan_value_function(
             )
 
             value_refined[idx_refined - 1] = intersect_value
-            policy_refined[idx_refined - 1] = intersect_policy_left
+            policy_left_refined[idx_refined - 1] = intersect_policy_left
+            policy_right_refined[idx_refined - 1] = intersect_policy_right
             endog_grid_refined[idx_refined - 1] = intersect_grid
 
-            value_refined[idx_refined] = intersect_value
-            policy_refined[idx_refined] = intersect_policy_right
-            endog_grid_refined[idx_refined] = intersect_grid
-            idx_refined += 1
-
             value_refined[idx_refined] = value[i + 1]
-            policy_refined[idx_refined] = policy[i + 1]
+            policy_left_refined[idx_refined] = policy[i + 1]
+            policy_right_refined[idx_refined] = policy[i + 1]
             endog_grid_refined[idx_refined] = endog_grid[i + 1]
             idx_refined += 1
 
@@ -390,9 +393,10 @@ def scan_value_function(
 
     value_refined[idx_refined] = value[-1]
     endog_grid_refined[idx_refined] = endog_grid[-1]
-    policy_refined[idx_refined] = policy[-1]
+    policy_right_refined[idx_refined] = policy[-1]
+    policy_left_refined[idx_refined] = policy[-1]
 
-    return value_refined, policy_refined, endog_grid_refined
+    return value_refined, policy_left_refined, policy_right_refined, endog_grid_refined
 
 
 # @njit
@@ -698,17 +702,20 @@ def _augment_grids(
 
 def _initialize_refined_arrays(
     value: np.ndarray, policy: np.ndarray, endog_grid: np.ndarray
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     value_refined = np.empty_like(value)
-    policy_refined = np.empty_like(policy)
+    policy_left_refined = np.empty_like(policy)
+    policy_right_refined = np.empty_like(policy)
     endog_grid_refined = np.empty_like(endog_grid)
 
     value_refined[:] = np.nan
-    policy_refined[:] = np.nan
+    policy_left_refined[:] = np.nan
+    policy_right_refined[:] = np.nan
     endog_grid_refined[:] = np.nan
 
     value_refined[:2] = value[:2]
-    policy_refined[:2] = policy[:2]
+    policy_left_refined[:2] = policy[:2]
+    policy_right_refined[:2] = policy[:2]
     endog_grid_refined[:2] = endog_grid[:2]
 
-    return value_refined, policy_refined, endog_grid_refined
+    return value_refined, policy_left_refined, policy_right_refined, endog_grid_refined
