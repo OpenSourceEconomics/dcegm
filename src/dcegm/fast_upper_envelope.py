@@ -80,7 +80,6 @@ def fast_upper_envelope_wrapper(
         # that goes below the first point.
         # Solution: Value function to the left of the first point is analytical,
         # so we just need to add some points to the left of the first grid point.
-        # if endog_grid[0] <= min_wealth_grid, the endog_gird[0] is added 0.1 * n times
 
         endog_grid, value, policy = _augment_grids(
             endog_grid=endog_grid,
@@ -93,7 +92,6 @@ def fast_upper_envelope_wrapper(
             compute_value=compute_value,
         )
         exog_grid = np.append(np.zeros(n_grid_wealth // 10 - 1), exog_grid)
-    # #
 
     endog_grid = np.append(0, endog_grid)
     policy = np.append(0, policy)
