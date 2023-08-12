@@ -217,6 +217,7 @@ def scan_value_function(
 
     idx_refined = 2
     idx_to_inspect = 2
+    last_point_intersect = False
     for _ in range(int(1.2 * len(endog_grid))):
         is_this_the_last_point = idx_to_inspect == len(endog_grid) - 1
         # In each iteration we calculate the gradient of the value function
@@ -267,8 +268,16 @@ def scan_value_function(
             idx_base=idx_to_inspect,
             n_points_to_scan=n_points_to_scan,
         )
+        if last_point_intersect:
+            value_refined[idx_refined] = value[idx_to_inspect]
+            policy_left_refined[idx_refined] = policy[idx_to_inspect]
+            policy_right_refined[idx_refined] = policy[idx_to_inspect]
+            endog_grid_refined[idx_refined] = endog_grid[idx_to_inspect]
+            idx_refined += 1
+            last_point_intersect = False
+            idx_to_inspect += 1
 
-        if is_this_the_last_point:
+        elif is_this_the_last_point:
             value_refined[idx_refined] = value[idx_to_inspect]
             policy_left_refined[idx_refined] = policy[idx_to_inspect]
             policy_right_refined[idx_refined] = policy[idx_to_inspect]
@@ -333,12 +342,7 @@ def scan_value_function(
             policy_right_refined[idx_refined] = intersect_policy_right
             endog_grid_refined[idx_refined] = intersect_grid
             idx_refined += 1
-
-            value_refined[idx_refined] = value[idx_to_inspect]
-            policy_left_refined[idx_refined] = policy[idx_to_inspect]
-            policy_right_refined[idx_refined] = policy[idx_to_inspect]
-            endog_grid_refined[idx_refined] = endog_grid[idx_to_inspect]
-            idx_refined += 1
+            last_point_intersect = True
 
             value_k_and_j = value_k_and_j[1], value[idx_to_inspect]
             endog_grid_k_and_j = (
@@ -346,7 +350,6 @@ def scan_value_function(
                 endog_grid[idx_to_inspect],
             )
             policy_k_and_j = policy_k_and_j[1], policy[idx_to_inspect]
-            idx_to_inspect += 1
 
             # k = j
             # j = idx_to_inspect
@@ -379,23 +382,18 @@ def scan_value_function(
                 y2=policy[idx_before_on_upper_curve],
                 point_to_evaluate=intersect_grid,
             )
+            # to_be_saved = intersect_value, intersect_policy_left,
+            # intersect_policy_right, intersect_grid
 
             value_refined[idx_refined - 1] = intersect_value
             policy_left_refined[idx_refined - 1] = intersect_policy_left
             policy_right_refined[idx_refined - 1] = intersect_policy_right
             endog_grid_refined[idx_refined - 1] = intersect_grid
-
-            value_refined[idx_refined] = value[idx_to_inspect]
-            policy_left_refined[idx_refined] = policy[idx_to_inspect]
-            policy_right_refined[idx_refined] = policy[idx_to_inspect]
-            endog_grid_refined[idx_refined] = endog_grid[idx_to_inspect]
-            idx_refined += 1
+            last_point_intersect = True
 
             value_k_and_j = value_k_and_j[0], intersect_value
             endog_grid_k_and_j = endog_grid_k_and_j[0], intersect_grid
             policy_k_and_j = policy_k_and_j[0], intersect_policy_right
-            idx_to_inspect += 1
-
             # j = idx_to_inspect
 
     return value_refined, policy_left_refined, policy_right_refined, endog_grid_refined
