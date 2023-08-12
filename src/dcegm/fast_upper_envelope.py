@@ -211,7 +211,7 @@ def scan_value_function(
     value_k = value[0]
     endog_grid_k = endog_grid[0]
     policy_k = policy[0]
-    exog_grid_k = endog_grid_k - policy_k
+    endog_grid_k - policy_k
 
     idx_refined = 2
     for i in range(1, len(endog_grid) - 2):
@@ -277,7 +277,6 @@ def scan_value_function(
 
             value_k = value_j
             endog_grid_k = endog_grid_j
-            exog_grid_k = exog_grid_j
             policy_k = policy_j
 
             value_j = value[i + 1]
@@ -329,7 +328,6 @@ def scan_value_function(
 
             value_k = value_j
             endog_grid_k = endog_grid_j
-            exog_grid_k = exog_grid_j
             policy_k = policy_j
 
             value_j = value[i + 1]
