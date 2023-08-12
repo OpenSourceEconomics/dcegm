@@ -382,13 +382,19 @@ def scan_value_function(
                 y2=policy[idx_before_on_upper_curve],
                 point_to_evaluate=intersect_grid,
             )
-            # to_be_saved = intersect_value, intersect_policy_left,
-            # intersect_policy_right, intersect_grid
+            to_be_saved = (
+                intersect_value,
+                intersect_policy_left,
+                intersect_policy_right,
+                intersect_grid,
+            )
 
-            value_refined[idx_refined - 1] = intersect_value
-            policy_left_refined[idx_refined - 1] = intersect_policy_left
-            policy_right_refined[idx_refined - 1] = intersect_policy_right
-            endog_grid_refined[idx_refined - 1] = intersect_grid
+            (
+                value_refined[idx_refined - 1],
+                policy_left_refined[idx_refined - 1],
+                policy_right_refined[idx_refined - 1],
+                endog_grid_refined[idx_refined - 1],
+            ) = to_be_saved
             last_point_intersect = True
 
             value_k_and_j = value_k_and_j[0], intersect_value
