@@ -8,10 +8,13 @@ from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
 from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
 from dcegm.interpolation import linear_interpolation_with_extrapolation
 from dcegm.pre_processing import calc_current_value
+from jax import config
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
 from utils.fast_upper_envelope_org import fast_upper_envelope_wrapper_org
 from utils.upper_envelope_fedor import upper_envelope
+
+config.update("jax_enable_x64", True)
 
 # Obtain the test directory of the package.
 TEST_DIR = Path(__file__).parent
@@ -80,6 +83,7 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
         choice=choice,
         compute_value=compute_value,
     )
+
     wealth_max_to_test = np.max(endog_grid_refined[~np.isnan(endog_grid_refined)]) + 100
     wealth_grid_to_test = np.linspace(endog_grid_refined[1], wealth_max_to_test, 1000)
 
