@@ -80,10 +80,8 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
         choice=choice,
         compute_value=compute_value,
     )
-
-    wealth_grid_to_test = np.linspace(
-        endog_grid_refined[1], endog_grid_refined.max(), 1000
-    )
+    wealth_max_to_test = np.max(endog_grid_refined[~np.isnan(endog_grid_refined)]) + 100
+    wealth_grid_to_test = np.linspace(endog_grid_refined[1], wealth_max_to_test, 1000)
 
     value_expec_interp = linear_interpolation_with_extrapolation(
         x_new=wealth_grid_to_test, x=value_expected[0], y=value_expected[1]
@@ -136,30 +134,13 @@ def test_fast_upper_envelope_against_org_fues(setup_model):
         compute_value=compute_value,
     )
 
-    wealth_grid_to_test = np.linspace(
-        endog_grid_refined[1], endog_grid_refined.max(), 1000
-    )
+    endog_grid_expected = endog_grid_org[~np.isnan(endog_grid_org)]
+    policy_expected = policy_org[~np.isnan(policy_org)]
+    value_expected = value_org[~np.isnan(value_org)]
 
-    value_org_interp = linear_interpolation_with_extrapolation(
-        x_new=wealth_grid_to_test, x=endog_grid_org, y=value_org
-    )
-
-    policy_org_interp = linear_interpolation_with_extrapolation(
-        x_new=wealth_grid_to_test, x=endog_grid_org, y=policy_org
-    )
-
-    (
-        policy_calc_interp,
-        value_calc_interp,
-    ) = interpolate_policy_and_value_on_wealth_grid(
-        begin_of_period_wealth=wealth_grid_to_test,
-        endog_wealth_grid=endog_grid_refined,
-        policy_left_grid=policy_left_refined,
-        policy_right_grid=policy_right_refined,
-        value_grid=value_refined,
-    )
-    aaae(value_calc_interp, value_org_interp)
-    aaae(policy_calc_interp, policy_org_interp)
+    assert np.all(np.in1d(endog_grid_expected, endog_grid_refined))
+    assert np.all(np.in1d(policy_expected, policy_right_refined))
+    assert np.all(np.in1d(value_expected, value_refined))
 
 
 @pytest.mark.parametrize("period", [2, 4, 10, 9, 18])
@@ -200,7 +181,8 @@ def test_fast_upper_envelope_against_fedor(period, setup_model):
         choice=choice,
         compute_value=compute_value,
     )
-    wealth_grid_to_test = np.linspace(endog_grid_calc[1], endog_grid_calc.max(), 1000)
+    wealth_max_to_test = np.max(endog_grid_calc[~np.isnan(endog_grid_calc)]) + 100
+    wealth_grid_to_test = np.linspace(endog_grid_calc[1], wealth_max_to_test, 1000)
 
     value_expec_interp = linear_interpolation_with_extrapolation(
         x_new=wealth_grid_to_test, x=value_expected[0], y=value_expected[1]

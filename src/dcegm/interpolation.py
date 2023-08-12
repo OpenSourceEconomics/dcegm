@@ -301,7 +301,7 @@ def linear_interpolation_with_extrapolation(x, y, x_new):
     """
     # make sure that the function also works for unsorted x-arrays
     # taken from scipy.interpolate.interp1d
-    ind = np.argsort(x)
+    ind = np.argsort(x, kind="mergesort")
     x = x[ind]
     y = np.take(y, ind)
 
