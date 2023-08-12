@@ -237,6 +237,50 @@ def get_index_high_and_low(x, x_new):
     return ind_high, ind_high - 1
 
 
+def interpolate_policy_and_value_on_wealth_grid(
+    begin_of_period_wealth: jnp.ndarray,
+    endog_wealth_grid: jnp.array,
+    policy_grid: jnp.ndarray,
+    value_grid: jnp.ndarray,
+):
+    """Interpolate policy and value functions on the wealth grid.
+
+    Args:
+        begin_of_period_wealth (jnp.ndarray): 1d array of shape (n,) containing the
+            begin of period wealth.
+        endog_wealth_grid (jnp.array): 1d array of shape (n,) containing the endogenous
+            wealth grid.
+        policy_grid (jnp.ndarray): 1d array of shape (n,) containing the policy function
+            values corresponding to the endogenous wealth grid.
+        value_grid (jnp.ndarray): 1d array of shape (n,) containing the value function
+            values corresponding to the endogenous wealth grid.
+
+    Returns:
+        tuple:
+
+        - policy_new (jnp.ndarray): 1d array of shape (n,) containing the interpolated
+            policy function values corresponding to the begin of period wealth.
+        - value_new (jnp.ndarray): 1d array of shape (n,) containing the interpolated
+            value function values corresponding to the begin of period wealth.
+
+    """
+    ind_high, ind_low = get_index_high_and_low(
+        x=endog_wealth_grid, x_new=begin_of_period_wealth
+    )
+
+    policy_new, value_new = interpolate_policy_and_value(
+        policy_high=jnp.take(policy_grid, ind_high),
+        value_high=jnp.take(value_grid, ind_high),
+        wealth_high=jnp.take(endog_wealth_grid, ind_high),
+        policy_low=jnp.take(policy_grid, ind_low),
+        value_low=jnp.take(value_grid, ind_low),
+        wealth_low=jnp.take(endog_wealth_grid, ind_low),
+        wealth_new=begin_of_period_wealth,
+    )
+
+    return policy_new, value_new
+
+
 def linear_interpolation_with_extrapolation(x, y, x_new):
     """Linear interpolation with extrapolation.
 
