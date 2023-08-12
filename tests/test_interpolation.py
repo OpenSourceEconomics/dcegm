@@ -6,7 +6,6 @@ The results are compared to the ones from scipy's linear interpolation
 function interp1d.
 
 """
-import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -42,7 +41,6 @@ def test_linear_interpolation_with_extrapolation(random_test_data):
 
 def test_linear_interpolation_with_extrapolation_jax(random_test_data):
     x, y, x_new, _ = random_test_data
-    jax.config.update("jax_enable_x64", True)
 
     for x_new_float in x_new:
         got = linear_interpolation_with_extrapolation_jax(

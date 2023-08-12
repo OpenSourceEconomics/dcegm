@@ -6,18 +6,19 @@ repos:
       - id: check-useless-excludes
     # -   id: identity  # Prints all files passed to pre-commits. Debugging.
   - repo: https://github.com/adrienverge/yamllint.git
-    rev: v1.31.0
+    rev: v1.32.0
     hooks:
       - id: yamllint
   - repo: https://github.com/lyz-code/yamlfix
-    rev: 1.9.0
+    rev: 1.13.0
     hooks:
       - id: yamlfix
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
     hooks:
       - id: check-added-large-files
-        args: [--maxkb=100]
+        args:
+          - --maxkb=100
       - id: check-case-conflict
       - id: check-merge-conflict
       - id: check-vcs-permalinks
@@ -27,7 +28,9 @@ repos:
       - id: fix-byte-order-marker
       - id: mixed-line-ending
       - id: no-commit-to-branch
-        args: [--branch, main]
+        args:
+          - --branch
+          - main
       - id: trailing-whitespace
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.10.0
@@ -38,22 +41,33 @@ repos:
       - id: python-no-log-warn
       - id: python-use-type-annotations
       - id: text-unicode-replacement-char
-  - repo: https://github.com/asottile/reorder_python_imports
-    rev: v3.9.0
+  - repo: https://github.com/asottile/reorder-python-imports
+    rev: v3.10.0
     hooks:
       - id: reorder-python-imports
-        args: [--py37-plus]
+        args:
+          - --py37-plus
   - repo: https://github.com/asottile/setup-cfg-fmt
-    rev: v2.2.0
+    rev: v2.4.0
     hooks:
       - id: setup-cfg-fmt
   - repo: https://github.com/psf/black
-    rev: 23.3.0
+    rev: 23.7.0
     hooks:
       - id: black
+        language_version: python3.10
         exclude: tests/utils/fast_upper_envelope_org.py
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.0.282
+    hooks:
+      - id: ruff
+        exclude: |
+          (?x)^(
+            tests/sandbox/|
+            docs/source/conf.py|
+          )$
   - repo: https://github.com/PyCQA/docformatter
-    rev: v1.6.4
+    rev: v1.7.5
     hooks:
       - id: docformatter
         args:
@@ -64,44 +78,29 @@ repos:
           - '88'
           - --blank
         exclude: tests/utils/fast_upper_envelope_org.py
-#  - repo: https://github.com/charliermarsh/ruff-pre-commit
-#    rev: v0.0.263
-#    hooks:
-#      - id: ruff
-#        exclude: |
-#          (?x)^(
-#              tests/sandbox/|
-#              docs/source/conf.py|
-#          )$
-#  - repo: https://github.com/dosisod/refurb
-#    rev: v1.16.0
-#    hooks:
-#      - id: refurb
-#        args: [--python-version, '3.10']
   - repo: https://github.com/nbQA-dev/nbQA
     rev: 1.7.0
     hooks:
       - id: nbqa-black
       - id: nbqa-ruff
         exclude: tests/sandbox/
-  - repo: https://github.com/econchick/interrogate
-    rev: 1.5.0
-    hooks:
-      - id: interrogate
-        args: [-vv, --fail-under=75]
-        exclude: ^(tests/|docs/|scripts/)
   - repo: https://github.com/executablebooks/mdformat
     rev: 0.7.16
     hooks:
       - id: mdformat
-        additional_dependencies: [mdformat-gfm, mdformat-black]
-        args: [--wrap, '88']
+        additional_dependencies:
+          - mdformat-gfm
+          - mdformat-black
+        args:
+          - --wrap
+          - '88'
         files: (README\.md)
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.2.4
+    rev: v2.2.5
     hooks:
       - id: codespell
-        additional_dependencies: [tomli]
+        additional_dependencies:
+          - tomli
         exclude: tests/sandbox/
 # -   repo: https://github.com/mgedmin/check-manifest
 #     rev: "0.49"

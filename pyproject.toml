@@ -3,3 +3,12 @@ requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.0"]
 
 [tool.setuptools_scm]
 write_to = "src/dcegm/_version.py"
+
+[tool.ruff]
+target-version = "py310"
+fix = true
+
+[tool.yamlfix]
+line_length = 88
+sequence_style = "block_style"
+none_representation = "null"

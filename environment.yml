@@ -1,8 +1,10 @@
 ---
 name: dcegm
-channels: [conda-forge, defaults]
+channels:
+  - conda-forge
+  - defaults
 dependencies:
-  - python>=3.10
+  - python=3.10
   - pip
   - pytest
   - pytest-cov
@@ -35,4 +37,6 @@ dependencies:
   - tox-conda
 
   # docs
-  - pip: [blackcellmagic, furo]
+  - pip:
+      - blackcellmagic
+      - furo

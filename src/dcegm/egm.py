@@ -3,6 +3,59 @@ from typing import Callable
 from typing import Tuple
 
 import numpy as np
+from jax import numpy as jnp
+from jax import vmap
+
+
+def calculate_candidate_solutions_from_euler_equation(
+    marg_util: np.ndarray,
+    emax: np.ndarray,
+    idx_state_choices_period: np.ndarray,
+    map_state_to_post_decision_child_nodes: Callable,
+    exogenous_savings_grid: np.ndarray,
+    transition_vector_by_state: Callable,
+    discount_factor: float,
+    interest_rate: float,
+    state_choices_period: np.ndarray,
+    compute_inverse_marginal_utility: Callable,
+    compute_value: Callable,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Calculate candidates for the optimal policy and value function."""
+    feasible_marg_utils, feasible_emax = _get_post_decision_marg_utils_and_emax(
+        marg_util_next=marg_util,
+        emax_next=emax,
+        idx_state_choice_combs=idx_state_choices_period,
+        map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
+    )
+
+    (
+        endog_grid_candidate,
+        policy_candidate,
+        value_candiadate,
+        expected_values,
+    ) = vmap(
+        vmap(
+            compute_optimal_policy_and_value,
+            in_axes=(1, 1, 0, None, None, None, None, None, None),  # savings grid
+        ),
+        in_axes=(0, 0, None, None, None, None, 0, None, None),  # states and choices
+    )(
+        feasible_marg_utils,
+        feasible_emax,
+        exogenous_savings_grid,
+        transition_vector_by_state,
+        discount_factor,
+        interest_rate,
+        state_choices_period,
+        compute_inverse_marginal_utility,
+        compute_value,
+    )
+    return (
+        endog_grid_candidate,
+        value_candiadate,
+        policy_candidate,
+        expected_values,
+    )
 
 
 def compute_optimal_policy_and_value(
@@ -120,3 +173,47 @@ def solve_euler_equation(
     policy = compute_inverse_marginal_utility(rhs_euler)
 
     return policy, expected_value
+
+
+def _get_post_decision_marg_utils_and_emax(
+    marg_util_next,
+    emax_next,
+    idx_state_choice_combs,
+    map_state_to_post_decision_child_nodes,
+):
+    """Get marginal utility and expected maximum value of post-decision child states.
+
+    Args:
+        marg_util_next (np.ndarray): 2d array of shape (n_choices, n_grid_wealth)
+            containing the choice-specific marginal utilities of the next period,
+            i.e. t + 1.
+        emax_next (np.ndarray): 2d array of shape (n_choices, n_grid_wealth)
+            containing the choice-specific expected maximum values of the next period,
+            i.e. t + 1.
+        idx_state_choice_combs (np.ndarray): Indexer for the state choice combinations
+            that are feasible in the current period.
+        map_state_to_post_decision_child_nodes (np.ndarray): Indexer for the child nodes
+            that can be reached from the current state.
+
+    Returns:
+        tuple:
+
+        - marg_utils_child (np.ndarray): 3d array of shape
+            (n_child_states, n_exog_processes, n_grid_wealth) containing the
+            state-choice specific marginal utilities of the child states in
+            the current period t.
+        - emax_child (np.ndarray): 3d array of shape
+            (n_child_states, n_exog_processes, n_grid_wealth) containing the
+            state-choice specific expected maximum values of the child states
+            in the current period t.
+
+    """
+    idx_post_decision_child_states = map_state_to_post_decision_child_nodes[
+        idx_state_choice_combs
+    ]
+
+    # state-choice specific
+    marg_utils_child = jnp.take(marg_util_next, idx_post_decision_child_states, axis=0)
+    emax_child = jnp.take(emax_next, idx_post_decision_child_states, axis=0)
+
+    return marg_utils_child, emax_child
