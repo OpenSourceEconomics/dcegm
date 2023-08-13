@@ -9,6 +9,7 @@ from typing import Callable
 from typing import Optional
 from typing import Tuple
 
+import jax
 import jax.numpy as jnp  # noqa: F401
 import numpy as np
 from jax import jit  # noqa: F401
@@ -224,7 +225,7 @@ def scan_value_function(
         policy[1],
         endog_grid[1],
     )
-    last_point_saved = False
+    last_point_already_saved = False
     for _ in range(int(1.2 * len(endog_grid)) - 1):
         is_this_the_last_point = idx_to_inspect == len(endog_grid) - 1
         # In each iteration we calculate the gradient of the value function
@@ -275,77 +276,55 @@ def scan_value_function(
             idx_base=idx_to_inspect,
             n_points_to_scan=n_points_to_scan,
         )
-        if last_point_intersect:
-            (
-                value_refined[idx_refined],
-                policy_left_refined[idx_refined],
-                policy_right_refined[idx_refined],
-                endog_grid_refined[idx_refined],
-            ) = to_be_saved
-            idx_refined += 1
 
-            to_be_saved = (
-                value[idx_to_inspect],
-                policy[idx_to_inspect],
-                policy[idx_to_inspect],
-                endog_grid[idx_to_inspect],
-            )
+        suboptimal_cond = (
+            value[idx_to_inspect] < value_k_and_j[1]
+            or exog_grid[idx_to_inspect] < exog_grid_j
+            or (grad_next < grad_next_forward and switch_value_func)
+        )
+        if last_point_intersect:
+            save_this_iteration = to_be_saved
+            value_to_be_saved = value[idx_to_inspect]
+            policy_left_to_be_saved = policy[idx_to_inspect]
+            policy_right_to_be_saved = policy[idx_to_inspect]
+            endog_grid_to_be_saved = endog_grid[idx_to_inspect]
             last_point_intersect = False
             idx_to_inspect += 1
 
         elif is_this_the_last_point:
-            (
-                value_refined[idx_refined],
-                policy_left_refined[idx_refined],
-                policy_right_refined[idx_refined],
-                endog_grid_refined[idx_refined],
-            ) = to_be_saved
-            idx_refined += 1
-            if not last_point_saved:
-                to_be_saved = (
-                    value[idx_to_inspect],
-                    policy[idx_to_inspect],
-                    policy[idx_to_inspect],
-                    endog_grid[idx_to_inspect],
-                )
-                last_point_saved = True
-            else:
-                to_be_saved = np.nan, np.nan, np.nan, np.nan
+            save_this_iteration = to_be_saved
+            value_to_be_saved = jax.lax.select(
+                last_point_already_saved, jnp.nan, value[idx_to_inspect]
+            )
+            policy_right_to_be_saved = policy_left_to_be_saved = jax.lax.select(
+                last_point_already_saved, jnp.nan, policy[idx_to_inspect]
+            )
+            endog_grid_to_be_saved = jax.lax.select(
+                last_point_already_saved, jnp.nan, endog_grid[idx_to_inspect]
+            )
+            last_point_already_saved = True
 
         # Check for suboptimality. This is either with decreasing value function, the
         # value function not montone in consumption or
         # if the gradient joining the leading point i+1 and the point j (the last point
         # on the same choice specific policy) is shallower than the
         # gradient joining the i+1 and j, then delete j'th point
-        elif (
-            value[idx_to_inspect] < value_k_and_j[1]
-            or exog_grid[idx_to_inspect] < exog_grid_j
-            or (grad_next < grad_next_forward and switch_value_func)
-        ):
+        elif suboptimal_cond:
             (
-                value_refined[idx_refined],
-                policy_left_refined[idx_refined],
-                policy_right_refined[idx_refined],
-                endog_grid_refined[idx_refined],
+                value_to_be_saved,
+                policy_left_to_be_saved,
+                policy_right_to_be_saved,
+                endog_grid_to_be_saved,
             ) = to_be_saved
-            idx_refined += 1
+            save_this_iteration = to_be_saved
             idx_to_inspect += 1
 
         elif not switch_value_func:
-            (
-                value_refined[idx_refined],
-                policy_left_refined[idx_refined],
-                policy_right_refined[idx_refined],
-                endog_grid_refined[idx_refined],
-            ) = to_be_saved
-            idx_refined += 1
-
-            to_be_saved = (
-                value[idx_to_inspect],
-                policy[idx_to_inspect],
-                policy[idx_to_inspect],
-                endog_grid[idx_to_inspect],
-            )
+            save_this_iteration = to_be_saved
+            value_to_be_saved = value[idx_to_inspect]
+            policy_left_to_be_saved = policy[idx_to_inspect]
+            policy_right_to_be_saved = policy[idx_to_inspect]
+            endog_grid_to_be_saved = endog_grid[idx_to_inspect]
 
             value_k_and_j = value_k_and_j[1], value[idx_to_inspect]
             endog_grid_k_and_j = endog_grid_k_and_j[1], endog_grid[idx_to_inspect]
@@ -353,46 +332,31 @@ def scan_value_function(
             idx_to_inspect += 1
 
         elif grad_before > grad_next or grad_next < grad_next_backward:
-            intersect_grid, intersect_value = _linear_intersection(
-                x1=endog_grid[idx_next_on_lower_curve],
-                y1=value[idx_next_on_lower_curve],
-                x2=endog_grid_k_and_j[1],
-                y2=value_k_and_j[1],
-                x3=endog_grid[idx_to_inspect],
-                y3=value[idx_to_inspect],
-                x4=endog_grid[idx_before_on_upper_curve],
-                y4=value[idx_before_on_upper_curve],
-            )
-
-            intersect_policy_left = _evaluate_point_on_line(
-                x1=endog_grid[idx_next_on_lower_curve],
-                y1=policy[idx_next_on_lower_curve],
-                x2=endog_grid_k_and_j[1],
-                y2=policy_k_and_j[1],
-                point_to_evaluate=intersect_grid,
-            )
-            intersect_policy_right = _evaluate_point_on_line(
-                x1=endog_grid[idx_to_inspect],
-                y1=policy[idx_to_inspect],
-                x2=endog_grid[idx_before_on_upper_curve],
-                y2=policy[idx_before_on_upper_curve],
-                point_to_evaluate=intersect_grid,
-            )
-
             (
-                value_refined[idx_refined],
-                policy_left_refined[idx_refined],
-                policy_right_refined[idx_refined],
-                endog_grid_refined[idx_refined],
-            ) = to_be_saved
-            idx_refined += 1
-
-            to_be_saved = (
+                intersect_grid,
                 intersect_value,
                 intersect_policy_left,
                 intersect_policy_right,
-                intersect_grid,
+            ) = calc_intersection_and_extrapolate_policy(
+                wealth_1_lower_curve=endog_grid[idx_next_on_lower_curve],
+                value_1_lower_curve=value[idx_next_on_lower_curve],
+                policy_1_lower_curve=policy[idx_next_on_lower_curve],
+                wealth_2_lower_curve=endog_grid_k_and_j[1],
+                value_2_lower_curve=value_k_and_j[1],
+                policy_2_lower_curve=policy_k_and_j[1],
+                wealth_1_upper_curve=endog_grid[idx_to_inspect],
+                value_1_upper_curve=value[idx_to_inspect],
+                policy_1_upper_curve=policy[idx_to_inspect],
+                wealth_2_upper_curve=endog_grid[idx_before_on_upper_curve],
+                value_2_upper_curve=value[idx_before_on_upper_curve],
+                policy_2_upper_curve=policy[idx_before_on_upper_curve],
             )
+
+            save_this_iteration = to_be_saved
+            value_to_be_saved = intersect_value
+            policy_left_to_be_saved = intersect_policy_left
+            policy_right_to_be_saved = intersect_policy_right
+            endog_grid_to_be_saved = intersect_grid
 
             last_point_intersect = True
 
@@ -407,48 +371,36 @@ def scan_value_function(
             # j = idx_to_inspect
 
         elif grad_next > grad_next_backward:
-            intersect_grid, intersect_value = _linear_intersection(
-                x1=endog_grid_k_and_j[1],
-                y1=value_k_and_j[1],
-                x2=endog_grid_k_and_j[0],
-                y2=value_k_and_j[0],
-                x3=endog_grid[idx_to_inspect],
-                y3=value[idx_to_inspect],
-                x4=endog_grid[idx_before_on_upper_curve],
-                y4=value[idx_before_on_upper_curve],
+            (
+                intersect_grid,
+                intersect_value,
+                intersect_policy_left,
+                intersect_policy_right,
+            ) = calc_intersection_and_extrapolate_policy(
+                wealth_1_lower_curve=endog_grid_k_and_j[1],
+                value_1_lower_curve=value_k_and_j[1],
+                policy_1_lower_curve=policy_k_and_j[1],
+                wealth_2_lower_curve=endog_grid_k_and_j[0],
+                value_2_lower_curve=value_k_and_j[0],
+                policy_2_lower_curve=policy_k_and_j[0],
+                wealth_1_upper_curve=endog_grid[idx_to_inspect],
+                value_1_upper_curve=value[idx_to_inspect],
+                policy_1_upper_curve=policy[idx_to_inspect],
+                wealth_2_upper_curve=endog_grid[idx_before_on_upper_curve],
+                value_2_upper_curve=value[idx_before_on_upper_curve],
+                policy_2_upper_curve=policy[idx_before_on_upper_curve],
             )
 
-            # The next two interpolations is just to show that from
-            # interpolation from each side leads to the same result
-            intersect_policy_left = _evaluate_point_on_line(
-                x1=endog_grid_k_and_j[0],
-                y1=policy_k_and_j[0],
-                x2=endog_grid_k_and_j[1],
-                y2=policy_k_and_j[1],
-                point_to_evaluate=intersect_grid,
-            )
-            intersect_policy_right = _evaluate_point_on_line(
-                x1=endog_grid[idx_to_inspect],
-                y1=policy[idx_to_inspect],
-                x2=endog_grid[idx_before_on_upper_curve],
-                y2=policy[idx_before_on_upper_curve],
-                point_to_evaluate=intersect_grid,
-            )
-
-            to_be_saved = (
+            save_this_iteration = (
                 intersect_value,
                 intersect_policy_left,
                 intersect_policy_right,
                 intersect_grid,
             )
-
-            (
-                value_refined[idx_refined],
-                policy_left_refined[idx_refined],
-                policy_right_refined[idx_refined],
-                endog_grid_refined[idx_refined],
-            ) = to_be_saved
-            idx_refined += 1
+            value_to_be_saved = intersect_value
+            policy_left_to_be_saved = intersect_policy_left
+            policy_right_to_be_saved = intersect_policy_right
+            endog_grid_to_be_saved = intersect_grid
 
             last_point_intersect = True
 
@@ -456,8 +408,89 @@ def scan_value_function(
             endog_grid_k_and_j = endog_grid_k_and_j[0], intersect_grid
             policy_k_and_j = policy_k_and_j[0], intersect_policy_right
             # j = idx_to_inspect
+        to_be_saved = (
+            value_to_be_saved,
+            policy_left_to_be_saved,
+            policy_right_to_be_saved,
+            endog_grid_to_be_saved,
+        )
+        (
+            value_refined[idx_refined],
+            policy_left_refined[idx_refined],
+            policy_right_refined[idx_refined],
+            endog_grid_refined[idx_refined],
+        ) = save_this_iteration
+        idx_refined += 1
 
     return value_refined, policy_left_refined, policy_right_refined, endog_grid_refined
+
+
+def calc_intersection_and_extrapolate_policy(
+    wealth_1_lower_curve,
+    value_1_lower_curve,
+    policy_1_lower_curve,
+    wealth_2_lower_curve,
+    value_2_lower_curve,
+    policy_2_lower_curve,
+    wealth_1_upper_curve,
+    value_1_upper_curve,
+    policy_1_upper_curve,
+    wealth_2_upper_curve,
+    value_2_upper_curve,
+    policy_2_upper_curve,
+):
+    """Calculate intersection of two lines and extrapolate policy.
+
+    Args:
+        wealth_1_lower_curve (float):
+        value_1_lower_curve (float):
+        policy_1_lower_curve (float):
+        wealth_2_lower_curve (float):
+        value_2_lower_curve (float):
+        policy_2_lower_curve (float):
+        wealth_1_upper_curve (float):
+        value_1_upper_curve (float):
+        policy_1_upper_curve (float):
+        wealth_2_upper_curve (float):
+        value_2_upper_curve (float):
+        policy_2_upper_curve (float):
+
+    Returns:
+        Tuple[float, float, float, float]: intersection point on wealth grid, value
+            function at intersection and on lower as well as upper curve extrapolated
+            policy function.
+
+    """
+    # Calculate intersection of two lines
+    intersect_grid, intersect_value = _linear_intersection(
+        x1=wealth_1_lower_curve,
+        y1=value_1_lower_curve,
+        x2=wealth_2_lower_curve,
+        y2=value_2_lower_curve,
+        x3=wealth_1_upper_curve,
+        y3=value_1_upper_curve,
+        x4=wealth_2_upper_curve,
+        y4=value_2_upper_curve,
+    )
+
+    # Extrapolate policy
+    policy_left = _evaluate_point_on_line(
+        x1=wealth_1_lower_curve,
+        y1=policy_1_lower_curve,
+        x2=wealth_2_lower_curve,
+        y2=policy_2_lower_curve,
+        point_to_evaluate=intersect_grid,
+    )
+
+    policy_right = _evaluate_point_on_line(
+        x1=wealth_1_upper_curve,
+        y1=policy_1_upper_curve,
+        x2=wealth_2_upper_curve,
+        y2=policy_2_upper_curve,
+        point_to_evaluate=intersect_grid,
+    )
+
+    return intersect_grid, intersect_value, policy_left, policy_right
 
 
 # @njit
