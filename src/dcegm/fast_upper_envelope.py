@@ -283,7 +283,14 @@ def scan_value_function(
             or exog_grid_idx_to_inspect < exog_grid_j
             or (grad_next < grad_next_forward and switch_value_func)
         )
-        if last_point_intersect:
+
+        # Generate cases. They are exclusive in ascending order, i.e. if 1 is true the
+        # rest can't be.
+        case_1 = last_point_intersect
+        case_2 = is_this_the_last_point * (1 - case_1)
+        case_3 = suboptimal_cond * (1 - case_1) * (1 - case_2)
+        case_4 = ~switch_value_func * (1 - case_1) * (1 - case_2) * (1 - case_3)
+        if case_1:
             # Save values from last iteration
             value_to_save = value_to_be_saved_next
             policy_left_to_save = policy_left_to_be_saved_next
@@ -298,7 +305,7 @@ def scan_value_function(
             last_point_intersect = False
             idx_to_inspect += 1
 
-        elif is_this_the_last_point:
+        elif case_2:
             # Save values from last iteration
             value_to_save = value_to_be_saved_next
             policy_left_to_save = policy_left_to_be_saved_next
@@ -323,7 +330,7 @@ def scan_value_function(
         # if the gradient joining the leading point i+1 and the point j (the last point
         # on the same choice specific policy) is shallower than the
         # gradient joining the i+1 and j, then delete j'th point
-        elif suboptimal_cond:
+        elif case_3:
             # Save values from last iteration and do not overwrite them, so they will be
             # saved again in next iteration
             value_to_save = value_to_be_saved_next
@@ -333,7 +340,7 @@ def scan_value_function(
 
             idx_to_inspect += 1
 
-        elif not switch_value_func:
+        elif case_4:
             # Save values from last iteration
             value_to_save = value_to_be_saved_next
             policy_left_to_save = policy_left_to_be_saved_next
