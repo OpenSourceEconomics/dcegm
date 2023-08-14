@@ -337,15 +337,15 @@ def scan_value_function(
             policy_right_to_save,
             endog_grid_to_save,
         ) = select_variables_to_save_this_iteration(
-            case_6,
-            intersect_value,
-            intersect_policy_left,
-            intersect_policy_right,
-            intersect_grid,
-            value_to_be_saved_next,
-            policy_left_to_be_saved_next,
-            policy_right_to_be_saved_next,
-            endog_grid_to_be_saved_next,
+            case_6=case_6,
+            intersect_value=intersect_value,
+            intersect_policy_left=intersect_policy_left,
+            intersect_policy_right=intersect_policy_right,
+            intersect_grid=intersect_grid,
+            value_to_be_saved_next=value_to_be_saved_next,
+            policy_left_to_be_saved_next=policy_left_to_be_saved_next,
+            policy_right_to_be_saved_next=policy_right_to_be_saved_next,
+            endog_grid_to_be_saved_next=endog_grid_to_be_saved_next,
         )
 
         if case_1:
