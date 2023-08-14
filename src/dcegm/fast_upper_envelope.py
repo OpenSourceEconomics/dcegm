@@ -216,17 +216,16 @@ def scan_value_function(
     endog_grid_k_and_j = endog_grid[0], endog_grid[1]
     policy_k_and_j = policy[0], policy[1]
 
-    idx_refined = 1
-    idx_to_inspect = 2
+    idx_to_inspect = 1
     last_point_intersect = False
     to_be_saved = (
-        value[1],
-        policy[1],
-        policy[1],
-        endog_grid[1],
+        value[0],
+        policy[0],
+        policy[0],
+        endog_grid[0],
     )
     last_point_already_saved = False
-    for _ in range(int(1.2 * len(endog_grid)) - 1):
+    for idx_refined in range(0, len(value_refined)):
         is_this_the_last_point = idx_to_inspect == len(endog_grid) - 1
         # In each iteration we calculate the gradient of the value function
         grad_before_denominator = jnp.maximum(
@@ -277,6 +276,8 @@ def scan_value_function(
             n_points_to_scan=n_points_to_scan,
         )
 
+        # If the point is the same as point j, this is always false and
+        # switch_value_func as well. Therefore, the third if is chosen.
         suboptimal_cond = (
             value[idx_to_inspect] < value_k_and_j[1]
             or exog_grid[idx_to_inspect] < exog_grid_j
@@ -353,6 +354,7 @@ def scan_value_function(
             )
 
             save_this_iteration = to_be_saved
+
             value_to_be_saved = intersect_value
             policy_left_to_be_saved = intersect_policy_left
             policy_right_to_be_saved = intersect_policy_right
@@ -390,19 +392,18 @@ def scan_value_function(
                 value_2_upper_curve=value[idx_before_on_upper_curve],
                 policy_2_upper_curve=policy[idx_before_on_upper_curve],
             )
-
+            # Save this iteration the intersection point. The value to_be_saved from
+            # last iteration will be disregarded.
             save_this_iteration = (
                 intersect_value,
                 intersect_policy_left,
                 intersect_policy_right,
                 intersect_grid,
             )
-            value_to_be_saved = intersect_value
-            policy_left_to_be_saved = intersect_policy_left
-            policy_right_to_be_saved = intersect_policy_right
-            endog_grid_to_be_saved = intersect_grid
-
-            last_point_intersect = True
+            value_to_be_saved = value[idx_to_inspect]
+            policy_left_to_be_saved = policy[idx_to_inspect]
+            policy_right_to_be_saved = policy[idx_to_inspect]
+            endog_grid_to_be_saved = endog_grid[idx_to_inspect]
 
             value_k_and_j = value_k_and_j[0], intersect_value
             endog_grid_k_and_j = endog_grid_k_and_j[0], intersect_grid
@@ -420,7 +421,6 @@ def scan_value_function(
             policy_right_refined[idx_refined],
             endog_grid_refined[idx_refined],
         ) = save_this_iteration
-        idx_refined += 1
 
     return value_refined, policy_left_refined, policy_right_refined, endog_grid_refined
 
@@ -794,15 +794,5 @@ def _initialize_refined_arrays(
     policy_left_refined = np.empty_like(value_refined)
     policy_right_refined = np.empty_like(value_refined)
     endog_grid_refined = np.empty_like(value_refined)
-
-    value_refined[:] = np.nan
-    policy_left_refined[:] = np.nan
-    policy_right_refined[:] = np.nan
-    endog_grid_refined[:] = np.nan
-
-    value_refined[:2] = value[:2]
-    policy_left_refined[:2] = policy[:2]
-    policy_right_refined[:2] = policy[:2]
-    endog_grid_refined[:2] = endog_grid[:2]
 
     return value_refined, policy_left_refined, policy_right_refined, endog_grid_refined
