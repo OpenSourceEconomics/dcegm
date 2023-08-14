@@ -110,7 +110,7 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
     aaae(policy_calc_interp, policy_expec_interp)
 
 
-def test_fast_upper_envelope_against_org_fues(setup_model, fast_func):
+def test_fast_upper_envelope_against_org_fues(setup_model):
     policy_egm = np.genfromtxt(
         TEST_RESOURCES_DIR / "period_tests/pol10.csv", delimiter=","
     )
