@@ -101,7 +101,9 @@ def fast_upper_envelope_wrapper(
         value_refined,
         policy_left_refined,
         policy_right_refined,
-    ) = fast_upper_envelope(endog_grid, value, policy, jump_thresh=2)
+    ) = fast_upper_envelope(
+        endog_grid, value, policy, num_iter=int(1.2 * value.shape[0]), jump_thresh=2
+    )
 
     return (
         endog_grid_refined,
@@ -115,8 +117,8 @@ def fast_upper_envelope(
     endog_grid: jnp.ndarray,
     value: jnp.ndarray,
     policy: jnp.ndarray,
+    num_iter: int,
     jump_thresh: Optional[float] = 2,
-    lower_bound_wealth: Optional[float] = 1e-10,
 ) -> Tuple[np.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Remove suboptimal points from the endogenous grid, policy, and value function.
 
@@ -168,6 +170,7 @@ def fast_upper_envelope(
         endog_grid=endog_grid,
         value=value,
         policy=policy,
+        num_iter=num_iter,
         jump_thresh=jump_thresh,
         n_points_to_scan=10,
     )
