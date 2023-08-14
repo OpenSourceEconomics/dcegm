@@ -9,7 +9,6 @@ from typing import Callable
 from typing import Optional
 from typing import Tuple
 
-import jax
 import jax.numpy as jnp  # noqa: F401
 import numpy as np
 from jax import jit  # noqa: F401
@@ -212,6 +211,10 @@ def scan_value_function(
     # j = 1
     # k = 0
 
+    possible_values_case_2 = (value[-1], np.nan)
+    possible_policies_case_2 = (policy[-1], np.nan)
+    possible_endog_grid_case_2 = (endog_grid[-1], np.nan)
+
     value_k_and_j = value[0], value[1]
     endog_grid_k_and_j = endog_grid[0], endog_grid[1]
     policy_k_and_j = policy[0], policy[1]
@@ -223,7 +226,7 @@ def scan_value_function(
     policy_right_to_be_saved_next = policy[0]
     endog_grid_to_be_saved_next = endog_grid[0]
 
-    last_point_already_saved = False
+    idx_case_2 = 0
     for idx_refined in range(len(value_refined)):
         is_this_the_last_point = idx_to_inspect == len(endog_grid) - 1
         # In each iteration we calculate the gradient of the value function
@@ -274,6 +277,11 @@ def scan_value_function(
             n_points_to_scan=n_points_to_scan,
         )
 
+        # Check for suboptimality. This is either with decreasing value function, the
+        # value function not montone in consumption or
+        # if the gradient joining the leading point i+1 and the point j (the last point
+        # on the same choice specific policy) is shallower than the
+        # gradient joining the i+1 and j, then delete j'th point
         # If the point is the same as point j, this is always false and
         # switch_value_func as well. Therefore, the third if is chosen.
         suboptimal_cond = (
@@ -347,6 +355,20 @@ def scan_value_function(
             policy_right_to_be_saved_next=policy_right_to_be_saved_next,
             endog_grid_to_be_saved_next=endog_grid_to_be_saved_next,
         )
+        value_case_2 = possible_values_case_2[idx_case_2]
+        policy_to_be_saved_case_2 = possible_policies_case_2[idx_case_2]
+        endog_grid_to_be_saved_case_2 = possible_endog_grid_case_2[idx_case_2]
+
+        # In the iteration where case_2 is first time True, the last point is selected
+        # and afterwards only nans.
+        idx_case_2 = case_2
+
+        in_case_134 = case_1 + case_3 + case_4
+        in_case_256 = case_2 + case_5 + case_6
+
+        in_case_123 = case_1 + case_2 + case_3
+        in_case_1236 = case_1 + case_2 + case_3 + case_6
+        in_case_45 = case_4 + case_5
 
         if case_1:
             # Update values for next iteration
@@ -355,32 +377,12 @@ def scan_value_function(
             policy_right_to_be_saved_next = policy[idx_to_inspect]
             endog_grid_to_be_saved_next = endog_grid[idx_to_inspect]
             last_point_intersect = False
-            idx_to_inspect += 1
 
         if case_2:
-            possible_value_case_2 = jax.lax.select(
-                last_point_already_saved, jnp.nan, value[idx_to_inspect]
-            )
-            possible_policy_to_be_saved_case_2 = jax.lax.select(
-                last_point_already_saved, jnp.nan, policy[idx_to_inspect]
-            )
-            possible_endog_grid_to_be_saved_case_2 = jax.lax.select(
-                last_point_already_saved, jnp.nan, endog_grid[idx_to_inspect]
-            )
-            value_to_be_saved_next = possible_value_case_2
-            policy_left_to_be_saved_next = possible_policy_to_be_saved_case_2
-            policy_right_to_be_saved_next = possible_policy_to_be_saved_case_2
-            endog_grid_to_be_saved_next = possible_endog_grid_to_be_saved_case_2
-
-            last_point_already_saved = True
-
-        # Check for suboptimality. This is either with decreasing value function, the
-        # value function not montone in consumption or
-        # if the gradient joining the leading point i+1 and the point j (the last point
-        # on the same choice specific policy) is shallower than the
-        # gradient joining the i+1 and j, then delete j'th point
-        if case_3:
-            idx_to_inspect += 1
+            value_to_be_saved_next = value_case_2
+            policy_left_to_be_saved_next = policy_to_be_saved_case_2
+            policy_right_to_be_saved_next = policy_to_be_saved_case_2
+            endog_grid_to_be_saved_next = endog_grid_to_be_saved_case_2
 
         if case_4:
             # Save values for next iteration
@@ -389,10 +391,9 @@ def scan_value_function(
             policy_right_to_be_saved_next = policy[idx_to_inspect]
             endog_grid_to_be_saved_next = endog_grid[idx_to_inspect]
 
-            value_k_and_j = value_k_and_j[1], value[idx_to_inspect]
+            # value_k_and_j = value_k_and_j[1], value[idx_to_inspect]
             endog_grid_k_and_j = endog_grid_k_and_j[1], endog_grid[idx_to_inspect]
             policy_k_and_j = policy_k_and_j[1], policy[idx_to_inspect]
-            idx_to_inspect += 1
 
         if case_5:
             # Save values for next iteration
@@ -403,7 +404,7 @@ def scan_value_function(
 
             last_point_intersect = True
 
-            value_k_and_j = value_k_and_j[1], value[idx_to_inspect]
+            # value_k_and_j = value_k_and_j[1], value[idx_to_inspect]
             endog_grid_k_and_j = (
                 endog_grid_k_and_j[1],
                 endog_grid[idx_to_inspect],
@@ -420,10 +421,20 @@ def scan_value_function(
             policy_right_to_be_saved_next = policy[idx_to_inspect]
             endog_grid_to_be_saved_next = endog_grid[idx_to_inspect]
 
-            value_k_and_j = value_k_and_j[0], intersect_value
+            # value_k_and_j = value_k_and_j[0], intersect_value
             endog_grid_k_and_j = endog_grid_k_and_j[0], intersect_grid
             policy_k_and_j = policy_k_and_j[0], intersect_policy_right
             # j = idx_to_inspect
+
+        value_j_new = (
+            in_case_123 * value_k_and_j[1]
+            + in_case_45 * value[idx_to_inspect]
+            + case_6 * intersect_value
+        )
+        value_k_new = in_case_1236 * value_k_and_j[0] + in_case_45 * value_k_and_j[1]
+        value_k_and_j = value_k_new, value_j_new
+        # Increase in cases 134 and not in 256
+        idx_to_inspect += in_case_134 * (1 - in_case_256)
 
         value_refined[idx_refined] = value_to_save
         policy_left_refined[idx_refined] = policy_left_to_save
