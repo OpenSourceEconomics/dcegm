@@ -202,7 +202,7 @@ def scan_value_function(
             the optimal points are kept.
 
     """
-    exog_grid = endog_grid - policy
+    endog_grid - policy
     (
         value_refined,
         policy_left_refined,
@@ -242,8 +242,9 @@ def scan_value_function(
             endog_grid[idx_to_inspect] - endog_grid_k_and_j[1], 1e-16
         )
         exog_grid_j = endog_grid_k_and_j[1] - policy_k_and_j[1]
+        exog_grid_idx_to_inspect = endog_grid[idx_to_inspect] - policy[idx_to_inspect]
         switch_value_func = (
-            np.abs((exog_grid[idx_to_inspect] - exog_grid_j) / switch_value_denominator)
+            np.abs((exog_grid_idx_to_inspect - exog_grid_j) / switch_value_denominator)
             > jump_thresh
         )
 
@@ -253,7 +254,7 @@ def scan_value_function(
         ) = _forward_scan(
             value=value,
             endog_grid=endog_grid,
-            exog_grid=exog_grid,
+            policy=policy,
             jump_thresh=jump_thresh,
             endog_grid_current=endog_grid_k_and_j[1],
             exog_grid_current=exog_grid_j,
@@ -267,7 +268,7 @@ def scan_value_function(
         ) = _backward_scan(
             value=value,
             endog_grid=endog_grid,
-            exog_grid=exog_grid,
+            policy=policy,
             jump_thresh=jump_thresh,
             value_current=value_k_and_j[1],
             endog_grid_current=endog_grid_k_and_j[1],
@@ -279,7 +280,7 @@ def scan_value_function(
         # switch_value_func as well. Therefore, the third if is chosen.
         suboptimal_cond = (
             value[idx_to_inspect] < value_k_and_j[1]
-            or exog_grid[idx_to_inspect] < exog_grid_j
+            or exog_grid_idx_to_inspect < exog_grid_j
             or (grad_next < grad_next_forward and switch_value_func)
         )
         if last_point_intersect:
@@ -513,7 +514,7 @@ def calc_intersection_and_extrapolate_policy(
 def _forward_scan(
     value: np.ndarray,
     endog_grid: np.ndarray,
-    exog_grid: np.ndarray,
+    policy: np.array,
     jump_thresh: float,
     endog_grid_current: float,
     exog_grid_current: float,
@@ -547,7 +548,7 @@ def _forward_scan(
     idx_on_same_value = 0
     grad_next_on_same_value = 0
 
-    idx_max = exog_grid.shape[0] - 1
+    idx_max = endog_grid.shape[0] - 1
 
     for i in range(1, n_points_to_scan + 1):
         # Avoid out of bound indexing
@@ -557,8 +558,9 @@ def _forward_scan(
             endog_grid_current - endog_grid[idx_to_check], -1e-16
         )
         # Check if checked point is on the same value function
+        exog_grid_idx_to_check = endog_grid[idx_to_check] - policy[idx_to_check]
         is_on_same_value = (
-            np.abs((exog_grid_current - exog_grid[idx_to_check]) / (endog_grid_diff))
+            np.abs((exog_grid_current - exog_grid_idx_to_check) / (endog_grid_diff))
             < jump_thresh
         )
         gradient_next_denominator = np.minimum(
@@ -609,7 +611,7 @@ def logic_or(bool_ind_1, bool_ind_2):
 def _backward_scan(
     value: np.ndarray,
     endog_grid: np.ndarray,
-    exog_grid: np.ndarray,
+    policy: np.array,
     jump_thresh: float,
     endog_grid_current,
     value_current,
@@ -654,10 +656,11 @@ def _backward_scan(
         endog_grid_diff_to_next = np.maximum(
             endog_grid[idx_base] - endog_grid[idx_to_check], 1e-16
         )
+        exog_grid_idx_base = endog_grid[idx_base] - policy[idx_base]
+        exog_grid_idx_to_check = endog_grid[idx_to_check] - policy[idx_to_check]
         is_on_same_value = (
             np.abs(
-                (exog_grid[idx_base] - exog_grid[idx_to_check])
-                / endog_grid_diff_to_next
+                (exog_grid_idx_base - exog_grid_idx_to_check) / endog_grid_diff_to_next
             )
             < jump_thresh
         )
