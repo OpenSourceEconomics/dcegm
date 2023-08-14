@@ -316,7 +316,7 @@ def scan_value_function(
             intersect_value,
             intersect_policy_left,
             intersect_policy_right,
-        ) = select_calculate_intersection(
+        ) = select_and_calculate_intersection(
             endog_grid=endog_grid,
             policy=policy,
             value=value,
@@ -330,17 +330,22 @@ def scan_value_function(
             case_6=case_6,
         )
 
-        # Save values from last iteration
-        value_to_save = value_to_be_saved_next * (1 - case_6) + intersect_value * case_6
-        policy_left_to_save = (
-            policy_left_to_be_saved_next * (1 - case_6) + intersect_policy_left * case_6
-        )
-        policy_right_to_save = (
-            policy_right_to_be_saved_next * (1 - case_6)
-            + intersect_policy_right * case_6
-        )
-        endog_grid_to_save = (
-            endog_grid_to_be_saved_next * (1 - case_6) + intersect_grid * case_6
+        # Save the values for the next iteration
+        (
+            value_to_save,
+            policy_left_to_save,
+            policy_right_to_save,
+            endog_grid_to_save,
+        ) = select_variables_to_save_this_iteration(
+            case_6,
+            intersect_value,
+            intersect_policy_left,
+            intersect_policy_right,
+            intersect_grid,
+            value_to_be_saved_next,
+            policy_left_to_be_saved_next,
+            policy_right_to_be_saved_next,
+            endog_grid_to_be_saved_next,
         )
 
         if case_1:
@@ -353,17 +358,20 @@ def scan_value_function(
             idx_to_inspect += 1
 
         if case_2:
-            value_to_be_saved_next = jax.lax.select(
+            possible_value_case_2 = jax.lax.select(
                 last_point_already_saved, jnp.nan, value[idx_to_inspect]
             )
-            policy_right_to_be_saved_next = (
-                policy_left_to_be_saved_next
-            ) = jax.lax.select(
+            possible_policy_to_be_saved_case_2 = jax.lax.select(
                 last_point_already_saved, jnp.nan, policy[idx_to_inspect]
             )
-            endog_grid_to_be_saved_next = jax.lax.select(
+            possible_endog_grid_to_be_saved_case_2 = jax.lax.select(
                 last_point_already_saved, jnp.nan, endog_grid[idx_to_inspect]
             )
+            value_to_be_saved_next = possible_value_case_2
+            policy_left_to_be_saved_next = possible_policy_to_be_saved_case_2
+            policy_right_to_be_saved_next = possible_policy_to_be_saved_case_2
+            endog_grid_to_be_saved_next = possible_endog_grid_to_be_saved_case_2
+
             last_point_already_saved = True
 
         # Check for suboptimality. This is either with decreasing value function, the
@@ -425,7 +433,33 @@ def scan_value_function(
     return value_refined, policy_left_refined, policy_right_refined, endog_grid_refined
 
 
-def select_calculate_intersection(
+def select_variables_to_save_this_iteration(
+    case_6,
+    intersect_value,
+    intersect_policy_left,
+    intersect_policy_right,
+    intersect_grid,
+    value_to_be_saved_next,
+    policy_left_to_be_saved_next,
+    policy_right_to_be_saved_next,
+    endog_grid_to_be_saved_next,
+):
+    # Determine variables to save this iteration. This is always the variables
+    # carried from last iteration. Except in case 6.
+    value_to_save = value_to_be_saved_next * (1 - case_6) + intersect_value * case_6
+    policy_left_to_save = (
+        policy_left_to_be_saved_next * (1 - case_6) + intersect_policy_left * case_6
+    )
+    policy_right_to_save = (
+        policy_right_to_be_saved_next * (1 - case_6) + intersect_policy_right * case_6
+    )
+    endog_grid_to_save = (
+        endog_grid_to_be_saved_next * (1 - case_6) + intersect_grid * case_6
+    )
+    return value_to_save, policy_left_to_save, policy_right_to_save, endog_grid_to_save
+
+
+def select_and_calculate_intersection(
     endog_grid,
     policy,
     value,
