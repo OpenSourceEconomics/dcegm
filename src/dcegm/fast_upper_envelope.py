@@ -129,10 +129,9 @@ def fast_upper_envelope(
             of shape (n_grid_wealth + 1,).
         policy (np.ndarray): 1d array containing the unrefined policy correspondence
             of shape (n_grid_wealth + 1,).
-        exog_grid (np.ndarray): 1d array containing the exogenous wealth grid
-            of shape (n_grid_wealth + 1,).
+        num_iter (int): Number of iterations to execute the fues. Recommended to use
+            twenty percent more than the actual array size.
         jump_thresh (float): Jump detection threshold.
-        lower_bound_wealth (float): Lower bound on wealth.
 
     Returns:
         tuple:
@@ -156,7 +155,7 @@ def fast_upper_envelope(
     #     mask &= value < max_value_lower_bound
     #     value[mask] = jnp.nan
 
-    idx_sort = jnp.argsort(endog_grid, kind="mergesort")
+    idx_sort = jnp.argsort(endog_grid)
     value = jnp.take(value, idx_sort)
     policy = jnp.take(policy, idx_sort)
     endog_grid = jnp.take(endog_grid, idx_sort)
@@ -189,12 +188,14 @@ def scan_value_function(
     """Scan the value function to remove suboptimal points and add intersection points.
 
     Args:
+        endog_grid (np.ndarray): 1d array containing the unrefined endogenous wealth
+            grid of shape (n_grid_wealth + 1,).
         value (np.ndarray): 1d array containing the unrefined value correspondence
             of shape (n_grid_wealth + 1,).
         policy (np.ndarray): 1d array containing the unrefined policy correspondence
             of shape (n_grid_wealth + 1,).
-        endog_grid (np.ndarray): 1d array containing the unrefined endogenous wealth
-            grid of shape (n_grid_wealth + 1,).
+        num_iter (int): Number of iterations to execute the fues. Recommended to use
+            twenty percent more than the actual array size.
         jump_thresh (float): Jump detection threshold.
         n_points_to_scan (int): Number of points to scan for suboptimal points.
 
@@ -235,9 +236,9 @@ def scan_value_function(
     )
     partial_body = partial(
         scan_body,
-        value=jnp.array(value),
-        policy=jnp.array(policy),
-        endog_grid=jnp.array(endog_grid),
+        value=value,
+        policy=policy,
+        endog_grid=endog_grid,
         jump_thresh=jump_thresh,
         n_points_to_scan=n_points_to_scan,
     )
