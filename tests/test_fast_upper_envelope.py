@@ -9,7 +9,6 @@ from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
 from dcegm.interpolation import linear_interpolation_with_extrapolation
 from dcegm.pre_processing import calc_current_value
 from jax import config
-from jax import jit
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
 from utils.fast_upper_envelope_org import fast_upper_envelope_wrapper_org
@@ -22,6 +21,7 @@ TEST_DIR = Path(__file__).parent
 
 # Directory with additional resources for the testing harness
 TEST_RESOURCES_DIR = TEST_DIR / "resources"
+__file__
 
 
 @pytest.fixture
@@ -110,14 +110,6 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
     aaae(policy_calc_interp, policy_expec_interp)
 
 
-@pytest.fixture(scope="module")
-def fast_func():
-    value_egm = np.genfromtxt(
-        TEST_RESOURCES_DIR / "period_tests/val10.csv", delimiter=","
-    )
-    return jit(partial(fast_upper_envelope, num_iter=int(1.2 * value_egm.shape[1])))
-
-
 def test_fast_upper_envelope_against_org_fues(setup_model, fast_func):
     policy_egm = np.genfromtxt(
         TEST_RESOURCES_DIR / "period_tests/pol10.csv", delimiter=","
@@ -132,10 +124,11 @@ def test_fast_upper_envelope_against_org_fues(setup_model, fast_func):
         value_refined,
         policy_left_refined,
         policy_right_refined,
-    ) = fast_func(
+    ) = fast_upper_envelope(
         endog_grid=policy_egm[0],
         value=value_egm[1],
         policy=policy_egm[1],
+        num_iter=int(1.2 * value_egm.shape[1]),
     )
 
     endog_grid_org, policy_org, value_org = fast_upper_envelope_wrapper_org(
