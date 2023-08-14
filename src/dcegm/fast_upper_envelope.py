@@ -10,21 +10,21 @@ from typing import Callable
 from typing import Optional
 from typing import Tuple
 
+import jax
 import jax.numpy as jnp  # noqa: F401
 import numpy as np
 from jax import jit  # noqa: F401
-from numba import njit
 
 
 def fast_upper_envelope_wrapper(
-    endog_grid: np.ndarray,
-    policy: np.ndarray,
-    value: np.ndarray,
-    exog_grid: np.ndarray,
+    endog_grid: jnp.ndarray,
+    policy: jnp.ndarray,
+    value: jnp.ndarray,
+    exog_grid: jnp.ndarray,
     expected_value_zero_savings: float,
     choice: int,
     compute_value: Callable,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Drop suboptimal points and refine the endogenous grid, policy, and value.
 
     Computes the upper envelope over the overlapping segments of the
@@ -73,7 +73,7 @@ def fast_upper_envelope_wrapper(
             containing refined state- and choice-specific value function.
 
     """
-    min_wealth_grid = np.min(endog_grid)
+    min_wealth_grid = jnp.min(endog_grid)
     if endog_grid[0] > min_wealth_grid:
         # Non-concave region coincides with credit constraint.
         # This happens when there is a non-monotonicity in the endogenous wealth grid
@@ -92,9 +92,9 @@ def fast_upper_envelope_wrapper(
             compute_value=compute_value,
         )
 
-    endog_grid = np.append(0, endog_grid)
-    policy = np.append(0, policy)
-    value = np.append(expected_value_zero_savings, value)
+    endog_grid = jnp.append(0, endog_grid)
+    policy = jnp.append(0, policy)
+    value = jnp.append(expected_value_zero_savings, value)
 
     (
         endog_grid_refined,
@@ -112,12 +112,12 @@ def fast_upper_envelope_wrapper(
 
 
 def fast_upper_envelope(
-    endog_grid: np.ndarray,
-    value: np.ndarray,
-    policy: np.ndarray,
+    endog_grid: jnp.ndarray,
+    value: jnp.ndarray,
+    policy: jnp.ndarray,
     jump_thresh: Optional[float] = 2,
     lower_bound_wealth: Optional[float] = 1e-10,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Remove suboptimal points from the endogenous grid, policy, and value function.
 
     Args:
@@ -149,15 +149,15 @@ def fast_upper_envelope(
     # Comment by Akshay: Determine locations where endogenous grid points are
     # equal to the lower bound. Not relevant for us.
     # mask = endog_grid <= lower_bound_wealth
-    # if np.any(mask):
-    #     max_value_lower_bound = np.nanmax(value[mask])
+    # if jnp.any(mask):
+    #     max_value_lower_bound = jnp.nanmax(value[mask])
     #     mask &= value < max_value_lower_bound
-    #     value[mask] = np.nan
+    #     value[mask] = jnp.nan
 
-    idx_sort = np.argsort(endog_grid, kind="mergesort")
-    value = np.take(value, idx_sort)
-    policy = np.take(policy, idx_sort)
-    endog_grid = np.take(endog_grid, idx_sort)
+    idx_sort = jnp.argsort(endog_grid, kind="mergesort")
+    value = jnp.take(value, idx_sort)
+    policy = jnp.take(policy, idx_sort)
+    endog_grid = jnp.take(endog_grid, idx_sort)
 
     (
         value_refined,
@@ -176,12 +176,13 @@ def fast_upper_envelope(
 
 
 def scan_value_function(
-    endog_grid: np.ndarray,
-    value: np.ndarray,
-    policy: np.ndarray,
+    endog_grid: jnp.ndarray,
+    value: jnp.ndarray,
+    policy: jnp.ndarray,
+    num_iter: int,
     jump_thresh: float,
     n_points_to_scan: Optional[int] = 0,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Scan the value function to remove suboptimal points and add intersection points.
 
     Args:
@@ -202,24 +203,10 @@ def scan_value_function(
             the optimal points are kept.
 
     """
-    endog_grid - policy
-    (
-        value_refined,
-        policy_left_refined,
-        policy_right_refined,
-        endog_grid_refined,
-    ) = _initialize_refined_arrays(value, policy, endog_grid)
-    # j = 1
-    # k = 0
-
-    possible_values_case_2 = (value[-1], np.nan)
-    possible_policies_case_2 = (policy[-1], np.nan)
-    possible_endog_grid_case_2 = (endog_grid[-1], np.nan)
-
     value_k_and_j = value[0], value[1]
     endog_grid_k_and_j = endog_grid[0], endog_grid[1]
     policy_k_and_j = policy[0], policy[1]
-    vars_j_and_k = (value_k_and_j, policy_k_and_j, endog_grid_k_and_j)
+    vars_j_and_k_inital = (value_k_and_j, policy_k_and_j, endog_grid_k_and_j)
 
     value_to_be_saved_next = value[0]
     policy_left_to_be_saved_next = policy[0]
@@ -236,8 +223,8 @@ def scan_value_function(
     last_point_was_intersect = 0
     idx_case_2 = 0
 
-    carry = (
-        vars_j_and_k,
+    carry_init = (
+        vars_j_and_k_inital,
         to_be_saved_inital,
         idx_to_inspect,
         idx_case_2,
@@ -245,34 +232,31 @@ def scan_value_function(
     )
     partial_body = partial(
         scan_body,
-        value=value,
-        policy=policy,
-        endog_grid=endog_grid,
-        possible_values_case_2=possible_values_case_2,
-        possible_policies_case_2=possible_policies_case_2,
-        possible_endog_grid_case_2=possible_endog_grid_case_2,
+        value=jnp.array(value),
+        policy=jnp.array(policy),
+        endog_grid=jnp.array(endog_grid),
         jump_thresh=jump_thresh,
         n_points_to_scan=n_points_to_scan,
     )
-    for idx_refined in range(len(value_refined)):
-        result, carry = partial_body(carry)
 
-        value_refined[idx_refined] = result[0]
-        policy_left_refined[idx_refined] = result[1]
-        policy_right_refined[idx_refined] = result[2]
-        endog_grid_refined[idx_refined] = result[3]
+    final_carry, result = jax.lax.scan(
+        partial_body,
+        carry_init,
+        xs=None,
+        length=num_iter,
+        reverse=False,
+        unroll=1,
+    )
 
-    return value_refined, policy_left_refined, policy_right_refined, endog_grid_refined
+    return result
 
 
 def scan_body(
     carry,
+    iter_step,
     value,
     policy,
     endog_grid,
-    possible_values_case_2,
-    possible_policies_case_2,
-    possible_endog_grid_case_2,
     jump_thresh,
     n_points_to_scan,
 ):
@@ -305,7 +289,7 @@ def scan_body(
     exog_grid_j = endog_grid_k_and_j[1] - policy_k_and_j[1]
     exog_grid_idx_to_inspect = endog_grid[idx_to_inspect] - policy[idx_to_inspect]
     switch_value_func = (
-        np.abs((exog_grid_idx_to_inspect - exog_grid_j) / switch_value_denominator)
+        jnp.abs((exog_grid_idx_to_inspect - exog_grid_j) / switch_value_denominator)
         > jump_thresh
     )
 
@@ -344,14 +328,18 @@ def scan_body(
     # gradient joining the i+1 and j, then delete j'th point
     # If the point is the same as point j, this is always false and
     # switch_value_func as well. Therefore, the third if is chosen.
-    suboptimal_cond = (
-        value[idx_to_inspect] < value_k_and_j[1]
-        or exog_grid_idx_to_inspect < exog_grid_j
-        or (grad_next < grad_next_forward and switch_value_func)
+    decreasing_value = value[idx_to_inspect] < value_k_and_j[1]
+    non_monotone_policy = exog_grid_idx_to_inspect < exog_grid_j
+    switch_value_func_and_steep_increase_after = (
+        grad_next < grad_next_forward
+    ) * switch_value_func
+    suboptimal_cond = logic_or(
+        switch_value_func_and_steep_increase_after,
+        logic_or(decreasing_value, non_monotone_policy),
     )
 
-    next_point_past_intersect = (
-        grad_before > grad_next or grad_next < grad_next_backward
+    next_point_past_intersect = logic_or(
+        grad_before > grad_next, grad_next < grad_next_backward
     )
     point_j_past_intersect = grad_next > grad_next_backward
 
@@ -415,9 +403,9 @@ def scan_body(
         policy_right_to_be_saved_next=policy_right_to_be_saved_next,
         endog_grid_to_be_saved_next=endog_grid_to_be_saved_next,
     )
-    value_case_2 = possible_values_case_2[idx_case_2]
-    policy_to_be_saved_case_2 = possible_policies_case_2[idx_case_2]
-    endog_grid_to_be_saved_case_2 = possible_endog_grid_case_2[idx_case_2]
+    value_case_2 = jax.lax.select(idx_case_2, jnp.nan, value[-1])
+    policy_to_be_saved_case_2 = jax.lax.select(idx_case_2, jnp.nan, policy[-1])
+    endog_grid_to_be_saved_case_2 = jax.lax.select(idx_case_2, jnp.nan, endog_grid[-1])
 
     # In the iteration where case_2 is first time True, the last point is selected
     # and afterwards only nans.
@@ -506,7 +494,7 @@ def scan_body(
         endog_grid_to_save,
     )
 
-    return result, carry
+    return carry, result
 
 
 def select_variables_to_save_this_iteration(
@@ -654,9 +642,9 @@ def calc_intersection_and_extrapolate_policy(
 
 # @njit
 def _forward_scan(
-    value: np.ndarray,
-    endog_grid: np.ndarray,
-    policy: np.array,
+    value: jnp.ndarray,
+    endog_grid: jnp.ndarray,
+    policy: jnp.array,
     jump_thresh: float,
     endog_grid_current: float,
     exog_grid_current: float,
@@ -694,13 +682,13 @@ def _forward_scan(
 
     for i in range(1, n_points_to_scan + 1):
         # Avoid out of bound indexing
-        idx_to_check = min(idx_base + i, idx_max)
+        idx_to_check = jnp.minimum(idx_base + i, idx_max)
         # Get endog grid diff from current optimal to the one checkec
         endog_grid_diff = endog_grid_current - endog_grid[idx_to_check] + 1e-16
         # Check if checked point is on the same value function
         exog_grid_idx_to_check = endog_grid[idx_to_check] - policy[idx_to_check]
         is_on_same_value = (
-            np.abs((exog_grid_current - exog_grid_idx_to_check) / (endog_grid_diff))
+            jnp.abs((exog_grid_current - exog_grid_idx_to_check) / (endog_grid_diff))
             < jump_thresh
         )
         gradient_next_denominator = (
@@ -739,7 +727,7 @@ def logic_or(bool_ind_1, bool_ind_2):
         bool_ind_2 (np.ndarray): 1d array of booleans.
 
     Returns:
-        np.ndarray: 1d array of booleans.
+        jnp.ndarray: 1d array of booleans.
 
     """
     both = bool_ind_1 * bool_ind_2
@@ -747,11 +735,10 @@ def logic_or(bool_ind_1, bool_ind_2):
     return both + (1 - both) * either
 
 
-# @njit
 def _backward_scan(
-    value: np.ndarray,
-    endog_grid: np.ndarray,
-    policy: np.array,
+    value: jnp.ndarray,
+    endog_grid: jnp.ndarray,
+    policy: jnp.array,
     jump_thresh: float,
     endog_grid_current,
     value_current,
@@ -788,18 +775,18 @@ def _backward_scan(
     grad_before_on_same_value = 0
 
     for i in range(1, n_points_to_scan + 1):
-        idx_to_check = max(idx_base - i, 0)
+        idx_to_check = jnp.maximum(idx_base - i, 0)
 
-        endog_grid_diff_to_current = np.maximum(
-            endog_grid_current - endog_grid[idx_to_check], 1e-16
+        endog_grid_diff_to_current = (
+            endog_grid_current - endog_grid[idx_to_check] + 1e-16
         )
-        endog_grid_diff_to_next = np.maximum(
-            endog_grid[idx_base] - endog_grid[idx_to_check], 1e-16
+        endog_grid_diff_to_next = (
+            endog_grid[idx_base] - endog_grid[idx_to_check] + 1e-16
         )
         exog_grid_idx_base = endog_grid[idx_base] - policy[idx_base]
         exog_grid_idx_to_check = endog_grid[idx_to_check] - policy[idx_to_check]
         is_on_same_value = (
-            np.abs(
+            jnp.abs(
                 (exog_grid_idx_base - exog_grid_idx_to_check) / endog_grid_diff_to_next
             )
             < jump_thresh
@@ -827,7 +814,6 @@ def _backward_scan(
     )
 
 
-@njit
 def _evaluate_point_on_line(
     x1: float, y1: float, x2: float, y2: float, point_to_evaluate: float
 ) -> float:
@@ -847,7 +833,6 @@ def _evaluate_point_on_line(
     return (y2 - y1) / ((x2 - x1) + 1e-16) * (point_to_evaluate - x1) + y1
 
 
-@njit
 def _linear_intersection(
     x1: float,
     y1: float,
@@ -886,15 +871,15 @@ def _linear_intersection(
 
 
 def _augment_grids(
-    endog_grid: np.ndarray,
-    value: np.ndarray,
-    policy: np.ndarray,
+    endog_grid: jnp.ndarray,
+    value: jnp.ndarray,
+    policy: jnp.ndarray,
     choice: int,
-    expected_value_zero_savings: np.ndarray,
+    expected_value_zero_savings: jnp.ndarray,
     min_wealth_grid: float,
     points_to_add: int,
     compute_value: Callable,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, jnp.ndarray, jnp.ndarray]:
     """Extends the endogenous wealth grid, value, and policy functions to the left.
 
     Args:
@@ -932,26 +917,17 @@ def _augment_grids(
             value function with ancillary points added to the left.
 
     """
-    grid_points_to_add = np.linspace(min_wealth_grid, endog_grid[0], points_to_add)[:-1]
+    grid_points_to_add = jnp.linspace(min_wealth_grid, endog_grid[0], points_to_add)[
+        :-1
+    ]
 
-    grid_augmented = np.append(grid_points_to_add, endog_grid)
+    grid_augmented = jnp.append(grid_points_to_add, endog_grid)
     values_to_add = compute_value(
         grid_points_to_add,
         expected_value_zero_savings,
         choice,
     )
-    value_augmented = np.append(values_to_add, value)
-    policy_augmented = np.append(grid_points_to_add, policy)
+    value_augmented = jnp.append(values_to_add, value)
+    policy_augmented = jnp.append(grid_points_to_add, policy)
 
     return grid_augmented, value_augmented, policy_augmented
-
-
-def _initialize_refined_arrays(
-    value: np.ndarray, policy: np.ndarray, endog_grid: np.ndarray
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    value_refined = np.empty(shape=int(1.2 * len(value)))
-    policy_left_refined = np.empty_like(value_refined)
-    policy_right_refined = np.empty_like(value_refined)
-    endog_grid_refined = np.empty_like(value_refined)
-
-    return value_refined, policy_left_refined, policy_right_refined, endog_grid_refined
