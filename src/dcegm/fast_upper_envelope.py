@@ -391,9 +391,7 @@ def scan_value_function(
             policy_right_to_be_saved_next = policy[idx_to_inspect]
             endog_grid_to_be_saved_next = endog_grid[idx_to_inspect]
 
-            # value_k_and_j = value_k_and_j[1], value[idx_to_inspect]
             endog_grid_k_and_j = endog_grid_k_and_j[1], endog_grid[idx_to_inspect]
-            policy_k_and_j = policy_k_and_j[1], policy[idx_to_inspect]
 
         if case_5:
             # Save values for next iteration
@@ -404,12 +402,10 @@ def scan_value_function(
 
             last_point_intersect = True
 
-            # value_k_and_j = value_k_and_j[1], value[idx_to_inspect]
             endog_grid_k_and_j = (
                 endog_grid_k_and_j[1],
                 endog_grid[idx_to_inspect],
             )
-            policy_k_and_j = policy_k_and_j[1], policy[idx_to_inspect]
 
             # k = j
             # j = idx_to_inspect
@@ -421,11 +417,11 @@ def scan_value_function(
             policy_right_to_be_saved_next = policy[idx_to_inspect]
             endog_grid_to_be_saved_next = endog_grid[idx_to_inspect]
 
-            # value_k_and_j = value_k_and_j[0], intersect_value
             endog_grid_k_and_j = endog_grid_k_and_j[0], intersect_grid
-            policy_k_and_j = policy_k_and_j[0], intersect_policy_right
             # j = idx_to_inspect
 
+        # In case 1, 2, 3 the old value remains as value_j, in 4, 5, value_j is former
+        # value k and in 6 the old value_j is overwritten
         value_j_new = (
             in_case_123 * value_k_and_j[1]
             + in_case_45 * value[idx_to_inspect]
@@ -433,6 +429,13 @@ def scan_value_function(
         )
         value_k_new = in_case_1236 * value_k_and_j[0] + in_case_45 * value_k_and_j[1]
         value_k_and_j = value_k_new, value_j_new
+        policy_j_new = (
+            in_case_123 * policy_k_and_j[1]
+            + in_case_45 * policy[idx_to_inspect]
+            + case_6 * intersect_policy_right
+        )
+        policy_k_new = in_case_1236 * policy_k_and_j[0] + in_case_45 * policy_k_and_j[1]
+        policy_k_and_j = policy_k_new, policy_j_new
         # Increase in cases 134 and not in 256
         idx_to_inspect += in_case_134 * (1 - in_case_256)
 
