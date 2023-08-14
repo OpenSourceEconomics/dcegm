@@ -310,34 +310,23 @@ def scan_value_function(
             * (1 - case_5)
         )
 
-        wealth_1_on_lower_curve = (
-            endog_grid[idx_next_on_lower_curve] * case_5
-            + endog_grid_k_and_j[0] * case_6
-        )
-        value_1_on_lower_curve = (
-            value[idx_next_on_lower_curve] * case_5 + value_k_and_j[0] * case_6
-        )
-        policy_1_on_lower_curve = (
-            policy[idx_next_on_lower_curve] * case_5 + policy_k_and_j[0] * case_6
-        )
         (
             intersect_grid,
             intersect_value,
             intersect_policy_left,
             intersect_policy_right,
-        ) = calc_intersection_and_extrapolate_policy(
-            wealth_1_lower_curve=wealth_1_on_lower_curve,
-            value_1_lower_curve=value_1_on_lower_curve,
-            policy_1_lower_curve=policy_1_on_lower_curve,
-            wealth_2_lower_curve=endog_grid_k_and_j[1],
-            value_2_lower_curve=value_k_and_j[1],
-            policy_2_lower_curve=policy_k_and_j[1],
-            wealth_1_upper_curve=endog_grid[idx_to_inspect],
-            value_1_upper_curve=value[idx_to_inspect],
-            policy_1_upper_curve=policy[idx_to_inspect],
-            wealth_2_upper_curve=endog_grid[idx_before_on_upper_curve],
-            value_2_upper_curve=value[idx_before_on_upper_curve],
-            policy_2_upper_curve=policy[idx_before_on_upper_curve],
+        ) = select_calculate_intersection(
+            endog_grid=endog_grid,
+            policy=policy,
+            value=value,
+            endog_grid_k_and_j=endog_grid_k_and_j,
+            value_k_and_j=value_k_and_j,
+            policy_k_and_j=policy_k_and_j,
+            idx_next_on_lower_curve=idx_next_on_lower_curve,
+            idx_before_on_upper_curve=idx_before_on_upper_curve,
+            idx_to_inspect=idx_to_inspect,
+            case_5=case_5,
+            case_6=case_6,
         )
 
         if case_1:
@@ -458,6 +447,55 @@ def scan_value_function(
         endog_grid_refined[idx_refined] = endog_grid_to_save
 
     return value_refined, policy_left_refined, policy_right_refined, endog_grid_refined
+
+
+def select_calculate_intersection(
+    endog_grid,
+    policy,
+    value,
+    endog_grid_k_and_j,
+    value_k_and_j,
+    policy_k_and_j,
+    idx_next_on_lower_curve,
+    idx_before_on_upper_curve,
+    idx_to_inspect,
+    case_5,
+    case_6,
+):
+    wealth_1_on_lower_curve = (
+        endog_grid[idx_next_on_lower_curve] * case_5 + endog_grid_k_and_j[0] * case_6
+    )
+    value_1_on_lower_curve = (
+        value[idx_next_on_lower_curve] * case_5 + value_k_and_j[0] * case_6
+    )
+    policy_1_on_lower_curve = (
+        policy[idx_next_on_lower_curve] * case_5 + policy_k_and_j[0] * case_6
+    )
+    (
+        intersect_grid,
+        intersect_value,
+        intersect_policy_left,
+        intersect_policy_right,
+    ) = calc_intersection_and_extrapolate_policy(
+        wealth_1_lower_curve=wealth_1_on_lower_curve,
+        value_1_lower_curve=value_1_on_lower_curve,
+        policy_1_lower_curve=policy_1_on_lower_curve,
+        wealth_2_lower_curve=endog_grid_k_and_j[1],
+        value_2_lower_curve=value_k_and_j[1],
+        policy_2_lower_curve=policy_k_and_j[1],
+        wealth_1_upper_curve=endog_grid[idx_to_inspect],
+        value_1_upper_curve=value[idx_to_inspect],
+        policy_1_upper_curve=policy[idx_to_inspect],
+        wealth_2_upper_curve=endog_grid[idx_before_on_upper_curve],
+        value_2_upper_curve=value[idx_before_on_upper_curve],
+        policy_2_upper_curve=policy[idx_before_on_upper_curve],
+    )
+    return (
+        intersect_grid,
+        intersect_value,
+        intersect_policy_left,
+        intersect_policy_right,
+    )
 
 
 def calc_intersection_and_extrapolate_policy(
