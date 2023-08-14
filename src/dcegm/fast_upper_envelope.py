@@ -5,6 +5,7 @@ Upper-Envelope Scan for Solving Dynamic Optimization Problems',
 https://dx.doi.org/10.2139/ssrn.4181302
 
 """
+from functools import partial
 from typing import Callable
 from typing import Optional
 from typing import Tuple
@@ -218,223 +219,294 @@ def scan_value_function(
     value_k_and_j = value[0], value[1]
     endog_grid_k_and_j = endog_grid[0], endog_grid[1]
     policy_k_and_j = policy[0], policy[1]
+    vars_j_and_k = (value_k_and_j, policy_k_and_j, endog_grid_k_and_j)
 
-    idx_to_inspect = 1
-    last_point_intersect = 0
     value_to_be_saved_next = value[0]
     policy_left_to_be_saved_next = policy[0]
     policy_right_to_be_saved_next = policy[0]
     endog_grid_to_be_saved_next = endog_grid[0]
+    to_be_saved_inital = (
+        value_to_be_saved_next,
+        policy_left_to_be_saved_next,
+        policy_right_to_be_saved_next,
+        endog_grid_to_be_saved_next,
+    )
 
+    idx_to_inspect = 1
+    last_point_was_intersect = 0
     idx_case_2 = 0
+
+    carry = (
+        vars_j_and_k,
+        to_be_saved_inital,
+        idx_to_inspect,
+        idx_case_2,
+        last_point_was_intersect,
+    )
+    partial_body = partial(
+        scan_body,
+        value=value,
+        policy=policy,
+        endog_grid=endog_grid,
+        possible_values_case_2=possible_values_case_2,
+        possible_policies_case_2=possible_policies_case_2,
+        possible_endog_grid_case_2=possible_endog_grid_case_2,
+        jump_thresh=jump_thresh,
+        n_points_to_scan=n_points_to_scan,
+    )
     for idx_refined in range(len(value_refined)):
-        is_this_the_last_point = idx_to_inspect == len(endog_grid) - 1
-        # In each iteration we calculate the gradient of the value function
-        grad_before_denominator = endog_grid_k_and_j[1] - endog_grid_k_and_j[0] + 1e-16
-        grad_before = (value_k_and_j[1] - value_k_and_j[0]) / grad_before_denominator
+        result, carry = partial_body(carry)
 
-        # gradient with leading index to be checked
-        grad_next_denominator = (
-            endog_grid[idx_to_inspect] - endog_grid_k_and_j[1] + 1e-16
-        )
-        grad_next = (value[idx_to_inspect] - value_k_and_j[1]) / grad_next_denominator
-
-        switch_value_denominator = (
-            endog_grid[idx_to_inspect] - endog_grid_k_and_j[1] + 1e-16
-        )
-        exog_grid_j = endog_grid_k_and_j[1] - policy_k_and_j[1]
-        exog_grid_idx_to_inspect = endog_grid[idx_to_inspect] - policy[idx_to_inspect]
-        switch_value_func = (
-            np.abs((exog_grid_idx_to_inspect - exog_grid_j) / switch_value_denominator)
-            > jump_thresh
-        )
-
-        (
-            grad_next_forward,
-            idx_next_on_lower_curve,
-        ) = _forward_scan(
-            value=value,
-            endog_grid=endog_grid,
-            policy=policy,
-            jump_thresh=jump_thresh,
-            endog_grid_current=endog_grid_k_and_j[1],
-            exog_grid_current=exog_grid_j,
-            idx_base=idx_to_inspect,
-            n_points_to_scan=n_points_to_scan,
-        )
-
-        (
-            grad_next_backward,
-            idx_before_on_upper_curve,
-        ) = _backward_scan(
-            value=value,
-            endog_grid=endog_grid,
-            policy=policy,
-            jump_thresh=jump_thresh,
-            value_current=value_k_and_j[1],
-            endog_grid_current=endog_grid_k_and_j[1],
-            idx_base=idx_to_inspect,
-            n_points_to_scan=n_points_to_scan,
-        )
-
-        # Check for suboptimality. This is either with decreasing value function, the
-        # value function not montone in consumption or
-        # if the gradient joining the leading point i+1 and the point j (the last point
-        # on the same choice specific policy) is shallower than the
-        # gradient joining the i+1 and j, then delete j'th point
-        # If the point is the same as point j, this is always false and
-        # switch_value_func as well. Therefore, the third if is chosen.
-        suboptimal_cond = (
-            value[idx_to_inspect] < value_k_and_j[1]
-            or exog_grid_idx_to_inspect < exog_grid_j
-            or (grad_next < grad_next_forward and switch_value_func)
-        )
-
-        next_point_past_intersect = (
-            grad_before > grad_next or grad_next < grad_next_backward
-        )
-        point_j_past_intersect = grad_next > grad_next_backward
-
-        # Generate cases. They are exclusive in ascending order, i.e. if 1 is true the
-        # rest can't be and 2 can only be true if 1 isn't.
-        # Start with checking if last iteration was case_5, and we need
-        # to add another point to the refined grid.
-        case_1 = last_point_intersect
-        case_2 = is_this_the_last_point * (1 - case_1)
-        case_3 = suboptimal_cond * (1 - case_1) * (1 - case_2)
-        case_4 = ~switch_value_func * (1 - case_1) * (1 - case_2) * (1 - case_3)
-        case_5 = (
-            next_point_past_intersect
-            * (1 - case_1)
-            * (1 - case_2)
-            * (1 - case_3)
-            * (1 - case_4)
-        )
-        case_6 = (
-            point_j_past_intersect
-            * (1 - case_1)
-            * (1 - case_2)
-            * (1 - case_3)
-            * (1 - case_4)
-            * (1 - case_5)
-        )
-
-        (
-            intersect_grid,
-            intersect_value,
-            intersect_policy_left,
-            intersect_policy_right,
-        ) = select_and_calculate_intersection(
-            endog_grid=endog_grid,
-            policy=policy,
-            value=value,
-            endog_grid_k_and_j=endog_grid_k_and_j,
-            value_k_and_j=value_k_and_j,
-            policy_k_and_j=policy_k_and_j,
-            idx_next_on_lower_curve=idx_next_on_lower_curve,
-            idx_before_on_upper_curve=idx_before_on_upper_curve,
-            idx_to_inspect=idx_to_inspect,
-            case_5=case_5,
-            case_6=case_6,
-        )
-
-        # Save the values for the next iteration
-        (
-            value_to_save,
-            policy_left_to_save,
-            policy_right_to_save,
-            endog_grid_to_save,
-        ) = select_variables_to_save_this_iteration(
-            case_6=case_6,
-            intersect_value=intersect_value,
-            intersect_policy_left=intersect_policy_left,
-            intersect_policy_right=intersect_policy_right,
-            intersect_grid=intersect_grid,
-            value_to_be_saved_next=value_to_be_saved_next,
-            policy_left_to_be_saved_next=policy_left_to_be_saved_next,
-            policy_right_to_be_saved_next=policy_right_to_be_saved_next,
-            endog_grid_to_be_saved_next=endog_grid_to_be_saved_next,
-        )
-        value_case_2 = possible_values_case_2[idx_case_2]
-        policy_to_be_saved_case_2 = possible_policies_case_2[idx_case_2]
-        endog_grid_to_be_saved_case_2 = possible_endog_grid_case_2[idx_case_2]
-
-        # In the iteration where case_2 is first time True, the last point is selected
-        # and afterwards only nans.
-        idx_case_2 = case_2
-        last_point_intersect = case_5
-
-        in_case_134 = case_1 + case_3 + case_4
-        in_case_256 = case_2 + case_5 + case_6
-
-        in_case_123 = case_1 + case_2 + case_3
-        in_case_1236 = case_1 + case_2 + case_3 + case_6
-        in_case_45 = case_4 + case_5
-
-        in_case_146 = case_1 + case_4 + case_6
-
-        value_to_be_saved_next = (
-            in_case_146 * value[idx_to_inspect]
-            + case_2 * value_case_2
-            + case_5 * intersect_value
-            + case_3 * value_to_be_saved_next
-        )
-        policy_left_to_be_saved_next = (
-            in_case_146 * policy[idx_to_inspect]
-            + case_2 * policy_to_be_saved_case_2
-            + case_5 * intersect_policy_left
-            + case_3 * policy_left_to_be_saved_next
-        )
-        policy_right_to_be_saved_next = (
-            in_case_146 * policy[idx_to_inspect]
-            + case_2 * policy_to_be_saved_case_2
-            + case_5 * intersect_policy_right
-            + case_3 * policy_right_to_be_saved_next
-        )
-        endog_grid_to_be_saved_next = (
-            in_case_146 * endog_grid[idx_to_inspect]
-            + case_2 * endog_grid_to_be_saved_case_2
-            + case_5 * intersect_grid
-            + case_3 * endog_grid_to_be_saved_next
-        )
-
-        # In case 1, 2, 3 the old value remains as value_j, in 4, 5, value_j is former
-        # value k and in 6 the old value_j is overwritten
-        value_j_new = (
-            in_case_123 * value_k_and_j[1]
-            + in_case_45 * value[idx_to_inspect]
-            + case_6 * intersect_value
-        )
-        value_k_new = in_case_1236 * value_k_and_j[0] + in_case_45 * value_k_and_j[1]
-        value_k_and_j = value_k_new, value_j_new
-        policy_j_new = (
-            in_case_123 * policy_k_and_j[1]
-            + in_case_45 * policy[idx_to_inspect]
-            + case_6 * intersect_policy_right
-        )
-        policy_k_new = in_case_1236 * policy_k_and_j[0] + in_case_45 * policy_k_and_j[1]
-        policy_k_and_j = policy_k_new, policy_j_new
-        endog_grid_j_new = (
-            in_case_123 * endog_grid_k_and_j[1]
-            + in_case_45 * endog_grid[idx_to_inspect]
-            + case_6 * intersect_grid
-        )
-        endog_grid_k_new = (
-            in_case_1236 * endog_grid_k_and_j[0] + in_case_45 * endog_grid_k_and_j[1]
-        )
-        endog_grid_k_and_j = endog_grid_k_new, endog_grid_j_new
-        # Increase in cases 134 and not in 256
-        idx_to_inspect += in_case_134 * (1 - in_case_256)
-
-        value_refined[idx_refined] = value_to_save
-        policy_left_refined[idx_refined] = policy_left_to_save
-        policy_right_refined[idx_refined] = policy_right_to_save
-        endog_grid_refined[idx_refined] = endog_grid_to_save
+        value_refined[idx_refined] = result[0]
+        policy_left_refined[idx_refined] = result[1]
+        policy_right_refined[idx_refined] = result[2]
+        endog_grid_refined[idx_refined] = result[3]
 
     return value_refined, policy_left_refined, policy_right_refined, endog_grid_refined
 
 
-# def scan_body():
+def scan_body(
+    carry,
+    value,
+    policy,
+    endog_grid,
+    possible_values_case_2,
+    possible_policies_case_2,
+    possible_endog_grid_case_2,
+    jump_thresh,
+    n_points_to_scan,
+):
+    (
+        vars_j_and_k,
+        to_be_saved_this_iter,
+        idx_to_inspect,
+        idx_case_2,
+        last_point_was_intersect,
+    ) = carry
+    (
+        value_to_be_saved_next,
+        policy_left_to_be_saved_next,
+        policy_right_to_be_saved_next,
+        endog_grid_to_be_saved_next,
+    ) = to_be_saved_this_iter
+    value_k_and_j, policy_k_and_j, endog_grid_k_and_j = vars_j_and_k
+    is_this_the_last_point = idx_to_inspect == len(endog_grid) - 1
+    # In each iteration we calculate the gradient of the value function
+    grad_before_denominator = endog_grid_k_and_j[1] - endog_grid_k_and_j[0] + 1e-16
+    grad_before = (value_k_and_j[1] - value_k_and_j[0]) / grad_before_denominator
+
+    # gradient with leading index to be checked
+    grad_next_denominator = endog_grid[idx_to_inspect] - endog_grid_k_and_j[1] + 1e-16
+    grad_next = (value[idx_to_inspect] - value_k_and_j[1]) / grad_next_denominator
+
+    switch_value_denominator = (
+        endog_grid[idx_to_inspect] - endog_grid_k_and_j[1] + 1e-16
+    )
+    exog_grid_j = endog_grid_k_and_j[1] - policy_k_and_j[1]
+    exog_grid_idx_to_inspect = endog_grid[idx_to_inspect] - policy[idx_to_inspect]
+    switch_value_func = (
+        np.abs((exog_grid_idx_to_inspect - exog_grid_j) / switch_value_denominator)
+        > jump_thresh
+    )
+
+    (
+        grad_next_forward,
+        idx_next_on_lower_curve,
+    ) = _forward_scan(
+        value=value,
+        endog_grid=endog_grid,
+        policy=policy,
+        jump_thresh=jump_thresh,
+        endog_grid_current=endog_grid_k_and_j[1],
+        exog_grid_current=exog_grid_j,
+        idx_base=idx_to_inspect,
+        n_points_to_scan=n_points_to_scan,
+    )
+
+    (
+        grad_next_backward,
+        idx_before_on_upper_curve,
+    ) = _backward_scan(
+        value=value,
+        endog_grid=endog_grid,
+        policy=policy,
+        jump_thresh=jump_thresh,
+        value_current=value_k_and_j[1],
+        endog_grid_current=endog_grid_k_and_j[1],
+        idx_base=idx_to_inspect,
+        n_points_to_scan=n_points_to_scan,
+    )
+
+    # Check for suboptimality. This is either with decreasing value function, the
+    # value function not montone in consumption or
+    # if the gradient joining the leading point i+1 and the point j (the last point
+    # on the same choice specific policy) is shallower than the
+    # gradient joining the i+1 and j, then delete j'th point
+    # If the point is the same as point j, this is always false and
+    # switch_value_func as well. Therefore, the third if is chosen.
+    suboptimal_cond = (
+        value[idx_to_inspect] < value_k_and_j[1]
+        or exog_grid_idx_to_inspect < exog_grid_j
+        or (grad_next < grad_next_forward and switch_value_func)
+    )
+
+    next_point_past_intersect = (
+        grad_before > grad_next or grad_next < grad_next_backward
+    )
+    point_j_past_intersect = grad_next > grad_next_backward
+
+    # Generate cases. They are exclusive in ascending order, i.e. if 1 is true the
+    # rest can't be and 2 can only be true if 1 isn't.
+    # Start with checking if last iteration was case_5, and we need
+    # to add another point to the refined grid.
+    case_1 = last_point_was_intersect
+    case_2 = is_this_the_last_point * (1 - case_1)
+    case_3 = suboptimal_cond * (1 - case_1) * (1 - case_2)
+    case_4 = ~switch_value_func * (1 - case_1) * (1 - case_2) * (1 - case_3)
+    case_5 = (
+        next_point_past_intersect
+        * (1 - case_1)
+        * (1 - case_2)
+        * (1 - case_3)
+        * (1 - case_4)
+    )
+    case_6 = (
+        point_j_past_intersect
+        * (1 - case_1)
+        * (1 - case_2)
+        * (1 - case_3)
+        * (1 - case_4)
+        * (1 - case_5)
+    )
+
+    (
+        intersect_grid,
+        intersect_value,
+        intersect_policy_left,
+        intersect_policy_right,
+    ) = select_and_calculate_intersection(
+        endog_grid=endog_grid,
+        policy=policy,
+        value=value,
+        endog_grid_k_and_j=endog_grid_k_and_j,
+        value_k_and_j=value_k_and_j,
+        policy_k_and_j=policy_k_and_j,
+        idx_next_on_lower_curve=idx_next_on_lower_curve,
+        idx_before_on_upper_curve=idx_before_on_upper_curve,
+        idx_to_inspect=idx_to_inspect,
+        case_5=case_5,
+        case_6=case_6,
+    )
+
+    # Save the values for the next iteration
+    (
+        value_to_save,
+        policy_left_to_save,
+        policy_right_to_save,
+        endog_grid_to_save,
+    ) = select_variables_to_save_this_iteration(
+        case_6=case_6,
+        intersect_value=intersect_value,
+        intersect_policy_left=intersect_policy_left,
+        intersect_policy_right=intersect_policy_right,
+        intersect_grid=intersect_grid,
+        value_to_be_saved_next=value_to_be_saved_next,
+        policy_left_to_be_saved_next=policy_left_to_be_saved_next,
+        policy_right_to_be_saved_next=policy_right_to_be_saved_next,
+        endog_grid_to_be_saved_next=endog_grid_to_be_saved_next,
+    )
+    value_case_2 = possible_values_case_2[idx_case_2]
+    policy_to_be_saved_case_2 = possible_policies_case_2[idx_case_2]
+    endog_grid_to_be_saved_case_2 = possible_endog_grid_case_2[idx_case_2]
+
+    # In the iteration where case_2 is first time True, the last point is selected
+    # and afterwards only nans.
+    idx_case_2 = case_2
+    last_point_was_intersect = case_5
+
+    in_case_134 = case_1 + case_3 + case_4
+    in_case_256 = case_2 + case_5 + case_6
+
+    in_case_123 = case_1 + case_2 + case_3
+    in_case_1236 = case_1 + case_2 + case_3 + case_6
+    in_case_45 = case_4 + case_5
+
+    in_case_146 = case_1 + case_4 + case_6
+
+    value_to_be_saved_next = (
+        in_case_146 * value[idx_to_inspect]
+        + case_2 * value_case_2
+        + case_5 * intersect_value
+        + case_3 * value_to_be_saved_next
+    )
+    policy_left_to_be_saved_next = (
+        in_case_146 * policy[idx_to_inspect]
+        + case_2 * policy_to_be_saved_case_2
+        + case_5 * intersect_policy_left
+        + case_3 * policy_left_to_be_saved_next
+    )
+    policy_right_to_be_saved_next = (
+        in_case_146 * policy[idx_to_inspect]
+        + case_2 * policy_to_be_saved_case_2
+        + case_5 * intersect_policy_right
+        + case_3 * policy_right_to_be_saved_next
+    )
+    endog_grid_to_be_saved_next = (
+        in_case_146 * endog_grid[idx_to_inspect]
+        + case_2 * endog_grid_to_be_saved_case_2
+        + case_5 * intersect_grid
+        + case_3 * endog_grid_to_be_saved_next
+    )
+
+    # In case 1, 2, 3 the old value remains as value_j, in 4, 5, value_j is former
+    # value k and in 6 the old value_j is overwritten
+    value_j_new = (
+        in_case_123 * value_k_and_j[1]
+        + in_case_45 * value[idx_to_inspect]
+        + case_6 * intersect_value
+    )
+    value_k_new = in_case_1236 * value_k_and_j[0] + in_case_45 * value_k_and_j[1]
+    value_k_and_j = value_k_new, value_j_new
+    policy_j_new = (
+        in_case_123 * policy_k_and_j[1]
+        + in_case_45 * policy[idx_to_inspect]
+        + case_6 * intersect_policy_right
+    )
+    policy_k_new = in_case_1236 * policy_k_and_j[0] + in_case_45 * policy_k_and_j[1]
+    policy_k_and_j = policy_k_new, policy_j_new
+    endog_grid_j_new = (
+        in_case_123 * endog_grid_k_and_j[1]
+        + in_case_45 * endog_grid[idx_to_inspect]
+        + case_6 * intersect_grid
+    )
+    endog_grid_k_new = (
+        in_case_1236 * endog_grid_k_and_j[0] + in_case_45 * endog_grid_k_and_j[1]
+    )
+    endog_grid_k_and_j = endog_grid_k_new, endog_grid_j_new
+    # Increase in cases 134 and not in 256
+    idx_to_inspect += in_case_134 * (1 - in_case_256)
+    vars_j_and_k = (value_k_and_j, policy_k_and_j, endog_grid_k_and_j)
+    to_be_saved = (
+        value_to_be_saved_next,
+        policy_left_to_be_saved_next,
+        policy_right_to_be_saved_next,
+        endog_grid_to_be_saved_next,
+    )
+    carry = (
+        vars_j_and_k,
+        to_be_saved,
+        idx_to_inspect,
+        idx_case_2,
+        last_point_was_intersect,
+    )
+    result = (
+        value_to_save,
+        policy_left_to_save,
+        policy_right_to_save,
+        endog_grid_to_save,
+    )
+
+    return result, carry
 
 
 def select_variables_to_save_this_iteration(
