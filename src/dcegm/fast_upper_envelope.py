@@ -362,6 +362,7 @@ def scan_value_function(
         # In the iteration where case_2 is first time True, the last point is selected
         # and afterwards only nans.
         idx_case_2 = case_2
+        last_point_intersect = case_5
 
         in_case_134 = case_1 + case_3 + case_4
         in_case_256 = case_2 + case_5 + case_6
@@ -370,40 +371,32 @@ def scan_value_function(
         in_case_1236 = case_1 + case_2 + case_3 + case_6
         in_case_45 = case_4 + case_5
 
-        last_point_intersect = case_5
+        in_case_146 = case_1 + case_4 + case_6
 
-        if case_1:
-            # Update values for next iteration
-            value_to_be_saved_next = value[idx_to_inspect]
-            policy_left_to_be_saved_next = policy[idx_to_inspect]
-            policy_right_to_be_saved_next = policy[idx_to_inspect]
-            endog_grid_to_be_saved_next = endog_grid[idx_to_inspect]
-
-        if case_2:
-            value_to_be_saved_next = value_case_2
-            policy_left_to_be_saved_next = policy_to_be_saved_case_2
-            policy_right_to_be_saved_next = policy_to_be_saved_case_2
-            endog_grid_to_be_saved_next = endog_grid_to_be_saved_case_2
-
-        if case_4:
-            # Save values for next iteration
-            value_to_be_saved_next = value[idx_to_inspect]
-            policy_left_to_be_saved_next = policy[idx_to_inspect]
-            policy_right_to_be_saved_next = policy[idx_to_inspect]
-            endog_grid_to_be_saved_next = endog_grid[idx_to_inspect]
-        if case_5:
-            # Save values for next iteration
-            value_to_be_saved_next = intersect_value
-            policy_left_to_be_saved_next = intersect_policy_left
-            policy_right_to_be_saved_next = intersect_policy_right
-            endog_grid_to_be_saved_next = intersect_grid
-
-        if case_6:
-            # Save values for next iteration
-            value_to_be_saved_next = value[idx_to_inspect]
-            policy_left_to_be_saved_next = policy[idx_to_inspect]
-            policy_right_to_be_saved_next = policy[idx_to_inspect]
-            endog_grid_to_be_saved_next = endog_grid[idx_to_inspect]
+        value_to_be_saved_next = (
+            in_case_146 * value[idx_to_inspect]
+            + case_2 * value_case_2
+            + case_5 * intersect_value
+            + case_3 * value_to_be_saved_next
+        )
+        policy_left_to_be_saved_next = (
+            in_case_146 * policy[idx_to_inspect]
+            + case_2 * policy_to_be_saved_case_2
+            + case_5 * intersect_policy_left
+            + case_3 * policy_left_to_be_saved_next
+        )
+        policy_right_to_be_saved_next = (
+            in_case_146 * policy[idx_to_inspect]
+            + case_2 * policy_to_be_saved_case_2
+            + case_5 * intersect_policy_right
+            + case_3 * policy_right_to_be_saved_next
+        )
+        endog_grid_to_be_saved_next = (
+            in_case_146 * endog_grid[idx_to_inspect]
+            + case_2 * endog_grid_to_be_saved_case_2
+            + case_5 * intersect_grid
+            + case_3 * endog_grid_to_be_saved_next
+        )
 
         # In case 1, 2, 3 the old value remains as value_j, in 4, 5, value_j is former
         # value k and in 6 the old value_j is overwritten
