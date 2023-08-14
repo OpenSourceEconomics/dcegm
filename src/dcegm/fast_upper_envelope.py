@@ -288,7 +288,8 @@ def scan_value_function(
         point_j_past_intersect = grad_next > grad_next_backward
 
         # Generate cases. They are exclusive in ascending order, i.e. if 1 is true the
-        # rest can't be. Start with checking if last iteration was case_5, and we need
+        # rest can't be and 2 can only be true if 1 isn't.
+        # Start with checking if last iteration was case_5, and we need
         # to add another point to the refined grid.
         case_1 = last_point_intersect
         case_2 = is_this_the_last_point * (1 - case_1)
@@ -329,13 +330,20 @@ def scan_value_function(
             case_6=case_6,
         )
 
-        if case_1:
-            # Save values from last iteration
-            value_to_save = value_to_be_saved_next
-            policy_left_to_save = policy_left_to_be_saved_next
-            policy_right_to_save = policy_right_to_be_saved_next
-            endog_grid_to_save = endog_grid_to_be_saved_next
+        # Save values from last iteration
+        value_to_save = value_to_be_saved_next * (1 - case_6) + intersect_value * case_6
+        policy_left_to_save = (
+            policy_left_to_be_saved_next * (1 - case_6) + intersect_policy_left * case_6
+        )
+        policy_right_to_save = (
+            policy_right_to_be_saved_next * (1 - case_6)
+            + intersect_policy_right * case_6
+        )
+        endog_grid_to_save = (
+            endog_grid_to_be_saved_next * (1 - case_6) + intersect_grid * case_6
+        )
 
+        if case_1:
             # Update values for next iteration
             value_to_be_saved_next = value[idx_to_inspect]
             policy_left_to_be_saved_next = policy[idx_to_inspect]
@@ -345,12 +353,6 @@ def scan_value_function(
             idx_to_inspect += 1
 
         if case_2:
-            # Save values from last iteration
-            value_to_save = value_to_be_saved_next
-            policy_left_to_save = policy_left_to_be_saved_next
-            policy_right_to_save = policy_right_to_be_saved_next
-            endog_grid_to_save = endog_grid_to_be_saved_next
-
             value_to_be_saved_next = jax.lax.select(
                 last_point_already_saved, jnp.nan, value[idx_to_inspect]
             )
@@ -370,22 +372,9 @@ def scan_value_function(
         # on the same choice specific policy) is shallower than the
         # gradient joining the i+1 and j, then delete j'th point
         if case_3:
-            # Save values from last iteration and do not overwrite them, so they will be
-            # saved again in next iteration
-            value_to_save = value_to_be_saved_next
-            policy_left_to_save = policy_left_to_be_saved_next
-            policy_right_to_save = policy_right_to_be_saved_next
-            endog_grid_to_save = endog_grid_to_be_saved_next
-
             idx_to_inspect += 1
 
         if case_4:
-            # Save values from last iteration
-            value_to_save = value_to_be_saved_next
-            policy_left_to_save = policy_left_to_be_saved_next
-            policy_right_to_save = policy_right_to_be_saved_next
-            endog_grid_to_save = endog_grid_to_be_saved_next
-
             # Save values for next iteration
             value_to_be_saved_next = value[idx_to_inspect]
             policy_left_to_be_saved_next = policy[idx_to_inspect]
@@ -398,12 +387,6 @@ def scan_value_function(
             idx_to_inspect += 1
 
         if case_5:
-            # Save values from last iteration
-            value_to_save = value_to_be_saved_next
-            policy_left_to_save = policy_left_to_be_saved_next
-            policy_right_to_save = policy_right_to_be_saved_next
-            endog_grid_to_save = endog_grid_to_be_saved_next
-
             # Save values for next iteration
             value_to_be_saved_next = intersect_value
             policy_left_to_be_saved_next = intersect_policy_left
@@ -423,13 +406,6 @@ def scan_value_function(
             # j = idx_to_inspect
 
         if case_6:
-            # Save this iteration the intersection point. The value to_be_saved from
-            # last iteration will be disregarded.
-            value_to_save = intersect_value
-            policy_left_to_save = intersect_policy_left
-            policy_right_to_save = intersect_policy_right
-            endog_grid_to_save = intersect_grid
-
             # Save values for next iteration
             value_to_be_saved_next = value[idx_to_inspect]
             policy_left_to_be_saved_next = policy[idx_to_inspect]
