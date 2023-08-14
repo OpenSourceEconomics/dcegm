@@ -434,6 +434,9 @@ def scan_value_function(
     return value_refined, policy_left_refined, policy_right_refined, endog_grid_refined
 
 
+# def scan_body():
+
+
 def select_variables_to_save_this_iteration(
     case_6,
     intersect_value,
