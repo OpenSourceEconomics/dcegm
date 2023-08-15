@@ -158,62 +158,10 @@ def calc_current_value(
     return value
 
 
-def create_multi_dim_arrays(
-    state_choice_space: np.ndarray,
-    options: Dict[str, int],
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Create multi-dimensional arrays for endogenous grid, policy and value function.
-
-    We include one additional grid point (n_grid_wealth + 1) to M,
-    since we want to set the first position (j=0) to M_t = 0 for all time
-    periods.
-
-    Moreover, we add 10% extra space filled with nans, since, in the upper
-    envelope step, the endogenous wealth grid might be augmented to the left
-    in order to accurately describe potential non-monotonicities (and hence
-    discontinuities) near the start of the grid.
-
-
-    Note that, in the Upper Envelope step, we drop suboptimal points from the original
-    grid and add new ones (kink points as well as the corresponding interpolated values
-    of the policy and value functions).
-
-    Args:
-        state_space (np.ndarray): Collection of all possible state and choice
-            combinations.
-        options (dict): Options dictionary.
-
-    Returns:
-        tuple:
-
-        - endog_grid_container (np.ndarray): "Empty" 3d np.ndarray storing the
-            endogenous grid for each state and each discrete choice.
-            Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
-        - policy_container (np.ndarray): "Empty" 3d np.ndarray storing the
-            choice-specific policy function for each state and each discrete choice
-            Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
-        - value_container (np.ndarray): "Empty" 3d np.ndarray storing the
-            choice-specific value functions for each state and each discrete choice.
-            Has shape [n_states, n_discrete_choices, 1.1 * n_grid_wealth].
-
-    """
-    n_grid_wealth = options["grid_points_wealth"]
-    n_state_choice_combs = state_choice_space.shape[0]
-
-    endog_grid_container = np.empty((n_state_choice_combs, int(1.1 * n_grid_wealth)))
-    policy_container = np.empty((n_state_choice_combs, int(1.1 * n_grid_wealth)))
-    value_container = np.empty((n_state_choice_combs, int(1.1 * n_grid_wealth)))
-    endog_grid_container[:] = np.nan
-    policy_container[:] = np.nan
-    value_container[:] = np.nan
-
-    return endog_grid_container, policy_container, value_container
-
-
 def _return_policy_and_value(
     endog_grid, policy, value, expected_value_zero_savings, **kwargs
 ):
     endog_grid = np.append(0, endog_grid)
     policy = np.append(0, policy)
     value = np.append(expected_value_zero_savings, value)
-    return endog_grid, policy, value
+    return endog_grid, policy, policy, value

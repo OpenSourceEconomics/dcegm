@@ -11,10 +11,12 @@ def interpolate_and_calc_marginal_utilities(
     choice: int,
     next_period_wealth: jnp.ndarray,
     endog_grid_child_state_choice: jnp.array,
-    choice_policies_child_state_choice: jnp.ndarray,
-    choice_values_child_state_choice: jnp.ndarray,
+    policy_left_child_state_choice: jnp.ndarray,
+    policy_right_child_state_choice: jnp.ndarray,
+    value_child_state_choice: jnp.ndarray,
 ):
     """Interpolate marginal utilities.
+
     Args:
         compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility. The input ```params``` is already partialled in.
@@ -39,7 +41,6 @@ def interpolate_and_calc_marginal_utilities(
         - marg_utils (float): Interpolated marginal utility function.
         - value_interp (float): Interpolated value function.
 
-
     """
     ind_high, ind_low = get_index_high_and_low(
         x=endog_grid_child_state_choice, x_new=next_period_wealth
@@ -51,17 +52,17 @@ def interpolate_and_calc_marginal_utilities(
         ),
         in_axes=(0, 0, 0, 0, 0, 0, 0, None, None, None, None, None),
     )(
-        choice_policies_child_state_choice[ind_high],
-        choice_values_child_state_choice[ind_high],
+        jnp.take(policy_left_child_state_choice, ind_high),
+        value_child_state_choice[ind_high],
         endog_grid_child_state_choice[ind_high],
-        choice_policies_child_state_choice[ind_low],
-        choice_values_child_state_choice[ind_low],
+        jnp.take(policy_right_child_state_choice, ind_low),
+        value_child_state_choice[ind_low],
         endog_grid_child_state_choice[ind_low],
         next_period_wealth,
         compute_value,
         compute_marginal_utility,
         endog_grid_child_state_choice[1],
-        choice_values_child_state_choice[0],
+        value_child_state_choice[0],
         choice,
     )
 
