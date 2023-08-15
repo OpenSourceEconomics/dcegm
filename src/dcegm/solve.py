@@ -228,6 +228,7 @@ def backwards_induction(
     Returns:
 
     """
+
     # Calculate beginning of period resources for all periods, given exogenous savings
     # and income shocks from last period
     resources_beginning_of_period = vmap(
@@ -239,9 +240,9 @@ def backwards_induction(
     )(state_space, exogenous_savings_grid, income_shock_draws)
 
     (
-        idxs_state_choice_combs_final_period,
-        state_choice_combs_final_period,
-        endog_grid_final_period,
+        state_choice_combs_final,
+        state_choice_combs_final,
+        endog_grid_final,
         reshape_current_state_choice_vec_to_mat,
         transform_between_state_and_state_choice_vec,
     ) = create_current_state_and_state_choice_objects(
@@ -254,34 +255,21 @@ def backwards_induction(
         transform_between_state_and_state_choice_space=transform_between_state_and_state_choice_space,
     )
 
-    (
-        value_interpolated,
-        policy_final_period,
-        marg_util_interpolated,
-    ) = solve_final_period(
-        final_period_choice_states=state_choice_combs_final_period,
+    value_interpolated, policy_final, marg_util_interpolated = solve_final_period(
+        final_period_choice_states=state_choice_combs_final,
         final_period_solution_partial=final_period_solution_partial,
-        resources_last_period=endog_grid_final_period,
+        resources_last_period=endog_grid_final,
     )
 
-    for idx_final_period in idxs_state_choice_combs_final_period:
-        # Choose which draw we take for policy and value function as those are note
-        # saved with respect to the draws
-        middle_of_draws = int(len(income_shock_draws) + 1 / 2)
-        np.save(
-            f"endog_grid_{idx_final_period}.npy",
-            endog_grid_final_period[:, :, middle_of_draws],
-        )
-        np.save(
-            f"policy_{idx_final_period}.npy", policy_final_period[:, :, middle_of_draws]
-        )
-        np.save(
-            f"value_{idx_final_period}.npy", value_interpolated[:, :, middle_of_draws]
-        )
-
-    value_state_choice = np.empty(
-        (state_choice_space.shape[1] - 1, int(1.1 * len(exogenous_savings_grid)))
+    # Choose which draw we take for policy and value function as those are note
+    # saved with respect to the draws
+    middle_of_draws = int(len(income_shock_draws) + 1 / 2)
+    np.save(
+        f"endog_grid_{n_periods - 1}.npy",
+        endog_grid_final[:, :, middle_of_draws],
     )
+    np.save(f"policy_{n_periods - 1}.npy", policy_final[:, :, middle_of_draws])
+    np.save(f"value_{n_periods - 1}.npy", value_interpolated[:, :, middle_of_draws])
 
     for period in range(n_periods - 2, -1, -1):
         # Aggregate the marginal utilities and expected values over all choices and
@@ -296,9 +284,9 @@ def backwards_induction(
         )
 
         (
-            idx_state_choices_period,
-            state_choices_period,
-            resources_period,
+            idxs_state_choice,
+            state_choice_combs,
+            resources,
             reshape_current_state_choice_vec_to_mat,
             transform_between_state_and_state_choice_vec,
         ) = create_current_state_and_state_choice_objects(
@@ -319,29 +307,29 @@ def backwards_induction(
         ) = calculate_candidate_solutions_from_euler_equation(
             marg_util=marg_util,
             emax=emax,
-            idx_state_choices_period=idx_state_choices_period,
+            idx_state_choices_period=idxs_state_choice,
             map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
             exogenous_savings_grid=exogenous_savings_grid,
             transition_vector_by_state=transition_vector_by_state,
             discount_factor=discount_factor,
             interest_rate=interest_rate,
-            state_choices_period=state_choices_period,
+            state_choices_period=state_choice_combs,
             compute_inverse_marginal_utility=compute_inverse_marginal_utility,
             compute_value=compute_value,
         )
 
         endog_grid_state_choice = np.full(
-            (len(state_choices_period), int(1.1 * len(exogenous_savings_grid))), np.nan
+            (len(state_choice_combs), int(1.1 * len(exogenous_savings_grid))), np.nan
         )
         policy_state_choice = np.full(
-            (len(state_choices_period), int(1.1 * len(exogenous_savings_grid))), np.nan
+            (len(state_choice_combs), int(1.1 * len(exogenous_savings_grid))), np.nan
         )
         value_state_choice = np.full(
-            (len(state_choices_period), int(1.1 * len(exogenous_savings_grid))), np.nan
+            (len(state_choice_combs), int(1.1 * len(exogenous_savings_grid))), np.nan
         )
 
         # Run upper envolope to remove suboptimal candidates
-        for state_choice_idx, state_choice_vec in enumerate(state_choices_period):
+        for state_choice_idx, state_choice_vec in enumerate(state_choice_combs):
             choice = state_choice_vec[-1]
 
             endog_grid, policy, value = compute_upper_envelope(
@@ -354,11 +342,6 @@ def backwards_induction(
                 compute_value=compute_value,
             )
 
-            _idx_state_choice_full = idx_state_choices_period[state_choice_idx]
-            np.save(f"endog_grid_{_idx_state_choice_full}.npy", endog_grid)
-            np.save(f"policy_{_idx_state_choice_full}.npy", policy)
-            np.save(f"value_{_idx_state_choice_full}.npy", value)
-
             endog_grid_state_choice[state_choice_idx, : len(endog_grid)] = endog_grid
             policy_state_choice[state_choice_idx, : len(policy)] = policy
             value_state_choice[state_choice_idx, : len(policy)] = value
@@ -368,9 +351,13 @@ def backwards_induction(
         )(
             compute_marginal_utility,
             compute_value,
-            state_choices_period[:, -1],
-            resources_period,
+            state_choice_combs[:, -1],
+            resources,
             endog_grid_state_choice,
             policy_state_choice,
             value_state_choice,
         )
+
+        np.save(f"endog_grid_{period}.npy", endog_grid_state_choice)
+        np.save(f"policy_{period}.npy", policy_state_choice)
+        np.save(f"value_{period}.npy", value_state_choice)

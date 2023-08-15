@@ -104,14 +104,15 @@ def test_benchmark_models(
 
     # need to loop over period? Isn't state_choice space enough?
     for period in range(23, -1, -1):
-        state_choices_idxs_period = np.where(state_choice_space[:, 0] == period)[0]
+        idxs_state_choice_combs = np.where(state_choice_space[:, 0] == period)[0]
 
-        for state_choice_idx in state_choices_idxs_period:
-            endog_grid_got = np.load(f"endog_grid_{state_choice_idx}.npy")
-            policy_got = np.load(f"policy_{state_choice_idx}.npy")
-            value_got = np.load(f"value_{state_choice_idx}.npy")
+        endog_grid_got = np.load(f"endog_grid_{period}.npy")
+        policy_got = np.load(f"policy_{period}.npy")
+        value_got = np.load(f"value_{period}.npy")
 
-            choice = state_choice_space[state_choice_idx, -1]
+        for state_choice_idx, state_choice_vec in enumerate(idxs_state_choice_combs):
+            choice = state_choice_space[state_choice_vec, -1]
+
             if model == "deaton":
                 policy_expec = policy_expected[period, choice]
                 value_expec = value_expected[period, choice]
@@ -135,9 +136,9 @@ def test_benchmark_models(
                 value_calc_interp,
             ) = interpolate_policy_and_value_on_wealth_grid(
                 begin_of_period_wealth=wealth_grid_to_test,
-                endog_wealth_grid=endog_grid_got,
-                policy_grid=policy_got,
-                value_grid=value_got,
+                endog_wealth_grid=endog_grid_got[state_choice_idx],
+                policy_grid=policy_got[state_choice_idx],
+                value_grid=value_got[state_choice_idx],
             )
 
             aaae(policy_expec_interp, policy_calc_interp)

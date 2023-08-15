@@ -223,14 +223,17 @@ def test_two_period(input_data, wealth_idx, state_idx):
     idxs_state_choice_combs = reshape_state_choice_vec_to_mat[state_idx]
     initial_cond["health"] = state[-1]
 
-    for idx_state_choice in idxs_state_choice_combs:
-        choice_in_period_1 = state_choice_space[idx_state_choice][-1]
+    endog_grid_period = np.load(f"endog_grid_{state[0]}.npy")
+    policy_period = np.load(f"policy_{state[0]}.npy")
 
-        wealth = np.load(f"endog_grid_{idx_state_choice}.npy")[wealth_idx + 1]
-        policy = np.load(f"policy_{idx_state_choice}.npy")
+    for state_choice_idx in idxs_state_choice_combs:
+        choice_in_period_1 = state_choice_space[state_choice_idx][-1]
 
-        if ~np.isnan(wealth) and wealth > 0:
-            initial_cond["wealth"] = wealth
+        endog_grid = endog_grid_period[state_choice_idx, wealth_idx + 1]
+        policy = policy_period[state_choice_idx]
+
+        if ~np.isnan(endog_grid) and endog_grid > 0:
+            initial_cond["wealth"] = endog_grid
 
             cons_calc = policy[wealth_idx + 1]
             diff = euler_rhs(
