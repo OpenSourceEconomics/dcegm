@@ -347,11 +347,14 @@ def backwards_induction(
 
             endog_grid_state_choice[state_choice_idx, : len(endog_grid)] = endog_grid
             policy_left_state_choice[state_choice_idx, : len(policy_left)] = policy_left
-            policy_right_state_choice[state_choice_idx, : len(policy_right)] = policy_right
+            policy_right_state_choice[
+                state_choice_idx, : len(policy_right)
+            ] = policy_right
             value_state_choice[state_choice_idx, : len(value)] = value
 
         marg_util_interpolated, value_interpolated = vmap(
-            interpolate_and_calc_marginal_utilities, in_axes=(None, None, 0, 0, 0, 0, 0, 0)
+            interpolate_and_calc_marginal_utilities,
+            in_axes=(None, None, 0, 0, 0, 0, 0, 0),
         )(
             compute_marginal_utility,
             compute_value,
