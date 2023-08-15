@@ -86,6 +86,8 @@ def fast_upper_envelope_wrapper(
     # We do that independent of whether the condition is fulfilled or not.
     # If the condition is not fulfilled this is points_to_add times the same point.
 
+    # This is the condition, which we do not use at the moment.
+    # closed_form_cond = min_wealth_grid < exog_grid[0]
     grid_points_to_add = jnp.linspace(min_wealth_grid, endog_grid[0], points_to_add)[
         :-1
     ]
@@ -879,67 +881,3 @@ def _linear_intersection(
     y_intersection = slope1 * (x_intersection - x1) + y1
 
     return x_intersection, y_intersection
-
-
-# def _augment_grids(
-#     endog_grid: jnp.ndarray,
-#     value: jnp.ndarray,
-#     policy: jnp.ndarray,
-#     choice: int,
-#     expected_value_zero_savings: jnp.ndarray,
-#     min_wealth_grid: float,
-#     points_to_add: int,
-#     compute_value: Callable,
-# ) -> Tuple[np.ndarray, jnp.ndarray, jnp.ndarray]:
-#     """Extends the endogenous wealth grid, value, and policy functions to the left.
-#
-#     Args:
-#         endog_grid (np.ndarray): 1d array containing the endogenous wealth grid of
-#             shape (n_endog_wealth_grid,), where n_endog_wealth_grid is of variable
-#             length depending on the number of kinks and non-concave regions in the
-#             value function.
-#         value (np.ndarray):  1d array storing the choice-specific
-#             value function of shape (n_endog_wealth_grid,), where
-#             n_endog_wealth_grid is of variable length depending on the number of
-#             kinks and non-concave regions in the value function.
-#             In the presence of kinks, the value function is a "correspondence"
-#             rather than a function due to non-concavities.
-#         policy (np.ndarray):  1d array storing the choice-specific
-#             policy function of shape (n_endog_wealth_grid,), where
-#             n_endog_wealth_grid is of variable length depending on the number of
-#             discontinuities in the policy function.
-#             In the presence of discontinuities, the policy function is a
-#             "correspondence" rather than a function due to multiple local optima.
-#         choice (int): The agent's choice.
-#         expected_value_zero_savings (float): The agent's expected value given that she
-#             saves zero.
-#         min_wealth_grid (float): Minimal wealth level in the endogenous wealth grid.
-#         points_to_add (int): Number of grid points to add. Roughly num_wealth / 10.
-#         compute_value (callable): Function to compute the agent's value.
-#
-#     Returns:
-#         tuple:
-#
-#         - grid_augmented (np.ndarray): 1d array containing the augmented
-#             endogenous wealth grid with ancillary points added to the left.
-#         - policy_augmented (np.ndarray): 1d array containing the augmented
-#             policy function with ancillary points added to the left.
-#         - value_augmented (np.ndarray): 1d array containing the augmented
-#             value function with ancillary points added to the left.
-#
-#     """
-#     grid_points_to_add = jnp.linspace(min_wealth_grid, endog_grid[0], points_to_add)[
-#         :-1
-#     ]
-#
-#     values_to_add = compute_value(
-#         grid_points_to_add,
-#         expected_value_zero_savings,
-#         choice,
-#     )
-#
-#     grid_augmented = jnp.append(grid_points_to_add, endog_grid)
-#     value_augmented = jnp.append(values_to_add, value)
-#     policy_augmented = jnp.append(grid_points_to_add, policy)
-#
-#     return grid_augmented, value_augmented, policy_augmented
