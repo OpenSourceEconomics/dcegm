@@ -91,17 +91,18 @@ def fast_upper_envelope_wrapper(
         compute_value=compute_value,
     )
 
-    endog_grid = jnp.append(0, endog_grid)
-    policy = jnp.append(0, policy)
-    value = jnp.append(expected_value_zero_savings, value)
-
     (
         endog_grid_refined,
         value_refined,
         policy_left_refined,
         policy_right_refined,
     ) = fast_upper_envelope(
-        endog_grid, value, policy, num_iter=int(1.2 * value.shape[0]), jump_thresh=2
+        endog_grid,
+        value,
+        policy,
+        expected_value_zero_savings,
+        num_iter=int(1.2 * value.shape[0]),
+        jump_thresh=2,
     )
 
     return (
@@ -116,6 +117,7 @@ def fast_upper_envelope(
     endog_grid: jnp.ndarray,
     value: jnp.ndarray,
     policy: jnp.ndarray,
+    expected_value_zero_savings: float,
     num_iter: int,
     jump_thresh: Optional[float] = 2,
 ) -> Tuple[np.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
@@ -168,6 +170,7 @@ def fast_upper_envelope(
         endog_grid=endog_grid,
         value=value,
         policy=policy,
+        expected_value_zero_savings=expected_value_zero_savings,
         num_iter=num_iter,
         jump_thresh=jump_thresh,
         n_points_to_scan=10,
@@ -180,6 +183,7 @@ def scan_value_function(
     endog_grid: jnp.ndarray,
     value: jnp.ndarray,
     policy: jnp.ndarray,
+    expected_value_zero_savings,
     num_iter: int,
     jump_thresh: float,
     n_points_to_scan: Optional[int] = 0,
@@ -206,23 +210,14 @@ def scan_value_function(
             the optimal points are kept.
 
     """
-    value_k_and_j = value[0], value[1]
-    endog_grid_k_and_j = endog_grid[0], endog_grid[1]
-    policy_k_and_j = policy[0], policy[1]
+    value_k_and_j = expected_value_zero_savings, value[0]
+    endog_grid_k_and_j = 0, endog_grid[0]
+    policy_k_and_j = 0, policy[0]
     vars_j_and_k_inital = (value_k_and_j, policy_k_and_j, endog_grid_k_and_j)
 
-    value_to_be_saved_next = value[0]
-    policy_left_to_be_saved_next = policy[0]
-    policy_right_to_be_saved_next = policy[0]
-    endog_grid_to_be_saved_next = endog_grid[0]
-    to_be_saved_inital = (
-        value_to_be_saved_next,
-        policy_left_to_be_saved_next,
-        policy_right_to_be_saved_next,
-        endog_grid_to_be_saved_next,
-    )
+    to_be_saved_inital = (expected_value_zero_savings, 0.0, 0.0, 0.0)
 
-    idx_to_inspect = 1
+    idx_to_inspect = 0
     last_point_was_intersect = 0
     idx_case_2 = 0
 
