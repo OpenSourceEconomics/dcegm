@@ -175,7 +175,7 @@ def input_data():
         "marginal_utility": marginal_utility,
     }
 
-    endog_grid, policy, _ = solve_dcegm(
+    solve_dcegm(
         params,
         options,
         utility_functions,
@@ -188,8 +188,7 @@ def input_data():
     out = {}
     out["params"] = params
     out["options"] = options
-    out["endog_grid"] = endog_grid
-    out["policy"] = policy
+
     return out
 
 
@@ -226,8 +225,10 @@ def test_two_period(input_data, wealth_idx, state_idx):
 
     for idx_state_choice in idxs_state_choice_combs:
         choice_in_period_1 = state_choice_space[idx_state_choice][-1]
-        policy = input_data["policy"][idx_state_choice]
-        wealth = input_data["endog_grid"][idx_state_choice, wealth_idx + 1]
+
+        wealth = np.load(f"endog_grid_{idx_state_choice}.npy")[wealth_idx + 1]
+        policy = np.load(f"policy_{idx_state_choice}.npy")
+
         if ~np.isnan(wealth) and wealth > 0:
             initial_cond["wealth"] = wealth
 

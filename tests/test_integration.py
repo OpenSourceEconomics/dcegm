@@ -78,12 +78,7 @@ def test_benchmark_models(
     options["n_exog_processes"] = 1
 
     state_space, map_state_to_index = create_state_space(options)
-    (
-        state_choice_space,
-        sum_state_choices_to_state,
-        map_state_choice_to_state,
-        _,
-    ) = create_state_choice_space(
+    state_choice_space, *_ = create_state_choice_space(
         state_space,
         map_state_to_index,
         state_space_functions["get_state_specific_choice_set"],
@@ -92,7 +87,7 @@ def test_benchmark_models(
     if params.loc[("utility_function", "theta"), "value"] == 1:
         utility_functions["utility"] = utiility_func_log_crra
 
-    endog_grid_calc, policy_calc, value_calc = solve_dcegm(
+    solve_dcegm(
         params,
         options,
         utility_functions,
@@ -107,10 +102,15 @@ def test_benchmark_models(
     )
     value_expected = pickle.load((TEST_RESOURCES_DIR / f"value_{model}.pkl").open("rb"))
 
+    # need to loop over period? Isn't state_choice space enough?
     for period in range(23, -1, -1):
-        state_choices_ids_period = np.where(state_choice_space[:, 0] == period)[0]
+        state_choices_idxs_period = np.where(state_choice_space[:, 0] == period)[0]
 
-        for state_choice_idx in state_choices_ids_period:
+        for state_choice_idx in state_choices_idxs_period:
+            endog_grid_got = np.load(f"endog_grid_{state_choice_idx}.npy")
+            policy_got = np.load(f"policy_{state_choice_idx}.npy")
+            value_got = np.load(f"value_{state_choice_idx}.npy")
+
             choice = state_choice_space[state_choice_idx, -1]
             if model == "deaton":
                 policy_expec = policy_expected[period, choice]
@@ -135,9 +135,9 @@ def test_benchmark_models(
                 value_calc_interp,
             ) = interpolate_policy_and_value_on_wealth_grid(
                 begin_of_period_wealth=wealth_grid_to_test,
-                endog_wealth_grid=endog_grid_calc[state_choice_idx],
-                policy_grid=policy_calc[state_choice_idx],
-                value_grid=value_calc[state_choice_idx],
+                endog_wealth_grid=endog_grid_got,
+                policy_grid=policy_got,
+                value_grid=value_got,
             )
 
             aaae(policy_expec_interp, policy_calc_interp)

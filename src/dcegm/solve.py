@@ -21,6 +21,7 @@ from dcegm.state_space import create_current_state_and_state_choice_objects
 from dcegm.state_space import create_state_choice_space
 from dcegm.state_space import get_map_from_state_to_child_nodes
 from jax import vmap
+from numpy.testing import assert_array_almost_equal as aaae
 
 
 def solve_dcegm(
@@ -129,7 +130,7 @@ def solve_dcegm(
         state_choice_space, options
     )
 
-    endog_grid_container, policy_container, value_container = backwards_induction(
+    backwards_induction(
         map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
         reshape_state_choice_vec_to_mat=reshape_state_choice_vec_to_mat,
         transform_between_state_and_state_choice_space=transform_between_state_and_state_choice_space,
@@ -154,10 +155,6 @@ def solve_dcegm(
         compute_upper_envelope=compute_upper_envelope,
         final_period_solution_partial=final_period_solution_partial,
     )
-
-    # TODO: finalize output containers
-
-    return endog_grid_container, policy_container, value_container
 
 
 def backwards_induction(
@@ -312,11 +309,40 @@ def backwards_induction(
         endog_grid_final_period=endog_grid_final_period,
         policy_final_period=policy_final_period,
         value_final_period=value_interpolated,
-        num_income_shock_draws=income_shock_draws.shape[0],
-        num_wealth_grid_points=exogenous_savings_grid.shape[0],
+        num_income_shock_draws=len(income_shock_draws),
+        num_wealth_grid_points=len(exogenous_savings_grid),
+    )
+
+    for idx_final_period in idxs_state_choice_combs_final_period:
+        # Choose which draw we take for policy and value function as those are note
+        # saved with respect to the draws
+        middle_of_draws = int(len(income_shock_draws) + 1 / 2)
+        np.save(
+            f"endog_grid_{idx_final_period}.npy",
+            endog_grid_final_period[:, :, middle_of_draws],
+        )
+        np.save(
+            f"policy_{idx_final_period}.npy", policy_final_period[:, :, middle_of_draws]
+        )
+        np.save(
+            f"value_{idx_final_period}.npy", value_interpolated[:, :, middle_of_draws]
+        )
+
+    endog_grid_state_choice = np.empty(
+        (state_choice_space.shape[1] - 1, int(1.1 * len(exogenous_savings_grid)))
+    )
+    policy_state_choice = np.empty(
+        (state_choice_space.shape[1] - 1, int(1.1 * len(exogenous_savings_grid)))
+    )
+    value_state_choice = np.empty(
+        (state_choice_space.shape[1] - 1, int(1.1 * len(exogenous_savings_grid)))
     )
 
     for period in range(n_periods - 2, -1, -1):
+        endog_grid_state_choice[:] = np.nan
+        policy_state_choice[:] = np.nan
+        value_state_choice[:] = np.nan
+
         # Aggregate the marginal utilities and expected values over all choices and
         # income shock draws
         marg_util, emax = aggregate_marg_utils_exp_values(
@@ -365,6 +391,7 @@ def backwards_induction(
 
         # Run upper envolope to remove suboptimal candidates
         for state_choice_idx, state_choice_vec in enumerate(state_choices_period):
+            _idx = 0
             choice = state_choice_vec[-1]
 
             endog_grid, policy, value = compute_upper_envelope(
@@ -378,9 +405,32 @@ def backwards_induction(
             )
 
             _idx_state_choice_full = idx_state_choices_period[state_choice_idx]
+
+            np.save(f"endog_grid_{_idx_state_choice_full}.npy", endog_grid)
+            np.save(f"policy_{_idx_state_choice_full}.npy", policy)
+            np.save(f"value_{_idx_state_choice_full}.npy", value)
+
             endog_grid_container[_idx_state_choice_full, : len(endog_grid)] = endog_grid
             policy_container[_idx_state_choice_full, : len(policy)] = policy
             value_container[_idx_state_choice_full, : len(value)] = value
+
+            endog_grid_state_choice[_idx, : len(endog_grid)] = endog_grid
+            policy_state_choice[_idx, : len(policy)] = policy
+            value_state_choice[_idx, : len(value)] = value
+
+            aaae(
+                endog_grid_container[_idx_state_choice_full, : len(endog_grid)],
+                endog_grid_state_choice[_idx, : len(endog_grid)],
+            )
+            aaae(
+                policy_container[_idx_state_choice_full, : len(policy)],
+                policy_state_choice[_idx, : len(policy)],
+            )
+            aaae(
+                value_container[_idx_state_choice_full, : len(value)],
+                value_state_choice[_idx, : len(value)],
+            )
+            _idx += 1
 
         marg_util_interpolated, value_interpolated = vmap(
             interpolate_and_calc_marginal_utilities, in_axes=(None, None, 0, 0, 0, 0, 0)
@@ -392,10 +442,7 @@ def backwards_induction(
             endog_grid_container[idx_state_choices_period, :],
             policy_container[idx_state_choices_period, :],
             value_container[idx_state_choices_period, :],
+            # endog_grid_state_choice_current,
+            # policy_state_choice_current,
+            # value_state_choice_current,
         )
-
-        # TODO: save arrays to disc
-
-    # TODO: return None
-
-    return endog_grid_container, policy_container, value_container
