@@ -125,7 +125,6 @@ def solve_dcegm(
         compute_marginal_utility=compute_marginal_utility,
     )
 
-
     backwards_induction(
         map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
         reshape_state_choice_vec_to_mat=reshape_state_choice_vec_to_mat,

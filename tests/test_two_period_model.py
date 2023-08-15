@@ -348,7 +348,7 @@ def input_data():
     out["params"] = params
     out["options"] = options
     out["get_transition_vector_by_state"] = get_transition_vector_partial
-    
+
     return out
 
 
