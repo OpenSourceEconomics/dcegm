@@ -74,23 +74,22 @@ def fast_upper_envelope_wrapper(
 
     """
     min_wealth_grid = jnp.min(endog_grid)
-    if endog_grid[0] > min_wealth_grid:
-        # Non-concave region coincides with credit constraint.
-        # This happens when there is a non-monotonicity in the endogenous wealth grid
-        # that goes below the first point.
-        # Solution: Value function to the left of the first point is analytical,
-        # so we just need to add some points to the left of the first grid point.
+    # Non-concave region coincides with credit constraint.
+    # This happens when there is a non-monotonicity in the endogenous wealth grid
+    # that goes below the first point.
+    # Solution: Value function to the left of the first point is analytical,
+    # so we just need to add some points to the left of the first grid point.
 
-        endog_grid, value, policy = _augment_grids(
-            endog_grid=endog_grid,
-            value=value,
-            policy=policy,
-            choice=choice,
-            expected_value_zero_savings=expected_value_zero_savings,
-            min_wealth_grid=min_wealth_grid,
-            points_to_add=len(endog_grid) // 10,
-            compute_value=compute_value,
-        )
+    endog_grid, value, policy = _augment_grids(
+        endog_grid=endog_grid,
+        value=value,
+        policy=policy,
+        choice=choice,
+        expected_value_zero_savings=expected_value_zero_savings,
+        min_wealth_grid=min_wealth_grid,
+        points_to_add=len(endog_grid) // 10,
+        compute_value=compute_value,
+    )
 
     endog_grid = jnp.append(0, endog_grid)
     policy = jnp.append(0, policy)
