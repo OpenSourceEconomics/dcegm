@@ -74,7 +74,10 @@ def fast_upper_envelope_wrapper(
 
     """
     min_wealth_grid = jnp.min(endog_grid)
+    # These tuning parameters should be set outside. Don't want to touch solve.py now
     points_to_add = len(endog_grid) // 10
+    num_iter = int(1.2 * value.shape[0])
+    jump_thresh = 2
     # Non-concave region coincides with credit constraint.
     # This happens when there is a non-monotonicity in the endogenous wealth grid
     # that goes below the first point.
@@ -107,8 +110,8 @@ def fast_upper_envelope_wrapper(
         value_augmented,
         policy_augmented,
         expected_value_zero_savings,
-        num_iter=int(1.2 * value.shape[0]),
-        jump_thresh=2,
+        num_iter=num_iter,
+        jump_thresh=jump_thresh,
     )
 
     return (
