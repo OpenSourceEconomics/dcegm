@@ -87,7 +87,7 @@ def fast_upper_envelope_wrapper(
     # If the condition is not fulfilled this is points_to_add times the same point.
 
     # This is the condition, which we do not use at the moment.
-    # closed_form_cond = min_wealth_grid < exog_grid[0]
+    # closed_form_cond = min_wealth_grid < endog_grid[0]
     grid_points_to_add = jnp.linspace(min_wealth_grid, endog_grid[0], points_to_add)[
         :-1
     ]
