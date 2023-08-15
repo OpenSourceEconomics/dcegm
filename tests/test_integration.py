@@ -3,6 +3,8 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
+from dcegm.interpolation import linear_interpolation_with_extrapolation
 from dcegm.solve import solve_dcegm
 from dcegm.state_space import create_state_choice_space
 from numpy.testing import assert_array_almost_equal as aaae
@@ -90,7 +92,7 @@ def test_benchmark_models(
     if params.loc[("utility_function", "theta"), "value"] == 1:
         utility_functions["utility"] = utiility_func_log_crra
 
-    endog_grid_calculated, policy_calculated, value_calculated = solve_dcegm(
+    endog_grid_calc, policy_calc, value_calc = solve_dcegm(
         params,
         options,
         utility_functions,
@@ -117,29 +119,26 @@ def test_benchmark_models(
                 policy_expec = policy_expected[period][1 - choice].T
                 value_expec = value_expected[period][1 - choice].T
 
-            endog_grid_got = endog_grid_calculated[state_choice_idx][
-                ~np.isnan(endog_grid_calculated[state_choice_idx]),
-            ]
-
-            aaae(endog_grid_got, policy_expec[0])
-
-            policy_got = policy_calculated[state_choice_idx][
-                ~np.isnan(policy_calculated[state_choice_idx]),
-            ]
-            aaae(policy_got, policy_expec[1])
-
-            # In Fedor's upper envelope, there are two endogenous wealth grids;
-            # one for the value function and a longer one for the policy function.
-            # Since we want to unify the two endogoenous grids and want the refined
-            # value and policy array to be of equal length, our refined value
-            # function is longer than Fedor's.
-            # Hence, we interpolate Fedor's refined value function to our refined
-            # grid.
-            value_expec_interp = np.interp(
-                policy_expec[0], value_expec[0], value_expec[1]
+            wealth_grid_to_test = np.linspace(
+                policy_expec[0][1], policy_expec[0][-1] + 10, 1000
             )
-            value_got = value_calculated[state_choice_idx][
-                ~np.isnan(value_calculated[state_choice_idx])
-            ]
 
-            aaae(value_got, value_expec_interp)
+            value_expec_interp = linear_interpolation_with_extrapolation(
+                x_new=wealth_grid_to_test, x=value_expec[0], y=value_expec[1]
+            )
+            policy_expec_interp = linear_interpolation_with_extrapolation(
+                x_new=wealth_grid_to_test, x=policy_expec[0], y=policy_expec[1]
+            )
+
+            (
+                policy_calc_interp,
+                value_calc_interp,
+            ) = interpolate_policy_and_value_on_wealth_grid(
+                begin_of_period_wealth=wealth_grid_to_test,
+                endog_wealth_grid=endog_grid_calc[state_choice_idx],
+                policy_grid=policy_calc[state_choice_idx],
+                value_grid=value_calc[state_choice_idx],
+            )
+
+            aaae(policy_expec_interp, policy_calc_interp)
+            aaae(value_expec_interp, value_calc_interp)
