@@ -1,11 +1,8 @@
 """User-defined functions for creating state space objects."""
-from typing import Dict
-from typing import Tuple
-
 import numpy as np
 
 
-def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]:
+def create_state_space(options: dict[str, int]) -> tuple[np.ndarray, np.ndarray]:
     """Create state space object and indexer.
 
     We need to add the convention for the state space objects.
@@ -56,7 +53,7 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
 
 def get_state_specific_feasible_choice_set(
     state: np.ndarray,
-    map_state_to_index: np.ndarray,  # noqa: U100
+    map_state_to_index: np.ndarray,
     indexer: np.ndarray,
 ) -> np.ndarray:
     """Select state-specific feasible choice set.
@@ -91,9 +88,4 @@ def get_state_specific_feasible_choice_set(
 
     # Once the agent choses retirement, she can only choose retirement thereafter.
     # Hence, retirement is an absorbing state.
-    if state[1] == 1:
-        feasible_choice_set = np.array([1])
-    else:
-        feasible_choice_set = np.arange(n_choices)
-
-    return feasible_choice_set
+    return np.array([1]) if state[1] == 1 else np.arange(n_choices)

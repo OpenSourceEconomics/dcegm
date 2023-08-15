@@ -4,8 +4,7 @@ from itertools import product
 import numpy as np
 import pytest
 from dcegm.final_period import solve_final_period
-from dcegm.pre_processing import convert_params_to_dict
-from dcegm.pre_processing import get_partial_functions
+from dcegm.pre_processing import convert_params_to_dict, get_partial_functions
 from dcegm.state_space import create_state_choice_space
 from jax import vmap
 from numpy.testing import assert_array_almost_equal as aaae
@@ -18,14 +17,12 @@ from toy_models.consumption_retirement_model.final_period_solution import (
 )
 from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space,
-)
-from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_feasible_choice_set,
 )
 from toy_models.consumption_retirement_model.utility_functions import (
     marginal_utility_crra,
+    utility_func_crra,
 )
-from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
 
 model = ["deaton", "retirement_taste_shocks", "retirement_no_taste_shocks"]
 model = ["retirement_taste_shocks", "retirement_no_taste_shocks"]
@@ -34,9 +31,12 @@ n_grid_points = [1000, 101]
 TEST_CASES = list(product(model, max_wealth, n_grid_points))
 
 
-@pytest.mark.parametrize("model, max_wealth, n_grid_points", TEST_CASES)
+@pytest.mark.parametrize(("model", "max_wealth", "n_grid_points"), TEST_CASES)
 def test_consume_everything_in_final_period(
-    model, max_wealth, n_grid_points, load_example_model
+    model,
+    max_wealth,
+    n_grid_points,
+    load_example_model,
 ):
     params, options = load_example_model(f"{model}")
     params_dict = convert_params_to_dict(params)
@@ -55,7 +55,9 @@ def test_consume_everything_in_final_period(
         _reshape_state_choice_vec_to_mat,
         transform_between_state_and_state_choice_space,
     ) = create_state_choice_space(
-        state_space, state_indexer, get_state_specific_feasible_choice_set
+        state_space,
+        state_indexer,
+        get_state_specific_feasible_choice_set,
     )
     idx_states_final_period = np.where(state_space[:, 0] == n_periods - 1)[0]
 
@@ -99,7 +101,8 @@ def test_consume_everything_in_final_period(
 
     (
         transform_between_state_and_state_choice_space[idx_states_final_period, :][
-            :, idx_state_choice_combs
+            :,
+            idx_state_choice_combs,
         ]
     )
 
@@ -125,7 +128,8 @@ def test_consume_everything_in_final_period(
         state = state_choice[:-1]
         choice = state_choice[-1]
         begin_of_period_resources = vmap(
-            compute_next_period_wealth, in_axes=(None, 0, None)
+            compute_next_period_wealth,
+            in_axes=(None, 0, None),
         )(state, savings_grid, 0.00)
 
         aaae(
@@ -139,7 +143,8 @@ def test_consume_everything_in_final_period(
         )
 
         expected_value = vmap(compute_utility, in_axes=(0, None))(
-            begin_of_period_resources, choice
+            begin_of_period_resources,
+            choice,
         )
         aaae(
             value_final[state_choice_idx, :, 1],

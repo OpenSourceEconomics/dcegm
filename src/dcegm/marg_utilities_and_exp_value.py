@@ -1,5 +1,3 @@
-from typing import Tuple
-
 import jax.numpy as jnp
 
 
@@ -10,7 +8,7 @@ def aggregate_marg_utils_exp_values(
     transform_between_state_and_state_choice_vec: jnp.ndarray,
     taste_shock_scale: float,
     income_shock_weights: jnp.ndarray,
-) -> Tuple[jnp.ndarray, jnp.ndarray]:
+) -> tuple[jnp.ndarray, jnp.ndarray]:
     """Compute the aggregate marginal utilities and expected values.
 
     Args:
@@ -56,15 +54,19 @@ def aggregate_marg_utils_exp_values(
     ).max(axis=1)
 
     max_value_per_state_choice_comb = jnp.tensordot(
-        transform_between_state_and_state_choice_vec, max_value_per_state, axes=(0, 0)
+        transform_between_state_and_state_choice_vec,
+        max_value_per_state,
+        axes=(0, 0),
     )
 
     value_exponential = jnp.exp(
         (value_state_choice_specific - max_value_per_state_choice_comb)
-        / taste_shock_scale
+        / taste_shock_scale,
     )
     sum_value_exponential_per_state = jnp.tensordot(
-        transform_between_state_and_state_choice_vec, value_exponential, axes=(1, 0)
+        transform_between_state_and_state_choice_vec,
+        value_exponential,
+        axes=(1, 0),
     )
 
     product_choice_probs_and_marg_util = jnp.tensordot(
@@ -78,7 +80,7 @@ def aggregate_marg_utils_exp_values(
     )
 
     log_sum = max_value_per_state + taste_shock_scale * jnp.log(
-        sum_value_exponential_per_state
+        sum_value_exponential_per_state,
     )
 
     return (

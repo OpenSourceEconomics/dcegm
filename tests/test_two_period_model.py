@@ -19,8 +19,6 @@ from toy_models.consumption_retirement_model.final_period_solution import (
 )
 from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space,
-)
-from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_feasible_choice_set,
 )
 
@@ -28,14 +26,12 @@ from toy_models.consumption_retirement_model.state_space_objects import (
 def flow_util(consumption, choice, params_dict):
     rho = params_dict["rho"]
     delta = params_dict["delta"]
-    u = consumption ** (1 - rho) / (1 - rho) - delta * (1 - choice)
-    return u
+    return consumption ** (1 - rho) / (1 - rho) - delta * (1 - choice)
 
 
 def marginal_utility(consumption, params_dict):
     rho = params_dict["rho"]
-    u_prime = consumption ** (-rho)
-    return u_prime
+    return consumption ** (-rho)
 
 
 def inverse_marginal_utility(marginal_utility, params_dict):
@@ -43,7 +39,7 @@ def inverse_marginal_utility(marginal_utility, params_dict):
     return marginal_utility ** (-1 / rho)
 
 
-def budget_dcegm(state, saving, income_shock, params_dict, options):  # noqa: 100
+def budget_dcegm(state, saving, income_shock, params_dict, options):  # noqa: ARG001
     interest_factor = 1 + params_dict["interest_rate"]
     health_costs = params_dict["ltc_cost"]
     wage = params_dict["wage_avg"]
@@ -62,21 +58,24 @@ def transitions_dcegm(state, params_dict):
 
 
 def budget(
-    lagged_resources, lagged_consumption, lagged_choice, wage, health, params_dict
+    lagged_resources,
+    lagged_consumption,
+    lagged_choice,
+    wage,
+    health,
+    params_dict,
 ):
     interest_factor = 1 + params_dict["interest_rate"]
     health_costs = params_dict["ltc_cost"]
-    resources = (
+    return (
         interest_factor * (lagged_resources - lagged_consumption)
         + wage * (1 - lagged_choice)
         - health * health_costs
     ).clip(min=0.5)
-    return resources
 
 
 def wage(nu, params_dict):
-    wage = params_dict["wage_avg"] + nu
-    return wage
+    return params_dict["wage_avg"] + nu
 
 
 def prob_long_term_care_patient(params_dict, lag_health, health):
@@ -89,8 +88,6 @@ def prob_long_term_care_patient(params_dict, lag_health, health):
         pi = 0
     elif lag_health == health == 1:
         pi = 1
-    # else: # noqa: E800
-    #     raise ValueError("Health state not defined.") # noqa: E800
 
     return pi
 
@@ -99,8 +96,7 @@ def choice_probs(cons, d, params_dict):
     v = flow_util(cons, d, params_dict)
     v_0 = flow_util(cons, 0, params_dict)
     v_1 = flow_util(cons, 1, params_dict)
-    choice_prob = np.exp(v) / (np.exp(v_0) + np.exp(v_1))
-    return choice_prob
+    return np.exp(v) / (np.exp(v_0) + np.exp(v_1))
 
 
 def m_util_aux(init_cond, params_dict, choice_1, nu, consumption):
@@ -122,7 +118,9 @@ def m_util_aux(init_cond, params_dict, choice_1, nu, consumption):
             marginal_util = marginal_utility(budget_2, params_dict)
             choice_prob = choice_probs(budget_2, choice_2, params_dict)
             health_prob = prob_long_term_care_patient(
-                params_dict, health_state_1, health_state_2
+                params_dict,
+                health_state_1,
+                health_state_2,
             )
             weighted_marginal += choice_prob * health_prob * marginal_util
 
@@ -196,7 +194,7 @@ TEST_CASES = list(product(list(range(WEALTH_GRID_POINTS)), list(range(4))))
 
 
 @pytest.mark.parametrize(
-    "wealth_idx, state_idx",
+    ("wealth_idx", "state_idx"),
     TEST_CASES,
 )
 def test_two_period(input_data, wealth_idx, state_idx):
@@ -206,7 +204,8 @@ def test_two_period(input_data, wealth_idx, state_idx):
     params = input_data["params"]
     keys = params.index.droplevel("category").tolist()
     values = params["value"].tolist()
-    params_dict = dict(zip(keys, values))
+    params_dict = dict(zip(keys, values, strict=True))
+
     state_space, map_state_to_index = create_state_space(input_data["options"])
     (
         state_choice_space,

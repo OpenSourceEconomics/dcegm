@@ -3,8 +3,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from dcegm.fast_upper_envelope import fast_upper_envelope
-from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
+from dcegm.fast_upper_envelope import fast_upper_envelope, fast_upper_envelope_wrapper
 from dcegm.pre_processing import calc_current_value
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
@@ -18,7 +17,7 @@ TEST_DIR = Path(__file__).parent
 TEST_RESOURCES_DIR = TEST_DIR / "resources"
 
 
-@pytest.fixture
+@pytest.fixture()
 def setup_model():
     choice = 0
     max_wealth = 50
@@ -43,19 +42,24 @@ def setup_model():
 @pytest.mark.parametrize("period", [2, 4, 9, 10, 18])
 def test_fast_upper_envelope_wrapper(period, setup_model):
     value_egm = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"period_tests/val{period}.csv", delimiter=","
+        TEST_RESOURCES_DIR / f"period_tests/val{period}.csv",
+        delimiter=",",
     )
     policy_egm = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"period_tests/pol{period}.csv", delimiter=","
+        TEST_RESOURCES_DIR / f"period_tests/pol{period}.csv",
+        delimiter=",",
     )
     value_refined_fedor = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"period_tests/expec_val{period}.csv", delimiter=","
+        TEST_RESOURCES_DIR / f"period_tests/expec_val{period}.csv",
+        delimiter=",",
     )
     policy_refined_fedor = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"period_tests/expec_pol{period}.csv", delimiter=","
+        TEST_RESOURCES_DIR / f"period_tests/expec_pol{period}.csv",
+        delimiter=",",
     )
     policy_expected = policy_refined_fedor[
-        :, ~np.isnan(policy_refined_fedor).any(axis=0)
+        :,
+        ~np.isnan(policy_refined_fedor).any(axis=0),
     ]
     value_expected = value_refined_fedor[
         :,
@@ -80,17 +84,21 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
     aaae(endog_grid_got, policy_expected[0])
     aaae(policy_got, policy_expected[1])
     value_expected_interp = np.interp(
-        endog_grid_got, value_expected[0], value_expected[1]
+        endog_grid_got,
+        value_expected[0],
+        value_expected[1],
     )
     aaae(value_got, value_expected_interp)
 
 
 def test_fast_upper_envelope_against_org_fues(setup_model):
     policy_egm = np.genfromtxt(
-        TEST_RESOURCES_DIR / "period_tests/pol10.csv", delimiter=","
+        TEST_RESOURCES_DIR / "period_tests/pol10.csv",
+        delimiter=",",
     )
     value_egm = np.genfromtxt(
-        TEST_RESOURCES_DIR / "period_tests/val10.csv", delimiter=","
+        TEST_RESOURCES_DIR / "period_tests/val10.csv",
+        delimiter=",",
     )
     choice, exogenous_savings_grid, compute_value = setup_model
 
@@ -122,10 +130,12 @@ def test_fast_upper_envelope_against_org_fues(setup_model):
 @pytest.mark.parametrize("period", [2, 4, 10, 9, 18])
 def test_fast_upper_envelope_against_fedor(period, setup_model):
     value_egm = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"period_tests/val{period}.csv", delimiter=","
+        TEST_RESOURCES_DIR / f"period_tests/val{period}.csv",
+        delimiter=",",
     )
     policy_egm = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"period_tests/pol{period}.csv", delimiter=","
+        TEST_RESOURCES_DIR / f"period_tests/pol{period}.csv",
+        delimiter=",",
     )
 
     choice, exogenous_savings_grid, compute_value = setup_model
@@ -159,6 +169,8 @@ def test_fast_upper_envelope_against_fedor(period, setup_model):
     aaae(endog_grid_got, policy_expected[0])
     aaae(policy_got, policy_expected[1])
     value_expected_interp = np.interp(
-        endog_grid_got, value_expected[0], value_expected[1]
+        endog_grid_got,
+        value_expected[0],
+        value_expected[1],
     )
     aaae(value_got, value_expected_interp)

@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def get_transition_matrix_by_state(state, params_dict):  # noqa: U100
+def get_transition_matrix_by_state(state, params_dict):
     """Return a transition matrix for each state.
 
     Args:
@@ -15,5 +15,4 @@ def get_transition_matrix_by_state(state, params_dict):  # noqa: U100
             Shape is (n_exog_processes).
 
     """
-    trans_vec = np.array([1])
-    return trans_vec
+    return np.array([1])

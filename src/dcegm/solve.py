@@ -1,11 +1,11 @@
 """Interface for the DC-EGM algorithm."""
+from collections.abc import Callable
 from functools import partial
-from typing import Callable
-from typing import Dict
-from typing import Tuple
 
 import numpy as np
 import pandas as pd
+from jax import vmap
+
 from dcegm.egm import calculate_candidate_solutions_from_euler_equation
 from dcegm.final_period import solve_final_period
 from dcegm.integration import quadrature_legendre
@@ -13,23 +13,23 @@ from dcegm.interpolation import interpolate_and_calc_marginal_utilities
 from dcegm.marg_utilities_and_exp_value import (
     aggregate_marg_utils_exp_values,
 )
-from dcegm.pre_processing import convert_params_to_dict
-from dcegm.pre_processing import get_partial_functions
-from dcegm.state_space import create_current_state_and_state_choice_objects
-from dcegm.state_space import create_state_choice_space
-from dcegm.state_space import get_map_from_state_to_child_nodes
-from jax import vmap
+from dcegm.pre_processing import convert_params_to_dict, get_partial_functions
+from dcegm.state_space import (
+    create_current_state_and_state_choice_objects,
+    create_state_choice_space,
+    get_map_from_state_to_child_nodes,
+)
 
 
 def solve_dcegm(
     params: pd.DataFrame,
-    options: Dict[str, int],
-    utility_functions: Dict[str, Callable],
+    options: dict[str, int],
+    utility_functions: dict[str, Callable],
     budget_constraint: Callable,
-    state_space_functions: Dict[str, Callable],
+    state_space_functions: dict[str, Callable],
     final_period_solution: Callable,
     transition_function: Callable,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
     Args:
@@ -74,10 +74,11 @@ def solve_dcegm(
     n_grid_wealth = options["grid_points_wealth"]
     exogenous_savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
 
-    # ToDo: Make interface with several draw possibilities.
-    # ToDo: Some day make user supplied draw function.
+    # TODO: Make interface with several draw possibilities.
+    # TODO: Some day make user supplied draw function.
     income_shock_draws, income_shock_weights = quadrature_legendre(
-        options["quadrature_points_stochastic"], params_dict["sigma"]
+        options["quadrature_points_stochastic"],
+        params_dict["sigma"],
     )
 
     (
@@ -168,7 +169,7 @@ def backwards_induction(
     transition_vector_by_state: Callable,
     compute_upper_envelope: Callable,
     final_period_solution_partial: Callable,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Do backwards induction and solve for optimal policy and value function.
 
     Args:
@@ -228,7 +229,6 @@ def backwards_induction(
     Returns:
 
     """
-
     # Calculate beginning of period resources for all periods, given exogenous savings
     # and income shocks from last period
     resources_beginning_of_period = vmap(
@@ -319,13 +319,16 @@ def backwards_induction(
         )
 
         endog_grid_state_choice = np.full(
-            (len(state_choice_combs), int(1.1 * len(exogenous_savings_grid))), np.nan
+            (len(state_choice_combs), int(1.1 * len(exogenous_savings_grid))),
+            np.nan,
         )
         policy_state_choice = np.full(
-            (len(state_choice_combs), int(1.1 * len(exogenous_savings_grid))), np.nan
+            (len(state_choice_combs), int(1.1 * len(exogenous_savings_grid))),
+            np.nan,
         )
         value_state_choice = np.full(
-            (len(state_choice_combs), int(1.1 * len(exogenous_savings_grid))), np.nan
+            (len(state_choice_combs), int(1.1 * len(exogenous_savings_grid))),
+            np.nan,
         )
 
         # Run upper envolope to remove suboptimal candidates
@@ -347,7 +350,8 @@ def backwards_induction(
             value_state_choice[state_choice_idx, : len(policy)] = value
 
         marg_util_interpolated, value_interpolated = vmap(
-            interpolate_and_calc_marginal_utilities, in_axes=(None, None, 0, 0, 0, 0, 0)
+            interpolate_and_calc_marginal_utilities,
+            in_axes=(None, None, 0, 0, 0, 0, 0),
         )(
             compute_marginal_utility,
             compute_value,

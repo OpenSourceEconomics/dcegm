@@ -1,6 +1,5 @@
 """Auxiliary functions for the EGM algorithm."""
-from typing import Callable
-from typing import Tuple
+from collections.abc import Callable
 
 import numpy as np
 from jax import numpy as jnp
@@ -19,7 +18,7 @@ def calculate_candidate_solutions_from_euler_equation(
     state_choices_period: np.ndarray,
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Calculate candidates for the optimal policy and value function."""
     feasible_marg_utils, feasible_emax = _get_post_decision_marg_utils_and_emax(
         marg_util_next=marg_util,
@@ -65,10 +64,10 @@ def compute_optimal_policy_and_value(
     transition_vector_by_state: Callable,
     discount_factor: float,
     interest_rate: float,
-    state_choice_subspace: np.ndarray,
+    state_choices_period: np.ndarray,
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Compute optimal child-state- and choice-specific policy and value function.
 
     Given the marginal utilities of possible child states and next period wealth, we
@@ -89,6 +88,8 @@ def compute_optimal_policy_and_value(
         discount_factor (float): The discount factor.
         interest_rate (float): The interest rate on capital.
         choice (int): The current discrete choice.
+        state_choices_period (np.ndarray): 2d array containing the period-specific
+            state-choice subspace.
         compute_inverse_marginal_utility (Callable): Function for calculating the
             inverse marginal utility, which takes the marginal utility as only input.
         compute_value (callable): Function for calculating the value from consumption
@@ -108,8 +109,8 @@ def compute_optimal_policy_and_value(
             saves zero.
 
     """
-    state_vec = state_choice_subspace[:-1]
-    choice = state_choice_subspace[-1]
+    state_vec = state_choices_period[:-1]
+    choice = state_choices_period[-1]
     transition_probs = transition_vector_by_state(state_vec)
 
     policy, expected_value = solve_euler_equation(
@@ -134,7 +135,7 @@ def solve_euler_equation(
     discount_factor: float,
     interest_rate: float,
     compute_inverse_marginal_utility: Callable,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Solve the Euler equation for given discrete choice and child states.
 
     We integrate over the exogenous process and income uncertainty and
@@ -147,8 +148,8 @@ def solve_euler_equation(
         emax (np.ndarray): 1d array of shape (n_exog_processes,) containing
             the state-choice specific expected maximum value for a given point on
             the savings grid.
-        trans_vec_state (np.ndarray): 1d array of shape (n_exog_processes,) containing
-            for each exogenous process state the corresponding transition probability.
+        transition_probs (np.ndarray): 1d array of shape (n_exog_states,) containing
+            for each exogenous state the corresponding transition probability.
         discount_factor (float): The discount factor.
         interest_rate (float): The interest rate on capital.
         compute_inverse_marginal_utility (callable): Function for calculating the

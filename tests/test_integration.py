@@ -3,8 +3,10 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
-from dcegm.interpolation import linear_interpolation_with_extrapolation
+from dcegm.interpolation import (
+    interpolate_policy_and_value_on_wealth_grid,
+    linear_interpolation_with_extrapolation,
+)
 from dcegm.solve import solve_dcegm
 from dcegm.state_space import create_state_choice_space
 from numpy.testing import assert_array_almost_equal as aaae
@@ -17,21 +19,14 @@ from toy_models.consumption_retirement_model.final_period_solution import (
 )
 from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space,
-)
-from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_feasible_choice_set,
 )
 from toy_models.consumption_retirement_model.utility_functions import (
     inverse_marginal_utility_crra,
-)
-from toy_models.consumption_retirement_model.utility_functions import (
     marginal_utility_crra,
-)
-from toy_models.consumption_retirement_model.utility_functions import (
     utiility_func_log_crra,
+    utility_func_crra,
 )
-from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
-
 
 # Obtain the test directory of the package.
 TEST_DIR = Path(__file__).parent
@@ -60,7 +55,7 @@ def state_space_functions():
 
 
 @pytest.mark.parametrize(
-    "model, choice_range",
+    ("model", "choice_range"),
     [
         ("retirement_no_taste_shocks", [0, 1]),
         ("retirement_taste_shocks", [0, 1]),
@@ -98,7 +93,7 @@ def test_benchmark_models(
     )
 
     policy_expected = pickle.load(
-        (TEST_RESOURCES_DIR / f"policy_{model}.pkl").open("rb")
+        (TEST_RESOURCES_DIR / f"policy_{model}.pkl").open("rb"),
     )
     value_expected = pickle.load((TEST_RESOURCES_DIR / f"value_{model}.pkl").open("rb"))
 
@@ -121,14 +116,20 @@ def test_benchmark_models(
                 value_expec = value_expected[period][1 - choice].T
 
             wealth_grid_to_test = np.linspace(
-                policy_expec[0][1], policy_expec[0][-1] + 10, 1000
+                policy_expec[0][1],
+                policy_expec[0][-1] + 10,
+                1000,
             )
 
             value_expec_interp = linear_interpolation_with_extrapolation(
-                x_new=wealth_grid_to_test, x=value_expec[0], y=value_expec[1]
+                x_new=wealth_grid_to_test,
+                x=value_expec[0],
+                y=value_expec[1],
             )
             policy_expec_interp = linear_interpolation_with_extrapolation(
-                x_new=wealth_grid_to_test, x=policy_expec[0], y=policy_expec[1]
+                x_new=wealth_grid_to_test,
+                x=policy_expec[0],
+                y=policy_expec[1],
             )
 
             (

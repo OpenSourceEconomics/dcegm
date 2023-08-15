@@ -5,9 +5,7 @@ Upper-Envelope Scan for Solving Dynamic Optimization Problems',
 https://dx.doi.org/10.2139/ssrn.4181302
 
 """
-from typing import Callable
-from typing import Optional
-from typing import Tuple
+from collections.abc import Callable
 
 import jax.numpy as jnp  # noqa: F401
 import numpy as np
@@ -23,7 +21,7 @@ def fast_upper_envelope_wrapper(
     expected_value_zero_savings: float,
     choice: int,
     compute_value: Callable,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Drop suboptimal points and refine the endogenous grid, policy, and value.
 
     Computes the upper envelope over the overlapping segments of the
@@ -99,7 +97,11 @@ def fast_upper_envelope_wrapper(
     exog_grid = np.append(0, exog_grid)
 
     endog_grid_refined, value_refined, policy_refined = fast_upper_envelope(
-        endog_grid, value, policy, exog_grid, jump_thresh=2
+        endog_grid,
+        value,
+        policy,
+        exog_grid,
+        jump_thresh=2,
     )
 
     # Fill array with nans to fit 10% extra grid points
@@ -126,9 +128,9 @@ def fast_upper_envelope(
     value: np.ndarray,
     policy: np.ndarray,
     exog_grid: np.ndarray,
-    jump_thresh: Optional[float] = 2,
-    lower_bound_wealth: Optional[float] = 1e-10,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    jump_thresh: float | None = 2,
+    lower_bound_wealth: float | None = 1e-10,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Remove suboptimal points from the endogenous grid, policy, and value function.
 
     Args:
@@ -157,8 +159,6 @@ def fast_upper_envelope(
             the optimal points are kept.
 
     """
-    # TODO: determine locations where endogenous grid points are # noqa: T000
-    # equal to the lower bound
     mask = endog_grid <= lower_bound_wealth
     if np.any(mask):
         max_value_lower_bound = np.nanmax(value[mask])
@@ -204,8 +204,8 @@ def scan_value_function(
     policy: np.ndarray,
     exog_grid: np.ndarray,
     jump_thresh: float,
-    n_points_to_scan: Optional[int] = 0,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    n_points_to_scan: int | None = 0,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Scan the value function to remove suboptimal points and add intersection points.
 
     Args:
@@ -228,9 +228,10 @@ def scan_value_function(
             the optimal points are kept.
 
     """
-
     value_refined, policy_refined, endog_grid_refined = _initialize_refined_arrays(
-        value, policy, endog_grid
+        value,
+        policy,
+        endog_grid,
     )
 
     suboptimal_points = np.zeros(n_points_to_scan, dtype=np.int64)
@@ -254,7 +255,7 @@ def scan_value_function(
             switch_value_func = (
                 np.abs(
                     (exog_grid[i + 1] - exog_grid[j])
-                    / (endog_grid[i + 1] - endog_grid[j])
+                    / (endog_grid[i + 1] - endog_grid[j]),
                 )
                 > jump_thresh
             )
@@ -282,9 +283,8 @@ def scan_value_function(
                 )
 
                 # get index of closest next point with same discrete choice as point j
-                if found_next_point_on_same_value:
-                    if grad_next > grad_next_forward:
-                        keep_next = True
+                if found_next_point_on_same_value and grad_next > grad_next_forward:
+                    keep_next = True
 
                 if not keep_next:
                     suboptimal_points = _append_index(suboptimal_points, i + 1)
@@ -518,7 +518,7 @@ def _forward_scan(
     idx_current: int,
     idx_next: int,
     n_points_to_scan: int,
-) -> Tuple[float, int, int]:
+) -> tuple[float, int, int]:
     """Scan forward to check whether next point is optimal.
 
     Args:
@@ -544,7 +544,6 @@ def _forward_scan(
             the same value function.
 
     """
-
     is_next_on_same_value = 0
     idx_on_same_value = 0
     grad_next_on_same_value = 0
@@ -557,7 +556,7 @@ def _forward_scan(
             is_on_same_value = (
                 np.abs(
                     (exog_grid[idx_current] - exog_grid[idx_to_check])
-                    / (endog_grid[idx_current] - endog_grid[idx_to_check])
+                    / (endog_grid[idx_current] - endog_grid[idx_to_check]),
                 )
                 < jump_thresh
             )
@@ -593,7 +592,7 @@ def _backward_scan(
     jump_thresh: float,
     idx_current: int,
     idx_next: int,
-) -> Tuple[float, int]:
+) -> tuple[float, int]:
     """Scan backward to check whether current point is optimal.
 
     Args:
@@ -617,7 +616,6 @@ def _backward_scan(
             previous point on the same value function.
 
     """
-
     is_before_on_same_value = 0
     sub_idx_point_before_on_same_value = 0
     grad_before_on_same_value = 0
@@ -629,7 +627,7 @@ def _backward_scan(
             is_on_same_value = (
                 np.abs(
                     (exog_grid[idx_next] - exog_grid[idx_to_check])
-                    / (endog_grid[idx_next] - endog_grid[idx_to_check])
+                    / (endog_grid[idx_next] - endog_grid[idx_to_check]),
                 )
                 < jump_thresh
             )
@@ -657,7 +655,11 @@ def _backward_scan(
 
 @njit
 def _evaluate_point_on_line(
-    x1: float, y1: float, x2: float, y2: float, point_to_evaluate: float
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    point_to_evaluate: float,
 ) -> float:
     """Evaluate a point on a line.
 
@@ -685,11 +687,10 @@ def _linear_intersection(
     y3: float,
     x4: float,
     y4: float,
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     """Find the intersection of two lines.
 
     Args:
-
         x1 (float): x-coordinate of the first point of the first line.
         y1 (float): y-coordinate of the first point of the first line.
         x2 (float): x-coordinate of the second point of the first line.
@@ -703,7 +704,6 @@ def _linear_intersection(
         tuple: x and y coordinates of the intersection point.
 
     """
-
     slope1 = (y2 - y1) / (x2 - x1)
     slope2 = (y4 - y3) / (x4 - x3)
 
@@ -732,7 +732,7 @@ def _augment_grids(
     min_wealth_grid: float,
     n_grid_wealth: int,
     compute_value: Callable,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Extends the endogenous wealth grid, value, and policy functions to the left.
 
     Args:
@@ -771,7 +771,9 @@ def _augment_grids(
 
     """
     grid_points_to_add = np.linspace(
-        min_wealth_grid, endog_grid[0], n_grid_wealth // 10
+        min_wealth_grid,
+        endog_grid[0],
+        n_grid_wealth // 10,
     )[:-1]
 
     grid_augmented = np.append(grid_points_to_add, endog_grid)
@@ -787,8 +789,10 @@ def _augment_grids(
 
 
 def _initialize_refined_arrays(
-    value: np.ndarray, policy: np.ndarray, endog_grid: np.ndarray
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    value: np.ndarray,
+    policy: np.ndarray,
+    endog_grid: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     value_refined = np.empty_like(value)
     policy_refined = np.empty_like(policy)
     endog_grid_refined = np.empty_like(endog_grid)

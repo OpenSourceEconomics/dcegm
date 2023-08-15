@@ -5,9 +5,8 @@ The algorithm is based on Loretti I. Dobrescu and Akshay Shanker (2022):
 https://dx.doi.org/10.2139/ssrn.4181302
 
 """
-from typing import Callable
-from typing import Optional
-from typing import Tuple
+# ruff: noqa
+from collections.abc import Callable
 
 import numpy as np
 
@@ -17,9 +16,9 @@ def fast_upper_envelope_wrapper_org(
     policy: np.ndarray,
     value: np.ndarray,
     exog_grid: np.ndarray,
-    choice: int,  # noqa: U100
-    compute_value: Callable,  # noqa: U100
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    choice: int,
+    compute_value: Callable,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Drop suboptimal points and refine the endogenous grid, policy, and value.
 
     Computes the upper envelope over the overlapping segments of the
@@ -70,7 +69,11 @@ def fast_upper_envelope_wrapper_org(
     exog_grid = np.append(0, exog_grid)
 
     endog_grid_refined, value_refined, policy_refined = fast_upper_envelope(
-        endog_grid, value, policy, exog_grid, jump_thresh=2
+        endog_grid,
+        value,
+        policy,
+        exog_grid,
+        jump_thresh=2,
     )
 
     # Fill array with nans to fit 10% extra grid points
@@ -97,9 +100,9 @@ def fast_upper_envelope(
     value: np.ndarray,
     policy: np.ndarray,
     exog_grid: np.ndarray,
-    jump_thresh: Optional[float] = 2,
-    b: Optional[float] = 1e-10,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    jump_thresh: float | None = 2,
+    b: float | None = 1e-10,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Remove suboptimal points from the endogenous grid, policy, and value function.
 
     Args:
@@ -127,8 +130,7 @@ def fast_upper_envelope(
             the optimal points are kept.
 
     """
-
-    # TODO: determine locations where enogenous grid points are # noqa: T000
+    # TODO: determine locations where enogenous grid points are
     # equal to the lower bound
     mask = endog_grid <= b
     if np.any(mask):
@@ -147,7 +149,12 @@ def fast_upper_envelope(
     endog_grid = np.sort(endog_grid)
 
     value_clean_with_nans = _scan_org(
-        endog_grid, value, policy, exog_grid, m_bar=jump_thresh, lb=10
+        endog_grid,
+        value,
+        policy,
+        exog_grid,
+        m_bar=jump_thresh,
+        lb=10,
     )
 
     endog_grid_refined = endog_grid[np.where(~np.isnan(value_clean_with_nans))]
@@ -157,9 +164,8 @@ def fast_upper_envelope(
     return endog_grid_refined, value_refined, policy_refined
 
 
-def _scan_org(e_grid, vf, c, a_prime, m_bar, lb, fwd_scan_do=True):  # noqa: U100
+def _scan_org(e_grid, vf, c, a_prime, m_bar, lb, fwd_scan_do=True):
     """ " Implements the scan for FUES."""
-
     # leading index for optimal values j
     # leading index for value to be `checked' is i+1
 
@@ -168,7 +174,7 @@ def _scan_org(e_grid, vf, c, a_prime, m_bar, lb, fwd_scan_do=True):  # noqa: U10
     vf_full = np.copy(vf)
 
     # empty array to store policy function gradient
-    dela = np.zeros(len(vf))  # noqa: F841
+    dela = np.zeros(len(vf))
 
     # array of previously sub-optimal indices to be used in backward scan
     m_array = np.zeros(lb)
@@ -180,7 +186,7 @@ def _scan_org(e_grid, vf, c, a_prime, m_bar, lb, fwd_scan_do=True):  # noqa: U10
             j = np.copy(np.array([i]))[0]
             k = np.copy(np.array([j - 1]))[0]
             previous_opt_is_intersect = False
-            k_minus_1 = np.copy(np.array([k]))[0] - 1  # noqa: F841
+            k_minus_1 = np.copy(np.array([k]))[0] - 1
 
         else:
             # value function gradient between previous two optimal points
@@ -191,7 +197,7 @@ def _scan_org(e_grid, vf, c, a_prime, m_bar, lb, fwd_scan_do=True):  # noqa: U10
 
             # policy gradient with leading index to be checked
             g_tilde_a = np.abs(
-                (a_prime[i + 1] - a_prime[j]) / (e_grid[i + 1] - e_grid[j])
+                (a_prime[i + 1] - a_prime[j]) / (e_grid[i + 1] - e_grid[j]),
             )
 
             # if right turn is made and jump registered
@@ -201,7 +207,12 @@ def _scan_org(e_grid, vf, c, a_prime, m_bar, lb, fwd_scan_do=True):  # noqa: U10
 
                 if fwd_scan_do:
                     gradients_f_vf, gradients_f_a = fwd_scan_gradients(
-                        a_prime, vf_full, e_grid, j, i + 1, lb
+                        a_prime,
+                        vf_full,
+                        e_grid,
+                        j,
+                        i + 1,
+                        lb,
                     )
 
                     # get index of closest next point with same
@@ -246,7 +257,12 @@ def _scan_org(e_grid, vf, c, a_prime, m_bar, lb, fwd_scan_do=True):  # noqa: U10
                 # policy gradients (from j)
                 # wrt to LB previously deleted values
                 gradients_m_vf, gradients_m_a = back_scan_gradients(
-                    m_array, a_prime, vf_full, e_grid, j, i + 1
+                    m_array,
+                    a_prime,
+                    vf_full,
+                    e_grid,
+                    j,
+                    i + 1,
                 )
                 keep_j_point = True
 
@@ -260,7 +276,7 @@ def _scan_org(e_grid, vf, c, a_prime, m_bar, lb, fwd_scan_do=True):  # noqa: U10
 
                     # gradient of vf and policy to the m'th point
                     g_m_vf = gradients_m_vf[m_index_bws]
-                    g_m_a = gradients_m_a[m_index_bws]  # noqa: F841
+                    g_m_a = gradients_m_a[m_index_bws]
 
                 else:
                     m_index_bws = 0
@@ -291,9 +307,9 @@ def _scan_org(e_grid, vf, c, a_prime, m_bar, lb, fwd_scan_do=True):  # noqa: U10
                     j = np.copy(np.array([i]))[0] + 1
 
                 else:
-                    previous_opt_is_intersect = False  # noqa: F841
+                    previous_opt_is_intersect = False
                     if g_1 > g_j_minus_1:
-                        previous_opt_is_intersect = True  # noqa: F841
+                        previous_opt_is_intersect = True
 
                     k = np.copy(np.array([j]))[0]
                     j = np.copy(np.array([i]))[0] + 1
@@ -303,8 +319,8 @@ def _scan_org(e_grid, vf, c, a_prime, m_bar, lb, fwd_scan_do=True):  # noqa: U10
 
 def append_push(x_array, m):
     """Delete first value of array, pushes back index of all undeleted values and
-    appends m to final index."""
-
+    appends m to final index.
+    """
     for i in range(len(x_array) - 1):
         x_array[i] = x_array[i + 1]
 
@@ -315,8 +331,8 @@ def append_push(x_array, m):
 def back_scan_gradients(m_array, a_prime, vf_full, e_grid, j, q):
     """Compute gradients of value correspondence points and policy points with respect
     to all m values and policy points in m_array See Figure 5, right panel in DS
-    (2023)"""
-
+    (2023).
+    """
     gradients_m_vf = np.zeros(len(m_array))
     gradients_m_a = np.zeros(len(m_array))
 
@@ -324,7 +340,7 @@ def back_scan_gradients(m_array, a_prime, vf_full, e_grid, j, q):
         m_int = int(m_array[m])
         gradients_m_vf[m] = (vf_full[j] - vf_full[m_int]) / (e_grid[j] - e_grid[m_int])
         gradients_m_a[m] = np.abs(
-            (a_prime[q] - a_prime[m_int]) / (e_grid[q] - e_grid[m_int])
+            (a_prime[q] - a_prime[m_int]) / (e_grid[q] - e_grid[m_int]),
         )
 
     return gradients_m_vf, gradients_m_a
@@ -333,8 +349,8 @@ def back_scan_gradients(m_array, a_prime, vf_full, e_grid, j, q):
 def fwd_scan_gradients(a_prime, vf_full, e_grid, j, q, lb):
     """Computes gradients of value correspondence points and  policy points with respect
     to values and policy points for next LB points in grid See Figure 5, left panel in
-    DS (2023)"""
-
+    DS (2023).
+    """
     gradients_f_vf = np.zeros(lb)
     gradients_f_a = np.zeros(lb)
 
@@ -343,7 +359,7 @@ def fwd_scan_gradients(a_prime, vf_full, e_grid, j, q, lb):
             e_grid[q] - e_grid[q + 1 + f]
         )
         gradients_f_a[f] = np.abs(
-            (a_prime[j] - a_prime[q + 1 + f]) / (e_grid[j] - e_grid[q + 1 + f])
+            (a_prime[j] - a_prime[q + 1 + f]) / (e_grid[j] - e_grid[q + 1 + f]),
         )
 
     return gradients_f_vf, gradients_f_a
@@ -354,11 +370,12 @@ def perp(a):
     Parameters
     ----------
     a: 1D array
-        points (b, 1/m)
-    Returns
+        points (b, 1/m).
+
+    Returns:
     -------
     b: 1D array
-        b[0] = -1/m, b[1]= b
+        b[0] = -1/m, b[1]= b.
     """
     b = np.empty(np.shape(a))
     b[0] = -a[1]
@@ -378,11 +395,12 @@ def seg_intersect(a1, a2, b1, b2):
     b1: 1D array
          First point of first line seg
     b2: 1D array
-         Second point of first line seg
-    Returns
+         Second point of first line seg.
+
+    Returns:
     -------
     c: 1D array
-        intersection point
+        intersection point.
     """
     da = a2 - a1
     db = b2 - b1

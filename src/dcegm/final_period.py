@@ -1,6 +1,5 @@
 """Wrapper function to solve the final period of the model."""
-from typing import Callable
-from typing import Tuple
+from collections.abc import Callable
 
 import jax.numpy as jnp
 from jax import vmap
@@ -10,7 +9,7 @@ def solve_final_period(
     final_period_choice_states: jnp.ndarray,
     final_period_solution_partial: Callable,
     resources_last_period: jnp.ndarray,
-) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Computes solution to final period for policy and value function.
 
     In the last period, everything is consumed, i.e. consumption = savings.
@@ -37,7 +36,6 @@ def solve_final_period(
             income shocks.
 
     """
-
     # Compute for each wealth grid point the optimal policy and value function as well
     # as the marginal utility of consumption for all choices.
     final_policy, final_value, marginal_utilities_choices = vmap(

@@ -8,8 +8,8 @@ from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 from toy_models.consumption_retirement_model.budget_functions import (
     _calc_stochastic_income,
+    budget_constraint,
 )
-from toy_models.consumption_retirement_model.budget_functions import budget_constraint
 
 # ======================================================================================
 # next_period_wealth_matrices
@@ -25,10 +25,16 @@ TEST_CASES = list(product(model, period, labor_choice, max_wealth, n_grid_points
 
 
 @pytest.mark.parametrize(
-    "model, period, labor_choice, max_wealth, n_grid_points", TEST_CASES
+    ("model", "period", "labor_choice", "max_wealth", "n_grid_points"),
+    TEST_CASES,
 )
 def test_get_next_period_wealth_matrices(
-    model, period, labor_choice, max_wealth, n_grid_points, load_example_model
+    model,
+    period,
+    labor_choice,
+    max_wealth,
+    n_grid_points,
+    load_example_model,
 ):
     params, options = load_example_model(f"{model}")
 

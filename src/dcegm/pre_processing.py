@@ -1,14 +1,13 @@
+from collections.abc import Callable
 from functools import partial
-from typing import Callable
-from typing import Dict
-from typing import Tuple
 
 import numpy as np
 import pandas as pd
+
 from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
 
 
-def convert_params_to_dict(params: pd.DataFrame) -> Dict[str, float]:
+def convert_params_to_dict(params: pd.DataFrame) -> dict[str, float]:
     """Transforms params DataFrame into a dictionary.
 
     Checks if given params DataFrame contains taste shock scale, interest rate
@@ -38,11 +37,11 @@ def convert_params_to_dict(params: pd.DataFrame) -> Dict[str, float]:
 
 def get_partial_functions(
     params_dict: dict,
-    options: Dict[str, int],
-    user_utility_functions: Dict[str, Callable],
+    options: dict[str, int],
+    user_utility_functions: dict[str, Callable],
     user_budget_constraint: Callable,
     exogenous_transition_function: Callable,
-) -> Tuple[Callable, Callable, Callable, Callable, Callable, Callable, Callable]:
+) -> tuple[Callable, Callable, Callable, Callable, Callable, Callable, Callable]:
     """Create partial functions from user supplied functions.
 
     Args:
@@ -108,7 +107,8 @@ def get_partial_functions(
     )
 
     transition_function = partial(
-        exogenous_transition_function, params_dict=params_dict
+        exogenous_transition_function,
+        params_dict=params_dict,
     )
 
     if options["n_discrete_choices"] == 1:
@@ -153,13 +153,15 @@ def calc_current_value(
 
     """
     utility = compute_utility(consumption, choice)
-    value = utility + discount_factor * next_period_value
-
-    return value
+    return utility + discount_factor * next_period_value
 
 
 def _return_policy_and_value(
-    endog_grid, policy, value, expected_value_zero_savings, **kwargs
+    endog_grid,
+    policy,
+    value,
+    expected_value_zero_savings,
+    **kwargs,
 ):
     endog_grid = np.append(0, endog_grid)
     policy = np.append(0, policy)

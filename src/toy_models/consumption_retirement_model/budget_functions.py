@@ -1,5 +1,3 @@
-from typing import Dict
-
 import jax
 import jax.numpy as jnp
 
@@ -9,7 +7,7 @@ def budget_constraint(
     saving: float,
     income_shock: float,
     params_dict: dict,
-    options: Dict[str, int],
+    options: dict[str, int],
 ) -> float:
     """Compute possible current beginning of period resources, given the savings grid of
     last period and the current state including the choice of last period.
@@ -41,11 +39,10 @@ def budget_constraint(
 
     # Retirement safety net, only in retirement model, but we require to have it always
     # as a parameter
-    beginning_period_wealth = jnp.maximum(
-        beginning_period_wealth, params_dict["consumption_floor"]
+    return jnp.maximum(
+        beginning_period_wealth,
+        params_dict["consumption_floor"],
     )
-
-    return beginning_period_wealth
 
 
 @jax.jit
@@ -53,7 +50,7 @@ def _calc_stochastic_income(
     state: jnp.ndarray,
     wage_shock: float,
     params_dict: dict,
-    options: Dict[str, int],
+    options: dict[str, int],
 ) -> float:
     """Computes the current level of deterministic and stochastic income.
 
@@ -89,7 +86,7 @@ def _calc_stochastic_income(
     # Determinisctic component of income depending on experience:
     # constant + alpha_1 * age + alpha_2 * age**2
     exp_coeffs = jnp.array(
-        [params_dict["constant"], params_dict["exp"], params_dict["exp_squared"]]
+        [params_dict["constant"], params_dict["exp"], params_dict["exp_squared"]],
     )
     labor_income = exp_coeffs @ (age ** jnp.arange(len(exp_coeffs)))
     working_income = jnp.exp(labor_income + wage_shock)

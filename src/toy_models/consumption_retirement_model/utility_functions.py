@@ -2,7 +2,9 @@ import jax.numpy as jnp
 
 
 def utiility_func_log_crra(
-    consumption: jnp.array, choice: int, params_dict: dict
+    consumption: jnp.array,
+    choice: int,
+    params_dict: dict,
 ) -> jnp.array:
     """Compute the agent's utility in case of theta equal to 1.
 
@@ -27,7 +29,9 @@ def utiility_func_log_crra(
 
 
 def utility_func_crra(
-    consumption: jnp.array, choice: int, params_dict: dict
+    consumption: jnp.array,
+    choice: int,
+    params_dict: dict,
 ) -> jnp.array:
     """Computes the agent's current utility based on a CRRA utility function.
 
@@ -52,9 +56,7 @@ def utility_func_crra(
 
     utility_consumption = (consumption ** (1 - theta) - 1) / (1 - theta)
 
-    utility = utility_consumption - (1 - choice) * delta
-
-    return utility
+    return utility_consumption - (1 - choice) * delta
 
 
 def marginal_utility_crra(consumption: jnp.array, params_dict: dict) -> jnp.array:
@@ -72,9 +74,7 @@ def marginal_utility_crra(consumption: jnp.array, params_dict: dict) -> jnp.arra
 
     """
     theta = params_dict["theta"]
-    marginal_utility = consumption ** (-theta)
-
-    return marginal_utility
+    return consumption ** (-theta)
 
 
 def inverse_marginal_utility_crra(
@@ -94,6 +94,4 @@ def inverse_marginal_utility_crra(
 
     """
     theta = params_dict["theta"]
-    inverse_marginal_utility = marginal_utility ** (-1 / theta)
-
-    return inverse_marginal_utility
+    return marginal_utility ** (-1 / theta)

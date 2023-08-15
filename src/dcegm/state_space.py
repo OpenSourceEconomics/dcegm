@@ -74,7 +74,9 @@ def get_map_from_state_to_child_nodes(
 
 
 def create_state_choice_space(
-    state_space, map_state_to_state_space_index, get_state_specific_choice_set
+    state_space,
+    map_state_to_state_space_index,
+    get_state_specific_choice_set,
 ):
     """Create state choice space of all feasible state-choice combinations.
 
@@ -133,7 +135,9 @@ def create_state_choice_space(
     map_state_choice_vec_to_parent_state = np.zeros((n_states * n_choices), dtype=int)
     reshape_state_choice_vec_to_mat = np.zeros((n_states, n_choices), dtype=int)
     transform_between_state_and_state_choice_space = np.full(
-        (n_states, n_states * n_choices), fill_value=False, dtype=bool
+        (n_states, n_states * n_choices),
+        fill_value=False,
+        dtype=bool,
     )
 
     # Ensure that states are ordered.
@@ -150,7 +154,9 @@ def create_state_choice_space(
             period += 1
 
         feasible_choice_set = get_state_specific_choice_set(
-            state_vec, state_space, map_state_to_state_space_index
+            state_vec,
+            state_space,
+            map_state_to_state_space_index,
         )
 
         for choice in feasible_choice_set:
@@ -235,7 +241,6 @@ def create_current_state_and_state_choice_objects(
             the current period.
 
     """
-
     _idxs_parent_states = np.where(state_space[:, 0] == period)[0]
     idxs_state_choice_combs = np.where(state_choice_space[:, 0] == period)[0]
 
@@ -251,7 +256,8 @@ def create_current_state_and_state_choice_objects(
 
     transform_between_state_and_state_choice_vec = (
         transform_between_state_and_state_choice_space[_idxs_parent_states][
-            :, idxs_state_choice_combs
+            :,
+            idxs_state_choice_combs,
         ]
     )
 

@@ -1,4 +1,4 @@
-from typing import Callable
+from collections.abc import Callable
 
 import jax.numpy as jnp
 import numpy as np
@@ -42,7 +42,8 @@ def interpolate_and_calc_marginal_utilities(
 
     """
     ind_high, ind_low = get_index_high_and_low(
-        x=endog_grid_child_state_choice, x_new=next_period_wealth
+        x=endog_grid_child_state_choice,
+        x_new=next_period_wealth,
     )
     marg_utils, value_interp = vmap(
         vmap(
@@ -83,6 +84,7 @@ def calc_interpolated_values_and_marg_utils(
     choice: int,
 ):
     """Calculate interpolated marginal utility and value function.
+
     Args:
         policy_high (float): Policy function value at the higher end of the
             interpolation interval.
@@ -114,7 +116,6 @@ def calc_interpolated_values_and_marg_utils(
         - value_interp (float): Interpolated value function.
 
     """
-
     policy_interp, value_interp_on_grid = interpolate_policy_and_value(
         policy_high=policy_high,
         value_high=value_high,
@@ -126,7 +127,9 @@ def calc_interpolated_values_and_marg_utils(
     )
 
     value_interp_closed_form = compute_value(
-        consumption=new_wealth, next_period_value=value_min, choice=choice
+        consumption=new_wealth,
+        next_period_value=value_min,
+        choice=choice,
     )
 
     credit_constraint = new_wealth < endog_grid_min
@@ -215,9 +218,7 @@ def linear_interpolation_with_extrapolation_jax(x, y, x_new):
 
     interpolate_dist = x_new - x_low
     interpolate_slope = (y_high - y_low) / (x_high - x_low)
-    interpol_res = (interpolate_slope * interpolate_dist) + y_low
-
-    return interpol_res
+    return (interpolate_slope * interpolate_dist) + y_low
 
 
 def get_index_high_and_low(x, x_new):
@@ -265,7 +266,8 @@ def interpolate_policy_and_value_on_wealth_grid(
 
     """
     ind_high, ind_low = get_index_high_and_low(
-        x=endog_wealth_grid, x_new=begin_of_period_wealth
+        x=endog_wealth_grid,
+        x_new=begin_of_period_wealth,
     )
 
     policy_new, value_new = interpolate_policy_and_value(
@@ -314,9 +316,7 @@ def linear_interpolation_with_extrapolation(x, y, x_new):
 
     interpolate_dist = x_new - x_low
     interpolate_slope = (y_high - y_low) / (x_high - x_low)
-    interpol_res = (interpolate_slope * interpolate_dist) + y_low
-
-    return interpol_res
+    return (interpolate_slope * interpolate_dist) + y_low
 
 
 def linear_interpolation_with_inserting_missing_values(x, y, x_new, missing_value):

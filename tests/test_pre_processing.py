@@ -3,13 +3,11 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from dcegm.pre_processing import calc_current_value
-from dcegm.pre_processing import convert_params_to_dict
+from dcegm.pre_processing import calc_current_value, convert_params_to_dict
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import (
     utiility_func_log_crra,
 )
-
 
 # Obtain the test directory of the package.
 TEST_DIR = Path(__file__).parent
@@ -104,6 +102,7 @@ def test_missing_taste_shock_scale(
     params, options = load_example_model(f"{model}")
     params_without_lambda = params.drop(index=("shocks", "lambda"))
     with pytest.raises(
-        ValueError, match="Taste shock scale must be provided in params."
+        ValueError,
+        match="Taste shock scale must be provided in params.",
     ):
         convert_params_to_dict(params_without_lambda)
