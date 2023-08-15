@@ -1,6 +1,7 @@
 # Files
 .pyc
 .txt
+.npy
 
 
 src/dcegm/_version.py

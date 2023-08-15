@@ -11,10 +11,11 @@ def interpolate_and_calc_marginal_utilities(
     choice: int,
     next_period_wealth: jnp.ndarray,
     endog_grid_child_state_choice: jnp.array,
-    choice_policies_child_state_choice: jnp.ndarray,
-    choice_values_child_state_choice: jnp.ndarray,
+    policy_child_state_choice: jnp.ndarray,
+    value_child_state_choice: jnp.ndarray,
 ):
     """Interpolate marginal utilities.
+
     Args:
         compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility. The input ```params``` is already partialled in.
@@ -39,7 +40,6 @@ def interpolate_and_calc_marginal_utilities(
         - marg_utils (float): Interpolated marginal utility function.
         - value_interp (float): Interpolated value function.
 
-
     """
     ind_high, ind_low = get_index_high_and_low(
         x=endog_grid_child_state_choice, x_new=next_period_wealth
@@ -51,17 +51,17 @@ def interpolate_and_calc_marginal_utilities(
         ),
         in_axes=(0, 0, 0, 0, 0, 0, 0, None, None, None, None, None),
     )(
-        choice_policies_child_state_choice[ind_high],
-        choice_values_child_state_choice[ind_high],
+        policy_child_state_choice[ind_high],
+        value_child_state_choice[ind_high],
         endog_grid_child_state_choice[ind_high],
-        choice_policies_child_state_choice[ind_low],
-        choice_values_child_state_choice[ind_low],
+        policy_child_state_choice[ind_low],
+        value_child_state_choice[ind_low],
         endog_grid_child_state_choice[ind_low],
         next_period_wealth,
         compute_value,
         compute_marginal_utility,
         endog_grid_child_state_choice[1],
-        choice_values_child_state_choice[0],
+        value_child_state_choice[0],
         choice,
     )
 
@@ -235,6 +235,50 @@ def get_index_high_and_low(x, x_new):
     ind_high = jnp.searchsorted(x, x_new).clip(max=(x.shape[0] - 1), min=1)
     ind_high -= jnp.isnan(x[ind_high]).astype(int)
     return ind_high, ind_high - 1
+
+
+def interpolate_policy_and_value_on_wealth_grid(
+    begin_of_period_wealth: jnp.ndarray,
+    endog_wealth_grid: jnp.array,
+    policy_grid: jnp.ndarray,
+    value_grid: jnp.ndarray,
+):
+    """Interpolate policy and value functions on the wealth grid.
+
+    Args:
+        begin_of_period_wealth (jnp.ndarray): 1d array of shape (n,) containing the
+            begin of period wealth.
+        endog_wealth_grid (jnp.array): 1d array of shape (n,) containing the endogenous
+            wealth grid.
+        policy_grid (jnp.ndarray): 1d array of shape (n,) containing the policy function
+            values corresponding to the endogenous wealth grid.
+        value_grid (jnp.ndarray): 1d array of shape (n,) containing the value function
+            values corresponding to the endogenous wealth grid.
+
+    Returns:
+        tuple:
+
+        - policy_new (jnp.ndarray): 1d array of shape (n,) containing the interpolated
+            policy function values corresponding to the begin of period wealth.
+        - value_new (jnp.ndarray): 1d array of shape (n,) containing the interpolated
+            value function values corresponding to the begin of period wealth.
+
+    """
+    ind_high, ind_low = get_index_high_and_low(
+        x=endog_wealth_grid, x_new=begin_of_period_wealth
+    )
+
+    policy_new, value_new = interpolate_policy_and_value(
+        policy_high=jnp.take(policy_grid, ind_high),
+        value_high=jnp.take(value_grid, ind_high),
+        wealth_high=jnp.take(endog_wealth_grid, ind_high),
+        policy_low=jnp.take(policy_grid, ind_low),
+        value_low=jnp.take(value_grid, ind_low),
+        wealth_low=jnp.take(endog_wealth_grid, ind_low),
+        wealth_new=begin_of_period_wealth,
+    )
+
+    return policy_new, value_new
 
 
 def linear_interpolation_with_extrapolation(x, y, x_new):
