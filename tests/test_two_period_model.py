@@ -224,7 +224,7 @@ def test_two_period(input_data, wealth_idx, state_idx):
     initial_cond["health"] = state[-1]
 
     endog_grid_period = np.load(f"endog_grid_{state[0]}.npy")
-    policy_period = np.load(f"policy_{state[0]}.npy")
+    policy_period = np.load(f"policy_left_{state[0]}.npy")
 
     for state_choice_idx in idxs_state_choice_combs:
         choice_in_period_1 = state_choice_space[state_choice_idx][-1]

@@ -107,7 +107,8 @@ def test_benchmark_models(
         idxs_state_choice_combs = np.where(state_choice_space[:, 0] == period)[0]
 
         endog_grid_got = np.load(f"endog_grid_{period}.npy")
-        policy_got = np.load(f"policy_{period}.npy")
+        policy_left_got = np.load(f"policy_left_{period}.npy")
+        policy_right_got = np.load(f"policy_right_{period}.npy")
         value_got = np.load(f"value_{period}.npy")
 
         for state_choice_idx, state_choice_vec in enumerate(idxs_state_choice_combs):
@@ -137,7 +138,8 @@ def test_benchmark_models(
             ) = interpolate_policy_and_value_on_wealth_grid(
                 begin_of_period_wealth=wealth_grid_to_test,
                 endog_wealth_grid=endog_grid_got[state_choice_idx],
-                policy_grid=policy_got[state_choice_idx],
+                policy_left_grid=policy_left_got[state_choice_idx],
+                policy_right_grid=policy_right_got[state_choice_idx],
                 value_grid=value_got[state_choice_idx],
             )
 

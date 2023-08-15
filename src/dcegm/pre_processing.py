@@ -164,4 +164,4 @@ def _return_policy_and_value(
     endog_grid = np.append(0, endog_grid)
     policy = np.append(0, policy)
     value = np.append(expected_value_zero_savings, value)
-    return endog_grid, policy, value
+    return endog_grid, policy, policy, value

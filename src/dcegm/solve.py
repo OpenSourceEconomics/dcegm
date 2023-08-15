@@ -319,20 +319,23 @@ def backwards_induction(
         )
 
         endog_grid_state_choice = np.full(
-            (len(state_choice_combs), int(1.1 * len(exogenous_savings_grid))), np.nan
+            (len(state_choice_combs), int(2 * len(exogenous_savings_grid))), np.nan
         )
-        policy_state_choice = np.full(
-            (len(state_choice_combs), int(1.1 * len(exogenous_savings_grid))), np.nan
+        policy_left_state_choice = np.full(
+            (len(state_choice_combs), int(2 * len(exogenous_savings_grid))), np.nan
+        )
+        policy_right_state_choice = np.full(
+            (len(state_choice_combs), int(2 * len(exogenous_savings_grid))), np.nan
         )
         value_state_choice = np.full(
-            (len(state_choice_combs), int(1.1 * len(exogenous_savings_grid))), np.nan
+            (len(state_choice_combs), int(2 * len(exogenous_savings_grid))), np.nan
         )
 
         # Run upper envolope to remove suboptimal candidates
         for state_choice_idx, state_choice_vec in enumerate(state_choice_combs):
             choice = state_choice_vec[-1]
 
-            endog_grid, policy, value = compute_upper_envelope(
+            endog_grid, policy_left, policy_right, value = compute_upper_envelope(
                 endog_grid=endog_grid_candidate[state_choice_idx],
                 policy=policy_candidate[state_choice_idx],
                 value=value_candidate[state_choice_idx],
@@ -343,21 +346,24 @@ def backwards_induction(
             )
 
             endog_grid_state_choice[state_choice_idx, : len(endog_grid)] = endog_grid
-            policy_state_choice[state_choice_idx, : len(policy)] = policy
-            value_state_choice[state_choice_idx, : len(policy)] = value
+            policy_left_state_choice[state_choice_idx, : len(policy_left)] = policy_left
+            policy_right_state_choice[state_choice_idx, : len(policy_right)] = policy_right
+            value_state_choice[state_choice_idx, : len(value)] = value
 
         marg_util_interpolated, value_interpolated = vmap(
-            interpolate_and_calc_marginal_utilities, in_axes=(None, None, 0, 0, 0, 0, 0)
+            interpolate_and_calc_marginal_utilities, in_axes=(None, None, 0, 0, 0, 0, 0, 0)
         )(
             compute_marginal_utility,
             compute_value,
             state_choice_combs[:, -1],
             resources,
             endog_grid_state_choice,
-            policy_state_choice,
+            policy_left_state_choice,
+            policy_right_state_choice,
             value_state_choice,
         )
 
         np.save(f"endog_grid_{period}.npy", endog_grid_state_choice)
-        np.save(f"policy_{period}.npy", policy_state_choice)
+        np.save(f"policy_left_{period}.npy", policy_left_state_choice)
+        np.save(f"policy_right_{period}.npy", policy_right_state_choice)
         np.save(f"value_{period}.npy", value_state_choice)
