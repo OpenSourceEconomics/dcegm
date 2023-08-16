@@ -28,6 +28,8 @@ def calculate_candidate_solutions_from_euler_equation(
         map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
     )
 
+    # breakpoint()
+
     (
         endog_grid_candidate,
         policy_candidate,

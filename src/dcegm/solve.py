@@ -331,25 +331,50 @@ def backwards_induction(
             (len(state_choice_combs), int(2 * len(exogenous_savings_grid))), np.nan
         )
 
-        # Run upper envolope to remove suboptimal candidates
-        for state_choice_idx, state_choice_vec in enumerate(state_choice_combs):
-            choice = state_choice_vec[-1]
+        # ============================================================================
 
-            endog_grid, policy_left, policy_right, value = compute_upper_envelope(
-                endog_grid=endog_grid_candidate[state_choice_idx],
-                policy=policy_candidate[state_choice_idx],
-                value=value_candidate[state_choice_idx],
-                expected_value_zero_savings=expected_values[state_choice_idx, 0],
-                choice=choice,
-                compute_value=compute_value,
-            )
+        # Run upper envelope to remove suboptimal candidates
+        # for state_choice_idx, state_choice_vec in enumerate(state_choice_combs):
+        #     choice = state_choice_vec[-1]
 
-            endog_grid_state_choice[state_choice_idx, : len(endog_grid)] = endog_grid
-            policy_left_state_choice[state_choice_idx, : len(policy_left)] = policy_left
-            policy_right_state_choice[
-                state_choice_idx, : len(policy_right)
-            ] = policy_right
-            value_state_choice[state_choice_idx, : len(value)] = value
+        #     endog_grid, policy_left, policy_right, value = compute_upper_envelope(
+        #         endog_grid=endog_grid_candidate[state_choice_idx],
+        #         policy=policy_candidate[state_choice_idx],
+        #         value=value_candidate[state_choice_idx],
+        #         expected_value_zero_savings=expected_values[state_choice_idx, 0],
+        #         choice=choice,
+        #         compute_value=compute_value,
+        #     )
+
+        #     endog_grid_state_choice[state_choice_idx, : len(endog_grid)] = endog_grid
+        #     policy_left_state_choice[state_choice_idx, : len(policy_left)] =
+        # policy_left
+        #     policy_right_state_choice[
+        #         state_choice_idx, : len(policy_right)
+        #     ] = policy_right
+        #     value_state_choice[state_choice_idx, : len(value)] = value
+
+        # ============================================================================
+
+        # vmap
+
+        (
+            endog_grid_state_choice,
+            policy_left_state_choice,
+            policy_right_state_choice,
+            value_state_choice,
+        ) = vmap(
+            _compute_upper_envelope_state_choice,
+            in_axes=(0, 0, 0, 0, 0, None, None),
+        )(
+            endog_grid_candidate,
+            policy_candidate,
+            value_candidate,
+            expected_values[:, 0],
+            state_choice_combs,
+            compute_value,
+            compute_upper_envelope,
+        )
 
         marg_util_interpolated, value_interpolated = vmap(
             interpolate_and_calc_marginal_utilities,
@@ -369,3 +394,26 @@ def backwards_induction(
         np.save(f"policy_left_{period}.npy", policy_left_state_choice)
         np.save(f"policy_right_{period}.npy", policy_right_state_choice)
         np.save(f"value_{period}.npy", value_state_choice)
+
+
+def _compute_upper_envelope_state_choice(
+    endog_grid_candidate,
+    policy_candidate,
+    value_candidate,
+    expected_value_zero_savings,
+    state_choice_subspace,
+    compute_value,
+    compute_upper_envelope,
+):
+    choice = state_choice_subspace[-1]
+
+    endog_grid, policy_left, policy_right, value = compute_upper_envelope(
+        endog_grid=endog_grid_candidate,
+        policy=policy_candidate,
+        value=value_candidate,
+        expected_value_zero_savings=expected_value_zero_savings,
+        choice=choice,
+        compute_value=compute_value,
+    )
+
+    return endog_grid, policy_left, policy_right, value
