@@ -81,36 +81,31 @@ def get_partial_functions(
             transition probabilities for each state.
 
     """
-    compute_utility = partial(
-        user_utility_functions["utility"],
-        params_dict=params_dict,
-    )
+    compute_utility = user_utility_functions["utility"]
+    # params_dict=params_dict,
 
-    compute_marginal_utility = partial(
-        user_utility_functions["marginal_utility"],
-        params_dict=params_dict,
-    )
+    compute_marginal_utility = user_utility_functions["marginal_utility"]
+    # params_dict=params_dict,
 
-    compute_inverse_marginal_utility = partial(
-        user_utility_functions["inverse_marginal_utility"],
-        params_dict=params_dict,
-    )
+    compute_inverse_marginal_utility = user_utility_functions[
+        "inverse_marginal_utility"
+    ]
+    # params_dict=params_dict,
 
     compute_value = partial(
         calc_current_value,
-        discount_factor=params_dict["beta"],
+        # discount_factor=params_dict["beta"],
         compute_utility=compute_utility,
     )
 
     compute_next_period_wealth = partial(
         user_budget_constraint,
-        params_dict=params_dict,
+        # params_dict=params_dict,
         options=options,
     )
 
-    transition_function = partial(
-        exogenous_transition_function, params_dict=params_dict
-    )
+    transition_function = exogenous_transition_function
+    # params_dict=params_dict
 
     if options["n_discrete_choices"] == 1:
         compute_upper_envelope = _return_policy_and_value
@@ -132,8 +127,8 @@ def calc_current_value(
     consumption: np.ndarray,
     next_period_value: np.ndarray,
     choice: int,
-    discount_factor: float,
     compute_utility: Callable,
+    params: Dict[str, float],
 ) -> np.ndarray:
     """Compute the agent's current value.
 
@@ -153,8 +148,8 @@ def calc_current_value(
         np.ndarray: The current value.
 
     """
-    utility = compute_utility(consumption, choice)
-    value = utility + discount_factor * next_period_value
+    utility = compute_utility(consumption, choice, params)
+    value = utility + params["beta"] * next_period_value
 
     return value
 

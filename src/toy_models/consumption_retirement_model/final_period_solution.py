@@ -7,26 +7,27 @@ import numpy as np
 
 
 def solve_final_period_scalar(
-    state: np.ndarray,  # noqa: U100
-    begin_of_period_resources: float,
+    state_vec: np.ndarray,  # noqa: U100
     choice: int,
-    options: Dict[str, int],  # noqa: U100
-    params_dict: dict,  # noqa: U100
+    begin_of_period_resources: float,
     compute_utility: Callable,
     compute_marginal_utility: Callable,
+    params: Dict[str, float],
+    options: Dict[str, int],  # noqa: U100
 ) -> Tuple[float, float]:
     """Compute optimal consumption policy and value function in the final period.
 
     In the last period, everything is consumed, i.e. consumption = savings.
 
     Args:
-        state (np.ndarray): Collection of all possible states. Shape is (n_states,).
+        state (np.ndarray): 1d array of shape (n_state_variables,) containing the
+            period-specific state vector.
+        choice (int): The agent's choice in the current period.
         begin_of_period_resources (float): The agent's begin of period resources.
-        choice (int): The agent's choice.
-        options (dict): Options dictionary.
-        params_dict (dict): Dictionary of parameters.
         compute_utility (callable): Function for computation of agent's utility.
         compute_marginal_utility (callable): Function for computation of agent's
+        params (dict): Dictionary of model parameters.
+        options (dict): Options dictionary.
 
     Returns:
         tuple:
@@ -36,8 +37,12 @@ def solve_final_period_scalar(
         - marginal_utility (float): The agent's marginal utility .
 
     """
+    marginal_utility = compute_marginal_utility(
+        consumption=begin_of_period_resources, params_dict=params
+    )
+    value = compute_utility(
+        consumption=begin_of_period_resources, choice=choice, params_dict=params
+    )
     consumption = begin_of_period_resources
-    value = compute_utility(begin_of_period_resources, choice)
-    marginal_utility = compute_marginal_utility(begin_of_period_resources)
 
-    return consumption, value, marginal_utility
+    return marginal_utility, value, consumption

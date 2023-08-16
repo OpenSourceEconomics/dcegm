@@ -1,5 +1,6 @@
 """Auxiliary functions for the EGM algorithm."""
 from typing import Callable
+from typing import Dict
 from typing import Tuple
 
 import numpy as np
@@ -14,11 +15,12 @@ def calculate_candidate_solutions_from_euler_equation(
     map_state_to_post_decision_child_nodes: Callable,
     exogenous_savings_grid: np.ndarray,
     transition_vector_by_state: Callable,
-    discount_factor: float,
-    interest_rate: float,
+    # discount_factor: float,
+    # interest_rate: float,
     state_choice_mat: np.ndarray,
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
+    params: Dict[str, float],
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Calculate candidates for the optimal policy and value function."""
     feasible_marg_utils, feasible_emax = _get_post_decision_marg_utils_and_emax(
@@ -36,19 +38,18 @@ def calculate_candidate_solutions_from_euler_equation(
     ) = vmap(
         vmap(
             compute_optimal_policy_and_value,
-            in_axes=(1, 1, 0, None, None, None, None, None, None),  # savings grid
+            in_axes=(1, 1, 0, None, None, None, None, None),  # savings grid
         ),
-        in_axes=(0, 0, None, None, None, None, 0, None, None),  # states and choices
+        in_axes=(0, 0, None, 0, None, None, None, None),  # states and choices
     )(
         feasible_marg_utils,
         feasible_emax,
         exogenous_savings_grid,
-        transition_vector_by_state,
-        discount_factor,
-        interest_rate,
         state_choice_mat,
         compute_inverse_marginal_utility,
         compute_value,
+        transition_vector_by_state,
+        params,
     )
     return (
         endog_grid_candidate,
@@ -62,12 +63,12 @@ def compute_optimal_policy_and_value(
     marg_utils: np.ndarray,
     emax: np.ndarray,
     exogenous_savings_grid: np.ndarray,
-    transition_vector_by_state: Callable,
-    discount_factor: float,
-    interest_rate: float,
+    # interest_rate: float,
     state_choice_mat: np.ndarray,
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
+    transition_vector_by_state: Callable,
+    params: Dict[str, float],
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Compute optimal child-state- and choice-specific policy and value function.
 
@@ -86,8 +87,6 @@ def compute_optimal_policy_and_value(
             containing the exogenous savings grid.
         trans_vec_state (np.ndarray): 1d array of shape (n_exog_processes,) containing
             for each exogenous process state the corresponding transition probability.
-        discount_factor (float): The discount factor.
-        interest_rate (float): The interest rate on capital.
         state_choice_mat (np.ndarray): 2d array of shape
             (n_state_choice_combs, n_state_vars + 1) containing the matrix of
             period-specific state-choice combinations. One row corresponds to one
@@ -98,6 +97,7 @@ def compute_optimal_policy_and_value(
         compute_value (callable): Function for calculating the value from consumption
             level, discrete choice and expected value. The inputs ```discount_rate```
             and ```compute_utility``` are already partialled in.
+        params (dict): Dictionary of model parameters.
 
     Returns:
         tuple:
@@ -114,19 +114,22 @@ def compute_optimal_policy_and_value(
     """
     state_vec = state_choice_mat[:-1]
     choice = state_choice_mat[-1]
-    transition_probs = transition_vector_by_state(state_vec)
+    transition_probs = transition_vector_by_state(state_vec, params)
 
     policy, expected_value = solve_euler_equation(
         marg_utils=marg_utils,
         emax=emax,
         transition_probs=transition_probs,
-        discount_factor=discount_factor,
-        interest_rate=interest_rate,
+        # discount_factor=discount_factor,
+        # interest_rate=interest_rate,
         compute_inverse_marginal_utility=compute_inverse_marginal_utility,
+        params=params,
     )
     endog_grid = exogenous_savings_grid + policy
 
-    value = compute_value(policy, expected_value, choice)
+    value = compute_value(
+        policy, next_period_value=expected_value, choice=choice, params=params
+    )
 
     return endog_grid, policy, value, expected_value
 
@@ -135,9 +138,10 @@ def solve_euler_equation(
     marg_utils: np.ndarray,
     emax: np.ndarray,
     transition_probs: np.ndarray,
-    discount_factor: float,
-    interest_rate: float,
+    # discount_factor: float,
+    # interest_rate: float,
     compute_inverse_marginal_utility: Callable,
+    params: Dict[str, float],
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Solve the Euler equation for given discrete choice and child states.
 
@@ -153,11 +157,10 @@ def solve_euler_equation(
             the savings grid.
         trans_vec_state (np.ndarray): 1d array of shape (n_exog_processes,) containing
             for each exogenous process state the corresponding transition probability.
-        discount_factor (float): The discount factor.
-        interest_rate (float): The interest rate on capital.
         compute_inverse_marginal_utility (callable): Function for calculating the
             inverse marginal utility, which takes the marginal utility as only input.
             (n_exog_processes, n_grid_wealth) with the maximum values.
+        params (dict): Dictionary of model parameters.
 
     Returns:
         tuple:
@@ -173,8 +176,8 @@ def solve_euler_equation(
     expected_value = transition_probs @ emax
 
     # RHS of Euler Eq., p. 337 IJRS (2017) by multiplying with marginal wealth
-    rhs_euler = marginal_utility * (1 + interest_rate) * discount_factor
-    policy = compute_inverse_marginal_utility(rhs_euler)
+    rhs_euler = marginal_utility * (1 + params["interest_rate"]) * params["beta"]
+    policy = compute_inverse_marginal_utility(rhs_euler, params)
 
     return policy, expected_value
 

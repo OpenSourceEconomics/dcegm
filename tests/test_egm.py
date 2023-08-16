@@ -54,7 +54,7 @@ def test_get_next_period_wealth_matrices(
         child_state,
         saving=savings_grid[random_saving_ind],
         income_shock=quad_points[random_shock_ind],
-        params_dict=params_dict,
+        params=params_dict,
         options=options,
     )
 

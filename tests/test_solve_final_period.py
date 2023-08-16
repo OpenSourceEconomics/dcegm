@@ -116,9 +116,9 @@ def test_consume_everything_in_final_period(
     )
 
     value_final, policy_final, _ = solve_final_period(
-        final_period_choice_states=final_period_state_choice_combs,
+        state_choice_mat=final_period_state_choice_combs,
         final_period_solution_partial=final_period_solution_partial,
-        resources_last_period=resources_last_period,
+        resources=resources_last_period,
     )
 
     for state_choice_idx, state_choice in enumerate(final_period_state_choice_combs):
