@@ -92,7 +92,7 @@ def fast_upper_envelope_wrapper(
     values_to_add = compute_value(
         grid_points_to_add,
         expected_value_zero_savings,
-        choice,
+        choice=choice,
     )
 
     grid_augmented = jnp.append(grid_points_to_add, endog_grid)
