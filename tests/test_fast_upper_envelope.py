@@ -21,7 +21,6 @@ TEST_DIR = Path(__file__).parent
 
 # Directory with additional resources for the testing harness
 TEST_RESOURCES_DIR = TEST_DIR / "resources"
-__file__
 
 
 @pytest.fixture
@@ -106,6 +105,7 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
         policy_right_grid=policy_right_refined,
         value_grid=value_refined,
     )
+
     aaae(value_calc_interp, value_expec_interp)
     aaae(policy_calc_interp, policy_expec_interp)
 
@@ -125,9 +125,10 @@ def test_fast_upper_envelope_against_org_fues(setup_model):
         policy_left_refined,
         policy_right_refined,
     ) = fast_upper_envelope(
-        endog_grid=policy_egm[0],
-        value=value_egm[1],
-        policy=policy_egm[1],
+        endog_grid=policy_egm[0, 1:],
+        value=value_egm[1, 1:],
+        policy=policy_egm[1, 1:],
+        expected_value_zero_savings=value_egm[1, 0],
         num_iter=int(1.2 * value_egm.shape[1]),
     )
 
