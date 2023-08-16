@@ -874,9 +874,6 @@ def _backward_scan(
     for i in range(1, n_points_to_scan + 1):
         idx_to_check = jnp.maximum(idx_base - i, 0)
 
-        endog_grid_diff_to_current = (
-            endog_grid_current - endog_grid[idx_to_check] + 1e-16
-        )
         endog_grid_diff_to_next = (
             endog_grid[idx_base] - endog_grid[idx_to_check] + 1e-16
         )
@@ -888,7 +885,13 @@ def _backward_scan(
             )
             < jump_thresh
         )
-        grad_before = (value_current - value[idx_to_check]) / endog_grid_diff_to_current
+
+        grad_before = calculate_gradient(
+            x1=endog_grid_current,
+            y1=value_current,
+            x2=endog_grid[idx_to_check],
+            y2=value[idx_to_check],
+        )
         # Now check if this is the first value on the same value function
         # This is only 1 if so far there hasn't been found a point and the point is on
         # the same value function
@@ -909,6 +912,14 @@ def _backward_scan(
         grad_before_on_same_value,
         idx_point_before_on_same_value,
     )
+
+
+# def create_indicator_if_value_function_is_switched(
+#         endog_grid_1,
+#         policy_1,
+#         endog_grid_2,
+#         policy_2,
+# ):
 
 
 def _evaluate_point_on_line(
@@ -958,8 +969,8 @@ def _linear_intersection(
 
     """
 
-    slope1 = (y2 - y1) / ((x2 - x1) + 1e-16)
-    slope2 = (y4 - y3) / ((x4 - x3) + 1e-16)
+    slope1 = calculate_gradient(x1, y1, x2, y2)
+    slope2 = calculate_gradient(x3, y3, x4, y4)
 
     x_intersection = (slope1 * x1 - slope2 * x3 + y3 - y1) / ((slope1 - slope2) + 1e-16)
     y_intersection = slope1 * (x_intersection - x1) + y1
