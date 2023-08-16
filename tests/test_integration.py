@@ -1,7 +1,7 @@
 import pickle
 from pathlib import Path
 
-import numpy as np
+import jax.numpy as jnp
 import pytest
 from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
 from dcegm.interpolation import linear_interpolation_with_extrapolation
@@ -104,12 +104,12 @@ def test_benchmark_models(
 
     # need to loop over period? Isn't state_choice space enough?
     for period in range(23, -1, -1):
-        idxs_state_choice_combs = np.where(state_choice_space[:, 0] == period)[0]
+        idxs_state_choice_combs = jnp.where(state_choice_space[:, 0] == period)[0]
 
-        endog_grid_got = np.load(f"endog_grid_{period}.npy")
-        policy_left_got = np.load(f"policy_left_{period}.npy")
-        policy_right_got = np.load(f"policy_right_{period}.npy")
-        value_got = np.load(f"value_{period}.npy")
+        endog_grid_got = jnp.load(f"endog_grid_{period}.npy")
+        policy_left_got = jnp.load(f"policy_left_{period}.npy")
+        policy_right_got = jnp.load(f"policy_right_{period}.npy")
+        value_got = jnp.load(f"value_{period}.npy")
 
         for state_choice_idx, state_choice_vec in enumerate(idxs_state_choice_combs):
             choice = state_choice_space[state_choice_vec, -1]
@@ -121,7 +121,7 @@ def test_benchmark_models(
                 policy_expec = policy_expected[period][1 - choice].T
                 value_expec = value_expected[period][1 - choice].T
 
-            wealth_grid_to_test = np.linspace(
+            wealth_grid_to_test = jnp.linspace(
                 policy_expec[0][1], policy_expec[0][-1] + 10, 1000
             )
 

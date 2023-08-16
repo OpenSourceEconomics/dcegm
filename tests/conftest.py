@@ -36,7 +36,7 @@ def pytest_sessionstart(session):  # noqa: ARG001
 
 
 @pytest.hookimpl(tryfirst=True)
-def pytest_sessionfinish(session, exitstatus):
+def pytest_sessionfinish(session, exitstatus):  # noqa: ARG001
     # Get the current working directory
     cwd = os.getcwd()
 
