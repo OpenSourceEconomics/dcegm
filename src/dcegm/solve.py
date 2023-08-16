@@ -16,8 +16,10 @@ from dcegm.marg_utilities_and_exp_value import (
 from dcegm.pre_processing import convert_params_to_dict
 from dcegm.pre_processing import get_partial_functions
 from dcegm.state_space import create_current_state_and_state_choice_objects
+from dcegm.state_space import (
+    create_period_specific_state_and_state_choice_specific_objects,
+)
 from dcegm.state_space import create_state_choice_space
-from dcegm.state_space import determine_states_and_state_choices_per_period
 from dcegm.state_space import get_map_from_state_to_child_nodes
 from jax import vmap
 
@@ -113,7 +115,7 @@ def solve_dcegm(
     (
         state_choices_per_period,
         states_per_period,
-    ) = determine_states_and_state_choices_per_period(
+    ) = create_period_specific_state_and_state_choice_specific_objects(
         state_space=state_space,
         state_choice_space=state_choice_space,
         num_periods=n_periods,

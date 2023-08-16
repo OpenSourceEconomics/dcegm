@@ -272,8 +272,13 @@ def create_current_state_and_state_choice_objects(
     )
 
 
-def determine_states_and_state_choices_per_period(
-    state_space, state_choice_space, num_periods
+def create_period_specific_state_and_state_choice_specific_objects(
+    state_space,
+    state_choice_space,
+    map_state_choice_vec_to_parent_state,
+    reshape_state_choice_vec_to_mat,
+    transform_between_state_and_state_choice_space,
+    num_periods,
 ):
     """Determine states and state choices per period and save as dictionaries.
 
@@ -286,20 +291,35 @@ def determine_states_and_state_choices_per_period(
         num_periods (int): Number of periods.
 
     Returns:
-        tuple:
-
-        - state_choices_per_period (dict): Dictionary with period as key and
-            indexes of state choice combinations as values.
-        - states_per_period (dict): Dictionary with period as key and
-            indexes of states as values.
+        - dict of jnp.ndarray: Dictionary containing per period state and state_choice
+            specific objects.
 
     """
-    states_per_period = {}
-    state_choices_per_period = {}
+    out = {}
     for period in range(num_periods):
-        states_per_period[period] = jnp.where(state_space[:, 0] == period)[0]
-        state_choices_per_period[period] = jnp.where(
-            state_choice_space[:, 0] == period
-        )[0]
+        period_dict = {}
+        idxs_states = jnp.where(state_space[:, 0] == period)[0]
+        idxs_state_choice_combs = jnp.where(state_choice_space[:, 0] == period)[0]
+        period_dict["state_choices"] = jnp.take(
+            state_choice_space, idxs_state_choice_combs, axis=0
+        )
 
-    return state_choices_per_period, states_per_period
+        period_dict["idx_state_state_choice"] = jnp.take(
+            map_state_choice_vec_to_parent_state, idxs_state_choice_combs, axis=0
+        )
+
+        period_dict["reshape_state_choice_vec_to_mat"] = jnp.take(
+            reshape_state_choice_vec_to_mat, idxs_states, axis=0
+        )
+
+        period_dict["transform_between_state_and_state_choice_vec"] = jnp.take(
+            jnp.take(
+                transform_between_state_and_state_choice_space, idxs_states, axis=0
+            ),
+            idxs_state_choice_combs,
+            axis=1,
+        )
+
+        out[period] = period_dict
+
+    return out
