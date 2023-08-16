@@ -1,3 +1,4 @@
+import glob
 import os
 import sys
 from pathlib import Path
@@ -32,3 +33,16 @@ def load_example_model():
 
 def pytest_sessionstart(session):  # noqa: ARG001
     config.update("jax_enable_x64", val=True)
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_sessionfinish(session, exitstatus):
+    # Get the current working directory
+    cwd = os.getcwd()
+
+    # Search for .npy files in the current directory
+    npy_files = glob.glob(os.path.join(cwd, "*.npy"))
+
+    # Delete all the .npy files
+    for file in npy_files:
+        os.remove(file)
