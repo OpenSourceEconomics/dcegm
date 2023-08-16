@@ -5,17 +5,23 @@ import numpy as np
 import pytest
 from dcegm.fast_upper_envelope import fast_upper_envelope
 from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
+from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
+from dcegm.interpolation import linear_interpolation_with_extrapolation
 from dcegm.pre_processing import calc_current_value
+from jax import config
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
 from utils.fast_upper_envelope_org import fast_upper_envelope_wrapper_org
 from utils.upper_envelope_fedor import upper_envelope
+
+config.update("jax_enable_x64", True)
 
 # Obtain the test directory of the package.
 TEST_DIR = Path(__file__).parent
 
 # Directory with additional resources for the testing harness
 TEST_RESOURCES_DIR = TEST_DIR / "resources"
+__file__
 
 
 @pytest.fixture
@@ -64,7 +70,12 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
 
     choice, exogenous_savings_grid, compute_value = setup_model
 
-    endog_grid_refined, policy_refined, value_refined = fast_upper_envelope_wrapper(
+    (
+        endog_grid_refined,
+        policy_left_refined,
+        policy_right_refined,
+        value_refined,
+    ) = fast_upper_envelope_wrapper(
         endog_grid=policy_egm[0, 1:],
         policy=policy_egm[1, 1:],
         value=value_egm[1, 1:],
@@ -73,16 +84,30 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
         choice=choice,
         compute_value=compute_value,
     )
-    endog_grid_got = endog_grid_refined[~np.isnan(endog_grid_refined)]
-    policy_got = policy_refined[~np.isnan(policy_refined)]
-    value_got = value_refined[~np.isnan(value_refined)]
 
-    aaae(endog_grid_got, policy_expected[0])
-    aaae(policy_got, policy_expected[1])
-    value_expected_interp = np.interp(
-        endog_grid_got, value_expected[0], value_expected[1]
+    wealth_max_to_test = np.max(endog_grid_refined[~np.isnan(endog_grid_refined)]) + 100
+    wealth_grid_to_test = np.linspace(endog_grid_refined[1], wealth_max_to_test, 1000)
+
+    value_expec_interp = linear_interpolation_with_extrapolation(
+        x_new=wealth_grid_to_test, x=value_expected[0], y=value_expected[1]
     )
-    aaae(value_got, value_expected_interp)
+
+    policy_expec_interp = linear_interpolation_with_extrapolation(
+        x_new=wealth_grid_to_test, x=policy_expected[0], y=policy_expected[1]
+    )
+
+    (
+        policy_calc_interp,
+        value_calc_interp,
+    ) = interpolate_policy_and_value_on_wealth_grid(
+        begin_of_period_wealth=wealth_grid_to_test,
+        endog_wealth_grid=endog_grid_refined,
+        policy_left_grid=policy_left_refined,
+        policy_right_grid=policy_right_refined,
+        value_grid=value_refined,
+    )
+    aaae(value_calc_interp, value_expec_interp)
+    aaae(policy_calc_interp, policy_expec_interp)
 
 
 def test_fast_upper_envelope_against_org_fues(setup_model):
@@ -94,11 +119,16 @@ def test_fast_upper_envelope_against_org_fues(setup_model):
     )
     choice, exogenous_savings_grid, compute_value = setup_model
 
-    endog_grid_refined, value_refined, policy_refined = fast_upper_envelope(
+    (
+        endog_grid_refined,
+        value_refined,
+        policy_left_refined,
+        policy_right_refined,
+    ) = fast_upper_envelope(
         endog_grid=policy_egm[0],
         value=value_egm[1],
         policy=policy_egm[1],
-        exog_grid=np.append(0, exogenous_savings_grid),
+        num_iter=int(1.2 * value_egm.shape[1]),
     )
 
     endog_grid_org, policy_org, value_org = fast_upper_envelope_wrapper_org(
@@ -115,7 +145,7 @@ def test_fast_upper_envelope_against_org_fues(setup_model):
     value_expected = value_org[~np.isnan(value_org)]
 
     assert np.all(np.in1d(endog_grid_expected, endog_grid_refined))
-    assert np.all(np.in1d(policy_expected, policy_refined))
+    assert np.all(np.in1d(policy_expected, policy_right_refined))
     assert np.all(np.in1d(value_expected, value_refined))
 
 
@@ -143,7 +173,12 @@ def test_fast_upper_envelope_against_fedor(period, setup_model):
         ~np.isnan(_value_fedor).any(axis=0),
     ]
 
-    _endog_grid_fues, _policy_fues, _value_fues = fast_upper_envelope_wrapper(
+    (
+        endog_grid_calc,
+        policy_calc_left,
+        policy_calc_right,
+        value_calc,
+    ) = fast_upper_envelope_wrapper(
         endog_grid=policy_egm[0, 1:],
         policy=policy_egm[1, 1:],
         value=value_egm[1, 1:],
@@ -152,13 +187,26 @@ def test_fast_upper_envelope_against_fedor(period, setup_model):
         choice=choice,
         compute_value=compute_value,
     )
-    endog_grid_got = _endog_grid_fues[~np.isnan(_endog_grid_fues)]
-    policy_got = _policy_fues[~np.isnan(_policy_fues)]
-    value_got = _value_fues[~np.isnan(_value_fues)]
+    wealth_max_to_test = np.max(endog_grid_calc[~np.isnan(endog_grid_calc)]) + 100
+    wealth_grid_to_test = np.linspace(endog_grid_calc[1], wealth_max_to_test, 1000)
 
-    aaae(endog_grid_got, policy_expected[0])
-    aaae(policy_got, policy_expected[1])
-    value_expected_interp = np.interp(
-        endog_grid_got, value_expected[0], value_expected[1]
+    value_expec_interp = linear_interpolation_with_extrapolation(
+        x_new=wealth_grid_to_test, x=value_expected[0], y=value_expected[1]
     )
-    aaae(value_got, value_expected_interp)
+
+    policy_expec_interp = linear_interpolation_with_extrapolation(
+        x_new=wealth_grid_to_test, x=policy_expected[0], y=policy_expected[1]
+    )
+
+    (
+        policy_calc_interp,
+        value_calc_interp,
+    ) = interpolate_policy_and_value_on_wealth_grid(
+        begin_of_period_wealth=wealth_grid_to_test,
+        endog_wealth_grid=endog_grid_calc,
+        policy_left_grid=policy_calc_left,
+        policy_right_grid=policy_calc_right,
+        value_grid=value_calc,
+    )
+    aaae(value_calc_interp, value_expec_interp)
+    aaae(policy_calc_interp, policy_expec_interp)

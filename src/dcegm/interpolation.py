@@ -11,7 +11,8 @@ def interpolate_and_calc_marginal_utilities(
     choice: int,
     next_period_wealth: jnp.ndarray,
     endog_grid_child_state_choice: jnp.array,
-    policy_child_state_choice: jnp.ndarray,
+    policy_left_child_state_choice: jnp.ndarray,
+    policy_right_child_state_choice: jnp.ndarray,
     value_child_state_choice: jnp.ndarray,
 ):
     """Interpolate marginal utilities.
@@ -51,10 +52,10 @@ def interpolate_and_calc_marginal_utilities(
         ),
         in_axes=(0, 0, 0, 0, 0, 0, 0, None, None, None, None, None),
     )(
-        policy_child_state_choice[ind_high],
+        jnp.take(policy_left_child_state_choice, ind_high),
         value_child_state_choice[ind_high],
         endog_grid_child_state_choice[ind_high],
-        policy_child_state_choice[ind_low],
+        jnp.take(policy_right_child_state_choice, ind_low),
         value_child_state_choice[ind_low],
         endog_grid_child_state_choice[ind_low],
         next_period_wealth,
@@ -239,8 +240,9 @@ def get_index_high_and_low(x, x_new):
 
 def interpolate_policy_and_value_on_wealth_grid(
     begin_of_period_wealth: jnp.ndarray,
-    endog_wealth_grid: jnp.array,
-    policy_grid: jnp.ndarray,
+    endog_wealth_grid: jnp.ndarray,
+    policy_left_grid: jnp.ndarray,
+    policy_right_grid: jnp.ndarray,
     value_grid: jnp.ndarray,
 ):
     """Interpolate policy and value functions on the wealth grid.
@@ -269,10 +271,10 @@ def interpolate_policy_and_value_on_wealth_grid(
     )
 
     policy_new, value_new = interpolate_policy_and_value(
-        policy_high=jnp.take(policy_grid, ind_high),
+        policy_high=jnp.take(policy_left_grid, ind_high),
         value_high=jnp.take(value_grid, ind_high),
         wealth_high=jnp.take(endog_wealth_grid, ind_high),
-        policy_low=jnp.take(policy_grid, ind_low),
+        policy_low=jnp.take(policy_right_grid, ind_low),
         value_low=jnp.take(value_grid, ind_low),
         wealth_low=jnp.take(endog_wealth_grid, ind_low),
         wealth_new=begin_of_period_wealth,
@@ -300,7 +302,7 @@ def linear_interpolation_with_extrapolation(x, y, x_new):
     """
     # make sure that the function also works for unsorted x-arrays
     # taken from scipy.interpolate.interp1d
-    ind = np.argsort(x)
+    ind = np.argsort(x, kind="mergesort")
     x = x[ind]
     y = np.take(y, ind)
 
