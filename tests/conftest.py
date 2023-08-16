@@ -40,9 +40,10 @@ def pytest_sessionfinish(session, exitstatus):
     # Get the current working directory
     cwd = os.getcwd()
 
-    # Search for .npy files in the current directory
-    npy_files = glob.glob(os.path.join(cwd, "*.npy"))
+    # Search for .npy files that match the naming pattern
+    pattern = os.path.join(cwd, "[endog_grid_, policy_, value_]*.npy")
+    npy_files = glob.glob(pattern)
 
-    # Delete all the .npy files
+    # Delete the matching .npy files
     for file in npy_files:
         os.remove(file)
