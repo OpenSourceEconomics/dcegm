@@ -283,24 +283,9 @@ def scan_body(
         endog_grid_to_be_saved_next,
     ) = to_be_saved_this_iter
     value_k_and_j, policy_k_and_j, endog_grid_k_and_j = vars_j_and_k
+
     is_this_the_last_point = idx_to_inspect == len(endog_grid) - 1
     # In each iteration we calculate the gradient of the value function
-    grad_before_denominator = endog_grid_k_and_j[1] - endog_grid_k_and_j[0] + 1e-16
-    grad_before = (value_k_and_j[1] - value_k_and_j[0]) / grad_before_denominator
-
-    # gradient with leading index to be checked
-    grad_next_denominator = endog_grid[idx_to_inspect] - endog_grid_k_and_j[1] + 1e-16
-    grad_next = (value[idx_to_inspect] - value_k_and_j[1]) / grad_next_denominator
-
-    switch_value_denominator = (
-        endog_grid[idx_to_inspect] - endog_grid_k_and_j[1] + 1e-16
-    )
-    exog_grid_j = endog_grid_k_and_j[1] - policy_k_and_j[1]
-    exog_grid_idx_to_inspect = endog_grid[idx_to_inspect] - policy[idx_to_inspect]
-    switch_value_func = (
-        jnp.abs((exog_grid_idx_to_inspect - exog_grid_j) / switch_value_denominator)
-        > jump_thresh
-    )
 
     (
         grad_next_forward,
@@ -311,7 +296,7 @@ def scan_body(
         policy=policy,
         jump_thresh=jump_thresh,
         endog_grid_current=endog_grid_k_and_j[1],
-        exog_grid_current=exog_grid_j,
+        exog_grid_current=endog_grid_k_and_j[1] - policy_k_and_j[1],
         idx_base=idx_to_inspect,
         n_points_to_scan=n_points_to_scan,
     )
@@ -330,50 +315,18 @@ def scan_body(
         n_points_to_scan=n_points_to_scan,
     )
 
-    # Check for suboptimality. This is either with decreasing value function, the
-    # value function not montone in consumption or
-    # if the gradient joining the leading point i+1 and the point j (the last point
-    # on the same choice specific policy) is shallower than the
-    # gradient joining the i+1 and j, then delete j'th point
-    # If the point is the same as point j, this is always false and
-    # switch_value_func as well. Therefore, the third if is chosen.
-    decreasing_value = value[idx_to_inspect] < value_k_and_j[1]
-    non_monotone_policy = exog_grid_idx_to_inspect < exog_grid_j
-    switch_value_func_and_steep_increase_after = (
-        grad_next < grad_next_forward
-    ) * switch_value_func
-    suboptimal_cond = logic_or(
-        switch_value_func_and_steep_increase_after,
-        logic_or(decreasing_value, non_monotone_policy),
-    )
-
-    next_point_past_intersect = logic_or(
-        grad_before > grad_next, grad_next < grad_next_backward
-    )
-    point_j_past_intersect = grad_next > grad_next_backward
-
-    # Generate cases. They are exclusive in ascending order, i.e. if 1 is true the
-    # rest can't be and 2 can only be true if 1 isn't.
-    # Start with checking if last iteration was case_5, and we need
-    # to add another point to the refined grid.
-    case_1 = last_point_was_intersect
-    case_2 = is_this_the_last_point * (1 - case_1)
-    case_3 = suboptimal_cond * (1 - case_1) * (1 - case_2)
-    case_4 = ~switch_value_func * (1 - case_1) * (1 - case_2) * (1 - case_3)
-    case_5 = (
-        next_point_past_intersect
-        * (1 - case_1)
-        * (1 - case_2)
-        * (1 - case_3)
-        * (1 - case_4)
-    )
-    case_6 = (
-        point_j_past_intersect
-        * (1 - case_1)
-        * (1 - case_2)
-        * (1 - case_3)
-        * (1 - case_4)
-        * (1 - case_5)
+    case_1, case_2, case_3, case_4, case_5, case_6 = create_cases(
+        value_idx_to_inspect=value[idx_to_inspect],
+        policy_idx_to_inspect=policy[idx_to_inspect],
+        endog_grid_idx_to_inspect=endog_grid[idx_to_inspect],
+        value_k_and_j=value_k_and_j,
+        policy_k_and_j=policy_k_and_j,
+        endog_grid_k_and_j=endog_grid_k_and_j,
+        grad_next_forward=grad_next_forward,
+        grad_next_backward=grad_next_backward,
+        last_point_was_intersect=last_point_was_intersect,
+        is_this_the_last_point=is_this_the_last_point,
+        jump_thresh=jump_thresh,
     )
 
     (
@@ -505,6 +458,81 @@ def scan_body(
     return carry, result
 
 
+def create_cases(
+    value_idx_to_inspect,
+    policy_idx_to_inspect,
+    endog_grid_idx_to_inspect,
+    value_k_and_j,
+    policy_k_and_j,
+    endog_grid_k_and_j,
+    grad_next_forward,
+    grad_next_backward,
+    last_point_was_intersect,
+    is_this_the_last_point,
+    jump_thresh,
+):
+    grad_before_denominator = endog_grid_k_and_j[1] - endog_grid_k_and_j[0] + 1e-16
+    grad_before = (value_k_and_j[1] - value_k_and_j[0]) / grad_before_denominator
+
+    # gradient with leading index to be checked
+    grad_next_denominator = endog_grid_idx_to_inspect - endog_grid_k_and_j[1] + 1e-16
+    grad_next = (value_idx_to_inspect - value_k_and_j[1]) / grad_next_denominator
+
+    switch_value_denominator = endog_grid_idx_to_inspect - endog_grid_k_and_j[1] + 1e-16
+    exog_grid_j = endog_grid_k_and_j[1] - policy_k_and_j[1]
+    exog_grid_idx_to_inspect = endog_grid_idx_to_inspect - policy_idx_to_inspect
+    switch_value_func = (
+        jnp.abs((exog_grid_idx_to_inspect - exog_grid_j) / switch_value_denominator)
+        > jump_thresh
+    )
+    # Check for suboptimality. This is either with decreasing value function, the
+    # value function not montone in consumption or
+    # if the gradient joining the leading point i+1 and the point j (the last point
+    # on the same choice specific policy) is shallower than the
+    # gradient joining the i+1 and j, then delete j'th point
+    # If the point is the same as point j, this is always false and
+    # switch_value_func as well. Therefore, the third if is chosen.
+    decreasing_value = value_idx_to_inspect < value_k_and_j[1]
+    non_monotone_policy = exog_grid_idx_to_inspect < exog_grid_j
+    switch_value_func_and_steep_increase_after = (
+        grad_next < grad_next_forward
+    ) * switch_value_func
+    suboptimal_cond = logic_or(
+        switch_value_func_and_steep_increase_after,
+        logic_or(decreasing_value, non_monotone_policy),
+    )
+
+    next_point_past_intersect = logic_or(
+        grad_before > grad_next, grad_next < grad_next_backward
+    )
+    point_j_past_intersect = grad_next > grad_next_backward
+
+    # Generate cases. They are exclusive in ascending order, i.e. if 1 is true the
+    # rest can't be and 2 can only be true if 1 isn't.
+    # Start with checking if last iteration was case_5, and we need
+    # to add another point to the refined grid.
+    case_1 = last_point_was_intersect
+    case_2 = is_this_the_last_point * (1 - case_1)
+    case_3 = suboptimal_cond * (1 - case_1) * (1 - case_2)
+    case_4 = ~switch_value_func * (1 - case_1) * (1 - case_2) * (1 - case_3)
+    case_5 = (
+        next_point_past_intersect
+        * (1 - case_1)
+        * (1 - case_2)
+        * (1 - case_3)
+        * (1 - case_4)
+    )
+    case_6 = (
+        point_j_past_intersect
+        * (1 - case_1)
+        * (1 - case_2)
+        * (1 - case_3)
+        * (1 - case_4)
+        * (1 - case_5)
+    )
+    return case_1, case_2, case_3, case_4, case_5, case_6
+
+
 def select_variables_to_save_this_iteration(
     case_6,
     intersect_value,
@@ -581,39 +609,65 @@ def select_and_calculate_intersection(
 
 
 def calc_intersection_and_extrapolate_policy(
-    wealth_1_lower_curve,
-    value_1_lower_curve,
-    policy_1_lower_curve,
-    wealth_2_lower_curve,
-    value_2_lower_curve,
-    policy_2_lower_curve,
-    wealth_1_upper_curve,
-    value_1_upper_curve,
-    policy_1_upper_curve,
-    wealth_2_upper_curve,
-    value_2_upper_curve,
-    policy_2_upper_curve,
+    wealth_1_lower_curve: float,
+    value_1_lower_curve: float,
+    policy_1_lower_curve: float,
+    wealth_2_lower_curve: float,
+    value_2_lower_curve: float,
+    policy_2_lower_curve: float,
+    wealth_1_upper_curve: float,
+    value_1_upper_curve: float,
+    policy_1_upper_curve: float,
+    wealth_2_upper_curve: float,
+    value_2_upper_curve: float,
+    policy_2_upper_curve: float,
 ):
-    """Calculate intersection of two lines and extrapolate policy.
+    """Calculate the intersection of the value functions and return the intersection
+    wealth grid, the value function as well as the left and right policy values. Even
+    though the function is described for scalars it also works for arrays.
+
+    We introduce here the left and right policy function to avoid inserting two wealth
+    points next to each other in comparison to the original upper_envelope. The left and
+    right policy arrays coincide on all entries except the entry corresponding to the
+    intersection point in the wealth grid. We use left and right as lower and higher
+    on the line of all real numbers. The left policy function holds the extrapolated
+    policy function value from the two points left to the intersection. We use this
+    value if we interpolate the policy function for a wealth point between the wealth
+    point to the left of the intersection point and the intersection point. The right
+    policy function value vice versa holds the extrapolated policy function value from
+    the two points right to the intersection point, and we use it to interpolate the
+    policy if a wealth point is to the right of the intersection.
+
+    Our interpolation function incorporates this structure and benefits from the fact
+    that value and policy function uses the same wealth grid. More information is
+    provided in the interpolation module.
 
     Args:
-        wealth_1_lower_curve (float):
-        value_1_lower_curve (float):
-        policy_1_lower_curve (float):
-        wealth_2_lower_curve (float):
-        value_2_lower_curve (float):
-        policy_2_lower_curve (float):
-        wealth_1_upper_curve (float):
-        value_1_upper_curve (float):
-        policy_1_upper_curve (float):
-        wealth_2_upper_curve (float):
-        value_2_upper_curve (float):
-        policy_2_upper_curve (float):
+        wealth_1_lower_curve (float): The first wealth point on the lower curve.
+        value_1_lower_curve (float): The value function at the first wealth point on the
+            lower curve.
+        policy_1_lower_curve (float): The policy function at the first wealth point on
+            the lower curve.
+        wealth_2_lower_curve (float): The second wealth point on the lower curve.
+        value_2_lower_curve (float): The value function at the second wealth point on
+            the lower curve.
+        policy_2_lower_curve (float): The policy function at the second wealth point on
+            the lower curve.
+        wealth_1_upper_curve (float): The first wealth point on the upper curve.
+        value_1_upper_curve (float): The value function at the first wealth point on
+            the upper curve.
+        policy_1_upper_curve (float): The policy function at the first wealth point on
+            the upper curve.
+        wealth_2_upper_curve (float): The second wealth point on the upper curve.
+        value_2_upper_curve (float): The value function at the second wealth point on
+            the     upper curve.
+        policy_2_upper_curve (float): The policy function at the second wealth point on
+            the upper curve.
 
     Returns:
         Tuple[float, float, float, float]: intersection point on wealth grid, value
             function at intersection and on lower as well as upper curve extrapolated
-            policy function.
+            policy function (left and right policy function).
 
     """
     # Calculate intersection of two lines
@@ -824,13 +878,13 @@ def _backward_scan(
 def _evaluate_point_on_line(
     x1: float, y1: float, x2: float, y2: float, point_to_evaluate: float
 ) -> float:
-    """Evaluate a point on a line.
+    """Evaluate a point on a line defined by (x1, y1) and (x2, y2).
 
     Args:
-        x1 (float): x coordinate of the first point.
-        y1 (float): y coordinate of the first point.
-        x2 (float): x coordinate of the second point.
-        y2 (float): y coordinate of the second point.
+        x1 (float): x-coordinate of the first point.
+        y1 (float): y-coordinate of the first point.
+        x2 (float): x-coordinate of the second point.
+        y2 (float): y-coordinate of the second point.
         point_to_evaluate (float): The point to evaluate.
 
     Returns:
@@ -850,7 +904,7 @@ def _linear_intersection(
     x4: float,
     y4: float,
 ) -> Tuple[float, float]:
-    """Find the intersection of two lines.
+    """Find the intersection of two lines defined by (x).
 
     Args:
 
