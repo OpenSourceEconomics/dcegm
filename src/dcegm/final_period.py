@@ -10,7 +10,7 @@ def solve_final_period(
     final_period_choice_states: jnp.ndarray,
     final_period_solution_partial: Callable,
     resources_last_period: jnp.ndarray,
-) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Computes solution to final period for policy and value function.
 
     In the last period, everything is consumed, i.e. consumption = savings.
