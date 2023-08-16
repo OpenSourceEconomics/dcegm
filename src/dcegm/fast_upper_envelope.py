@@ -296,7 +296,7 @@ def scan_body(
         policy=policy,
         jump_thresh=jump_thresh,
         endog_grid_current=endog_grid_k_and_j[1],
-        exog_grid_current=endog_grid_k_and_j[1] - policy_k_and_j[1],
+        policy_current=policy_k_and_j[1],
         idx_base=idx_to_inspect,
         n_points_to_scan=n_points_to_scan,
     )
@@ -744,7 +744,7 @@ def _forward_scan(
     policy: jnp.array,
     jump_thresh: float,
     endog_grid_current: float,
-    exog_grid_current: float,
+    policy_current: float,
     idx_base: int,
     n_points_to_scan: int,
 ) -> Tuple[float, int]:
@@ -780,20 +780,20 @@ def _forward_scan(
     for i in range(1, n_points_to_scan + 1):
         # Avoid out of bound indexing
         idx_to_check = jnp.minimum(idx_base + i, idx_max)
-        # Get endog grid diff from current optimal to the one checkec
-        endog_grid_diff = endog_grid_current - endog_grid[idx_to_check] + 1e-16
-        # Check if checked point is on the same value function
-        exog_grid_idx_to_check = endog_grid[idx_to_check] - policy[idx_to_check]
-        is_on_same_value = (
-            jnp.abs((exog_grid_current - exog_grid_idx_to_check) / (endog_grid_diff))
-            < jump_thresh
+
+        is_not_on_same_value = create_indicator_if_value_function_is_switched(
+            endog_grid_1=endog_grid_current,
+            policy_1=policy_current,
+            endog_grid_2=endog_grid[idx_to_check],
+            policy_2=policy[idx_to_check],
+            jump_thresh=jump_thresh,
         )
-        gradient_next_denominator = (
-            endog_grid[idx_base] - endog_grid[idx_to_check] + -1e-16
-        )
-        # Calculate gradient
-        gradient_next = (value[idx_base] - value[idx_to_check]) / (
-            gradient_next_denominator
+        is_on_same_value = 1 - is_not_on_same_value
+        gradient_next = calculate_gradient(
+            x1=endog_grid[idx_base],
+            y1=value[idx_base],
+            x2=endog_grid[idx_to_check],
+            y2=value[idx_to_check],
         )
 
         # Now check if this is the first value on the same value function
@@ -918,6 +918,19 @@ def create_indicator_if_value_function_is_switched(
     policy_2: float,
     jump_thresh: float,
 ):
+    """Create an indicator if the value function is switched between two points.
+
+    Args:
+        endog_grid_1 (float): The first endogenous wealth point.
+        policy_1 (float): The policy function at the first endogenous wealth point.
+        endog_grid_2 (float): The second endogenous wealth point.
+        policy_2 (float): The policy function at the second endogenous wealth point.
+
+    Returns:
+        bool: Indicator if value function is switched.
+
+    """
+
     exog_grid_1 = endog_grid_1 - policy_1
     exog_grid_2 = endog_grid_2 - policy_2
     gradient_exog_grid = calculate_gradient(
