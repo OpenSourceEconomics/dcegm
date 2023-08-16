@@ -243,20 +243,24 @@ def create_current_state_and_state_choice_objects(
     _idxs_parent_states = states_per_period[period]
     idxs_state_choice_combs = state_choices_per_period[period]
 
-    state_choice_combs = state_choice_space[idxs_state_choice_combs]
+    state_choice_combs = jnp.take(state_choice_space, idxs_state_choice_combs, axis=0)
 
-    resources_current_period = resources_beginning_of_period[
-        map_state_choice_vec_to_parent_state[idxs_state_choice_combs]
-    ]
+    resources_current_period = jnp.take(
+        resources_beginning_of_period,
+        jnp.take(map_state_choice_vec_to_parent_state, idxs_state_choice_combs, axis=0),
+        axis=0,
+    )
 
-    reshape_current_state_choice_vec_to_mat = reshape_state_choice_vec_to_mat[
-        _idxs_parent_states
-    ]
+    reshape_current_state_choice_vec_to_mat = jnp.take(
+        reshape_state_choice_vec_to_mat, _idxs_parent_states, axis=0
+    )
 
-    transform_between_state_and_state_choice_vec = (
-        transform_between_state_and_state_choice_space[_idxs_parent_states][
-            :, idxs_state_choice_combs
-        ]
+    transform_between_state_and_state_choice_vec = jnp.take(
+        jnp.take(
+            transform_between_state_and_state_choice_space, _idxs_parent_states, axis=0
+        ),
+        idxs_state_choice_combs,
+        axis=1,
     )
 
     return (
