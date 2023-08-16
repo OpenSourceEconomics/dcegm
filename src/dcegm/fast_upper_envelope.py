@@ -820,11 +820,11 @@ def logic_or(bool_ind_1, bool_ind_2):
     """Logical or function.
 
     Args:
-        bool_ind_1 (np.ndarray): 1d array of booleans.
-        bool_ind_2 (np.ndarray): 1d array of booleans.
+        bool_ind_1 (bool): A bool
+        bool_ind_2 (bool): A bool.
 
     Returns:
-        jnp.ndarray: 1d array of booleans.
+        bool: The logical or of the two bools.
 
     """
     both = bool_ind_1 * bool_ind_2
