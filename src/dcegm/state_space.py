@@ -1,4 +1,5 @@
 """Functions for creating internal state space objects."""
+import jax.numpy as jnp
 import numpy as np
 
 
@@ -183,7 +184,8 @@ def create_state_choice_space(
 
 def create_current_state_and_state_choice_objects(
     period,
-    state_space,
+    state_choices_per_period,
+    states_per_period,
     state_choice_space,
     resources_beginning_of_period,
     map_state_choice_vec_to_parent_state,
@@ -238,8 +240,8 @@ def create_current_state_and_state_choice_objects(
 
     """
 
-    _idxs_parent_states = np.where(state_space[:, 0] == period)[0]
-    idxs_state_choice_combs = np.where(state_choice_space[:, 0] == period)[0]
+    _idxs_parent_states = states_per_period[period]
+    idxs_state_choice_combs = state_choices_per_period[period]
 
     state_choice_combs = state_choice_space[idxs_state_choice_combs]
 
@@ -264,3 +266,17 @@ def create_current_state_and_state_choice_objects(
         reshape_current_state_choice_vec_to_mat,
         transform_between_state_and_state_choice_vec,
     )
+
+
+def determine_states_and_state_choices_per_period(
+    state_space, state_choice_space, num_periods
+):
+    states_per_period = {}
+    state_choices_per_period = {}
+    for period in range(num_periods):
+        states_per_period[period] = jnp.where(state_space[:, 0] == period)[0]
+        state_choices_per_period[period] = jnp.where(
+            state_choice_space[:, 0] == period
+        )[0]
+
+    return state_choices_per_period, states_per_period

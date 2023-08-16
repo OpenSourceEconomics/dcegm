@@ -17,6 +17,7 @@ from dcegm.pre_processing import convert_params_to_dict
 from dcegm.pre_processing import get_partial_functions
 from dcegm.state_space import create_current_state_and_state_choice_objects
 from dcegm.state_space import create_state_choice_space
+from dcegm.state_space import determine_states_and_state_choices_per_period
 from dcegm.state_space import get_map_from_state_to_child_nodes
 from jax import vmap
 
@@ -109,8 +110,18 @@ def solve_dcegm(
         compute_utility=compute_utility,
         compute_marginal_utility=compute_marginal_utility,
     )
+    (
+        state_choices_per_period,
+        states_per_period,
+    ) = determine_states_and_state_choices_per_period(
+        state_space=state_space,
+        state_choice_space=state_choice_space,
+        num_periods=n_periods,
+    )
 
     backwards_induction(
+        state_choices_per_period=state_choices_per_period,
+        states_per_period=states_per_period,
         map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
         reshape_state_choice_vec_to_mat=reshape_state_choice_vec_to_mat,
         transform_between_state_and_state_choice_space=transform_between_state_and_state_choice_space,
@@ -135,6 +146,8 @@ def solve_dcegm(
 
 
 def backwards_induction(
+    state_choices_per_period,
+    states_per_period,
     map_state_choice_vec_to_parent_state: np.ndarray,
     reshape_state_choice_vec_to_mat: np.ndarray,
     transform_between_state_and_state_choice_space: np.ndarray,
@@ -234,7 +247,8 @@ def backwards_induction(
         transform_between_state_and_state_choice_vec,
     ) = create_current_state_and_state_choice_objects(
         period=n_periods - 1,
-        state_space=state_space,
+        state_choices_per_period=state_choices_per_period,
+        states_per_period=states_per_period,
         state_choice_space=state_choice_space,
         resources_beginning_of_period=resources_beginning_of_period,
         map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
@@ -278,7 +292,8 @@ def backwards_induction(
             transform_between_state_and_state_choice_vec,
         ) = create_current_state_and_state_choice_objects(
             period=period,
-            state_space=state_space,
+            state_choices_per_period=state_choices_per_period,
+            states_per_period=states_per_period,
             state_choice_space=state_choice_space,
             resources_beginning_of_period=resources_beginning_of_period,
             map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
