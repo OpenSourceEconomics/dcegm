@@ -20,7 +20,6 @@ def fast_upper_envelope_wrapper(
     endog_grid: jnp.ndarray,
     policy: jnp.ndarray,
     value: jnp.ndarray,
-    exog_grid: jnp.ndarray,
     expected_value_zero_savings: float,
     choice: int,
     compute_value: Callable,
@@ -55,8 +54,6 @@ def fast_upper_envelope_wrapper(
             containing the current state- and choice-specific policy function.
         value (np.ndarray): 1d array of shape (n_grid_wealth + 1,)
             containing the current state- and choice-specific value function.
-        exog_grid (np.ndarray): 1d array of shape (n_grid_wealth,) of the
-            exogenous savings grid.
         expected_value_zero_savings (float): The agent's expected value given that she
             saves zero.
         choice (int): The current choice.

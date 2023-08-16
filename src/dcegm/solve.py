@@ -340,7 +340,6 @@ def backwards_induction(
                 policy=policy_candidate[state_choice_idx],
                 value=value_candidate[state_choice_idx],
                 expected_value_zero_savings=expected_values[state_choice_idx, 0],
-                exog_grid=exogenous_savings_grid,
                 choice=choice,
                 compute_value=compute_value,
             )
