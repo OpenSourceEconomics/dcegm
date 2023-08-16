@@ -15,16 +15,18 @@ def get_map_from_state_to_child_nodes(
     e.g. experience.
 
     Args:
-        state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
+        state_space (np.ndarray): 2d array of shape (n_states, n_state_vars + 1)
             which serves as a collection of all possible states. By convention,
             the first column must contain the period and the last column the
-            exogenous processes. Any other state variables are in between.
+            exogenous state. Any other state variables are in between.
             E.g. if the two state variables are period and lagged choice and all choices
             are admissible in each period, the shape of the state space array is
             (n_periods * n_choices, 3).
         state_choice_space (np.ndarray): 2d array of shape
-            (n_feasible_states, n_state_and_exog_variables + 1) containing all feasible
-            state-choice combinations.
+            (n_feasible_states, n_state_vars + 2) storing all feasible
+            state-choice combinations. The second to last column contains the exogenous
+            state. The last column includes the choice to be made at the end of
+            the period (which is not a state variable).
         map_state_to_index (np.ndarray): Indexer array that maps states to indexes.
             The shape of this object is quite complicated. For each state variable it
             has the number of possible states as rows, i.e.
@@ -40,7 +42,7 @@ def get_map_from_state_to_child_nodes(
     # Exogenous processes are always on the last entry of the state space. Moreover, we
     # treat all of them as admissible in each period. If there exists an absorbing
     # state, this is reflected by a 0 percent transition probability.
-    n_periods, n_choices, n_exog_processes = map_state_to_index.shape
+    n_periods, _n_choices, n_exog_processes = map_state_to_index.shape
     n_feasible_state_choice_combs = state_choice_space.shape[0]
 
     n_states_over_periods = state_space.shape[0] // n_periods
@@ -81,10 +83,10 @@ def create_state_choice_space(
     Also conditional on any realization of exogenous processes.
 
     Args:
-        state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
+        state_space (np.ndarray): 2d array of shape (n_states, n_state_vars + 1)
             which serves as a collection of all possible states. By convention,
             the first column must contain the period and the last column the
-            exogenous processes. Any other state variables are in between.
+            exogenous state. Any other state variables are in between.
             E.g. if the two state variables are period and lagged choice and all choices
             are admissible in each period, the shape of the state space array is
             (n_periods * n_choices, 3).

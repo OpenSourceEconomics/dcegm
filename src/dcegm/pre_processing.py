@@ -3,6 +3,7 @@ from typing import Callable
 from typing import Dict
 from typing import Tuple
 
+import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
@@ -159,9 +160,9 @@ def calc_current_value(
 
 
 def _return_policy_and_value(
-    endog_grid, policy, value, expected_value_zero_savings, **kwargs
+    endog_grid, policy, value, expected_value_zero_savings, *args
 ):
-    endog_grid = np.append(0, endog_grid)
-    policy = np.append(0, policy)
-    value = np.append(expected_value_zero_savings, value)
+    endog_grid = jnp.append(0, endog_grid)
+    policy = jnp.append(0, policy)
+    value = jnp.append(expected_value_zero_savings, value)
     return endog_grid, policy, policy, value
