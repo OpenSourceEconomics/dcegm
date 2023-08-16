@@ -874,17 +874,14 @@ def _backward_scan(
     for i in range(1, n_points_to_scan + 1):
         idx_to_check = jnp.maximum(idx_base - i, 0)
 
-        endog_grid_diff_to_next = (
-            endog_grid[idx_base] - endog_grid[idx_to_check] + 1e-16
+        is_not_on_same_value = create_indicator_if_value_function_is_switched(
+            endog_grid_1=endog_grid[idx_base],
+            policy_1=policy[idx_base],
+            endog_grid_2=endog_grid[idx_to_check],
+            policy_2=policy[idx_to_check],
+            jump_thresh=jump_thresh,
         )
-        exog_grid_idx_base = endog_grid[idx_base] - policy[idx_base]
-        exog_grid_idx_to_check = endog_grid[idx_to_check] - policy[idx_to_check]
-        is_on_same_value = (
-            jnp.abs(
-                (exog_grid_idx_base - exog_grid_idx_to_check) / endog_grid_diff_to_next
-            )
-            < jump_thresh
-        )
+        is_on_same_value = 1 - is_not_on_same_value
 
         grad_before = calculate_gradient(
             x1=endog_grid_current,
@@ -914,12 +911,24 @@ def _backward_scan(
     )
 
 
-# def create_indicator_if_value_function_is_switched(
-#         endog_grid_1,
-#         policy_1,
-#         endog_grid_2,
-#         policy_2,
-# ):
+def create_indicator_if_value_function_is_switched(
+    endog_grid_1: float,
+    policy_1: float,
+    endog_grid_2: float,
+    policy_2: float,
+    jump_thresh: float,
+):
+    exog_grid_1 = endog_grid_1 - policy_1
+    exog_grid_2 = endog_grid_2 - policy_2
+    gradient_exog_grid = calculate_gradient(
+        x1=endog_grid_1,
+        y1=exog_grid_1,
+        x2=endog_grid_2,
+        y2=exog_grid_2,
+    )
+    gradient_exog_abs = jnp.abs(gradient_exog_grid)
+    is_switched = gradient_exog_abs > jump_thresh
+    return is_switched
 
 
 def _evaluate_point_on_line(
