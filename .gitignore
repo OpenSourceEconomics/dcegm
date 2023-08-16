@@ -2,6 +2,7 @@
 .pyc
 .txt
 .pdf
+.npy
 
 
 src/dcegm/_version.py
