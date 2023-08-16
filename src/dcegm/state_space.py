@@ -272,7 +272,7 @@ def create_current_state_and_state_choice_objects(
     )
 
 
-def create_period_specific_state_and_state_choice_specific_objects(
+def create_period_state_and_state_choice_objects(
     state_space,
     state_choice_space,
     map_state_choice_vec_to_parent_state,
@@ -288,6 +288,21 @@ def create_period_specific_state_and_state_choice_specific_objects(
         state_choice_space (np.ndarray): 2d array of shape
             (n_feasible_state_choice_combs, n_states + 1) containing the space of all
             feasible state-choice combinations.
+        map_state_choice_vec_to_parent_state (np.ndarray): 1d array of shape
+            (n_states * n_feasible_choices,) that maps from any vector of state-choice
+            combinations to the respective parent state.
+        reshape_state_choice_vec_to_mat (np.ndarray): 2d array of shape
+            (n_states, n_feasible_choices). For each parent state, this array can be
+            used to reshape the vector of feasible state-choice combinations
+            to a matrix of lagged and current choice combinations of
+            shape (n_choices, n_choices).
+        transform_between_state_and_state_choice_space (jnp.ndarray): 2d boolean
+            array of shape (n_states, n_states * n_feasible_choices) indicating which
+            state belongs to which state-choice combination in the entire state space
+            and state-choice space. The array is used to
+            (i) contract state-choice level arrays to the state level by summing
+                over state-choice combinations.
+            (ii) to expand state level arrays to the state-choice level.
         num_periods (int): Number of periods.
 
     Returns:
@@ -299,13 +314,15 @@ def create_period_specific_state_and_state_choice_specific_objects(
     for period in range(num_periods):
         period_dict = {}
         idxs_states = jnp.where(state_space[:, 0] == period)[0]
-        idxs_state_choice_combs = jnp.where(state_choice_space[:, 0] == period)[0]
+
+        idxs_state_choices = jnp.where(state_choice_space[:, 0] == period)[0]
+        period_dict["idxs_state_choices"] = idxs_state_choices
         period_dict["state_choices"] = jnp.take(
-            state_choice_space, idxs_state_choice_combs, axis=0
+            state_choice_space, idxs_state_choices, axis=0
         )
 
-        period_dict["idx_state_state_choice"] = jnp.take(
-            map_state_choice_vec_to_parent_state, idxs_state_choice_combs, axis=0
+        period_dict["idx_state_of_state_choice"] = jnp.take(
+            map_state_choice_vec_to_parent_state, idxs_state_choices, axis=0
         )
 
         period_dict["reshape_state_choice_vec_to_mat"] = jnp.take(
@@ -316,7 +333,7 @@ def create_period_specific_state_and_state_choice_specific_objects(
             jnp.take(
                 transform_between_state_and_state_choice_space, idxs_states, axis=0
             ),
-            idxs_state_choice_combs,
+            idxs_state_choices,
             axis=1,
         )
 
