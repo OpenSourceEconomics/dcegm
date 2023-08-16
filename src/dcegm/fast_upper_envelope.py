@@ -243,7 +243,7 @@ def scan_value_function(
         n_points_to_scan=n_points_to_scan,
     )
 
-    final_carry, result = jax.lax.scan(
+    _final_carry, result = jax.lax.scan(
         partial_body,
         carry_init,
         xs=None,
@@ -257,7 +257,7 @@ def scan_value_function(
 
 def scan_body(
     carry,
-    iter_step,
+    _iter_step,
     value,
     policy,
     endog_grid,
