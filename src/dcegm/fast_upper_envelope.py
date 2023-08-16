@@ -471,20 +471,33 @@ def create_cases(
     is_this_the_last_point,
     jump_thresh,
 ):
-    grad_before_denominator = endog_grid_k_and_j[1] - endog_grid_k_and_j[0] + 1e-16
-    grad_before = (value_k_and_j[1] - value_k_and_j[0]) / grad_before_denominator
+    grad_before = calculate_gradient(
+        x1=endog_grid_k_and_j[1],
+        y1=value_k_and_j[1],
+        x2=endog_grid_k_and_j[0],
+        y2=value_k_and_j[0],
+    )
 
     # gradient with leading index to be checked
-    grad_next_denominator = endog_grid_idx_to_inspect - endog_grid_k_and_j[1] + 1e-16
-    grad_next = (value_idx_to_inspect - value_k_and_j[1]) / grad_next_denominator
+    grad_next = calculate_gradient(
+        x1=endog_grid_idx_to_inspect,
+        y1=value_idx_to_inspect,
+        x2=endog_grid_k_and_j[1],
+        y2=value_k_and_j[1],
+    )
 
-    switch_value_denominator = endog_grid_idx_to_inspect - endog_grid_k_and_j[1] + 1e-16
     exog_grid_j = endog_grid_k_and_j[1] - policy_k_and_j[1]
     exog_grid_idx_to_inspect = endog_grid_idx_to_inspect - policy_idx_to_inspect
-    switch_value_func = (
-        jnp.abs((exog_grid_idx_to_inspect - exog_grid_j) / switch_value_denominator)
-        > jump_thresh
+
+    exog_grid_grad_abs = jnp.abs(
+        calculate_gradient(
+            x1=endog_grid_idx_to_inspect,
+            y1=exog_grid_idx_to_inspect,
+            x2=endog_grid_k_and_j[1],
+            y2=exog_grid_j,
+        )
     )
+    does_the_value_func_switch = exog_grid_grad_abs > jump_thresh
     # Check for suboptimality. This is either with decreasing value function, the
     # value function not montone in consumption or
     # if the gradient joining the leading point i+1 and the point j (the last point
@@ -496,7 +509,7 @@ def create_cases(
     non_monotone_policy = exog_grid_idx_to_inspect < exog_grid_j
     switch_value_func_and_steep_increase_after = (
         grad_next < grad_next_forward
-    ) * switch_value_func
+    ) * does_the_value_func_switch
     suboptimal_cond = logic_or(
         switch_value_func_and_steep_increase_after,
         logic_or(decreasing_value, non_monotone_policy),
@@ -514,7 +527,7 @@ def create_cases(
     case_1 = last_point_was_intersect
     case_2 = is_this_the_last_point * (1 - case_1)
     case_3 = suboptimal_cond * (1 - case_1) * (1 - case_2)
-    case_4 = ~switch_value_func * (1 - case_1) * (1 - case_2) * (1 - case_3)
+    case_4 = ~does_the_value_func_switch * (1 - case_1) * (1 - case_2) * (1 - case_3)
     case_5 = (
         next_point_past_intersect
         * (1 - case_1)
@@ -531,6 +544,29 @@ def create_cases(
         * (1 - case_5)
     )
     return case_1, case_2, case_3, case_4, case_5, case_6
+
+
+def calculate_gradient(
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+):
+    """Calculate the gradient between two points. This function returns 0 if the points
+    are the same.
+
+    Args:
+        x1 (float): x-coordinate of the first point.
+        y1 (float): y-coordinate of the first point.
+        x2 (float): x-coordinate of the second point.
+        y2 (float): y-coordinate of the second point.
+
+    Returns:
+        float: The gradient between the two points.
+
+    """
+    denominator = x1 - x2 + 1e-16
+    return (y1 - y2) / denominator
 
 
 def select_variables_to_save_this_iteration(
