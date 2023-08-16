@@ -300,7 +300,7 @@ def backwards_induction(
             transition_vector_by_state=transition_vector_by_state,
             discount_factor=discount_factor,
             interest_rate=interest_rate,
-            state_choices_period=state_choice_combs,
+            state_choice_mat=state_choice_combs,
             compute_inverse_marginal_utility=compute_inverse_marginal_utility,
             compute_value=compute_value,
         )

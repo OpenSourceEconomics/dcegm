@@ -25,7 +25,7 @@ def interpolate_and_calc_marginal_utilities(
             and ```compute_utility``` are already partialled in.
         next_period_wealth (jnp.ndarray): The agent's next period wealth.
             Array of shape (n_quad_stochastic, n_grid_wealth,).
-        choice (int): Discrete choice of an agent.
+        choice (int): Discrete choice of the agent.
         endog_grid_child_state_choice (jnp.ndarray): 1d array containing the endogenous
             wealth grid of the child state/choice pair. Shape (n_grid_wealth,).
         choice_policies_child_state_choice (jnp.ndarray): 1d array containing the

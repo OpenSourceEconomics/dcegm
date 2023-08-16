@@ -16,7 +16,7 @@ def calculate_candidate_solutions_from_euler_equation(
     transition_vector_by_state: Callable,
     discount_factor: float,
     interest_rate: float,
-    state_choices_period: np.ndarray,
+    state_choice_mat: np.ndarray,
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -27,8 +27,6 @@ def calculate_candidate_solutions_from_euler_equation(
         idx_state_choice_combs=idx_state_choices_period,
         map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
     )
-
-    # breakpoint()
 
     (
         endog_grid_candidate,
@@ -48,7 +46,7 @@ def calculate_candidate_solutions_from_euler_equation(
         transition_vector_by_state,
         discount_factor,
         interest_rate,
-        state_choices_period,
+        state_choice_mat,
         compute_inverse_marginal_utility,
         compute_value,
     )
@@ -67,7 +65,7 @@ def compute_optimal_policy_and_value(
     transition_vector_by_state: Callable,
     discount_factor: float,
     interest_rate: float,
-    state_choice_subspace: np.ndarray,
+    state_choice_mat: np.ndarray,
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -90,7 +88,11 @@ def compute_optimal_policy_and_value(
             for each exogenous process state the corresponding transition probability.
         discount_factor (float): The discount factor.
         interest_rate (float): The interest rate on capital.
-        choice (int): The current discrete choice.
+        state_choice_mat (np.ndarray): 2d array of shape
+            (n_state_choice_combs, n_state_vars + 1) containing the matrix of
+            period-specific state-choice combinations. One row corresponds to one
+            specific state-choice vector. The last column contains the discrete
+            choice.
         compute_inverse_marginal_utility (Callable): Function for calculating the
             inverse marginal utility, which takes the marginal utility as only input.
         compute_value (callable): Function for calculating the value from consumption
@@ -110,8 +112,8 @@ def compute_optimal_policy_and_value(
             saves zero.
 
     """
-    state_vec = state_choice_subspace[:-1]
-    choice = state_choice_subspace[-1]
+    state_vec = state_choice_mat[:-1]
+    choice = state_choice_mat[-1]
     transition_probs = transition_vector_by_state(state_vec)
 
     policy, expected_value = solve_euler_equation(
