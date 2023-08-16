@@ -74,27 +74,33 @@ def fast_upper_envelope_wrapper(
 
     """
     min_wealth_grid = jnp.min(endog_grid)
-    if endog_grid[0] > min_wealth_grid:
-        # Non-concave region coincides with credit constraint.
-        # This happens when there is a non-monotonicity in the endogenous wealth grid
-        # that goes below the first point.
-        # Solution: Value function to the left of the first point is analytical,
-        # so we just need to add some points to the left of the first grid point.
+    # These tuning parameters should be set outside. Don't want to touch solve.py now
+    points_to_add = len(endog_grid) // 10
+    num_iter = int(1.2 * value.shape[0])
+    jump_thresh = 2
+    # Non-concave region coincides with credit constraint.
+    # This happens when there is a non-monotonicity in the endogenous wealth grid
+    # that goes below the first point.
+    # Solution: Value function to the left of the first point is analytical,
+    # so we just need to add some points to the left of the first grid point.
+    # We do that independent of whether the condition is fulfilled or not.
+    # If the condition is not fulfilled this is points_to_add times the same point.
 
-        endog_grid, value, policy = _augment_grids(
-            endog_grid=endog_grid,
-            value=value,
-            policy=policy,
-            choice=choice,
-            expected_value_zero_savings=expected_value_zero_savings,
-            min_wealth_grid=min_wealth_grid,
-            points_to_add=len(endog_grid) // 10,
-            compute_value=compute_value,
-        )
+    # This is the condition, which we do not use at the moment.
+    # closed_form_cond = min_wealth_grid < endog_grid[0]
+    grid_points_to_add = jnp.linspace(min_wealth_grid, endog_grid[0], points_to_add)[
+        :-1
+    ]
 
-    endog_grid = jnp.append(0, endog_grid)
-    policy = jnp.append(0, policy)
-    value = jnp.append(expected_value_zero_savings, value)
+    values_to_add = compute_value(
+        grid_points_to_add,
+        expected_value_zero_savings,
+        choice,
+    )
+
+    grid_augmented = jnp.append(grid_points_to_add, endog_grid)
+    value_augmented = jnp.append(values_to_add, value)
+    policy_augmented = jnp.append(grid_points_to_add, policy)
 
     (
         endog_grid_refined,
@@ -102,7 +108,12 @@ def fast_upper_envelope_wrapper(
         policy_left_refined,
         policy_right_refined,
     ) = fast_upper_envelope(
-        endog_grid, value, policy, num_iter=int(1.2 * value.shape[0]), jump_thresh=2
+        grid_augmented,
+        value_augmented,
+        policy_augmented,
+        expected_value_zero_savings,
+        num_iter=num_iter,
+        jump_thresh=jump_thresh,
     )
 
     return (
@@ -117,6 +128,7 @@ def fast_upper_envelope(
     endog_grid: jnp.ndarray,
     value: jnp.ndarray,
     policy: jnp.ndarray,
+    expected_value_zero_savings: float,
     num_iter: int,
     jump_thresh: Optional[float] = 2,
 ) -> Tuple[np.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
@@ -129,6 +141,8 @@ def fast_upper_envelope(
             of shape (n_grid_wealth + 1,).
         policy (np.ndarray): 1d array containing the unrefined policy correspondence
             of shape (n_grid_wealth + 1,).
+        expected_value_zero_savings (float): The agent's expected value given that she
+            saves zero.
         num_iter (int): Number of iterations to execute the fues. Recommended to use
             twenty percent more than the actual array size.
         jump_thresh (float): Jump detection threshold.
@@ -169,6 +183,7 @@ def fast_upper_envelope(
         endog_grid=endog_grid,
         value=value,
         policy=policy,
+        expected_value_zero_savings=expected_value_zero_savings,
         num_iter=num_iter,
         jump_thresh=jump_thresh,
         n_points_to_scan=10,
@@ -181,6 +196,7 @@ def scan_value_function(
     endog_grid: jnp.ndarray,
     value: jnp.ndarray,
     policy: jnp.ndarray,
+    expected_value_zero_savings,
     num_iter: int,
     jump_thresh: float,
     n_points_to_scan: Optional[int] = 0,
@@ -194,6 +210,8 @@ def scan_value_function(
             of shape (n_grid_wealth + 1,).
         policy (np.ndarray): 1d array containing the unrefined policy correspondence
             of shape (n_grid_wealth + 1,).
+        expected_value_zero_savings (float): The agent's expected value given that she
+            saves zero.
         num_iter (int): Number of iterations to execute the fues. Recommended to use
             twenty percent more than the actual array size.
         jump_thresh (float): Jump detection threshold.
@@ -207,23 +225,14 @@ def scan_value_function(
             the optimal points are kept.
 
     """
-    value_k_and_j = value[0], value[1]
-    endog_grid_k_and_j = endog_grid[0], endog_grid[1]
-    policy_k_and_j = policy[0], policy[1]
+    value_k_and_j = expected_value_zero_savings, value[0]
+    endog_grid_k_and_j = 0, endog_grid[0]
+    policy_k_and_j = 0, policy[0]
     vars_j_and_k_inital = (value_k_and_j, policy_k_and_j, endog_grid_k_and_j)
 
-    value_to_be_saved_next = value[0]
-    policy_left_to_be_saved_next = policy[0]
-    policy_right_to_be_saved_next = policy[0]
-    endog_grid_to_be_saved_next = endog_grid[0]
-    to_be_saved_inital = (
-        value_to_be_saved_next,
-        policy_left_to_be_saved_next,
-        policy_right_to_be_saved_next,
-        endog_grid_to_be_saved_next,
-    )
+    to_be_saved_inital = (expected_value_zero_savings, 0.0, 0.0, 0.0)
 
-    idx_to_inspect = 1
+    idx_to_inspect = 0
     last_point_was_intersect = 0
     idx_case_2 = 0
 
@@ -872,66 +881,3 @@ def _linear_intersection(
     y_intersection = slope1 * (x_intersection - x1) + y1
 
     return x_intersection, y_intersection
-
-
-def _augment_grids(
-    endog_grid: jnp.ndarray,
-    value: jnp.ndarray,
-    policy: jnp.ndarray,
-    choice: int,
-    expected_value_zero_savings: jnp.ndarray,
-    min_wealth_grid: float,
-    points_to_add: int,
-    compute_value: Callable,
-) -> Tuple[np.ndarray, jnp.ndarray, jnp.ndarray]:
-    """Extends the endogenous wealth grid, value, and policy functions to the left.
-
-    Args:
-        endog_grid (np.ndarray): 1d array containing the endogenous wealth grid of
-            shape (n_endog_wealth_grid,), where n_endog_wealth_grid is of variable
-            length depending on the number of kinks and non-concave regions in the
-            value function.
-        value (np.ndarray):  1d array storing the choice-specific
-            value function of shape (n_endog_wealth_grid,), where
-            n_endog_wealth_grid is of variable length depending on the number of
-            kinks and non-concave regions in the value function.
-            In the presence of kinks, the value function is a "correspondence"
-            rather than a function due to non-concavities.
-        policy (np.ndarray):  1d array storing the choice-specific
-            policy function of shape (n_endog_wealth_grid,), where
-            n_endog_wealth_grid is of variable length depending on the number of
-            discontinuities in the policy function.
-            In the presence of discontinuities, the policy function is a
-            "correspondence" rather than a function due to multiple local optima.
-        choice (int): The agent's choice.
-        expected_value_zero_savings (float): The agent's expected value given that she
-            saves zero.
-        min_wealth_grid (float): Minimal wealth level in the endogenous wealth grid.
-        points_to_add (int): Number of grid points to add. Roughly num_wealth / 10.
-        compute_value (callable): Function to compute the agent's value.
-
-    Returns:
-        tuple:
-
-        - grid_augmented (np.ndarray): 1d array containing the augmented
-            endogenous wealth grid with ancillary points added to the left.
-        - policy_augmented (np.ndarray): 1d array containing the augmented
-            policy function with ancillary points added to the left.
-        - value_augmented (np.ndarray): 1d array containing the augmented
-            value function with ancillary points added to the left.
-
-    """
-    grid_points_to_add = jnp.linspace(min_wealth_grid, endog_grid[0], points_to_add)[
-        :-1
-    ]
-
-    grid_augmented = jnp.append(grid_points_to_add, endog_grid)
-    values_to_add = compute_value(
-        grid_points_to_add,
-        expected_value_zero_savings,
-        choice,
-    )
-    value_augmented = jnp.append(values_to_add, value)
-    policy_augmented = jnp.append(grid_points_to_add, policy)
-
-    return grid_augmented, value_augmented, policy_augmented

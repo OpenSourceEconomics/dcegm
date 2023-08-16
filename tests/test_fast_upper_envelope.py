@@ -125,9 +125,10 @@ def test_fast_upper_envelope_against_org_fues(setup_model):
         policy_left_refined,
         policy_right_refined,
     ) = fast_upper_envelope(
-        endog_grid=policy_egm[0],
-        value=value_egm[1],
-        policy=policy_egm[1],
+        endog_grid=policy_egm[0, 1:],
+        value=value_egm[1, 1:],
+        policy=policy_egm[1, 1:],
+        expected_value_zero_savings=value_egm[1, 0],
         num_iter=int(1.2 * value_egm.shape[1]),
     )
 
