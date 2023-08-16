@@ -24,6 +24,7 @@ from jax import vmap
 def solve_dcegm(
     params: pd.DataFrame,
     options: Dict[str, int],
+    exog_savings_grid: jnp.ndarray,
     utility_functions: Dict[str, Callable],
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable],
@@ -35,6 +36,8 @@ def solve_dcegm(
     Args:
         params (pd.DataFrame): Params DataFrame.
         options (dict): Options dictionary.
+        exog_savings_grid (jnp.ndarray): 1d array of shape (n_grid_wealth,) containing
+            the user-supplied exogenous savings grid.
         utility_functions (Dict[str, callable]): Dictionary of three user-supplied
             functions for computation of:
             (i) utility
@@ -52,14 +55,15 @@ def solve_dcegm(
 
     """
     params_dict = convert_params_to_dict(params)
+
     taste_shock_scale = params_dict["lambda"]
     interest_rate = params_dict["interest_rate"]
     discount_factor = params_dict["beta"]
-    max_wealth = params_dict["max_wealth"]
 
     n_periods = options["n_periods"]
-    n_grid_wealth = options["grid_points_wealth"]
-    exogenous_savings_grid = jnp.linspace(0, max_wealth, n_grid_wealth)
+    # max_wealth = params_dict["max_wealth"]
+    # n_grid_wealth = options["grid_points_wealth"]
+    # exog_savings_grid = jnp.linspace(0, max_wealth, n_grid_wealth)
 
     # ToDo: Make interface with several draw possibilities.
     # ToDo: Some day make user supplied draw function.
@@ -114,7 +118,7 @@ def solve_dcegm(
         map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
         reshape_state_choice_vec_to_mat=reshape_state_choice_vec_to_mat,
         transform_between_state_and_state_choice_space=transform_between_state_and_state_choice_space,
-        exogenous_savings_grid=exogenous_savings_grid,
+        exogenous_savings_grid=exog_savings_grid,
         state_space=state_space,
         state_choice_space=state_choice_space,
         map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
@@ -319,7 +323,7 @@ def backwards_induction(
             policy_candidate,
             value_candidate,
             expected_values[:, 0],
-            state_choice_combs[:, -1],
+            state_choice_combs[:, -1],  # vmap over state-choice combinations
             compute_value,
         )
 
