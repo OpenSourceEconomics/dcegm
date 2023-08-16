@@ -1,6 +1,6 @@
 # DC-EGM
 
-[![Continuous Integration Workflow](https://github.com/segsell/dc-egm/actions/workflows/continuous-integration-workflow.yml/badge.svg)](https://github.com/segsell/dc-egm/actions/workflows/continuous-integration-workflow.yml)
+[![Continuous Integration Workflow](https://github.com/segsell/dc-egm/actions/workflows/main.yml/badge.svg)](https://github.com/segsell/dc-egm/actions/workflows/main.yml)
 [![Codecov](https://codecov.io/gh/segsell/dc-egm/branch/main/graph/badge.svg)](https://codecov.io/gh/segsell/dc-egm)
 [![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
