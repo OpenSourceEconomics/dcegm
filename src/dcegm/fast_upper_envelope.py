@@ -115,7 +115,6 @@ def fast_upper_envelope_wrapper(
         num_iter=num_iter,
         jump_thresh=jump_thresh,
     )
-
     return (
         endog_grid_refined,
         policy_left_refined,
@@ -427,7 +426,6 @@ def scan_body(
 
     in_case_134 = case_1 + case_3 + case_4
     in_case_256 = case_2 + case_5 + case_6
-
     in_case_123 = case_1 + case_2 + case_3
     in_case_1236 = case_1 + case_2 + case_3 + case_6
     in_case_45 = case_4 + case_5
@@ -653,7 +651,6 @@ def calc_intersection_and_extrapolate_policy(
     return intersect_grid, intersect_value, policy_left, policy_right
 
 
-# @njit
 def _forward_scan(
     value: jnp.ndarray,
     endog_grid: jnp.ndarray,
