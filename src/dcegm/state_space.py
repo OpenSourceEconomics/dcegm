@@ -280,7 +280,7 @@ def create_period_state_and_state_choice_objects(
     transform_between_state_and_state_choice_space,
     num_periods,
 ):
-    """Determine states and state choices per period and save as dictionaries.
+    """Create dictionary of state and state-choice objects for each period.
 
     Args:
         state_space (np.ndarray): 2d array of shape (n_states, n_state_variables)
