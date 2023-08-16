@@ -275,6 +275,25 @@ def create_current_state_and_state_choice_objects(
 def determine_states_and_state_choices_per_period(
     state_space, state_choice_space, num_periods
 ):
+    """Determine states and state choices per period and save as dictionaries.
+
+    Args:
+        state_space (np.ndarray): 2d array of shape (n_states, n_state_variables)
+            containing the state space.
+        state_choice_space (np.ndarray): 2d array of shape
+            (n_feasible_state_choice_combs, n_states + 1) containing the space of all
+            feasible state-choice combinations.
+        num_periods (int): Number of periods.
+
+    Returns:
+        tuple:
+
+        - state_choices_per_period (dict): Dictionary with period as key and
+            indexes of state choice combinations as values.
+        - states_per_period (dict): Dictionary with period as key and
+            indexes of states as values.
+
+    """
     states_per_period = {}
     state_choices_per_period = {}
     for period in range(num_periods):
