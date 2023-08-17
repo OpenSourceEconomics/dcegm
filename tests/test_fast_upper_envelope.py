@@ -30,19 +30,18 @@ def setup_model():
     n_grid_wealth = 500
     exog_savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
 
-    discount_factor = 0.95
     params_dict = {}
+    params_dict["beta"] = 0.95  # discount_factor
     params_dict["theta"] = 1.95
     params_dict["delta"] = 0.35
 
-    compute_utility = partial(utility_func_crra, params_dict=params_dict)
+    compute_utility = utility_func_crra
     compute_value = partial(
         calc_current_value,
-        discount_factor=discount_factor,
         compute_utility=compute_utility,
     )
 
-    return choice, exog_savings_grid, compute_value
+    return params_dict, choice, exog_savings_grid, compute_value
 
 
 @pytest.mark.parametrize("period", [2, 4, 9, 10, 18])
@@ -67,7 +66,7 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
         ~np.isnan(value_refined_fedor).any(axis=0),
     ]
 
-    choice, _exog_savings_grid, compute_value = setup_model
+    params_dict, choice, _exog_savings_grid, compute_value = setup_model
 
     (
         endog_grid_refined,
@@ -80,6 +79,7 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
         value=value_egm[1, 1:],
         expected_value_zero_savings=value_egm[1, 0],
         choice=choice,
+        params=params_dict,
         compute_value=compute_value,
     )
 

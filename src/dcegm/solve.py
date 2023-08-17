@@ -329,8 +329,8 @@ def backwards_induction(
             value_candidate,
             expected_values[:, 0],
             state_choice_combs[:, -1],  # vmap over state-choice combinations
-            compute_value,
             params,
+            compute_value,
         )
 
         # ToDo: reorder function arguments

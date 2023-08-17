@@ -74,7 +74,7 @@ def test_benchmark_models(
     load_example_model,
 ):
     params, options = load_example_model(f"{model}")
-    options["n_exog_processes"] = 1
+    options["n_exog_states"] = 1
 
     exog_savings_grid = jnp.linspace(0, options["max_wealth"], options["n_grid_points"])
 

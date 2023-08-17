@@ -127,8 +127,8 @@ def calc_current_value(
     consumption: np.ndarray,
     next_period_value: np.ndarray,
     choice: int,
-    compute_utility: Callable,
     params: Dict[str, float],
+    compute_utility: Callable,
 ) -> np.ndarray:
     """Compute the agent's current value.
 
