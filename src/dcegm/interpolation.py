@@ -192,8 +192,6 @@ def linear_interpolation_with_extrapolation_jax(x, y, x_new):
         y (np.ndarray): 1d array of shape (n,) containing the y-values
             corresponding to the x-values.
         x_new (float): The new x-value at which to evaluate the interpolation function.
-        ind_high (int): Index of the value in the wealth grid which is higher than
-            x_new. Or in case of extrapolation last or first index of not nan element.
 
     Returns:
         float: The new y-value corresponding to the new x-value.
@@ -245,15 +243,19 @@ def interpolate_policy_and_value_on_wealth_grid(
     policy_right_grid: jnp.ndarray,
     value_grid: jnp.ndarray,
 ):
-    """Interpolate policy and value functions on the wealth grid.
+    """Interpolate policy and value functions on the wealth grid. This function uses the
+    left and right policy function. For a more detailed description of the generation
+    see calc_intersection_and_extrapolate_policy in fast_upper_envelope.py.
 
     Args:
         begin_of_period_wealth (jnp.ndarray): 1d array of shape (n,) containing the
             begin of period wealth.
         endog_wealth_grid (jnp.array): 1d array of shape (n,) containing the endogenous
             wealth grid.
-        policy_grid (jnp.ndarray): 1d array of shape (n,) containing the policy function
-            values corresponding to the endogenous wealth grid.
+        policy_left_grid (jnp.ndarray): 1d array of shape (n,) containing the
+            left policy function corresponding to the endogenous wealth grid.
+        policy_right_grid (jnp.ndarray): 1d array of shape (n,) containing the
+            left policy function corresponding to the endogenous wealth grid.
         value_grid (jnp.ndarray): 1d array of shape (n,) containing the value function
             values corresponding to the endogenous wealth grid.
 
