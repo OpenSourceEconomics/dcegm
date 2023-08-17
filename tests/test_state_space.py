@@ -10,19 +10,19 @@ from toy_models.consumption_retirement_model.state_space_objects import (
 )
 
 
-def expected_state_space_and_indexer(n_periods, n_choices, n_exog_processes):
+def expected_state_space_and_indexer(n_periods, n_choices, n_exog_states):
     _periods = np.arange(n_periods)
     _choices = np.arange(n_choices)
-    _exog_process = np.arange(n_exog_processes)
+    _exog_process = np.arange(n_exog_states)
     state_space = np.column_stack(
         [
-            np.repeat(_periods, n_choices * n_exog_processes),
-            np.tile(np.repeat(_choices, n_exog_processes), n_periods),
+            np.repeat(_periods, n_choices * n_exog_states),
+            np.tile(np.repeat(_choices, n_exog_states), n_periods),
             np.tile(_exog_process, n_periods * n_choices),
         ]
     )
-    state_indexer = np.arange(n_periods * n_choices * n_exog_processes).reshape(
-        n_periods, n_choices, n_exog_processes
+    state_indexer = np.arange(n_periods * n_choices * n_exog_states).reshape(
+        n_periods, n_choices, n_exog_states
     )
 
     return state_space, state_indexer
@@ -36,18 +36,18 @@ lagged_choices = [0, 1]
 TEST_CASES = list(product(num_periods, num_choices, num_exog_processes))
 
 
-@pytest.mark.parametrize("n_periods, n_choices, n_exog_processes", TEST_CASES)
-def test_state_space(n_periods, n_choices, n_exog_processes):
+@pytest.mark.parametrize("n_periods, n_choices, n_exog_states", TEST_CASES)
+def test_state_space(n_periods, n_choices, n_exog_states):
     options = {
         "n_periods": n_periods,
         "n_discrete_choices": n_choices,
-        "n_exog_processes": n_exog_processes,
+        "n_exog_states": n_exog_states,
     }
 
     state_space, state_indexer = create_state_space(options)
 
     expected_state_space, expected_state_indexer = expected_state_space_and_indexer(
-        n_periods, n_choices, n_exog_processes
+        n_periods, n_choices, n_exog_states
     )
 
     np.allclose(state_space, expected_state_space)
@@ -58,16 +58,16 @@ TEST_CASES = list(product(lagged_choices, num_periods, num_choices, num_exog_pro
 
 
 @pytest.mark.parametrize(
-    "lagged_choice, n_periods, n_choices, n_exog_processes", TEST_CASES
+    "lagged_choice, n_periods, n_choices, n_exog_states", TEST_CASES
 )
-def test_state_choice_set(lagged_choice, n_periods, n_choices, n_exog_processes):
+def test_state_choice_set(lagged_choice, n_periods, n_choices, n_exog_states):
     state_space, state_indexer = expected_state_space_and_indexer(
-        n_periods, n_choices, n_exog_processes
+        n_periods, n_choices, n_exog_states
     )
 
     period = 0
-    exog_process = 0
-    state = np.array([period, lagged_choice, exog_process])
+    exog_state = 0
+    state = np.array([period, lagged_choice, exog_state])
     choice_set = get_state_specific_feasible_choice_set(
         state, state_space, state_indexer
     )

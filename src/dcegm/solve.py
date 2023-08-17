@@ -234,7 +234,7 @@ def backwards_induction(
     )(state_space, exog_savings_grid, income_shock_draws, params)
 
     (
-        state_choice_combs_final,
+        _idxs_state_choice_combs_final,
         state_choice_combs_final,
         endog_grid_final,
         reshape_current_state_choice_vec_to_mat,
