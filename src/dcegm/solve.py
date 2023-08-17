@@ -55,6 +55,9 @@ def solve_dcegm(
         transition_function (callable): User-supplied function returning for each
             state a transition matrix vector.
 
+    Returns:
+        None
+
     """
     params_dict = convert_params_to_dict(params)
 
@@ -112,22 +115,28 @@ def solve_dcegm(
         final_period_solution,
         compute_utility=compute_utility,
         compute_marginal_utility=compute_marginal_utility,
-        # params=params_dict,
         options=options,
+    )
+
+    period_specific_state_objects = create_period_state_and_state_choice_objects(
+        state_space=state_space,
+        state_choice_space=state_choice_space,
+        map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
+        reshape_state_choice_vec_to_mat=reshape_state_choice_vec_to_mat,
+        transform_between_state_and_state_choice_space=transform_between_state_and_state_choice_space,
+        num_periods=n_periods,
     )
 
     backwards_induction(
         params=params_dict,
         period_specific_state_objects=period_specific_state_objects,
-        exog_savings_grid=exogenous_savings_grid,
+        exog_savings_grid=exog_savings_grid,
         state_space=state_space,
         map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
         income_shock_draws=income_shock_draws,
         income_shock_weights=income_shock_weights,
         n_periods=n_periods,
         taste_shock_scale=taste_shock_scale,
-        # discount_factor=discount_factor,
-        # interest_rate=interest_rate,
         compute_marginal_utility=compute_marginal_utility,
         compute_inverse_marginal_utility=compute_inverse_marginal_utility,
         compute_value=compute_value,
@@ -148,8 +157,6 @@ def backwards_induction(
     income_shock_weights: np.ndarray,
     n_periods: int,
     taste_shock_scale: float,
-    # discount_factor: float,
-    # interest_rate: float,
     compute_marginal_utility: Callable,
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
@@ -190,8 +197,6 @@ def backwards_induction(
             (n_stochastic_quad_points) with weights for each stoachstic shock draw.
         n_periods (int): Number of periods.
         taste_shock_scale (float): The taste shock scale.
-        discount_factor (float): The discount factor.
-        interest_rate (float): The interest rate of capital.
         compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility. The input ```params``` is already partialled
             in.
@@ -216,6 +221,7 @@ def backwards_induction(
             period.
 
     Returns:
+        None
 
     """
 
@@ -230,14 +236,15 @@ def backwards_induction(
     )(state_space, exog_savings_grid, income_shock_draws, params)
 
     state_objects_last_period = period_specific_state_objects[n_periods - 1]
-    resources_last_period = resources_beginning_of_period[
+    resources_last_period = begin_of_period_resources[
         state_objects_last_period["idx_state_of_state_choice"]
     ]
 
     marg_util_interpolated, value_interpolated, policy_final = solve_final_period(
-        final_period_choice_states=state_objects_last_period["state_choices"],
+        state_choice_mat=state_objects_last_period["state_choices"],
+        resources=resources_last_period,
         final_period_solution_partial=final_period_solution_partial,
-        resources_last_period=resources_last_period,
+        params=params,
     )
 
     # Choose which draw we take for policy and value function as those are note
@@ -294,17 +301,17 @@ def backwards_induction(
             value_state_choice,
         ) = vmap(
             compute_upper_envelope,
-            in_axes=(0, 0, 0, 0, 0, None, None),
+            in_axes=(0, 0, 0, 0, 0, None, None),  # vmap over state-choice combs
         )(
             endog_grid_candidate,
             policy_candidate,
             value_candidate,
             expected_values[:, 0],
-            state_objects_period["state_choices"][:, -1], # vmap over state-choice combs
+            state_objects_period["state_choices"][:, -1],
             params,
             compute_value,
         )
-        resources_period = resources_beginning_of_period[
+        resources_period = begin_of_period_resources[
             state_objects_period["idx_state_of_state_choice"]
         ]
 

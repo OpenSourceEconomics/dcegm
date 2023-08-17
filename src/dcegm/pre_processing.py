@@ -82,30 +82,22 @@ def get_partial_functions(
 
     """
     compute_utility = user_utility_functions["utility"]
-    # params_dict=params_dict,
-
     compute_marginal_utility = user_utility_functions["marginal_utility"]
-    # params_dict=params_dict,
-
     compute_inverse_marginal_utility = user_utility_functions[
         "inverse_marginal_utility"
     ]
-    # params_dict=params_dict,
 
     compute_value = partial(
         calc_current_value,
-        # discount_factor=params_dict["beta"],
         compute_utility=compute_utility,
     )
 
     compute_next_period_wealth = partial(
         user_budget_constraint,
-        # params_dict=params_dict,
         options=options,
     )
 
     transition_function = exogenous_transition_function
-    # params_dict=params_dict
 
     if options["n_discrete_choices"] == 1:
         compute_upper_envelope = _return_policy_and_value

@@ -65,6 +65,6 @@ def test_get_next_period_wealth_matrices(
         options=options,
     )
 
-    expected_budget = (1 + r) * savings_grid[random_saving_ind] + _income
+    budget_expected = (1 + r) * savings_grid[random_saving_ind] + _income
 
-    aaae(wealth_next_period, max(consump_floor, expected_budget))
+    aaae(wealth_next_period, max(consump_floor, budget_expected))
