@@ -15,9 +15,6 @@ from dcegm.marg_utilities_and_exp_value import (
 )
 from dcegm.pre_processing import convert_params_to_dict
 from dcegm.pre_processing import get_partial_functions
-from dcegm.state_space import (
-    create_period_state_and_state_choice_objects,
-)
 from dcegm.state_space import create_state_choice_space
 from dcegm.state_space import get_map_from_state_to_child_nodes
 from jax import vmap
@@ -221,7 +218,7 @@ def backwards_induction(
 
     # Calculate beginning of period resources for all periods, given exogenous savings
     # and income shocks from last period
-    begin_of_period_resources = vmap(
+    vmap(
         vmap(
             vmap(compute_next_period_wealth, in_axes=(None, None, 0, None)),
             in_axes=(None, 0, None, None),
@@ -300,7 +297,9 @@ def backwards_induction(
             policy_candidate,
             value_candidate,
             expected_values[:, 0],
-            state_objects_period["state_choices"][:, -1], # vmap over state-choice combs
+            state_objects_period["state_choices"][
+                :, -1
+            ],  # vmap over state-choice combs
             params,
             compute_value,
         )
