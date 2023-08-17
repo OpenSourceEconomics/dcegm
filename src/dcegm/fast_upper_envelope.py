@@ -7,6 +7,7 @@ https://dx.doi.org/10.2139/ssrn.4181302
 """
 from functools import partial
 from typing import Callable
+from typing import Dict
 from typing import Optional
 from typing import Tuple
 
@@ -22,6 +23,7 @@ def fast_upper_envelope_wrapper(
     value: jnp.ndarray,
     expected_value_zero_savings: float,
     choice: int,
+    params: Dict[str, float],
     compute_value: Callable,
 ) -> Tuple[np.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Drop suboptimal points and refine the endogenous grid, policy, and value.
@@ -58,6 +60,7 @@ def fast_upper_envelope_wrapper(
             saves zero.
         choice (int): The current choice.
         compute_value (callable): Function to compute the agent's value.
+        params (dict): Dictionary containing the model parameters.
 
     Returns:
         tuple:
@@ -91,8 +94,9 @@ def fast_upper_envelope_wrapper(
 
     values_to_add = compute_value(
         grid_points_to_add,
-        expected_value_zero_savings,
+        next_period_value=expected_value_zero_savings,
         choice=choice,
+        params=params,
     )
 
     grid_augmented = jnp.append(grid_points_to_add, endog_grid)

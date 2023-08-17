@@ -188,7 +188,7 @@ def create_period_state_and_state_choice_objects(
     map_state_choice_vec_to_parent_state,
     reshape_state_choice_vec_to_mat,
     transform_between_state_and_state_choice_space,
-    num_periods,
+    n_periods,
 ):
     """Create dictionary of state and state-choice objects for each period.
 
@@ -213,21 +213,22 @@ def create_period_state_and_state_choice_objects(
             (i) contract state-choice level arrays to the state level by summing
                 over state-choice combinations.
             (ii) to expand state level arrays to the state-choice level.
-        num_periods (int): Number of periods.
+        n_periods (int): Number of periods.
 
     Returns:
-        - dict of jnp.ndarray: Dictionary containing per period state and state_choice
-            specific objects.
+        dict of jnp.ndarray: Dictionary containing period-specific state and
+            state-choice objects.
 
     """
     out = {}
-    for period in range(num_periods):
+
+    for period in range(n_periods):
         period_dict = {}
         idxs_states = jnp.where(state_space[:, 0] == period)[0]
 
         idxs_state_choices = jnp.where(state_choice_space[:, 0] == period)[0]
         period_dict["idxs_state_choices"] = idxs_state_choices
-        period_dict["state_choices"] = jnp.take(
+        period_dict["state_choice_mat"] = jnp.take(
             state_choice_space, idxs_state_choices, axis=0
         )
 

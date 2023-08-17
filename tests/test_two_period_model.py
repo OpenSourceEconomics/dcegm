@@ -152,7 +152,6 @@ def input_data():
     params = pd.DataFrame(data=[0.5, 0.5], columns=["value"], index=index)
     params.loc[("assets", "interest_rate"), "value"] = 0.02
     params.loc[("assets", "ltc_cost"), "value"] = 5
-    params.loc[("assets", "max_wealth"), "value"] = 50
     params.loc[("wage", "wage_avg"), "value"] = 8
     params.loc[("shocks", "sigma"), "value"] = 1
     params.loc[("shocks", "lambda"), "value"] = 1
@@ -161,9 +160,10 @@ def input_data():
     options = {
         "n_periods": 2,
         "n_discrete_choices": 2,
-        "grid_points_wealth": WEALTH_GRID_POINTS,
+        "n_grid_points": WEALTH_GRID_POINTS,
+        "max_wealth": 50,
         "quadrature_points_stochastic": 5,
-        "n_exog_processes": 2,
+        "n_exog_states": 2,
     }
     state_space_functions = {
         "create_state_space": create_state_space,
@@ -175,10 +175,13 @@ def input_data():
         "marginal_utility": marginal_utility,
     }
 
+    exog_savings_grid = np.linspace(0, options["max_wealth"], options["n_grid_points"])
+
     solve_dcegm(
         params,
         options,
-        utility_functions,
+        exog_savings_grid=exog_savings_grid,
+        utility_functions=utility_functions,
         budget_constraint=budget_dcegm,
         final_period_solution=solve_final_period_scalar,
         state_space_functions=state_space_functions,

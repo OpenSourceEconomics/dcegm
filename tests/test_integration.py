@@ -60,22 +60,23 @@ def state_space_functions():
 
 
 @pytest.mark.parametrize(
-    "model, choice_range",
+    "model",
     [
-        ("retirement_no_taste_shocks", [0, 1]),
-        ("retirement_taste_shocks", [0, 1]),
-        ("deaton", [0]),
+        "retirement_no_taste_shocks",
+        "retirement_taste_shocks",
+        "deaton",
     ],
 )
 def test_benchmark_models(
     model,
-    choice_range,
     utility_functions,
     state_space_functions,
     load_example_model,
 ):
     params, options = load_example_model(f"{model}")
-    options["n_exog_processes"] = 1
+    options["n_exog_states"] = 1
+
+    exog_savings_grid = jnp.linspace(0, options["max_wealth"], options["n_grid_points"])
 
     state_space, map_state_to_index = create_state_space(options)
     state_choice_space, *_ = create_state_choice_space(
@@ -90,7 +91,8 @@ def test_benchmark_models(
     solve_dcegm(
         params,
         options,
-        utility_functions,
+        exog_savings_grid=exog_savings_grid,
+        utility_functions=utility_functions,
         budget_constraint=budget_constraint,
         final_period_solution=solve_final_period_scalar,
         state_space_functions=state_space_functions,
