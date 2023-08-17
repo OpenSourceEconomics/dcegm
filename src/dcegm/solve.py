@@ -62,8 +62,6 @@ def get_solve_function(
     params_dict = convert_params_to_dict(params)
 
     taste_shock_scale = params_dict["lambda"]
-    params_dict["interest_rate"]
-    params_dict["beta"]
 
     n_periods = options["n_periods"]
     # max_wealth = params_dict["max_wealth"]
