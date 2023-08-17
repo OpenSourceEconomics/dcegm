@@ -32,7 +32,6 @@ from toy_models.consumption_retirement_model.utility_functions import (
 )
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
 
-
 # Obtain the test directory of the package.
 TEST_DIR = Path(__file__).parent
 

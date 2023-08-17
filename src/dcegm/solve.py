@@ -59,9 +59,6 @@ def get_solve_function(
         None
 
     """
-    params_dict = convert_params_to_dict(params)
-
-    taste_shock_scale = params_dict["lambda"]
 
     n_periods = options["n_periods"]
     # max_wealth = params_dict["max_wealth"]
@@ -70,8 +67,8 @@ def get_solve_function(
 
     # ToDo: Make interface with several draw possibilities.
     # ToDo: Some day make user supplied draw function.
-    income_shock_draws, income_shock_weights = quadrature_legendre(
-        options["quadrature_points_stochastic"], params_dict["sigma"]
+    income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
+        options["quadrature_points_stochastic"]
     )
 
     (
@@ -83,7 +80,6 @@ def get_solve_function(
         compute_upper_envelope,
         transition_vector_by_state,
     ) = get_partial_functions(
-        params_dict,
         options,
         user_utility_functions=utility_functions,
         user_budget_constraint=budget_constraint,
@@ -130,10 +126,9 @@ def get_solve_function(
         exog_savings_grid=exog_savings_grid,
         state_space=state_space,
         map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
-        income_shock_draws=income_shock_draws,
+        income_shock_draws_unscaled=income_shock_draws_unscaled,
         income_shock_weights=income_shock_weights,
         n_periods=n_periods,
-        taste_shock_scale=taste_shock_scale,
         compute_marginal_utility=compute_marginal_utility,
         compute_inverse_marginal_utility=compute_inverse_marginal_utility,
         compute_value=compute_value,
@@ -208,10 +203,9 @@ def backwards_induction(
     exog_savings_grid: np.ndarray,
     state_space: np.ndarray,
     map_state_to_post_decision_child_nodes: np.ndarray,
-    income_shock_draws: np.ndarray,
+    income_shock_draws_unscaled: np.ndarray,
     income_shock_weights: np.ndarray,
     n_periods: int,
-    taste_shock_scale: float,
     compute_marginal_utility: Callable,
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
@@ -281,6 +275,8 @@ def backwards_induction(
         None
 
     """
+    taste_shock_scale = params["lambda"]
+    income_shock_draws = income_shock_draws_unscaled * params["sigma"]
 
     # Calculate beginning of period resources for all periods, given exogenous savings
     # and income shocks from last period
