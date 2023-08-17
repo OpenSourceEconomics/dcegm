@@ -124,7 +124,7 @@ def solve_dcegm(
         map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
         reshape_state_choice_vec_to_mat=reshape_state_choice_vec_to_mat,
         transform_between_state_and_state_choice_space=transform_between_state_and_state_choice_space,
-        num_periods=n_periods,
+        n_periods=n_periods,
     )
 
     backwards_induction(
@@ -149,7 +149,7 @@ def solve_dcegm(
 
 def backwards_induction(
     params: Dict[str, float],
-    period_specific_state_objects: dict,
+    period_specific_state_objects: Dict[int, jnp.ndarray],
     exog_savings_grid: np.ndarray,
     state_space: np.ndarray,
     map_state_to_post_decision_child_nodes: np.ndarray,
@@ -168,7 +168,9 @@ def backwards_induction(
     """Do backwards induction and solve for optimal policy and value function.
 
     Args:
-        params_dict (dict): Dictionary of parameters.
+        params (dict): Dictionary containing the model parameters.
+        period_specififc_state_objects (dict): Dictionary containing period-specific
+            state and state-choice objects.
         exogenous_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
             containing the exogenous savings grid.
         state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
@@ -235,13 +237,13 @@ def backwards_induction(
         in_axes=(0, None, None, None),
     )(state_space, exog_savings_grid, income_shock_draws, params)
 
-    state_objects_last_period = period_specific_state_objects[n_periods - 1]
+    state_objects = period_specific_state_objects[n_periods - 1]
     resources_last_period = begin_of_period_resources[
-        state_objects_last_period["idx_state_of_state_choice"]
+        state_objects["idx_state_of_state_choice"]
     ]
 
     marg_util_interpolated, value_interpolated, policy_final = solve_final_period(
-        state_choice_mat=state_objects_last_period["state_choices"],
+        state_choice_mat=state_objects["state_choice_mat"],
         resources=resources_last_period,
         final_period_solution_partial=final_period_solution_partial,
         params=params,
@@ -258,17 +260,17 @@ def backwards_induction(
     jnp.save(f"value_{n_periods - 1}.npy", value_interpolated[:, :, middle_of_draws])
 
     for period in range(n_periods - 2, -1, -1):
-        state_objects_period = period_specific_state_objects[period]
+        state_objects = period_specific_state_objects[period]
 
         # Aggregate the marginal utilities and expected values over all choices and
         # income shock draws
         marg_util, emax = aggregate_marg_utils_exp_values(
             value_state_choice_specific=value_interpolated,
             marg_util_state_choice_specific=marg_util_interpolated,
-            reshape_state_choice_vec_to_mat=state_objects_period[
+            reshape_state_choice_vec_to_mat=state_objects[
                 "reshape_state_choice_vec_to_mat"
             ],
-            transform_between_state_and_state_choice_vec=state_objects_period[
+            transform_between_state_and_state_choice_vec=state_objects[
                 "transform_between_state_and_state_choice_vec"
             ],
             taste_shock_scale=taste_shock_scale,
@@ -283,11 +285,11 @@ def backwards_induction(
         ) = calculate_candidate_solutions_from_euler_equation(
             marg_util=marg_util,
             emax=emax,
-            idx_state_choices_period=state_objects_period["idxs_state_choices"],
+            idx_state_choices_period=state_objects["idxs_state_choices"],
             map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
             exogenous_savings_grid=exog_savings_grid,
             transition_vector_by_state=transition_vector_by_state,
-            state_choice_mat=state_objects_period["state_choices"],
+            state_choice_mat=state_objects["state_choice_mat"],
             compute_inverse_marginal_utility=compute_inverse_marginal_utility,
             compute_value=compute_value,
             params=params,
@@ -307,12 +309,12 @@ def backwards_induction(
             policy_candidate,
             value_candidate,
             expected_values[:, 0],
-            state_objects_period["state_choices"][:, -1],
+            state_objects["state_choice_mat"][:, -1],
             params,
             compute_value,
         )
         resources_period = begin_of_period_resources[
-            state_objects_period["idx_state_of_state_choice"]
+            state_objects["idx_state_of_state_choice"]
         ]
 
         # ToDo: reorder function arguments
@@ -322,7 +324,7 @@ def backwards_induction(
         )(
             compute_marginal_utility,
             compute_value,
-            state_objects_period["state_choices"][:, -1],
+            state_objects["state_choice_mat"][:, -1],
             resources_period,
             endog_grid_state_choice,
             policy_left_state_choice,
