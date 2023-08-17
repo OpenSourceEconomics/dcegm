@@ -33,7 +33,7 @@ def budget_constraint(
     income_from_last_period = _calc_stochastic_income(
         state,
         wage_shock=income_shock,
-        params_dict=params,
+        params=params,
         options=options,
     )
 

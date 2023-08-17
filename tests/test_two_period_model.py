@@ -163,7 +163,7 @@ def input_data():
         "n_grid_points": WEALTH_GRID_POINTS,
         "max_wealth": 50,
         "quadrature_points_stochastic": 5,
-        "n_exog_processes": 2,
+        "n_exog_states": 2,
     }
     state_space_functions = {
         "create_state_space": create_state_space,

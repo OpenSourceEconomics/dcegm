@@ -61,7 +61,7 @@ def test_get_next_period_wealth_matrices(
     _income = _calc_stochastic_income(
         child_state,
         wage_shock=quad_points[random_shock_ind],
-        params_dict=params_dict,
+        params=params_dict,
         options=options,
     )
 

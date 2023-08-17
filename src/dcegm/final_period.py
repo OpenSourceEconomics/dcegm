@@ -42,20 +42,16 @@ def solve_final_period(
 
     # Compute for each wealth grid point the optimal policy and value function as well
     # as the marginal utility of consumption for all choices.
-    final_policy, final_value, marginal_utilities_choices = vmap(
+    marginal_utilities_choices, final_value, final_policy = vmap(
         vmap(
             vmap(
                 final_period_solution_partial,
-                in_axes=(None, None, 0),
+                in_axes=(None, None, 0, None),
             ),
-            in_axes=(None, None, 0),
+            in_axes=(None, None, 0, None),
         ),
-        in_axes=(0, 0, 0),
-    )(
-        state_choice_mat[:, :-1],
-        state_choice_mat[:, -1],
-        resources,
-    )
+        in_axes=(0, 0, 0, None),
+    )(state_choice_mat[:, :-1], state_choice_mat[:, -1], resources, params)
 
     return (
         marginal_utilities_choices,

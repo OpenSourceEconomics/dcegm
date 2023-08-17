@@ -31,9 +31,9 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
     """
     n_periods = options["n_periods"]
     n_choices = options["n_discrete_choices"]  # lagged_choice is a state variable
-    n_exog_process = options["n_exog_processes"]
+    n_exog_states = options["n_exog_states"]
 
-    shape = (n_periods, n_choices, n_exog_process)
+    shape = (n_periods, n_choices, n_exog_states)
 
     map_state_to_index = np.full(shape, -9999, dtype=np.int64)
     _state_space = []
@@ -41,7 +41,7 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
     i = 0
     for period in range(n_periods):
         for choice in range(n_choices):
-            for exog_process in range(n_exog_process):
+            for exog_process in range(n_exog_states):
                 map_state_to_index[period, choice, exog_process] = i
 
                 row = [period, choice, exog_process]

@@ -40,9 +40,9 @@ def test_consume_everything_in_final_period(
 ):
     params, options = load_example_model(f"{model}")
     params_dict = convert_params_to_dict(params)
-    options["n_exog_processes"] = 1
-    n_periods = options["n_periods"]
+    options["n_exog_states"] = 1
     options["n_discrete_choices"]
+    n_periods = options["n_periods"]
 
     # Avoid small values. This test is just numeric if our solve
     # final period is doing the right thing!
@@ -91,11 +91,11 @@ def test_consume_everything_in_final_period(
 
     resources_beginning_of_period = vmap(
         vmap(
-            vmap(compute_next_period_wealth, in_axes=(None, None, 0)),
-            in_axes=(None, 0, None),
+            vmap(compute_next_period_wealth, in_axes=(None, None, 0, None)),
+            in_axes=(None, 0, None, None),
         ),
-        in_axes=(0, None, None),
-    )(state_space, savings_grid, income_draws)
+        in_axes=(0, None, None, None),
+    )(state_space, savings_grid, income_draws, params_dict)
 
     (
         transform_between_state_and_state_choice_space[idx_states_final_period, :][
@@ -110,23 +110,23 @@ def test_consume_everything_in_final_period(
     final_period_solution_partial = partial(
         solve_final_period_scalar,
         options=options,
-        params_dict={},
         compute_utility=compute_utility,
         compute_marginal_utility=compute_marginal_utility,
     )
 
-    value_final, policy_final, _ = solve_final_period(
+    _, value_final, policy_final = solve_final_period(
         state_choice_mat=final_period_state_choice_combs,
-        final_period_solution_partial=final_period_solution_partial,
         resources=resources_last_period,
+        final_period_solution_partial=final_period_solution_partial,
+        params=params_dict,
     )
 
     for state_choice_idx, state_choice in enumerate(final_period_state_choice_combs):
         state = state_choice[:-1]
         choice = state_choice[-1]
         begin_of_period_resources = vmap(
-            compute_next_period_wealth, in_axes=(None, 0, None)
-        )(state, savings_grid, 0.00)
+            compute_next_period_wealth, in_axes=(None, 0, None, None)
+        )(state, savings_grid, 0.0, params_dict)
 
         aaae(
             resources_last_period[state_choice_idx, :, 1],
@@ -138,8 +138,8 @@ def test_consume_everything_in_final_period(
             begin_of_period_resources,
         )
 
-        expected_value = vmap(compute_utility, in_axes=(0, None))(
-            begin_of_period_resources, choice
+        expected_value = vmap(compute_utility, in_axes=(0, None, None))(
+            begin_of_period_resources, choice, params_dict
         )
         aaae(
             value_final[state_choice_idx, :, 1],

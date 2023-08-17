@@ -10,10 +10,10 @@ def solve_final_period_scalar(
     state_vec: np.ndarray,  # noqa: U100
     choice: int,
     begin_of_period_resources: float,
-    compute_utility: Callable,
-    compute_marginal_utility: Callable,
     params: Dict[str, float],
     options: Dict[str, int],  # noqa: U100
+    compute_utility: Callable,
+    compute_marginal_utility: Callable,
 ) -> Tuple[float, float]:
     """Compute optimal consumption policy and value function in the final period.
 

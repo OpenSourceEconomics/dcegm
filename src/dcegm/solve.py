@@ -110,7 +110,7 @@ def solve_dcegm(
         final_period_solution,
         compute_utility=compute_utility,
         compute_marginal_utility=compute_marginal_utility,
-        params=params_dict,
+        # params=params_dict,
         options=options,
     )
 
@@ -249,11 +249,7 @@ def backwards_induction(
         transform_between_state_and_state_choice_space=transform_between_state_and_state_choice_space,
     )
 
-    (
-        marg_util_interpolated,
-        value_interpolated,
-        policy_final,
-    ) = solve_final_period(
+    marg_util_interpolated, value_interpolated, policy_final = solve_final_period(
         state_choice_mat=state_choice_combs_final,
         resources=endog_grid_final,
         final_period_solution_partial=final_period_solution_partial,
