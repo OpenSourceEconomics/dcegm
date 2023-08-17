@@ -24,7 +24,6 @@ from jax import vmap
 
 
 def get_solve_function(
-    params: pd.DataFrame,
     options: Dict[str, int],
     exog_savings_grid: jnp.ndarray,
     utility_functions: Dict[str, Callable],
@@ -36,7 +35,6 @@ def get_solve_function(
     """Create a solve function, which only takes params as input.
 
     Args:
-        params (pd.DataFrame): Params DataFrame.
         options (dict): Options dictionary.
         exog_savings_grid (jnp.ndarray): 1d array of shape (n_grid_wealth,) containing
             the user-supplied exogenous savings grid.
@@ -182,7 +180,6 @@ def solve_dcegm(
 
     """
     backwards_jit = get_solve_function(
-        params=params,
         options=options,
         exog_savings_grid=exog_savings_grid,
         utility_functions=utility_functions,
