@@ -23,7 +23,7 @@ from dcegm.state_space import get_map_from_state_to_child_nodes
 from jax import vmap
 
 
-def solve_dcegm(
+def get_solve_function(
     params: pd.DataFrame,
     options: Dict[str, int],
     exog_savings_grid: jnp.ndarray,
@@ -32,8 +32,8 @@ def solve_dcegm(
     state_space_functions: Dict[str, Callable],
     final_period_solution: Callable,
     transition_function: Callable,
-) -> None:
-    """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
+) -> Callable:
+    """Create a solve function, which only takes params as input.
 
     Args:
         params (pd.DataFrame): Params DataFrame.
@@ -126,9 +126,8 @@ def solve_dcegm(
         transform_between_state_and_state_choice_space=transform_between_state_and_state_choice_space,
         n_periods=n_periods,
     )
-
-    backwards_induction(
-        params=params_dict,
+    backwards_jit = partial(
+        backwards_induction,
         period_specific_state_objects=period_specific_state_objects,
         exog_savings_grid=exog_savings_grid,
         state_space=state_space,
@@ -144,6 +143,64 @@ def solve_dcegm(
         transition_vector_by_state=transition_vector_by_state,
         compute_upper_envelope=compute_upper_envelope,
         final_period_solution_partial=final_period_solution_partial,
+    )
+
+    def solve_func(params):
+        params_dict_int = convert_params_to_dict(params)
+        return backwards_jit(params=params_dict_int)
+
+    return solve_func
+
+
+def solve_dcegm(
+    params: pd.DataFrame,
+    options: Dict[str, int],
+    exog_savings_grid: jnp.ndarray,
+    utility_functions: Dict[str, Callable],
+    budget_constraint: Callable,
+    state_space_functions: Dict[str, Callable],
+    final_period_solution: Callable,
+    transition_function: Callable,
+) -> None:
+    """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
+
+    Args:
+        params (pd.DataFrame): Params DataFrame.
+        options (dict): Options dictionary.
+        exog_savings_grid (jnp.ndarray): 1d array of shape (n_grid_wealth,) containing
+            the user-supplied exogenous savings grid.
+        utility_functions (Dict[str, callable]): Dictionary of three user-supplied
+            functions for computation of:
+            (i) utility
+            (ii) inverse marginal utility
+            (iii) next period marginal utility
+        budget_constraint (callable): Callable budget constraint.
+        state_space_functions (Dict[str, callable]): Dictionary of two user-supplied
+            functions to:
+            (i) create the state space
+            (ii) get the state specific choice set
+        final_period_solution (callable): User-supplied function for solving the agent's
+            last period.
+        transition_function (callable): User-supplied function returning for each
+            state a transition matrix vector.
+
+    Returns:
+        None
+
+    """
+    backwards_jit = get_solve_function(
+        params=params,
+        options=options,
+        exog_savings_grid=exog_savings_grid,
+        utility_functions=utility_functions,
+        budget_constraint=budget_constraint,
+        state_space_functions=state_space_functions,
+        final_period_solution=final_period_solution,
+        transition_function=transition_function,
+    )
+
+    backwards_jit(
+        params=params,
     )
 
 
