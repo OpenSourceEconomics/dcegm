@@ -5,6 +5,7 @@ https://github.com/fediskhakov/dcegm/blob/master/model_retirement.m
 
 """
 from typing import Callable
+from typing import Dict
 from typing import List
 from typing import Tuple
 
@@ -21,6 +22,7 @@ def upper_envelope(
     value: np.ndarray,
     exog_grid: np.ndarray,
     choice: int,
+    params: Dict[str, float],
     compute_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Runs the Upper Envelope algorithm and drops sub-optimal points.
@@ -58,7 +60,9 @@ def upper_envelope(
         exog_grid (np.ndarray): 1d array of exogenous savings grid of shape
             (n_grid_wealth,).
         choice (int): The current choice.
+        params (dict): Dictionary containing the model's parameters.
         compute_value (callable): Function to compute the agent's value.
+
     Returns:
         (tuple) Tuple containing
         - policy_refined (np.ndarray): Worker's *refined* (consumption) policy
@@ -69,6 +73,7 @@ def upper_envelope(
             current period, where suboptimal points have been dropped and the kink
             points along with the corresponding interpolated values of the value
             function have been added. Shape (2, 1.1 * n_grid_wealth).
+
     """
     n_grid_wealth = len(exog_grid)
     min_wealth_grid = np.min(value[0, 1:])
@@ -93,6 +98,7 @@ def upper_envelope(
             expected_value_zero_wealth,
             min_wealth_grid,
             n_grid_wealth,
+            params,
             compute_value,
         )
         segments_non_mono = locate_non_concave_regions(value)
@@ -163,6 +169,7 @@ def locate_non_concave_regions(
         - index_dominated_points (np.ndarray): Array of shape (*n_dominated_points*,)
             containing the indices of dominated points in the endogenous wealth grid,
             where *n_dominated_points* is of variable length.
+
     """
     segments_non_mono = []
 
@@ -215,6 +222,7 @@ def compute_upper_envelope(
             given non-monotonous segment.
     Returns:
         (tuple) Tuple containing:
+
         - points_upper_env_refined (np.ndarray): Array containing the *refined*
             endogenous wealth grid and the corresponding value function.
             *refined* means suboptimal points have been dropped and the kink points
@@ -228,6 +236,7 @@ def compute_upper_envelope(
             Shape (2, *n_intersect_points*), where *n_intersect_points* is the number of
             intersection points between the two uppermost segments
             (i.e. ``first_segment`` and ``second_segment``).
+
     """
     endog_wealth_grid = np.unique(
         np.concatenate([segments[arr][0] for arr in range(len(segments))])
@@ -380,6 +389,7 @@ def find_dominated_points(
             the refined endogenous grid.
         significance (float): Level of significance. Equality is measured up to
             10**(-``significance``).
+
     Returns:
         index_dominated_points (np.ndarray): Array of shape (n_dominated_points,)
             containing the indices of dominated points in the endogenous wealth grid,
@@ -417,6 +427,7 @@ def refine_policy(
         index_dominated_points (np.ndarray): Array of shape (*n_dominated_points*,)
             containing the indices of dominated points in the endogenous wealth grid,
             where *n_dominated_points* is of variable length.
+
     Returns:
         (np.ndarray): Array of shape (2, *n_grid_refined*)
             containing the *refined* choice-specific policy function, which means that
@@ -524,6 +535,7 @@ def _augment_grid(
     expected_value_zero_wealth: np.ndarray,
     min_wealth_grid: float,
     n_grid_wealth: int,
+    params,
     compute_value: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Extends the endogenous wealth grid, value, and policy function to the left.
@@ -545,7 +557,9 @@ def _augment_grid(
             has a wealth of zero.
         min_wealth_grid (float): Minimal wealth level in the endogenous wealth grid.
         n_grid_wealth (int): Number of grid points in the exogenous wealth grid.
+        params (dict): Dictionary containing the model's parameters.
         compute_value (callable): Function to compute the agent's value.
+
     Returns:
         policy_augmented (np.ndarray): Array containing endogenous grid and
             policy function with ancillary points added to the left.
@@ -559,9 +573,7 @@ def _augment_grid(
         :-1
     ]
     values_to_add = compute_value(
-        grid_points_to_add,
-        expected_value_zero_wealth,
-        choice,
+        grid_points_to_add, expected_value_zero_wealth, choice, params
     )
 
     value_augmented = np.vstack(
@@ -596,6 +608,7 @@ def _partition_grid(
             rather than a function due to non-concavities.
         j (int): Index denoting the location where the endogenous wealth grid is
             separated.
+
     Returns:
         part_one (np.ndarray): Array of shape (2, : ``j`` + 1) containing the first
             partition.

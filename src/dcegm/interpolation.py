@@ -1,4 +1,5 @@
 from typing import Callable
+from typing import Dict
 
 import jax.numpy as jnp
 import numpy as np
@@ -14,6 +15,7 @@ def interpolate_and_calc_marginal_utilities(
     policy_left_child_state_choice: jnp.ndarray,
     policy_right_child_state_choice: jnp.ndarray,
     value_child_state_choice: jnp.ndarray,
+    params: Dict[str, float],
 ):
     """Interpolate marginal utilities.
 
@@ -34,6 +36,7 @@ def interpolate_and_calc_marginal_utilities(
         choice_values_child_state_choice (jnp.ndarray): 1d array containing the
             corresponding value function values of the endogenous wealth grid of the
             child state/choice pair. Shape (n_grid_wealth,).
+        params (dict): Dictionary containing the model parameters.
 
     Returns:
         tuple:
@@ -48,9 +51,9 @@ def interpolate_and_calc_marginal_utilities(
     marg_utils, value_interp = vmap(
         vmap(
             calc_interpolated_values_and_marg_utils,
-            in_axes=(0, 0, 0, 0, 0, 0, 0, None, None, None, None, None),
+            in_axes=(0, 0, 0, 0, 0, 0, 0, None, None, None, None, None, None),
         ),
-        in_axes=(0, 0, 0, 0, 0, 0, 0, None, None, None, None, None),
+        in_axes=(0, 0, 0, 0, 0, 0, 0, None, None, None, None, None, None),
     )(
         jnp.take(policy_left_child_state_choice, ind_high),
         value_child_state_choice[ind_high],
@@ -64,6 +67,7 @@ def interpolate_and_calc_marginal_utilities(
         endog_grid_child_state_choice[1],
         value_child_state_choice[0],
         choice,
+        params,
     )
 
     return marg_utils, value_interp
@@ -82,6 +86,7 @@ def calc_interpolated_values_and_marg_utils(
     endog_grid_min: float,
     value_min: float,
     choice: int,
+    params: Dict[str, float],
 ):
     """Calculate interpolated marginal utility and value function.
     Args:
@@ -107,6 +112,7 @@ def calc_interpolated_values_and_marg_utils(
         endog_grid_min (float): Minimum endogenous wealth grid value.
         value_min (float): Minimum value function value.
         choice (int): Discrete choice of an agent.
+        params (dict): Dictionary containing the model parameters.
 
     Returns:
         tuple:
@@ -127,7 +133,10 @@ def calc_interpolated_values_and_marg_utils(
     )
 
     value_interp_closed_form = compute_value(
-        consumption=new_wealth, next_period_value=value_min, choice=choice
+        consumption=new_wealth,
+        next_period_value=value_min,
+        choice=choice,
+        params=params,
     )
 
     credit_constraint = new_wealth < endog_grid_min
@@ -136,7 +145,7 @@ def calc_interpolated_values_and_marg_utils(
         + (1 - credit_constraint) * value_interp_on_grid
     )
 
-    marg_utility_interp = compute_marginal_utility(policy_interp)
+    marg_utility_interp = compute_marginal_utility(policy_interp, params_dict=params)
 
     return marg_utility_interp, value_interp
 
