@@ -55,7 +55,7 @@ def get_solve_function(
             state a transition matrix vector.
 
     Returns:
-        None
+        callable: The partial solve function that only takes ```params``` as input.
 
     """
 
@@ -119,9 +119,9 @@ def get_solve_function(
         transform_between_state_and_state_choice_space=transform_between_state_and_state_choice_space,
         n_periods=n_periods,
     )
-    backwards_jit = jit(
+    backward_jit = jit(
         partial(
-            backwards_induction,
+            backward_induction,
             period_specific_state_objects=period_specific_state_objects,
             exog_savings_grid=exog_savings_grid,
             state_space=state_space,
@@ -141,7 +141,7 @@ def get_solve_function(
 
     def solve_func(params):
         params_dict_int = convert_params_to_dict(params)
-        return backwards_jit(params=params_dict_int)
+        return backward_jit(params=params_dict_int)
 
     return solve_func
 
@@ -155,7 +155,7 @@ def solve_dcegm(
     state_space_functions: Dict[str, Callable],
     final_period_solution: Callable,
     transition_function: Callable,
-) -> None:
+) -> Dict[int, np.ndarray]:
     """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
     Args:
@@ -179,10 +179,11 @@ def solve_dcegm(
             state a transition matrix vector.
 
     Returns:
-        None
+        dict: Dictionary containing the period-specific endog_grid, policy_left,
+            policy_right, and value from the backward induction.
 
     """
-    backwards_jit = get_solve_function(
+    backward_jit = get_solve_function(
         options=options,
         exog_savings_grid=exog_savings_grid,
         utility_functions=utility_functions,
@@ -192,13 +193,13 @@ def solve_dcegm(
         transition_function=transition_function,
     )
 
-    result_dict = backwards_jit(
+    results = backward_jit(
         params=params,
     )
-    return result_dict
+    return results
 
 
-def backwards_induction(
+def backward_induction(
     params: Dict[str, float],
     period_specific_state_objects: Dict[int, jnp.ndarray],
     exog_savings_grid: np.ndarray,
@@ -214,8 +215,8 @@ def backwards_induction(
     transition_vector_by_state: Callable,
     compute_upper_envelope: Callable,
     final_period_solution_partial: Callable,
-) -> None:
-    """Do backwards induction and solve for optimal policy and value function.
+) -> Dict[int, np.ndarray]:
+    """Do backward induction and solve for optimal policy and value function.
 
     Args:
         params (dict): Dictionary containing the model parameters.
@@ -273,13 +274,14 @@ def backwards_induction(
             period.
 
     Returns:
-        None
+        dict: Dictionary containing the period-specific endog_grid, policy_left,
+            policy_right, and value from the backward induction.
 
     """
     taste_shock_scale = params["lambda"]
     income_shock_draws = income_shock_draws_unscaled * params["sigma"]
 
-    result_dict = {}
+    results = {}
 
     # Calculate beginning of period resources for all periods, given exogenous savings
     # and income shocks from last period
@@ -311,7 +313,7 @@ def backwards_induction(
     final_period_results["policy_right"] = policy_final[:, :, middle_of_draws]
     final_period_results["endog_grid"] = resources_last_period[:, :, middle_of_draws]
 
-    result_dict[n_periods - 1] = final_period_results
+    results[n_periods - 1] = final_period_results
 
     for period in range(n_periods - 2, -1, -1):
         state_objects = period_specific_state_objects[period]
@@ -386,12 +388,12 @@ def backwards_induction(
             value_state_choice,
             params,
         )
-        period_result_dict = {}
-        period_result_dict["policy_left"] = policy_left_state_choice
-        period_result_dict["policy_right"] = policy_right_state_choice
-        period_result_dict["endog_grid"] = endog_grid_state_choice
-        period_result_dict["value"] = value_state_choice
+        period_results = {}
+        period_results["policy_left"] = policy_left_state_choice
+        period_results["policy_right"] = policy_right_state_choice
+        period_results["endog_grid"] = endog_grid_state_choice
+        period_results["value"] = value_state_choice
 
-        result_dict[period] = period_result_dict
+        results[period] = period_results
 
-    return result_dict
+    return results
