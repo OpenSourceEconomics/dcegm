@@ -32,7 +32,6 @@ from toy_models.consumption_retirement_model.utility_functions import (
 )
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
 
-
 # Obtain the test directory of the package.
 TEST_DIR = Path(__file__).parent
 
@@ -88,7 +87,7 @@ def test_benchmark_models(
     if params.loc[("utility_function", "theta"), "value"] == 1:
         utility_functions["utility"] = utiility_func_log_crra
 
-    solve_dcegm(
+    result_dict = solve_dcegm(
         params,
         options,
         exog_savings_grid=exog_savings_grid,
@@ -108,10 +107,10 @@ def test_benchmark_models(
     for period in range(23, -1, -1):
         idxs_state_choice_combs = jnp.where(state_choice_space[:, 0] == period)[0]
 
-        endog_grid_got = jnp.load(f"endog_grid_{period}.npy")
-        policy_left_got = jnp.load(f"policy_left_{period}.npy")
-        policy_right_got = jnp.load(f"policy_right_{period}.npy")
-        value_got = jnp.load(f"value_{period}.npy")
+        endog_grid_got = result_dict[period]["endog_grid"]
+        policy_left_got = result_dict[period]["policy_left"]
+        policy_right_got = result_dict[period]["policy_right"]
+        value_got = result_dict[period]["value"]
 
         for state_choice_idx, state_choice_vec in enumerate(idxs_state_choice_combs):
             choice = state_choice_space[state_choice_vec, -1]
