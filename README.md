@@ -6,10 +6,10 @@
 
 Python implementation of the Discrete-Continuous Endogenous Grid Method (DC-EGM) for
 solving dynamic stochastic lifecycle models of continuous (e.g. consumption-savings) and
-discrete choices.
+additional discrete choices.
 
-The solution algorithm employs an extension to the Fast Upper-Envelope Scan (FUES) by
-Dobrescu & Shanker (2022).
+The solution algorithm employs an extension to the Fast Upper-Envelope Scan (FUES),
+based on Dobrescu & Shanker (2022).
 
 ## References
 
