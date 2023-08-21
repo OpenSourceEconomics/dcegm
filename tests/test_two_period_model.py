@@ -177,7 +177,7 @@ def input_data():
 
     exog_savings_grid = np.linspace(0, options["max_wealth"], options["n_grid_points"])
 
-    result_dict = solve_dcegm(
+    solve_dcegm(
         params,
         options,
         exog_savings_grid=exog_savings_grid,
@@ -191,8 +191,6 @@ def input_data():
     out = {}
     out["params"] = params
     out["options"] = options
-    out["endog_grid"] = result_dict[0]["endog_grid"]
-    out["policy_left"] = result_dict[0]["policy_left"]
 
     return out
 
@@ -228,8 +226,8 @@ def test_two_period(input_data, wealth_idx, state_idx):
     idxs_state_choice_combs = reshape_state_choice_vec_to_mat[state_idx]
     initial_cond["health"] = state[-1]
 
-    endog_grid_period = input_data["endog_grid"]
-    policy_period = input_data["policy_left"]
+    endog_grid_period = np.load(f"endog_grid_{state[0]}.npy")
+    policy_period = np.load(f"policy_left_{state[0]}.npy")
 
     for state_choice_idx in idxs_state_choice_combs:
         choice_in_period_1 = state_choice_space[state_choice_idx][-1]

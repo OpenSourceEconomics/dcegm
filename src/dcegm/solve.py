@@ -22,6 +22,7 @@ from dcegm.state_space import create_state_choice_space
 from dcegm.state_space import get_map_from_state_to_child_nodes
 from jax import jit
 from jax import vmap
+from jax.experimental import io_callback
 
 
 def get_solve_function(
@@ -155,7 +156,7 @@ def solve_dcegm(
     state_space_functions: Dict[str, Callable],
     final_period_solution: Callable,
     transition_function: Callable,
-) -> Dict[int, np.ndarray]:
+) -> None:
     """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
     Args:
@@ -179,8 +180,7 @@ def solve_dcegm(
             state a transition matrix vector.
 
     Returns:
-        dict: Dictionary containing the period-specific endog_grid, policy_left,
-            policy_right, and value from the backward induction.
+        None
 
     """
     backward_jit = get_solve_function(
@@ -193,10 +193,9 @@ def solve_dcegm(
         transition_function=transition_function,
     )
 
-    results = backward_jit(
+    backward_jit(
         params=params,
     )
-    return results
 
 
 def backward_induction(
@@ -215,7 +214,7 @@ def backward_induction(
     transition_vector_by_state: Callable,
     compute_upper_envelope: Callable,
     final_period_solution_partial: Callable,
-) -> Dict[int, np.ndarray]:
+) -> None:
     """Do backward induction and solve for optimal policy and value function.
 
     Args:
@@ -274,14 +273,11 @@ def backward_induction(
             period.
 
     Returns:
-        dict: Dictionary containing the period-specific endog_grid, policy_left,
-            policy_right, and value from the backward induction.
+        None
 
     """
     taste_shock_scale = params["lambda"]
     income_shock_draws = income_shock_draws_unscaled * params["sigma"]
-
-    results = {}
 
     # Calculate beginning of period resources for all periods, given exogenous savings
     # and income shocks from last period
@@ -304,16 +300,18 @@ def backward_induction(
         final_period_solution_partial=final_period_solution_partial,
         params=params,
     )
-    final_period_results = {}
+
     # Choose which draw we take for policy and value function as those are note
     # saved with respect to the draws
     middle_of_draws = int(len(income_shock_draws) + 1 / 2)
-    final_period_results["value"] = value_interpolated[:, :, middle_of_draws]
-    final_period_results["policy_left"] = policy_final[:, :, middle_of_draws]
-    final_period_results["policy_right"] = policy_final[:, :, middle_of_draws]
-    final_period_results["endog_grid"] = resources_last_period[:, :, middle_of_draws]
 
-    results[n_periods - 1] = final_period_results
+    jnp_save_jit(
+        n_periods - 1,
+        endog_grid=resources_last_period[:, :, middle_of_draws],
+        policy_left=policy_final[:, :, middle_of_draws],
+        policy_right=policy_final[:, :, middle_of_draws],
+        value=value_interpolated[:, :, middle_of_draws],
+    )
 
     for period in range(n_periods - 2, -1, -1):
         state_objects = period_specific_state_objects[period]
@@ -388,12 +386,25 @@ def backward_induction(
             value_state_choice,
             params,
         )
-        period_results = {}
-        period_results["policy_left"] = policy_left_state_choice
-        period_results["policy_right"] = policy_right_state_choice
-        period_results["endog_grid"] = endog_grid_state_choice
-        period_results["value"] = value_state_choice
 
-        results[period] = period_results
+        jnp_save_jit(
+            period,
+            endog_grid=endog_grid_state_choice,
+            policy_left=policy_left_state_choice,
+            policy_right=policy_right_state_choice,
+            value=value_state_choice,
+        )
 
-    return results
+
+@jit
+def jnp_save_jit(period, endog_grid, policy_left, policy_right, value):
+    return io_callback(
+        _jnp_save, None, period, endog_grid, policy_left, policy_right, value
+    )
+
+
+def _jnp_save(period, endog_grid, policy_left, policy_right, value):
+    jnp.save(f"endog_grid_{period}.npy", endog_grid)
+    jnp.save(f"policy_left_{period}.npy", policy_left)
+    jnp.save(f"policy_right_{period}.npy", policy_right)
+    jnp.save(f"value_{period}.npy", value)
