@@ -522,32 +522,16 @@ def create_cases(
         y2=value_k_and_j[1],
     )
 
-    does_the_value_func_switch = create_indicator_if_value_function_is_switched(
-        endog_grid_1=endog_grid_k_and_j[1],
-        policy_1=policy_k_and_j[1],
-        endog_grid_2=endog_grid_idx_to_inspect,
-        policy_2=policy_idx_to_inspect,
+    suboptimal_cond, does_the_value_func_switch = check_for_suboptimality(
+        endog_grid_k_and_j=endog_grid_k_and_j,
+        policy_k_and_j=policy_k_and_j,
+        value_k_and_j=value_k_and_j,
+        value_idx_to_inspect=value_idx_to_inspect,
+        endog_grid_idx_to_inspect=endog_grid_idx_to_inspect,
+        policy_idx_to_inspect=policy_idx_to_inspect,
+        grad_next=grad_next,
+        grad_next_forward=grad_next_forward,
         jump_thresh=jump_thresh,
-    )
-
-    exog_grid_j = endog_grid_k_and_j[1] - policy_k_and_j[1]
-    exog_grid_idx_to_inspect = endog_grid_idx_to_inspect - policy_idx_to_inspect
-    # Check for suboptimality. This is either with decreasing value function, the
-    # value function not montone in consumption or
-    # if the gradient of the index we inspect and the point j (the last point
-    # on the same choice specific policy) is shallower than the
-    # gradient joining the i+1 and j, then delete j'th point
-    # If the point is the same as point j, this is always false and
-    # switch_value_func as well. Therefore, the third if is chosen.
-    decreasing_value = value_idx_to_inspect < value_k_and_j[1]
-    non_monotone_policy = exog_grid_idx_to_inspect < exog_grid_j
-    switch_value_func_and_steep_increase_after = (
-        grad_next < grad_next_forward
-    ) & does_the_value_func_switch
-    suboptimal_cond = (
-        switch_value_func_and_steep_increase_after
-        | decreasing_value
-        | non_monotone_policy
     )
 
     next_point_past_intersect = (grad_before > grad_next) | (
@@ -566,6 +550,64 @@ def create_cases(
     case_5 = next_point_past_intersect & ~case_1 & ~case_2 & ~case_3 & ~case_4
     case_6 = point_j_past_intersect & ~case_1 & ~case_2 & ~case_3 & ~case_4 & ~case_5
     return case_1, case_2, case_3, case_4, case_5, case_6, suboptimal_cond
+
+
+def check_for_suboptimality(
+    endog_grid_k_and_j,
+    policy_k_and_j,
+    value_k_and_j,
+    value_idx_to_inspect,
+    endog_grid_idx_to_inspect,
+    policy_idx_to_inspect,
+    grad_next,
+    grad_next_forward,
+    jump_thresh,
+):
+    does_the_value_func_switch = create_indicator_if_value_function_is_switched(
+        endog_grid_1=endog_grid_k_and_j[1],
+        policy_1=policy_k_and_j[1],
+        endog_grid_2=endog_grid_idx_to_inspect,
+        policy_2=policy_idx_to_inspect,
+        jump_thresh=jump_thresh,
+    )
+    switch_value_func_and_steep_increase_after = (
+        grad_next < grad_next_forward
+    ) & does_the_value_func_switch
+
+    # Check for suboptimality. This is either with decreasing value function, the
+    # value function not montone in consumption or
+    # if the gradient of the index we inspect and the point j (the last point
+    # on the same choice specific policy) is shallower than the
+    # gradient joining the i+1 and j, then delete j'th point
+    # If the point is the same as point j, this is always false and
+    # switch_value_func as well. Therefore, the third if is chosen.
+    decreasing_value = value_idx_to_inspect < value_k_and_j[1]
+
+    non_monotone_policy = check_for_non_monotone_policy(
+        endog_grid_j=endog_grid_k_and_j[1],
+        policy_j=policy_k_and_j[1],
+        endog_grid_idx_to_inspect=endog_grid_idx_to_inspect,
+        policy_idx_to_inspect=policy_idx_to_inspect,
+    )
+
+    # Aggregate the three cases
+    suboptimal_cond = (
+        switch_value_func_and_steep_increase_after
+        | decreasing_value
+        | (non_monotone_policy & (grad_next < grad_next_forward))
+    )
+    return suboptimal_cond, does_the_value_func_switch
+
+
+def check_for_non_monotone_policy(
+    endog_grid_j, policy_j, endog_grid_idx_to_inspect, policy_idx_to_inspect
+):
+    """This function checks if the policy is non monotone in wealth between the current
+    last point on the upper envelope j and the the point we check."""
+    exog_grid_j = endog_grid_j - policy_j
+    exog_grid_idx_to_inspect = endog_grid_idx_to_inspect - policy_idx_to_inspect
+    non_monotone_policy = exog_grid_idx_to_inspect < exog_grid_j
+    return non_monotone_policy
 
 
 def select_variables_to_save_this_iteration(
