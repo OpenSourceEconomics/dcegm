@@ -533,7 +533,7 @@ def create_cases(
     exog_grid_idx_to_inspect = endog_grid_idx_to_inspect - policy_idx_to_inspect
     # Check for suboptimality. This is either with decreasing value function, the
     # value function not montone in consumption or
-    # if the gradient joining the leading point i+1 and the point j (the last point
+    # if the gradient of the index we inspect and the point j (the last point
     # on the same choice specific policy) is shallower than the
     # gradient joining the i+1 and j, then delete j'th point
     # If the point is the same as point j, this is always false and
@@ -578,6 +578,13 @@ def select_variables_to_save_this_iteration(
     policy_right_to_be_saved_next,
     endog_grid_to_be_saved_next,
 ):
+    """This function selects depending on the case we are in, the value which is saved
+    this iteration.
+
+    This is always the point which was set last period to be saved this period except in
+    case 6, where we realize that this point actually needs to be disregarded.
+
+    """
     # Determine variables to save this iteration. This is always the variables
     # carried from last iteration. Except in case 6.
     value_to_save = value_to_be_saved_next * (1 - case_6) + intersect_value * case_6
