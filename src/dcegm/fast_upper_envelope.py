@@ -409,13 +409,13 @@ def scan_body(
     idx_case_2 = case_2
     last_point_was_intersect = case_5
 
-    in_case_134 = case_1 + case_3 + case_4
-    in_case_256 = case_2 + case_5 + case_6
-    in_case_123 = case_1 + case_2 + case_3
-    in_case_1236 = case_1 + case_2 + case_3 + case_6
-    in_case_45 = case_4 + case_5
+    in_case_134 = case_1 | case_3 | case_4
+    in_case_256 = ~in_case_134
+    in_case_123 = case_1 | case_2 | case_3
+    in_case_1236 = case_1 | case_2 | case_3 | case_6
+    in_case_45 = case_4 | case_5
 
-    in_case_146 = case_1 + case_4 + case_6
+    in_case_146 = case_1 | case_4 | case_6
 
     value_to_be_saved_next = (
         in_case_146 * value[idx_to_inspect]
