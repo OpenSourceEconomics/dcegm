@@ -79,7 +79,6 @@ def test_consume_everything_in_final_period(
         _compute_upper_envelope,
         _transition_vector_by_state,
     ) = get_partial_functions(
-        params_dict=params_dict,
         options=options,
         user_utility_functions=user_utility_functions,
         user_budget_constraint=budget_constraint,

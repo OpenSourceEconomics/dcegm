@@ -38,7 +38,6 @@ def convert_params_to_dict(params: pd.DataFrame) -> Dict[str, float]:
 
 
 def get_partial_functions(
-    params_dict: dict,
     options: Dict[str, int],
     user_utility_functions: Dict[str, Callable],
     user_budget_constraint: Callable,
