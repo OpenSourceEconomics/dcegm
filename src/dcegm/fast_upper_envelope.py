@@ -131,7 +131,7 @@ def fast_upper_envelope(
     expected_value_zero_savings: float,
     num_iter: int,
     jump_thresh: Optional[float] = 2,
-) -> Tuple[np.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Remove suboptimal points from the endogenous grid, policy, and value function.
 
     Args:
@@ -200,7 +200,7 @@ def scan_value_function(
     num_iter: int,
     jump_thresh: float,
     n_points_to_scan: Optional[int] = 0,
-) -> Tuple[np.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Scan the value function to remove suboptimal points and add intersection points.
 
     Args:
@@ -233,8 +233,8 @@ def scan_value_function(
     to_be_saved_inital = (expected_value_zero_savings, 0.0, 0.0, 0.0)
 
     idx_to_inspect = 0
-    last_point_was_intersect = 0
-    idx_case_2 = 0
+    last_point_was_intersect = False
+    idx_case_2 = False
 
     carry_init = (
         vars_j_and_k_inital,
@@ -257,8 +257,6 @@ def scan_value_function(
         carry_init,
         xs=None,
         length=num_iter,
-        reverse=False,
-        unroll=1,
     )
 
     return result
@@ -273,6 +271,39 @@ def scan_body(
     jump_thresh,
     n_points_to_scan,
 ):
+    """This is the body exucted at each iteration of the scan function. Depending on the
+    idx_to_inspect of the carry value it scans either a new value or just saves the
+    value from last period. The carry value is updated in each iteration and passed to
+    the next iteration. This body returns one value, two policy values (left and right)
+    as well as an endogenous grid value.
+
+        Args:
+            carry (tuple): The carry value passed from the previous iteration. This is a
+                tuple containing the variables that are updated in each iteration.
+                Including the current two optimal points j and k, the points to be saved
+                this iteration as well as the indexes of the point to be inspected, the
+                indicator of case 2 and the indicator if the last point was an
+                interseqction point.
+            _iter_step (int): The count of iteration we are in.
+            value (np.ndarray): 1d array containing the unrefined value correspondence
+                of shape (n_grid_wealth,).
+            policy (np.ndarray): 1d array containing the unrefined policy correspondence
+                of shape (n_grid_wealth,).
+            endog_grid (np.ndarray): 1d array containing the unrefined endogenous wealth
+                grid of shape (n_grid_wealth,).
+            jump_thresh (float): Jump detection threshold.
+            n_points_to_scan (int): Number of points to scan in forward and backwards
+                scan.
+
+    Returns:
+        tuple:
+
+        - carry (tuple): The updated carry value passed to the next iteration.
+        - result (tuple): The result of this iteration. This is a tuple containing the
+            value, the left and right policy as well as the endogenous grid value to be
+            saved this iteration.
+
+    """
     (
         vars_j_and_k,
         to_be_saved_this_iter,
@@ -490,18 +521,16 @@ def create_cases(
         y2=value_k_and_j[1],
     )
 
+    does_the_value_func_switch = create_indicator_if_value_function_is_switched(
+        endog_grid_1=endog_grid_k_and_j[1],
+        policy_1=policy_k_and_j[1],
+        endog_grid_2=endog_grid_idx_to_inspect,
+        policy_2=policy_idx_to_inspect,
+        jump_thresh=jump_thresh,
+    )
+
     exog_grid_j = endog_grid_k_and_j[1] - policy_k_and_j[1]
     exog_grid_idx_to_inspect = endog_grid_idx_to_inspect - policy_idx_to_inspect
-
-    exog_grid_grad_abs = jnp.abs(
-        calculate_gradient(
-            x1=endog_grid_idx_to_inspect,
-            y1=exog_grid_idx_to_inspect,
-            x2=endog_grid_k_and_j[1],
-            y2=exog_grid_j,
-        )
-    )
-    does_the_value_func_switch = exog_grid_grad_abs > jump_thresh
     # Check for suboptimality. This is either with decreasing value function, the
     # value function not montone in consumption or
     # if the gradient joining the leading point i+1 and the point j (the last point
@@ -513,14 +542,15 @@ def create_cases(
     non_monotone_policy = exog_grid_idx_to_inspect < exog_grid_j
     switch_value_func_and_steep_increase_after = (
         grad_next < grad_next_forward
-    ) * does_the_value_func_switch
-    suboptimal_cond = logic_or(
-        switch_value_func_and_steep_increase_after,
-        logic_or(decreasing_value, non_monotone_policy),
+    ) & does_the_value_func_switch
+    suboptimal_cond = (
+        switch_value_func_and_steep_increase_after
+        | decreasing_value
+        | non_monotone_policy
     )
 
-    next_point_past_intersect = logic_or(
-        grad_before > grad_next, grad_next < grad_next_backward
+    next_point_past_intersect = (grad_before > grad_next) | (
+        grad_next < grad_next_backward
     )
     point_j_past_intersect = grad_next > grad_next_backward
 
@@ -529,48 +559,12 @@ def create_cases(
     # Start with checking if last iteration was case_5, and we need
     # to add another point to the refined grid.
     case_1 = last_point_was_intersect
-    case_2 = is_this_the_last_point * (1 - case_1)
-    case_3 = suboptimal_cond * (1 - case_1) * (1 - case_2)
-    case_4 = ~does_the_value_func_switch * (1 - case_1) * (1 - case_2) * (1 - case_3)
-    case_5 = (
-        next_point_past_intersect
-        * (1 - case_1)
-        * (1 - case_2)
-        * (1 - case_3)
-        * (1 - case_4)
-    )
-    case_6 = (
-        point_j_past_intersect
-        * (1 - case_1)
-        * (1 - case_2)
-        * (1 - case_3)
-        * (1 - case_4)
-        * (1 - case_5)
-    )
+    case_2 = is_this_the_last_point & ~case_1
+    case_3 = suboptimal_cond & ~case_1 & ~case_2
+    case_4 = ~does_the_value_func_switch * ~case_1 * ~case_2 * ~case_3
+    case_5 = next_point_past_intersect & ~case_1 & ~case_2 & ~case_3 & ~case_4
+    case_6 = point_j_past_intersect & ~case_1 & ~case_2 & ~case_3 & ~case_4 & ~case_5
     return case_1, case_2, case_3, case_4, case_5, case_6
-
-
-def calculate_gradient(
-    x1: float,
-    y1: float,
-    x2: float,
-    y2: float,
-):
-    """Calculate the gradient between two points. This function returns 0 if the points
-    are the same.
-
-    Args:
-        x1 (float): x-coordinate of the first point.
-        y1 (float): y-coordinate of the first point.
-        x2 (float): x-coordinate of the second point.
-        y2 (float): y-coordinate of the second point.
-
-    Returns:
-        float: The gradient between the two points.
-
-    """
-    denominator = x1 - x2 + 1e-16
-    return (y1 - y2) / denominator
 
 
 def select_variables_to_save_this_iteration(
@@ -818,6 +812,29 @@ def _forward_scan(
         grad_next_on_same_value,
         idx_on_same_value,
     )
+
+
+def calculate_gradient(
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+):
+    """Calculate the gradient between two points. This function returns 0 if the points
+    are the same.
+
+    Args:
+        x1 (float): x-coordinate of the first point.
+        y1 (float): y-coordinate of the first point.
+        x2 (float): x-coordinate of the second point.
+        y2 (float): y-coordinate of the second point.
+
+    Returns:
+        float: The gradient between the two points.
+
+    """
+    denominator = x1 - x2 + 1e-16
+    return (y1 - y2) / denominator
 
 
 def logic_or(bool_ind_1, bool_ind_2):
