@@ -350,7 +350,7 @@ def scan_body(
         n_points_to_scan=n_points_to_scan,
     )
 
-    case_1, case_2, case_3, case_4, case_5, case_6 = create_cases(
+    case_1, case_2, case_3, case_4, case_5, case_6, suboptimal_cond = create_cases(
         value_idx_to_inspect=value[idx_to_inspect],
         policy_idx_to_inspect=policy[idx_to_inspect],
         endog_grid_idx_to_inspect=endog_grid[idx_to_inspect],
@@ -441,6 +441,12 @@ def scan_body(
         + case_5 * intersect_grid
         + case_3 * endog_grid_to_be_saved_next
     )
+    to_be_saved = (
+        value_to_be_saved_next,
+        policy_left_to_be_saved_next,
+        policy_right_to_be_saved_next,
+        endog_grid_to_be_saved_next,
+    )
 
     # In case 1, 2, 3 the old value remains as value_j, in 4, 5, value_j is former
     # value k and in 6 the old value_j is overwritten
@@ -468,14 +474,9 @@ def scan_body(
     )
     endog_grid_k_and_j = endog_grid_k_new, endog_grid_j_new
     # Increase in cases 134 and not in 256
-    idx_to_inspect += in_case_134 * (1 - in_case_256)
+    update_by_cases = in_case_134 * (1 - in_case_256)
+    idx_to_inspect += update_by_cases + suboptimal_cond * (1 - update_by_cases)
     vars_j_and_k = (value_k_and_j, policy_k_and_j, endog_grid_k_and_j)
-    to_be_saved = (
-        value_to_be_saved_next,
-        policy_left_to_be_saved_next,
-        policy_right_to_be_saved_next,
-        endog_grid_to_be_saved_next,
-    )
     carry = (
         vars_j_and_k,
         to_be_saved,
@@ -564,7 +565,7 @@ def create_cases(
     case_4 = ~does_the_value_func_switch * ~case_1 * ~case_2 * ~case_3
     case_5 = next_point_past_intersect & ~case_1 & ~case_2 & ~case_3 & ~case_4
     case_6 = point_j_past_intersect & ~case_1 & ~case_2 & ~case_3 & ~case_4 & ~case_5
-    return case_1, case_2, case_3, case_4, case_5, case_6
+    return case_1, case_2, case_3, case_4, case_5, case_6, suboptimal_cond
 
 
 def select_variables_to_save_this_iteration(
