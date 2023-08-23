@@ -531,6 +531,7 @@ def create_cases(
         policy_idx_to_inspect=policy_idx_to_inspect,
         grad_next=grad_next,
         grad_next_forward=grad_next_forward,
+        grad_before=grad_before,
         jump_thresh=jump_thresh,
     )
 
@@ -561,8 +562,21 @@ def check_for_suboptimality(
     policy_idx_to_inspect,
     grad_next,
     grad_next_forward,
+    grad_before,
     jump_thresh,
 ):
+    """This function checks for sub-optimality of the current point.
+
+    If this function   returns False the point can still be suboptimal. That is if we
+    find in the   next iteration, that this point actually is after a switch point. Here
+    we check   if the point fulfills one of three conditions. Either the value function
+    is   decreasing with decreasing value function, the # value function not montone in
+    consumption or # if the gradient of the index we inspect and the point j (the last
+    point # on the same choice specific policy) is shallower than the # gradient joining
+    the i+1 and j, then delete j'th point # If the point is the same as point j, this is
+    always false and # switch_value_func as well. Therefore, the third if is chosen.
+
+    """
     does_the_value_func_switch = create_indicator_if_value_function_is_switched(
         endog_grid_1=endog_grid_k_and_j[1],
         policy_1=policy_k_and_j[1],
@@ -574,16 +588,9 @@ def check_for_suboptimality(
         grad_next < grad_next_forward
     ) & does_the_value_func_switch
 
-    # Check for suboptimality. This is either with decreasing value function, the
-    # value function not montone in consumption or
-    # if the gradient of the index we inspect and the point j (the last point
-    # on the same choice specific policy) is shallower than the
-    # gradient joining the i+1 and j, then delete j'th point
-    # If the point is the same as point j, this is always false and
-    # switch_value_func as well. Therefore, the third if is chosen.
     decreasing_value = value_idx_to_inspect < value_k_and_j[1]
 
-    non_monotone_policy = check_for_non_monotone_policy(
+    are_savings_non_monotone = check_for_non_monotone_savings(
         endog_grid_j=endog_grid_k_and_j[1],
         policy_j=policy_k_and_j[1],
         endog_grid_idx_to_inspect=endog_grid_idx_to_inspect,
@@ -594,20 +601,34 @@ def check_for_suboptimality(
     suboptimal_cond = (
         switch_value_func_and_steep_increase_after
         | decreasing_value
-        | (non_monotone_policy & (grad_next < grad_next_forward))
+        | (are_savings_non_monotone & (grad_next < grad_before))
     )
     return suboptimal_cond, does_the_value_func_switch
 
 
-def check_for_non_monotone_policy(
+def check_for_non_monotone_savings(
     endog_grid_j, policy_j, endog_grid_idx_to_inspect, policy_idx_to_inspect
 ):
-    """This function checks if the policy is non monotone in wealth between the current
-    last point on the upper envelope j and the the point we check."""
+    """This function checks if the savings are a non-monotone in wealth between the
+    current last point on the upper envelope j and the point we check.
+
+    Args:
+        endog_grid_j (float): The endogenous grid value of the last point on the upper
+            envelope.
+        policy_j (float): The policy value of the last point on the upper envelope.
+        endog_grid_idx_to_inspect (float): The endogenous grid value of the point we
+            check.
+        policy_idx_to_inspect (float): The policy value of the point we check.
+
+    Returns:
+        non_monotone_policy (bool): Indicator if the policy is non-monotone in wealth
+            between the last point on the upper envelope and the point we check.
+
+    """
     exog_grid_j = endog_grid_j - policy_j
     exog_grid_idx_to_inspect = endog_grid_idx_to_inspect - policy_idx_to_inspect
-    non_monotone_policy = exog_grid_idx_to_inspect < exog_grid_j
-    return non_monotone_policy
+    are_savings_non_monotone = exog_grid_idx_to_inspect < exog_grid_j
+    return are_savings_non_monotone
 
 
 def select_variables_to_save_this_iteration(
@@ -656,6 +677,14 @@ def select_and_calculate_intersection(
     case_5,
     case_6,
 ):
+    """This function selects the points with which we can compute to the intersection
+    points.
+
+    This functions maps very nicely into Figure 5 of the paper. In case 5, we use the
+    next point (q in the graph) we found on the value function segment of point j(i in
+    graph) and intersect it with the idx_to_check (i + 1 in the graph)
+
+    """
     wealth_1_on_lower_curve = (
         endog_grid[idx_next_on_lower_curve] * case_5 + endog_grid_k_and_j[0] * case_6
     )
@@ -819,7 +848,7 @@ def _forward_scan(
 
     """
 
-    found_next_value_already = 0
+    found_next_value_already = False
     idx_on_same_value = 0
     grad_next_on_same_value = 0
 
@@ -847,10 +876,10 @@ def _forward_scan(
         # Now check if this is the first value on the same value function
         # This is only 1 if so far there hasn't been found a point and the point is on
         # the same value function
-        value_is_next_on_same_value = is_on_same_value * (1 - found_next_value_already)
+        value_is_next_on_same_value = is_on_same_value & ~found_next_value_already
         # Update if you have found a point. Always 1 (=True) if you have found a point
         # already
-        found_next_value_already = logic_or(found_next_value_already, is_on_same_value)
+        found_next_value_already = found_next_value_already | is_on_same_value
 
         # Update the index the first time a point is found
         idx_on_same_value += idx_to_check * value_is_next_on_same_value
