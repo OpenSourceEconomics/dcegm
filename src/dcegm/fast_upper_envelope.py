@@ -682,7 +682,38 @@ def select_and_calculate_intersection(
 
     This functions maps very nicely into Figure 5 of the paper. In case 5, we use the
     next point (q in the graph) we found on the value function segment of point j(i in
-    graph) and intersect it with the idx_to_check (i + 1 in the graph)
+    graph) and intersect it with the idx_to_check (i + 1 in the graph). In case 6 we
+    are in the situation of the figure in the right site in Figure 5. Here we intersect
+    the line of j and k (i and i-1 in the graph) with the line of idx_to_check (i+1
+    in the graph) and the point before on the same value segment.
+
+    Args:
+        endog_grid (np.ndarray): 1d array containing the unrefined endogenous wealth
+            grid of shape (n_grid_wealth,).
+        policy (np.ndarray): 1d array containing the unrefined policy correspondence
+            of shape (n_grid_wealth,).
+        value (np.ndarray): 1d array containing the unrefined value correspondence
+            of shape (n_grid_wealth,).
+        endog_grid_k_and_j (tuple): Tuple containing the endogenous grid values of the
+            last two points on the upper envelope.
+        value_k_and_j (tuple): Tuple containing the value function values of the last
+            two points on the upper envelope.
+        policy_k_and_j (tuple): Tuple containing the policy function values of the last
+            two points on the upper envelope.
+        idx_next_on_lower_curve (int): The index of the next point on the lower curve.
+        idx_before_on_upper_curve (int): The index of the point before on the upper
+            curve.
+        idx_to_inspect (int): The index of the point to inspect.
+        case_5 (bool): Indicator if we are in case 5.
+        case_6 (bool): Indicator if we are in case 6.
+
+    Returns:
+        intersect_grid (float): The endogenous grid value of the intersection point.
+        intersect_value (float): The value function value of the intersection point.
+        intersect_policy_left (float): The policy function value of the left continuous
+            of the policy function at the intersection point.
+        intersect_policy_right (float): The policy function value of the right
+            continuous of the policy function at the intersection point.
 
     """
     wealth_1_on_lower_curve = (
