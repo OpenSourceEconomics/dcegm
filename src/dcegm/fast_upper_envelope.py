@@ -14,6 +14,7 @@ from typing import Tuple
 import jax
 import jax.numpy as jnp  # noqa: F401
 from jax import jit  # noqa: F401
+from jax import vmap
 
 
 def fast_upper_envelope_wrapper(
@@ -90,12 +91,11 @@ def fast_upper_envelope_wrapper(
     grid_points_to_add = jnp.linspace(min_wealth_grid, endog_grid[0], points_to_add)[
         :-1
     ]
-
-    values_to_add = compute_value(
+    values_to_add = vmap(compute_value, in_axes=(0, None, None, None))(
         grid_points_to_add,
-        next_period_value=expected_value_zero_savings,
-        choice=choice,
-        params=params,
+        expected_value_zero_savings,
+        choice,
+        params,
     )
 
     grid_augmented = jnp.append(grid_points_to_add, endog_grid)
@@ -233,13 +233,13 @@ def scan_value_function(
 
     idx_to_inspect = 0
     last_point_was_intersect = False
-    idx_case_2 = False
+    saved_last_point_already = False
 
     carry_init = (
         vars_j_and_k_inital,
         to_be_saved_inital,
         idx_to_inspect,
-        idx_case_2,
+        saved_last_point_already,
         last_point_was_intersect,
     )
     partial_body = partial(
@@ -307,7 +307,7 @@ def scan_body(
         vars_j_and_k,
         to_be_saved_this_iter,
         idx_to_inspect,
-        idx_case_2,
+        saved_last_point_already,
         last_point_was_intersect,
     ) = carry
     value_k_and_j, policy_k_and_j, endog_grid_k_and_j = vars_j_and_k
@@ -399,13 +399,17 @@ def scan_body(
         policy_right_to_be_saved_next=policy_right_to_be_saved_next,
         endog_grid_to_be_saved_next=endog_grid_to_be_saved_next,
     )
-    value_case_2 = jax.lax.select(idx_case_2, jnp.nan, value[-1])
-    policy_to_be_saved_case_2 = jax.lax.select(idx_case_2, jnp.nan, policy[-1])
-    endog_grid_to_be_saved_case_2 = jax.lax.select(idx_case_2, jnp.nan, endog_grid[-1])
+    value_case_2 = jax.lax.select(saved_last_point_already, jnp.nan, value[-1])
+    policy_to_be_saved_case_2 = jax.lax.select(
+        saved_last_point_already, jnp.nan, policy[-1]
+    )
+    endog_grid_to_be_saved_case_2 = jax.lax.select(
+        saved_last_point_already, jnp.nan, endog_grid[-1]
+    )
 
     # In the iteration where case_2 is first time True, the last point is selected
     # and afterwards only nans.
-    idx_case_2 = case_2
+    saved_last_point_already = case_2
     last_point_was_intersect = case_5
 
     in_case_134 = case_1 | case_3 | case_4
@@ -480,7 +484,7 @@ def scan_body(
         vars_j_and_k,
         to_be_saved,
         idx_to_inspect,
-        idx_case_2,
+        saved_last_point_already,
         last_point_was_intersect,
     )
     result = (
