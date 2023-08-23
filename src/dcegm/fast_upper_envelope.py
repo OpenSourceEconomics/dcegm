@@ -13,7 +13,6 @@ from typing import Tuple
 
 import jax
 import jax.numpy as jnp  # noqa: F401
-import numpy as np
 from jax import jit  # noqa: F401
 
 
@@ -25,7 +24,7 @@ def fast_upper_envelope_wrapper(
     choice: int,
     params: Dict[str, float],
     compute_value: Callable,
-) -> Tuple[np.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Drop suboptimal points and refine the endogenous grid, policy, and value.
 
     Computes the upper envelope over the overlapping segments of the
@@ -311,13 +310,13 @@ def scan_body(
         idx_case_2,
         last_point_was_intersect,
     ) = carry
+    value_k_and_j, policy_k_and_j, endog_grid_k_and_j = vars_j_and_k
     (
         value_to_be_saved_next,
         policy_left_to_be_saved_next,
         policy_right_to_be_saved_next,
         endog_grid_to_be_saved_next,
     ) = to_be_saved_this_iter
-    value_k_and_j, policy_k_and_j, endog_grid_k_and_j = vars_j_and_k
 
     is_this_the_last_point = idx_to_inspect == len(endog_grid) - 1
     # In each iteration we calculate the gradient of the value function
@@ -857,7 +856,8 @@ def _forward_scan(
     idx_base: int,
     n_points_to_scan: int,
 ) -> Tuple[float, int]:
-    """Scan forward to check which point is on same value function as idx_base.
+    """Scan forward to check which point is on same value function as the current last
+    point on the upper envelope.
 
     Args:
         value (np.ndarray): 1d array containing the value function of shape
