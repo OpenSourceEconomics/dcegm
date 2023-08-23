@@ -601,6 +601,7 @@ def check_for_suboptimality(
     suboptimal_cond = (
         switch_value_func_and_steep_increase_after
         | decreasing_value
+        # Do we need the grad condition next?
         | (are_savings_non_monotone & (grad_next < grad_before))
     )
     return suboptimal_cond, does_the_value_func_switch
