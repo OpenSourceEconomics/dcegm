@@ -383,12 +383,7 @@ def scan_body(
     )
 
     # Save the values for the next iteration
-    (
-        value_to_save,
-        policy_left_to_save,
-        policy_right_to_save,
-        endog_grid_to_save,
-    ) = select_variables_to_save_this_iteration(
+    result_to_save_this_iteration = select_variables_to_save_this_iteration(
         case_6=case_6,
         intersect_value=intersect_value,
         intersect_policy_left=intersect_policy_left,
@@ -399,12 +394,30 @@ def scan_body(
         policy_right_to_be_saved_next=policy_right_to_be_saved_next,
         endog_grid_to_be_saved_next=endog_grid_to_be_saved_next,
     )
-    value_case_2 = jax.lax.select(saved_last_point_already, jnp.nan, value[-1])
-    policy_to_be_saved_case_2 = jax.lax.select(
-        saved_last_point_already, jnp.nan, policy[-1]
-    )
-    endog_grid_to_be_saved_case_2 = jax.lax.select(
-        saved_last_point_already, jnp.nan, endog_grid[-1]
+
+    variables_to_be_saved_next_iteration = select_points_to_be_saved_next_iteration(
+        value_idx_to_inspect=value[idx_to_inspect],
+        policy_idx_to_inspect=policy[idx_to_inspect],
+        endog_grid_idx_to_inspect=endog_grid[idx_to_inspect],
+        value_case_2=jax.lax.select(saved_last_point_already, jnp.nan, value[-1]),
+        policy_case_2=jax.lax.select(saved_last_point_already, jnp.nan, policy[-1]),
+        endog_grid_case_2=jax.lax.select(
+            saved_last_point_already, jnp.nan, endog_grid[-1]
+        ),
+        intersect_value=intersect_value,
+        intersect_policy_left=intersect_policy_left,
+        intersect_policy_right=intersect_policy_right,
+        intersect_grid=intersect_grid,
+        value_to_be_saved_next=value_to_be_saved_next,
+        policy_left_to_be_saved_next=policy_left_to_be_saved_next,
+        policy_right_to_be_saved_next=policy_right_to_be_saved_next,
+        endog_grid_to_be_saved_next=endog_grid_to_be_saved_next,
+        case_1=case_1,
+        case_2=case_2,
+        case_3=case_3,
+        case_4=case_4,
+        case_5=case_5,
+        case_6=case_6,
     )
 
     # In the iteration where case_2 is first time True, the last point is selected
@@ -417,39 +430,6 @@ def scan_body(
     in_case_123 = case_1 | case_2 | case_3
     in_case_1236 = case_1 | case_2 | case_3 | case_6
     in_case_45 = case_4 | case_5
-
-    in_case_146 = case_1 | case_4 | case_6
-
-    value_to_be_saved_next = (
-        in_case_146 * value[idx_to_inspect]
-        + case_2 * value_case_2
-        + case_5 * intersect_value
-        + case_3 * value_to_be_saved_next
-    )
-    policy_left_to_be_saved_next = (
-        in_case_146 * policy[idx_to_inspect]
-        + case_2 * policy_to_be_saved_case_2
-        + case_5 * intersect_policy_left
-        + case_3 * policy_left_to_be_saved_next
-    )
-    policy_right_to_be_saved_next = (
-        in_case_146 * policy[idx_to_inspect]
-        + case_2 * policy_to_be_saved_case_2
-        + case_5 * intersect_policy_right
-        + case_3 * policy_right_to_be_saved_next
-    )
-    endog_grid_to_be_saved_next = (
-        in_case_146 * endog_grid[idx_to_inspect]
-        + case_2 * endog_grid_to_be_saved_case_2
-        + case_5 * intersect_grid
-        + case_3 * endog_grid_to_be_saved_next
-    )
-    to_be_saved = (
-        value_to_be_saved_next,
-        policy_left_to_be_saved_next,
-        policy_right_to_be_saved_next,
-        endog_grid_to_be_saved_next,
-    )
 
     # In case 1, 2, 3 the old value remains as value_j, in 4, 5, value_j is former
     # value k and in 6 the old value_j is overwritten
@@ -482,19 +462,69 @@ def scan_body(
     vars_j_and_k = (value_k_and_j, policy_k_and_j, endog_grid_k_and_j)
     carry = (
         vars_j_and_k,
-        to_be_saved,
+        variables_to_be_saved_next_iteration,
         idx_to_inspect,
         saved_last_point_already,
         last_point_was_intersect,
     )
-    result = (
-        value_to_save,
-        policy_left_to_save,
-        policy_right_to_save,
-        endog_grid_to_save,
-    )
 
-    return carry, result
+    return carry, result_to_save_this_iteration
+
+
+def select_points_to_be_saved_next_iteration(
+    value_idx_to_inspect,
+    policy_idx_to_inspect,
+    endog_grid_idx_to_inspect,
+    value_case_2,
+    policy_case_2,
+    endog_grid_case_2,
+    intersect_value,
+    intersect_policy_left,
+    intersect_policy_right,
+    intersect_grid,
+    value_to_be_saved_next,
+    policy_left_to_be_saved_next,
+    policy_right_to_be_saved_next,
+    endog_grid_to_be_saved_next,
+    case_1,
+    case_2,
+    case_3,
+    case_4,
+    case_5,
+    case_6,
+):
+    in_case_146 = case_1 | case_4 | case_6
+
+    value_to_be_saved_next = (
+        in_case_146 * value_idx_to_inspect
+        + case_2 * value_case_2
+        + case_5 * intersect_value
+        + case_3 * value_to_be_saved_next
+    )
+    policy_left_to_be_saved_next = (
+        in_case_146 * policy_idx_to_inspect
+        + case_2 * policy_case_2
+        + case_5 * intersect_policy_left
+        + case_3 * policy_left_to_be_saved_next
+    )
+    policy_right_to_be_saved_next = (
+        in_case_146 * policy_idx_to_inspect
+        + case_2 * policy_case_2
+        + case_5 * intersect_policy_right
+        + case_3 * policy_right_to_be_saved_next
+    )
+    endog_grid_to_be_saved_next = (
+        in_case_146 * endog_grid_idx_to_inspect
+        + case_2 * endog_grid_case_2
+        + case_5 * intersect_grid
+        + case_3 * endog_grid_to_be_saved_next
+    )
+    return (
+        value_to_be_saved_next,
+        policy_left_to_be_saved_next,
+        policy_right_to_be_saved_next,
+        endog_grid_to_be_saved_next,
+    )
 
 
 def create_cases(
