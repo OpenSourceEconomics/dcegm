@@ -1,7 +1,9 @@
 from typing import Tuple
 
+import jax.numpy as jnp
 
-def _evaluate_point_on_line(
+
+def evaluate_point_on_line(
     x1: float, y1: float, x2: float, y2: float, point_to_evaluate: float
 ) -> float:
     """Evaluate a point on a line defined by (x1, y1) and (x2, y2).
@@ -20,7 +22,7 @@ def _evaluate_point_on_line(
     return (y2 - y1) / ((x2 - x1) + 1e-16) * (point_to_evaluate - x1) + y1
 
 
-def _linear_intersection(
+def linear_intersection(
     x1: float,
     y1: float,
     x2: float,
@@ -58,18 +60,18 @@ def _linear_intersection(
 
 
 def calc_intersection_and_extrapolate_policy(
-    wealth_1_lower_curve: float,
-    value_1_lower_curve: float,
-    policy_1_lower_curve: float,
-    wealth_2_lower_curve: float,
-    value_2_lower_curve: float,
-    policy_2_lower_curve: float,
-    wealth_1_upper_curve: float,
-    value_1_upper_curve: float,
-    policy_1_upper_curve: float,
-    wealth_2_upper_curve: float,
-    value_2_upper_curve: float,
-    policy_2_upper_curve: float,
+    wealth_1_lower_curve: float | jnp.ndarray,
+    value_1_lower_curve: float | jnp.ndarray,
+    policy_1_lower_curve: float | jnp.ndarray,
+    wealth_2_lower_curve: float | jnp.ndarray,
+    value_2_lower_curve: float | jnp.ndarray,
+    policy_2_lower_curve: float | jnp.ndarray,
+    wealth_1_upper_curve: float | jnp.ndarray,
+    value_1_upper_curve: float | jnp.ndarray,
+    policy_1_upper_curve: float | jnp.ndarray,
+    wealth_2_upper_curve: float | jnp.ndarray,
+    value_2_upper_curve: float | jnp.ndarray,
+    policy_2_upper_curve: float | jnp.ndarray,
 ):
     """Calculate the intersection of the value functions and return the intersection
     wealth grid, the value function as well as the left and right policy values. Even
@@ -120,7 +122,7 @@ def calc_intersection_and_extrapolate_policy(
 
     """
     # Calculate intersection of two lines
-    intersect_grid, intersect_value = _linear_intersection(
+    intersect_grid, intersect_value = linear_intersection(
         x1=wealth_1_lower_curve,
         y1=value_1_lower_curve,
         x2=wealth_2_lower_curve,
@@ -132,7 +134,7 @@ def calc_intersection_and_extrapolate_policy(
     )
 
     # Extrapolate policy
-    policy_left = _evaluate_point_on_line(
+    policy_left = evaluate_point_on_line(
         x1=wealth_1_lower_curve,
         y1=policy_1_lower_curve,
         x2=wealth_2_lower_curve,
@@ -140,7 +142,7 @@ def calc_intersection_and_extrapolate_policy(
         point_to_evaluate=intersect_grid,
     )
 
-    policy_right = _evaluate_point_on_line(
+    policy_right = evaluate_point_on_line(
         x1=wealth_1_upper_curve,
         y1=policy_1_upper_curve,
         x2=wealth_2_upper_curve,
