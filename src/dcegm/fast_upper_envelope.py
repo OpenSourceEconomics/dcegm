@@ -230,6 +230,8 @@ def scan_value_function(
     vars_j_and_k_inital = (value_k_and_j, policy_k_and_j, endog_grid_k_and_j)
 
     to_be_saved_inital = (expected_value_zero_savings, 0.0, 0.0, 0.0)
+    last_point_in_grid = jnp.array([value[-1], policy[-1], endog_grid[-1]])
+    dummy_points_grid = jnp.array([jnp.nan, jnp.nan, jnp.nan])
 
     idx_to_inspect = 0
     last_point_was_intersect = False
@@ -247,6 +249,8 @@ def scan_value_function(
         value=value,
         policy=policy,
         endog_grid=endog_grid,
+        last_point_in_grid=last_point_in_grid,
+        dummy_points_grid=dummy_points_grid,
         jump_thresh=jump_thresh,
         n_points_to_scan=n_points_to_scan,
     )
@@ -267,6 +271,8 @@ def scan_body(
     value,
     policy,
     endog_grid,
+    last_point_in_grid,
+    dummy_points_grid,
     jump_thresh,
     n_points_to_scan,
 ):
@@ -378,15 +384,15 @@ def scan_body(
         planed_to_be_saved_this_iter=planed_to_be_saved_this_iter,
     )
 
+    point_case_2 = jax.lax.select(
+        saved_last_point_already, dummy_points_grid, last_point_in_grid
+    )
+
     variables_to_be_saved_next_iteration = select_points_to_be_saved_next_iteration(
         value_idx_to_inspect=value[idx_to_inspect],
         policy_idx_to_inspect=policy[idx_to_inspect],
         endog_grid_idx_to_inspect=endog_grid[idx_to_inspect],
-        value_case_2=jax.lax.select(saved_last_point_already, jnp.nan, value[-1]),
-        policy_case_2=jax.lax.select(saved_last_point_already, jnp.nan, policy[-1]),
-        endog_grid_case_2=jax.lax.select(
-            saved_last_point_already, jnp.nan, endog_grid[-1]
-        ),
+        point_case_2=point_case_2,
         intersection_point=intersection_point,
         planed_to_be_saved_this_iter=planed_to_be_saved_this_iter,
         cases=cases,
@@ -454,14 +460,13 @@ def select_points_to_be_saved_next_iteration(
     value_idx_to_inspect,
     policy_idx_to_inspect,
     endog_grid_idx_to_inspect,
-    value_case_2,
-    policy_case_2,
-    endog_grid_case_2,
+    point_case_2,
     intersection_point,
     planed_to_be_saved_this_iter,
     cases,
 ):
     case_1, case_2, case_3, case_4, case_5, case_6 = cases
+    value_case_2, policy_case_2, endog_grid_case_2 = point_case_2
     (
         planed_value,
         planed_policy_left,
