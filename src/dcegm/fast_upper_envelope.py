@@ -305,18 +305,12 @@ def scan_body(
     """
     (
         vars_j_and_k,
-        to_be_saved_this_iter,
+        planed_to_be_saved_this_iter,
         idx_to_inspect,
         saved_last_point_already,
         last_point_was_intersect,
     ) = carry
     value_k_and_j, policy_k_and_j, endog_grid_k_and_j = vars_j_and_k
-    (
-        value_to_be_saved_next,
-        policy_left_to_be_saved_next,
-        policy_right_to_be_saved_next,
-        endog_grid_to_be_saved_next,
-    ) = to_be_saved_this_iter
 
     is_this_the_last_point = idx_to_inspect == len(endog_grid) - 1
     # In each iteration we calculate the gradient of the value function
@@ -349,7 +343,7 @@ def scan_body(
         n_points_to_scan=n_points_to_scan,
     )
 
-    case_1, case_2, case_3, case_4, case_5, case_6, suboptimal_cond = create_cases(
+    cases, suboptimal_cond = create_cases(
         value_idx_to_inspect=value[idx_to_inspect],
         policy_idx_to_inspect=policy[idx_to_inspect],
         endog_grid_idx_to_inspect=endog_grid[idx_to_inspect],
@@ -363,12 +357,7 @@ def scan_body(
         jump_thresh=jump_thresh,
     )
 
-    (
-        intersect_grid,
-        intersect_value,
-        intersect_policy_left,
-        intersect_policy_right,
-    ) = select_and_calculate_intersection(
+    intersection_point = select_and_calculate_intersection(
         endog_grid=endog_grid,
         policy=policy,
         value=value,
@@ -378,21 +367,15 @@ def scan_body(
         idx_next_on_lower_curve=idx_next_on_lower_curve,
         idx_before_on_upper_curve=idx_before_on_upper_curve,
         idx_to_inspect=idx_to_inspect,
-        case_5=case_5,
-        case_6=case_6,
+        case_5=cases[4],
+        case_6=cases[5],
     )
 
     # Save the values for the next iteration
     result_to_save_this_iteration = select_variables_to_save_this_iteration(
-        case_6=case_6,
-        intersect_value=intersect_value,
-        intersect_policy_left=intersect_policy_left,
-        intersect_policy_right=intersect_policy_right,
-        intersect_grid=intersect_grid,
-        value_to_be_saved_next=value_to_be_saved_next,
-        policy_left_to_be_saved_next=policy_left_to_be_saved_next,
-        policy_right_to_be_saved_next=policy_right_to_be_saved_next,
-        endog_grid_to_be_saved_next=endog_grid_to_be_saved_next,
+        case_6=cases[5],
+        intersection_point=intersection_point,
+        planed_to_be_saved_this_iter=planed_to_be_saved_this_iter,
     )
 
     variables_to_be_saved_next_iteration = select_points_to_be_saved_next_iteration(
@@ -404,21 +387,17 @@ def scan_body(
         endog_grid_case_2=jax.lax.select(
             saved_last_point_already, jnp.nan, endog_grid[-1]
         ),
-        intersect_value=intersect_value,
-        intersect_policy_left=intersect_policy_left,
-        intersect_policy_right=intersect_policy_right,
-        intersect_grid=intersect_grid,
-        value_to_be_saved_next=value_to_be_saved_next,
-        policy_left_to_be_saved_next=policy_left_to_be_saved_next,
-        policy_right_to_be_saved_next=policy_right_to_be_saved_next,
-        endog_grid_to_be_saved_next=endog_grid_to_be_saved_next,
-        case_1=case_1,
-        case_2=case_2,
-        case_3=case_3,
-        case_4=case_4,
-        case_5=case_5,
-        case_6=case_6,
+        intersection_point=intersection_point,
+        planed_to_be_saved_this_iter=planed_to_be_saved_this_iter,
+        cases=cases,
     )
+    case_1, case_2, case_3, case_4, case_5, case_6 = cases
+    (
+        intersect_grid,
+        intersect_value,
+        intersect_policy_left,
+        intersect_policy_right,
+    ) = intersection_point
 
     # In the iteration where case_2 is first time True, the last point is selected
     # and afterwards only nans.
@@ -478,46 +457,49 @@ def select_points_to_be_saved_next_iteration(
     value_case_2,
     policy_case_2,
     endog_grid_case_2,
-    intersect_value,
-    intersect_policy_left,
-    intersect_policy_right,
-    intersect_grid,
-    value_to_be_saved_next,
-    policy_left_to_be_saved_next,
-    policy_right_to_be_saved_next,
-    endog_grid_to_be_saved_next,
-    case_1,
-    case_2,
-    case_3,
-    case_4,
-    case_5,
-    case_6,
+    intersection_point,
+    planed_to_be_saved_this_iter,
+    cases,
 ):
+    case_1, case_2, case_3, case_4, case_5, case_6 = cases
+    (
+        planed_value,
+        planed_policy_left,
+        planed_policy_right,
+        planed_endog_grid,
+    ) = planed_to_be_saved_this_iter
+
+    (
+        intersect_grid,
+        intersect_value,
+        intersect_policy_left,
+        intersect_policy_right,
+    ) = intersection_point
     in_case_146 = case_1 | case_4 | case_6
 
     value_to_be_saved_next = (
         in_case_146 * value_idx_to_inspect
         + case_2 * value_case_2
         + case_5 * intersect_value
-        + case_3 * value_to_be_saved_next
+        + case_3 * planed_value
     )
     policy_left_to_be_saved_next = (
         in_case_146 * policy_idx_to_inspect
         + case_2 * policy_case_2
         + case_5 * intersect_policy_left
-        + case_3 * policy_left_to_be_saved_next
+        + case_3 * planed_policy_left
     )
     policy_right_to_be_saved_next = (
         in_case_146 * policy_idx_to_inspect
         + case_2 * policy_case_2
         + case_5 * intersect_policy_right
-        + case_3 * policy_right_to_be_saved_next
+        + case_3 * planed_policy_right
     )
     endog_grid_to_be_saved_next = (
         in_case_146 * endog_grid_idx_to_inspect
         + case_2 * endog_grid_case_2
         + case_5 * intersect_grid
-        + case_3 * endog_grid_to_be_saved_next
+        + case_3 * planed_endog_grid
     )
     return (
         value_to_be_saved_next,
@@ -583,7 +565,7 @@ def create_cases(
     case_4 = ~does_the_value_func_switch * ~case_1 * ~case_2 * ~case_3
     case_5 = next_point_past_intersect & ~case_1 & ~case_2 & ~case_3 & ~case_4
     case_6 = point_j_past_intersect & ~case_1 & ~case_2 & ~case_3 & ~case_4 & ~case_5
-    return case_1, case_2, case_3, case_4, case_5, case_6, suboptimal_cond
+    return (case_1, case_2, case_3, case_4, case_5, case_6), suboptimal_cond
 
 
 def check_for_suboptimality(
@@ -667,14 +649,8 @@ def check_for_non_monotone_savings(
 
 def select_variables_to_save_this_iteration(
     case_6,
-    intersect_value,
-    intersect_policy_left,
-    intersect_policy_right,
-    intersect_grid,
-    value_to_be_saved_next,
-    policy_left_to_be_saved_next,
-    policy_right_to_be_saved_next,
-    endog_grid_to_be_saved_next,
+    intersection_point,
+    planed_to_be_saved_this_iter,
 ):
     """This function selects depending on the case we are in, the value which is saved
     this iteration.
@@ -683,18 +659,28 @@ def select_variables_to_save_this_iteration(
     case 6, where we realize that this point actually needs to be disregarded.
 
     """
+    (
+        intersect_grid,
+        intersect_value,
+        intersect_policy_left,
+        intersect_policy_right,
+    ) = intersection_point
+    (
+        planed_value,
+        planed_policy_left,
+        planed_policy_right,
+        planed_endog_grid,
+    ) = planed_to_be_saved_this_iter
     # Determine variables to save this iteration. This is always the variables
     # carried from last iteration. Except in case 6.
-    value_to_save = value_to_be_saved_next * (1 - case_6) + intersect_value * case_6
+    value_to_save = planed_value * (1 - case_6) + intersect_value * case_6
     policy_left_to_save = (
-        policy_left_to_be_saved_next * (1 - case_6) + intersect_policy_left * case_6
+        planed_policy_left * (1 - case_6) + intersect_policy_left * case_6
     )
     policy_right_to_save = (
-        policy_right_to_be_saved_next * (1 - case_6) + intersect_policy_right * case_6
+        planed_policy_right * (1 - case_6) + intersect_policy_right * case_6
     )
-    endog_grid_to_save = (
-        endog_grid_to_be_saved_next * (1 - case_6) + intersect_grid * case_6
-    )
+    endog_grid_to_save = planed_endog_grid * (1 - case_6) + intersect_grid * case_6
     return value_to_save, policy_left_to_save, policy_right_to_save, endog_grid_to_save
 
 
