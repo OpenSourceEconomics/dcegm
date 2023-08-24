@@ -318,43 +318,35 @@ def scan_body(
         saved_last_point_already,
         last_point_was_intersect,
     ) = carry
-    value_k_and_j, policy_k_and_j, endog_grid_k_and_j = points_j_and_k
+
+    point_to_inspect = (
+        value[idx_to_inspect],
+        policy[idx_to_inspect],
+        endog_grid[idx_to_inspect],
+    )
 
     is_this_the_last_point = idx_to_inspect == len(endog_grid) - 1
-    # In each iteration we calculate the gradient of the value function
 
+    # Conduct forward and backwards scan from the point we want to inspect. We want to
+    # find the point which is on the same value function segment as j. At the same time
+    # we calculate the gradient from the inspected point to the respective point.
     (
         grad_next_forward,
         idx_next_on_lower_curve,
-    ) = _forward_scan(
-        value=value,
-        endog_grid=endog_grid,
-        policy=policy,
-        jump_thresh=jump_thresh,
-        endog_grid_j=endog_grid_k_and_j[1],
-        policy_j=policy_k_and_j[1],
-        idx_base=idx_to_inspect,
-        n_points_to_scan=n_points_to_scan,
-    )
-
-    (
         grad_next_backward,
         idx_before_on_upper_curve,
-    ) = _backward_scan(
+    ) = conduct_forward_and_backward_scans(
         value=value,
-        endog_grid=endog_grid,
         policy=policy,
-        jump_thresh=jump_thresh,
-        value_j=value_k_and_j[1],
-        endog_grid_j=endog_grid_k_and_j[1],
-        idx_base=idx_to_inspect,
+        endog_grid=endog_grid,
+        points_j_and_k=points_j_and_k,
+        idx_to_scan_from=idx_to_inspect,
         n_points_to_scan=n_points_to_scan,
+        jump_thresh=jump_thresh,
     )
 
-    cases, suboptimal_cond = create_cases(
-        value_idx_to_inspect=value[idx_to_inspect],
-        policy_idx_to_inspect=policy[idx_to_inspect],
-        endog_grid_idx_to_inspect=endog_grid[idx_to_inspect],
+    cases, update_idx = determine_cases_and_idx_update(
+        point_to_inspect=point_to_inspect,
         points_j_and_k=points_j_and_k,
         grad_next_forward=grad_next_forward,
         grad_next_backward=grad_next_backward,
@@ -375,7 +367,7 @@ def scan_body(
         case_6=cases[5],
     )
 
-    # Save the values for the next iteration
+    # Select the values we want to save this iteration
     result_to_save_this_iteration = select_variables_to_save_this_iteration(
         case_6=cases[5],
         intersection_point=intersection_point,
@@ -387,62 +379,31 @@ def scan_body(
     )
 
     variables_to_be_saved_next_iteration = select_points_to_be_saved_next_iteration(
-        value_idx_to_inspect=value[idx_to_inspect],
-        policy_idx_to_inspect=policy[idx_to_inspect],
-        endog_grid_idx_to_inspect=endog_grid[idx_to_inspect],
+        point_to_inspect=point_to_inspect,
         point_case_2=point_case_2,
         intersection_point=intersection_point,
         planed_to_be_saved_this_iter=planed_to_be_saved_this_iter,
         cases=cases,
     )
-    case_1, case_2, case_3, case_4, case_5, case_6 = cases
+
+    points_j_and_k = update_values_j_and_k(
+        point_to_inspect=point_to_inspect,
+        intersection_point=intersection_point,
+        points_j_and_k=points_j_and_k,
+        cases=cases,
+    )
+
     (
-        intersect_grid,
-        intersect_value,
-        intersect_policy_left,
-        intersect_policy_right,
-    ) = intersection_point
+        idx_to_inspect,
+        saved_last_point_already,
+        last_point_was_intersect,
+    ) = update_bools_and_idx_to_inspect(
+        idx_to_inspect=idx_to_inspect,
+        update_idx=update_idx,
+        case_2=cases[1],
+        case_5=cases[4],
+    )
 
-    # In the iteration where case_2 is first time True, the last point is selected
-    # and afterwards only nans.
-    saved_last_point_already = case_2
-    last_point_was_intersect = case_5
-
-    in_case_134 = case_1 | case_3 | case_4
-    in_case_256 = ~in_case_134
-    in_case_123 = case_1 | case_2 | case_3
-    in_case_1236 = case_1 | case_2 | case_3 | case_6
-    in_case_45 = case_4 | case_5
-
-    # In case 1, 2, 3 the old value remains as value_j, in 4, 5, value_j is former
-    # value k and in 6 the old value_j is overwritten
-    value_j_new = (
-        in_case_123 * value_k_and_j[1]
-        + in_case_45 * value[idx_to_inspect]
-        + case_6 * intersect_value
-    )
-    value_k_new = in_case_1236 * value_k_and_j[0] + in_case_45 * value_k_and_j[1]
-    value_k_and_j = value_k_new, value_j_new
-    policy_j_new = (
-        in_case_123 * policy_k_and_j[1]
-        + in_case_45 * policy[idx_to_inspect]
-        + case_6 * intersect_policy_right
-    )
-    policy_k_new = in_case_1236 * policy_k_and_j[0] + in_case_45 * policy_k_and_j[1]
-    policy_k_and_j = policy_k_new, policy_j_new
-    endog_grid_j_new = (
-        in_case_123 * endog_grid_k_and_j[1]
-        + in_case_45 * endog_grid[idx_to_inspect]
-        + case_6 * intersect_grid
-    )
-    endog_grid_k_new = (
-        in_case_1236 * endog_grid_k_and_j[0] + in_case_45 * endog_grid_k_and_j[1]
-    )
-    endog_grid_k_and_j = endog_grid_k_new, endog_grid_j_new
-    # Increase in cases 134 and not in 256
-    update_by_cases = in_case_134 * (1 - in_case_256)
-    idx_to_inspect += update_by_cases + suboptimal_cond * (1 - update_by_cases)
-    points_j_and_k = (value_k_and_j, policy_k_and_j, endog_grid_k_and_j)
     carry = (
         points_j_and_k,
         variables_to_be_saved_next_iteration,
@@ -454,10 +415,255 @@ def scan_body(
     return carry, result_to_save_this_iteration
 
 
+def conduct_forward_and_backward_scans(
+    value,
+    policy,
+    endog_grid,
+    points_j_and_k,
+    idx_to_scan_from,
+    n_points_to_scan,
+    jump_thresh,
+):
+    value_k_and_j, policy_k_and_j, endog_grid_k_and_j = points_j_and_k
+
+    (
+        grad_next_forward,
+        idx_next_on_lower_curve,
+    ) = _forward_scan(
+        value=value,
+        endog_grid=endog_grid,
+        policy=policy,
+        endog_grid_j=endog_grid_k_and_j[1],
+        policy_j=policy_k_and_j[1],
+        idx_to_scan_from=idx_to_scan_from,
+        n_points_to_scan=n_points_to_scan,
+        jump_thresh=jump_thresh,
+    )
+
+    (
+        grad_next_backward,
+        idx_before_on_upper_curve,
+    ) = _backward_scan(
+        value=value,
+        endog_grid=endog_grid,
+        policy=policy,
+        value_j=value_k_and_j[1],
+        endog_grid_j=endog_grid_k_and_j[1],
+        idx_to_scan_from=idx_to_scan_from,
+        n_points_to_scan=n_points_to_scan,
+        jump_thresh=jump_thresh,
+    )
+    return (
+        grad_next_forward,
+        idx_next_on_lower_curve,
+        grad_next_backward,
+        idx_before_on_upper_curve,
+    )
+
+
+def _forward_scan(
+    value: jnp.ndarray,
+    endog_grid: jnp.ndarray,
+    policy: jnp.array,
+    jump_thresh: float,
+    endog_grid_j: float,
+    policy_j: float,
+    idx_to_scan_from: int,
+    n_points_to_scan: int,
+) -> Tuple[float, int]:
+    """Scan forward to check which point is on same value function as the current last
+    point on the upper envelope.
+
+    Args:
+        value (np.ndarray): 1d array containing the value function of shape
+            (n_grid_wealth + 1,).
+        endog_grid (np.ndarray): 1d array containing the endogenous wealth grid of
+            shape (n_grid_wealth + 1,).
+        jump_thresh (float): Threshold for the jump in the value function.
+
+    Returns:
+        tuple:
+
+        - grad_next_forward (float): The gradient of the next point on the same
+            value function.
+        - idx_on_same_value (int): Index of next point on the value function.
+
+    """
+
+    found_next_value_already = False
+    idx_on_same_value = 0
+    grad_next_on_same_value = 0
+
+    idx_max = endog_grid.shape[0] - 1
+
+    for i in range(1, n_points_to_scan + 1):
+        # Avoid out of bound indexing
+        idx_scan = jnp.minimum(idx_to_scan_from + i, idx_max)
+
+        is_not_on_same_value = create_indicator_if_value_function_is_switched(
+            endog_grid_1=endog_grid_j,
+            policy_1=policy_j,
+            endog_grid_2=endog_grid[idx_scan],
+            policy_2=policy[idx_scan],
+            jump_thresh=jump_thresh,
+        )
+        is_on_same_value = 1 - is_not_on_same_value
+        gradient_next = calculate_gradient(
+            x1=endog_grid[idx_to_scan_from],
+            y1=value[idx_to_scan_from],
+            x2=endog_grid[idx_scan],
+            y2=value[idx_scan],
+        )
+
+        # Now check if this is the first value on the same value function
+        # This is only 1 if so far there hasn't been found a point and the point is on
+        # the same value function
+        value_is_next_on_same_value = is_on_same_value & ~found_next_value_already
+        # Update if you have found a point. Always 1 (=True) if you have found a point
+        # already
+        found_next_value_already = found_next_value_already | is_on_same_value
+
+        # Update the index the first time a point is found
+        idx_on_same_value += idx_scan * value_is_next_on_same_value
+
+        # Update the gradient the first time a point is found
+        grad_next_on_same_value += gradient_next * value_is_next_on_same_value
+
+    return (
+        grad_next_on_same_value,
+        idx_on_same_value,
+    )
+
+
+def _backward_scan(
+    value: jnp.ndarray,
+    endog_grid: jnp.ndarray,
+    policy: jnp.array,
+    endog_grid_j,
+    value_j,
+    idx_to_scan_from: int,
+    n_points_to_scan: int,
+    jump_thresh: float,
+) -> Tuple[float, int]:
+    """Find point on same value function to idx_base.
+
+    Args:
+        value (np.ndarray): 1d array containing the value function of shape
+            (n_grid_wealth + 1,).
+        endog_grid (np.ndarray): 1d array containing the endogenous wealth grid of
+            shape (n_grid_wealth + 1,).
+        jump_thresh (float): Threshold for the jump in the value function.
+        idx_to_scan_from (int): Index of the base point in the value function to which
+            find a point before on the same value function.
+
+    Returns:
+        tuple:
+
+        - grad_before_on_same_value (float): The gradient of the previous point on
+            the same value function.
+        - is_before_on_same_value (int): Indicator for whether we have found a
+            previous point on the same value function.
+
+    """
+
+    found_value_before_already = False
+    idx_point_before_on_same_value = 0
+    grad_before_on_same_value = 0
+
+    for i in range(1, n_points_to_scan + 1):
+        idx_scan = jnp.maximum(idx_to_scan_from - i, 0)
+
+        is_not_on_same_value = create_indicator_if_value_function_is_switched(
+            endog_grid_1=endog_grid[idx_to_scan_from],
+            policy_1=policy[idx_to_scan_from],
+            endog_grid_2=endog_grid[idx_scan],
+            policy_2=policy[idx_scan],
+            jump_thresh=jump_thresh,
+        )
+        is_on_same_value = 1 - is_not_on_same_value
+
+        grad_before = calculate_gradient(
+            x1=endog_grid_j,
+            y1=value_j,
+            x2=endog_grid[idx_scan],
+            y2=value[idx_scan],
+        )
+        # Now check if this is the first value on the same value function
+        # This is only 1 if so far there hasn't been found a point and the point is on
+        # the same value function
+        is_before = is_on_same_value & (1 - found_value_before_already)
+        # Update if you have found a point. Always 1 (=True) if you have found a point
+        # already
+        found_value_before_already = found_value_before_already | is_on_same_value
+
+        # Update the first time a new point is found
+        idx_point_before_on_same_value += idx_scan * is_before
+
+        # Update the first time a new point is found
+        grad_before_on_same_value += grad_before * is_before
+
+    return (
+        grad_before_on_same_value,
+        idx_point_before_on_same_value,
+    )
+
+
+def update_bools_and_idx_to_inspect(idx_to_inspect, update_idx, case_2, case_5):
+    idx_to_inspect += update_idx
+    # In the iteration where case_2 is first time True, the last point is selected
+    # and afterwards only nans.
+    saved_last_point_already = case_2
+    last_point_was_intersect = case_5
+    return idx_to_inspect, saved_last_point_already, last_point_was_intersect
+
+
+def update_values_j_and_k(point_to_inspect, intersection_point, points_j_and_k, cases):
+    (
+        intersect_grid,
+        intersect_value,
+        intersect_policy_left,
+        intersect_policy_right,
+    ) = intersection_point
+
+    value_k_and_j, policy_k_and_j, endog_grid_k_and_j = points_j_and_k
+    value_to_inspect, policy_to_inspect, endog_grid_to_inspect = point_to_inspect
+
+    case_1, case_2, case_3, case_4, case_5, case_6 = cases
+    in_case_123 = case_1 | case_2 | case_3
+    in_case_1236 = case_1 | case_2 | case_3 | case_6
+    in_case_45 = case_4 | case_5
+
+    # In case 1, 2, 3 the old value remains as value_j, in 4, 5, value_j is former
+    # value k and in 6 the old value_j is overwritten
+    value_j_new = (
+        in_case_123 * value_k_and_j[1]
+        + in_case_45 * value_to_inspect
+        + case_6 * intersect_value
+    )
+    value_k_new = in_case_1236 * value_k_and_j[0] + in_case_45 * value_k_and_j[1]
+
+    value_k_and_j = value_k_new, value_j_new
+    policy_j_new = (
+        in_case_123 * policy_k_and_j[1]
+        + in_case_45 * policy_to_inspect
+        + case_6 * intersect_policy_right
+    )
+    policy_k_new = in_case_1236 * policy_k_and_j[0] + in_case_45 * policy_k_and_j[1]
+    policy_k_and_j = policy_k_new, policy_j_new
+    endog_grid_j_new = (
+        in_case_123 * endog_grid_k_and_j[1]
+        + in_case_45 * endog_grid_to_inspect
+        + case_6 * intersect_grid
+    )
+    endog_grid_k_new = (
+        in_case_1236 * endog_grid_k_and_j[0] + in_case_45 * endog_grid_k_and_j[1]
+    )
+    endog_grid_k_and_j = endog_grid_k_new, endog_grid_j_new
+    return value_k_and_j, policy_k_and_j, endog_grid_k_and_j
+
+
 def select_points_to_be_saved_next_iteration(
-    value_idx_to_inspect,
-    policy_idx_to_inspect,
-    endog_grid_idx_to_inspect,
+    point_to_inspect,
     point_case_2,
     intersection_point,
     planed_to_be_saved_this_iter,
@@ -465,6 +671,8 @@ def select_points_to_be_saved_next_iteration(
 ):
     case_1, case_2, case_3, case_4, case_5, case_6 = cases
     value_case_2, policy_case_2, endog_grid_case_2 = point_case_2
+    value_to_inspect, policy_to_inspect, endog_grid_to_inspect = point_to_inspect
+
     (
         planed_value,
         planed_policy_left,
@@ -478,28 +686,29 @@ def select_points_to_be_saved_next_iteration(
         intersect_policy_left,
         intersect_policy_right,
     ) = intersection_point
+
     in_case_146 = case_1 | case_4 | case_6
 
     value_to_be_saved_next = (
-        in_case_146 * value_idx_to_inspect
+        in_case_146 * value_to_inspect
         + case_2 * value_case_2
         + case_5 * intersect_value
         + case_3 * planed_value
     )
     policy_left_to_be_saved_next = (
-        in_case_146 * policy_idx_to_inspect
+        in_case_146 * policy_to_inspect
         + case_2 * policy_case_2
         + case_5 * intersect_policy_left
         + case_3 * planed_policy_left
     )
     policy_right_to_be_saved_next = (
-        in_case_146 * policy_idx_to_inspect
+        in_case_146 * policy_to_inspect
         + case_2 * policy_case_2
         + case_5 * intersect_policy_right
         + case_3 * planed_policy_right
     )
     endog_grid_to_be_saved_next = (
-        in_case_146 * endog_grid_idx_to_inspect
+        in_case_146 * endog_grid_to_inspect
         + case_2 * endog_grid_case_2
         + case_5 * intersect_grid
         + case_3 * planed_endog_grid
@@ -512,10 +721,8 @@ def select_points_to_be_saved_next_iteration(
     )
 
 
-def create_cases(
-    value_idx_to_inspect,
-    policy_idx_to_inspect,
-    endog_grid_idx_to_inspect,
+def determine_cases_and_idx_update(
+    point_to_inspect,
     points_j_and_k,
     grad_next_forward,
     grad_next_backward,
@@ -524,6 +731,7 @@ def create_cases(
     jump_thresh,
 ):
     value_k_and_j, policy_k_and_j, endog_grid_k_and_j = points_j_and_k
+    value_to_inspect, policy_to_inspect, endog_grid_to_inspect = point_to_inspect
 
     grad_before = calculate_gradient(
         x1=endog_grid_k_and_j[1],
@@ -534,19 +742,15 @@ def create_cases(
 
     # gradient with leading index to be checked
     grad_next = calculate_gradient(
-        x1=endog_grid_idx_to_inspect,
-        y1=value_idx_to_inspect,
+        x1=endog_grid_to_inspect,
+        y1=value_to_inspect,
         x2=endog_grid_k_and_j[1],
         y2=value_k_and_j[1],
     )
 
     suboptimal_cond, does_the_value_func_switch = check_for_suboptimality(
-        endog_grid_k_and_j=endog_grid_k_and_j,
-        policy_k_and_j=policy_k_and_j,
-        value_k_and_j=value_k_and_j,
-        value_idx_to_inspect=value_idx_to_inspect,
-        endog_grid_idx_to_inspect=endog_grid_idx_to_inspect,
-        policy_idx_to_inspect=policy_idx_to_inspect,
+        points_j_and_k=points_j_and_k,
+        point_to_inspect=point_to_inspect,
         grad_next=grad_next,
         grad_next_forward=grad_next_forward,
         grad_before=grad_before,
@@ -568,16 +772,15 @@ def create_cases(
     case_4 = ~does_the_value_func_switch * ~case_1 * ~case_2 * ~case_3
     case_5 = next_point_past_intersect & ~case_1 & ~case_2 & ~case_3 & ~case_4
     case_6 = point_j_past_intersect & ~case_1 & ~case_2 & ~case_3 & ~case_4 & ~case_5
-    return (case_1, case_2, case_3, case_4, case_5, case_6), suboptimal_cond
+
+    in_case_134 = case_1 | case_3 | case_4
+    update_idx = in_case_134 | (~in_case_134 & suboptimal_cond)
+    return (case_1, case_2, case_3, case_4, case_5, case_6), update_idx
 
 
 def check_for_suboptimality(
-    endog_grid_k_and_j,
-    policy_k_and_j,
-    value_k_and_j,
-    value_idx_to_inspect,
-    endog_grid_idx_to_inspect,
-    policy_idx_to_inspect,
+    points_j_and_k,
+    point_to_inspect,
     grad_next,
     grad_next_forward,
     grad_before,
@@ -595,24 +798,27 @@ def check_for_suboptimality(
     always false and # switch_value_func as well. Therefore, the third if is chosen.
 
     """
+    value_k_and_j, policy_k_and_j, endog_grid_k_and_j = points_j_and_k
+    value_to_inspect, policy_to_inspect, endog_grid_to_inspect = point_to_inspect
+
     does_the_value_func_switch = create_indicator_if_value_function_is_switched(
         endog_grid_1=endog_grid_k_and_j[1],
         policy_1=policy_k_and_j[1],
-        endog_grid_2=endog_grid_idx_to_inspect,
-        policy_2=policy_idx_to_inspect,
+        endog_grid_2=endog_grid_to_inspect,
+        policy_2=policy_to_inspect,
         jump_thresh=jump_thresh,
     )
     switch_value_func_and_steep_increase_after = (
         grad_next < grad_next_forward
     ) & does_the_value_func_switch
 
-    decreasing_value = value_idx_to_inspect < value_k_and_j[1]
+    decreasing_value = value_to_inspect < value_k_and_j[1]
 
     are_savings_non_monotone = check_for_non_monotone_savings(
         endog_grid_j=endog_grid_k_and_j[1],
         policy_j=policy_k_and_j[1],
-        endog_grid_idx_to_inspect=endog_grid_idx_to_inspect,
-        policy_idx_to_inspect=policy_idx_to_inspect,
+        endog_grid_idx_to_inspect=endog_grid_to_inspect,
+        policy_idx_to_inspect=policy_to_inspect,
     )
 
     # Aggregate the three cases
@@ -768,162 +974,6 @@ def select_and_calculate_intersection(
         intersect_value,
         intersect_policy_left,
         intersect_policy_right,
-    )
-
-
-def _forward_scan(
-    value: jnp.ndarray,
-    endog_grid: jnp.ndarray,
-    policy: jnp.array,
-    jump_thresh: float,
-    endog_grid_j: float,
-    policy_j: float,
-    idx_base: int,
-    n_points_to_scan: int,
-) -> Tuple[float, int]:
-    """Scan forward to check which point is on same value function as the current last
-    point on the upper envelope.
-
-    Args:
-        value (np.ndarray): 1d array containing the value function of shape
-            (n_grid_wealth + 1,).
-        endog_grid (np.ndarray): 1d array containing the endogenous wealth grid of
-            shape (n_grid_wealth + 1,).
-        exog_grid (np.ndarray): 1d array containing the exogenous wealth grid of
-            shape (n_grid_wealth + 1,).
-        jump_thresh (float): Threshold for the jump in the value function.
-        idx_current (int): Index of the current point in the value function.
-        idx_next (int): Index of the next point in the value function.
-        n_points_to_scan (int): The number of points to scan forward.
-
-    Returns:
-        tuple:
-
-        - grad_next_forward (float): The gradient of the next point on the same
-            value function.
-        - idx_on_same_value (int): Index of next point on the value function.
-
-    """
-
-    found_next_value_already = False
-    idx_on_same_value = 0
-    grad_next_on_same_value = 0
-
-    idx_max = endog_grid.shape[0] - 1
-
-    for i in range(1, n_points_to_scan + 1):
-        # Avoid out of bound indexing
-        idx_to_check = jnp.minimum(idx_base + i, idx_max)
-
-        is_not_on_same_value = create_indicator_if_value_function_is_switched(
-            endog_grid_1=endog_grid_j,
-            policy_1=policy_j,
-            endog_grid_2=endog_grid[idx_to_check],
-            policy_2=policy[idx_to_check],
-            jump_thresh=jump_thresh,
-        )
-        is_on_same_value = 1 - is_not_on_same_value
-        gradient_next = calculate_gradient(
-            x1=endog_grid[idx_base],
-            y1=value[idx_base],
-            x2=endog_grid[idx_to_check],
-            y2=value[idx_to_check],
-        )
-
-        # Now check if this is the first value on the same value function
-        # This is only 1 if so far there hasn't been found a point and the point is on
-        # the same value function
-        value_is_next_on_same_value = is_on_same_value & ~found_next_value_already
-        # Update if you have found a point. Always 1 (=True) if you have found a point
-        # already
-        found_next_value_already = found_next_value_already | is_on_same_value
-
-        # Update the index the first time a point is found
-        idx_on_same_value += idx_to_check * value_is_next_on_same_value
-
-        # Update the gradient the first time a point is found
-        grad_next_on_same_value += gradient_next * value_is_next_on_same_value
-
-    return (
-        grad_next_on_same_value,
-        idx_on_same_value,
-    )
-
-
-def _backward_scan(
-    value: jnp.ndarray,
-    endog_grid: jnp.ndarray,
-    policy: jnp.array,
-    jump_thresh: float,
-    endog_grid_j,
-    value_j,
-    idx_base: int,
-    n_points_to_scan: int,
-) -> Tuple[float, int]:
-    """Find point on same value function to idx_base.
-
-    Args:
-        value (np.ndarray): 1d array containing the value function of shape
-            (n_grid_wealth + 1,).
-        endog_grid (np.ndarray): 1d array containing the endogenous wealth grid of
-            shape (n_grid_wealth + 1,).
-        exog_grid (np.ndarray): 1d array containing the exogenous wealth grid of
-            shape (n_grid_wealth + 1,).
-        suboptimal_points (list): List of suboptimal points in the value functions.
-        jump_thresh (float): Threshold for the jump in the value function.
-        idx_current (int): Index of the current point in the value function.
-        idx_base (int): Index of the base point in the value function to which find a
-            point before on the same value function.
-
-    Returns:
-        tuple:
-
-        - grad_before_on_same_value (float): The gradient of the previous point on
-            the same value function.
-        - is_before_on_same_value (int): Indicator for whether we have found a
-            previous point on the same value function.
-
-    """
-
-    found_value_before_already = False
-    idx_point_before_on_same_value = 0
-    grad_before_on_same_value = 0
-
-    for i in range(1, n_points_to_scan + 1):
-        idx_to_check = jnp.maximum(idx_base - i, 0)
-
-        is_not_on_same_value = create_indicator_if_value_function_is_switched(
-            endog_grid_1=endog_grid[idx_base],
-            policy_1=policy[idx_base],
-            endog_grid_2=endog_grid[idx_to_check],
-            policy_2=policy[idx_to_check],
-            jump_thresh=jump_thresh,
-        )
-        is_on_same_value = 1 - is_not_on_same_value
-
-        grad_before = calculate_gradient(
-            x1=endog_grid_j,
-            y1=value_j,
-            x2=endog_grid[idx_to_check],
-            y2=value[idx_to_check],
-        )
-        # Now check if this is the first value on the same value function
-        # This is only 1 if so far there hasn't been found a point and the point is on
-        # the same value function
-        is_before = is_on_same_value & (1 - found_value_before_already)
-        # Update if you have found a point. Always 1 (=True) if you have found a point
-        # already
-        found_value_before_already = found_value_before_already | is_on_same_value
-
-        # Update the first time a new point is found
-        idx_point_before_on_same_value += idx_to_check * is_before
-
-        # Update the first time a new point is found
-        grad_before_on_same_value += grad_before * is_before
-
-    return (
-        grad_before_on_same_value,
-        idx_point_before_on_same_value,
     )
 
 
