@@ -12,10 +12,9 @@ from typing import Optional
 from typing import Tuple
 
 import jax
-import jax.numpy as jnp  # noqa: F401
+import jax.numpy as jnp
 from dcegm.math_funcs import calc_intersection_and_extrapolate_policy
 from dcegm.math_funcs import calculate_gradient
-from jax import jit  # noqa: F401
 from jax import vmap
 
 
