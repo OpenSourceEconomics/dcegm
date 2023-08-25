@@ -444,8 +444,7 @@ def conduct_forward_and_backward_scans(
             of the last point on the upper envelope (j) and the point before (k).
         idx_to_scan_from (int): Index of the point we want to scan from. This should
             be the current point we inspect.
-        n_points_to_scan (int): Number of points to scan in forward and backwards
-            scan.
+        n_points_to_scan (int): Number of points to scan.
         jump_thresh (float): Jump detection threshold.
 
     Returns:
@@ -470,8 +469,8 @@ def conduct_forward_and_backward_scans(
         idx_next_on_lower_curve,
     ) = _forward_scan(
         value=value,
-        endog_grid=endog_grid,
         policy=policy,
+        endog_grid=endog_grid,
         endog_grid_j=endog_grid_k_and_j[1],
         policy_j=policy_k_and_j[1],
         idx_to_scan_from=idx_to_scan_from,
@@ -484,8 +483,8 @@ def conduct_forward_and_backward_scans(
         idx_before_on_upper_curve,
     ) = _backward_scan(
         value=value,
-        endog_grid=endog_grid,
         policy=policy,
+        endog_grid=endog_grid,
         value_j=value_k_and_j[1],
         endog_grid_j=endog_grid_k_and_j[1],
         idx_to_scan_from=idx_to_scan_from,
@@ -502,22 +501,29 @@ def conduct_forward_and_backward_scans(
 
 def _forward_scan(
     value: jnp.ndarray,
-    endog_grid: jnp.ndarray,
     policy: jnp.array,
-    jump_thresh: float,
+    endog_grid: jnp.ndarray,
     endog_grid_j: float,
     policy_j: float,
     idx_to_scan_from: int,
     n_points_to_scan: int,
+    jump_thresh: float,
 ) -> Tuple[float, int]:
     """Scan forward to check which point is on same value function as the current last
     point on the upper envelope.
 
     Args:
-        value (np.ndarray): 1d array containing the value function of shape
+        value (np.ndarray): 1d array containing the unrefined value function of shape
             (n_grid_wealth + 1,).
-        endog_grid (np.ndarray): 1d array containing the endogenous wealth grid of
-            shape (n_grid_wealth + 1,).
+        policy (np.ndarray): 1d array containing the unrefined policy function of shape
+            (n_grid_wealth + 1,).
+        endog_grid (np.ndarray): 1d array containing the unrefined endogenous wealth
+            grid of shape (n_grid_wealth + 1,).
+        endog_grid_j (float): Endogenous grid of the last point on the upper envelope.
+        policy_j (float): Policy of the last point on the upper envelope.
+        idx_to_scan_from (int): Index of the point we want to scan from. This should
+            be the current point we inspect.
+        n_points_to_scan (int): Number of points to scan.
         jump_thresh (float): Threshold for the jump in the value function.
 
     Returns:
@@ -576,8 +582,8 @@ def _forward_scan(
 
 def _backward_scan(
     value: jnp.ndarray,
-    endog_grid: jnp.ndarray,
     policy: jnp.array,
+    endog_grid: jnp.ndarray,
     endog_grid_j,
     value_j,
     idx_to_scan_from: int,
@@ -587,13 +593,18 @@ def _backward_scan(
     """Find point on same value function to idx_base.
 
     Args:
-        value (np.ndarray): 1d array containing the value function of shape
+        value (np.ndarray): 1d array containing the unrefined value function of shape
             (n_grid_wealth + 1,).
-        endog_grid (np.ndarray): 1d array containing the endogenous wealth grid of
-            shape (n_grid_wealth + 1,).
+        policy (np.ndarray): 1d array containing the unrefined policy function of shape
+            (n_grid_wealth + 1,).
+        endog_grid (np.ndarray): 1d array containing the unrefined endogenous wealth
+            grid of shape (n_grid_wealth + 1,).
+        endog_grid_j (float): Endogenous grid of the last point on the upper envelope.
+        value_j (float): Value of the last point on the upper envelope.
+        idx_to_scan_from (int): Index of the point we want to scan from. This should
+            be the current point we inspect.
+        n_points_to_scan (int): Number of points to scan.
         jump_thresh (float): Threshold for the jump in the value function.
-        idx_to_scan_from (int): Index of the base point in the value function to which
-            find a point before on the same value function.
 
     Returns:
         tuple:
@@ -1154,6 +1165,7 @@ def create_indicator_if_value_function_is_switched(
         policy_1 (float): The policy function at the first endogenous wealth point.
         endog_grid_2 (float): The second endogenous wealth point.
         policy_2 (float): The policy function at the second endogenous wealth point.
+        jump_thresh (float): Jump detection threshold.
 
     Returns:
         bool: Indicator if value function is switched.
