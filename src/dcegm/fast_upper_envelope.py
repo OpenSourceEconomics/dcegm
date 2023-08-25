@@ -367,17 +367,17 @@ def scan_body(
     )
 
     # Select the values we want to save this iteration
-    result_to_save_this_iteration = select_variables_to_save_this_iteration(
-        case_6=cases[5],
+    point_to_save_this_iteration = select_point_to_save_this_iteration(
         intersection_point=intersection_point,
         planed_to_be_saved_this_iter=planed_to_be_saved_this_iter,
+        case_6=cases[5],
     )
 
     point_case_2 = jax.lax.select(
         saved_last_point_already, dummy_points_grid, last_point_in_grid
     )
 
-    variables_to_be_saved_next_iteration = select_points_to_be_saved_next_iteration(
+    point_to_be_saved_next_iteration = select_points_to_be_saved_next_iteration(
         point_to_inspect=point_to_inspect,
         point_case_2=point_case_2,
         intersection_point=intersection_point,
@@ -405,13 +405,13 @@ def scan_body(
 
     carry = (
         points_j_and_k,
-        variables_to_be_saved_next_iteration,
+        point_to_be_saved_next_iteration,
         idx_to_inspect,
         saved_last_point_already,
         last_point_was_intersect,
     )
 
-    return carry, result_to_save_this_iteration
+    return carry, point_to_save_this_iteration
 
 
 def conduct_forward_and_backward_scans(
@@ -754,8 +754,8 @@ def select_points_to_be_saved_next_iteration(
     Args:
         point_to_inspect (tuple): Tuple containing the value, policy and endogenous grid
             of the point to be inspected.
-        point_case_2 (tuple): Tuple containing the value, policy and endogenous grid
-            of the point to be saved in case 2.
+        point_case_2 (jnp.ndarray): Tuple containing the value, policy and endogenous
+            grid of the point to be saved in case 2.
         intersection_point (tuple): Tuple containing the value, policy and endogenous
             grid of the intersection point.
         planed_to_be_saved_this_iter (tuple): Tuple containing the value, policy and
@@ -765,8 +765,9 @@ def select_points_to_be_saved_next_iteration(
     Returns:
         tuple:
 
-        - variables_to_be_saved_next_iteration (tuple): Tuple containing the value,
-            policy and endogenous grid of the point to be saved next iteration.
+        - point_to_be_saved_next_iteration (tuple): Tuple containing the value,
+            policy left, right and endogenous grid of the point to be saved next
+            iteration.
 
     """
     case_1, case_2, case_3, case_4, case_5, case_6 = cases
@@ -830,6 +831,36 @@ def determine_cases_and_idx_update(
     is_this_the_last_point,
     jump_thresh,
 ):
+    """Determine the case in which we are this iteration and if the index to scan should
+    be updated.
+
+    This function is crucial for the optimality of the FUES. We want to have a clear
+    documentation of how the cases determined here map into the into the situations
+    on how the candidate solutions after solving the euler equation can look like.
+    We need to do more work here!
+
+    Args:
+        point_to_inspect (tuple): Tuple containing the value, policy and endogenous grid
+            of the point to be inspected.
+        points_j_and_k (tuple): Tuple containing the value, policy and endogenous grid
+            of the last point on the upper envelope (j) and the point before (k).
+        grad_next_forward (float): The gradient between the next point on the same
+            value function segment as j and the current point we inspect.
+        grad_next_backward (float): The gradient between the point before on the same
+            value function segment as the current point we inspect and the last point
+            on the upper envelope (j).
+        last_point_was_intersect (bool): Indicator if the last point was an
+            intersection point.
+        is_this_the_last_point (bool): Indicator if this is the last point.
+        jump_thresh (float): Jump detection threshold.
+
+    Returns:
+        tuple:
+
+        - cases (tuple): Tuple containing the indicators for the different cases.
+        - update_idx (bool): Indicator if the index should be updated.
+
+    """
     value_k_and_j, policy_k_and_j, endog_grid_k_and_j = points_j_and_k
     value_to_inspect, policy_to_inspect, endog_grid_to_inspect = point_to_inspect
 
@@ -897,6 +928,24 @@ def check_for_suboptimality(
     the i+1 and j, then delete j'th point # If the point is the same as point j, this is
     always false and # switch_value_func as well. Therefore, the third if is chosen.
 
+    Args:
+        points_j_and_k (tuple): Tuple containing the value, policy and endogenous grid
+            of the last point on the upper envelope (j) and the point before (k).
+        point_to_inspect (tuple): Tuple containing the value, policy and endogenous grid
+            of the point to be inspected.
+        grad_next (float): The gradient between the last point on the upper envelope (j)
+            and the point we inspect.
+        grad_next_forward (float): The gradient between the next point on the same value
+            function segment as j and the current point we inspect.
+        grad_before (float): The gradient between the last point on the upper envelope
+            (j) and the point before (k).
+        jump_thresh (float): Jump detection threshold.
+
+    Returns:
+        tuple:
+
+        - suboptimal_cond (bool): Indicator if the point is suboptimal.
+
     """
     value_k_and_j, policy_k_and_j, endog_grid_k_and_j = points_j_and_k
     value_to_inspect, policy_to_inspect, endog_grid_to_inspect = point_to_inspect
@@ -956,16 +1005,30 @@ def check_for_non_monotone_savings(
     return are_savings_non_monotone
 
 
-def select_variables_to_save_this_iteration(
-    case_6,
+def select_point_to_save_this_iteration(
     intersection_point,
     planed_to_be_saved_this_iter,
+    case_6,
 ):
     """This function selects depending on the case we are in, the value which is saved
     this iteration.
 
     This is always the point which was set last period to be saved this period except in
     case 6, where we realize that this point actually needs to be disregarded.
+
+    Args:
+        intersection_point (tuple): Tuple containing the value, policy and endogenous
+            grid of the intersection point.
+        planed_to_be_saved_this_iter (tuple): Tuple containing the value, policy and
+            endogenous grid of the point to be saved this iteration.
+        case_6 (bool): Indicator if we are in case 6.
+
+
+    Returns:
+        tuple:
+
+        - point_to_save_this_iteration (tuple): Tuple containing the value, policy left,
+            right and endogenous grid of the point to be saved this iteration.
 
     """
     (
