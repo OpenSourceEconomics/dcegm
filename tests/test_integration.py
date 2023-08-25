@@ -32,7 +32,6 @@ from toy_models.consumption_retirement_model.utility_functions import (
 )
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
 
-
 # Obtain the test directory of the package.
 TEST_DIR = Path(__file__).parent
 
@@ -60,22 +59,23 @@ def state_space_functions():
 
 
 @pytest.mark.parametrize(
-    "model, choice_range",
+    "model",
     [
-        ("retirement_no_taste_shocks", [0, 1]),
-        ("retirement_taste_shocks", [0, 1]),
-        ("deaton", [0]),
+        "retirement_no_taste_shocks",
+        "retirement_taste_shocks",
+        "deaton",
     ],
 )
 def test_benchmark_models(
     model,
-    choice_range,
     utility_functions,
     state_space_functions,
     load_example_model,
 ):
     params, options = load_example_model(f"{model}")
-    options["n_exog_processes"] = 1
+    options["n_exog_states"] = 1
+
+    exog_savings_grid = jnp.linspace(0, options["max_wealth"], options["n_grid_points"])
 
     state_space, map_state_to_index = create_state_space(options)
     state_choice_space, *_ = create_state_choice_space(
@@ -87,10 +87,11 @@ def test_benchmark_models(
     if params.loc[("utility_function", "theta"), "value"] == 1:
         utility_functions["utility"] = utiility_func_log_crra
 
-    solve_dcegm(
+    result_dict = solve_dcegm(
         params,
         options,
-        utility_functions,
+        exog_savings_grid=exog_savings_grid,
+        utility_functions=utility_functions,
         budget_constraint=budget_constraint,
         final_period_solution=solve_final_period_scalar,
         state_space_functions=state_space_functions,
@@ -106,10 +107,10 @@ def test_benchmark_models(
     for period in range(23, -1, -1):
         idxs_state_choice_combs = jnp.where(state_choice_space[:, 0] == period)[0]
 
-        endog_grid_got = jnp.load(f"endog_grid_{period}.npy")
-        policy_left_got = jnp.load(f"policy_left_{period}.npy")
-        policy_right_got = jnp.load(f"policy_right_{period}.npy")
-        value_got = jnp.load(f"value_{period}.npy")
+        endog_grid_got = result_dict[period]["endog_grid"]
+        policy_left_got = result_dict[period]["policy_left"]
+        policy_right_got = result_dict[period]["policy_right"]
+        value_got = result_dict[period]["value"]
 
         for state_choice_idx, state_choice_vec in enumerate(idxs_state_choice_combs):
             choice = state_choice_space[state_choice_vec, -1]

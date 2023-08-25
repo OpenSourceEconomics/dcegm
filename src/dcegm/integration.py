@@ -37,9 +37,7 @@ def quadrature_hermite(
     return quad_points_scaled, quad_weights
 
 
-def quadrature_legendre(
-    n_quad_points: int, sigma: float
-) -> Tuple[np.ndarray, np.ndarray]:
+def quadrature_legendre(n_quad_points: int) -> Tuple[np.ndarray, np.ndarray]:
     """Return the Gauss-Legendre quadrature points and weights.
 
     The stochastic Gauss-Legendre quadrature points are shifted points
@@ -59,6 +57,6 @@ def quadrature_legendre(
 
     """
     quad_points, quad_weights = roots_sh_legendre(n_quad_points)
-    quad_points_normal = norm.ppf(quad_points) * sigma
+    quad_points_normal = norm.ppf(quad_points)
 
     return quad_points_normal, quad_weights

@@ -15,26 +15,30 @@ from dcegm.marg_utilities_and_exp_value import (
 )
 from dcegm.pre_processing import convert_params_to_dict
 from dcegm.pre_processing import get_partial_functions
-from dcegm.state_space import create_current_state_and_state_choice_objects
+from dcegm.state_space import (
+    create_period_state_and_state_choice_objects,
+)
 from dcegm.state_space import create_state_choice_space
 from dcegm.state_space import get_map_from_state_to_child_nodes
+from jax import jit
 from jax import vmap
 
 
-def solve_dcegm(
-    params: pd.DataFrame,
+def get_solve_function(
     options: Dict[str, int],
+    exog_savings_grid: jnp.ndarray,
     utility_functions: Dict[str, Callable],
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable],
     final_period_solution: Callable,
     transition_function: Callable,
-) -> None:
-    """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
+) -> Callable:
+    """Create a solve function, which only takes params as input.
 
     Args:
-        params (pd.DataFrame): Params DataFrame.
         options (dict): Options dictionary.
+        exog_savings_grid (jnp.ndarray): 1d array of shape (n_grid_wealth,) containing
+            the user-supplied exogenous savings grid.
         utility_functions (Dict[str, callable]): Dictionary of three user-supplied
             functions for computation of:
             (i) utility
@@ -50,21 +54,20 @@ def solve_dcegm(
         transition_function (callable): User-supplied function returning for each
             state a transition matrix vector.
 
+    Returns:
+        callable: The partial solve function that only takes ```params``` as input.
+
     """
-    params_dict = convert_params_to_dict(params)
-    taste_shock_scale = params_dict["lambda"]
-    interest_rate = params_dict["interest_rate"]
-    discount_factor = params_dict["beta"]
-    max_wealth = params_dict["max_wealth"]
 
     n_periods = options["n_periods"]
-    n_grid_wealth = options["grid_points_wealth"]
-    exogenous_savings_grid = jnp.linspace(0, max_wealth, n_grid_wealth)
+    # max_wealth = params_dict["max_wealth"]
+    # n_grid_wealth = options["grid_points_wealth"]
+    # exog_savings_grid = jnp.linspace(0, max_wealth, n_grid_wealth)
 
     # ToDo: Make interface with several draw possibilities.
     # ToDo: Some day make user supplied draw function.
-    income_shock_draws, income_shock_weights = quadrature_legendre(
-        options["quadrature_points_stochastic"], params_dict["sigma"]
+    income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
+        options["quadrature_points_stochastic"]
     )
 
     (
@@ -76,7 +79,6 @@ def solve_dcegm(
         compute_upper_envelope,
         transition_vector_by_state,
     ) = get_partial_functions(
-        params_dict,
         options,
         user_utility_functions=utility_functions,
         user_budget_constraint=budget_constraint,
@@ -104,50 +106,108 @@ def solve_dcegm(
 
     final_period_solution_partial = partial(
         final_period_solution,
-        params_dict=params_dict,
-        options=options,
         compute_utility=compute_utility,
         compute_marginal_utility=compute_marginal_utility,
+        options=options,
     )
 
-    backwards_induction(
+    period_specific_state_objects = create_period_state_and_state_choice_objects(
+        state_space=state_space,
+        state_choice_space=state_choice_space,
         map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
         reshape_state_choice_vec_to_mat=reshape_state_choice_vec_to_mat,
         transform_between_state_and_state_choice_space=transform_between_state_and_state_choice_space,
-        exogenous_savings_grid=exogenous_savings_grid,
-        state_space=state_space,
-        state_choice_space=state_choice_space,
-        map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
-        income_shock_draws=income_shock_draws,
-        income_shock_weights=income_shock_weights,
         n_periods=n_periods,
-        taste_shock_scale=taste_shock_scale,
-        discount_factor=discount_factor,
-        interest_rate=interest_rate,
-        compute_marginal_utility=compute_marginal_utility,
-        compute_inverse_marginal_utility=compute_inverse_marginal_utility,
-        compute_value=compute_value,
-        compute_next_period_wealth=compute_next_period_wealth,
-        transition_vector_by_state=transition_vector_by_state,
-        compute_upper_envelope=compute_upper_envelope,
-        final_period_solution_partial=final_period_solution_partial,
+    )
+    backward_jit = jit(
+        partial(
+            backward_induction,
+            period_specific_state_objects=period_specific_state_objects,
+            exog_savings_grid=exog_savings_grid,
+            state_space=state_space,
+            map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
+            income_shock_draws_unscaled=income_shock_draws_unscaled,
+            income_shock_weights=income_shock_weights,
+            n_periods=n_periods,
+            compute_marginal_utility=compute_marginal_utility,
+            compute_inverse_marginal_utility=compute_inverse_marginal_utility,
+            compute_value=compute_value,
+            compute_next_period_wealth=compute_next_period_wealth,
+            transition_vector_by_state=transition_vector_by_state,
+            compute_upper_envelope=compute_upper_envelope,
+            final_period_solution_partial=final_period_solution_partial,
+        )
     )
 
+    def solve_func(params):
+        params_dict_int = convert_params_to_dict(params)
+        return backward_jit(params=params_dict_int)
 
-def backwards_induction(
-    map_state_choice_vec_to_parent_state: np.ndarray,
-    reshape_state_choice_vec_to_mat: np.ndarray,
-    transform_between_state_and_state_choice_space: np.ndarray,
-    exogenous_savings_grid: np.ndarray,
+    return solve_func
+
+
+def solve_dcegm(
+    params: pd.DataFrame,
+    options: Dict[str, int],
+    exog_savings_grid: jnp.ndarray,
+    utility_functions: Dict[str, Callable],
+    budget_constraint: Callable,
+    state_space_functions: Dict[str, Callable],
+    final_period_solution: Callable,
+    transition_function: Callable,
+) -> Dict[int, np.ndarray]:
+    """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
+
+    Args:
+        params (pd.DataFrame): Params DataFrame.
+        options (dict): Options dictionary.
+        exog_savings_grid (jnp.ndarray): 1d array of shape (n_grid_wealth,) containing
+            the user-supplied exogenous savings grid.
+        utility_functions (Dict[str, callable]): Dictionary of three user-supplied
+            functions for computation of:
+            (i) utility
+            (ii) inverse marginal utility
+            (iii) next period marginal utility
+        budget_constraint (callable): Callable budget constraint.
+        state_space_functions (Dict[str, callable]): Dictionary of two user-supplied
+            functions to:
+            (i) create the state space
+            (ii) get the state specific choice set
+        final_period_solution (callable): User-supplied function for solving the agent's
+            last period.
+        transition_function (callable): User-supplied function returning for each
+            state a transition matrix vector.
+
+    Returns:
+        dict: Dictionary containing the period-specific endog_grid, policy_left,
+            policy_right, and value from the backward induction.
+
+    """
+    backward_jit = get_solve_function(
+        options=options,
+        exog_savings_grid=exog_savings_grid,
+        utility_functions=utility_functions,
+        budget_constraint=budget_constraint,
+        state_space_functions=state_space_functions,
+        final_period_solution=final_period_solution,
+        transition_function=transition_function,
+    )
+
+    results = backward_jit(
+        params=params,
+    )
+    return results
+
+
+def backward_induction(
+    params: Dict[str, float],
+    period_specific_state_objects: Dict[int, jnp.ndarray],
+    exog_savings_grid: np.ndarray,
     state_space: np.ndarray,
-    state_choice_space,
     map_state_to_post_decision_child_nodes: np.ndarray,
-    income_shock_draws: np.ndarray,
+    income_shock_draws_unscaled: np.ndarray,
     income_shock_weights: np.ndarray,
     n_periods: int,
-    taste_shock_scale: float,
-    discount_factor: float,
-    interest_rate: float,
     compute_marginal_utility: Callable,
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
@@ -155,10 +215,13 @@ def backwards_induction(
     transition_vector_by_state: Callable,
     compute_upper_envelope: Callable,
     final_period_solution_partial: Callable,
-) -> None:
-    """Do backwards induction and solve for optimal policy and value function.
+) -> Dict[int, np.ndarray]:
+    """Do backward induction and solve for optimal policy and value function.
 
     Args:
+        params (dict): Dictionary containing the model parameters.
+        period_specififc_state_objects (dict): Dictionary containing period-specific
+            state and state-choice objects.
         exogenous_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
             containing the exogenous savings grid.
         state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
@@ -187,8 +250,6 @@ def backwards_induction(
             (n_stochastic_quad_points) with weights for each stoachstic shock draw.
         n_periods (int): Number of periods.
         taste_shock_scale (float): The taste shock scale.
-        discount_factor (float): The discount factor.
-        interest_rate (float): The interest rate of capital.
         compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility. The input ```params``` is already partialled
             in.
@@ -213,77 +274,63 @@ def backwards_induction(
             period.
 
     Returns:
+        dict: Dictionary containing the period-specific endog_grid, policy_left,
+            policy_right, and value from the backward induction.
 
     """
+    taste_shock_scale = params["lambda"]
+    income_shock_draws = income_shock_draws_unscaled * params["sigma"]
+
+    results = {}
 
     # Calculate beginning of period resources for all periods, given exogenous savings
     # and income shocks from last period
-    resources_beginning_of_period = vmap(
+    begin_of_period_resources = vmap(
         vmap(
-            vmap(compute_next_period_wealth, in_axes=(None, None, 0)),
-            in_axes=(None, 0, None),
+            vmap(compute_next_period_wealth, in_axes=(None, None, 0, None)),
+            in_axes=(None, 0, None, None),
         ),
-        in_axes=(0, None, None),
-    )(state_space, exogenous_savings_grid, income_shock_draws)
+        in_axes=(0, None, None, None),
+    )(state_space, exog_savings_grid, income_shock_draws, params)
 
-    (
-        state_choice_combs_final,
-        state_choice_combs_final,
-        endog_grid_final,
-        reshape_current_state_choice_vec_to_mat,
-        transform_between_state_and_state_choice_vec,
-    ) = create_current_state_and_state_choice_objects(
-        period=n_periods - 1,
-        state_space=state_space,
-        state_choice_space=state_choice_space,
-        resources_beginning_of_period=resources_beginning_of_period,
-        map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
-        reshape_state_choice_vec_to_mat=reshape_state_choice_vec_to_mat,
-        transform_between_state_and_state_choice_space=transform_between_state_and_state_choice_space,
-    )
+    state_objects = period_specific_state_objects[n_periods - 1]
+    resources_last_period = begin_of_period_resources[
+        state_objects["idx_state_of_state_choice"]
+    ]
 
-    value_interpolated, policy_final, marg_util_interpolated = solve_final_period(
-        final_period_choice_states=state_choice_combs_final,
+    marg_util_interpolated, value_interpolated, policy_final = solve_final_period(
+        state_choice_mat=state_objects["state_choice_mat"],
+        resources=resources_last_period,
         final_period_solution_partial=final_period_solution_partial,
-        resources_last_period=endog_grid_final,
+        params=params,
     )
-
+    final_period_results = {}
     # Choose which draw we take for policy and value function as those are note
     # saved with respect to the draws
     middle_of_draws = int(len(income_shock_draws) + 1 / 2)
-    jnp.save(
-        f"endog_grid_{n_periods - 1}.npy",
-        endog_grid_final[:, :, middle_of_draws],
-    )
-    jnp.save(f"policy_{n_periods - 1}.npy", policy_final[:, :, middle_of_draws])
-    jnp.save(f"value_{n_periods - 1}.npy", value_interpolated[:, :, middle_of_draws])
+    final_period_results["value"] = value_interpolated[:, :, middle_of_draws]
+    final_period_results["policy_left"] = policy_final[:, :, middle_of_draws]
+    final_period_results["policy_right"] = policy_final[:, :, middle_of_draws]
+    final_period_results["endog_grid"] = resources_last_period[:, :, middle_of_draws]
+
+    results[n_periods - 1] = final_period_results
 
     for period in range(n_periods - 2, -1, -1):
+        state_objects = period_specific_state_objects[period]
+
         # Aggregate the marginal utilities and expected values over all choices and
         # income shock draws
         marg_util, emax = aggregate_marg_utils_exp_values(
             value_state_choice_specific=value_interpolated,
             marg_util_state_choice_specific=marg_util_interpolated,
-            reshape_state_choice_vec_to_mat=reshape_current_state_choice_vec_to_mat,
-            transform_between_state_and_state_choice_vec=transform_between_state_and_state_choice_vec,
+            reshape_state_choice_vec_to_mat=state_objects[
+                "reshape_state_choice_vec_to_mat"
+            ],
+            transform_between_state_and_state_choice_vec=state_objects[
+                "transform_between_state_and_state_choice_vec"
+            ],
             taste_shock_scale=taste_shock_scale,
             income_shock_weights=income_shock_weights,
-        )
-
-        (
-            idxs_state_choice,
-            state_choice_combs,
-            resources,
-            reshape_current_state_choice_vec_to_mat,
-            transform_between_state_and_state_choice_vec,
-        ) = create_current_state_and_state_choice_objects(
-            period=period,
-            state_space=state_space,
-            state_choice_space=state_choice_space,
-            resources_beginning_of_period=resources_beginning_of_period,
-            map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
-            reshape_state_choice_vec_to_mat=reshape_state_choice_vec_to_mat,
-            transform_between_state_and_state_choice_space=transform_between_state_and_state_choice_space,
         )
 
         (
@@ -294,15 +341,14 @@ def backwards_induction(
         ) = calculate_candidate_solutions_from_euler_equation(
             marg_util=marg_util,
             emax=emax,
-            idx_state_choices_period=idxs_state_choice,
+            idx_state_choices_period=state_objects["idxs_state_choices"],
             map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
-            exogenous_savings_grid=exogenous_savings_grid,
+            exogenous_savings_grid=exog_savings_grid,
             transition_vector_by_state=transition_vector_by_state,
-            discount_factor=discount_factor,
-            interest_rate=interest_rate,
-            state_choice_mat=state_choice_combs,
+            state_choice_mat=state_objects["state_choice_mat"],
             compute_inverse_marginal_utility=compute_inverse_marginal_utility,
             compute_value=compute_value,
+            params=params,
         )
 
         # Run upper envelope to remove suboptimal candidates
@@ -313,31 +359,41 @@ def backwards_induction(
             value_state_choice,
         ) = vmap(
             compute_upper_envelope,
-            in_axes=(0, 0, 0, 0, 0, None),
+            in_axes=(0, 0, 0, 0, 0, None, None),  # vmap over state-choice combs
         )(
             endog_grid_candidate,
             policy_candidate,
             value_candidate,
             expected_values[:, 0],
-            state_choice_combs[:, -1],
+            state_objects["state_choice_mat"][:, -1],
+            params,
             compute_value,
         )
+        resources_period = begin_of_period_resources[
+            state_objects["idx_state_of_state_choice"]
+        ]
 
+        # ToDo: reorder function arguments
         marg_util_interpolated, value_interpolated = vmap(
             interpolate_and_calc_marginal_utilities,
-            in_axes=(None, None, 0, 0, 0, 0, 0, 0),
+            in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),
         )(
             compute_marginal_utility,
             compute_value,
-            state_choice_combs[:, -1],
-            resources,
+            state_objects["state_choice_mat"][:, -1],
+            resources_period,
             endog_grid_state_choice,
             policy_left_state_choice,
             policy_right_state_choice,
             value_state_choice,
+            params,
         )
+        period_results = {}
+        period_results["policy_left"] = policy_left_state_choice
+        period_results["policy_right"] = policy_right_state_choice
+        period_results["endog_grid"] = endog_grid_state_choice
+        period_results["value"] = value_state_choice
 
-        jnp.save(f"endog_grid_{period}.npy", endog_grid_state_choice)
-        jnp.save(f"policy_left_{period}.npy", policy_left_state_choice)
-        jnp.save(f"policy_right_{period}.npy", policy_right_state_choice)
-        jnp.save(f"value_{period}.npy", value_state_choice)
+        results[period] = period_results
+
+    return results

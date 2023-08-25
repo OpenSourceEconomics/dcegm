@@ -152,7 +152,6 @@ def input_data():
     params = pd.DataFrame(data=[0.5, 0.5], columns=["value"], index=index)
     params.loc[("assets", "interest_rate"), "value"] = 0.02
     params.loc[("assets", "ltc_cost"), "value"] = 5
-    params.loc[("assets", "max_wealth"), "value"] = 50
     params.loc[("wage", "wage_avg"), "value"] = 8
     params.loc[("shocks", "sigma"), "value"] = 1
     params.loc[("shocks", "lambda"), "value"] = 1
@@ -161,9 +160,10 @@ def input_data():
     options = {
         "n_periods": 2,
         "n_discrete_choices": 2,
-        "grid_points_wealth": WEALTH_GRID_POINTS,
+        "n_grid_points": WEALTH_GRID_POINTS,
+        "max_wealth": 50,
         "quadrature_points_stochastic": 5,
-        "n_exog_processes": 2,
+        "n_exog_states": 2,
     }
     state_space_functions = {
         "create_state_space": create_state_space,
@@ -175,10 +175,13 @@ def input_data():
         "marginal_utility": marginal_utility,
     }
 
-    solve_dcegm(
+    exog_savings_grid = np.linspace(0, options["max_wealth"], options["n_grid_points"])
+
+    result_dict = solve_dcegm(
         params,
         options,
-        utility_functions,
+        exog_savings_grid=exog_savings_grid,
+        utility_functions=utility_functions,
         budget_constraint=budget_dcegm,
         final_period_solution=solve_final_period_scalar,
         state_space_functions=state_space_functions,
@@ -188,6 +191,8 @@ def input_data():
     out = {}
     out["params"] = params
     out["options"] = options
+    out["endog_grid"] = result_dict[0]["endog_grid"]
+    out["policy_left"] = result_dict[0]["policy_left"]
 
     return out
 
@@ -223,8 +228,8 @@ def test_two_period(input_data, wealth_idx, state_idx):
     idxs_state_choice_combs = reshape_state_choice_vec_to_mat[state_idx]
     initial_cond["health"] = state[-1]
 
-    endog_grid_period = np.load(f"endog_grid_{state[0]}.npy")
-    policy_period = np.load(f"policy_left_{state[0]}.npy")
+    endog_grid_period = input_data["endog_grid"]
+    policy_period = input_data["policy_left"]
 
     for state_choice_idx in idxs_state_choice_combs:
         choice_in_period_1 = state_choice_space[state_choice_idx][-1]
