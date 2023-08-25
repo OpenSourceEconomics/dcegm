@@ -423,6 +423,46 @@ def conduct_forward_and_backward_scans(
     n_points_to_scan,
     jump_thresh,
 ):
+    """Conduct the backward and forward scan from the point we inspect and scan from.
+
+    We use the forward scan to find the next on the same value function segment as
+    the last point on the upper envelope (j) and calculate the gradient between the
+    point found and the point we inspect at the moment.
+
+    We use the backward scan to find the point before on the same value function segment
+    as the point we inspect and calculate the gradient between the point found and the
+    last point un the upper envelope (j).
+
+    Args:
+        value (np.ndarray): 1d array containing the unrefined value correspondence
+            of shape (n_grid_wealth,).
+        policy (np.ndarray): 1d array containing the unrefined policy correspondence
+            of shape (n_grid_wealth,).
+        endog_grid (np.ndarray): 1d array containing the unrefined endogenous wealth
+            grid of shape (n_grid_wealth,).
+        points_j_and_k (tuple): Tuple containing the value, policy and endogenous grid
+            of the last point on the upper envelope (j) and the point before (k).
+        idx_to_scan_from (int): Index of the point we want to scan from. This should
+            be the current point we inspect.
+        n_points_to_scan (int): Number of points to scan in forward and backwards
+            scan.
+        jump_thresh (float): Jump detection threshold.
+
+    Returns:
+        tuple:
+
+        - grad_next_forward (float): The gradient between the next point on the same
+            value function segment as j and the current point we inspect.
+        - idx_next_on_lower_curve (int): Index of the next point on the same value
+            function segment as j.
+        - grad_next_backward (float): The gradient between the point before on the same
+            value function segment as the current point we inspect and the last point
+            on the upper envelope (j).
+        - idx_before_on_upper_curve (int): Index of the point before on the same value
+            function segment as the current point we inspect.
+
+    """
+
     value_k_and_j, policy_k_and_j, endog_grid_k_and_j = points_j_and_k
 
     (
@@ -608,6 +648,29 @@ def _backward_scan(
 
 
 def update_bools_and_idx_to_inspect(idx_to_inspect, update_idx, case_2, case_5):
+    """Update the index of the point to be inspected in the next period and the
+    indicators if we have saved the last point already and if the last point was an
+    intersection point.
+
+    Args:
+        idx_to_inspect (int): Index of the point to be inspected in the current
+            iteration.
+        update_idx (bool): Indicator if the index should be updated.
+        case_2 (bool): Indicator if we have reached the last point.
+        case_5 (bool): Indicator if we are in the situation where we added the
+            intersection point this iteration and add the inspected
+
+    Returns:
+        tuple:
+
+        - idx_to_inspect (int): Index of the point to be inspected in the next
+            iteration.
+        - saved_last_point_already (bool): Indicator if we have saved the last point
+            already.
+        - last_point_was_intersect (bool): Indicator if the last point was an
+            intersection point.
+
+    """
     idx_to_inspect += update_idx
     # In the iteration where case_2 is first time True, the last point is selected
     # and afterwards only nans.
@@ -617,6 +680,24 @@ def update_bools_and_idx_to_inspect(idx_to_inspect, update_idx, case_2, case_5):
 
 
 def update_values_j_and_k(point_to_inspect, intersection_point, points_j_and_k, cases):
+    """Update point j and k, i.e. the two last points on the upper envelope.
+
+    Args:
+        point_to_inspect (tuple): Tuple containing the value, policy and endogenous grid
+            of the point to be inspected.
+        intersection_point (tuple): Tuple containing the value, policy and endogenous
+            grid of the intersection point.
+        points_j_and_k (tuple): Tuple containing the value, policy and endogenous grid
+            of the last point on the upper envelope (j) and the point before (k).
+        cases (tuple): Tuple containing the indicators for the different cases.
+
+    Returns:
+        tuple:
+
+        - points_j_and_k (tuple): Tuple containing the value, policy and endogenous grid
+            of the last point on the upper envelope (j) and the point before (k).
+
+    """
     (
         intersect_grid,
         intersect_value,
