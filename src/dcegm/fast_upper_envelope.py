@@ -13,8 +13,8 @@ from typing import Tuple
 
 import jax
 import jax.numpy as jnp
+from dcegm.math_funcs import calc_gradient
 from dcegm.math_funcs import calc_intersection_and_extrapolate_policy
-from dcegm.math_funcs import calculate_gradient
 from jax import vmap
 
 
@@ -27,7 +27,7 @@ def fast_upper_envelope_wrapper(
     params: Dict[str, float],
     compute_value: Callable,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
-    """Drop suboptimal points and refine the endogenous grid, policy, and value.
+    """Drop suboptimal points and refines the endogenous grid, policy, and value.
 
     Computes the upper envelope over the overlapping segments of the
     decision-specific value functions, which in fact are value "correspondences"
@@ -277,10 +277,12 @@ def scan_body(
     jump_thresh,
     n_points_to_scan,
 ):
-    """This is the body exucted at each iteration of the scan function. Depending on the
-    idx_to_inspect of the carry value it scans either a new value or just saves the
-    value from last period. The carry value is updated in each iteration and passed to
-    the next iteration. This body returns one value, two policy values (left and right)
+    """The scan body to be executed at each iteration of the scan function.
+
+    Depending on the idx_to_inspect of the carry value, either a new value is scanned
+    or the value from the last period is saved.
+    The carry value is updated in each iteration and passed to the next iteration.
+    This scan body returns one value, two policy values (left and right)
     as well as an endogenous grid value.
 
         Args:
@@ -289,8 +291,8 @@ def scan_body(
                 Including the current two optimal points j and k, the points to be saved
                 this iteration as well as the indexes of the point to be inspected, the
                 indicator of case 2 and the indicator if the last point was an
-                interseqction point.
-            _iter_step (int): The count of iteration we are in.
+                intersection point.
+            _iter_step (int): The current iteration number.
             value (np.ndarray): 1d array containing the unrefined value correspondence
                 of shape (n_grid_wealth,).
             policy (np.ndarray): 1d array containing the unrefined policy correspondence
@@ -305,14 +307,17 @@ def scan_body(
         tuple:
 
         - carry (tuple): The updated carry value passed to the next iteration.
-        - result (tuple): The result of this iteration. This is a tuple containing the
-            value, the left and right policy as well as the endogenous grid value to be
-            saved this iteration.
+        - result (tuple): The result of this iteration. This is a tuple containing four
+            elements to be saved in this iteration:
+            - value
+            - left policy
+            - right policy
+            - endogenous grid point
 
     """
     (
         points_j_and_k,
-        planed_to_be_saved_this_iter,
+        planned_to_be_saved_this_iter,
         idx_to_inspect,
         saved_last_point_already,
         last_point_was_intersect,
@@ -344,13 +349,13 @@ def scan_body(
         jump_thresh=jump_thresh,
     )
 
-    cases, update_idx = determine_cases_and_idx_update(
+    cases, update_idx = determine_cases_and_update_idx(
         point_to_inspect=point_to_inspect,
         points_j_and_k=points_j_and_k,
         grad_next_forward=grad_next_forward,
         grad_next_backward=grad_next_backward,
         last_point_was_intersect=last_point_was_intersect,
-        is_this_the_last_point=is_this_the_last_point,
+        is_final_point_on_grid=is_this_the_last_point,
         jump_thresh=jump_thresh,
     )
 
@@ -369,7 +374,7 @@ def scan_body(
     # Select the values we want to save this iteration
     point_to_save_this_iteration = select_point_to_save_this_iteration(
         intersection_point=intersection_point,
-        planed_to_be_saved_this_iter=planed_to_be_saved_this_iter,
+        planned_to_be_saved_this_iter=planned_to_be_saved_this_iter,
         case_6=cases[5],
     )
 
@@ -381,7 +386,7 @@ def scan_body(
         point_to_inspect=point_to_inspect,
         point_case_2=point_case_2,
         intersection_point=intersection_point,
-        planed_to_be_saved_this_iter=planed_to_be_saved_this_iter,
+        planned_to_be_saved_this_iter=planned_to_be_saved_this_iter,
         cases=cases,
     )
 
@@ -423,27 +428,29 @@ def conduct_forward_and_backward_scans(
     n_points_to_scan,
     jump_thresh,
 ):
-    """Conduct the backward and forward scan from the point we inspect and scan from.
+    """Run the backward and forward scans at the point with idx_to_scan_from.
 
-    We use the forward scan to find the next on the same value function segment as
-    the last point on the upper envelope (j) and calculate the gradient between the
-    point found and the point we inspect at the moment.
+    We use the forward scan to find the next point that lies on the same value
+    function segment as the most recent point on the upper envelope (j).
+    Then we calculate the gradient between the point found on the same value function
+    segment and the point we currently inspect at idx_to_scan_from.
 
-    We use the backward scan to find the point before on the same value function segment
-    as the point we inspect and calculate the gradient between the point found and the
-    last point un the upper envelope (j).
+    We use the backward scan to find the preceding point that lies on the same value
+    function segment as the point we inspect. Then we calculate the gradient between
+    the point found and the most recent point on the upper envelope (j)
 
     Args:
-        value (np.ndarray): 1d array containing the unrefined value correspondence
-            of shape (n_grid_wealth,).
-        policy (np.ndarray): 1d array containing the unrefined policy correspondence
-            of shape (n_grid_wealth,).
-        endog_grid (np.ndarray): 1d array containing the unrefined endogenous wealth
-            grid of shape (n_grid_wealth,).
+        value (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            unrefined value correspondence.
+        policy (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            unrefined policy correspondence.
+        endog_grid (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            unrefined endogenous wealth grid.
         points_j_and_k (tuple): Tuple containing the value, policy and endogenous grid
-            of the last point on the upper envelope (j) and the point before (k).
-        idx_to_scan_from (int): Index of the point we want to scan from. This should
-            be the current point we inspect.
+            of the most recent point that lies on on the the upper envelope (j) and the
+            point before (k).
+        idx_to_scan_from (int): Index of the point we scan from. This should be the
+            current point we inspect.
         n_points_to_scan (int): Number of points to scan.
         jump_thresh (float): Jump detection threshold.
 
@@ -455,8 +462,8 @@ def conduct_forward_and_backward_scans(
         - idx_next_on_lower_curve (int): Index of the next point on the same value
             function segment as j.
         - grad_next_backward (float): The gradient between the point before on the same
-            value function segment as the current point we inspect and the last point
-            on the upper envelope (j).
+            value function segment as the current point we inspect and the most recent
+            point that lies on the upper envelope (j).
         - idx_before_on_upper_curve (int): Index of the point before on the same value
             function segment as the current point we inspect.
 
@@ -509,18 +516,20 @@ def _forward_scan(
     n_points_to_scan: int,
     jump_thresh: float,
 ) -> Tuple[float, int]:
-    """Scan forward to check which point is on same value function as the current last
+    """Scan forward to check which point is on same value function as the most recent
     point on the upper envelope.
 
     Args:
-        value (np.ndarray): 1d array containing the unrefined value function of shape
-            (n_grid_wealth + 1,).
-        policy (np.ndarray): 1d array containing the unrefined policy function of shape
-            (n_grid_wealth + 1,).
-        endog_grid (np.ndarray): 1d array containing the unrefined endogenous wealth
-            grid of shape (n_grid_wealth + 1,).
-        endog_grid_j (float): Endogenous grid of the last point on the upper envelope.
-        policy_j (float): Policy of the last point on the upper envelope.
+        value (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            unrefined value correspondence.
+        policy (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            unrefined policy correspondence.
+        endog_grid (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            unrefined endogenous wealth grid.
+        endog_grid_j (float): Endogenous grid point that corresponds to the most recent
+            value function point that lies on the upper envelope (j).
+        policy_j (float): Point of the policy function that corresponds to the most
+            recent value function point that lies on the upper envelope (j).
         idx_to_scan_from (int): Index of the point we want to scan from. This should
             be the current point we inspect.
         n_points_to_scan (int): Number of points to scan.
@@ -553,7 +562,7 @@ def _forward_scan(
             jump_thresh=jump_thresh,
         )
         is_on_same_value = 1 - is_not_on_same_value
-        gradient_next = calculate_gradient(
+        gradient_next = calc_gradient(
             x1=endog_grid[idx_to_scan_from],
             y1=value[idx_to_scan_from],
             x2=endog_grid[idx_scan],
@@ -593,14 +602,16 @@ def _backward_scan(
     """Find point on same value function to idx_base.
 
     Args:
-        value (np.ndarray): 1d array containing the unrefined value function of shape
-            (n_grid_wealth + 1,).
-        policy (np.ndarray): 1d array containing the unrefined policy function of shape
-            (n_grid_wealth + 1,).
-        endog_grid (np.ndarray): 1d array containing the unrefined endogenous wealth
-            grid of shape (n_grid_wealth + 1,).
-        endog_grid_j (float): Endogenous grid of the last point on the upper envelope.
-        value_j (float): Value of the last point on the upper envelope.
+        value (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            unrefined value correspondence.
+        policy (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            unrefined policy correspondence.
+        endog_grid (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            unrefined endogenous wealth grid.
+        endog_grid_j (float): Endogenous grid point that corresponds to the most recent
+            value function point that lies on the upper envelope (j).
+        value_j (float): Point of the value function that corresponds to the most recent
+            value function point that lies on the upper envelope (j).
         idx_to_scan_from (int): Index of the point we want to scan from. This should
             be the current point we inspect.
         n_points_to_scan (int): Number of points to scan.
@@ -632,7 +643,7 @@ def _backward_scan(
         )
         is_on_same_value = 1 - is_not_on_same_value
 
-        grad_before = calculate_gradient(
+        grad_before = calc_gradient(
             x1=endog_grid_j,
             y1=value_j,
             x2=endog_grid[idx_scan],
@@ -659,9 +670,11 @@ def _backward_scan(
 
 
 def update_bools_and_idx_to_inspect(idx_to_inspect, update_idx, case_2, case_5):
-    """Update the index of the point to be inspected in the next period and the
-    indicators if we have saved the last point already and if the last point was an
-    intersection point.
+    """Update indicators and index of the point to be inspected in the next period.
+
+    The indicators are booleans that capture cases where
+    - we have saved the last point already, and
+    - the last point was an intersection point.
 
     Args:
         idx_to_inspect (int): Index of the point to be inspected in the current
@@ -691,22 +704,24 @@ def update_bools_and_idx_to_inspect(idx_to_inspect, update_idx, case_2, case_5):
 
 
 def update_values_j_and_k(point_to_inspect, intersection_point, points_j_and_k, cases):
-    """Update point j and k, i.e. the two last points on the upper envelope.
+    """Update point j and k, i.e. the two most recent points on the upper envelope.
 
     Args:
-        point_to_inspect (tuple): Tuple containing the value, policy and endogenous grid
-            of the point to be inspected.
-        intersection_point (tuple): Tuple containing the value, policy and endogenous
-            grid of the intersection point.
-        points_j_and_k (tuple): Tuple containing the value, policy and endogenous grid
-            of the last point on the upper envelope (j) and the point before (k).
+        point_to_inspect (tuple): Tuple containing the value, policy, and
+            endogenous grid point of to the point to be inspected.
+        intersection_point (tuple): Tuple containing the value, policy, and endogenous
+            grid points of the intersection point.
+        points_j_and_k (tuple): Tuple containing the value, policy, and endogenous grid
+            points of the most recent point on the upper envelope (j) and the
+            point before (k).
         cases (tuple): Tuple containing the indicators for the different cases.
 
     Returns:
         tuple:
 
-        - points_j_and_k (tuple): Tuple containing the value, policy and endogenous grid
-            of the last point on the upper envelope (j) and the point before (k).
+        - points_j_and_k (tuple): Tuple containing the updated value, policy, and
+            endogenous grid point of the most recent point on the upper envelope (j)
+            and the point before (k).
 
     """
     (
@@ -757,28 +772,28 @@ def select_points_to_be_saved_next_iteration(
     point_to_inspect,
     point_case_2,
     intersection_point,
-    planed_to_be_saved_this_iter,
+    planned_to_be_saved_this_iter,
     cases,
 ):
-    """Depending on cases select the points to be saved next iteration.
+    """Select the points to be saved in the next iteration, depending on the case.
 
     Args:
-        point_to_inspect (tuple): Tuple containing the value, policy and endogenous grid
-            of the point to be inspected.
-        point_case_2 (jnp.ndarray): Tuple containing the value, policy and endogenous
-            grid of the point to be saved in case 2.
-        intersection_point (tuple): Tuple containing the value, policy and endogenous
-            grid of the intersection point.
-        planed_to_be_saved_this_iter (tuple): Tuple containing the value, policy and
-            endogenous grid of the point to be saved this iteration.
+        point_to_inspect (tuple): Tuple containing the value, policy, and endogenous
+            grid points of the point to be inspected.
+        point_case_2 (jnp.ndarray): Tuple containing the value, policy, and endogenous
+            grid points of the point to be saved in case 2.
+        intersection_point (tuple): Tuple containing the value, policy, and endogenous
+            grid points of the intersection point.
+        planned_to_be_saved_this_iter (tuple): Tuple containing the value, policy, and
+            endogenous grid point of the point to be saved in this iteration.
         cases (tuple): Tuple containing the indicators for the different cases.
 
     Returns:
         tuple:
 
         - point_to_be_saved_next_iteration (tuple): Tuple containing the value,
-            policy left, right and endogenous grid of the point to be saved next
-            iteration.
+            policy left, policy right and endogenous grid point of the point to be
+            saved in the next iteration.
 
     """
     case_1, case_2, case_3, case_4, case_5, case_6 = cases
@@ -786,11 +801,11 @@ def select_points_to_be_saved_next_iteration(
     value_to_inspect, policy_to_inspect, endog_grid_to_inspect = point_to_inspect
 
     (
-        planed_value,
-        planed_policy_left,
-        planed_policy_right,
-        planed_endog_grid,
-    ) = planed_to_be_saved_this_iter
+        planned_value,
+        planned_policy_left,
+        planned_policy_right,
+        planned_endog_grid,
+    ) = planned_to_be_saved_this_iter
 
     (
         intersect_grid,
@@ -805,25 +820,25 @@ def select_points_to_be_saved_next_iteration(
         in_case_146 * value_to_inspect
         + case_2 * value_case_2
         + case_5 * intersect_value
-        + case_3 * planed_value
+        + case_3 * planned_value
     )
     policy_left_to_be_saved_next = (
         in_case_146 * policy_to_inspect
         + case_2 * policy_case_2
         + case_5 * intersect_policy_left
-        + case_3 * planed_policy_left
+        + case_3 * planned_policy_left
     )
     policy_right_to_be_saved_next = (
         in_case_146 * policy_to_inspect
         + case_2 * policy_case_2
         + case_5 * intersect_policy_right
-        + case_3 * planed_policy_right
+        + case_3 * planned_policy_right
     )
     endog_grid_to_be_saved_next = (
         in_case_146 * endog_grid_to_inspect
         + case_2 * endog_grid_case_2
         + case_5 * intersect_grid
-        + case_3 * planed_endog_grid
+        + case_3 * planned_endog_grid
     )
     return (
         value_to_be_saved_next,
@@ -833,17 +848,16 @@ def select_points_to_be_saved_next_iteration(
     )
 
 
-def determine_cases_and_idx_update(
+def determine_cases_and_update_idx(
     point_to_inspect,
     points_j_and_k,
     grad_next_forward,
     grad_next_backward,
     last_point_was_intersect,
-    is_this_the_last_point,
+    is_final_point_on_grid,
     jump_thresh,
 ):
-    """Determine the case in which we are this iteration and if the index to scan should
-    be updated.
+    """Determine cases and if the index to be scanned this iteration should be updated.
 
     This function is crucial for the optimality of the FUES. We want to have a clear
     documentation of how the cases determined here map into the into the situations
@@ -853,16 +867,17 @@ def determine_cases_and_idx_update(
     Args:
         point_to_inspect (tuple): Tuple containing the value, policy and endogenous grid
             of the point to be inspected.
-        points_j_and_k (tuple): Tuple containing the value, policy and endogenous grid
-            of the last point on the upper envelope (j) and the point before (k).
+        points_j_and_k (tuple): Tuple containing the value, policy, and endogenous grid
+            point of the most recent point that lies on the upper envelope (j) and
+            the point before (k).
         grad_next_forward (float): The gradient between the next point on the same
             value function segment as j and the current point we inspect.
         grad_next_backward (float): The gradient between the point before on the same
-            value function segment as the current point we inspect and the last point
-            on the upper envelope (j).
+            value function segment as the current point we inspect and the most recent
+            point that lies on the upper envelope (j).
         last_point_was_intersect (bool): Indicator if the last point was an
             intersection point.
-        is_this_the_last_point (bool): Indicator if this is the last point.
+        is_final_point_on_grid (bool): Indicator if this is the final point on the grid.
         jump_thresh (float): Jump detection threshold.
 
     Returns:
@@ -872,10 +887,10 @@ def determine_cases_and_idx_update(
         - update_idx (bool): Indicator if the index should be updated.
 
     """
-    value_k_and_j, policy_k_and_j, endog_grid_k_and_j = points_j_and_k
-    value_to_inspect, policy_to_inspect, endog_grid_to_inspect = point_to_inspect
+    value_k_and_j, _policy_k_and_j, endog_grid_k_and_j = points_j_and_k
+    value_to_inspect, _policy_to_inspect, endog_grid_to_inspect = point_to_inspect
 
-    grad_before = calculate_gradient(
+    grad_before = calc_gradient(
         x1=endog_grid_k_and_j[1],
         y1=value_k_and_j[1],
         x2=endog_grid_k_and_j[0],
@@ -883,7 +898,7 @@ def determine_cases_and_idx_update(
     )
 
     # gradient with leading index to be checked
-    grad_next = calculate_gradient(
+    grad_next = calc_gradient(
         x1=endog_grid_to_inspect,
         y1=value_to_inspect,
         x2=endog_grid_k_and_j[1],
@@ -909,7 +924,7 @@ def determine_cases_and_idx_update(
     # Start with checking if last iteration was case_5, and we need
     # to add another point to the refined grid.
     case_1 = last_point_was_intersect
-    case_2 = is_this_the_last_point & ~case_1
+    case_2 = is_final_point_on_grid & ~case_1
     case_3 = suboptimal_cond & ~case_1 & ~case_2
     case_4 = ~does_the_value_func_switch * ~case_1 * ~case_2 * ~case_3
     case_5 = next_point_past_intersect & ~case_1 & ~case_2 & ~case_3 & ~case_4
@@ -917,6 +932,7 @@ def determine_cases_and_idx_update(
 
     in_case_134 = case_1 | case_3 | case_4
     update_idx = in_case_134 | (~in_case_134 & suboptimal_cond)
+
     return (case_1, case_2, case_3, case_4, case_5, case_6), update_idx
 
 
@@ -928,34 +944,41 @@ def check_for_suboptimality(
     grad_before,
     jump_thresh,
 ):
-    """This function checks for sub-optimality of the current point.
+    """Check if current point is sub-optimal.
 
-    If this function   returns False the point can still be suboptimal. That is if we
-    find in the   next iteration, that this point actually is after a switch point. Here
-    we check   if the point fulfills one of three conditions. Either the value function
-    is   decreasing with decreasing value function, the # value function not montone in
-    consumption or # if the gradient of the index we inspect and the point j (the last
-    point # on the same choice specific policy) is shallower than the # gradient joining
-    the i+1 and j, then delete j'th point # If the point is the same as point j, this is
-    always false and # switch_value_func as well. Therefore, the third if is chosen.
+    Even if the function returns False, the point may still be suboptimal.
+    That is iff, in the next iteration, we find that this point actually lies after a
+    switching point.
+
+    Here, we check if the point fulfills one of three conditions:
+    1) Either the value function is decreasing with decreasing value function,
+    2) the value function is not montone in consumption, or
+    3) if the gradient of the index we inspect and the point j (the most recent point
+        on the same choice-specific policy) is shallower than the gradient joining
+        the i+1 and j. If True, delete the j'th point.
+
+    If the point to inspect is the same as point j, this is always false and we
+    switch the value function as well. Therefore, the third if is chosen.
 
     Args:
-        points_j_and_k (tuple): Tuple containing the value, policy and endogenous grid
-            of the last point on the upper envelope (j) and the point before (k).
-        point_to_inspect (tuple): Tuple containing the value, policy and endogenous grid
-            of the point to be inspected.
-        grad_next (float): The gradient between the last point on the upper envelope (j)
-            and the point we inspect.
+        points_j_and_k (tuple): Tuple containing the value, policym and endogenous grid
+            point of the most recent point on the upper envelope (j) and the point
+            before (k).
+        point_to_inspect (tuple): Tuple containing the value, policy, and endogenous
+            grid point of the point we inspect.
+        grad_next (float): The gradient between the most recent point that lies on the
+            upper envelope (j) and the point we inspect.
         grad_next_forward (float): The gradient between the next point on the same value
             function segment as j and the current point we inspect.
-        grad_before (float): The gradient between the last point on the upper envelope
-            (j) and the point before (k).
+        grad_before (float): The gradient between the most recent point on the upper
+            envelope (j) and the point before (k).
         jump_thresh (float): Jump detection threshold.
 
     Returns:
         tuple:
 
         - suboptimal_cond (bool): Indicator if the point is suboptimal.
+        - does_the_value_func_switch (bool): Indicator if the value function switches.
 
     """
     value_k_and_j, policy_k_and_j, endog_grid_k_and_j = points_j_and_k
@@ -994,20 +1017,23 @@ def check_for_suboptimality(
 def check_for_non_monotone_savings(
     endog_grid_j, policy_j, endog_grid_idx_to_inspect, policy_idx_to_inspect
 ):
-    """This function checks if the savings are a non-monotone in wealth between the
-    current last point on the upper envelope j and the point we check.
+    """Check if savings are a non-monotone in wealth.
+
+    Check the grid between the most recent point on the upper envelope (j)
+    and the current point we inspect.
 
     Args:
-        endog_grid_j (float): The endogenous grid value of the last point on the upper
-            envelope.
-        policy_j (float): The policy value of the last point on the upper envelope.
-        endog_grid_idx_to_inspect (float): The endogenous grid value of the point we
+        endog_grid_j (float): The endogenous grid point of the most recent point
+            on the upper envelope.
+        policy_j (float): The value of the policy function of the most recent point
+            on the upper envelope.
+        endog_grid_idx_to_inspect (float): The endogenous grid point of the point we
             check.
-        policy_idx_to_inspect (float): The policy value of the point we check.
+        policy_idx_to_inspect (float): The policy index of the point we check.
 
     Returns:
         non_monotone_policy (bool): Indicator if the policy is non-monotone in wealth
-            between the last point on the upper envelope and the point we check.
+            between the most recent point on the upper envelope and the point we check.
 
     """
     exog_grid_j = endog_grid_j - policy_j
@@ -1018,20 +1044,20 @@ def check_for_non_monotone_savings(
 
 def select_point_to_save_this_iteration(
     intersection_point,
-    planed_to_be_saved_this_iter,
+    planned_to_be_saved_this_iter,
     case_6,
 ):
-    """This function selects depending on the case we are in, the value which is saved
-    this iteration.
+    """Select point on the value function to be saved, depending on the case.
 
-    This is always the point which was set last period to be saved this period except in
-    case 6, where we realize that this point actually needs to be disregarded.
+    This is the point which, in the previous iteration, was marked to be saved
+    this iteration. Except in case 6, where we realize that this point actually
+    needs to be disregarded.
 
     Args:
-        intersection_point (tuple): Tuple containing the value, policy and endogenous
-            grid of the intersection point.
-        planed_to_be_saved_this_iter (tuple): Tuple containing the value, policy and
-            endogenous grid of the point to be saved this iteration.
+        intersection_point (tuple): Tuple containing the value, policy, and endogenous
+            grid point of the intersection point.
+        planned_to_be_saved_this_iter (tuple): Tuple containing the value, policy, and
+            endogenous grid point of the point to be saved this iteration.
         case_6 (bool): Indicator if we are in case 6.
 
 
@@ -1039,7 +1065,8 @@ def select_point_to_save_this_iteration(
         tuple:
 
         - point_to_save_this_iteration (tuple): Tuple containing the value, policy left,
-            right and endogenous grid of the point to be saved this iteration.
+            policy right, and endogenous grid point of the point to be saved this
+            iteration.
 
     """
     (
@@ -1049,21 +1076,21 @@ def select_point_to_save_this_iteration(
         intersect_policy_right,
     ) = intersection_point
     (
-        planed_value,
-        planed_policy_left,
-        planed_policy_right,
-        planed_endog_grid,
-    ) = planed_to_be_saved_this_iter
+        planned_value,
+        planned_policy_left,
+        planned_policy_right,
+        planned_endog_grid,
+    ) = planned_to_be_saved_this_iter
     # Determine variables to save this iteration. This is always the variables
     # carried from last iteration. Except in case 6.
-    value_to_save = planed_value * (1 - case_6) + intersect_value * case_6
+    value_to_save = planned_value * (1 - case_6) + intersect_value * case_6
     policy_left_to_save = (
-        planed_policy_left * (1 - case_6) + intersect_policy_left * case_6
+        planned_policy_left * (1 - case_6) + intersect_policy_left * case_6
     )
     policy_right_to_save = (
-        planed_policy_right * (1 - case_6) + intersect_policy_right * case_6
+        planned_policy_right * (1 - case_6) + intersect_policy_right * case_6
     )
-    endog_grid_to_save = planed_endog_grid * (1 - case_6) + intersect_grid * case_6
+    endog_grid_to_save = planned_endog_grid * (1 - case_6) + intersect_grid * case_6
     return value_to_save, policy_left_to_save, policy_right_to_save, endog_grid_to_save
 
 
@@ -1078,25 +1105,26 @@ def select_and_calculate_intersection(
     case_5,
     case_6,
 ):
-    """This function selects the points with which we can compute to the intersection
-    points.
+    """Select points we use to compute the intersection points.
 
-    This functions maps very nicely into Figure 5 of the paper. In case 5, we use the
-    next point (q in the graph) we found on the value function segment of point j(i in
-    graph) and intersect it with the idx_to_check (i + 1 in the graph). In case 6 we
-    are in the situation of the figure in the right site in Figure 5. Here we intersect
-    the line of j and k (i and i-1 in the graph) with the line of idx_to_check (i+1
-    in the graph) and the point before on the same value segment.
+    This functions maps very nicely into Figure 5 of the paper.
+    In case 5, we use the next point (q in the graph) we found on the value function
+    segment of point j (i in graph) and intersect it with the idx_to_check
+    (i + 1 in the graph).
+    In case 6, we are in the situation on the right-hand side in Figure 5.
+    Here, we intersect the line of j and k (i and i-1 in the graph) with the line of
+    idx_to_check (i+1 in the graph) and the point before on the same value function
+    segment.
 
     Args:
-        endog_grid (np.ndarray): 1d array containing the unrefined endogenous wealth
-            grid of shape (n_grid_wealth,).
-        policy (np.ndarray): 1d array containing the unrefined policy correspondence
-            of shape (n_grid_wealth,).
-        value (np.ndarray): 1d array containing the unrefined value correspondence
-            of shape (n_grid_wealth,).
-        points_j_and_k (tuple): A tuple containing the value, policy and endogenous
-            wealth grid of the last two points on the upper envelope.
+        endog_grid (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            unrefined endogenous wealth grid.
+        policy (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            unrefined policy correspondence.
+        value (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            unrefined value correspondence.
+        points_j_and_k (tuple): A tuple containing the value, policy, and endogenous
+            wealth grid point of the two most recent points on the upper envelope.
         idx_next_on_lower_curve (int): The index of the next point on the lower curve.
         idx_before_on_upper_curve (int): The index of the point before on the upper
             curve.
@@ -1105,12 +1133,12 @@ def select_and_calculate_intersection(
         case_6 (bool): Indicator if we are in case 6.
 
     Returns:
-        intersect_grid (float): The endogenous grid value of the intersection point.
-        intersect_value (float): The value function value of the intersection point.
-        intersect_policy_left (float): The policy function value of the left continuous
-            of the policy function at the intersection point.
-        intersect_policy_right (float): The policy function value of the right
-            continuous of the policy function at the intersection point.
+        intersect_grid (float): The endogenous grid point of the intersection point.
+        intersect_value (float): The value of the value function at the intersection.
+        intersect_policy_left (float): The value of the left-continuous policy function
+            at the intersection point.
+        intersect_policy_right (float): The value of the right-continuous policy
+            function at the intersection point.
 
     """
     value_k_and_j, policy_k_and_j, endog_grid_k_and_j = points_j_and_k
@@ -1158,23 +1186,23 @@ def create_indicator_if_value_function_is_switched(
     policy_2: float,
     jump_thresh: float,
 ):
-    """Create an indicator if the value function is switched between two points.
+    """Create boolean to indicate whether value function switches between two points.
 
     Args:
-        endog_grid_1 (float): The first endogenous wealth point.
-        policy_1 (float): The policy function at the first endogenous wealth point.
-        endog_grid_2 (float): The second endogenous wealth point.
-        policy_2 (float): The policy function at the second endogenous wealth point.
+        endog_grid_1 (float): The first endogenous wealth grid point.
+        policy_1 (float): The policy function at the first endogenous wealth grid point.
+        endog_grid_2 (float): The second endogenous wealth grid point.
+        policy_2 (float): The policy function at the second endogenous wealth grid
+            point.
         jump_thresh (float): Jump detection threshold.
 
     Returns:
         bool: Indicator if value function is switched.
 
     """
-
     exog_grid_1 = endog_grid_1 - policy_1
     exog_grid_2 = endog_grid_2 - policy_2
-    gradient_exog_grid = calculate_gradient(
+    gradient_exog_grid = calc_gradient(
         x1=endog_grid_1,
         y1=exog_grid_1,
         x2=endog_grid_2,
@@ -1182,4 +1210,5 @@ def create_indicator_if_value_function_is_switched(
     )
     gradient_exog_abs = jnp.abs(gradient_exog_grid)
     is_switched = gradient_exog_abs > jump_thresh
+
     return is_switched
