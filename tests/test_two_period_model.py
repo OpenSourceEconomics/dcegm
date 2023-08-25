@@ -29,12 +29,11 @@ from toy_models.consumption_retirement_model.state_space_objects import (
 )
 
 
-def flow_util(consumption, retirement_choice, params_dict):
+def flow_util(consumption, choice, params_dict):
     rho = params_dict["rho"]
     delta = params_dict["delta"]
 
-    # include disutility of work
-    u = consumption ** (1 - rho) / (1 - rho) - delta * (1 - retirement_choice)
+    u = consumption ** (1 - rho) / (1 - rho) - delta * (1 - choice)
     return u
 
 
@@ -49,11 +48,11 @@ def inverse_marginal_utility(marginal_utility, params_dict):
     return marginal_utility ** (-1 / rho)
 
 
-def get_transition_vector_dcegm(state, transition_matrix):
+def get_transition_vector_dcegm(state, params, transition_matrix):
     return transition_matrix[state[-1]]
 
 
-def get_transition_vector_dcegm_two_exog_processes(state, transition_matrix):
+def get_transition_vector_dcegm_two_exog_processes(state, params, transition_matrix):
     # state[-1] is the exogenous state (combined health and job offer)
     # state[0] is the endogenous state variable period
     # i.e. we allow for period (age) specific transition probabilities
@@ -84,7 +83,7 @@ def budget_dcegm_two_exog_processes(
 
     resource = (
         interest_factor * saving
-        + (wage + income_shock) * (1 - state[1])
+        + (wage + income_shock) * (1 - state[1])  # if worked last period
         - health_costs * ltc_patient
     )
     return jnp.maximum(resource, 0.5)
@@ -162,10 +161,10 @@ def prob_job_offer(params_dict, lagged_job_offer, job_offer):
     return pi
 
 
-def choice_prob_retirement(cons, d, params_dict):
-    v = flow_util(cons, d, params_dict)
-    v_0 = flow_util(cons, 0, params_dict)
-    v_1 = flow_util(cons, 1, params_dict)
+def choice_prob_retirement(cons, retirement_choice, params_dict):
+    v = flow_util(cons, choice=retirement_choice, params_dict=params_dict)
+    v_0 = flow_util(cons, choice=0, params_dict=params_dict)
+    v_1 = flow_util(cons, choice=1, params_dict=params_dict)
     choice_prob = np.exp(v) / (np.exp(v_0) + np.exp(v_1))
     return choice_prob
 
@@ -385,7 +384,7 @@ def test_two_period(input_data, wealth_idx, state_idx):
     )
     initial_conditions = {}
     state = state_space[state_idx, :]
-    trans_vec = input_data["get_transition_vector_by_state"](state)
+    trans_vec = input_data["get_transition_vector_by_state"](state, params)
 
     idxs_state_choice_combs = reshape_state_choice_vec_to_mat[state_idx]
     initial_conditions["bad_health"] = state[-1]
@@ -433,7 +432,6 @@ def input_data_two_exog_processes():
     params = pd.DataFrame(data=[0.5, 0.5], columns=["value"], index=index)
     params.loc[("assets", "interest_rate"), "value"] = 0.02
     params.loc[("assets", "ltc_cost"), "value"] = 5
-    params.loc[("assets", "max_wealth"), "value"] = 50
     params.loc[("wage", "wage_avg"), "value"] = 8
     params.loc[("shocks", "sigma"), "value"] = 1
     params.loc[("shocks", "lambda"), "value"] = 1
@@ -442,9 +440,10 @@ def input_data_two_exog_processes():
     options = {
         "n_periods": 2,
         "n_discrete_choices": 2,
-        "grid_points_wealth": WEALTH_GRID_POINTS,
+        "n_grid_points": WEALTH_GRID_POINTS,
+        "max_wealth": 50,
         "quadrature_points_stochastic": 5,
-        "n_exog_states": n_exog_states,  # n_exog_states
+        "n_exog_states": n_exog_states,
     }
     state_space_functions = {
         "create_state_space": create_state_space_two_exog_processes,
@@ -458,7 +457,6 @@ def input_data_two_exog_processes():
 
     ltc_probabilities = jnp.array([[0.7, 0.3], [0, 1]])
 
-    job_offer_probabilities = jnp.array([[0.5, 0.5], [0.1, 0.9]])
     # job_offer_probabilities = jnp.array([[1, 0], [0, 1]])
     job_offer_probabilities = jnp.array([[0.5, 0.5], [0.1, 0.9]])
     job_offer_probabilities_period_specific = jnp.repeat(
@@ -483,10 +481,13 @@ def input_data_two_exog_processes():
         transition_matrix=transition_matrix,
     )
 
-    solve_dcegm(
+    exog_savings_grid = np.linspace(0, options["max_wealth"], options["n_grid_points"])
+
+    result_dict = solve_dcegm(
         params,
         options,
-        utility_functions,
+        exog_savings_grid=exog_savings_grid,
+        utility_functions=utility_functions,
         budget_constraint=budget_dcegm_two_exog_processes,
         final_period_solution=solve_final_period_scalar,
         state_space_functions=state_space_functions,
@@ -496,6 +497,10 @@ def input_data_two_exog_processes():
     out = {}
     out["params"] = params
     out["options"] = options
+    out["get_transition_vector_by_state"] = get_transition_vector_partial
+    out["endog_grid"] = result_dict[0]["endog_grid"]
+    out["policy_left"] = result_dict[0]["policy_left"]
+    out["result"] = result_dict
 
     return out
 
@@ -541,8 +546,14 @@ def test_two_period_two_exog_processes(
         state[1] == 0
     )  # working (no retirement) in period 0
 
-    endog_grid_period = np.load(f"endog_grid_{state[0]}.npy")
-    policy_period = np.load(f"policy_{state[0]}.npy")
+    # endog_grid_period = np.load(f"endog_grid_{state[0]}.npy")
+    # policy_period = np.load(f"policy_{state[0]}.npy")
+
+    # endog_grid_period = input_data_two_exog_processes["endog_grid"]
+    # policy_period = input_data_two_exog_processes["policy_left"]
+
+    endog_grid_period = input_data_two_exog_processes["result"][state[0]]["endog_grid"]
+    policy_period = input_data_two_exog_processes["result"][state[0]]["policy_left"]
 
     for state_choice_idx in idxs_state_choice_combs:
         choice_in_period_1 = state_choice_space[state_choice_idx][-1]

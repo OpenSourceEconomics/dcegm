@@ -77,6 +77,7 @@ def test_consume_everything_in_final_period(
         _compute_value,
         compute_next_period_wealth,
         _compute_upper_envelope,
+        _get_transition_vector_by_state,
     ) = get_partial_functions(
         options=options,
         user_utility_functions=user_utility_functions,
