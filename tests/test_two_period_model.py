@@ -456,8 +456,6 @@ def input_data_two_exog_processes():
     }
 
     ltc_probabilities = jnp.array([[0.7, 0.3], [0, 1]])
-
-    # job_offer_probabilities = jnp.array([[1, 0], [0, 1]])
     job_offer_probabilities = jnp.array([[0.5, 0.5], [0.1, 0.9]])
     job_offer_probabilities_period_specific = jnp.repeat(
         job_offer_probabilities[:, :, jnp.newaxis], 2, axis=2
@@ -498,8 +496,6 @@ def input_data_two_exog_processes():
     out["params"] = params
     out["options"] = options
     out["get_transition_vector_by_state"] = get_transition_vector_partial
-    out["endog_grid"] = result_dict[0]["endog_grid"]
-    out["policy_left"] = result_dict[0]["policy_left"]
     out["result"] = result_dict
 
     return out
@@ -545,12 +541,6 @@ def test_two_period_two_exog_processes(
     initial_conditions["job_offer"] = (
         state[1] == 0
     )  # working (no retirement) in period 0
-
-    # endog_grid_period = np.load(f"endog_grid_{state[0]}.npy")
-    # policy_period = np.load(f"policy_{state[0]}.npy")
-
-    # endog_grid_period = input_data_two_exog_processes["endog_grid"]
-    # policy_period = input_data_two_exog_processes["policy_left"]
 
     endog_grid_period = input_data_two_exog_processes["result"][state[0]]["endog_grid"]
     policy_period = input_data_two_exog_processes["result"][state[0]]["policy_left"]
