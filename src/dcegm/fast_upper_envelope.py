@@ -749,6 +749,26 @@ def select_points_to_be_saved_next_iteration(
     planed_to_be_saved_this_iter,
     cases,
 ):
+    """Depending on cases select the points to be saved next iteration.
+
+    Args:
+        point_to_inspect (tuple): Tuple containing the value, policy and endogenous grid
+            of the point to be inspected.
+        point_case_2 (tuple): Tuple containing the value, policy and endogenous grid
+            of the point to be saved in case 2.
+        intersection_point (tuple): Tuple containing the value, policy and endogenous
+            grid of the intersection point.
+        planed_to_be_saved_this_iter (tuple): Tuple containing the value, policy and
+            endogenous grid of the point to be saved this iteration.
+        cases (tuple): Tuple containing the indicators for the different cases.
+
+    Returns:
+        tuple:
+
+        - variables_to_be_saved_next_iteration (tuple): Tuple containing the value,
+            policy and endogenous grid of the point to be saved next iteration.
+
+    """
     case_1, case_2, case_3, case_4, case_5, case_6 = cases
     value_case_2, policy_case_2, endog_grid_case_2 = point_case_2
     value_to_inspect, policy_to_inspect, endog_grid_to_inspect = point_to_inspect
