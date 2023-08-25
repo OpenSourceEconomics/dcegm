@@ -1,4 +1,3 @@
-from functools import partial
 from pathlib import Path
 
 import numpy as np
@@ -29,25 +28,29 @@ def test_data(load_example_model):
     params.loc[("utility_function", "theta"), "value"] = 1
 
     delta = params.loc[("delta", "delta"), "value"]
-
     beta = params.loc[("beta", "beta"), "value"]
-    params_dict = {"delta": delta}
-    compute_utility = partial(utiility_func_log_crra, params_dict=params_dict)
+    params_dict = {"beta": beta, "delta": delta}
 
-    return consumption, next_period_value, delta, beta, compute_utility
+    compute_utility = utiility_func_log_crra
+
+    return consumption, next_period_value, params_dict, compute_utility
 
 
 @pytest.mark.parametrize("choice", [0, 1])
 def test_calc_value(choice, test_data):
-    consumption, next_period_value, delta, beta, compute_utility = test_data
+    consumption, next_period_value, params_dict, compute_utility = test_data
 
-    expected = np.log(consumption) - (1 - choice) * delta + beta * next_period_value
+    expected = (
+        np.log(consumption)
+        - (1 - choice) * params_dict["delta"]
+        + params_dict["beta"] * next_period_value
+    )
 
     got = calc_current_value(
         consumption=consumption,
         next_period_value=next_period_value,
         choice=choice,
-        discount_factor=beta,
+        params=params_dict,
         compute_utility=compute_utility,
     )
     aaae(got, expected)
@@ -101,7 +104,7 @@ def test_missing_taste_shock_scale(
     model,
     load_example_model,
 ):
-    params, options = load_example_model(f"{model}")
+    params, _options = load_example_model(f"{model}")
     params_without_lambda = params.drop(index=("shocks", "lambda"))
     with pytest.raises(
         ValueError, match="Taste shock scale must be provided in params."

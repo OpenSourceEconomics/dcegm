@@ -43,7 +43,7 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
         for choice in range(n_choices):
             for exog_state in range(n_exog_states):
                 map_state_to_index[period, choice, exog_state] = i
-
+      
                 row = [period, choice, exog_state]
                 _state_space.append(row)
 

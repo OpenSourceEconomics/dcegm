@@ -54,17 +54,17 @@ def test_get_next_period_wealth_matrices(
         child_state,
         saving=savings_grid[random_saving_ind],
         income_shock=quad_points[random_shock_ind],
-        params_dict=params_dict,
+        params=params_dict,
         options=options,
     )
 
     _income = _calc_stochastic_income(
         child_state,
         wage_shock=quad_points[random_shock_ind],
-        params_dict=params_dict,
+        params=params_dict,
         options=options,
     )
 
-    expected_budget = (1 + r) * savings_grid[random_saving_ind] + _income
+    budget_expected = (1 + r) * savings_grid[random_saving_ind] + _income
 
-    aaae(wealth_next_period, max(consump_floor, expected_budget))
+    aaae(wealth_next_period, max(consump_floor, budget_expected))

@@ -10,19 +10,19 @@ from toy_models.consumption_retirement_model.state_space_objects import (
 )
 
 
-def expected_state_space_and_indexer(n_periods, n_choices, n_exog_processes):
+def expected_state_space_and_indexer(n_periods, n_choices, n_exog_states):
     _periods = np.arange(n_periods)
     _choices = np.arange(n_choices)
-    _exog_process = np.arange(n_exog_processes)
+    _exog_process = np.arange(n_exog_states)
     state_space = np.column_stack(
         [
-            np.repeat(_periods, n_choices * n_exog_processes),
-            np.tile(np.repeat(_choices, n_exog_processes), n_periods),
+            np.repeat(_periods, n_choices * n_exog_states),
+            np.tile(np.repeat(_choices, n_exog_states), n_periods),
             np.tile(_exog_process, n_periods * n_choices),
         ]
     )
-    state_indexer = np.arange(n_periods * n_choices * n_exog_processes).reshape(
-        n_periods, n_choices, n_exog_processes
+    state_indexer = np.arange(n_periods * n_choices * n_exog_states).reshape(
+        n_periods, n_choices, n_exog_states
     )
 
     return state_space, state_indexer
@@ -66,8 +66,8 @@ def test_state_choice_set(lagged_choice, n_periods, n_choices, n_exog_states):
     )
 
     period = 0
-    exog_process = 0
-    state = np.array([period, lagged_choice, exog_process])
+    exog_state = 0
+    state = np.array([period, lagged_choice, exog_state])
     choice_set = get_state_specific_feasible_choice_set(
         state, state_space, state_indexer
     )

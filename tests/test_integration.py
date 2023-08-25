@@ -1,7 +1,7 @@
 import pickle
 from pathlib import Path
 
-import numpy as np
+import jax.numpy as jnp
 import pytest
 from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
 from dcegm.interpolation import linear_interpolation_with_extrapolation
@@ -32,7 +32,6 @@ from toy_models.consumption_retirement_model.utility_functions import (
 )
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
 
-
 # Obtain the test directory of the package.
 TEST_DIR = Path(__file__).parent
 
@@ -60,16 +59,15 @@ def state_space_functions():
 
 
 @pytest.mark.parametrize(
-    "model, choice_range",
+    "model",
     [
-        ("retirement_no_taste_shocks", [0, 1]),
-        ("retirement_taste_shocks", [0, 1]),
-        ("deaton", [0]),
+        "retirement_no_taste_shocks",
+        "retirement_taste_shocks",
+        "deaton",
     ],
 )
 def test_benchmark_models(
     model,
-    choice_range,
     utility_functions,
     state_space_functions,
     load_example_model,
@@ -87,10 +85,11 @@ def test_benchmark_models(
     if params.loc[("utility_function", "theta"), "value"] == 1:
         utility_functions["utility"] = utiility_func_log_crra
 
-    solve_dcegm(
+    result_dict = solve_dcegm(
         params,
         options,
-        utility_functions,
+        exog_savings_grid=exog_savings_grid,
+        utility_functions=utility_functions,
         budget_constraint=budget_constraint,
         final_period_solution=solve_final_period_scalar,
         state_space_functions=state_space_functions,
@@ -104,11 +103,12 @@ def test_benchmark_models(
 
     # need to loop over period? Isn't state_choice space enough?
     for period in range(23, -1, -1):
-        idxs_state_choice_combs = np.where(state_choice_space[:, 0] == period)[0]
+        idxs_state_choice_combs = jnp.where(state_choice_space[:, 0] == period)[0]
 
-        endog_grid_got = np.load(f"endog_grid_{period}.npy")
-        policy_got = np.load(f"policy_{period}.npy")
-        value_got = np.load(f"value_{period}.npy")
+        endog_grid_got = result_dict[period]["endog_grid"]
+        policy_left_got = result_dict[period]["policy_left"]
+        policy_right_got = result_dict[period]["policy_right"]
+        value_got = result_dict[period]["value"]
 
         for state_choice_idx, state_choice_vec in enumerate(idxs_state_choice_combs):
             choice = state_choice_space[state_choice_vec, -1]
@@ -120,7 +120,7 @@ def test_benchmark_models(
                 policy_expec = policy_expected[period][1 - choice].T
                 value_expec = value_expected[period][1 - choice].T
 
-            wealth_grid_to_test = np.linspace(
+            wealth_grid_to_test = jnp.linspace(
                 policy_expec[0][1], policy_expec[0][-1] + 10, 1000
             )
 
@@ -137,7 +137,8 @@ def test_benchmark_models(
             ) = interpolate_policy_and_value_on_wealth_grid(
                 begin_of_period_wealth=wealth_grid_to_test,
                 endog_wealth_grid=endog_grid_got[state_choice_idx],
-                policy_grid=policy_got[state_choice_idx],
+                policy_left_grid=policy_left_got[state_choice_idx],
+                policy_right_grid=policy_right_got[state_choice_idx],
                 value_grid=value_got[state_choice_idx],
             )
 
