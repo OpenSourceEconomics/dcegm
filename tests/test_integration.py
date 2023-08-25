@@ -75,6 +75,8 @@ def test_benchmark_models(
     params, options = load_example_model(f"{model}")
     options["n_exog_states"] = 1
 
+    exog_savings_grid = jnp.linspace(0, options["max_wealth"], options["n_grid_points"])
+
     state_space, map_state_to_index = create_state_space(options)
     state_choice_space, *_ = create_state_choice_space(
         state_space,

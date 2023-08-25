@@ -110,7 +110,7 @@ def get_partial_functions(
         compute_value,
         compute_next_period_wealth,
         compute_upper_envelope,
-        # transition_function,
+        transition_function,
     )
 
 

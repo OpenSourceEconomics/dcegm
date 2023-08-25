@@ -70,7 +70,6 @@ def get_solve_function(
         options["quadrature_points_stochastic"]
     )
 
-    get_transition_vector_by_state = transition_function
     (
         compute_utility,
         compute_marginal_utility,
@@ -78,7 +77,7 @@ def get_solve_function(
         compute_value,
         compute_next_period_wealth,
         compute_upper_envelope,
-        # get_transition_vector_by_state,
+        transition_vector_by_state,
     ) = get_partial_functions(
         options,
         user_utility_functions=utility_functions,
@@ -88,7 +87,6 @@ def get_solve_function(
     create_state_space = state_space_functions["create_state_space"]
 
     state_space, map_state_to_state_space_index = create_state_space(options)
-    # breakpoint()
     (
         state_choice_space,
         map_state_choice_vec_to_parent_state,
@@ -119,9 +117,8 @@ def get_solve_function(
         map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
         reshape_state_choice_vec_to_mat=reshape_state_choice_vec_to_mat,
         transform_between_state_and_state_choice_space=transform_between_state_and_state_choice_space,
-        n_periods=n_periods
+        n_periods=n_periods,
     )
-    
     backward_jit = jit(
         partial(
             backward_induction,
@@ -215,7 +212,7 @@ def backward_induction(
     compute_inverse_marginal_utility: Callable,
     compute_value: Callable,
     compute_next_period_wealth: Callable,
-    get_transition_vector_by_state: Callable,
+    transition_vector_by_state: Callable,
     compute_upper_envelope: Callable,
     final_period_solution_partial: Callable,
 ) -> Dict[int, np.ndarray]:
@@ -266,8 +263,8 @@ def backward_induction(
             agent's wealth of the next period (t + 1). The inputs
             ```saving```, ```shock```, ```params``` and ```options```
             are already partialled in.
-        get_transition_vector_by_state (Callable): Partialled transition function
-            return transition vector for each state.
+        transition_vector_by_state (Callable): Partialled transition function return
+            transition vector for each state.
         compute_upper_envelope (Callable): Function for calculating the upper
             envelope of the policy and value function. If the number of discrete
             choices is 1, this function is a dummy function that returns the policy
@@ -340,7 +337,7 @@ def backward_induction(
             endog_grid_candidate,
             value_candidate,
             policy_candidate,
-            expected_value,
+            expected_values,
         ) = calculate_candidate_solutions_from_euler_equation(
             marg_util=marg_util,
             emax=emax,
@@ -376,7 +373,7 @@ def backward_induction(
             state_objects["idx_state_of_state_choice"]
         ]
 
-
+        # ToDo: reorder function arguments
         marg_util_interpolated, value_interpolated = vmap(
             interpolate_and_calc_marginal_utilities,
             in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),
