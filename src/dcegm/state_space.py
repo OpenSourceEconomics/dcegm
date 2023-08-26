@@ -7,10 +7,9 @@ import numpy as np
 
 def get_map_from_state_to_child_nodes(
     options: Dict[str, int],
-    state_space: np.ndarray,
-    state_choice_space: np.ndarray,
+    period_specific_state_objects: np.ndarray,
     map_state_to_index: np.ndarray,
-) -> np.ndarray:
+):
     """Create indexer array that maps states to state-specific child nodes.
 
     Will be a user defined function later.
@@ -50,41 +49,38 @@ def get_map_from_state_to_child_nodes(
     n_periods = options["n_periods"]
     n_exog_states = options["n_exog_states"]
 
-    n_feasible_state_choice_combs = state_choice_space.shape[0]
+    for period in range(n_periods - 1):
+        period_dict = period_specific_state_objects[period]
+        idx_min_state_space_next_period = map_state_to_index[
+            tuple(period_specific_state_objects[period + 1]["state_choice_mat"][0, :-1])
+        ]
 
-    map_state_to_feasible_child_nodes = np.empty(
-        (n_feasible_state_choice_combs, n_exog_states),
-        dtype=int,
-    )
+        state_choice_space_period = period_dict["state_choice_mat"]
 
-    current_period = 0
-    first_state_index_in_period = 0
-    # Loop over all state and choices by looping over the state-choice-space.
-    for idx in range(n_feasible_state_choice_combs):
-        state_choice_vec = state_choice_space[idx]
-        period = state_choice_vec[0]
-
-        if period < n_periods - 1:
+        map_state_to_feasible_child_nodes_period = np.empty(
+            (state_choice_space_period.shape[0], n_exog_states),
+            dtype=int,
+        )
+        # Loop over all state and choices in period.
+        for i, state_choice_vec in enumerate(state_choice_space_period):
             state_vec_next = update_endog_state_by_state_and_choice(
-                state=state_choice_vec[:-1],
-                choice=state_choice_vec[-1],
+                state=np.array(state_choice_vec[:-1]),
+                choice=np.array(state_choice_vec[-1]),
             )
 
             for exog_process in range(n_exog_states):
                 state_vec_next[-1] = exog_process
-                if period == current_period:
-                    current_period += 1
-                    first_state_index_in_period = map_state_to_index[
-                        tuple(state_vec_next)
-                    ]
-
                 # We want the index every period to start at 0.
-                map_state_to_feasible_child_nodes[idx, exog_process] = (
+                map_state_to_feasible_child_nodes_period[i, exog_process] = (
                     map_state_to_index[tuple(state_vec_next)]
-                    - first_state_index_in_period
+                    - idx_min_state_space_next_period
                 )
 
-    return map_state_to_feasible_child_nodes
+            period_specific_state_objects[period]["index_child_nodes"] = jnp.array(
+                map_state_to_feasible_child_nodes_period, dtype=int
+            )
+
+    return period_specific_state_objects
 
 
 def update_endog_state_by_state_and_choice(state, choice):
@@ -212,12 +208,12 @@ def create_state_choice_space(
 
 
 def create_period_state_and_state_choice_objects(
+    options,
     state_space,
     state_choice_space,
     map_state_choice_vec_to_parent_state,
     reshape_state_choice_vec_to_mat,
     transform_between_state_and_state_choice_space,
-    n_periods,
 ):
     """Create dictionary of state and state-choice objects for each period.
 
@@ -249,6 +245,7 @@ def create_period_state_and_state_choice_objects(
             state-choice objects.
 
     """
+    n_periods = options["n_periods"]
     out = {}
 
     for period in range(n_periods):
@@ -256,7 +253,6 @@ def create_period_state_and_state_choice_objects(
         idxs_states = jnp.where(state_space[:, 0] == period)[0]
 
         idxs_state_choices = jnp.where(state_choice_space[:, 0] == period)[0]
-        period_dict["idxs_state_choices"] = idxs_state_choices
         period_dict["state_choice_mat"] = jnp.take(
             state_choice_space, idxs_state_choices, axis=0
         )

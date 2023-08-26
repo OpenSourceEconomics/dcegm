@@ -11,8 +11,7 @@ from jax import vmap
 def calculate_candidate_solutions_from_euler_equation(
     marg_util: np.ndarray,
     emax: np.ndarray,
-    idx_state_choices_period: np.ndarray,
-    map_state_to_post_decision_child_nodes: Callable,
+    idx_post_decision_child_states: jnp.ndarray,
     exogenous_savings_grid: np.ndarray,
     transition_vector_by_state: Callable,
     state_choice_mat: np.ndarray,
@@ -24,8 +23,7 @@ def calculate_candidate_solutions_from_euler_equation(
     feasible_marg_utils, feasible_emax = _get_post_decision_marg_utils_and_emax(
         marg_util_next=marg_util,
         emax_next=emax,
-        idx_state_choice_combs=idx_state_choices_period,
-        map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
+        idx_post_decision_child_states=idx_post_decision_child_states,
     )
 
     (
@@ -178,8 +176,7 @@ def solve_euler_equation(
 def _get_post_decision_marg_utils_and_emax(
     marg_util_next,
     emax_next,
-    idx_state_choice_combs,
-    map_state_to_post_decision_child_nodes,
+    idx_post_decision_child_states,
 ):
     """Get marginal utility and expected maximum value of post-decision child states.
 
@@ -208,9 +205,6 @@ def _get_post_decision_marg_utils_and_emax(
             in the current period t.
 
     """
-    idx_post_decision_child_states = map_state_to_post_decision_child_nodes[
-        idx_state_choice_combs
-    ]
 
     # state-choice specific
     marg_utils_child = jnp.take(marg_util_next, idx_post_decision_child_states, axis=0)

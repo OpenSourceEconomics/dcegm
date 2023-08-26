@@ -98,13 +98,6 @@ def get_solve_function(
         state_space_functions["get_state_specific_choice_set"],
     )
 
-    map_state_to_post_decision_child_nodes = get_map_from_state_to_child_nodes(
-        options=options,
-        state_space=state_space,
-        state_choice_space=state_choice_space,
-        map_state_to_index=map_state_to_state_space_index,
-    )
-
     final_period_solution_partial = partial(
         final_period_solution,
         compute_utility=compute_utility,
@@ -113,20 +106,26 @@ def get_solve_function(
     )
 
     period_specific_state_objects = create_period_state_and_state_choice_objects(
+        options=options,
         state_space=state_space,
         state_choice_space=state_choice_space,
         map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
         reshape_state_choice_vec_to_mat=reshape_state_choice_vec_to_mat,
         transform_between_state_and_state_choice_space=transform_between_state_and_state_choice_space,
-        n_periods=n_periods,
     )
+
+    period_specific_state_objects = get_map_from_state_to_child_nodes(
+        options=options,
+        period_specific_state_objects=period_specific_state_objects,
+        map_state_to_index=map_state_to_state_space_index,
+    )
+
     backward_jit = jit(
         partial(
             backward_induction,
             period_specific_state_objects=period_specific_state_objects,
             exog_savings_grid=exog_savings_grid,
             state_space=state_space,
-            map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
             income_shock_draws_unscaled=income_shock_draws_unscaled,
             income_shock_weights=income_shock_weights,
             n_periods=n_periods,
@@ -205,7 +204,6 @@ def backward_induction(
     period_specific_state_objects: Dict[int, jnp.ndarray],
     exog_savings_grid: np.ndarray,
     state_space: np.ndarray,
-    map_state_to_post_decision_child_nodes: np.ndarray,
     income_shock_draws_unscaled: np.ndarray,
     income_shock_weights: np.ndarray,
     n_periods: int,
@@ -342,8 +340,7 @@ def backward_induction(
         ) = calculate_candidate_solutions_from_euler_equation(
             marg_util=marg_util,
             emax=emax,
-            idx_state_choices_period=state_objects["idxs_state_choices"],
-            map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
+            idx_post_decision_child_states=state_objects["index_child_nodes"],
             exogenous_savings_grid=exog_savings_grid,
             transition_vector_by_state=transition_vector_by_state,
             state_choice_mat=state_objects["state_choice_mat"],
