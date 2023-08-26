@@ -52,8 +52,8 @@ def test_get_next_period_wealth_matrices(
 
     wealth_next_period = budget_constraint(
         child_state,
-        saving=savings_grid[random_saving_ind],
-        income_shock=quad_points[random_shock_ind],
+        end_of_last_period_saving=savings_grid[random_saving_ind],
+        last_period_income_shock=quad_points[random_shock_ind],
         params=params_dict,
         options=options,
     )

@@ -5,9 +5,9 @@ import jax.numpy as jnp
 
 
 def budget_constraint(
-    state: jnp.ndarray,
-    saving: float,
-    income_shock: float,
+    beginning_of_period_state: jnp.ndarray,
+    end_of_last_period_saving: float,
+    last_period_income_shock: float,
     params: Dict[str, float],
     options: Dict[str, int],
 ) -> float:
@@ -15,13 +15,13 @@ def budget_constraint(
     last period and the current state including the choice of last period.
 
     Args:
-        state (np.ndarray): 1d array of shape (n_state_variables,) denoting
-            the current child state.
-        saving (float): Entry of exogenous savings grid.
+        beginning_of_period_state (np.ndarray): 1d array of shape (n_state_variables,)
+            denoting the current child state.
+        end_of_last_period_saving (float): Entry of exogenous savings grid.
+        last_period_income_shock (float): Stochastic shock on labor income; may or may
+            not be normally distributed. Entry of income_shock_draws.
         params (dict): Dictionary containing model parameters.
         options (dict): Options dictionary.
-        income_shock (float): Stochastic shock on labor income; may or may not be
-            normally distributed. Entry of income_shock_draws.
 
     Returns:
         beginning_period_wealth (float): The current beginning of period resources.
@@ -31,13 +31,15 @@ def budget_constraint(
 
     # Calculate stochastic labor income
     income_from_last_period = _calc_stochastic_income(
-        state,
-        wage_shock=income_shock,
+        beginning_of_period_state,
+        wage_shock=last_period_income_shock,
         params=params,
         options=options,
     )
 
-    beginning_period_wealth = income_from_last_period + (1 + r) * saving
+    beginning_period_wealth = (
+        income_from_last_period + (1 + r) * end_of_last_period_saving
+    )
 
     # Retirement safety net, only in retirement model, but we require to have it always
     # as a parameter
