@@ -99,6 +99,7 @@ def get_solve_function(
     )
 
     map_state_to_post_decision_child_nodes = get_map_from_state_to_child_nodes(
+        options=options,
         state_space=state_space,
         state_choice_space=state_choice_space,
         map_state_to_index=map_state_to_state_space_index,

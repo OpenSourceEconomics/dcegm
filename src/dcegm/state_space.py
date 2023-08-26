@@ -1,9 +1,12 @@
 """Functions for creating internal state space objects."""
+from typing import Dict
+
 import jax.numpy as jnp
 import numpy as np
 
 
 def get_map_from_state_to_child_nodes(
+    options: Dict[str, int],
     state_space: np.ndarray,
     state_choice_space: np.ndarray,
     map_state_to_index: np.ndarray,
@@ -16,6 +19,7 @@ def get_map_from_state_to_child_nodes(
     e.g. experience.
 
     Args:
+        options (dict): Options dictionary.
         state_space (np.ndarray): 2d array of shape (n_states, n_state_vars + 1)
             which serves as a collection of all possible states. By convention,
             the first column must contain the period and the last column the
@@ -43,13 +47,15 @@ def get_map_from_state_to_child_nodes(
     # Exogenous processes are always on the last entry of the state space. Moreover, we
     # treat all of them as admissible in each period. If there exists an absorbing
     # state, this is reflected by a 0 percent transition probability.
-    n_periods, _n_choices, n_exog_processes = map_state_to_index.shape
+    n_periods = options["n_periods"]
+    n_exog_states = options["n_exog_states"]
+
     n_feasible_state_choice_combs = state_choice_space.shape[0]
 
     n_states_over_periods = state_space.shape[0] // n_periods
 
     map_state_to_feasible_child_nodes = np.empty(
-        (n_feasible_state_choice_combs, n_exog_processes),
+        (n_feasible_state_choice_combs, n_exog_states),
         dtype=int,
     )
 
@@ -65,7 +71,7 @@ def get_map_from_state_to_child_nodes(
         if state_vec_next[0] < n_periods:
             state_vec_next[1] = lagged_choice
 
-            for exog_process in range(n_exog_processes):
+            for exog_process in range(n_exog_states):
                 state_vec_next[-1] = exog_process
 
                 map_state_to_feasible_child_nodes[idx, exog_process] = (
