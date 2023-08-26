@@ -49,6 +49,7 @@ def get_solve_function(
             functions to:
             (i) create the state space
             (ii) get the state specific choice set
+            (iii) update the endogenous part of the state by the choice
         final_period_solution (callable): User-supplied function for solving the agent's
             last period.
         transition_function (callable): User-supplied function returning for each
@@ -118,6 +119,9 @@ def get_solve_function(
         options=options,
         period_specific_state_objects=period_specific_state_objects,
         map_state_to_index=map_state_to_state_space_index,
+        update_endog_state_by_state_and_choice=state_space_functions[
+            "update_endog_state_by_state_and_choice"
+        ],
     )
 
     backward_jit = jit(

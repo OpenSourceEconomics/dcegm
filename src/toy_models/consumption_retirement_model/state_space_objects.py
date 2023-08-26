@@ -97,3 +97,21 @@ def get_state_specific_feasible_choice_set(
         feasible_choice_set = np.arange(n_choices)
 
     return feasible_choice_set
+
+
+def update_state(state, choice):
+    """Get endogenous state by state and choice.
+
+    Args:
+        state (np.ndarray): 1d array of shape (n_state_vars,) containing the state.
+        choice (int): Choice to be made at the end of the period.
+
+    Returns:
+        np.ndarray: 1d array of shape (n_state_vars,) containing the state of next
+            period, where the endogenous part of the state is updated.
+
+    """
+    state_next = state.copy()
+    state_next[0] += 1
+    state_next[1] = choice
+    return state_next

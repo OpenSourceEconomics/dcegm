@@ -1,4 +1,5 @@
 """Functions for creating internal state space objects."""
+from typing import Callable
 from typing import Dict
 
 import jax.numpy as jnp
@@ -9,6 +10,7 @@ def get_map_from_state_to_child_nodes(
     options: Dict[str, int],
     period_specific_state_objects: np.ndarray,
     map_state_to_index: np.ndarray,
+    update_endog_state_by_state_and_choice: Callable,
 ):
     """Create indexer array that maps states to state-specific child nodes.
 
@@ -81,24 +83,6 @@ def get_map_from_state_to_child_nodes(
             )
 
     return period_specific_state_objects
-
-
-def update_endog_state_by_state_and_choice(state, choice):
-    """Get endogenous state by state and choice.
-
-    Args:
-        state (np.ndarray): 1d array of shape (n_state_vars,) containing the state.
-        choice (int): Choice to be made at the end of the period.
-
-    Returns:
-        np.ndarray: 1d array of shape (n_state_vars,) containing the state of next
-            period, where the endogenous part of the state is updated.
-
-    """
-    state_next = state.copy()
-    state_next[0] += 1
-    state_next[1] = choice
-    return state_next
 
 
 def create_state_choice_space(
