@@ -52,13 +52,13 @@ def get_map_from_state_to_child_nodes(
 
     n_feasible_state_choice_combs = state_choice_space.shape[0]
 
-    n_states_over_periods = state_space.shape[0] // n_periods
-
     map_state_to_feasible_child_nodes = np.empty(
         (n_feasible_state_choice_combs, n_exog_states),
         dtype=int,
     )
 
+    current_period = 0
+    first_state_index_in_period = 0
     # Loop over all state and choices by looping over the state-choice-space.
     for idx in range(n_feasible_state_choice_combs):
         state_choice_vec = state_choice_space[idx]
@@ -72,10 +72,16 @@ def get_map_from_state_to_child_nodes(
 
             for exog_process in range(n_exog_states):
                 state_vec_next[-1] = exog_process
+                if period == current_period:
+                    current_period += 1
+                    first_state_index_in_period = map_state_to_index[
+                        tuple(state_vec_next)
+                    ]
 
+                # We want the index every period to start at 0.
                 map_state_to_feasible_child_nodes[idx, exog_process] = (
                     map_state_to_index[tuple(state_vec_next)]
-                    - (period + 1) * n_states_over_periods
+                    - first_state_index_in_period
                 )
 
     return map_state_to_feasible_child_nodes
