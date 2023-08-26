@@ -91,7 +91,7 @@ def get_partial_functions(
         compute_utility=compute_utility,
     )
 
-    compute_next_period_wealth = partial(
+    compute_beginning_of_period_wealth = partial(
         user_budget_constraint,
         options=options,
     )
@@ -108,7 +108,7 @@ def get_partial_functions(
         compute_marginal_utility,
         compute_inverse_marginal_utility,
         compute_value,
-        compute_next_period_wealth,
+        compute_beginning_of_period_wealth,
         compute_upper_envelope,
         transition_function,
     )
