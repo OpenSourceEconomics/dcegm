@@ -47,24 +47,24 @@ def test_get_next_period_wealth_matrices(
     _quad_points, _ = roots_sh_legendre(n_quad_points)
     quad_points = norm.ppf(_quad_points) * sigma
 
-    random_saving_ind = np.random.randint(0, n_grid_points)
-    random_shock_ind = np.random.randint(0, n_quad_points)
+    random_saving_scalar = np.random.randint(0, n_grid_points)
+    random_shock_scalar = np.random.randint(0, n_quad_points)
 
     wealth_next_period = budget_constraint(
         child_state,
-        end_of_last_period_saving=savings_grid[random_saving_ind],
-        last_period_income_shock=quad_points[random_shock_ind],
+        savings_end_of_previous_period=savings_grid[random_saving_scalar],
+        income_shock_previous_period=quad_points[random_shock_scalar],
         params=params_dict,
         options=options,
     )
 
     _income = _calc_stochastic_income(
         child_state,
-        wage_shock=quad_points[random_shock_ind],
+        wage_shock=quad_points[random_shock_scalar],
         params=params_dict,
         options=options,
     )
 
-    budget_expected = (1 + r) * savings_grid[random_saving_ind] + _income
+    budget_expected = (1 + r) * savings_grid[random_saving_scalar] + _income
 
     aaae(wealth_next_period, max(consump_floor, budget_expected))

@@ -98,7 +98,7 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
         policy_calc_interp,
         value_calc_interp,
     ) = interpolate_policy_and_value_on_wealth_grid(
-        begin_of_period_wealth=wealth_grid_to_test,
+        wealth_beginning_of_period=wealth_grid_to_test,
         endog_wealth_grid=endog_grid_refined,
         policy_left_grid=policy_left_refined,
         policy_right_grid=policy_right_refined,
@@ -203,7 +203,7 @@ def test_fast_upper_envelope_against_fedor(period, setup_model):
         policy_calc_interp,
         value_calc_interp,
     ) = interpolate_policy_and_value_on_wealth_grid(
-        begin_of_period_wealth=wealth_grid_to_test,
+        wealth_beginning_of_period=wealth_grid_to_test,
         endog_wealth_grid=endog_grid_calc,
         policy_left_grid=policy_calc_left,
         policy_right_grid=policy_calc_right,

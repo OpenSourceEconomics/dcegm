@@ -5,49 +5,54 @@ import jax.numpy as jnp
 
 
 def budget_constraint(
-    beginning_of_period_state: jnp.ndarray,
-    end_of_last_period_saving: float,
-    last_period_income_shock: float,
+    state_beginning_of_period: jnp.ndarray,
+    savings_end_of_previous_period: float,
+    income_shock_previous_period: float,
     params: Dict[str, float],
     options: Dict[str, int],
 ) -> float:
-    """Compute possible current beginning of period resources, given the savings grid of
-    last period and the current state including the choice of last period.
+    """Compute possible current beginning of period resources.
+
+    Given the savings grid of the previous period (t -1) and the current
+    state vector in t, including the agent's lagged discrete choice made in t-1.
 
     Args:
-        beginning_of_period_state (np.ndarray): 1d array of shape (n_state_variables,)
+        state_beginning_of_period (np.ndarray): 1d array of shape (n_state_variables,)
             denoting the current child state.
-        end_of_last_period_saving (float): Entry of exogenous savings grid.
-        last_period_income_shock (float): Stochastic shock on labor income; may or may
-            not be normally distributed. Entry of income_shock_draws.
+        savings_end_of_previous_period (float): One point on the exogenous savings grid
+            carried over from the previous period.
+        income_shock_pervious_period (float): Stochastic shock on labor income;
+            may or may not be normally distributed. This float represents one
+            particular realization of the income_shock_draws carried over from the
+            previous period.
         params (dict): Dictionary containing model parameters.
         options (dict): Options dictionary.
 
     Returns:
-        beginning_period_wealth (float): The current beginning of period resources.
+        (float): The beginning of period wealth in t.
 
     """
     r = params["interest_rate"]
 
     # Calculate stochastic labor income
-    income_from_last_period = _calc_stochastic_income(
-        beginning_of_period_state,
-        wage_shock=last_period_income_shock,
+    income_from_previous_period = _calc_stochastic_income(
+        state_beginning_of_period,
+        wage_shock=income_shock_previous_period,
         params=params,
         options=options,
     )
 
-    beginning_period_wealth = (
-        income_from_last_period + (1 + r) * end_of_last_period_saving
+    wealth_beginning_of_period = (
+        income_from_previous_period + (1 + r) * savings_end_of_previous_period
     )
 
     # Retirement safety net, only in retirement model, but we require to have it always
     # as a parameter
-    beginning_period_wealth = jnp.maximum(
-        beginning_period_wealth, params["consumption_floor"]
+    wealth_beginning_of_period = jnp.maximum(
+        wealth_beginning_of_period, params["consumption_floor"]
     )
 
-    return beginning_period_wealth
+    return wealth_beginning_of_period
 
 
 @jax.jit
@@ -72,8 +77,10 @@ def _calc_stochastic_income(
     Args:
         state (jnp.ndarray): 1d array of shape (n_state_variables,) denoting
             the current child state.
-        wage_shock (float): Stochastic shock on labor income; may or may not be normally
-            distributed. Entry of income_shock_draws.
+        wage_shock (float): Stochastic shock on labor income;
+            may or may not be normally distributed. This float represents one
+            particular realization of the income_shock_draws carried over from
+            the previous period.
         params (dict): Dictionary containing model parameters.
             Relevant here are the coefficients of the wage equation.
         options (dict): Options dictionary.

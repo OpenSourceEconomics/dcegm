@@ -141,7 +141,7 @@ def test_benchmark_models(
                 policy_calc_interp,
                 value_calc_interp,
             ) = interpolate_policy_and_value_on_wealth_grid(
-                begin_of_period_wealth=wealth_grid_to_test,
+                wealth_beginning_of_period=wealth_grid_to_test,
                 endog_wealth_grid=endog_grid_got[state_choice_idx],
                 policy_left_grid=policy_left_got[state_choice_idx],
                 policy_right_grid=policy_right_got[state_choice_idx],

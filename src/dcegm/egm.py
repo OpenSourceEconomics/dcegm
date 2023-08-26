@@ -187,8 +187,10 @@ def _get_post_decision_marg_utils_and_emax(
         emax_next (jnp.ndarray): 2d array of shape (n_choices, n_grid_wealth)
             containing the choice-specific expected maximum values of the next period,
             i.e. t + 1.
-        idx_post_decision_child_states (jnp.ndarray): The state space index normalized
-            such that it starts in that period with 0.
+        idx_post_decision_child_states (jnp.ndarray): 2d array of shape
+            (n_state_choice_combinations_period, n_exog_states) containing the
+            indexes of the feasible post-decision child states in the current period t.
+            The indexes are normalized such that they start at 0.
 
     Returns:
         tuple:
