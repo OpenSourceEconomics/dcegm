@@ -181,16 +181,14 @@ def _get_post_decision_marg_utils_and_emax(
     """Get marginal utility and expected maximum value of post-decision child states.
 
     Args:
-        marg_util_next (np.ndarray): 2d array of shape (n_choices, n_grid_wealth)
+        marg_util_next (jnp.ndarray): 2d array of shape (n_choices, n_grid_wealth)
             containing the choice-specific marginal utilities of the next period,
             i.e. t + 1.
-        emax_next (np.ndarray): 2d array of shape (n_choices, n_grid_wealth)
+        emax_next (jnp.ndarray): 2d array of shape (n_choices, n_grid_wealth)
             containing the choice-specific expected maximum values of the next period,
             i.e. t + 1.
-        idx_state_choice_combs (np.ndarray): Indexer for the state choice combinations
-            that are feasible in the current period.
-        map_state_to_post_decision_child_nodes (np.ndarray): Indexer for the child nodes
-            that can be reached from the current state.
+        idx_post_decision_child_states (jnp.ndarray): The state space index normalized
+            such that it starts in that period with 0.
 
     Returns:
         tuple:
