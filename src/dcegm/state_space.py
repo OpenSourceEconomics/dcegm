@@ -59,17 +59,16 @@ def get_map_from_state_to_child_nodes(
         dtype=int,
     )
 
+    # Loop over all state and choices by looping over the state-choice-space.
     for idx in range(n_feasible_state_choice_combs):
         state_choice_vec = state_choice_space[idx]
         period = state_choice_vec[0]
-        state_vec = state_choice_vec[:-1]
-        lagged_choice = state_choice_vec[-1]
 
-        state_vec_next = state_vec.copy()
-        state_vec_next[0] += 1  # Increment period
-
-        if state_vec_next[0] < n_periods:
-            state_vec_next[1] = lagged_choice
+        if period < n_periods - 1:
+            state_vec_next = update_endog_state_by_state_and_choice(
+                state=state_choice_vec[:-1],
+                choice=state_choice_vec[-1],
+            )
 
             for exog_process in range(n_exog_states):
                 state_vec_next[-1] = exog_process
@@ -80,6 +79,24 @@ def get_map_from_state_to_child_nodes(
                 )
 
     return map_state_to_feasible_child_nodes
+
+
+def update_endog_state_by_state_and_choice(state, choice):
+    """Get endogenous state by state and choice.
+
+    Args:
+        state (np.ndarray): 1d array of shape (n_state_vars,) containing the state.
+        choice (int): Choice to be made at the end of the period.
+
+    Returns:
+        np.ndarray: 1d array of shape (n_state_vars,) containing the state of next
+            period, where the endogenous part of the state is updated.
+
+    """
+    state_next = state.copy()
+    state_next[0] += 1
+    state_next[1] = choice
+    return state_next
 
 
 def create_state_choice_space(
