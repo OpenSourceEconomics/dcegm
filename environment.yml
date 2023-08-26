@@ -35,8 +35,7 @@ dependencies:
   - conda-build
   - conda-verify
   - tox-conda
-
-  # docs
   - pip:
       - blackcellmagic
       - furo
+      - -e .  # Install dcegm locally
