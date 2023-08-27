@@ -121,10 +121,16 @@ def get_solve_function(
         ],
     )
 
+    in_out_dict = create_input_output_dict(
+        n_savings=exog_savings_grid.shape[0],
+        n_choices=options["n_discrete_choices"],
+        period_specific_state_objects=period_specific_state_objects,
+    )
+
     backward_jit = jit(
         partial(
             backward_induction,
-            period_specific_state_objects=period_specific_state_objects,
+            in_out_dict=in_out_dict,
             exog_savings_grid=exog_savings_grid,
             state_space=state_space,
             income_shock_draws_unscaled=income_shock_draws_unscaled,
@@ -203,7 +209,7 @@ def solve_dcegm(
 
 def backward_induction(
     params: Dict[str, float],
-    period_specific_state_objects: Dict[int, jnp.ndarray],
+    in_out_dict: Dict[int, jnp.ndarray],
     exog_savings_grid: np.ndarray,
     state_space: np.ndarray,
     income_shock_draws_unscaled: np.ndarray,
@@ -283,10 +289,8 @@ def backward_induction(
             policy_right, and value from the backward induction.
 
     """
-    taste_shock_scale = params["lambda"]
+    params["lambda"]
     income_shock_draws = income_shock_draws_unscaled * params["sigma"]
-
-    results = {}
 
     # Calculate beginning of period resources for all periods, given exogenous savings
     # and income shocks from the previous period
@@ -298,7 +302,7 @@ def backward_induction(
         in_axes=(0, None, None, None),
     )(state_space, exog_savings_grid, income_shock_draws, params)
 
-    state_objects = period_specific_state_objects[n_periods - 1]
+    state_objects = in_out_dict["input"][n_periods - 1]
     resources_final_period = resources_beginning_of_period[
         state_objects["idx_parent_states"]
     ]
@@ -314,93 +318,159 @@ def backward_induction(
     # saved with respect to the draws
     middle_of_draws = int(len(income_shock_draws) + 1 / 2)
 
-    final_period_results = {}
-    final_period_results["value"] = value_interpolated[:, :, middle_of_draws]
-    final_period_results["policy_left"] = policy_final[:, :, middle_of_draws]
-    final_period_results["policy_right"] = policy_final[:, :, middle_of_draws]
-    final_period_results["endog_grid"] = resources_final_period[:, :, middle_of_draws]
+    in_out_dict["output"][n_periods - 1]["value"] = value_interpolated[
+        :, :, middle_of_draws
+    ]
+    in_out_dict["output"][n_periods - 1]["policy_left"] = policy_final[
+        :, :, middle_of_draws
+    ]
+    in_out_dict["output"][n_periods - 1]["policy_right"] = policy_final[
+        :, :, middle_of_draws
+    ]
+    in_out_dict["output"][n_periods - 1]["endog_grid"] = resources_final_period[
+        :, :, middle_of_draws
+    ]
 
-    results[n_periods - 1] = final_period_results
+    partial_body = partial(
+        induct_body,
+        params=params,
+        n_periods=n_periods,
+        resources_beginning_of_period=resources_beginning_of_period,
+        exog_savings_grid=exog_savings_grid,
+        income_shock_weights=income_shock_weights,
+        compute_marginal_utility=compute_marginal_utility,
+        compute_inverse_marginal_utility=compute_inverse_marginal_utility,
+        compute_value=compute_value,
+        transition_vector_by_state=transition_vector_by_state,
+        compute_upper_envelope=compute_upper_envelope,
+    )
 
-    for period in range(n_periods - 2, -1, -1):
-        state_objects = period_specific_state_objects[period]
+    for step in range(2, n_periods + 1):
+        in_out_dict = partial_body(step=step, in_out_dict=in_out_dict)
 
-        # Aggregate the marginal utilities and expected values over all choices and
-        # income shock draws
-        marg_util, emax = aggregate_marg_utils_exp_values(
-            value_state_choice_specific=value_interpolated,
-            marg_util_state_choice_specific=marg_util_interpolated,
-            reshape_state_choice_vec_to_mat=state_objects[
-                "reshape_state_choice_vec_to_mat"
-            ],
-            transform_between_state_and_state_choice_vec=state_objects[
-                "transform_between_state_and_state_choice_vec"
-            ],
-            taste_shock_scale=taste_shock_scale,
-            income_shock_weights=income_shock_weights,
-        )
+    return in_out_dict["output"]
 
-        (
-            endog_grid_candidate,
-            value_candidate,
-            policy_candidate,
-            expected_values,
-        ) = calculate_candidate_solutions_from_euler_equation(
-            marg_util=marg_util,
-            emax=emax,
-            idx_post_decision_child_states=state_objects["idx_feasible_child_nodes"],
-            exogenous_savings_grid=exog_savings_grid,
-            transition_vector_by_state=transition_vector_by_state,
-            state_choice_mat=state_objects["state_choice_mat"],
-            compute_inverse_marginal_utility=compute_inverse_marginal_utility,
-            compute_value=compute_value,
-            params=params,
-        )
 
-        # Run upper envelope to remove suboptimal candidates
-        (
-            endog_grid_state_choice,
-            policy_left_state_choice,
-            policy_right_state_choice,
-            value_state_choice,
-        ) = vmap(
-            compute_upper_envelope,
-            in_axes=(0, 0, 0, 0, 0, None, None),  # vmap over state-choice combs
-        )(
-            endog_grid_candidate,
-            policy_candidate,
-            value_candidate,
-            expected_values[:, 0],
-            state_objects["state_choice_mat"][:, -1],
-            params,
-            compute_value,
-        )
-        resources_period = resources_beginning_of_period[
-            state_objects["idx_parent_states"]
-        ]
+def induct_body(
+    step,
+    in_out_dict: Dict[int, jnp.ndarray],
+    n_periods,
+    params: Dict[str, float],
+    exog_savings_grid: np.ndarray,
+    income_shock_weights: np.ndarray,
+    compute_marginal_utility: Callable,
+    compute_inverse_marginal_utility: Callable,
+    compute_value: Callable,
+    transition_vector_by_state: Callable,
+    compute_upper_envelope: Callable,
+    resources_beginning_of_period,
+):
+    period = n_periods - step
+    taste_shock_scale = params["lambda"]
 
-        # ToDo: reorder function arguments
-        marg_util_interpolated, value_interpolated = vmap(
-            interpolate_and_calc_marginal_utilities,
-            in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),
-        )(
-            compute_marginal_utility,
-            compute_value,
-            state_objects["state_choice_mat"][:, -1],
-            resources_period,
-            endog_grid_state_choice,
-            policy_left_state_choice,
-            policy_right_state_choice,
-            value_state_choice,
-            params,
-        )
+    state_objects = in_out_dict["input"][period + 1]
 
-        period_results = {}
-        period_results["policy_left"] = policy_left_state_choice
-        period_results["policy_right"] = policy_right_state_choice
-        period_results["endog_grid"] = endog_grid_state_choice
-        period_results["value"] = value_state_choice
+    endog_grid_state_choice = in_out_dict["output"][period + 1]["endog_grid"]
+    policy_left_state_choice = in_out_dict["output"][period + 1]["policy_left"]
+    policy_right_state_choice = in_out_dict["output"][period + 1]["policy_right"]
+    value_state_choice = in_out_dict["output"][period + 1]["value"]
 
-        results[period] = period_results
+    resources_period = resources_beginning_of_period[state_objects["idx_parent_states"]]
 
-    return results
+    # ToDo: reorder function arguments
+    marg_util_interpolated, value_interpolated = vmap(
+        interpolate_and_calc_marginal_utilities,
+        in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),
+    )(
+        compute_marginal_utility,
+        compute_value,
+        state_objects["state_choice_mat"][:, -1],
+        resources_period,
+        endog_grid_state_choice,
+        policy_left_state_choice,
+        policy_right_state_choice,
+        value_state_choice,
+        params,
+    )
+
+    state_objects = in_out_dict["input"][period]
+
+    # Aggregate the marginal utilities and expected values over all choices and
+    # income shock draws
+    marg_util, emax = aggregate_marg_utils_exp_values(
+        value_state_choice_specific=value_interpolated,
+        marg_util_state_choice_specific=marg_util_interpolated,
+        reshape_state_choice_vec_to_mat=state_objects[
+            "reshape_state_choice_vec_to_mat"
+        ],
+        transform_between_state_and_state_choice_vec=state_objects[
+            "transform_between_state_and_state_choice_vec"
+        ],
+        taste_shock_scale=taste_shock_scale,
+        income_shock_weights=income_shock_weights,
+    )
+
+    (
+        endog_grid_candidate,
+        value_candidate,
+        policy_candidate,
+        expected_values,
+    ) = calculate_candidate_solutions_from_euler_equation(
+        marg_util=marg_util,
+        emax=emax,
+        idx_post_decision_child_states=state_objects["idx_feasible_child_nodes"],
+        exogenous_savings_grid=exog_savings_grid,
+        transition_vector_by_state=transition_vector_by_state,
+        state_choice_mat=state_objects["state_choice_mat"],
+        compute_inverse_marginal_utility=compute_inverse_marginal_utility,
+        compute_value=compute_value,
+        params=params,
+    )
+
+    # Run upper envelope to remove suboptimal candidates
+    (
+        endog_grid_state_choice,
+        policy_left_state_choice,
+        policy_right_state_choice,
+        value_state_choice,
+    ) = vmap(
+        compute_upper_envelope,
+        in_axes=(0, 0, 0, 0, 0, None, None),  # vmap over state-choice combs
+    )(
+        endog_grid_candidate,
+        policy_candidate,
+        value_candidate,
+        expected_values[:, 0],
+        state_objects["state_choice_mat"][:, -1],
+        params,
+        compute_value,
+    )
+
+    in_out_dict["output"][period]["policy_left"] = policy_left_state_choice
+    in_out_dict["output"][period]["policy_right"] = policy_right_state_choice
+    in_out_dict["output"][period]["endog_grid"] = endog_grid_state_choice
+    in_out_dict["output"][period]["value"] = value_state_choice
+
+    return in_out_dict
+
+
+def create_input_output_dict(n_savings, n_choices, period_specific_state_objects):
+    periods = period_specific_state_objects.keys()
+
+    if n_choices == 1:
+        n_savings_out = n_savings + 1
+    else:
+        n_savings_out = int(1.2 * n_savings)
+
+    in_out_dict = {}
+    in_out_dict["input"] = period_specific_state_objects
+    in_out_dict["output"] = {}
+    for period in periods:
+        n_idx_state = period_specific_state_objects[period]["state_choice_mat"].shape[0]
+        dummy_array = jnp.empty(shape=(n_idx_state, n_savings_out))
+        in_out_dict["output"][period] = {}
+
+        for out_key in ["value", "endog_grid", "policy_right", "policy_left"]:
+            in_out_dict["output"][period][out_key] = dummy_array
+
+    return in_out_dict
