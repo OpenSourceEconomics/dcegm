@@ -15,11 +15,11 @@ from dcegm.marg_utilities_and_exp_value import (
 )
 from dcegm.pre_processing import convert_params_to_dict
 from dcegm.pre_processing import get_partial_functions
+from dcegm.state_space import create_map_from_state_to_child_nodes
 from dcegm.state_space import (
     create_period_state_and_state_choice_objects,
 )
 from dcegm.state_space import create_state_choice_space
-from dcegm.state_space import get_map_from_state_to_child_nodes
 from jax import jit
 from jax import vmap
 
@@ -48,7 +48,8 @@ def get_solve_function(
         state_space_functions (Dict[str, callable]): Dictionary of two user-supplied
             functions to:
             (i) create the state space
-            (ii) get the state specific choice set
+            (ii) get the state specific feasible choice set
+            (iii) update the endogenous part of the state by the choice
         final_period_solution (callable): User-supplied function for solving the agent's
             last period.
         transition_function (callable): User-supplied function returning for each
@@ -60,9 +61,6 @@ def get_solve_function(
     """
 
     n_periods = options["n_periods"]
-    # max_wealth = params_dict["max_wealth"]
-    # n_grid_wealth = options["grid_points_wealth"]
-    # exog_savings_grid = jnp.linspace(0, max_wealth, n_grid_wealth)
 
     # ToDo: Make interface with several draw possibilities.
     # ToDo: Some day make user supplied draw function.
@@ -98,12 +96,6 @@ def get_solve_function(
         state_space_functions["get_state_specific_choice_set"],
     )
 
-    map_state_to_post_decision_child_nodes = get_map_from_state_to_child_nodes(
-        state_space=state_space,
-        state_choice_space=state_choice_space,
-        map_state_to_index=map_state_to_state_space_index,
-    )
-
     final_period_solution_partial = partial(
         final_period_solution,
         compute_utility=compute_utility,
@@ -112,20 +104,29 @@ def get_solve_function(
     )
 
     period_specific_state_objects = create_period_state_and_state_choice_objects(
+        options=options,
         state_space=state_space,
         state_choice_space=state_choice_space,
         map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
         reshape_state_choice_vec_to_mat=reshape_state_choice_vec_to_mat,
         transform_between_state_and_state_choice_space=transform_between_state_and_state_choice_space,
-        n_periods=n_periods,
     )
+
+    period_specific_state_objects = create_map_from_state_to_child_nodes(
+        options=options,
+        period_specific_state_objects=period_specific_state_objects,
+        map_state_to_index=map_state_to_state_space_index,
+        update_endog_state_by_state_and_choice=state_space_functions[
+            "update_endog_state_by_state_and_choice"
+        ],
+    )
+
     backward_jit = jit(
         partial(
             backward_induction,
             period_specific_state_objects=period_specific_state_objects,
             exog_savings_grid=exog_savings_grid,
             state_space=state_space,
-            map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
             income_shock_draws_unscaled=income_shock_draws_unscaled,
             income_shock_weights=income_shock_weights,
             n_periods=n_periods,
@@ -172,7 +173,8 @@ def solve_dcegm(
         state_space_functions (Dict[str, callable]): Dictionary of two user-supplied
             functions to:
             (i) create the state space
-            (ii) get the state specific choice set
+            (ii) get the state specific feasible choice set
+            (iii) update the endogenous part of the state by the choice
         final_period_solution (callable): User-supplied function for solving the agent's
             last period.
         transition_function (callable): User-supplied function returning for each
@@ -204,7 +206,6 @@ def backward_induction(
     period_specific_state_objects: Dict[int, jnp.ndarray],
     exog_savings_grid: np.ndarray,
     state_space: np.ndarray,
-    map_state_to_post_decision_child_nodes: np.ndarray,
     income_shock_draws_unscaled: np.ndarray,
     income_shock_weights: np.ndarray,
     n_periods: int,
@@ -220,8 +221,12 @@ def backward_induction(
 
     Args:
         params (dict): Dictionary containing the model parameters.
-        period_specififc_state_objects (dict): Dictionary containing period-specific
-            state and state-choice objects.
+        period_specific_state_objects (np.ndarray): Dictionary containing
+            period-specific state and state-choice objects, with the following keys:
+            - "state_choice_mat" (jnp.ndarray)
+            - "idx_state_of_state_choice" (jnp.ndarray)
+            - "reshape_state_choice_vec_to_mat" (callable)
+            - "transform_between_state_and_state_choice_vec" (callable)
         exogenous_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
             containing the exogenous savings grid.
         state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
@@ -284,8 +289,8 @@ def backward_induction(
     results = {}
 
     # Calculate beginning of period resources for all periods, given exogenous savings
-    # and income shocks from last period
-    begin_of_period_resources = vmap(
+    # and income shocks from the previous period
+    resources_beginning_of_period = vmap(
         vmap(
             vmap(compute_next_period_wealth, in_axes=(None, None, 0, None)),
             in_axes=(None, 0, None, None),
@@ -294,24 +299,26 @@ def backward_induction(
     )(state_space, exog_savings_grid, income_shock_draws, params)
 
     state_objects = period_specific_state_objects[n_periods - 1]
-    resources_last_period = begin_of_period_resources[
-        state_objects["idx_state_of_state_choice"]
+    resources_final_period = resources_beginning_of_period[
+        state_objects["idx_parent_states"]
     ]
 
     marg_util_interpolated, value_interpolated, policy_final = solve_final_period(
         state_choice_mat=state_objects["state_choice_mat"],
-        resources=resources_last_period,
+        resources=resources_final_period,
         final_period_solution_partial=final_period_solution_partial,
         params=params,
     )
-    final_period_results = {}
+
     # Choose which draw we take for policy and value function as those are note
     # saved with respect to the draws
     middle_of_draws = int(len(income_shock_draws) + 1 / 2)
+
+    final_period_results = {}
     final_period_results["value"] = value_interpolated[:, :, middle_of_draws]
     final_period_results["policy_left"] = policy_final[:, :, middle_of_draws]
     final_period_results["policy_right"] = policy_final[:, :, middle_of_draws]
-    final_period_results["endog_grid"] = resources_last_period[:, :, middle_of_draws]
+    final_period_results["endog_grid"] = resources_final_period[:, :, middle_of_draws]
 
     results[n_periods - 1] = final_period_results
 
@@ -341,8 +348,7 @@ def backward_induction(
         ) = calculate_candidate_solutions_from_euler_equation(
             marg_util=marg_util,
             emax=emax,
-            idx_state_choices_period=state_objects["idxs_state_choices"],
-            map_state_to_post_decision_child_nodes=map_state_to_post_decision_child_nodes,
+            idx_post_decision_child_states=state_objects["idx_feasible_child_nodes"],
             exogenous_savings_grid=exog_savings_grid,
             transition_vector_by_state=transition_vector_by_state,
             state_choice_mat=state_objects["state_choice_mat"],
@@ -369,8 +375,8 @@ def backward_induction(
             params,
             compute_value,
         )
-        resources_period = begin_of_period_resources[
-            state_objects["idx_state_of_state_choice"]
+        resources_period = resources_beginning_of_period[
+            state_objects["idx_parent_states"]
         ]
 
         # ToDo: reorder function arguments
@@ -388,6 +394,7 @@ def backward_induction(
             value_state_choice,
             params,
         )
+
         period_results = {}
         period_results["policy_left"] = policy_left_state_choice
         period_results["policy_right"] = policy_right_state_choice

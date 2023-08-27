@@ -23,6 +23,9 @@ from toy_models.consumption_retirement_model.state_space_objects import (
 from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_feasible_choice_set,
 )
+from toy_models.consumption_retirement_model.state_space_objects import (
+    update_state,
+)
 
 
 def flow_util(consumption, choice, params_dict):
@@ -43,7 +46,7 @@ def inverse_marginal_utility(marginal_utility, params_dict):
     return marginal_utility ** (-1 / rho)
 
 
-def budget_dcegm(state, saving, income_shock, params_dict, options):  # noqa: 100
+def budget_dcegm(state, saving, income_shock, params_dict, options):
     interest_factor = 1 + params_dict["interest_rate"]
     health_costs = params_dict["ltc_cost"]
     wage = params_dict["wage_avg"]
@@ -89,8 +92,6 @@ def prob_long_term_care_patient(params_dict, lag_health, health):
         pi = 0
     elif lag_health == health == 1:
         pi = 1
-    # else: # noqa: E800
-    #     raise ValueError("Health state not defined.") # noqa: E800
 
     return pi
 
@@ -168,6 +169,7 @@ def input_data():
     state_space_functions = {
         "create_state_space": create_state_space,
         "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
+        "update_endog_state_by_state_and_choice": update_state,
     }
     utility_functions = {
         "utility": flow_util,
