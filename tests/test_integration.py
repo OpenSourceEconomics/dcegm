@@ -21,6 +21,9 @@ from toy_models.consumption_retirement_model.state_space_objects import (
 from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_feasible_choice_set,
 )
+from toy_models.consumption_retirement_model.state_space_objects import (
+    update_state,
+)
 from toy_models.consumption_retirement_model.utility_functions import (
     inverse_marginal_utility_crra,
 )
@@ -55,6 +58,7 @@ def state_space_functions():
     return {
         "create_state_space": create_state_space,
         "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
+        "update_endog_state_by_state_and_choice": update_state,
     }
 
 
@@ -137,7 +141,7 @@ def test_benchmark_models(
                 policy_calc_interp,
                 value_calc_interp,
             ) = interpolate_policy_and_value_on_wealth_grid(
-                begin_of_period_wealth=wealth_grid_to_test,
+                wealth_beginning_of_period=wealth_grid_to_test,
                 endog_wealth_grid=endog_grid_got[state_choice_idx],
                 policy_left_grid=policy_left_got[state_choice_idx],
                 policy_right_grid=policy_right_got[state_choice_idx],

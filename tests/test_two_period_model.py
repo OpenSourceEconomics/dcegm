@@ -25,7 +25,13 @@ from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space_two_exog_processes,
 )
 from toy_models.consumption_retirement_model.state_space_objects import (
+    get_feasible_choice_set_two_exog_processes,
+)
+from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_feasible_choice_set,
+)
+from toy_models.consumption_retirement_model.state_space_objects import (
+    update_state,
 )
 
 
@@ -59,7 +65,7 @@ def get_transition_vector_dcegm_two_exog_processes(state, params, transition_mat
     return transition_matrix[state[-1], ..., state[0]]
 
 
-def budget_dcegm(state, saving, income_shock, params_dict, options):  # noqa: 100
+def budget_dcegm(state, saving, income_shock, params_dict, options):  # noqa: U100
     interest_factor = 1 + params_dict["interest_rate"]
     health_costs = params_dict["ltc_cost"]
     wage = params_dict["wage_avg"]
@@ -73,7 +79,7 @@ def budget_dcegm(state, saving, income_shock, params_dict, options):  # noqa: 10
 
 def budget_dcegm_two_exog_processes(
     state, saving, income_shock, params_dict, options
-):  # noqa: 100
+):  # noqa: U100
     interest_factor = 1 + params_dict["interest_rate"]
     health_costs = params_dict["ltc_cost"]
     wage = params_dict["wage_avg"]
@@ -319,6 +325,7 @@ def input_data():
     state_space_functions = {
         "create_state_space": create_state_space,
         "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
+        "update_endog_state_by_state_and_choice": update_state,
     }
     utility_functions = {
         "utility": flow_util,
@@ -447,7 +454,8 @@ def input_data_two_exog_processes():
     }
     state_space_functions = {
         "create_state_space": create_state_space_two_exog_processes,
-        "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
+        "get_state_specific_choice_set": get_feasible_choice_set_two_exog_processes,
+        "update_endog_state_by_state_and_choice": update_state,
     }
     utility_functions = {
         "utility": flow_util,
@@ -531,7 +539,7 @@ def test_two_period_two_exog_processes(
     ) = create_state_choice_space(
         state_space,
         map_state_to_index,
-        get_state_specific_feasible_choice_set,
+        get_feasible_choice_set_two_exog_processes,
     )
     initial_conditions = {}
     state = state_space[state_idx, :]

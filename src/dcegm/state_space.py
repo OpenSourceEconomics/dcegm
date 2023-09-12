@@ -1,78 +1,9 @@
 """Functions for creating internal state space objects."""
+from typing import Callable
+from typing import Dict
+
 import jax.numpy as jnp
 import numpy as np
-
-
-def get_map_from_state_to_child_nodes(
-    state_space: np.ndarray,
-    state_choice_space: np.ndarray,
-    map_state_to_index: np.ndarray,
-) -> np.ndarray:
-    """Create indexer array that maps states to state-specific child nodes.
-
-    Will be a user defined function later.
-
-    ToDo: We need to think about how to incorporate updating from state variables,
-    e.g. experience.
-
-    Args:
-        state_space (np.ndarray): 2d array of shape (n_states, n_state_vars + 1)
-            which serves as a collection of all possible states. By convention,
-            the first column must contain the period and the last column the
-            exogenous state. Any other state variables are in between.
-            E.g. if the two state variables are period and lagged choice and all choices
-            are admissible in each period, the shape of the state space array is
-            (n_periods * n_choices, 3).
-        state_choice_space (np.ndarray): 2d array of shape
-            (n_feasible_states, n_state_vars + 2) storing all feasible
-            state-choice combinations. The second to last column contains the exogenous
-            state. The last column includes the choice to be made at the end of
-            the period (which is not a state variable).
-        map_state_to_index (np.ndarray): Indexer array that maps states to indexes.
-            The shape of this object is quite complicated. For each state variable it
-            has the number of possible states as rows, i.e.
-            (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
-
-    Returns:
-        np.ndarray: 2d array of shape
-            (n_feasible_state_choice_combs, n_choices * n_exog_processes)
-            containing indices of all child nodes the agent can reach
-            from a given state.
-
-    """
-    # Exogenous processes are always on the last entry of the state space. Moreover, we
-    # treat all of them as admissible in each period. If there exists an absorbing
-    # state, this is reflected by a 0 percent transition probability.
-    n_periods, n_choices, n_exog_states = map_state_to_index.shape
-    n_feasible_state_choice_combs = state_choice_space.shape[0]
-    n_states_over_periods = state_space.shape[0] // n_periods
-
-    map_state_to_feasible_child_nodes = np.empty(
-        (n_feasible_state_choice_combs, n_exog_states),
-        dtype=int,
-    )
-
-    for idx in range(n_feasible_state_choice_combs):
-        state_choice_vec = state_choice_space[idx]
-        period = state_choice_vec[0]
-        state_vec = state_choice_vec[:-1]
-        lagged_choice = state_choice_vec[-1]
-
-        state_vec_next = state_vec.copy()
-        state_vec_next[0] += 1  # Increment period
-
-        if state_vec_next[0] < n_periods:
-            state_vec_next[1] = lagged_choice
-
-            for exog_state in range(n_exog_states):
-                state_vec_next[-1] = exog_state
-
-                map_state_to_feasible_child_nodes[idx, exog_state] = (
-                    map_state_to_index[tuple(state_vec_next)]
-                    - (period + 1) * n_states_over_periods
-                )
-
-    return map_state_to_feasible_child_nodes
 
 
 def create_state_choice_space(
@@ -90,11 +21,12 @@ def create_state_choice_space(
             E.g. if the two state variables are period and lagged choice and all choices
             are admissible in each period, the shape of the state space array is
             (n_periods * n_choices, 3).
-        map_state_to_state_space_index (np.ndarray): Indexer array that maps states to
-            the respective index positions in the state space.
+        map_state_to_state_space_index (np.ndarray): Indexer array that maps
+            a period-specific state vector to the respective index positions in the
+            state space.
             The shape of this object is quite complicated. For each state variable it
-            has the number of possible states as rows, i.e.
-            (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
+            has the number of potential states as rows, i.e.
+            (n_potential_states_state_var_1, n_potential_states_state_var_2, ....).
         get_state_specific_choice_set (Callable): User-supplied function that returns
             the set of feasible choices for a given state.
 
@@ -152,7 +84,7 @@ def create_state_choice_space(
             period += 1
 
         feasible_choice_set = get_state_specific_choice_set(
-            state_vec, state_space, map_state_to_state_space_index
+            state_vec, map_state_to_state_space_index
         )
 
         for choice in feasible_choice_set:
@@ -181,13 +113,90 @@ def create_state_choice_space(
     )
 
 
+def create_map_from_state_to_child_nodes(
+    options: Dict[str, int],
+    period_specific_state_objects: np.ndarray,
+    map_state_to_index: np.ndarray,
+    update_endog_state_by_state_and_choice: Callable,
+):
+    """Create indexer array that maps states to state-specific child nodes.
+
+    Will be a user defined function later.
+
+    ToDo: We need to think about how to incorporate updating from state variables,
+    e.g. experience.
+
+    Args:
+        options (dict): Options dictionary.
+        period_specific_state_objects (np.ndarray): Dictionary containing
+            period-specific state and state-choice objects, with the following keys:
+            - "state_choice_mat" (jnp.ndarray)
+            - "idx_state_of_state_choice" (jnp.ndarray)
+            - "reshape_state_choice_vec_to_mat" (callable)
+            - "transform_between_state_and_state_choice_vec" (callable)
+        map_state_to_index (np.ndarray): Indexer array that maps states to indexes.
+            The shape of this object is quite complicated. For each state variable it
+            has the number of potential states as rows, i.e.
+            (n_potential_states_state_var_1, n_potential_states_state_var_2, ....).
+        update_endog_state_by_state_and_choice (Callable): User-supplied function that
+            updates the endogenous state variables conditional on the current state and
+            choice.
+
+    Returns:
+        np.ndarray: 2d array of shape
+            (n_feasible_state_choice_combs, n_choices * n_exog_processes)
+            containing indices of all child nodes the agent can reach
+            from a given state.
+
+    """
+    # Exogenous processes are always on the last entry of the state space. Moreover, we
+    # treat all of them as admissible in each period. If there exists an absorbing
+    # state, this is reflected by a 0 percent transition probability.
+    n_periods = options["n_periods"]
+    n_exog_states = options["n_exog_states"]
+
+    for period in range(n_periods - 1):
+        period_dict = period_specific_state_objects[period]
+        idx_min_state_space_next_period = map_state_to_index[
+            tuple(period_specific_state_objects[period + 1]["state_choice_mat"][0, :-1])
+        ]
+
+        state_choice_space_period = period_dict["state_choice_mat"]
+
+        map_state_to_feasible_child_nodes_period = np.empty(
+            (state_choice_space_period.shape[0], n_exog_states),
+            dtype=int,
+        )
+
+        # Loop over all state-choice combinations in period.
+        for idx, state_choice_vec in enumerate(state_choice_space_period):
+            state_vec_next = update_endog_state_by_state_and_choice(
+                state=np.array(state_choice_vec[:-1]),
+                choice=np.array(state_choice_vec[-1]),
+            )
+
+            for exog_process in range(n_exog_states):
+                state_vec_next[-1] = exog_process
+                # We want the index every period to start at 0.
+                map_state_to_feasible_child_nodes_period[idx, exog_process] = (
+                    map_state_to_index[tuple(state_vec_next)]
+                    - idx_min_state_space_next_period
+                )
+
+            period_specific_state_objects[period][
+                "idx_feasible_child_nodes"
+            ] = jnp.array(map_state_to_feasible_child_nodes_period, dtype=int)
+
+    return period_specific_state_objects
+
+
 def create_period_state_and_state_choice_objects(
+    options,
     state_space,
     state_choice_space,
     map_state_choice_vec_to_parent_state,
     reshape_state_choice_vec_to_mat,
     transform_between_state_and_state_choice_space,
-    n_periods,
 ):
     """Create dictionary of state and state-choice objects for each period.
 
@@ -215,24 +224,28 @@ def create_period_state_and_state_choice_objects(
         n_periods (int): Number of periods.
 
     Returns:
-        dict of jnp.ndarray: Dictionary containing period-specific state and
-            state-choice objects.
+        dict of jnp.ndarray: Dictionary containing period-specific
+            state and state-choice objects, with the following keys:
+            - "state_choice_mat" (jnp.ndarray)
+            - "idx_state_of_state_choice" (jnp.ndarray)
+            - "reshape_state_choice_vec_to_mat" (callable)
+            - "transform_between_state_and_state_choice_vec" (callable)
 
     """
+    n_periods = options["n_periods"]
     out = {}
 
     for period in range(n_periods):
         period_dict = {}
         idxs_states = jnp.where(state_space[:, 0] == period)[0]
 
-        idxs_state_choices = jnp.where(state_choice_space[:, 0] == period)[0]
-        period_dict["idxs_state_choices"] = idxs_state_choices
+        idxs_state_choices_period = jnp.where(state_choice_space[:, 0] == period)[0]
         period_dict["state_choice_mat"] = jnp.take(
-            state_choice_space, idxs_state_choices, axis=0
+            state_choice_space, idxs_state_choices_period, axis=0
         )
 
-        period_dict["idx_state_of_state_choice"] = jnp.take(
-            map_state_choice_vec_to_parent_state, idxs_state_choices, axis=0
+        period_dict["idx_parent_states"] = jnp.take(
+            map_state_choice_vec_to_parent_state, idxs_state_choices_period, axis=0
         )
 
         period_dict["reshape_state_choice_vec_to_mat"] = jnp.take(
@@ -243,7 +256,7 @@ def create_period_state_and_state_choice_objects(
             jnp.take(
                 transform_between_state_and_state_choice_space, idxs_states, axis=0
             ),
-            idxs_state_choices,
+            idxs_state_choices_period,
             axis=1,
         )
 
