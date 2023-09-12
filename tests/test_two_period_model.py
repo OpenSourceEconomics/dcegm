@@ -35,22 +35,22 @@ from toy_models.consumption_retirement_model.state_space_objects import (
 )
 
 
-def flow_util(consumption, choice, params_dict):
-    rho = params_dict["rho"]
-    delta = params_dict["delta"]
+def flow_util(consumption, choice, params):
+    rho = params["rho"]
+    delta = params["delta"]
 
     u = consumption ** (1 - rho) / (1 - rho) - delta * (1 - choice)
     return u
 
 
-def marginal_utility(consumption, params_dict):
-    rho = params_dict["rho"]
+def marginal_utility(consumption, params):
+    rho = params["rho"]
     u_prime = consumption ** (-rho)
     return u_prime
 
 
-def inverse_marginal_utility(marginal_utility, params_dict):
-    rho = params_dict["rho"]
+def inverse_marginal_utility(marginal_utility, params):
+    rho = params["rho"]
     return marginal_utility ** (-1 / rho)
 
 
@@ -65,10 +65,10 @@ def get_transition_vector_dcegm_two_exog_processes(state, params, transition_mat
     return transition_matrix[state[-1], ..., state[0]]
 
 
-def budget_dcegm(state, saving, income_shock, params_dict, options):  # noqa: U100
-    interest_factor = 1 + params_dict["interest_rate"]
-    health_costs = params_dict["ltc_cost"]
-    wage = params_dict["wage_avg"]
+def budget_dcegm(state, saving, income_shock, params, options):  # noqa: U100
+    interest_factor = 1 + params["interest_rate"]
+    health_costs = params["ltc_cost"]
+    wage = params["wage_avg"]
     resource = (
         interest_factor * saving
         + (wage + income_shock) * (1 - state[1])
@@ -78,11 +78,11 @@ def budget_dcegm(state, saving, income_shock, params_dict, options):  # noqa: U1
 
 
 def budget_dcegm_two_exog_processes(
-    state, saving, income_shock, params_dict, options
+    state, saving, income_shock, params, options
 ):  # noqa: U100
-    interest_factor = 1 + params_dict["interest_rate"]
-    health_costs = params_dict["ltc_cost"]
-    wage = params_dict["wage_avg"]
+    interest_factor = 1 + params["interest_rate"]
+    health_costs = params["ltc_cost"]
+    wage = params["wage_avg"]
 
     # lagged_job_offer = jnp.abs(state[-1] - 2) * (state[-1] > 0) * state[0]  # [1, 3]
     ltc_patient = state[-1] > 1  # [2, 3]
@@ -101,10 +101,10 @@ def budget(
     lagged_retirement_choice,
     wage,
     health,
-    params_dict,
+    params,
 ):
-    interest_factor = 1 + params_dict["interest_rate"]
-    health_costs = params_dict["ltc_cost"]
+    interest_factor = 1 + params["interest_rate"]
+    health_costs = params["ltc_cost"]
     resources = (
         interest_factor * (lagged_resources - lagged_consumption)
         + wage * (1 - lagged_retirement_choice)
@@ -120,10 +120,10 @@ def budget_two_exog_processes(
     wage,
     bad_health,
     lagged_job_offer,
-    params_dict,
+    params,
 ):
-    interest_factor = 1 + params_dict["interest_rate"]
-    health_costs = params_dict["ltc_cost"]
+    interest_factor = 1 + params["interest_rate"]
+    health_costs = params["ltc_cost"]
     resources = (
         interest_factor * (lagged_resources - lagged_consumption)
         + wage * lagged_job_offer * (1 - lagged_retirement_choice)
@@ -132,13 +132,13 @@ def budget_two_exog_processes(
     return resources
 
 
-def wage(nu, params_dict):
-    wage = params_dict["wage_avg"] + nu
+def wage(nu, params):
+    wage = params["wage_avg"] + nu
     return wage
 
 
-def prob_long_term_care_patient(params_dict, lagged_bad_health, bad_health):
-    p = params_dict["ltc_prob"]
+def prob_long_term_care_patient(params, lagged_bad_health, bad_health):
+    p = params["ltc_prob"]
 
     if (lagged_bad_health == 0) and (bad_health == 1):
         pi = p
@@ -152,8 +152,8 @@ def prob_long_term_care_patient(params_dict, lagged_bad_health, bad_health):
     return pi
 
 
-def prob_job_offer(params_dict, lagged_job_offer, job_offer):
-    # p = params_dict["job_offer_prob"]
+def prob_job_offer(params, lagged_job_offer, job_offer):
+    # p = params["job_offer_prob"]
 
     if (lagged_job_offer == 0) and (job_offer == 1):
         pi = 0.5
@@ -167,10 +167,10 @@ def prob_job_offer(params_dict, lagged_job_offer, job_offer):
     return pi
 
 
-def choice_prob_retirement(cons, retirement_choice, params_dict):
-    v = flow_util(cons, choice=retirement_choice, params_dict=params_dict)
-    v_0 = flow_util(cons, choice=0, params_dict=params_dict)
-    v_1 = flow_util(cons, choice=1, params_dict=params_dict)
+def choice_prob_retirement(cons, retirement_choice, params):
+    v = flow_util(cons, choice=retirement_choice, params=params)
+    v_0 = flow_util(cons, choice=0, params=params)
+    v_1 = flow_util(cons, choice=1, params=params)
     choice_prob = np.exp(v) / (np.exp(v_0) + np.exp(v_1))
     return choice_prob
 
@@ -178,7 +178,7 @@ def choice_prob_retirement(cons, retirement_choice, params_dict):
 def m_util_aux(
     state,
     init_cond,
-    params_dict,
+    params,
     retirement_choice_1,
     nu,
     consumption,
@@ -195,16 +195,14 @@ def m_util_aux(
                 budget_1,
                 consumption,
                 retirement_choice_1,
-                wage(nu, params_dict),
+                wage(nu, params),
                 ltc_state_2,
-                params_dict,
+                params,
             )
-            marginal_util = marginal_utility(budget_2, params_dict)
-            choice_prob = choice_prob_retirement(
-                budget_2, retirement_choice_2, params_dict
-            )
+            marginal_util = marginal_utility(budget_2, params)
+            choice_prob = choice_prob_retirement(budget_2, retirement_choice_2, params)
             # ltc_prob = prob_long_term_care_patient(
-            #     params_dict, ltc_state_1, ltc_state_2
+            #     params, ltc_state_1, ltc_state_2
             # )
             ltc_prob = get_transition_vector_by_state[ltc_state_2]
 
@@ -214,7 +212,7 @@ def m_util_aux(
 
 
 def marginal_utility_weighted_two_exog_processes(
-    init_cond, params_dict, retirement_choice_1, nu, consumption
+    init_cond, params, retirement_choice_1, nu, consumption
 ):
     """Return the expected marginal utility for one realization of the wage shock."""
     budget_1 = init_cond["wealth"]
@@ -229,21 +227,19 @@ def marginal_utility_weighted_two_exog_processes(
                     budget_1,
                     consumption,
                     retirement_choice_1,
-                    wage(nu, params_dict),
+                    wage(nu, params),
                     ltc_state_2,
                     job_state_1,
-                    params_dict,
+                    params,
                 )
 
-                marginal_util = marginal_utility(budget_2, params_dict)
+                marginal_util = marginal_utility(budget_2, params)
                 choice_prob = choice_prob_retirement(
-                    budget_2, retirement_choice_2, params_dict
+                    budget_2, retirement_choice_2, params
                 )
 
-                ltc_prob = prob_long_term_care_patient(
-                    params_dict, ltc_state_1, ltc_state_2
-                )
-                job_offer_prob = prob_job_offer(params_dict, job_state_1, job_state_2)
+                ltc_prob = prob_long_term_care_patient(params, ltc_state_1, ltc_state_2)
+                job_offer_prob = prob_job_offer(params, job_state_1, job_state_2)
 
                 weighted_marginal += (
                     choice_prob * ltc_prob * job_offer_prob * marginal_util
@@ -255,22 +251,22 @@ def marginal_utility_weighted_two_exog_processes(
 def euler_rhs(
     state,
     init_cond,
-    params_dict,
+    params,
     draws,
     weights,
     retirement_choice_1,
     consumption,
     get_transition_vector_by_state,
 ):
-    beta = params_dict["beta"]
-    interest_factor = 1 + params_dict["interest_rate"]
+    beta = params["beta"]
+    interest_factor = 1 + params["interest_rate"]
 
     rhs = 0
     for index_draw, draw in enumerate(draws):
         marg_util_draw = m_util_aux(
             state,
             init_cond,
-            params_dict,
+            params,
             retirement_choice_1,
             draw,
             consumption,
@@ -281,15 +277,15 @@ def euler_rhs(
 
 
 def euler_rhs_two_exog_processes(
-    init_cond, params_dict, draws, weights, retirement_choice_1, consumption
+    init_cond, params, draws, weights, retirement_choice_1, consumption
 ):
-    beta = params_dict["beta"]
-    interest_factor = 1 + params_dict["interest_rate"]
+    beta = params["beta"]
+    interest_factor = 1 + params["interest_rate"]
 
     rhs = 0
     for index_draw, draw in enumerate(draws):
         marg_util_draw = marginal_utility_weighted_two_exog_processes(
-            init_cond, params_dict, retirement_choice_1, draw, consumption
+            init_cond, params, retirement_choice_1, draw, consumption
         )
         rhs += weights[index_draw] * marg_util_draw
     return rhs * beta * interest_factor
@@ -378,7 +374,7 @@ def test_two_period(input_data, wealth_idx, state_idx):
     params = input_data["params"]
     keys = params.index.droplevel("category").tolist()
     values = params["value"].tolist()
-    params_dict = dict(zip(keys, values))
+    params = dict(zip(keys, values))
     state_space, map_state_to_index = create_state_space(input_data["options"])
     (
         state_choice_space,
@@ -413,13 +409,13 @@ def test_two_period(input_data, wealth_idx, state_idx):
             diff = euler_rhs(
                 state,
                 initial_conditions,
-                params_dict,
+                params,
                 quad_draws,
                 quad_weights,
                 choice_in_period_1,
                 consumption,
                 get_transition_vector_by_state=trans_vec,
-            ) - marginal_utility(consumption, params_dict)
+            ) - marginal_utility(consumption, params)
 
             assert_allclose(diff, 0, atol=1e-6)
 
@@ -528,7 +524,7 @@ def test_two_period_two_exog_processes(
     params = input_data_two_exog_processes["params"]
     keys = params.index.droplevel("category").tolist()
     values = params["value"].tolist()
-    params_dict = dict(zip(keys, values))
+    params = dict(zip(keys, values))
     state_space, map_state_to_index = create_state_space_two_exog_processes(
         input_data_two_exog_processes["options"]
     )
@@ -566,11 +562,11 @@ def test_two_period_two_exog_processes(
             consumption = policy[wealth_idx + 1]
             diff = euler_rhs_two_exog_processes(
                 initial_conditions,
-                params_dict,
+                params,
                 quad_draws,
                 quad_weights,
                 choice_in_period_1,
                 consumption,
-            ) - marginal_utility(consumption, params_dict)
+            ) - marginal_utility(consumption, params)
 
             assert_allclose(diff, 0, atol=1e-6)

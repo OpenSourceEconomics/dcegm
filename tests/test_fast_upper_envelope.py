@@ -30,10 +30,10 @@ def setup_model():
     n_grid_wealth = 500
     exog_savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
 
-    params_dict = {}
-    params_dict["beta"] = 0.95  # discount_factor
-    params_dict["theta"] = 1.95
-    params_dict["delta"] = 0.35
+    params = {}
+    params["beta"] = 0.95  # discount_factor
+    params["theta"] = 1.95
+    params["delta"] = 0.35
 
     compute_utility = utility_func_crra
     compute_value = partial(
@@ -41,7 +41,7 @@ def setup_model():
         compute_utility=compute_utility,
     )
 
-    return params_dict, choice, exog_savings_grid, compute_value
+    return params, choice, exog_savings_grid, compute_value
 
 
 @pytest.mark.parametrize("period", [2, 4, 9, 10, 18])
@@ -66,7 +66,7 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
         ~np.isnan(value_refined_fedor).any(axis=0),
     ]
 
-    params_dict, choice, _exog_savings_grid, compute_value = setup_model
+    params, choice, _exog_savings_grid, compute_value = setup_model
 
     (
         endog_grid_refined,
@@ -79,7 +79,7 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
         value=value_egm[1, 1:],
         expected_value_zero_savings=value_egm[1, 0],
         choice=choice,
-        params=params_dict,
+        params=params,
         compute_value=compute_value,
     )
 
@@ -116,7 +116,7 @@ def test_fast_upper_envelope_against_org_fues(setup_model):
     value_egm = np.genfromtxt(
         TEST_RESOURCES_DIR / "period_tests/val10.csv", delimiter=","
     )
-    _params_dict, choice, exog_savings_grid, compute_value = setup_model
+    _params, choice, exog_savings_grid, compute_value = setup_model
 
     (
         endog_grid_refined,
@@ -158,14 +158,14 @@ def test_fast_upper_envelope_against_fedor(period, setup_model):
         TEST_RESOURCES_DIR / f"period_tests/pol{period}.csv", delimiter=","
     )
 
-    params_dict, choice, exog_savings_grid, compute_value = setup_model
+    params, choice, exog_savings_grid, compute_value = setup_model
 
     _policy_fedor, _value_fedor = upper_envelope(
         policy=policy_egm,
         value=value_egm,
         exog_grid=exog_savings_grid,
         choice=choice,
-        params=params_dict,
+        params=params,
         compute_value=compute_value,
     )
     policy_expected = _policy_fedor[:, ~np.isnan(_policy_fedor).any(axis=0)]
@@ -185,7 +185,7 @@ def test_fast_upper_envelope_against_fedor(period, setup_model):
         value=value_egm[1, 1:],
         expected_value_zero_savings=value_egm[1, 0],
         choice=choice,
-        params=params_dict,
+        params=params,
         compute_value=compute_value,
     )
     wealth_max_to_test = np.max(endog_grid_calc[~np.isnan(endog_grid_calc)]) + 100

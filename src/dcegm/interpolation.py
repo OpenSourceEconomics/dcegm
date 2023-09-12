@@ -151,7 +151,7 @@ def calc_interpolated_values_and_marg_utils(
         + (1 - credit_constraint) * value_interp_on_grid
     )
 
-    marg_utility_interp = compute_marginal_utility(policy_interp, params_dict=params)
+    marg_utility_interp = compute_marginal_utility(policy_interp, params=params)
 
     return marg_utility_interp, value_interp
 

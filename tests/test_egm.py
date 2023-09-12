@@ -32,11 +32,11 @@ def test_get_next_period_wealth_matrices(
 ):
     params, options = load_example_model(f"{model}")
 
-    params_dict = convert_params_to_dict(params)
+    params = convert_params_to_dict(params)
 
-    sigma = params_dict["sigma"]
-    r = params_dict["interest_rate"]
-    consump_floor = params_dict["consumption_floor"]
+    sigma = params["sigma"]
+    r = params["interest_rate"]
+    consump_floor = params["consumption_floor"]
 
     n_quad_points = options["quadrature_points_stochastic"]
     options["grid_points_wealth"] = n_grid_points
@@ -54,14 +54,14 @@ def test_get_next_period_wealth_matrices(
         child_state,
         savings_end_of_previous_period=savings_grid[random_saving_scalar],
         income_shock_previous_period=quad_points[random_shock_scalar],
-        params=params_dict,
+        params=params,
         options=options,
     )
 
     _income = _calc_stochastic_income(
         child_state,
         wage_shock=quad_points[random_shock_scalar],
-        params=params_dict,
+        params=params,
         options=options,
     )
 

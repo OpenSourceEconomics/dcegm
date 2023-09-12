@@ -29,28 +29,28 @@ def test_data(load_example_model):
 
     delta = params.loc[("delta", "delta"), "value"]
     beta = params.loc[("beta", "beta"), "value"]
-    params_dict = {"beta": beta, "delta": delta}
+    params = {"beta": beta, "delta": delta}
 
     compute_utility = utiility_func_log_crra
 
-    return consumption, next_period_value, params_dict, compute_utility
+    return consumption, next_period_value, params, compute_utility
 
 
 @pytest.mark.parametrize("choice", [0, 1])
 def test_calc_value(choice, test_data):
-    consumption, next_period_value, params_dict, compute_utility = test_data
+    consumption, next_period_value, params, compute_utility = test_data
 
     expected = (
         np.log(consumption)
-        - (1 - choice) * params_dict["delta"]
-        + params_dict["beta"] * next_period_value
+        - (1 - choice) * params["delta"]
+        + params["beta"] * next_period_value
     )
 
     got = calc_current_value(
         consumption=consumption,
         next_period_value=next_period_value,
         choice=choice,
-        params=params_dict,
+        params=params,
         compute_utility=compute_utility,
     )
     aaae(got, expected)
