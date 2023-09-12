@@ -166,7 +166,7 @@ def get_state_specific_feasible_choice_set(
     return feasible_choice_set
 
 
-def get_feasible_choice_set_two_exog_proceses(
+def get_feasible_choice_set_two_exog_processes(
     state: np.ndarray,
     map_state_to_state_space_index: np.ndarray,
 ) -> np.ndarray:
