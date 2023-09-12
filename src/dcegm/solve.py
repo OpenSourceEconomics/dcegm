@@ -141,8 +141,8 @@ def get_solve_function(
     )
 
     def solve_func(params):
-        params_dict_int = convert_params_to_dict(params)
-        return backward_jit(params=params_dict_int)
+        params_initial = convert_params_to_dict(params)
+        return backward_jit(params=params_initial)
 
     return solve_func
 

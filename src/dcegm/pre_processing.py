@@ -2,29 +2,50 @@ from functools import partial
 from typing import Callable
 from typing import Dict
 from typing import Tuple
+from typing import Union
 
 import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
+from pybaum import get_registry
+from pybaum import leaf_names
+from pybaum import tree_flatten
 
 
-def convert_params_to_dict(params: pd.DataFrame) -> Dict[str, float]:
+def convert_params_to_dict(
+    params: Union[dict, pd.Series, pd.DataFrame]
+) -> Dict[str, float]:
     """Transforms params DataFrame into a dictionary.
 
     Checks if given params DataFrame contains taste shock scale, interest rate
     and discount factor.
 
     Args:
-        params (pd.DataFrame): Params DataFrame.
+        params (dict or tuple or pandas.Series or pandas.DataFrame): Model parameters
+            Support tuple and list as well?
 
     Returns:
-        dict: Dictionary with index "category" dropped and column
-            "comment" transformed into dictionary.
+        dict: Dictionary of model parameters.
 
     """
-    keys = params.index.droplevel("category").tolist()
-    values = params["value"].tolist()
+    _registry = get_registry(
+        types=[
+            "pandas.Series",
+            "pandas.DataFrame",
+        ],
+        include_defaults=True,
+    )
+
+    _params, _treedef = tree_flatten(params, registry=_registry)
+
+    values = [i for i in _params if isinstance(i, (int, float))]
+
+    if isinstance(params, (pd.Series, pd.DataFrame)):
+        keys = _treedef.index.get_level_values(_treedef.index.names[-1]).tolist()
+    else:
+        keys = leaf_names(_treedef, registry=_registry)
+
     params_dict = dict(zip(keys, values))
 
     if "interest_rate" not in params_dict:  # interest rate
@@ -46,7 +67,6 @@ def get_partial_functions(
     """Create partial functions from user supplied functions.
 
     Args:
-        params_dict (dict): Dictionary containing model parameters.
         options (dict): Options dictionary.
         user_utility_functions (Dict[str, callable]): Dictionary of three user-supplied
             functions for computation of:

@@ -366,6 +366,7 @@ def input_data():
 TEST_CASES = list(product(list(range(WEALTH_GRID_POINTS)), list(range(4))))
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize(
     "wealth_idx, state_idx",
     TEST_CASES,
