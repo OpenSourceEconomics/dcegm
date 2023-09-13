@@ -1,5 +1,3 @@
-from typing import Dict
-
 import jax
 import jax.numpy as jnp
 
@@ -8,8 +6,13 @@ def budget_constraint(
     state_beginning_of_period: jnp.ndarray,
     savings_end_of_previous_period: float,
     income_shock_previous_period: float,
-    params: Dict[str, float],
-    options: Dict[str, int],
+    *,
+    min_age: int,
+    interest_rate: float,
+    consumption_floor: float,
+    constant: float,
+    exp: float,
+    exp_squared: float,
 ) -> float:
     """Compute possible current beginning of period resources.
 
@@ -32,24 +35,26 @@ def budget_constraint(
         (float): The beginning of period wealth in t.
 
     """
-    r = params["interest_rate"]
 
     # Calculate stochastic labor income
     income_from_previous_period = _calc_stochastic_income(
         state_beginning_of_period,
         wage_shock=income_shock_previous_period,
-        params=params,
-        options=options,
+        min_age=min_age,
+        constant=constant,
+        exp=exp,
+        exp_squared=exp_squared,
     )
 
     wealth_beginning_of_period = (
-        income_from_previous_period + (1 + r) * savings_end_of_previous_period
+        income_from_previous_period
+        + (1 + interest_rate) * savings_end_of_previous_period
     )
 
     # Retirement safety net, only in retirement model, but we require to have it always
     # as a parameter
     wealth_beginning_of_period = jnp.maximum(
-        wealth_beginning_of_period, params["consumption_floor"]
+        wealth_beginning_of_period, consumption_floor
     )
 
     return wealth_beginning_of_period
@@ -59,8 +64,10 @@ def budget_constraint(
 def _calc_stochastic_income(
     state: jnp.ndarray,
     wage_shock: float,
-    params: Dict[str, float],
-    options: Dict[str, int],
+    min_age: int,
+    constant: float,
+    exp: float,
+    exp_squared: float,
 ) -> float:
     """Computes the current level of deterministic and stochastic income.
 
@@ -92,12 +99,12 @@ def _calc_stochastic_income(
 
     """
     # For simplicity, assume current_age - min_age = experience
-    min_age = options["min_age"]
     age = state[0] + min_age
 
     # Determinisctic component of income depending on experience:
     # constant + alpha_1 * age + alpha_2 * age**2
-    exp_coeffs = jnp.array([params["constant"], params["exp"], params["exp_squared"]])
+    exp_coeffs = jnp.array([constant, exp, exp_squared])
     labor_income = exp_coeffs @ (age ** jnp.arange(len(exp_coeffs)))
     working_income = jnp.exp(labor_income + wage_shock)
+
     return (1 - state[1]) * working_income

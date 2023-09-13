@@ -1,3 +1,5 @@
+import functools
+import inspect
 from functools import partial
 from typing import Callable
 from typing import Dict
@@ -41,6 +43,8 @@ def convert_params_to_dict(
 
     values = [i for i in _params if isinstance(i, (int, float))]
 
+    # {level: df.xs(level).to_dict('index') for level in df.index.levels[0]}
+
     if isinstance(params, (pd.Series, pd.DataFrame)):
         keys = _treedef.index.get_level_values(_treedef.index.names[-1]).tolist()
     else:
@@ -48,11 +52,15 @@ def convert_params_to_dict(
 
     params_dict = dict(zip(keys, values))
 
-    if "interest_rate" not in params_dict:  # interest rate
-        raise ValueError("Interest rate must be provided in params.")
-    if "lambda" not in params_dict:  # taste shock scale
-        raise ValueError("Taste shock scale must be provided in params.")
-    if "beta" not in params_dict:  # discount factor
+    if "interest_rate" not in params_dict:
+        # t raise ValueError("Interest rate must be provided in params.")
+        params_dict["interest_rate"] = 0
+    if "lambda" not in params_dict:
+        # raise ValueError("Taste shock scale must be provided in params.")
+        params_dict["lambda"] = 0
+    if "sigma" not in params_dict:
+        params_dict["sigma"] = 0
+    if "beta" not in params_dict:
         raise ValueError("Discount factor must be provided in params.")
 
     return params_dict
@@ -62,6 +70,7 @@ def get_partial_functions(
     options: Dict[str, int],
     user_utility_functions: Dict[str, Callable],
     user_budget_constraint: Callable,
+    user_final_period_solution: Callable,
     exogenous_transition_function: Callable,
 ) -> Tuple[Callable, Callable, Callable, Callable, Callable, Callable, Callable]:
     """Create partial functions from user supplied functions.
@@ -100,22 +109,45 @@ def get_partial_functions(
             transition probabilities for each state.
 
     """
-    compute_utility = user_utility_functions["utility"]
-    compute_marginal_utility = user_utility_functions["marginal_utility"]
-    compute_inverse_marginal_utility = user_utility_functions[
-        "inverse_marginal_utility"
-    ]
-
-    compute_value = partial(
-        calc_current_value,
-        compute_utility=compute_utility,
+    compute_utility = _get_function_with_filtered_kwargs(
+        user_utility_functions["utility"]
+    )
+    compute_marginal_utility = _get_function_with_filtered_kwargs(
+        user_utility_functions["marginal_utility"]
+    )
+    compute_inverse_marginal_utility = _get_function_with_filtered_kwargs(
+        user_utility_functions["inverse_marginal_utility"]
     )
 
-    compute_beginning_of_period_wealth = partial(
-        user_budget_constraint,
-        options=options,
+    # a, b, c = tuple(
+    #     _get_function_with_filtered_kwargs(func)
+    #     for func in user_utility_functions.values()
+    # )
+
+    compute_beginning_of_period_wealth = _get_function_with_args_and_filtered_kwargs(
+        user_budget_constraint
     )
 
+    solve_final_period = _get_function_with_args_and_filtered_kwargs(
+        partial(
+            user_final_period_solution,
+            compute_utility=compute_utility,
+            compute_marginal_utility=compute_marginal_utility,
+        )
+    )
+
+    # compute_beginning_of_period_wealth = _get_function_with_args_and_filtered_kwargs(
+    #     partial(user_budget_constraint, options=options)
+    # )
+
+    # compute_beginning_of_period_wealth = partial(
+    #     _get_function_with_args_and_filtered_kwargs(user_budget_constraint),
+    #     options=options,
+    # )
+
+    # transition_function = _get_function_with_filtered_kwargs(
+    #     exogenous_transition_function
+    # )
     transition_function = exogenous_transition_function
 
     if options["n_discrete_choices"] == 1:
@@ -123,46 +155,89 @@ def get_partial_functions(
     else:
         compute_upper_envelope = fast_upper_envelope_wrapper
 
+    # fortesting
+    #
+    np.arange(10)
+
+    # breakpoint()
+
     return (
         compute_utility,
         compute_marginal_utility,
         compute_inverse_marginal_utility,
-        compute_value,
         compute_beginning_of_period_wealth,
         compute_upper_envelope,
         transition_function,
+        solve_final_period,
     )
 
 
-def calc_current_value(
-    consumption: np.ndarray,
-    next_period_value: np.ndarray,
-    choice: int,
-    params: Dict[str, float],
-    compute_utility: Callable,
-) -> np.ndarray:
-    """Compute the agent's current value.
+def _get_function_with_args_and_filtered_kwargs(func):
+    signature = list(inspect.signature(func).parameters)
 
-    We only support the standard value function, where the current utility and
-    the discounted next period value have a sum format.
+    @functools.wraps(func)
+    def processed_func(*args):
+        _args = [arg for arg in args if not isinstance(arg, dict)]
+        _options_and_params = [arg for arg in args if isinstance(arg, dict)]
 
-    Args:
-        consumption (np.ndarray): Level of the agent's consumption.
-            Array of shape (n_quad_stochastic * n_grid_wealth,).
-        next_period_value (np.ndarray): The value in the next period.
-        choice (int): The current discrete choice.
-        compute_utility (callable): User-defined function to compute the agent's
-            utility. The input ``params``` is already partialled in.
-        discount_factor (float): The discount factor.
+        _kwargs = {
+            key: _dict.pop(key)
+            for key in signature
+            for _dict in _options_and_params
+            if key in _dict
+        }
 
-    Returns:
-        np.ndarray: The current value.
+        return func(*_args, **_kwargs)
 
-    """
-    utility = compute_utility(consumption, choice, params)
-    value = utility + params["beta"] * next_period_value
+    # Set the __name__ attribute of processed_func to the name of the original func
+    # processed_func.__name__ = func.__name__
 
-    return value
+    return processed_func
+
+
+def _get_function_with_filtered_kwargs(func):
+    signature = list(inspect.signature(func).parameters)
+
+    @functools.wraps(func)
+    def processed_func(**kwargs):
+        _kwargs = {key: kwargs[key] for key in signature if key in kwargs}
+        return func(**_kwargs)
+
+    # Set the __name__ attribute of processed_func to the name of the original func
+    processed_func.__name__ = func.__name__
+
+    return processed_func
+
+
+# def calc_current_value(
+#     consumption: np.ndarray,
+#     next_period_value: np.ndarray,
+#     choice: int,
+#     params: Dict[str, float],
+#     compute_utility: Callable,
+# ) -> np.ndarray:
+#     """Compute the agent's current value.
+
+#     We only support the standard value function, where the current utility and
+#     the discounted next period value have a sum format.
+
+#     Args:
+#         consumption (np.ndarray): Level of the agent's consumption.
+#             Array of shape (n_quad_stochastic * n_grid_wealth,).
+#         next_period_value (np.ndarray): The value in the next period.
+#         choice (int): The current discrete choice.
+#         compute_utility (callable): User-defined function to compute the agent's
+#             utility. The input ``params``` is already partialled in.
+#         discount_factor (float): The discount factor.
+
+#     Returns:
+#         np.ndarray: The current value.
+
+#     """
+#     utility = compute_utility(consumption, choice, params["delta"])
+#     value = utility + params["beta"] * next_period_value
+
+#     return value
 
 
 def _return_policy_and_value(

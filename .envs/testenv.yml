@@ -13,6 +13,7 @@ dependencies:
   - numpy
   - numba
   - pandas
+  - pybaum
   - pyyaml
 
   # Testing infrastructure

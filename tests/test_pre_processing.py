@@ -2,9 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from dcegm.pre_processing import calc_current_value
 from dcegm.pre_processing import convert_params_to_dict
-from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import (
     utiility_func_log_crra,
 )
@@ -34,26 +32,6 @@ def test_data(load_example_model):
     compute_utility = utiility_func_log_crra
 
     return consumption, next_period_value, params, compute_utility
-
-
-@pytest.mark.parametrize("choice", [0, 1])
-def test_calc_value(choice, test_data):
-    consumption, next_period_value, params, compute_utility = test_data
-
-    expected = (
-        np.log(consumption)
-        - (1 - choice) * params["delta"]
-        + params["beta"] * next_period_value
-    )
-
-    got = calc_current_value(
-        consumption=consumption,
-        next_period_value=next_period_value,
-        choice=choice,
-        params=params,
-        compute_utility=compute_utility,
-    )
-    aaae(got, expected)
 
 
 @pytest.mark.parametrize(

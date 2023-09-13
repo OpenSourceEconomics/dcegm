@@ -9,7 +9,8 @@ from jax import vmap
 
 def interpolate_and_calc_marginal_utilities(
     compute_marginal_utility: Callable,
-    compute_value: Callable,
+    # compute_value: Callable,
+    compute_utility: Callable,
     choice: int,
     wealth_beginning_of_period: jnp.ndarray,
     endog_grid_child_state_choice: jnp.ndarray,
@@ -67,7 +68,8 @@ def interpolate_and_calc_marginal_utilities(
         value_child_state_choice[ind_low],
         endog_grid_child_state_choice[ind_low],
         wealth_beginning_of_period,
-        compute_value,
+        # compute_value,
+        compute_utility,
         compute_marginal_utility,
         endog_grid_child_state_choice[1],
         value_child_state_choice[0],
@@ -86,7 +88,8 @@ def calc_interpolated_values_and_marg_utils(
     value_low: float,
     wealth_low: float,
     new_wealth: float,
-    compute_value: Callable,
+    # compute_value: Callable,
+    compute_utility: Callable,
     compute_marginal_utility: Callable,
     endog_grid_min: float,
     value_min: float,
@@ -138,12 +141,12 @@ def calc_interpolated_values_and_marg_utils(
         wealth_new=new_wealth,
     )
 
-    value_interp_closed_form = compute_value(
+    utility = compute_utility(
         consumption=new_wealth,
-        next_period_value=value_min,
         choice=choice,
-        params=params,
+        **params,
     )
+    value_interp_closed_form = utility + params["beta"] * value_min
 
     credit_constraint = new_wealth < endog_grid_min
     value_interp = (
@@ -151,7 +154,7 @@ def calc_interpolated_values_and_marg_utils(
         + (1 - credit_constraint) * value_interp_on_grid
     )
 
-    marg_utility_interp = compute_marginal_utility(policy_interp, params=params)
+    marg_utility_interp = compute_marginal_utility(consumption=policy_interp, **params)
 
     return marg_utility_interp, value_interp
 

@@ -2,7 +2,7 @@ import jax.numpy as jnp
 
 
 def utiility_func_log_crra(
-    consumption: jnp.array, choice: int, params: dict
+    consumption: jnp.array, choice: int, delta: float
 ) -> jnp.array:
     """Compute the agent's utility in case of theta equal to 1.
 
@@ -22,11 +22,13 @@ def utiility_func_log_crra(
             (n_quad_stochastic * n_grid_wealth,) or (n_grid_wealth,).
 
     """
-    delta = params["delta"]
+    # delta = params["delta"]
     return jnp.log(consumption) - (1 - choice) * delta
 
 
-def utility_func_crra(consumption: jnp.array, choice: int, params: dict) -> jnp.array:
+def utility_func_crra(
+    consumption: jnp.array, choice: int, theta: float, delta: float
+) -> jnp.array:
     """Computes the agent's current utility based on a CRRA utility function.
 
     Args:
@@ -45,8 +47,8 @@ def utility_func_crra(consumption: jnp.array, choice: int, params: dict) -> jnp.
             (n_quad_stochastic * n_grid_wealth,) or (n_grid_wealth,).
 
     """
-    theta = params["theta"]
-    delta = params["delta"]
+    # theta = params["theta"]
+    # delta = params["delta"]
 
     utility_consumption = (consumption ** (1 - theta) - 1) / (1 - theta)
 
@@ -55,7 +57,7 @@ def utility_func_crra(consumption: jnp.array, choice: int, params: dict) -> jnp.
     return utility
 
 
-def marginal_utility_crra(consumption: jnp.array, params: dict) -> jnp.array:
+def marginal_utility_crra(consumption: jnp.array, theta: float) -> jnp.array:
     """Computes marginal utility of CRRA utility function.
 
     Args:
@@ -69,7 +71,7 @@ def marginal_utility_crra(consumption: jnp.array, params: dict) -> jnp.array:
             function. Array of shape (n_quad_stochastic * n_grid_wealth,).
 
     """
-    theta = params["theta"]
+    # theta = params["theta"]
     marginal_utility = consumption ** (-theta)
 
     return marginal_utility
@@ -77,7 +79,7 @@ def marginal_utility_crra(consumption: jnp.array, params: dict) -> jnp.array:
 
 def inverse_marginal_utility_crra(
     marginal_utility: jnp.array,
-    params: dict,
+    theta: float,
 ) -> jnp.array:
     """Computes the inverse marginal utility of a CRRA utility function.
 
@@ -91,7 +93,7 @@ def inverse_marginal_utility_crra(
             a CRRA consumption function. Array of shape (n_grid_wealth,).
 
     """
-    theta = params["theta"]
+    # theta = params["theta"]
     inverse_marginal_utility = marginal_utility ** (-1 / theta)
 
     return inverse_marginal_utility

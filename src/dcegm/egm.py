@@ -16,7 +16,8 @@ def calculate_candidate_solutions_from_euler_equation(
     transition_vector_by_state: Callable,
     state_choice_mat: np.ndarray,
     compute_inverse_marginal_utility: Callable,
-    compute_value: Callable,
+    # compute_value: Callable,
+    compute_utility: Callable,
     params: Dict[str, float],
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Calculate candidates for the optimal policy and value function."""
@@ -43,7 +44,8 @@ def calculate_candidate_solutions_from_euler_equation(
         exogenous_savings_grid,
         state_choice_mat,
         compute_inverse_marginal_utility,
-        compute_value,
+        # compute_value,
+        compute_utility,
         transition_vector_by_state,
         params,
     )
@@ -61,7 +63,8 @@ def compute_optimal_policy_and_value(
     exogenous_savings_grid: np.ndarray,
     state_choice_mat: np.ndarray,
     compute_inverse_marginal_utility: Callable,
-    compute_value: Callable,
+    # compute_value: Callable,
+    compute_utility: Callable,
     transition_vector_by_state: Callable,
     params: Dict[str, float],
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -120,9 +123,8 @@ def compute_optimal_policy_and_value(
     )
     endog_grid = exogenous_savings_grid + policy
 
-    value = compute_value(
-        policy, next_period_value=expected_value, choice=choice, params=params
-    )
+    utility = compute_utility(consumption=policy, choice=choice, **params)
+    value = utility + params["beta"] * expected_value
 
     return endog_grid, policy, value, expected_value
 
@@ -168,7 +170,8 @@ def solve_euler_equation(
 
     # RHS of Euler Eq., p. 337 IJRS (2017) by multiplying with marginal wealth
     rhs_euler = marginal_utility * (1 + params["interest_rate"]) * params["beta"]
-    policy = compute_inverse_marginal_utility(rhs_euler, params)
+
+    policy = compute_inverse_marginal_utility(marginal_utility=rhs_euler, **params)
 
     return policy, expected_value
 

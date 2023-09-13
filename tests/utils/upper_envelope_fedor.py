@@ -23,7 +23,7 @@ def upper_envelope(
     exog_grid: np.ndarray,
     choice: int,
     params: Dict[str, float],
-    compute_value: Callable,
+    compute_utility: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Runs the Upper Envelope algorithm and drops sub-optimal points.
     Calculates the upper envelope over the overlapping segments of the
@@ -99,7 +99,7 @@ def upper_envelope(
             min_wealth_grid,
             n_grid_wealth,
             params,
-            compute_value,
+            compute_utility=compute_utility,
         )
         segments_non_mono = locate_non_concave_regions(value)
 
@@ -536,7 +536,7 @@ def _augment_grid(
     min_wealth_grid: float,
     n_grid_wealth: int,
     params,
-    compute_value: Callable,
+    compute_utility: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Extends the endogenous wealth grid, value, and policy function to the left.
 
@@ -572,9 +572,11 @@ def _augment_grid(
     grid_points_to_add = np.linspace(min_wealth_grid, value[0, 1], n_grid_wealth // 10)[
         :-1
     ]
-    values_to_add = compute_value(
-        grid_points_to_add, expected_value_zero_wealth, choice, params
+
+    utility = compute_utility(
+        consumption=grid_points_to_add, choice=choice, **params["utility"]
     )
+    values_to_add = utility + params["beta"] * expected_value_zero_wealth
 
     value_augmented = np.vstack(
         [

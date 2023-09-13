@@ -7,7 +7,6 @@ import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 from dcegm.egm import calculate_candidate_solutions_from_euler_equation
-from dcegm.final_period import solve_final_period
 from dcegm.integration import quadrature_legendre
 from dcegm.interpolation import interpolate_and_calc_marginal_utilities
 from dcegm.marg_utilities_and_exp_value import (
@@ -72,14 +71,15 @@ def get_solve_function(
         compute_utility,
         compute_marginal_utility,
         compute_inverse_marginal_utility,
-        compute_value,
         compute_next_period_wealth,
         compute_upper_envelope,
         transition_vector_by_state,
+        solve_final_period,
     ) = get_partial_functions(
         options,
         user_utility_functions=utility_functions,
         user_budget_constraint=budget_constraint,
+        user_final_period_solution=final_period_solution,
         exogenous_transition_function=transition_function,
     )
     create_state_space = state_space_functions["create_state_space"]
@@ -96,12 +96,12 @@ def get_solve_function(
         state_space_functions["get_state_specific_choice_set"],
     )
 
-    final_period_solution_partial = partial(
-        final_period_solution,
-        compute_utility=compute_utility,
-        compute_marginal_utility=compute_marginal_utility,
-        options=options,
-    )
+    # final_period_solution_partial = partial(
+    #     final_period_solution,
+    #     # options=options,
+    #     compute_utility=compute_utility,
+    #     compute_marginal_utility=compute_marginal_utility,
+    # )
 
     period_specific_state_objects = create_period_state_and_state_choice_objects(
         options=options,
@@ -130,19 +130,19 @@ def get_solve_function(
             income_shock_draws_unscaled=income_shock_draws_unscaled,
             income_shock_weights=income_shock_weights,
             n_periods=n_periods,
+            compute_utility=compute_utility,
             compute_marginal_utility=compute_marginal_utility,
             compute_inverse_marginal_utility=compute_inverse_marginal_utility,
-            compute_value=compute_value,
             compute_next_period_wealth=compute_next_period_wealth,
             transition_vector_by_state=transition_vector_by_state,
             compute_upper_envelope=compute_upper_envelope,
-            final_period_solution_partial=final_period_solution_partial,
+            final_period_solution=solve_final_period,
         )
     )
 
-    def solve_func(params):
+    def solve_func(params, options):
         params_initial = convert_params_to_dict(params)
-        return backward_jit(params=params_initial)
+        return backward_jit(params=params_initial, options=options)
 
     return solve_func
 
@@ -195,32 +195,32 @@ def solve_dcegm(
         transition_function=transition_function,
     )
 
-    results = backward_jit(
-        params=params,
-    )
+    results = backward_jit(params=params, options=options)
     return results
 
 
 def backward_induction(
     params: Dict[str, float],
+    options: Dict[str, int],
     period_specific_state_objects: Dict[int, jnp.ndarray],
     exog_savings_grid: np.ndarray,
     state_space: np.ndarray,
     income_shock_draws_unscaled: np.ndarray,
     income_shock_weights: np.ndarray,
     n_periods: int,
+    compute_utility: Callable,
     compute_marginal_utility: Callable,
     compute_inverse_marginal_utility: Callable,
-    compute_value: Callable,
     compute_next_period_wealth: Callable,
     transition_vector_by_state: Callable,
     compute_upper_envelope: Callable,
-    final_period_solution_partial: Callable,
+    final_period_solution: Callable,
 ) -> Dict[int, np.ndarray]:
     """Do backward induction and solve for optimal policy and value function.
 
     Args:
         params (dict): Dictionary containing the model parameters.
+        options (dict): Options dictionary.
         period_specific_state_objects (np.ndarray): Dictionary containing
             period-specific state and state-choice objects, with the following keys:
             - "state_choice_mat" (jnp.ndarray)
@@ -261,9 +261,6 @@ def backward_induction(
         compute_inverse_marginal_utility (Callable): Function for calculating the
             inverse marginal utiFality, which takes the marginal utility as only
              input.
-        compute_value (callable): Function for calculating the value from
-            consumption level, discrete choice and expected value. The inputs
-            ```discount_rate``` and ```compute_utility``` are already partialled in.
         compute_next_period_wealth (callable): User-defined function to compute the
             agent's wealth of the next period (t + 1). The inputs
             ```saving```, ```shock```, ```params``` and ```options```
@@ -283,31 +280,48 @@ def backward_induction(
             policy_right, and value from the backward induction.
 
     """
+
     taste_shock_scale = params["lambda"]
     income_shock_draws = income_shock_draws_unscaled * params["sigma"]
 
-    results = {}
+    state_objects = period_specific_state_objects[n_periods - 1]
 
-    # Calculate beginning of period resources for all periods, given exogenous savings
-    # and income shocks from the previous period
     resources_beginning_of_period = vmap(
         vmap(
-            vmap(compute_next_period_wealth, in_axes=(None, None, 0, None)),
-            in_axes=(None, 0, None, None),
+            vmap(
+                compute_next_period_wealth,
+                in_axes=(None, None, 0, None, None),
+            ),
+            in_axes=(None, 0, None, None, None),
         ),
-        in_axes=(0, None, None, None),
-    )(state_space, exog_savings_grid, income_shock_draws, params)
+        in_axes=(0, None, None, None, None),
+    )(state_space, exog_savings_grid, income_shock_draws, options, params)
 
-    state_objects = period_specific_state_objects[n_periods - 1]
+    # marg_util_interpolated, value_interpolated, policy_final = solve_final_period(
+    #     state_choice_mat=state_objects["state_choice_mat"],
+    #     resources=resources_final_period,
+    #     final_period_solution_partial=final_period_solution_partial,
+    #     params=params,
+    # )
     resources_final_period = resources_beginning_of_period[
         state_objects["idx_parent_states"]
     ]
 
-    marg_util_interpolated, value_interpolated, policy_final = solve_final_period(
-        state_choice_mat=state_objects["state_choice_mat"],
-        resources=resources_final_period,
-        final_period_solution_partial=final_period_solution_partial,
-        params=params,
+    marg_util_interpolated, value_interpolated, policy_final = vmap(
+        vmap(
+            vmap(
+                final_period_solution,
+                in_axes=(None, None, 0, None, None),
+            ),
+            in_axes=(None, None, 0, None, None),
+        ),
+        in_axes=(0, 0, 0, None, None),
+    )(
+        state_objects["state_choice_mat"][:, :-1],  # state_vec
+        state_objects["state_choice_mat"][:, -1],  # choice
+        resources_beginning_of_period[state_objects["idx_parent_states"]],
+        options,
+        params,
     )
 
     # Choose which draw we take for policy and value function as those are note
@@ -320,6 +334,7 @@ def backward_induction(
     final_period_results["policy_right"] = policy_final[:, :, middle_of_draws]
     final_period_results["endog_grid"] = resources_final_period[:, :, middle_of_draws]
 
+    results = {}
     results[n_periods - 1] = final_period_results
 
     for period in range(n_periods - 2, -1, -1):
@@ -353,7 +368,8 @@ def backward_induction(
             transition_vector_by_state=transition_vector_by_state,
             state_choice_mat=state_objects["state_choice_mat"],
             compute_inverse_marginal_utility=compute_inverse_marginal_utility,
-            compute_value=compute_value,
+            # compute_value=compute_value,
+            compute_utility=compute_utility,
             params=params,
         )
 
@@ -373,7 +389,8 @@ def backward_induction(
             expected_values[:, 0],
             state_objects["state_choice_mat"][:, -1],
             params,
-            compute_value,
+            # compute_value,
+            compute_utility,
         )
         resources_period = resources_beginning_of_period[
             state_objects["idx_parent_states"]
@@ -385,7 +402,8 @@ def backward_induction(
             in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),
         )(
             compute_marginal_utility,
-            compute_value,
+            compute_utility,
+            # compute_value,
             state_objects["state_choice_mat"][:, -1],
             resources_period,
             endog_grid_state_choice,
