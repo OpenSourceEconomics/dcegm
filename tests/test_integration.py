@@ -65,8 +65,8 @@ def state_space_functions():
 @pytest.mark.parametrize(
     "model",
     [
-        # "retirement_no_taste_shocks",
-        # "retirement_taste_shocks",
+        "retirement_no_taste_shocks",
+        "retirement_taste_shocks",
         "deaton",
     ],
 )

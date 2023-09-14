@@ -59,6 +59,7 @@ def create_state_choice_space(
     n_states, n_state_and_exog_variables = state_space.shape
 
     n_choices = options["n_discrete_choices"]
+    n_periods = options["n_periods"]
 
     state_choice_space = np.zeros(
         (n_states * n_choices, n_state_and_exog_variables + 1),
@@ -68,40 +69,33 @@ def create_state_choice_space(
     map_state_choice_vec_to_parent_state = np.zeros((n_states * n_choices), dtype=int)
     reshape_state_choice_vec_to_mat = np.zeros((n_states, n_choices), dtype=int)
 
-    # Ensure that states are ordered.
-    period = state_space[0, 0]
-
-    idx = 0
-    idx_min = -1
     out_of_bounds_index = n_states * n_choices
+    idx = 0
+    for period in range(n_periods):
+        period_idx = 0
 
-    for state_idx in range(n_states):
-        state_vec = state_space[state_idx]
+        period_state = state_space[state_space[:, 0] == period]
+        for state_vec in period_state:
+            state_idx = map_state_to_state_space_index[tuple(state_vec)]
 
-        if period == state_vec[0]:
-            idx_min = idx
-            period += 1
+            feasible_choice_set = get_state_specific_choice_set(
+                state_vec, map_state_to_state_space_index
+            )
 
-        feasible_choice_set = get_state_specific_choice_set(
-            state_vec, map_state_to_state_space_index
-        )
+            for choice in range(n_choices):
+                if choice in feasible_choice_set:
+                    state_choice_space[idx, :-1] = state_vec
+                    state_choice_space[idx, -1] = choice
 
-        for choice in feasible_choice_set:
-            state_choice_space[idx, :-1] = state_vec
-            state_choice_space[idx, -1] = choice
+                    map_state_choice_vec_to_parent_state[idx] = state_idx
+                    reshape_state_choice_vec_to_mat[state_idx, choice] = period_idx
 
-            map_state_choice_vec_to_parent_state[idx] = state_idx
-            reshape_state_choice_vec_to_mat[state_idx, choice] = idx - idx_min
-
-            idx += 1
-
-        # Fill up matrix with some state_choice index from the state, as we only use
-        # this matrix to get the maximum across state_choice values and two times the
-        # same value doesn't change the maximum.
-        # Only used in aggregation function.
-        for choice in range(n_choices):
-            if choice not in feasible_choice_set:
-                reshape_state_choice_vec_to_mat[state_idx, choice] = out_of_bounds_index
+                    period_idx += 1
+                    idx += 1
+                else:
+                    reshape_state_choice_vec_to_mat[
+                        state_idx, choice
+                    ] = out_of_bounds_index
 
     return (
         state_choice_space[:idx],
