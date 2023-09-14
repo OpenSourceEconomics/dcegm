@@ -50,8 +50,9 @@ def aggregate_marg_utils_exp_values(
     sum_exp = jnp.nansum(rescaled_exponential, axis=1, keepdims=True)
 
     log_sum_unsqueezed = max_value_per_state + taste_shock_scale * jnp.log(sum_exp)
-    # Because we kept the dimensions in the maximum and sum over choices to perform
-    # division, we now need to squeeze the log_sum again and remove the redundant axis.
+    # Because we kept the dimensions in the maximum and sum over choice specific objects
+    # to perform subtraction and division, we now need to squeeze the log_sum again
+    # to remove the redundant axis.
     log_sum = jnp.squeeze(log_sum_unsqueezed, axis=1)
     choice_probs = rescaled_exponential / sum_exp
 
