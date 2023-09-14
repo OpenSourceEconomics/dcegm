@@ -69,13 +69,13 @@ def create_state_choice_space(
     map_state_choice_vec_to_parent_state = np.zeros((n_states * n_choices), dtype=int)
     reshape_state_choice_vec_to_mat = np.zeros((n_states, n_choices), dtype=int)
 
-    out_of_bounds_index = n_states * n_choices
     idx = 0
     for period in range(n_periods):
-        period_idx = 0
+        period_states = state_space[state_space[:, 0] == period]
 
-        period_state = state_space[state_space[:, 0] == period]
-        for state_vec in period_state:
+        period_idx = 0
+        out_of_bounds_index = period_states.shape[0] * n_choices
+        for state_vec in period_states:
             state_idx = map_state_to_state_space_index[tuple(state_vec)]
 
             feasible_choice_set = get_state_specific_choice_set(
