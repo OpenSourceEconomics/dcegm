@@ -235,22 +235,24 @@ def test_two_period(input_data, wealth_idx, state_idx):
     policy_period = input_data["policy_left"]
 
     for state_choice_idx in idxs_state_choice_combs:
-        choice_in_period_1 = state_choice_space[state_choice_idx][-1]
+        # Don't test out of bound index
+        if state_choice_idx < state_choice_space.shape[0]:
+            choice_in_period_1 = state_choice_space[state_choice_idx][-1]
 
-        endog_grid = endog_grid_period[state_choice_idx, wealth_idx + 1]
-        policy = policy_period[state_choice_idx]
+            endog_grid = endog_grid_period[state_choice_idx, wealth_idx + 1]
+            policy = policy_period[state_choice_idx]
 
-        if ~np.isnan(endog_grid) and endog_grid > 0:
-            initial_cond["wealth"] = endog_grid
+            if ~np.isnan(endog_grid) and endog_grid > 0:
+                initial_cond["wealth"] = endog_grid
 
-            cons_calc = policy[wealth_idx + 1]
-            diff = euler_rhs(
-                initial_cond,
-                params_dict,
-                quad_draws,
-                quad_weights,
-                choice_in_period_1,
-                cons_calc,
-            ) - marginal_utility(cons_calc, params_dict)
+                cons_calc = policy[wealth_idx + 1]
+                diff = euler_rhs(
+                    initial_cond,
+                    params_dict,
+                    quad_draws,
+                    quad_weights,
+                    choice_in_period_1,
+                    cons_calc,
+                ) - marginal_utility(cons_calc, params_dict)
 
-            assert_allclose(diff, 0, atol=1e-6)
+                assert_allclose(diff, 0, atol=1e-6)

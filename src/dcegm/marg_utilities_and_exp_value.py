@@ -49,39 +49,34 @@ def aggregate_marg_utils_exp_values(
             of the state-specific aggregate expected values.
 
     """
-    max_value_per_state = jnp.take(
-        value_state_choice_specific,
-        reshape_state_choice_vec_to_mat,
-        axis=0,
-    ).max(axis=1)
-
-    max_value_per_state_choice_comb = jnp.tensordot(
-        transform_between_state_and_state_choice_vec, max_value_per_state, axes=(0, 0)
+    choice_specific_values_per_state = jnp.take(
+        value_state_choice_specific, reshape_state_choice_vec_to_mat, axis=0
+    )
+    max_value_per_state = jnp.nanmax(
+        choice_specific_values_per_state, axis=1, keepdims=True
     )
 
-    value_exponential = jnp.exp(
-        (value_state_choice_specific - max_value_per_state_choice_comb)
-        / taste_shock_scale
-    )
-    sum_value_exponential_per_state = jnp.tensordot(
-        transform_between_state_and_state_choice_vec, value_exponential, axes=(1, 0)
+    rescale_values_per_state = jnp.subtract(
+        choice_specific_values_per_state, max_value_per_state
     )
 
-    product_choice_probs_and_marg_util = jnp.tensordot(
-        transform_between_state_and_state_choice_vec,
-        jnp.multiply(value_exponential, marg_util_state_choice_specific),
-        axes=(1, 0),
-    )
-    marg_util = jnp.divide(
-        product_choice_probs_and_marg_util,
-        sum_value_exponential_per_state,
+    rescaled_exponential = jnp.exp(
+        jnp.divide(rescale_values_per_state, taste_shock_scale)
     )
 
-    log_sum = max_value_per_state + taste_shock_scale * jnp.log(
-        sum_value_exponential_per_state
+    sum_exp = jnp.nansum(rescaled_exponential, axis=1, keepdims=True)
+
+    log_sum = jnp.squeeze(max_value_per_state + taste_shock_scale * jnp.log(sum_exp))
+    choice_probs = jnp.divide(rescaled_exponential, sum_exp)
+
+    choice_specific_marginal_utility_per_state = jnp.take(
+        marg_util_state_choice_specific, reshape_state_choice_vec_to_mat, axis=0
+    )
+    marg_utils = jnp.nansum(
+        jnp.multiply(choice_probs, choice_specific_marginal_utility_per_state), axis=1
     )
 
     return (
-        marg_util @ income_shock_weights,
+        marg_utils @ income_shock_weights,
         log_sum @ income_shock_weights,
     )

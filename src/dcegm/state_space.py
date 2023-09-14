@@ -76,6 +76,7 @@ def create_state_choice_space(
 
     idx = 0
     idx_min = -1
+    out_of_bounds_index = n_states * n_choices
 
     for state_idx in range(n_states):
         state_vec = state_space[state_idx]
@@ -104,7 +105,7 @@ def create_state_choice_space(
         # Only used in aggregation function.
         for choice in range(n_choices):
             if choice not in feasible_choice_set:
-                reshape_state_choice_vec_to_mat[state_idx, choice] = idx - idx_min - 1
+                reshape_state_choice_vec_to_mat[state_idx, choice] = out_of_bounds_index
 
     return (
         state_choice_space[:idx],
