@@ -89,7 +89,6 @@ def get_solve_function(
         state_choice_space,
         map_state_choice_vec_to_parent_state,
         reshape_state_choice_vec_to_mat,
-        transform_between_state_and_state_choice_space,
     ) = create_state_choice_space(
         options,
         state_space,
@@ -110,7 +109,6 @@ def get_solve_function(
         state_choice_space=state_choice_space,
         map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
         reshape_state_choice_vec_to_mat=reshape_state_choice_vec_to_mat,
-        transform_between_state_and_state_choice_space=transform_between_state_and_state_choice_space,
     )
 
     period_specific_state_objects = create_map_from_state_to_child_nodes(
@@ -333,9 +331,6 @@ def backward_induction(
             marg_util_state_choice_specific=marg_util_interpolated,
             reshape_state_choice_vec_to_mat=state_objects[
                 "reshape_state_choice_vec_to_mat"
-            ],
-            transform_between_state_and_state_choice_vec=state_objects[
-                "transform_between_state_and_state_choice_vec"
             ],
             taste_shock_scale=taste_shock_scale,
             income_shock_weights=income_shock_weights,

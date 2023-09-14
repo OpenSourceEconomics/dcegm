@@ -67,9 +67,6 @@ def create_state_choice_space(
 
     map_state_choice_vec_to_parent_state = np.zeros((n_states * n_choices), dtype=int)
     reshape_state_choice_vec_to_mat = np.zeros((n_states, n_choices), dtype=int)
-    transform_between_state_and_state_choice_space = np.full(
-        (n_states, n_states * n_choices), fill_value=False, dtype=bool
-    )
 
     # Ensure that states are ordered.
     period = state_space[0, 0]
@@ -95,7 +92,6 @@ def create_state_choice_space(
 
             map_state_choice_vec_to_parent_state[idx] = state_idx
             reshape_state_choice_vec_to_mat[state_idx, choice] = idx - idx_min
-            transform_between_state_and_state_choice_space[state_idx, idx] = True
 
             idx += 1
 
@@ -111,7 +107,6 @@ def create_state_choice_space(
         state_choice_space[:idx],
         map_state_choice_vec_to_parent_state[:idx],
         reshape_state_choice_vec_to_mat,
-        transform_between_state_and_state_choice_space[:, :idx],
     )
 
 
@@ -198,7 +193,6 @@ def create_period_state_and_state_choice_objects(
     state_choice_space,
     map_state_choice_vec_to_parent_state,
     reshape_state_choice_vec_to_mat,
-    transform_between_state_and_state_choice_space,
 ):
     """Create dictionary of state and state-choice objects for each period.
 
@@ -216,13 +210,6 @@ def create_period_state_and_state_choice_objects(
             used to reshape the vector of feasible state-choice combinations
             to a matrix of lagged and current choice combinations of
             shape (n_choices, n_choices).
-        transform_between_state_and_state_choice_space (jnp.ndarray): 2d boolean
-            array of shape (n_states, n_states * n_feasible_choices) indicating which
-            state belongs to which state-choice combination in the entire state space
-            and state-choice space. The array is used to
-            (i) contract state-choice level arrays to the state level by summing
-                over state-choice combinations.
-            (ii) to expand state level arrays to the state-choice level.
         n_periods (int): Number of periods.
 
     Returns:
@@ -252,14 +239,6 @@ def create_period_state_and_state_choice_objects(
 
         period_dict["reshape_state_choice_vec_to_mat"] = jnp.take(
             reshape_state_choice_vec_to_mat, idxs_states, axis=0
-        )
-
-        period_dict["transform_between_state_and_state_choice_vec"] = jnp.take(
-            jnp.take(
-                transform_between_state_and_state_choice_space, idxs_states, axis=0
-            ),
-            idxs_state_choices_period,
-            axis=1,
         )
 
         out[period] = period_dict
