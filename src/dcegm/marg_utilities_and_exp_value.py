@@ -49,34 +49,28 @@ def aggregate_marg_utils_exp_values(
             of the state-specific aggregate expected values.
 
     """
-    choice_specific_values_per_state = jnp.take(
+    choice_values_per_state = jnp.take(
         value_state_choice_specific, reshape_state_choice_vec_to_mat, axis=0
     )
-    max_value_per_state = jnp.nanmax(
-        choice_specific_values_per_state, axis=1, keepdims=True
-    )
+    max_value_per_state = jnp.nanmax(choice_values_per_state, axis=1, keepdims=True)
 
-    rescale_values_per_state = jnp.subtract(
-        choice_specific_values_per_state, max_value_per_state
-    )
+    rescale_values_per_state = choice_values_per_state - max_value_per_state
 
-    rescaled_exponential = jnp.exp(
-        jnp.divide(rescale_values_per_state, taste_shock_scale)
-    )
+    rescaled_exponential = jnp.exp(rescale_values_per_state / taste_shock_scale)
 
     sum_exp = jnp.nansum(rescaled_exponential, axis=1, keepdims=True)
 
     log_sum = jnp.squeeze(max_value_per_state + taste_shock_scale * jnp.log(sum_exp))
-    choice_probs = jnp.divide(rescaled_exponential, sum_exp)
+    choice_probs = rescaled_exponential / sum_exp
 
-    choice_specific_marginal_utility_per_state = jnp.take(
+    choice_marg_util_per_state = jnp.take(
         marg_util_state_choice_specific, reshape_state_choice_vec_to_mat, axis=0
     )
-    marg_utils = jnp.nansum(
-        jnp.multiply(choice_probs, choice_specific_marginal_utility_per_state), axis=1
-    )
 
-    return (
-        marg_utils @ income_shock_weights,
-        log_sum @ income_shock_weights,
-    )
+    weighted_marg_util = choice_probs * choice_marg_util_per_state
+    marg_util = jnp.nansum(weighted_marg_util, axis=1)
+
+    shock_integrated_marg_util = marg_util @ income_shock_weights
+    shock_integrated_log_sum = log_sum @ income_shock_weights
+
+    return shock_integrated_marg_util, shock_integrated_log_sum
