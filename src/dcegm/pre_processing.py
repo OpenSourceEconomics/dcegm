@@ -7,7 +7,6 @@ from typing import Tuple
 from typing import Union
 
 import jax.numpy as jnp
-import numpy as np
 import pandas as pd
 from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
 from pybaum import get_registry
@@ -53,10 +52,8 @@ def convert_params_to_dict(
     params_dict = dict(zip(keys, values))
 
     if "interest_rate" not in params_dict:
-        # t raise ValueError("Interest rate must be provided in params.")
         params_dict["interest_rate"] = 0
     if "lambda" not in params_dict:
-        # raise ValueError("Taste shock scale must be provided in params.")
         params_dict["lambda"] = 0
     if "sigma" not in params_dict:
         params_dict["sigma"] = 0
@@ -109,6 +106,7 @@ def get_partial_functions(
             transition probabilities for each state.
 
     """
+
     compute_utility = _get_function_with_filtered_kwargs(
         user_utility_functions["utility"]
     )
@@ -119,16 +117,11 @@ def get_partial_functions(
         user_utility_functions["inverse_marginal_utility"]
     )
 
-    # a, b, c = tuple(
-    #     _get_function_with_filtered_kwargs(func)
-    #     for func in user_utility_functions.values()
-    # )
-
     compute_beginning_of_period_wealth = _get_function_with_args_and_filtered_kwargs(
         user_budget_constraint
     )
 
-    solve_final_period = _get_function_with_args_and_filtered_kwargs(
+    compute_final_period = _get_function_with_args_and_filtered_kwargs(
         partial(
             user_final_period_solution,
             compute_utility=compute_utility,
@@ -136,39 +129,21 @@ def get_partial_functions(
         )
     )
 
-    # compute_beginning_of_period_wealth = _get_function_with_args_and_filtered_kwargs(
-    #     partial(user_budget_constraint, options=options)
-    # )
-
-    # compute_beginning_of_period_wealth = partial(
-    #     _get_function_with_args_and_filtered_kwargs(user_budget_constraint),
-    #     options=options,
-    # )
-
-    # transition_function = _get_function_with_filtered_kwargs(
-    #     exogenous_transition_function
-    # )
-    transition_function = exogenous_transition_function
+    compute_transitions_exog_states = exogenous_transition_function
 
     if options["n_discrete_choices"] == 1:
         compute_upper_envelope = _return_policy_and_value
     else:
         compute_upper_envelope = fast_upper_envelope_wrapper
 
-    # fortesting
-    #
-    np.arange(10)
-
-    # breakpoint()
-
     return (
         compute_utility,
         compute_marginal_utility,
         compute_inverse_marginal_utility,
         compute_beginning_of_period_wealth,
+        compute_final_period,
         compute_upper_envelope,
-        transition_function,
-        solve_final_period,
+        compute_transitions_exog_states,
     )
 
 
@@ -203,41 +178,9 @@ def _get_function_with_filtered_kwargs(func):
         _kwargs = {key: kwargs[key] for key in signature if key in kwargs}
         return func(**_kwargs)
 
-    # Set the __name__ attribute of processed_func to the name of the original func
     processed_func.__name__ = func.__name__
 
     return processed_func
-
-
-# def calc_current_value(
-#     consumption: np.ndarray,
-#     next_period_value: np.ndarray,
-#     choice: int,
-#     params: Dict[str, float],
-#     compute_utility: Callable,
-# ) -> np.ndarray:
-#     """Compute the agent's current value.
-
-#     We only support the standard value function, where the current utility and
-#     the discounted next period value have a sum format.
-
-#     Args:
-#         consumption (np.ndarray): Level of the agent's consumption.
-#             Array of shape (n_quad_stochastic * n_grid_wealth,).
-#         next_period_value (np.ndarray): The value in the next period.
-#         choice (int): The current discrete choice.
-#         compute_utility (callable): User-defined function to compute the agent's
-#             utility. The input ``params``` is already partialled in.
-#         discount_factor (float): The discount factor.
-
-#     Returns:
-#         np.ndarray: The current value.
-
-#     """
-#     utility = compute_utility(consumption, choice, params["delta"])
-#     value = utility + params["beta"] * next_period_value
-
-#     return value
 
 
 def _return_policy_and_value(

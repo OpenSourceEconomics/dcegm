@@ -9,15 +9,14 @@ from jax import vmap
 
 
 def calculate_candidate_solutions_from_euler_equation(
+    exogenous_savings_grid: np.ndarray,
     marg_util: np.ndarray,
     emax: np.ndarray,
-    idx_post_decision_child_states: jnp.ndarray,
-    exogenous_savings_grid: np.ndarray,
-    transition_vector_by_state: Callable,
     state_choice_mat: np.ndarray,
-    compute_inverse_marginal_utility: Callable,
-    # compute_value: Callable,
+    idx_post_decision_child_states: jnp.ndarray,
     compute_utility: Callable,
+    compute_inverse_marginal_utility: Callable,
+    compute_transition_probs_exog_states: Callable,
     params: Dict[str, float],
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Calculate candidates for the optimal policy and value function."""
@@ -44,9 +43,8 @@ def calculate_candidate_solutions_from_euler_equation(
         exogenous_savings_grid,
         state_choice_mat,
         compute_inverse_marginal_utility,
-        # compute_value,
         compute_utility,
-        transition_vector_by_state,
+        compute_transition_probs_exog_states,
         params,
     )
     return (
@@ -63,9 +61,8 @@ def compute_optimal_policy_and_value(
     exogenous_savings_grid: np.ndarray,
     state_choice_mat: np.ndarray,
     compute_inverse_marginal_utility: Callable,
-    # compute_value: Callable,
     compute_utility: Callable,
-    transition_vector_by_state: Callable,
+    compute_transition_probs_exog_states: Callable,
     params: Dict[str, float],
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Compute optimal child-state- and choice-specific policy and value function.
@@ -112,7 +109,7 @@ def compute_optimal_policy_and_value(
     """
     state_vec = state_choice_mat[:-1]
     choice = state_choice_mat[-1]
-    transition_probs = transition_vector_by_state(state_vec, params)
+    transition_probs = compute_transition_probs_exog_states(state_vec, params)
 
     policy, expected_value = solve_euler_equation(
         marg_utils=marg_utils,
@@ -164,7 +161,7 @@ def solve_euler_equation(
             choice-specific expected value. Has shape (n_grid_wealth,).
 
     """
-    # Integrate out uncertainty over exogenous process
+    # Integrate out uncertainty over exogenous processes
     marginal_utility = transition_probs @ marg_utils
     expected_value = transition_probs @ emax
 

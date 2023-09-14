@@ -71,10 +71,10 @@ def get_solve_function(
         compute_utility,
         compute_marginal_utility,
         compute_inverse_marginal_utility,
-        compute_next_period_wealth,
+        compute_beginning_of_period_wealth,
+        compute_final_period,
         compute_upper_envelope,
-        transition_vector_by_state,
-        solve_final_period,
+        compute_transitions_exog_states,
     ) = get_partial_functions(
         options,
         user_utility_functions=utility_functions,
@@ -95,13 +95,6 @@ def get_solve_function(
         map_state_to_state_space_index,
         state_space_functions["get_state_specific_choice_set"],
     )
-
-    # final_period_solution_partial = partial(
-    #     final_period_solution,
-    #     # options=options,
-    #     compute_utility=compute_utility,
-    #     compute_marginal_utility=compute_marginal_utility,
-    # )
 
     period_specific_state_objects = create_period_state_and_state_choice_objects(
         options=options,
@@ -133,10 +126,10 @@ def get_solve_function(
             compute_utility=compute_utility,
             compute_marginal_utility=compute_marginal_utility,
             compute_inverse_marginal_utility=compute_inverse_marginal_utility,
-            compute_next_period_wealth=compute_next_period_wealth,
-            transition_vector_by_state=transition_vector_by_state,
+            compute_beginning_of_period_wealth=compute_beginning_of_period_wealth,
+            compute_final_period=compute_final_period,
             compute_upper_envelope=compute_upper_envelope,
-            final_period_solution=solve_final_period,
+            compute_transitions_exog_states=compute_transitions_exog_states,
         )
     )
 
@@ -211,10 +204,10 @@ def backward_induction(
     compute_utility: Callable,
     compute_marginal_utility: Callable,
     compute_inverse_marginal_utility: Callable,
-    compute_next_period_wealth: Callable,
-    transition_vector_by_state: Callable,
+    compute_beginning_of_period_wealth: Callable,
+    compute_final_period: Callable,
     compute_upper_envelope: Callable,
-    final_period_solution: Callable,
+    compute_transitions_exog_states: Callable,
 ) -> Dict[int, np.ndarray]:
     """Do backward induction and solve for optimal policy and value function.
 
@@ -289,7 +282,7 @@ def backward_induction(
     resources_beginning_of_period = vmap(
         vmap(
             vmap(
-                compute_next_period_wealth,
+                compute_beginning_of_period_wealth,
                 in_axes=(None, None, 0, None, None),
             ),
             in_axes=(None, 0, None, None, None),
@@ -297,12 +290,6 @@ def backward_induction(
         in_axes=(0, None, None, None, None),
     )(state_space, exog_savings_grid, income_shock_draws, options, params)
 
-    # marg_util_interpolated, value_interpolated, policy_final = solve_final_period(
-    #     state_choice_mat=state_objects["state_choice_mat"],
-    #     resources=resources_final_period,
-    #     final_period_solution_partial=final_period_solution_partial,
-    #     params=params,
-    # )
     resources_final_period = resources_beginning_of_period[
         state_objects["idx_parent_states"]
     ]
@@ -310,7 +297,7 @@ def backward_induction(
     marg_util_interpolated, value_interpolated, policy_final = vmap(
         vmap(
             vmap(
-                final_period_solution,
+                compute_final_period,
                 in_axes=(None, None, 0, None, None),
             ),
             in_axes=(None, None, 0, None, None),
@@ -361,15 +348,14 @@ def backward_induction(
             policy_candidate,
             expected_values,
         ) = calculate_candidate_solutions_from_euler_equation(
+            exogenous_savings_grid=exog_savings_grid,
             marg_util=marg_util,
             emax=emax,
-            idx_post_decision_child_states=state_objects["idx_feasible_child_nodes"],
-            exogenous_savings_grid=exog_savings_grid,
-            transition_vector_by_state=transition_vector_by_state,
             state_choice_mat=state_objects["state_choice_mat"],
+            idx_post_decision_child_states=state_objects["idx_feasible_child_nodes"],
             compute_inverse_marginal_utility=compute_inverse_marginal_utility,
-            # compute_value=compute_value,
             compute_utility=compute_utility,
+            compute_transition_probs_exog_states=compute_transitions_exog_states,
             params=params,
         )
 

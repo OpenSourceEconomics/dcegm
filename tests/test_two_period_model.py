@@ -113,19 +113,15 @@ def budget_dcegm(
 
 
 def budget_dcegm_two_exog_processes(
-    state, saving, income_shock, params, options
+    state, saving, income_shock, max_wealth, interest_rate, ltc_cost, wage_avg
 ):  # noqa: U100
-    interest_factor = 1 + params["interest_rate"]
-    health_costs = params["ltc_cost"]
-    wage = params["wage_avg"]
-
     # lagged_job_offer = jnp.abs(state[-1] - 2) * (state[-1] > 0) * state[0]  # [1, 3]
     ltc_patient = state[-1] > 1  # [2, 3]
 
     resource = (
-        interest_factor * saving
-        + (wage + income_shock) * (1 - state[1])  # if worked last period
-        - health_costs * ltc_patient
+        (1 + interest_rate) * saving
+        + (wage_avg + income_shock) * (1 - state[1])  # if worked last period
+        - ltc_patient * ltc_cost
     )
     return jnp.maximum(resource, 0.5)
 
@@ -273,9 +269,18 @@ def marginal_utility_weighted_two_exog_processes(
                     params,
                 )
 
-                marginal_util = marginal_utility(budget_2, params)
+                # marginal_util = marginal_utility(budget_2, params)
+                # choice_prob = choice_prob_retirement(
+                #     budget_2, retirement_choice_2, params
+                # )
+                marginal_util = marginal_utility(
+                    consumption=budget_2, rho=params["rho"]
+                )
                 choice_prob = choice_prob_retirement(
-                    budget_2, retirement_choice_2, params
+                    consumption=budget_2,
+                    choice=retirement_choice_2,
+                    rho=params["rho"],
+                    delta=params["delta"],
                 )
 
                 ltc_prob = prob_long_term_care_patient(params, ltc_state_1, ltc_state_2)
@@ -402,7 +407,6 @@ def input_data():
 TEST_CASES = list(product(list(range(WEALTH_GRID_POINTS)), list(range(4))))
 
 
-# @pytest.mark.skip
 @pytest.mark.parametrize(
     "wealth_idx, state_idx",
     TEST_CASES,
@@ -552,7 +556,6 @@ TEST_CASES_TWO_EXOG_PROCESSES = list(
 )
 
 
-@pytest.mark.skip
 @pytest.mark.parametrize(
     "wealth_idx, state_idx",
     TEST_CASES_TWO_EXOG_PROCESSES,

@@ -34,7 +34,6 @@ def test_data(load_example_model):
     return consumption, next_period_value, params, compute_utility
 
 
-@pytest.mark.skip(reason="Refactoring.")
 @pytest.mark.parametrize(
     "model",
     [
@@ -43,51 +42,11 @@ def test_data(load_example_model):
         ("deaton"),
     ],
 )
-def test_missing_interest_rate(
-    model,
-    load_example_model,
-):
-    params, _ = load_example_model(f"{model}")
-    params_without_interest_rate = params.drop(index=("assets", "interest_rate"))
-    with pytest.raises(ValueError, match="Interest rate must be provided in params."):
-        convert_params_to_dict(params_without_interest_rate)
-
-
-@pytest.mark.skip(reason="Refactoring.")
-@pytest.mark.parametrize(
-    "model",
-    [
-        ("retirement_no_taste_shocks"),
-        ("retirement_taste_shocks"),
-        ("deaton"),
-    ],
-)
-def test_missing_discount_factor(
+def test_missing_beta(
     model,
     load_example_model,
 ):
     params, _ = load_example_model(f"{model}")
     params_without_beta = params.drop(index=("beta", "beta"))
-    with pytest.raises(ValueError, match="Discount factor must be provided in params."):
+    with pytest.raises(ValueError, match="Beta must be provided in params."):
         convert_params_to_dict(params_without_beta)
-
-
-@pytest.mark.skip(reason="Refactoring.")
-@pytest.mark.parametrize(
-    "model",
-    [
-        ("retirement_no_taste_shocks"),
-        ("retirement_taste_shocks"),
-        ("deaton"),
-    ],
-)
-def test_missing_taste_shock_scale(
-    model,
-    load_example_model,
-):
-    params, _options = load_example_model(f"{model}")
-    params_without_lambda = params.drop(index=("shocks", "lambda"))
-    with pytest.raises(
-        ValueError, match="Taste shock scale must be provided in params."
-    ):
-        convert_params_to_dict(params_without_lambda)
