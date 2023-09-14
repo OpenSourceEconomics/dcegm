@@ -573,9 +573,7 @@ def _augment_grid(
         :-1
     ]
 
-    utility = compute_utility(
-        consumption=grid_points_to_add, choice=choice, **params["utility"]
-    )
+    utility = compute_utility(consumption=grid_points_to_add, choice=choice, **params)
     values_to_add = utility + params["beta"] * expected_value_zero_wealth
 
     value_augmented = np.vstack(
