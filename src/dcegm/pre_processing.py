@@ -58,12 +58,12 @@ def convert_params_to_dict(
     if "sigma" not in params_dict:
         params_dict["sigma"] = 0
     if "beta" not in params_dict:
-        raise ValueError("Discount factor must be provided in params.")
+        raise ValueError("Beta must be provided in params.")
 
     return params_dict
 
 
-def get_partial_functions(
+def process_model_functions(
     options: Dict[str, int],
     user_utility_functions: Dict[str, Callable],
     user_budget_constraint: Callable,

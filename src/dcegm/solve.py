@@ -13,7 +13,7 @@ from dcegm.marg_utilities_and_exp_value import (
     aggregate_marg_utils_exp_values,
 )
 from dcegm.pre_processing import convert_params_to_dict
-from dcegm.pre_processing import get_partial_functions
+from dcegm.pre_processing import process_model_functions
 from dcegm.state_space import create_map_from_state_to_child_nodes
 from dcegm.state_space import (
     create_period_state_and_state_choice_objects,
@@ -26,9 +26,9 @@ from jax import vmap
 def get_solve_function(
     options: Dict[str, int],
     exog_savings_grid: jnp.ndarray,
+    state_space_functions: Dict[str, Callable],
     utility_functions: Dict[str, Callable],
     budget_constraint: Callable,
-    state_space_functions: Dict[str, Callable],
     final_period_solution: Callable,
     transition_function: Callable,
 ) -> Callable:
@@ -75,7 +75,7 @@ def get_solve_function(
         compute_final_period,
         compute_upper_envelope,
         compute_transitions_exog_states,
-    ) = get_partial_functions(
+    ) = process_model_functions(
         options,
         user_utility_functions=utility_functions,
         user_budget_constraint=budget_constraint,
@@ -181,9 +181,9 @@ def solve_dcegm(
     backward_jit = get_solve_function(
         options=options,
         exog_savings_grid=exog_savings_grid,
+        state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         budget_constraint=budget_constraint,
-        state_space_functions=state_space_functions,
         final_period_solution=final_period_solution,
         transition_function=transition_function,
     )
