@@ -91,6 +91,7 @@ def get_solve_function(
         reshape_state_choice_vec_to_mat,
         transform_between_state_and_state_choice_space,
     ) = create_state_choice_space(
+        options,
         state_space,
         map_state_to_state_space_index,
         state_space_functions["get_state_specific_choice_set"],

@@ -221,6 +221,7 @@ def test_two_period(input_data, wealth_idx, state_idx):
         reshape_state_choice_vec_to_mat,
         _transform_between_state_and_state_choice_space,
     ) = create_state_choice_space(
+        input_data["options"],
         state_space,
         map_state_to_index,
         get_state_specific_feasible_choice_set,

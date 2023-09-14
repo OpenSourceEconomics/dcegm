@@ -54,7 +54,7 @@ def test_consume_everything_in_final_period(
         _reshape_state_choice_vec_to_mat,
         transform_between_state_and_state_choice_space,
     ) = create_state_choice_space(
-        state_space, state_indexer, get_state_specific_feasible_choice_set
+        options, state_space, state_indexer, get_state_specific_feasible_choice_set
     )
     idx_states_final_period = np.where(state_space[:, 0] == n_periods - 1)[0]
 
