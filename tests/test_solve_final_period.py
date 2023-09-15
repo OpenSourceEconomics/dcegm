@@ -52,11 +52,10 @@ def test_consume_everything_in_final_period(
         state_choice_space,
         map_state_choice_vec_to_parent_state,
         _reshape_state_choice_vec_to_mat,
-        transform_between_state_and_state_choice_space,
     ) = create_state_choice_space(
-        state_space, state_indexer, get_state_specific_feasible_choice_set
+        options, state_space, state_indexer, get_state_specific_feasible_choice_set
     )
-    idx_states_final_period = np.where(state_space[:, 0] == n_periods - 1)[0]
+    np.where(state_space[:, 0] == n_periods - 1)[0]
 
     idx_state_choice_combs = np.where(state_choice_space[:, 0] == n_periods - 1)[0]
     final_period_state_choice_combs = state_choice_space[idx_state_choice_combs]
@@ -94,12 +93,6 @@ def test_consume_everything_in_final_period(
         ),
         in_axes=(0, None, None, None),
     )(state_space, savings_grid, income_draws, params_dict)
-
-    (
-        transform_between_state_and_state_choice_space[idx_states_final_period, :][
-            :, idx_state_choice_combs
-        ]
-    )
 
     resources_last_period = resources_beginning_of_period[
         map_final_state_choice_to_state

@@ -83,6 +83,7 @@ def test_benchmark_models(
 
     state_space, map_state_to_index = create_state_space(options)
     state_choice_space, *_ = create_state_choice_space(
+        options,
         state_space,
         map_state_to_index,
         state_space_functions["get_state_specific_choice_set"],
