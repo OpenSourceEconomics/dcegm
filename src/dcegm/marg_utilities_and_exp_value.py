@@ -39,7 +39,11 @@ def aggregate_marg_utils_exp_values(
 
     """
     choice_values_per_state = jnp.take(
-        value_state_choice_specific, reshape_state_choice_vec_to_mat, axis=0
+        value_state_choice_specific,
+        reshape_state_choice_vec_to_mat,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
     )
     max_value_per_state = jnp.nanmax(choice_values_per_state, axis=1, keepdims=True)
 
@@ -57,7 +61,11 @@ def aggregate_marg_utils_exp_values(
     choice_probs = rescaled_exponential / sum_exp
 
     choice_marg_util_per_state = jnp.take(
-        marg_util_state_choice_specific, reshape_state_choice_vec_to_mat, axis=0
+        marg_util_state_choice_specific,
+        reshape_state_choice_vec_to_mat,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
     )
 
     weighted_marg_util = choice_probs * choice_marg_util_per_state
