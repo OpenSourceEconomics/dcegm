@@ -427,10 +427,10 @@ def test_two_period(input_data, wealth_idx, state_idx):
         _map_state_choice_vec_to_parent_state,
         reshape_state_choice_vec_to_mat,
     ) = create_state_choice_space(
-        input_data["options"],
-        state_space,
-        map_state_to_index,
-        get_state_specific_feasible_choice_set,
+        options=input_data["options"],
+        state_space=state_space,
+        map_state_to_state_space_index=map_state_to_index,
+        get_state_specific_choice_set=get_state_specific_feasible_choice_set,
     )
     initial_conditions = {}
     state = state_space[state_idx, :]
@@ -661,26 +661,53 @@ def test_two_period_two_exog_processes(
         state_choice_space,
         _map_state_choice_vec_to_parent_state,
         reshape_state_choice_vec_to_mat,
-        _transform_between_state_and_state_choice_space,
     ) = create_state_choice_space(
-        state_space,
-        map_state_to_index,
-        get_feasible_choice_set_two_exog_processes,
+        options=input_data_two_exog_processes["options"],
+        state_space=state_space,
+        map_state_to_state_space_index=map_state_to_index,
+        get_state_specific_choice_set=get_state_specific_feasible_choice_set,
     )
     initial_conditions = {}
     state = state_space[state_idx, :]
-    idxs_state_choice_combs = reshape_state_choice_vec_to_mat[state_idx]
+    reshape_state_choice_vec_to_mat[state_idx]
 
     initial_conditions["bad_health"] = state[-1] > 1
     initial_conditions["job_offer"] = (
         state[1] == 0
     )  # working (no retirement) in period 0
 
+    feasible_choice_set = get_state_specific_feasible_choice_set(
+        state, map_state_to_index
+    )
+
     endog_grid_period = input_data_two_exog_processes["result"][state[0]]["endog_grid"]
     policy_period = input_data_two_exog_processes["result"][state[0]]["policy_left"]
 
-    for state_choice_idx in idxs_state_choice_combs:
-        choice_in_period_1 = state_choice_space[state_choice_idx][-1]
+    # for state_choice_idx in idxs_state_choice_combs:
+    #     choice_in_period_1 = state_choice_space[state_choice_idx][-1]
+
+    #     endog_grid = endog_grid_period[state_choice_idx, wealth_idx + 1]
+    #     policy = policy_period[state_choice_idx]
+
+    #     if ~np.isnan(endog_grid) and endog_grid > 0:
+    #         initial_conditions["wealth"] = endog_grid
+
+    #         consumption = policy[wealth_idx + 1]
+    #         diff = euler_rhs_two_exog_processes(
+    #             initial_conditions,
+    #             params,
+    #             quad_draws,
+    #             quad_weights,
+    #             choice_in_period_1,
+    #             consumption,
+    #         ) - marginal_utility(consumption=consumption, rho=params["rho"])
+
+    #         assert_allclose(diff, 0, atol=1e-6)
+
+    for choice_in_period_1 in feasible_choice_set:
+        state_choice_idx = reshape_state_choice_vec_to_mat[
+            state_idx, choice_in_period_1
+        ]
 
         endog_grid = endog_grid_period[state_choice_idx, wealth_idx + 1]
         policy = policy_period[state_choice_idx]
@@ -688,14 +715,14 @@ def test_two_period_two_exog_processes(
         if ~np.isnan(endog_grid) and endog_grid > 0:
             initial_conditions["wealth"] = endog_grid
 
-            consumption = policy[wealth_idx + 1]
+            cons_calc = policy[wealth_idx + 1]
             diff = euler_rhs_two_exog_processes(
                 initial_conditions,
                 params,
                 quad_draws,
                 quad_weights,
                 choice_in_period_1,
-                consumption,
-            ) - marginal_utility(consumption=consumption, rho=params["rho"])
+                cons_calc,
+            ) - marginal_utility(consumption=cons_calc, rho=params["rho"])
 
             assert_allclose(diff, 0, atol=1e-6)

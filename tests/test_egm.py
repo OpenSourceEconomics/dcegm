@@ -2,7 +2,7 @@ from itertools import product
 
 import numpy as np
 import pytest
-from dcegm.pre_processing import convert_params_to_dict
+from dcegm.process_model import convert_params_to_dict
 from numpy.testing import assert_array_almost_equal as aaae
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm

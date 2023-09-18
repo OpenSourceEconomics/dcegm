@@ -165,6 +165,7 @@ def create_map_from_state_to_child_nodes(
                 state=np.array(state_choice_vec[:-1]),
                 choice=np.array(state_choice_vec[-1]),
                 # options
+                # alles optional
             )
 
             for exog_process in range(n_exog_states):
