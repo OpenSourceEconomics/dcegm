@@ -7,7 +7,7 @@ import numpy as np
 
 
 def create_state_choice_space(
-    state_space, map_state_to_state_space_index, get_state_specific_choice_set
+    options, state_space, map_state_to_state_space_index, get_state_specific_choice_set
 ):
     """Create state choice space of all feasible state-choice combinations.
 
@@ -57,7 +57,9 @@ def create_state_choice_space(
 
     """
     n_states, n_state_and_exog_variables = state_space.shape
-    _n_periods, n_choices, _n_exog_processes = map_state_to_state_space_index.shape
+
+    n_choices = options["n_discrete_choices"]
+    n_periods = options["n_periods"]
 
     state_choice_space = np.zeros(
         (n_states * n_choices, n_state_and_exog_variables + 1),
@@ -66,50 +68,39 @@ def create_state_choice_space(
 
     map_state_choice_vec_to_parent_state = np.zeros((n_states * n_choices), dtype=int)
     reshape_state_choice_vec_to_mat = np.zeros((n_states, n_choices), dtype=int)
-    transform_between_state_and_state_choice_space = np.full(
-        (n_states, n_states * n_choices), fill_value=False, dtype=bool
-    )
-
-    # Ensure that states are ordered.
-    period = state_space[0, 0]
 
     idx = 0
-    idx_min = -1
+    for period in range(n_periods):
+        period_states = state_space[state_space[:, 0] == period]
 
-    for state_idx in range(n_states):
-        state_vec = state_space[state_idx]
+        period_idx = 0
+        out_of_bounds_index = period_states.shape[0] * n_choices
+        for state_vec in period_states:
+            state_idx = map_state_to_state_space_index[tuple(state_vec)]
 
-        if period == state_vec[0]:
-            idx_min = idx
-            period += 1
+            feasible_choice_set = get_state_specific_choice_set(
+                state_vec, map_state_to_state_space_index
+            )
 
-        feasible_choice_set = get_state_specific_choice_set(
-            state_vec, map_state_to_state_space_index
-        )
+            for choice in range(n_choices):
+                if choice in feasible_choice_set:
+                    state_choice_space[idx, :-1] = state_vec
+                    state_choice_space[idx, -1] = choice
 
-        for choice in feasible_choice_set:
-            state_choice_space[idx, :-1] = state_vec
-            state_choice_space[idx, -1] = choice
+                    map_state_choice_vec_to_parent_state[idx] = state_idx
+                    reshape_state_choice_vec_to_mat[state_idx, choice] = period_idx
 
-            map_state_choice_vec_to_parent_state[idx] = state_idx
-            reshape_state_choice_vec_to_mat[state_idx, choice] = idx - idx_min
-            transform_between_state_and_state_choice_space[state_idx, idx] = True
-
-            idx += 1
-
-        # Fill up matrix with some state_choice index from the state, as we only use
-        # this matrix to get the maximum across state_choice values and two times the
-        # same value doesn't change the maximum.
-        # Only used in aggregation function.
-        for choice in range(n_choices):
-            if choice not in feasible_choice_set:
-                reshape_state_choice_vec_to_mat[state_idx, choice] = idx - idx_min - 1
+                    period_idx += 1
+                    idx += 1
+                else:
+                    reshape_state_choice_vec_to_mat[
+                        state_idx, choice
+                    ] = out_of_bounds_index
 
     return (
         state_choice_space[:idx],
         map_state_choice_vec_to_parent_state[:idx],
         reshape_state_choice_vec_to_mat,
-        transform_between_state_and_state_choice_space[:, :idx],
     )
 
 
@@ -197,7 +188,6 @@ def create_period_state_and_state_choice_objects(
     state_choice_space,
     map_state_choice_vec_to_parent_state,
     reshape_state_choice_vec_to_mat,
-    transform_between_state_and_state_choice_space,
 ):
     """Create dictionary of state and state-choice objects for each period.
 
@@ -215,13 +205,6 @@ def create_period_state_and_state_choice_objects(
             used to reshape the vector of feasible state-choice combinations
             to a matrix of lagged and current choice combinations of
             shape (n_choices, n_choices).
-        transform_between_state_and_state_choice_space (jnp.ndarray): 2d boolean
-            array of shape (n_states, n_states * n_feasible_choices) indicating which
-            state belongs to which state-choice combination in the entire state space
-            and state-choice space. The array is used to
-            (i) contract state-choice level arrays to the state level by summing
-                over state-choice combinations.
-            (ii) to expand state level arrays to the state-choice level.
         n_periods (int): Number of periods.
 
     Returns:
@@ -251,14 +234,6 @@ def create_period_state_and_state_choice_objects(
 
         period_dict["reshape_state_choice_vec_to_mat"] = jnp.take(
             reshape_state_choice_vec_to_mat, idxs_states, axis=0
-        )
-
-        period_dict["transform_between_state_and_state_choice_vec"] = jnp.take(
-            jnp.take(
-                transform_between_state_and_state_choice_space, idxs_states, axis=0
-            ),
-            idxs_state_choices_period,
-            axis=1,
         )
 
         out[period] = period_dict

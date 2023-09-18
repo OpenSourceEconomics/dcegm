@@ -7,34 +7,23 @@ def aggregate_marg_utils_exp_values(
     value_state_choice_specific: jnp.ndarray,
     marg_util_state_choice_specific: jnp.ndarray,
     reshape_state_choice_vec_to_mat: jnp.ndarray,
-    transform_between_state_and_state_choice_vec: jnp.ndarray,
     taste_shock_scale: float,
     income_shock_weights: jnp.ndarray,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Compute the aggregate marginal utilities and expected values.
 
     Args:
-        value_state_choice_choice_specific (jnp.ndarray): 3d array of shape
+        value_state_choice_specific (jnp.ndarray): 3d array of shape
             (n_states * n_choices, n_exog_savings, n_income_shocks) of the value
             function for all state-choice combinations and income shocks.
         marg_util_state_choice_specific (jnp.ndarray): 3d array of shape
             (n_states * n_choices, n_exog_savings, n_income_shocks) of the marginal
             utility of consumption for all states-choice combinations and
             income shocks.
-        resources_current_period (np.ndarray): 3d array of shape
-            (n_state_choice_combs_current, n_exog_savings, n_stochastic_quad_points)
-            containing the resources at the beginning of the current period.
-        reshape_current_state_choice_vec_to_mat (np.ndarray): 2d array of shape
+        reshape_state_choice_vec_to_mat (np.ndarray): 2d array of shape
             (n_states_current, n_choices_current) that reshapes the current period
             vector of feasible state-choice combinations to a matrix of shape
             (n_choices, n_choices).
-        transform_between_state_and_state_choice_vec (np.ndarray): 2d boolean
-            array of shape (n_states_current, n_feasible_state_choice_combs_current)
-            indicating which state vector belongs to which state-choice combination in
-            the current period.
-            (i) contract state-choice level arrays to the state level by summing
-                over state-choice combinations.
-            (ii) to expand state level arrays to the state-choice level.
         taste_shock_scale (float): The taste shock scale.
         income_shock_weights (jnp.ndarray): 1d array of shape
             (n_stochastic_quad_points,) containing the weights of the income shock
@@ -49,39 +38,40 @@ def aggregate_marg_utils_exp_values(
             of the state-specific aggregate expected values.
 
     """
-    max_value_per_state = jnp.take(
+    choice_values_per_state = jnp.take(
         value_state_choice_specific,
         reshape_state_choice_vec_to_mat,
         axis=0,
-    ).max(axis=1)
+        mode="fill",
+        fill_value=jnp.nan,
+    )
+    max_value_per_state = jnp.nanmax(choice_values_per_state, axis=1, keepdims=True)
 
-    max_value_per_state_choice_comb = jnp.tensordot(
-        transform_between_state_and_state_choice_vec, max_value_per_state, axes=(0, 0)
-    )
+    rescale_values_per_state = choice_values_per_state - max_value_per_state
 
-    value_exponential = jnp.exp(
-        (value_state_choice_specific - max_value_per_state_choice_comb)
-        / taste_shock_scale
-    )
-    sum_value_exponential_per_state = jnp.tensordot(
-        transform_between_state_and_state_choice_vec, value_exponential, axes=(1, 0)
-    )
+    rescaled_exponential = jnp.exp(rescale_values_per_state / taste_shock_scale)
 
-    product_choice_probs_and_marg_util = jnp.tensordot(
-        transform_between_state_and_state_choice_vec,
-        jnp.multiply(value_exponential, marg_util_state_choice_specific),
-        axes=(1, 0),
-    )
-    marg_util = jnp.divide(
-        product_choice_probs_and_marg_util,
-        sum_value_exponential_per_state,
-    )
+    sum_exp = jnp.nansum(rescaled_exponential, axis=1, keepdims=True)
 
-    log_sum = max_value_per_state + taste_shock_scale * jnp.log(
-        sum_value_exponential_per_state
+    log_sum_unsqueezed = max_value_per_state + taste_shock_scale * jnp.log(sum_exp)
+    # Because we kept the dimensions in the maximum and sum over choice specific objects
+    # to perform subtraction and division, we now need to squeeze the log_sum again
+    # to remove the redundant axis.
+    log_sum = jnp.squeeze(log_sum_unsqueezed, axis=1)
+    choice_probs = rescaled_exponential / sum_exp
+
+    choice_marg_util_per_state = jnp.take(
+        marg_util_state_choice_specific,
+        reshape_state_choice_vec_to_mat,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
     )
 
-    return (
-        marg_util @ income_shock_weights,
-        log_sum @ income_shock_weights,
-    )
+    weighted_marg_util = choice_probs * choice_marg_util_per_state
+    marg_util = jnp.nansum(weighted_marg_util, axis=1)
+
+    shock_integrated_marg_util = marg_util @ income_shock_weights
+    shock_integrated_log_sum = log_sum @ income_shock_weights
+
+    return shock_integrated_marg_util, shock_integrated_log_sum

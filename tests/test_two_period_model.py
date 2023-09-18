@@ -426,8 +426,8 @@ def test_two_period(input_data, wealth_idx, state_idx):
         state_choice_space,
         _map_state_choice_vec_to_parent_state,
         reshape_state_choice_vec_to_mat,
-        _transform_between_state_and_state_choice_space,
     ) = create_state_choice_space(
+        input_data["options"],
         state_space,
         map_state_to_index,
         get_state_specific_feasible_choice_set,
@@ -436,14 +436,20 @@ def test_two_period(input_data, wealth_idx, state_idx):
     state = state_space[state_idx, :]
     trans_vec = input_data["get_transition_vector_by_state"](state, params)
 
-    idxs_state_choice_combs = reshape_state_choice_vec_to_mat[state_idx]
+    reshape_state_choice_vec_to_mat[state_idx]
     initial_conditions["bad_health"] = state[-1]
+
+    feasible_choice_set = get_state_specific_feasible_choice_set(
+        state, map_state_to_index
+    )
 
     endog_grid_period = input_data["endog_grid"]
     policy_period = input_data["policy_left"]
 
-    for state_choice_idx in idxs_state_choice_combs:
-        choice_in_period_1 = state_choice_space[state_choice_idx][-1]
+    for choice_in_period_1 in feasible_choice_set:
+        state_choice_idx = reshape_state_choice_vec_to_mat[
+            state_idx, choice_in_period_1
+        ]
 
         endog_grid = endog_grid_period[state_choice_idx, wealth_idx + 1]
         policy = policy_period[state_choice_idx]
