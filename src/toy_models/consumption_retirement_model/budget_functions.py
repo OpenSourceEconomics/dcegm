@@ -35,7 +35,6 @@ def budget_constraint(
         (float): The beginning of period wealth in t.
 
     """
-
     # Calculate stochastic labor income
     income_from_previous_period = _calc_stochastic_income(
         state_beginning_of_period,

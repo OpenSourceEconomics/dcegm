@@ -12,8 +12,8 @@ from dcegm.interpolation import interpolate_and_calc_marginal_utilities
 from dcegm.marg_utilities_and_exp_value import (
     aggregate_marg_utils_exp_values,
 )
-from dcegm.pre_processing import convert_params_to_dict
-from dcegm.pre_processing import process_model_functions
+from dcegm.process_model import convert_params_to_dict
+from dcegm.process_model import process_model_functions
 from dcegm.state_space import create_map_from_state_to_child_nodes
 from dcegm.state_space import (
     create_period_state_and_state_choice_objects,

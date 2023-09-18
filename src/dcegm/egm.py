@@ -107,9 +107,12 @@ def compute_optimal_policy_and_value(
             she saves nothing.
 
     """
+
+    #
     state_vec = state_choice_mat[:-1]
     choice = state_choice_mat[-1]
     transition_probs = compute_transition_probs_exog_states(state_vec, params)
+    # choice, options
 
     policy, expected_value = solve_euler_equation(
         marg_utils=marg_utils,
@@ -119,6 +122,10 @@ def compute_optimal_policy_and_value(
         params=params,
     )
     endog_grid = exogenous_savings_grid + policy
+
+    # state
+    # policy
+    # choice
 
     utility = compute_utility(consumption=policy, choice=choice, **params)
     value = utility + params["beta"] * expected_value

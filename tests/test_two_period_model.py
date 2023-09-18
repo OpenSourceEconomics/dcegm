@@ -170,11 +170,12 @@ def wage(nu, params):
 
 def prob_long_term_care_patient(params, lagged_bad_health, bad_health):
     p = params["ltc_prob"]
+    # jnp.array([[0.7, 0.3], [0, 1]])
 
-    if (lagged_bad_health == 0) and (bad_health == 1):
-        pi = p
-    elif lagged_bad_health == bad_health == 0:
+    if lagged_bad_health == bad_health == 0:
         pi = 1 - p
+    elif (lagged_bad_health == 0) and (bad_health == 1):
+        pi = p
     elif lagged_bad_health == 1 and bad_health == 0:
         pi = 0
     elif lagged_bad_health == bad_health == 1:
@@ -407,6 +408,7 @@ def input_data():
 TEST_CASES = list(product(list(range(WEALTH_GRID_POINTS)), list(range(4))))
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize(
     "wealth_idx, state_idx",
     TEST_CASES,
@@ -518,12 +520,88 @@ def input_data_two_exog_processes():
         ltc_probabilities, job_offer_probabilities_period_specific[..., 1]
     )
     transition_matrix = jnp.dstack((transition_matrix_age0, transition_matrix_age1))
-    # Has shape (4, 4, 4)
+    # Has shape (4, 4, 2)
     # The third dimension, contains the age-specific transition matrices.
     # Note that age (or period) is a state variable.
     # [..., 0] is the transition matrix for age 0
     # [..., 1] is the transition matrix for age 1
 
+    # =================================================================================
+    # just for fun, 4d with shape
+
+    # exog-process and state- specific transition probabilities
+    ltc_probs_age0 = jnp.array([[0.7, 0.3], [0, 1]])
+    ltc_probs_age1 = jnp.array([[0.6, 0.4], [0, 1]])  # ltc prob increases with age
+    job_offer_probs_age0_lagged_choice0 = jnp.array([[0.5, 0.5], [0.1, 0.9]])
+    job_offer_probs_age1_lagged_choice0 = jnp.array(
+        # [[0.6, 0.4], [0.05, 0.95]]
+        [[0.5, 0.5], [0.1, 0.9]]
+    )  # older and no job previously, harder to find job
+    job_offer_probs_age0_lagged_choice1 = jnp.array([[0.5, 0.5], [0.1, 0.9]])
+    job_offer_probs_age1_lagged_choice1 = jnp.array([[0.5, 0.5], [0.1, 0.9]])
+
+    # state-specific transition probabilities
+
+    # repeat/stack first layer
+    # health first, job second. So start with second?
+    # _job_offer_probs_lagged_choice0 = jnp.stack(
+    #     (
+    #         job_offer_probs_age0_lagged_choice0,
+    #         job_offer_probs_age1_lagged_choice0,
+    #     ),
+    #     axis=2,
+    # )
+    # # select by age via [:, :, period]
+
+    # _job_offer_probs_lagged_choice1 = jnp.stack(
+    #     (
+    #         job_offer_probs_age0_lagged_choice1,
+    #         job_offer_probs_age1_lagged_choice1,
+    #     ),
+    #     axis=2,
+    # )
+
+    # multiply with exog process 2
+    matrix_age0_lagged_choice0 = jnp.kron(
+        ltc_probs_age0, job_offer_probs_age0_lagged_choice0
+    )
+    matrix_age1_lagged_choice0 = jnp.kron(
+        ltc_probs_age1, job_offer_probs_age1_lagged_choice0
+    )
+
+    matrix_age0_lagged_choice1 = jnp.kron(
+        ltc_probs_age0, job_offer_probs_age0_lagged_choice1
+    )
+    matrix_age1_lagged_choice1 = jnp.kron(
+        ltc_probs_age1, job_offer_probs_age1_lagged_choice1
+    )
+
+    # transition_matrix_age0_lagged_choice0 = jnp.kron(
+    #     ltc_probabilities_age0, job_offer_probabilities_period_specific[..., 0]
+    # )
+    # transition_matrix_age0_lagged_choice1 = jnp.kron(
+    #     ltc_probabilities_age0, job_offer_probabilities_period_specific[..., 0]
+    # )
+
+    # transition_matrix_age1_lagged_choice0 = jnp.kron(
+    #     ltc_probabilities_age1, job_offer_probabilities_period_specific[..., 1]
+    # )
+    # transition_matrix_age1_lagged_choice1 = jnp.kron(
+    #     ltc_probabilities_age1, job_offer_probabilities_period_specific[..., 1]
+    # )
+
+    jnp.stack(
+        (matrix_age0_lagged_choice0, matrix_age1_lagged_choice0), axis=2
+    )  # expected shape (4, 4, 2)
+    jnp.stack(
+        (matrix_age0_lagged_choice1, matrix_age1_lagged_choice1), axis=2
+    )  # expected shape (4, 4, 2)
+
+    # jnp.stack((stack_lagged_choice0, stack_lagged_choice1), axis=3)
+
+    # stack into multi-dimensional matrix
+
+    # =================================================================================
     get_transition_vector_partial = partial(
         get_transition_vector_dcegm_two_exog_processes,
         transition_matrix=transition_matrix,

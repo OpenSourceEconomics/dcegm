@@ -173,6 +173,7 @@ def create_map_from_state_to_child_nodes(
             state_vec_next = update_endog_state_by_state_and_choice(
                 state=np.array(state_choice_vec[:-1]),
                 choice=np.array(state_choice_vec[-1]),
+                # options
             )
 
             for exog_process in range(n_exog_states):

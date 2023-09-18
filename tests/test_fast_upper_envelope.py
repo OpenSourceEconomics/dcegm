@@ -6,7 +6,7 @@ from dcegm.fast_upper_envelope import fast_upper_envelope
 from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
 from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
 from dcegm.interpolation import linear_interpolation_with_extrapolation
-from dcegm.pre_processing import _get_function_with_filtered_kwargs
+from dcegm.process_model import _get_function_with_filtered_kwargs
 from jax import config
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra

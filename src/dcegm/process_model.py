@@ -1,6 +1,8 @@
 import functools
 import inspect
 from functools import partial
+from functools import reduce
+from itertools import product
 from typing import Callable
 from typing import Dict
 from typing import Tuple
@@ -12,55 +14,6 @@ from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
 from pybaum import get_registry
 from pybaum import leaf_names
 from pybaum import tree_flatten
-
-
-def convert_params_to_dict(
-    params: Union[dict, pd.Series, pd.DataFrame]
-) -> Dict[str, float]:
-    """Transforms params DataFrame into a dictionary.
-
-    Checks if given params DataFrame contains taste shock scale, interest rate
-    and discount factor.
-
-    Args:
-        params (dict or tuple or pandas.Series or pandas.DataFrame): Model parameters
-            Support tuple and list as well?
-
-    Returns:
-        dict: Dictionary of model parameters.
-
-    """
-    _registry = get_registry(
-        types=[
-            "pandas.Series",
-            "pandas.DataFrame",
-        ],
-        include_defaults=True,
-    )
-
-    _params, _treedef = tree_flatten(params, registry=_registry)
-
-    values = [i for i in _params if isinstance(i, (int, float))]
-
-    # {level: df.xs(level).to_dict('index') for level in df.index.levels[0]}
-
-    if isinstance(params, (pd.Series, pd.DataFrame)):
-        keys = _treedef.index.get_level_values(_treedef.index.names[-1]).tolist()
-    else:
-        keys = leaf_names(_treedef, registry=_registry)
-
-    params_dict = dict(zip(keys, values))
-
-    if "interest_rate" not in params_dict:
-        params_dict["interest_rate"] = 0
-    if "lambda" not in params_dict:
-        params_dict["lambda"] = 0
-    if "sigma" not in params_dict:
-        params_dict["sigma"] = 0
-    if "beta" not in params_dict:
-        raise ValueError("Beta must be provided in params.")
-
-    return params_dict
 
 
 def process_model_functions(
@@ -147,6 +100,55 @@ def process_model_functions(
     )
 
 
+def convert_params_to_dict(
+    params: Union[dict, pd.Series, pd.DataFrame]
+) -> Dict[str, float]:
+    """Transforms params DataFrame into a dictionary.
+
+    Checks if given params DataFrame contains taste shock scale, interest rate
+    and discount factor.
+
+    Args:
+        params (dict or tuple or pandas.Series or pandas.DataFrame): Model parameters
+            Support tuple and list as well?
+
+    Returns:
+        dict: Dictionary of model parameters.
+
+    """
+    _registry = get_registry(
+        types=[
+            "pandas.Series",
+            "pandas.DataFrame",
+        ],
+        include_defaults=True,
+    )
+
+    _params, _treedef = tree_flatten(params, registry=_registry)
+
+    values = [i for i in _params if isinstance(i, (int, float))]
+
+    # {level: df.xs(level).to_dict('index') for level in df.index.levels[0]}
+
+    if isinstance(params, (pd.Series, pd.DataFrame)):
+        keys = _treedef.index.get_level_values(_treedef.index.names[-1]).tolist()
+    else:
+        keys = leaf_names(_treedef, registry=_registry)
+
+    params_dict = dict(zip(keys, values))
+
+    if "interest_rate" not in params_dict:
+        params_dict["interest_rate"] = 0
+    if "lambda" not in params_dict:
+        params_dict["lambda"] = 0
+    if "sigma" not in params_dict:
+        params_dict["sigma"] = 0
+    if "beta" not in params_dict:
+        raise ValueError("Beta must be provided in params.")
+
+    return params_dict
+
+
 def _get_function_with_args_and_filtered_kwargs(func):
     signature = list(inspect.signature(func).parameters)
 
@@ -190,3 +192,60 @@ def _return_policy_and_value(
     policy = jnp.append(0, policy)
     value = jnp.append(expected_value_zero_savings, value)
     return endog_grid, policy, policy, value
+
+
+def recursive_loop(
+    result, state_vars, exog_vars, state_indices, exog_indices, exog_funcs, **kwargs
+):
+    if len(state_indices) == len(state_vars):
+        if len(exog_indices) == len(exog_vars):
+            # Get the values of state variables at the current indices
+            state_var_values = [
+                state_vars[i][state_indices[i]] for i in range(len(state_vars))
+            ]
+
+            # Get the values of exogenous variables at the current indices
+            exog_var_values = [
+                exog_vars[i][exog_indices[i]] for i in range(len(exog_vars))
+            ]
+
+            # row = exog_indices[-1] + sum(
+            #    exog_indices[i] * len(exog_vars[i + 1])
+            #    for i in range(-len(exog_vars), -1)
+            # )
+            row = exog_indices[-1] + sum(
+                i * len(var) for i, var in zip(exog_indices[:-1], exog_vars)
+            )
+
+            for col, funcs in enumerate(product(*exog_funcs)):
+                result[tuple([row, col] + state_indices)] = reduce(
+                    jnp.multiply,
+                    [
+                        func(*state_var_values, *exog_var_values, **kwargs)
+                        for func in funcs
+                    ],
+                )
+
+        else:
+            for exog_i in range(len(exog_vars[0])):
+                recursive_loop(
+                    result,
+                    state_vars,
+                    exog_vars,
+                    state_indices,
+                    exog_indices + [exog_i],
+                    exog_funcs,
+                    **kwargs
+                )
+
+    else:
+        for state_i in range(len(state_vars[len(state_indices)])):
+            recursive_loop(
+                result,
+                state_vars,
+                exog_vars,
+                state_indices + [state_i],
+                exog_indices,
+                exog_funcs,
+                **kwargs
+            )
