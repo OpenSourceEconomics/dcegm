@@ -133,18 +133,25 @@ def test_missing_beta(
 
 
 @pytest.mark.parametrize(
-    "func", [utility_func_crra, marginal_utility_crra, inverse_marginal_utility_crra]
+    "func",
+    [
+        utiility_func_log_crra,
+        utility_func_crra,
+        marginal_utility_crra,
+        inverse_marginal_utility_crra,
+    ],
 )
 def test_get_function_with_filtered_args_and_kwargs(func):
-    map_state_variables_to_index = {
+    state_vars_to_index = {
         "period": 0,
         "lagged_choice": 1,
         "married": 1,
         "exog_state": 2,
     }
+    options = {"min_age": 50, "max_age": 80}
 
     func_with_filtered_args_and_kwargs = _get_function_with_filtered_args_and_kwargs(
-        func, map_state_variables_to_index
+        func, options=options, state_vars_to_index=state_vars_to_index
     )
 
     state_vec_full = np.array([10, 1, 9])

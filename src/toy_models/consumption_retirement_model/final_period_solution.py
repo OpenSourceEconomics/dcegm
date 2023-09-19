@@ -1,5 +1,7 @@
 """User-supplied function for the final period."""
+from typing import Any
 from typing import Callable
+from typing import Dict
 from typing import Tuple
 
 import numpy as np
@@ -11,6 +13,7 @@ def solve_final_period_scalar(
     begin_of_period_resources: float,
     theta: float,
     delta: float,
+    options: Dict[str, Any],
     compute_utility: Callable,
     compute_marginal_utility: Callable,
 ) -> Tuple[float, float]:
@@ -43,14 +46,14 @@ def solve_final_period_scalar(
     value = compute_utility(
         consumption=begin_of_period_resources,
         choice=choice,
-        # period=state_vec[0],
         theta=theta,
         delta=delta,
+        options=options,
         *state_vec,
     )
 
     marginal_utility = compute_marginal_utility(
-        consumption=begin_of_period_resources, theta=theta
+        consumption=begin_of_period_resources, theta=theta, options=options
     )
 
     return marginal_utility, value, consumption

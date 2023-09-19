@@ -292,6 +292,7 @@ def backward_induction(
             in_axes=(None, 0, None, None, None),
         ),
         in_axes=(0, None, None, None, None),
+        # )(state_space, exog_savings_grid, income_shock_draws, params)
     )(state_space, exog_savings_grid, income_shock_draws, options, params)
 
     resources_final_period = resources_beginning_of_period[
@@ -302,16 +303,16 @@ def backward_induction(
         vmap(
             vmap(
                 compute_final_period,
-                in_axes=(None, None, 0, None, None),
+                in_axes=(None, None, 0, None),
             ),
-            in_axes=(None, None, 0, None, None),
+            in_axes=(None, None, 0, None),
         ),
-        in_axes=(0, 0, 0, None, None),
+        in_axes=(0, 0, 0, None),
     )(
         state_objects["state_choice_mat"][:, :-1],  # state_vec
         state_objects["state_choice_mat"][:, -1],  # choice
         resources_beginning_of_period[state_objects["idx_parent_states"]],
-        options,
+        # options,
         params,
     )
 

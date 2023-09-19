@@ -67,27 +67,43 @@ def process_model_functions(
 
     _state_vars_to_index = {key: idx for idx, key in enumerate(state_vars)}
 
+    # compute_utility = _get_function_with_filtered_args_and_kwargs(
+    #     partial(user_utility_functions["utility"], options=options),
+    #     _state_vars_to_index,
+    # )
+
     compute_utility = _get_function_with_filtered_args_and_kwargs(
-        user_utility_functions["utility"], _state_vars_to_index
+        user_utility_functions["utility"],
+        options=options,
+        state_vars_to_index=_state_vars_to_index,
     )
     compute_marginal_utility = _get_function_with_filtered_args_and_kwargs(
-        user_utility_functions["marginal_utility"], _state_vars_to_index
+        user_utility_functions["marginal_utility"],
+        options=options,
+        state_vars_to_index=_state_vars_to_index,
     )
     compute_inverse_marginal_utility = _get_function_with_filtered_args_and_kwargs(
         user_utility_functions["inverse_marginal_utility"],
-        _state_vars_to_index,
+        options=options,
+        state_vars_to_index=_state_vars_to_index,
     )
 
     compute_beginning_of_period_wealth = (
-        _get_vmapped_function_with_args_and_filtered_kwargs(user_budget_constraint)
+        _get_vmapped_function_with_args_and_filtered_kwargs(
+            user_budget_constraint, options=options
+        )
     )
     compute_final_period = _get_vmapped_function_with_args_and_filtered_kwargs(
         partial(
             user_final_period_solution,
             compute_utility=compute_utility,
             compute_marginal_utility=compute_marginal_utility,
-        )
+            # options=options,
+        ),
+        options=options,
     )
+
+    # update endgo also partial
 
     compute_transitions_exog_states = exogenous_transition_function
 
@@ -156,7 +172,37 @@ def convert_params_to_dict(
     return params_dict
 
 
-def _get_vmapped_function_with_args_and_filtered_kwargs(func):
+def _get_function_with_filtered_args_and_kwargs(func, options, state_vars_to_index):
+    signature = list(inspect.signature(func).parameters)
+
+    @functools.wraps(func)
+    def processed_func(*args, **kwargs):
+        _args_to_kwargs = {
+            key: args[idx]
+            for key, idx in state_vars_to_index.items()
+            if key in signature  # and key not in kwargs
+        }
+
+        _kwargs = {
+            key: kwargs[key] for key in signature if key in kwargs and key != "options"
+        }
+
+        # partial in
+        if "options" in signature:
+            _kwargs["options"] = options
+
+        return func(**_args_to_kwargs | _kwargs)
+
+    # Set the __name__ attribute of processed_func to the name of the original func
+    processed_func.__name__ = func.__name__
+
+    # if "options" in signature:
+    #     processed_func = partial(processed_func, options=options)
+
+    return processed_func
+
+
+def _get_vmapped_function_with_args_and_filtered_kwargs(func, options):
     signature = list(inspect.signature(func).parameters)
 
     @functools.wraps(func)
@@ -168,8 +214,12 @@ def _get_vmapped_function_with_args_and_filtered_kwargs(func):
             key: _dict.pop(key)
             for key in signature
             for _dict in _options_and_params
-            if key in _dict
+            if key in _dict and key != "options"
         }
+
+        # partial in
+        if "options" in signature:
+            _kwargs["options"] = options
 
         return func(*_args, **_kwargs)
 
@@ -187,27 +237,6 @@ def _get_function_with_filtered_kwargs(func):
         _kwargs = {key: kwargs[key] for key in signature if key in kwargs}
         return func(**_kwargs)
 
-    processed_func.__name__ = func.__name__
-
-    return processed_func
-
-
-def _get_function_with_filtered_args_and_kwargs(func, state_vars_to_index):
-    signature = list(inspect.signature(func).parameters)
-
-    @functools.wraps(func)
-    def processed_func(*args, **kwargs):
-        _args_to_kwargs = {
-            key: args[idx]
-            for key, idx in state_vars_to_index.items()
-            if key in signature and key not in kwargs
-        }
-
-        _kwargs = {key: kwargs[key] for key in signature if key in kwargs}
-
-        return func(**_args_to_kwargs | _kwargs)
-
-    # Set the __name__ attribute of processed_func to the name of the original func
     processed_func.__name__ = func.__name__
 
     return processed_func

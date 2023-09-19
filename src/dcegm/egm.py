@@ -180,7 +180,9 @@ def solve_euler_equation(
     rhs_euler = marginal_utility * (1 + params["interest_rate"]) * params["beta"]
 
     policy = compute_inverse_marginal_utility(
-        marginal_utility=rhs_euler, *state_vec, **params
+        marginal_utility=rhs_euler,
+        *state_vec,
+        **params,
     )
 
     return policy, expected_value

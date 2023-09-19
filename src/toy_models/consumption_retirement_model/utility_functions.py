@@ -1,3 +1,6 @@
+from typing import Any
+from typing import Dict
+
 import jax.numpy as jnp
 
 
@@ -33,6 +36,7 @@ def utility_func_crra(
     # lagged_choice: int,
     theta: float,
     delta: float,
+    options: Dict[str, Any],
 ) -> jnp.array:
     """Computes the agent's current utility based on a CRRA utility function.
 
@@ -62,7 +66,9 @@ def utility_func_crra(
     return utility
 
 
-def marginal_utility_crra(consumption: jnp.array, theta: float) -> jnp.array:
+def marginal_utility_crra(
+    consumption: jnp.array, theta: float, options: Dict[str, Any]
+) -> jnp.array:
     """Computes marginal utility of CRRA utility function.
 
     Args:
@@ -85,6 +91,7 @@ def marginal_utility_crra(consumption: jnp.array, theta: float) -> jnp.array:
 def inverse_marginal_utility_crra(
     marginal_utility: jnp.array,
     theta: float,
+    options: Dict[str, Any],
 ) -> jnp.array:
     """Computes the inverse marginal utility of a CRRA utility function.
 
