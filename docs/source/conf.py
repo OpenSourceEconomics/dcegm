@@ -14,7 +14,7 @@
 # -- Project information -----------------------------------------------------
 
 project = "dc-egm"
-copyright = "Max Blesch, Sebastian Gsell"
+copyright = "2023, Max Blesch, Sebastian Gsell"
 author = "Max Blesch, Sebastian Gsell"
 
 # The full version, including alpha/beta/rc tags
