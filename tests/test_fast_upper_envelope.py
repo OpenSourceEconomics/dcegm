@@ -24,7 +24,6 @@ TEST_RESOURCES_DIR = TEST_DIR / "resources"
 
 @pytest.fixture
 def setup_model():
-    choice = 0
     max_wealth = 50
     n_grid_wealth = 500
     exog_savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
@@ -37,13 +36,13 @@ def setup_model():
     _state_vars = ["period", "lagged_choice", "exog_state"]
     _state_vars_to_index = {key: idx for idx, key in enumerate(_state_vars)}
 
-    state_choice_vec = np.ndarray([24, 0, 0, 0])
+    state_choice_vec = [23, 0, 0, 0]  # has to be a list!
 
     compute_utility = _get_function_with_filtered_args_and_kwargs(
         utility_func_crra, state_vars_to_index=_state_vars_to_index
     )
 
-    return params, choice, exog_savings_grid, state_choice_vec, compute_utility
+    return params, exog_savings_grid, state_choice_vec, compute_utility
 
 
 @pytest.mark.parametrize("period", [2, 4, 9, 10, 18])
@@ -68,7 +67,7 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
         ~np.isnan(value_refined_fedor).any(axis=0),
     ]
 
-    params, choice, _exog_savings_grid, state_choice_vec, compute_utility = setup_model
+    params, _exog_savings_grid, state_choice_vec, compute_utility = setup_model
 
     (
         endog_grid_refined,
@@ -118,7 +117,7 @@ def test_fast_upper_envelope_against_org_fues(setup_model):
     value_egm = np.genfromtxt(
         TEST_RESOURCES_DIR / "period_tests/val10.csv", delimiter=","
     )
-    _params, choice, exog_savings_grid, _state_choice_vec, compute_utility = setup_model
+    _params, exog_savings_grid, state_choice_vec, compute_utility = setup_model
 
     (
         endog_grid_refined,
@@ -138,8 +137,7 @@ def test_fast_upper_envelope_against_org_fues(setup_model):
         policy=policy_egm[1],
         value=value_egm[1],
         exog_grid=exog_savings_grid,
-        choice=choice,
-        # state_choice_mat=state_choice_mat,
+        choice=state_choice_vec[-1],
         compute_utility=compute_utility,
     )
 
@@ -161,7 +159,7 @@ def test_fast_upper_envelope_against_fedor(period, setup_model):
         TEST_RESOURCES_DIR / f"period_tests/pol{period}.csv", delimiter=","
     )
 
-    params, choice, exog_savings_grid, state_choice_vec, compute_utility = setup_model
+    params, exog_savings_grid, state_choice_vec, compute_utility = setup_model
 
     _policy_fedor, _value_fedor = upper_envelope(
         policy=policy_egm,
