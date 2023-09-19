@@ -19,8 +19,9 @@ def solve_final_period_scalar(
     In the last period, everything is consumed, i.e. consumption = savings.
 
     Args:
-        state (np.ndarray): 1d array of shape (n_state_variables,) containing the
-            period-specific state vector.
+        state_vec (np.ndarray): 1d array of shape (n_state_variables,)
+            containing the period- and state-choice specific vector of
+            state variables
         choice (int): The agent's choice in the current period.
         begin_of_period_resources (float): The agent's begin of period resources.
         compute_utility (callable): Function for computation of agent's utility.
@@ -36,10 +37,16 @@ def solve_final_period_scalar(
         - marginal_utility (float): The agent's marginal utility .
 
     """
+
     consumption = begin_of_period_resources
 
     value = compute_utility(
-        consumption=begin_of_period_resources, choice=choice, theta=theta, delta=delta
+        consumption=begin_of_period_resources,
+        choice=choice,
+        # period=state_vec[0],
+        theta=theta,
+        delta=delta,
+        *state_vec,
     )
 
     marginal_utility = compute_marginal_utility(

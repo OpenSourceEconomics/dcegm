@@ -134,12 +134,14 @@ def create_map_from_state_to_child_nodes(
             choice.
 
     Returns:
-        np.ndarray: 2d array of shape
-            (n_feasible_state_choice_combs, n_choices * n_exog_processes)
-            containing indices of all child nodes the agent can reach
-            from a given state.
+        tuple:
+            period_specific_state_space_objects (np.ndarray): 2d array of shape
+                (n_feasible_state_choice_combs, n_choices * n_exog_processes)
+                containing indices of all child nodes the agent can reach
+                from a given state.
 
     """
+
     # Exogenous processes are always on the last entry of the state space. Moreover, we
     # treat all of them as admissible in each period. If there exists an absorbing
     # state, this is reflected by a 0 percent transition probability.

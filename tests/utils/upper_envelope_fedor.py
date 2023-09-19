@@ -21,7 +21,7 @@ def upper_envelope(
     policy: np.ndarray,
     value: np.ndarray,
     exog_grid: np.ndarray,
-    choice: int,
+    state_choice_vec: np.ndarray,
     params: Dict[str, float],
     compute_utility: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -94,7 +94,7 @@ def upper_envelope(
         policy, value = _augment_grid(
             policy,
             value,
-            choice,
+            state_choice_vec,
             expected_value_zero_wealth,
             min_wealth_grid,
             n_grid_wealth,
@@ -531,7 +531,7 @@ def refine_policy(
 def _augment_grid(
     policy: np.ndarray,
     value: np.ndarray,
-    choice,
+    state_choice_vec: np.ndarray,
     expected_value_zero_wealth: np.ndarray,
     min_wealth_grid: float,
     n_grid_wealth: int,
@@ -569,11 +569,17 @@ def _augment_grid(
             Shape (2, *n_grid_augmented*).
 
     """
+
+    state_vec = state_choice_vec[:-1]
+    choice = state_choice_vec[-1]
+
     grid_points_to_add = np.linspace(min_wealth_grid, value[0, 1], n_grid_wealth // 10)[
         :-1
     ]
 
-    utility = compute_utility(consumption=grid_points_to_add, choice=choice, **params)
+    utility = compute_utility(
+        consumption=grid_points_to_add, choice=choice, *state_vec, **params
+    )
     values_to_add = utility + params["beta"] * expected_value_zero_wealth
 
     value_augmented = np.vstack(

@@ -115,6 +115,8 @@ def compute_optimal_policy_and_value(
     # choice, options
 
     policy, expected_value = solve_euler_equation(
+        state_vec=state_vec,
+        choice=choice,
         marg_utils=marg_utils,
         emax=emax,
         transition_probs=transition_probs,
@@ -127,13 +129,15 @@ def compute_optimal_policy_and_value(
     # policy
     # choice
 
-    utility = compute_utility(consumption=policy, choice=choice, **params)
+    utility = compute_utility(consumption=policy, choice=choice, *state_vec, **params)
     value = utility + params["beta"] * expected_value
 
     return endog_grid, policy, value, expected_value
 
 
 def solve_euler_equation(
+    state_vec: np.ndarray,
+    choice: int,
     marg_utils: np.ndarray,
     emax: np.ndarray,
     transition_probs: np.ndarray,
@@ -175,7 +179,9 @@ def solve_euler_equation(
     # RHS of Euler Eq., p. 337 IJRS (2017) by multiplying with marginal wealth
     rhs_euler = marginal_utility * (1 + params["interest_rate"]) * params["beta"]
 
-    policy = compute_inverse_marginal_utility(marginal_utility=rhs_euler, **params)
+    policy = compute_inverse_marginal_utility(
+        marginal_utility=rhs_euler, *state_vec, **params
+    )
 
     return policy, expected_value
 

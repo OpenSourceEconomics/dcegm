@@ -16,6 +16,7 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
     Returns:
         tuple:
 
+        - state_vars (list): List of state variables.
         - state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
             which serves as a collection of all possible states. By convention,
             the first column must contain the period and the last column the
@@ -35,23 +36,25 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
 
     shape = (n_periods, n_choices, n_exog_states)
 
+    state_vars = ["period", "lagged_choice", "exog_state"]
+
     map_state_to_index = np.full(shape, -9999, dtype=np.int64)
     _state_space = []
 
     i = 0
     for period in range(n_periods):
-        for choice in range(n_choices):
+        for lagged_choice in range(n_choices):
             for exog_state in range(n_exog_states):
-                map_state_to_index[period, choice, exog_state] = i
+                map_state_to_index[period, lagged_choice, exog_state] = i
 
-                row = [period, choice, exog_state]
+                row = [period, lagged_choice, exog_state]
                 _state_space.append(row)
 
                 i += 1
 
     state_space = np.array(_state_space, dtype=np.int64)
 
-    return state_space, map_state_to_index
+    return state_vars, state_space, map_state_to_index
 
 
 def create_state_space_two_exog_processes(
@@ -67,6 +70,7 @@ def create_state_space_two_exog_processes(
     Returns:
         tuple:
 
+        - state_vars (list): List of state variables.
         - state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
             which serves as a collection of all possible states. By convention,
             the first column must contain the period and the last column the
@@ -86,6 +90,8 @@ def create_state_space_two_exog_processes(
 
     shape = (n_periods, n_choices, n_exog_states)
 
+    state_vars = ["period", "lagged_choice", "exog_state"]
+
     map_state_to_index = np.full(shape, -9999, dtype=np.int64)
     _state_space = []
 
@@ -102,7 +108,7 @@ def create_state_space_two_exog_processes(
 
     state_space = np.array(_state_space, dtype=np.int64)
 
-    return state_space, map_state_to_index
+    return state_vars, state_space, map_state_to_index
 
 
 def update_state(state, choice):

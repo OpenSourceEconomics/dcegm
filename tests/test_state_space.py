@@ -44,7 +44,9 @@ def test_state_space(n_periods, n_choices, n_exog_states):
         "n_exog_states": n_exog_states,
     }
 
-    state_space, map_state_to_state_space_index = create_state_space(options)
+    _state_vars, state_space, map_state_to_state_space_index = create_state_space(
+        options
+    )
 
     expected_state_space, expected_state_indexer = expected_state_space_and_indexer(
         n_periods, n_choices, n_exog_states

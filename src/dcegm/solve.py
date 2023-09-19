@@ -67,24 +67,10 @@ def get_solve_function(
         options["quadrature_points_stochastic"]
     )
 
-    (
-        compute_utility,
-        compute_marginal_utility,
-        compute_inverse_marginal_utility,
-        compute_beginning_of_period_wealth,
-        compute_final_period,
-        compute_upper_envelope,
-        compute_transitions_exog_states,
-    ) = process_model_functions(
-        options,
-        user_utility_functions=utility_functions,
-        user_budget_constraint=budget_constraint,
-        user_final_period_solution=final_period_solution,
-        exogenous_transition_function=transition_function,
-    )
     create_state_space = state_space_functions["create_state_space"]
-
-    state_space, map_state_to_state_space_index = create_state_space(options)
+    state_vars, state_space, map_state_to_state_space_index = create_state_space(
+        options
+    )
     (
         state_choice_space,
         map_state_choice_vec_to_parent_state,
@@ -96,6 +82,7 @@ def get_solve_function(
         state_space_functions["get_state_specific_choice_set"],
     )
 
+    #
     period_specific_state_objects = create_period_state_and_state_choice_objects(
         options=options,
         state_space=state_space,
@@ -111,6 +98,24 @@ def get_solve_function(
         update_endog_state_by_state_and_choice=state_space_functions[
             "update_endog_state_by_state_and_choice"
         ],
+    )
+    #
+
+    (
+        compute_utility,
+        compute_marginal_utility,
+        compute_inverse_marginal_utility,
+        compute_beginning_of_period_wealth,
+        compute_final_period,
+        compute_upper_envelope,
+        compute_transitions_exog_states,
+    ) = process_model_functions(
+        options,
+        state_vars=state_vars,
+        user_utility_functions=utility_functions,
+        user_budget_constraint=budget_constraint,
+        user_final_period_solution=final_period_solution,
+        exogenous_transition_function=transition_function,
     )
 
     backward_jit = jit(
@@ -347,7 +352,7 @@ def backward_induction(
             exogenous_savings_grid=exog_savings_grid,
             marg_util=marg_util,
             emax=emax,
-            state_choice_mat=state_objects["state_choice_mat"],
+            state_choice_mat=state_objects["state_choice_mat"],  # state_vec and choice
             idx_post_decision_child_states=state_objects["idx_feasible_child_nodes"],
             compute_inverse_marginal_utility=compute_inverse_marginal_utility,
             compute_utility=compute_utility,
@@ -369,9 +374,8 @@ def backward_induction(
             policy_candidate,
             value_candidate,
             expected_values[:, 0],
-            state_objects["state_choice_mat"][:, -1],
+            state_objects["state_choice_mat"],  # state_vec and choice
             params,
-            # compute_value,
             compute_utility,
         )
         resources_period = resources_beginning_of_period[
@@ -385,8 +389,8 @@ def backward_induction(
         )(
             compute_marginal_utility,
             compute_utility,
-            # compute_value,
-            state_objects["state_choice_mat"][:, -1],
+            state_objects["state_choice_mat"],  # state_vec and choice
+            # state_objects["state_choice_mat"][:, -1],  # choice
             resources_period,
             endog_grid_state_choice,
             policy_left_state_choice,

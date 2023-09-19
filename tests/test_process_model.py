@@ -2,12 +2,21 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from dcegm.process_model import _get_function_with_filtered_args_and_kwargs
 from dcegm.process_model import convert_params_to_dict
 from dcegm.process_model import recursive_loop
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import (
+    inverse_marginal_utility_crra,
+)
+from toy_models.consumption_retirement_model.utility_functions import (
+    marginal_utility_crra,
+)
+from toy_models.consumption_retirement_model.utility_functions import (
     utiility_func_log_crra,
 )
+from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
+
 
 # Obtain the test directory of the package.
 TEST_DIR = Path(__file__).parent
@@ -121,6 +130,33 @@ def test_missing_beta(
     params_without_beta = params.drop(index=("beta", "beta"))
     with pytest.raises(ValueError, match="Beta must be provided in params."):
         convert_params_to_dict(params_without_beta)
+
+
+@pytest.mark.parametrize(
+    "func", [utility_func_crra, marginal_utility_crra, inverse_marginal_utility_crra]
+)
+def test_get_function_with_filtered_args_and_kwargs(func):
+    map_state_variables_to_index = {
+        "period": 0,
+        "lagged_choice": 1,
+        "married": 1,
+        "exog_state": 2,
+    }
+
+    func_with_filtered_args_and_kwargs = _get_function_with_filtered_args_and_kwargs(
+        func, map_state_variables_to_index
+    )
+
+    state_vec_full = np.array([10, 1, 9])
+    kwargs = {
+        "consumption": np.arange(10, 20),
+        "choice": 0,
+        "marginal_utility": np.arange(1, 11),
+        "theta": 0.5,
+        "delta": 0.1,
+    }
+
+    _util = func_with_filtered_args_and_kwargs(*state_vec_full, **kwargs)
 
 
 def test_recursive_loop(example_exogenous_processes):

@@ -5,6 +5,7 @@ from functools import reduce
 from itertools import product
 from typing import Callable
 from typing import Dict
+from typing import List
 from typing import Tuple
 from typing import Union
 
@@ -17,24 +18,28 @@ from pybaum import tree_flatten
 
 
 def process_model_functions(
-    options: Dict[str, int],
+    options: Dict[str, float],
+    state_vars: List[str],
     user_utility_functions: Dict[str, Callable],
     user_budget_constraint: Callable,
     user_final_period_solution: Callable,
     exogenous_transition_function: Callable,
 ) -> Tuple[Callable, Callable, Callable, Callable, Callable, Callable, Callable]:
-    """Create partial functions from user supplied functions.
+    """Create wrapped functions from user supplied functions.
 
     Args:
-        options (dict): Options dictionary.
+        options (Dict[str, int]): Options dictionary.
+        map_state_variables_to_index (Dict[str, int]): Dictionary mapping state
+            variables to their index in the state vector.
         user_utility_functions (Dict[str, callable]): Dictionary of three user-supplied
             functions for computation of:
-       t    (i) utility
+            (i) utility
             (ii) inverse marginal utility
             (iii) next period marginal utility
         user_budget_constraint (callable): Callable budget constraint.
         exogenous_transition_function (callable): User-supplied function returning for
             each state a transition matrix vector.
+
 
     Returns:
         tuple:
@@ -60,21 +65,23 @@ def process_model_functions(
 
     """
 
-    compute_utility = _get_function_with_filtered_kwargs(
-        user_utility_functions["utility"]
+    _state_vars_to_index = {key: idx for idx, key in enumerate(state_vars)}
+
+    compute_utility = _get_function_with_filtered_args_and_kwargs(
+        user_utility_functions["utility"], _state_vars_to_index
     )
-    compute_marginal_utility = _get_function_with_filtered_kwargs(
-        user_utility_functions["marginal_utility"]
+    compute_marginal_utility = _get_function_with_filtered_args_and_kwargs(
+        user_utility_functions["marginal_utility"], _state_vars_to_index
     )
-    compute_inverse_marginal_utility = _get_function_with_filtered_kwargs(
-        user_utility_functions["inverse_marginal_utility"]
+    compute_inverse_marginal_utility = _get_function_with_filtered_args_and_kwargs(
+        user_utility_functions["inverse_marginal_utility"],
+        _state_vars_to_index,
     )
 
-    compute_beginning_of_period_wealth = _get_function_with_args_and_filtered_kwargs(
-        user_budget_constraint
+    compute_beginning_of_period_wealth = (
+        _get_vmapped_function_with_args_and_filtered_kwargs(user_budget_constraint)
     )
-
-    compute_final_period = _get_function_with_args_and_filtered_kwargs(
+    compute_final_period = _get_vmapped_function_with_args_and_filtered_kwargs(
         partial(
             user_final_period_solution,
             compute_utility=compute_utility,
@@ -149,7 +156,7 @@ def convert_params_to_dict(
     return params_dict
 
 
-def _get_function_with_args_and_filtered_kwargs(func):
+def _get_vmapped_function_with_args_and_filtered_kwargs(func):
     signature = list(inspect.signature(func).parameters)
 
     @functools.wraps(func)
@@ -180,6 +187,27 @@ def _get_function_with_filtered_kwargs(func):
         _kwargs = {key: kwargs[key] for key in signature if key in kwargs}
         return func(**_kwargs)
 
+    processed_func.__name__ = func.__name__
+
+    return processed_func
+
+
+def _get_function_with_filtered_args_and_kwargs(func, state_vars_to_index):
+    signature = list(inspect.signature(func).parameters)
+
+    @functools.wraps(func)
+    def processed_func(*args, **kwargs):
+        _args_to_kwargs = {
+            key: args[idx]
+            for key, idx in state_vars_to_index.items()
+            if key in signature and key not in kwargs
+        }
+
+        _kwargs = {key: kwargs[key] for key in signature if key in kwargs}
+
+        return func(**_args_to_kwargs | _kwargs)
+
+    # Set the __name__ attribute of processed_func to the name of the original func
     processed_func.__name__ = func.__name__
 
     return processed_func

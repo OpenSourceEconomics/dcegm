@@ -23,7 +23,7 @@ def fast_upper_envelope_wrapper(
     policy: jnp.ndarray,
     value: jnp.ndarray,
     expected_value_zero_savings: float,
-    choice: int,
+    state_choice_vec: jnp.ndarray,
     params: Dict[str, float],
     compute_utility: Callable,
     # compute_value: Callable,
@@ -94,7 +94,11 @@ def fast_upper_envelope_wrapper(
         :-1
     ]
     values_to_add = vmap(_compute_value, in_axes=(0, None, None, None, None))(
-        grid_points_to_add, expected_value_zero_savings, choice, params, compute_utility
+        grid_points_to_add,
+        expected_value_zero_savings,
+        state_choice_vec,
+        params,
+        compute_utility,
     )
 
     grid_augmented = jnp.append(grid_points_to_add, endog_grid)
@@ -122,8 +126,15 @@ def fast_upper_envelope_wrapper(
     )
 
 
-def _compute_value(consumption, next_period_value, choice, params, compute_utility):
-    utility = compute_utility(consumption=consumption, choice=choice, **params)
+def _compute_value(
+    consumption, next_period_value, state_choice_vec, params, compute_utility
+):
+    state_vec = state_choice_vec[:-1]
+    choice = state_choice_vec[-1]
+
+    utility = compute_utility(
+        consumption=consumption, choice=choice, *state_vec, **params
+    )
     return utility + params["beta"] * next_period_value
 
 

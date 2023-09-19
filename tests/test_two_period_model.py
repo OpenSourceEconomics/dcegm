@@ -421,7 +421,9 @@ def test_two_period(input_data, wealth_idx, state_idx):
     keys = params.index.droplevel("category").tolist()
     values = params["value"].tolist()
     params = dict(zip(keys, values))
-    state_space, map_state_to_index = create_state_space(input_data["options"])
+    _state_vars, state_space, map_state_to_index = create_state_space(
+        input_data["options"]
+    )
     (
         state_choice_space,
         _map_state_choice_vec_to_parent_state,
@@ -654,9 +656,11 @@ def test_two_period_two_exog_processes(
     keys = params.index.droplevel("category").tolist()
     values = params["value"].tolist()
     params = dict(zip(keys, values))
-    state_space, map_state_to_index = create_state_space_two_exog_processes(
-        input_data_two_exog_processes["options"]
-    )
+    (
+        _state_vars,
+        state_space,
+        map_state_to_index,
+    ) = create_state_space_two_exog_processes(input_data_two_exog_processes["options"])
     (
         state_choice_space,
         _map_state_choice_vec_to_parent_state,

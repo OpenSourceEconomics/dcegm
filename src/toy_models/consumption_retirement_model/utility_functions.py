@@ -27,7 +27,12 @@ def utiility_func_log_crra(
 
 
 def utility_func_crra(
-    consumption: jnp.array, choice: int, theta: float, delta: float
+    consumption: jnp.array,
+    choice: int,
+    period: int,  # state_var
+    # lagged_choice: int,
+    theta: float,
+    delta: float,
 ) -> jnp.array:
     """Computes the agent's current utility based on a CRRA utility function.
 
