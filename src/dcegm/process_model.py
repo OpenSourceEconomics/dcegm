@@ -306,3 +306,36 @@ def recursive_loop(
                 exog_funcs,
                 **kwargs
             )
+
+
+def _process_exog_funcs(options):
+    """Process exogenous functions.
+
+    Args:
+        options (dict): Options dictionary.
+
+    Returns:
+        tuple: Tuple of exogenous processes.
+
+    """
+    exog_processes = options["exogenous_processes"]
+
+    exog_funcs = []
+
+    for exog in exog_processes.values():
+        if isinstance(exog, Callable):
+            exog_funcs += [[_get_opposite_prob(exog), exog]]
+        elif isinstance(exog, list):
+            if len(exog) == 1:
+                exog_funcs += [[_get_opposite_prob(exog[0]), exog[0]]]
+            else:
+                exog_funcs += [[func for func in exog]]
+
+    return exog_funcs
+
+
+def _get_opposite_prob(func):
+    def opposite_prob(*args, **kwargs):
+        return 1 - func(*args, **kwargs)
+
+    return opposite_prob

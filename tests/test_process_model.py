@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 from dcegm.process_model import _get_function_with_filtered_args_and_kwargs
+from dcegm.process_model import _process_exog_funcs
 from dcegm.process_model import convert_params_to_dict
 from dcegm.process_model import recursive_loop
 from numpy.testing import assert_array_almost_equal as aaae
@@ -25,52 +26,102 @@ TEST_DIR = Path(__file__).parent
 TEST_RESOURCES_DIR = TEST_DIR / "resources"
 
 
+def func_exog_ltc(
+    age,
+    married,
+    lagged_ltc,
+    lagged_job_offer,
+    *,
+    ltc_prob_constant,
+    ltc_prob_age,
+    job_offer_constant,
+    job_offer_age,
+    job_offer_educ,
+    job_offer_type_two,
+):
+    return (lagged_ltc == 0) * (ltc_prob_constant + age * ltc_prob_age) + (
+        lagged_ltc == 1
+    )
+
+
+def func_exog_job_offer(
+    age,
+    married,
+    lagged_ltc,
+    lagged_job_offer,
+    *,
+    ltc_prob_constant,
+    ltc_prob_age,
+    job_offer_constant,
+    job_offer_age,
+    job_offer_educ,
+    job_offer_type_two,
+):
+    return (lagged_job_offer == 0) * job_offer_constant + (lagged_job_offer == 1) * (
+        job_offer_constant + job_offer_type_two
+    )
+
+
+def func_exog_good_health(
+    age,
+    married,
+    lagged_health,
+    *,
+    ltc_prob_constant,
+    ltc_prob_age,
+    job_offer_constant,
+    job_offer_age,
+    job_offer_educ,
+    job_offer_type_two,
+):
+    return (
+        (lagged_health == 0) * 0
+        + (lagged_health == 1) * 0.3
+        + (lagged_health == 2) * 0.7
+    )
+
+
+def func_exog_medium_health(
+    age,
+    married,
+    lagged_health,
+    *,
+    ltc_prob_constant,
+    ltc_prob_age,
+    job_offer_constant,
+    job_offer_age,
+    job_offer_educ,
+    job_offer_type_two,
+):
+    return (
+        (lagged_health == 0) * 0
+        + (lagged_health == 1) * 0.5
+        + (lagged_health == 2) * 0.2
+    )
+
+
+def func_exog_bad_health(
+    age,
+    married,
+    lagged_health,
+    *,
+    ltc_prob_constant,
+    ltc_prob_age,
+    job_offer_constant,
+    job_offer_age,
+    job_offer_educ,
+    job_offer_type_two,
+):
+    return (
+        (lagged_health == 0) * 1
+        + (lagged_health == 1) * 0.2
+        + (lagged_health == 2) * 0.1
+    )
+
+
 @pytest.fixture()
-def example_exogenous_processes():
+def example_exog_processes():
     """Define example exogenous processes."""
-
-    def func_exog_ltc(
-        age,
-        married,
-        lagged_ltc,
-        lagged_job_offer,
-        *,
-        ltc_prob_constant,
-        ltc_prob_age,
-        job_offer_constant,
-        job_offer_age,
-        job_offer_educ,
-        job_offer_type_two,
-    ):
-        return (lagged_ltc == 0) * (ltc_prob_constant + age * ltc_prob_age) + (
-            lagged_ltc == 1
-        )
-
-    def func_exog_job_offer(
-        age,
-        married,
-        lagged_ltc,
-        lagged_job_offer,
-        *,
-        ltc_prob_constant,
-        ltc_prob_age,
-        job_offer_constant,
-        job_offer_age,
-        job_offer_educ,
-        job_offer_type_two,
-    ):
-        return (lagged_job_offer == 0) * 0.5 + (lagged_job_offer == 1) * 0.9
-
-    def func_no_exog_ltc(*args, **kwargs):
-        return 1 - func_exog_ltc(*args, **kwargs)
-
-    def func_no_exog_job_offer(*args, **kwargs):
-        return 1 - func_exog_job_offer(*args, **kwargs)
-
-    exog_funcs = [
-        [func_no_exog_ltc, func_exog_ltc],
-        [func_no_exog_job_offer, func_exog_job_offer],
-    ]
 
     # interface
     age = [0, 1]
@@ -86,13 +137,20 @@ def example_exogenous_processes():
     params = {
         "ltc_prob_constant": 0.3,
         "ltc_prob_age": 0.1,
-        "job_offer_constant": 0,
+        "job_offer_constant": 0.5,
         "job_offer_age": 0,
         "job_offer_educ": 0,
-        "job_offer_type_two": 0,
+        "job_offer_type_two": 0.4,
     }
 
-    return state_vars, exog_vars, exog_funcs, params
+    options = {
+        "exogenous_processes": {
+            "ltc": [func_exog_ltc],
+            "job_offer": func_exog_job_offer,
+        }
+    }
+
+    return state_vars, exog_vars, options, params
 
 
 @pytest.fixture()
@@ -166,8 +224,10 @@ def test_get_function_with_filtered_args_and_kwargs(func):
     _util = func_with_filtered_args_and_kwargs(*state_vec_full, **kwargs)
 
 
-def test_recursive_loop(example_exogenous_processes):
-    state_vars, exog_vars, exog_funcs, params = example_exogenous_processes
+def test_recursive_loop(example_exog_processes):
+    state_vars, exog_vars, options, params = example_exog_processes
+
+    exog_funcs = _process_exog_funcs(options)
 
     # Create a result array with the desired shape
     n_exog_states = np.prod([len(var) for var in exog_vars])
