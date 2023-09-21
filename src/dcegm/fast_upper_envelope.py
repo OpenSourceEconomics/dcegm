@@ -626,6 +626,7 @@ def _backward_scan(
 
     """
 
+    # Initialize starting values
     found_value_before_already = False
     idx_point_before_on_same_value = 0
     grad_before_on_same_value = 0.0
@@ -641,19 +642,21 @@ def _backward_scan(
         jump_thresh=jump_thresh,
     )
 
+    # These values will be updated each iteration.
     carry_to_update = (
         found_value_before_already,
         idx_point_before_on_same_value,
         grad_before_on_same_value,
     )
 
-    carry = jax.lax.fori_loop(1, n_points_to_scan + 1, partial_body, carry_to_update)
+    # Execute backward scan.
+    result = jax.lax.fori_loop(1, n_points_to_scan + 1, partial_body, carry_to_update)
 
     (
         found_value_before_already,
         idx_point_before_on_same_value,
         grad_before_on_same_value,
-    ) = carry
+    ) = result
 
     return (
         grad_before_on_same_value,
