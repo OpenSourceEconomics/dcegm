@@ -628,43 +628,88 @@ def _backward_scan(
 
     found_value_before_already = False
     idx_point_before_on_same_value = 0
-    grad_before_on_same_value = 0
+    grad_before_on_same_value = 0.0
 
-    for i in range(1, n_points_to_scan + 1):
-        idx_scan = jnp.maximum(idx_to_scan_from - i, 0)
+    partial_body = partial(
+        backward_scan_body,
+        idx_to_scan_from=idx_to_scan_from,
+        endog_grid_j=endog_grid_j,
+        value_j=value_j,
+        endog_grid=endog_grid,
+        value=value,
+        policy=policy,
+        jump_thresh=jump_thresh,
+    )
 
-        is_not_on_same_value = create_indicator_if_value_function_is_switched(
-            endog_grid_1=endog_grid[idx_to_scan_from],
-            policy_1=policy[idx_to_scan_from],
-            endog_grid_2=endog_grid[idx_scan],
-            policy_2=policy[idx_scan],
-            jump_thresh=jump_thresh,
-        )
-        is_on_same_value = 1 - is_not_on_same_value
+    carry_to_update = (
+        found_value_before_already,
+        idx_point_before_on_same_value,
+        grad_before_on_same_value,
+    )
 
-        grad_before = calc_gradient(
-            x1=endog_grid_j,
-            y1=value_j,
-            x2=endog_grid[idx_scan],
-            y2=value[idx_scan],
-        )
-        # Now check if this is the first value on the same value function
-        # This is only 1 if so far there hasn't been found a point and the point is on
-        # the same value function
-        is_before = is_on_same_value & (1 - found_value_before_already)
-        # Update if you have found a point. Always 1 (=True) if you have found a point
-        # already
-        found_value_before_already = found_value_before_already | is_on_same_value
+    carry = jax.lax.fori_loop(1, n_points_to_scan + 1, partial_body, carry_to_update)
 
-        # Update the first time a new point is found
-        idx_point_before_on_same_value += idx_scan * is_before
-
-        # Update the first time a new point is found
-        grad_before_on_same_value += grad_before * is_before
+    (
+        found_value_before_already,
+        idx_point_before_on_same_value,
+        grad_before_on_same_value,
+    ) = carry
 
     return (
         grad_before_on_same_value,
         idx_point_before_on_same_value,
+    )
+
+
+def backward_scan_body(
+    scan_counter,
+    carry,
+    idx_to_scan_from,
+    endog_grid_j,
+    value_j,
+    endog_grid,
+    value,
+    policy,
+    jump_thresh,
+):
+    idx_scan = jnp.maximum(idx_to_scan_from - scan_counter, 0)
+    (
+        found_value_before_already,
+        idx_point_before_on_same_value,
+        grad_before_on_same_value,
+    ) = carry
+    is_not_on_same_value = create_indicator_if_value_function_is_switched(
+        endog_grid_1=endog_grid[idx_to_scan_from],
+        policy_1=policy[idx_to_scan_from],
+        endog_grid_2=endog_grid[idx_scan],
+        policy_2=policy[idx_scan],
+        jump_thresh=jump_thresh,
+    )
+    is_on_same_value = ~is_not_on_same_value
+
+    grad_before = calc_gradient(
+        x1=endog_grid_j,
+        y1=value_j,
+        x2=endog_grid[idx_scan],
+        y2=value[idx_scan],
+    )
+    # Now check if this is the first value on the same value function
+    # This is only 1 if so far there hasn't been found a point and the point is on
+    # the same value function
+    is_before = is_on_same_value & (1 - found_value_before_already)
+    # Update if you have found a point. Always 1 (=True) if you have found a point
+    # already
+    found_value_before_already = found_value_before_already | is_on_same_value
+
+    # Update the first time a new point is found
+    idx_point_before_on_same_value += idx_scan * is_before
+
+    # Update the first time a new point is found
+    grad_before_on_same_value += grad_before * is_before
+    return (
+        found_value_before_already,
+        idx_point_before_on_same_value,
+        grad_before_on_same_value,
     )
 
 
