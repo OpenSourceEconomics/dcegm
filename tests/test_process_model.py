@@ -160,7 +160,9 @@ def example_exog_processes():
         # "model_structure":
         "exogenous_processes": {
             "ltc": [func_exog_ltc],
-            "job_offer": np.array(),  # func_exog_job_offer,
+            "job_offer": np.array(
+                [[0.7, 0.2, 0.1], [0.3, 0.5, 0.2], [0, 0, 1]]
+            ),  # func_exog_job_offer,
         },
         "state_variables": {
             "endogenous": {
@@ -252,7 +254,7 @@ def test_recursive_loop(example_exog_processes):
 
     # ============ state_vars ============
 
-    _options = {"exogenous_processes": {"health": exog_health_mat()}}
+    _options = {"exogenous_processes": {"health": exog_health_mat}}
 
     # func = _process_exog_funcs(_options, state_vars_to_index)
 

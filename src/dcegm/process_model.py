@@ -24,7 +24,7 @@ def process_model_functions(
     user_utility_functions: Dict[str, Callable],
     user_budget_constraint: Callable,
     user_final_period_solution: Callable,
-    # exogenous_transition_function: Callable,
+    exogenous_transition_function: Callable,
 ) -> Tuple[Callable, Callable, Callable, Callable, Callable, Callable, Callable]:
     """Create wrapped functions from user supplied functions.
 
@@ -106,7 +106,8 @@ def process_model_functions(
 
     # update endgo also partial
 
-    compute_exog_transition_probs = create_transition_function(options)
+    # compute_exog_transition_probs = create_transition_function(options)
+    compute_exog_transition_probs = exogenous_transition_function
 
     if options["n_discrete_choices"] == 1:
         compute_upper_envelope = _return_policy_and_value
