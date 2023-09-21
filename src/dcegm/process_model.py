@@ -10,6 +10,7 @@ from typing import Tuple
 from typing import Union
 
 import jax.numpy as jnp
+import numpy as np
 import pandas as pd
 from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
 from pybaum import get_registry
@@ -23,7 +24,7 @@ def process_model_functions(
     user_utility_functions: Dict[str, Callable],
     user_budget_constraint: Callable,
     user_final_period_solution: Callable,
-    exogenous_transition_function: Callable,
+    # exogenous_transition_function: Callable,
 ) -> Tuple[Callable, Callable, Callable, Callable, Callable, Callable, Callable]:
     """Create wrapped functions from user supplied functions.
 
@@ -105,7 +106,7 @@ def process_model_functions(
 
     # update endgo also partial
 
-    compute_transitions_exog_states = exogenous_transition_function
+    compute_exog_transition_probs = create_transition_function(options)
 
     if options["n_discrete_choices"] == 1:
         compute_upper_envelope = _return_policy_and_value
@@ -119,8 +120,83 @@ def process_model_functions(
         compute_beginning_of_period_wealth,
         compute_final_period,
         compute_upper_envelope,
-        compute_transitions_exog_states,
+        compute_exog_transition_probs,
     )
+
+
+def create_transition_function(options, params):
+    # needed !!!
+    state_vars = (
+        options["state_variables"]["endogenous"]
+        | options["state_variables"]["exogenous"]
+    )
+    # flatten directly!
+    state_vars_to_index = {key: idx for idx, key in enumerate(state_vars.keys())}
+    # for idx, key in enumerate(state_vars.keys()):
+    #     state_vars_to_index[key] = idx
+
+    # read state vars from function
+
+    exog_funcs_list, signature = process_exog_funcs(options)
+    _filtered_state_vars = [
+        key for key in signature if key in set(state_vars_to_index.keys())
+    ]
+    _filtered_endog_state_vars = [
+        key
+        for key in _filtered_state_vars
+        if key in options["state_variables"]["endogenous"].keys()
+    ]
+    filtered_endog_state_vars_and_values = {
+        key: val
+        for key, val in options["state_variables"]["endogenous"].items()
+        if key in _filtered_state_vars
+    }
+    exog_state_vars_and_values = options["state_variables"]["exogenous"]
+    # create the filtered range thingy for recursion
+
+    # cCreate transition matrix
+    n_exog_states = np.prod([len(var) for var in exog_state_vars_and_values.keys()])
+    result_shape = [n_exog_states, n_exog_states]
+    result_shape.extend([len(var) for var in _filtered_endog_state_vars])
+    transition_matrix = np.empty(result_shape)
+
+    recursive_loop(
+        transition_mat=transition_matrix,
+        state_vars=filtered_endog_state_vars_and_values,
+        exog_vars=exog_state_vars_and_values,
+        state_indices=[],
+        exog_indices=[],
+        exog_funcs=exog_funcs_list,
+        **params
+    )
+
+    # recursion
+
+    transition_func = _matrix_to_func(
+        transition_matrix=transition_matrix,
+        filtered_state_vars=_filtered_endog_state_vars,
+        state_vars_to_index=state_vars_to_index,
+    )
+
+    return transition_func
+
+
+def _matrix_to_func(transition_matrix, filtered_endog_state_vars, state_vars_to_index):
+    # state_vars_filtered = ["age", "married"]
+    # signature = state_vars_filtered
+
+    def get_transition_vec(*args):
+        _filtered_args = [
+            args[idx]
+            for key, idx in state_vars_to_index.items()
+            if key in filtered_endog_state_vars
+        ]
+
+        # function takes no kwargs
+
+        return transition_matrix[..., tuple(_filtered_args)]
+
+    return get_transition_vec
 
 
 def convert_params_to_dict(
@@ -229,13 +305,22 @@ def _get_vmapped_function_with_args_and_filtered_kwargs(func, options):
     return processed_func
 
 
-def _get_function_with_filtered_kwargs(func):
+def _get_function_with_filtered_kwargs(func, options, state_vars_to_index):
+    """For funcs that doe not take state_vec."""
     signature = list(inspect.signature(func).parameters)
 
     @functools.wraps(func)
-    def processed_func(**kwargs):
-        _kwargs = {key: kwargs[key] for key in signature if key in kwargs}
-        return func(**_kwargs)
+    def processed_func(*args, **kwargs):
+        _args = [arg for arg in args if not isinstance(arg, dict)]
+        _kwargs = {
+            key: kwargs[key] for key in signature if key in kwargs and key != "options"
+        }
+
+        # partial in
+        if "options" in signature:
+            _kwargs["options"] = options
+
+        return func(*_args, **_kwargs)
 
     processed_func.__name__ = func.__name__
 
@@ -252,7 +337,13 @@ def _return_policy_and_value(
 
 
 def recursive_loop(
-    result, state_vars, exog_vars, state_indices, exog_indices, exog_funcs, **kwargs
+    transition_mat,
+    state_vars,
+    exog_vars,
+    state_indices,
+    exog_indices,
+    exog_funcs,
+    **kwargs
 ):
     if len(state_indices) == len(state_vars):
         if len(exog_indices) == len(exog_vars):
@@ -275,7 +366,7 @@ def recursive_loop(
             )
 
             for col, funcs in enumerate(product(*exog_funcs)):
-                result[tuple([row, col] + state_indices)] = reduce(
+                transition_mat[tuple([row, col] + state_indices)] = reduce(
                     jnp.multiply,
                     [
                         func(*state_var_values, *exog_var_values, **kwargs)
@@ -286,7 +377,7 @@ def recursive_loop(
         else:
             for exog_i in range(len(exog_vars[0])):
                 recursive_loop(
-                    result,
+                    transition_mat,
                     state_vars,
                     exog_vars,
                     state_indices,
@@ -298,7 +389,7 @@ def recursive_loop(
     else:
         for state_i in range(len(state_vars[len(state_indices)])):
             recursive_loop(
-                result,
+                transition_mat,
                 state_vars,
                 exog_vars,
                 state_indices + [state_i],
@@ -308,7 +399,7 @@ def recursive_loop(
             )
 
 
-def _process_exog_funcs(options):
+def process_exog_funcs(options, state_vars_to_index=None):
     """Process exogenous functions.
 
     Args:
@@ -321,21 +412,62 @@ def _process_exog_funcs(options):
     exog_processes = options["exogenous_processes"]
 
     exog_funcs = []
+    signature = []
 
     for exog in exog_processes.values():
         if isinstance(exog, Callable):
-            exog_funcs += [[_get_opposite_prob(exog), exog]]
+            exog_funcs += [
+                [
+                    _get_opposite_prob(exog),
+                    _get_function_with_filtered_kwargs(
+                        exog, options, state_vars_to_index
+                    ),
+                ]
+            ]
+            signature += list(inspect.signature(exog).parameters)
         elif isinstance(exog, list):
             if len(exog) == 1:
-                exog_funcs += [[_get_opposite_prob(exog[0]), exog[0]]]
+                exog_funcs += [
+                    [
+                        _get_opposite_prob(exog[0]),
+                        _get_function_with_filtered_kwargs(
+                            exog[0], options, state_vars_to_index
+                        ),
+                    ]
+                ]
+                signature += list(inspect.signature(exog[0]).parameters)
             else:
-                exog_funcs += [[func for func in exog]]
+                _group = []
+                for func in exog:
+                    _group += [
+                        _get_function_with_filtered_kwargs(
+                            func, options, state_vars_to_index
+                        )
+                    ]
 
-    return exog_funcs
+                    signature += list(inspect.signature(func).parameters)
+
+                exog_funcs += [_group]
+        elif isinstance(exog, (np.ndarray, jnp.ndarray)):
+            for row in exog:
+                exog_funcs += [[_dummy_prob(prob) for prob in row]]
+
+    return exog_funcs, list(set(signature))
 
 
-def _get_opposite_prob(func):
+def _get_opposite_prob(func, options, state_vars_to_index):
     def opposite_prob(*args, **kwargs):
         return 1 - func(*args, **kwargs)
 
-    return opposite_prob
+    return _get_function_with_filtered_kwargs(
+        opposite_prob, options=options, state_vars_to_index=state_vars_to_index
+    )
+
+
+def _dummy_prob(prob, options=None, state_vars_to_index=None):
+    def dummy_prob(*args, **kwargs):
+        return prob
+
+    return _get_function_with_filtered_kwargs(
+        dummy_prob, options=options, state_vars_to_index=state_vars_to_index
+    )

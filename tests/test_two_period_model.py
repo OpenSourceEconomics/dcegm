@@ -90,8 +90,8 @@ def solve_final_period_scalar(
     return marginal_utility, value, consumption
 
 
-def get_transition_vector_dcegm(state, params, transition_matrix):
-    return transition_matrix[state[-1]]
+def get_transition_vector_dcegm(state_vec, params, transition_matrix):
+    return transition_matrix[state_vec[-1]]
 
 
 def get_transition_vector_dcegm_two_exog_processes(state, params, transition_matrix):

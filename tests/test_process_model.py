@@ -3,8 +3,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 from dcegm.process_model import _get_function_with_filtered_args_and_kwargs
-from dcegm.process_model import _process_exog_funcs
 from dcegm.process_model import convert_params_to_dict
+from dcegm.process_model import process_exog_funcs
 from dcegm.process_model import recursive_loop
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import (
@@ -28,9 +28,9 @@ TEST_RESOURCES_DIR = TEST_DIR / "resources"
 
 def func_exog_ltc(
     age,
-    married,
+    # married,
     lagged_ltc,
-    lagged_job_offer,
+    # lagged_job_offer,
     *,
     ltc_prob_constant,
     ltc_prob_age,
@@ -47,7 +47,7 @@ def func_exog_ltc(
 def func_exog_job_offer(
     age,
     married,
-    lagged_ltc,
+    # lagged_ltc,
     lagged_job_offer,
     *,
     ltc_prob_constant,
@@ -104,19 +104,31 @@ def func_exog_bad_health(
     age,
     married,
     lagged_health,
-    *,
-    ltc_prob_constant,
-    ltc_prob_age,
-    job_offer_constant,
-    job_offer_age,
-    job_offer_educ,
-    job_offer_type_two,
+    # choice,
+    options,
+    params,
+    # *,
+    # ltc_prob_constant,
+    # ltc_prob_age,
+    # job_offer_constant,
+    # job_offer_age,
+    # job_offer_educ,
+    # job_offer_type_two,
 ):
     return (
         (lagged_health == 0) * 1
         + (lagged_health == 1) * 0.2
         + (lagged_health == 2) * 0.1
     )
+    # return 0.7, 0.3, 0
+
+
+def exog_health_mat(options):
+    """Good, medium, bad health."""
+    # mat = options["anytin"]
+
+    # only allow to return vector, otherwise specify matrix
+    return np.array([[0.7, 0.2, 0.1], [0.3, 0.5, 0.2], [0, 0, 1]])
 
 
 @pytest.fixture()
@@ -143,11 +155,22 @@ def example_exog_processes():
         "job_offer_type_two": 0.4,
     }
 
+    # mat = np.
     options = {
+        # "model_structure":
         "exogenous_processes": {
             "ltc": [func_exog_ltc],
-            "job_offer": func_exog_job_offer,
-        }
+            "job_offer": np.array(),  # func_exog_job_offer,
+        },
+        "state_variables": {
+            "endogenous": {
+                "age": np.arange(2),
+                "married": [0, 1],
+                "lagged_choice": [0, 1],
+            },
+            "exogenous": {"lagged_ltc": [0, 1], "lagged_job_offer": [0, 1]},
+        },
+        # "model_params":
     }
 
     return state_vars, exog_vars, options, params
@@ -227,7 +250,21 @@ def test_get_function_with_filtered_args_and_kwargs(func):
 def test_recursive_loop(example_exog_processes):
     state_vars, exog_vars, options, params = example_exog_processes
 
-    exog_funcs = _process_exog_funcs(options)
+    # ============ state_vars ============
+
+    _options = {"exogenous_processes": {"health": exog_health_mat()}}
+
+    # func = _process_exog_funcs(_options, state_vars_to_index)
+
+    # args = [0, 0, 0]
+    # f = func[0][0]
+    # out = func[0][0](*args, **params)
+
+    # breakpoint()
+
+    # ============ exog_funcs ============
+
+    exog_funcs = process_exog_funcs(options)
 
     # Create a result array with the desired shape
     n_exog_states = np.prod([len(var) for var in exog_vars])
