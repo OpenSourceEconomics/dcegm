@@ -631,6 +631,38 @@ def back_and_forward_scan_wrapper(
     indexes_to_scan,
     jump_thresh,
 ):
+    """Wrapper function to execute the backwards and forward scan.
+
+    Args:
+        endog_grid_to_calculate_gradient (float): The endogenous grid point to calculate
+            the gradient from.
+        value_to_calculate_gradient (float): The value function point to calculate the
+            gradient from.
+        endog_grid_to_scan_from (float): The endogenous grid point to scan from. We want
+            to find the grid point which is on the same value function segment as the
+            point we scan from.
+        policy_to_scan_from (float): The policy function point to scan from. We want to
+            find the grid point which is on the same value function segment as the point
+            we scan from.
+        endog_grid (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            unrefined endogenous wealth grid.
+        value (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            unrefined value correspondence.
+        policy (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            unrefined policy correspondence.
+        indexes_to_scan (np.ndarray): 1d array of shape (n_points_to_scan,) containing
+            the indexes to scan.
+        jump_thresh (float): Threshold for the jump in the value function.
+
+
+    Returns:
+        tuple:
+
+        - grad_we_search_for (float): The gradient we search for.
+        - idx_on_same_value (int): The index of the point on the same value function
+            segment as the point we scan from.
+
+    """
     # Prepare body function by partialing in, everything except carry and counter
     partial_body = partial(
         back_and_forward_scan_body,
@@ -686,6 +718,38 @@ def back_and_forward_scan_body(
     policy,
     jump_thresh,
 ):
+    """The scan body to be executed at each iteration of the backwards and forward scan
+    function.
+
+    Args:
+        carry (tuple): The carry value passed from the previous iteration. This is a
+            tuple containing the variables that are updated in each iteration.
+        current_scaned_index (int): The current index to be scanned.
+        endog_grid_to_calculate_gradient (float): The endogenous grid point to calculate
+            the gradient from.
+        value_to_calculate_gradient (float): The value function point to calculate the
+            gradient from.
+        endog_grid_to_scan_from (float): The endogenous grid point to scan from. We want
+            to find the grid point which is on the same value function segment as the
+            point we scan from.
+        policy_to_scan_from (float): The policy function point to scan from. We want to
+            find the grid point which is on the same value function segment as the point
+            we scan from.
+        endog_grid (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            unrefined endogenous wealth grid.
+        value (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            unrefined value correspondence.
+        policy (np.ndarray): 1d array of shape (n_grid_wealth,) containing the
+            unrefined policy correspondence.
+        jump_thresh (float): Threshold for the jump in the value function.
+
+    Returns:
+        tuple:
+
+        - carry (tuple): The updated carry value passed to the next iteration.
+        - None: Dummy value to be returned.
+
+    """
     (
         found_value_already,
         idx_on_same_value,
