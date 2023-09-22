@@ -625,22 +625,52 @@ def _backward_scan(
             previous point on the same value function.
 
     """
+    (
+        grad_before_on_same_value,
+        idx_point_before_on_same_value,
+    ) = back_and_forward_scan_wrapper(
+        endog_grid_to_calculate_gradient=endog_grid_j,
+        value_to_calculate_gradient=value_j,
+        endog_grid_to_scan_from=endog_grid[idx_to_scan_from],
+        policy_to_scan_from=policy[idx_to_scan_from],
+        endog_grid=endog_grid,
+        value=value,
+        policy=policy,
+        indexes_to_scan=idx_to_scan_from
+        - jnp.arange(1, n_points_to_scan + 1, dtype=int),
+        jump_thresh=jump_thresh,
+    )
 
-    # Initialize starting values
-    found_value_before_already = False
-    idx_point_before_on_same_value = 0
-    grad_before_on_same_value = 0.0
+    return grad_before_on_same_value, idx_point_before_on_same_value
 
+
+def back_and_forward_scan_wrapper(
+    endog_grid_to_calculate_gradient,
+    value_to_calculate_gradient,
+    endog_grid_to_scan_from,
+    policy_to_scan_from,
+    endog_grid,
+    value,
+    policy,
+    indexes_to_scan,
+    jump_thresh,
+):
     partial_body = partial(
-        backward_scan_body,
-        idx_to_scan_from=idx_to_scan_from,
-        endog_grid_j=endog_grid_j,
-        value_j=value_j,
+        back_and_forward_scan_body,
+        endog_grid_to_calculate_gradient=endog_grid_to_calculate_gradient,
+        value_to_calculate_gradient=value_to_calculate_gradient,
+        endog_grid_to_scan_from=endog_grid_to_scan_from,
+        policy_to_scan_from=policy_to_scan_from,
         endog_grid=endog_grid,
         value=value,
         policy=policy,
         jump_thresh=jump_thresh,
     )
+
+    # Initialize starting values
+    found_value_before_already = False
+    idx_point_before_on_same_value = 0
+    grad_before_on_same_value = 0.0
 
     # These values will be updated each iteration.
     carry_to_update = (
@@ -650,13 +680,15 @@ def _backward_scan(
     )
 
     # Execute backward scan.
-    result = jax.lax.fori_loop(1, n_points_to_scan + 1, partial_body, carry_to_update)
+    final_carry, _ = jax.lax.scan(
+        f=partial_body, init=carry_to_update, xs=indexes_to_scan
+    )
 
     (
         found_value_before_already,
         idx_point_before_on_same_value,
         grad_before_on_same_value,
-    ) = result
+    ) = final_carry
 
     return (
         grad_before_on_same_value,
@@ -664,26 +696,30 @@ def _backward_scan(
     )
 
 
-def backward_scan_body(
-    scan_counter,
+def back_and_forward_scan_body(
     carry,
-    idx_to_scan_from,
-    endog_grid_j,
-    value_j,
+    current_scaned_index,
+    endog_grid_to_calculate_gradient,
+    value_to_calculate_gradient,
+    endog_grid_to_scan_from,
+    policy_to_scan_from,
     endog_grid,
     value,
     policy,
     jump_thresh,
 ):
-    idx_scan = jnp.maximum(idx_to_scan_from - scan_counter, 0)
     (
         found_value_before_already,
         idx_point_before_on_same_value,
         grad_before_on_same_value,
     ) = carry
+
+    max_index = endog_grid.shape[0] - 1
+    idx_scan = jax.lax.clamp(0, current_scaned_index, max_index)
+
     is_not_on_same_value = create_indicator_if_value_function_is_switched(
-        endog_grid_1=endog_grid[idx_to_scan_from],
-        policy_1=policy[idx_to_scan_from],
+        endog_grid_1=endog_grid_to_scan_from,
+        policy_1=policy_to_scan_from,
         endog_grid_2=endog_grid[idx_scan],
         policy_2=policy[idx_scan],
         jump_thresh=jump_thresh,
@@ -691,8 +727,8 @@ def backward_scan_body(
     is_on_same_value = ~is_not_on_same_value
 
     grad_before = calc_gradient(
-        x1=endog_grid_j,
-        y1=value_j,
+        x1=endog_grid_to_calculate_gradient,
+        y1=value_to_calculate_gradient,
         x2=endog_grid[idx_scan],
         y2=value[idx_scan],
     )
@@ -713,7 +749,7 @@ def backward_scan_body(
         found_value_before_already,
         idx_point_before_on_same_value,
         grad_before_on_same_value,
-    )
+    ), None
 
 
 def update_bools_and_idx_to_inspect(idx_to_inspect, update_idx, case_2, case_5):
