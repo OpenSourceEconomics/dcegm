@@ -22,6 +22,7 @@ from dcegm.state_space import (
 from dcegm.state_space import create_state_choice_space
 from jax import jit
 from jax import vmap
+from jax.lax import scan
 
 
 def get_solve_function(
@@ -334,7 +335,6 @@ def backward_induction(
     partial_body = partial(
         induct_body,
         params=params,
-        n_periods=n_periods,
         resources_beginning_of_period=resources_beginning_of_period,
         exog_savings_grid=exog_savings_grid,
         income_shock_weights=income_shock_weights,
@@ -345,16 +345,19 @@ def backward_induction(
         compute_upper_envelope=compute_upper_envelope,
     )
 
-    for step in range(2, n_periods + 1):
-        in_out_dict = partial_body(step=step, in_out_dict=in_out_dict)
+    periods = jnp.arange(n_periods - 2, -1, -1)
+
+    in_out_dict, _ = scan(f=partial_body, init=in_out_dict, xs=periods)
+
+    # for step in range(2, n_periods + 1):
+    #     in_out_dict = partial_body(step=step, in_out_dict=in_out_dict)
 
     return in_out_dict["output"]
 
 
 def induct_body(
-    step,
     in_out_dict: Dict[int, jnp.ndarray],
-    n_periods,
+    period,
     params: Dict[str, float],
     exog_savings_grid: np.ndarray,
     income_shock_weights: np.ndarray,
@@ -365,10 +368,9 @@ def induct_body(
     compute_upper_envelope: Callable,
     resources_beginning_of_period,
 ):
-    period = n_periods - step
     taste_shock_scale = params["lambda"]
 
-    state_objects = in_out_dict["input"][period + 1]
+    state_objects = in_out_dict["input"][period]
 
     endog_grid_state_choice = in_out_dict["output"][period + 1]["endog_grid"]
     policy_left_state_choice = in_out_dict["output"][period + 1]["policy_left"]
