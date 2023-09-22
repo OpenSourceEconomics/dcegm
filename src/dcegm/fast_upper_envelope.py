@@ -344,7 +344,7 @@ def scan_body(
         policy=policy,
         endog_grid=endog_grid,
         points_j_and_k=points_j_and_k,
-        idx_to_scan_from=idx_to_inspect,
+        idx_to_inspect=idx_to_inspect,
         n_points_to_scan=n_points_to_scan,
         jump_thresh=jump_thresh,
     )
@@ -424,7 +424,7 @@ def run_forward_and_backward_scans(
     policy,
     endog_grid,
     points_j_and_k,
-    idx_to_scan_from,
+    idx_to_inspect,
     n_points_to_scan,
     jump_thresh,
 ):
@@ -480,7 +480,7 @@ def run_forward_and_backward_scans(
         endog_grid=endog_grid,
         endog_grid_j=endog_grid_k_and_j[1],
         policy_j=policy_k_and_j[1],
-        idx_to_scan_from=idx_to_scan_from,
+        idx_to_inspect=idx_to_inspect,
         n_points_to_scan=n_points_to_scan,
         jump_thresh=jump_thresh,
     )
@@ -494,7 +494,7 @@ def run_forward_and_backward_scans(
         endog_grid=endog_grid,
         value_j=value_k_and_j[1],
         endog_grid_j=endog_grid_k_and_j[1],
-        idx_to_scan_from=idx_to_scan_from,
+        idx_to_inspect=idx_to_inspect,
         n_points_to_scan=n_points_to_scan,
         jump_thresh=jump_thresh,
     )
@@ -512,7 +512,7 @@ def _forward_scan(
     endog_grid: jnp.ndarray,
     endog_grid_j: float,
     policy_j: float,
-    idx_to_scan_from: int,
+    idx_to_inspect: int,
     n_points_to_scan: int,
     jump_thresh: float,
 ) -> Tuple[float, int]:
@@ -542,45 +542,21 @@ def _forward_scan(
         - idx_on_same_value (int): Index of next point on the value function.
 
     """
-
-    found_next_value_already = False
-    idx_on_same_value = 0
-    grad_next_on_same_value = 0
-
-    idx_max = endog_grid.shape[0] - 1
-
-    for i in range(1, n_points_to_scan + 1):
-        # Avoid out of bound indexing
-        idx_scan = jnp.minimum(idx_to_scan_from + i, idx_max)
-
-        is_not_on_same_value = create_indicator_if_value_function_is_switched(
-            endog_grid_1=endog_grid_j,
-            policy_1=policy_j,
-            endog_grid_2=endog_grid[idx_scan],
-            policy_2=policy[idx_scan],
-            jump_thresh=jump_thresh,
-        )
-        is_on_same_value = 1 - is_not_on_same_value
-        gradient_next = calc_gradient(
-            x1=endog_grid[idx_to_scan_from],
-            y1=value[idx_to_scan_from],
-            x2=endog_grid[idx_scan],
-            y2=value[idx_scan],
-        )
-
-        # Now check if this is the first value on the same value function
-        # This is only 1 if so far there hasn't been found a point and the point is on
-        # the same value function
-        value_is_next_on_same_value = is_on_same_value & ~found_next_value_already
-        # Update if you have found a point. Always 1 (=True) if you have found a point
-        # already
-        found_next_value_already = found_next_value_already | is_on_same_value
-
-        # Update the index the first time a point is found
-        idx_on_same_value += idx_scan * value_is_next_on_same_value
-
-        # Update the gradient the first time a point is found
-        grad_next_on_same_value += gradient_next * value_is_next_on_same_value
+    indexes_to_scan = idx_to_inspect + jnp.arange(1, n_points_to_scan + 1, dtype=int)
+    (
+        grad_next_on_same_value,
+        idx_on_same_value,
+    ) = back_and_forward_scan_wrapper(
+        endog_grid_to_calculate_gradient=endog_grid[idx_to_inspect],
+        value_to_calculate_gradient=value[idx_to_inspect],
+        endog_grid_to_scan_from=endog_grid_j,
+        policy_to_scan_from=policy_j,
+        endog_grid=endog_grid,
+        value=value,
+        policy=policy,
+        indexes_to_scan=indexes_to_scan,
+        jump_thresh=jump_thresh,
+    )
 
     return (
         grad_next_on_same_value,
@@ -594,7 +570,7 @@ def _backward_scan(
     endog_grid: jnp.ndarray,
     endog_grid_j,
     value_j,
-    idx_to_scan_from: int,
+    idx_to_inspect: int,
     n_points_to_scan: int,
     jump_thresh: float,
 ) -> Tuple[float, int]:
@@ -625,19 +601,19 @@ def _backward_scan(
             previous point on the same value function.
 
     """
+    indexes_to_scan = idx_to_inspect - jnp.arange(1, n_points_to_scan + 1, dtype=int)
     (
         grad_before_on_same_value,
         idx_point_before_on_same_value,
     ) = back_and_forward_scan_wrapper(
         endog_grid_to_calculate_gradient=endog_grid_j,
         value_to_calculate_gradient=value_j,
-        endog_grid_to_scan_from=endog_grid[idx_to_scan_from],
-        policy_to_scan_from=policy[idx_to_scan_from],
+        endog_grid_to_scan_from=endog_grid[idx_to_inspect],
+        policy_to_scan_from=policy[idx_to_inspect],
         endog_grid=endog_grid,
         value=value,
         policy=policy,
-        indexes_to_scan=idx_to_scan_from
-        - jnp.arange(1, n_points_to_scan + 1, dtype=int),
+        indexes_to_scan=indexes_to_scan,
         jump_thresh=jump_thresh,
     )
 
@@ -655,6 +631,7 @@ def back_and_forward_scan_wrapper(
     indexes_to_scan,
     jump_thresh,
 ):
+    # Prepare body function by partialing in, everything except carry and counter
     partial_body = partial(
         back_and_forward_scan_body,
         endog_grid_to_calculate_gradient=endog_grid_to_calculate_gradient,
@@ -668,31 +645,32 @@ def back_and_forward_scan_wrapper(
     )
 
     # Initialize starting values
-    found_value_before_already = False
-    idx_point_before_on_same_value = 0
-    grad_before_on_same_value = 0.0
+    found_value_already = False
+    idx_on_same_value = 0
+    grad_we_search_for = 0.0
 
     # These values will be updated each iteration.
     carry_to_update = (
-        found_value_before_already,
-        idx_point_before_on_same_value,
-        grad_before_on_same_value,
+        found_value_already,
+        idx_on_same_value,
+        grad_we_search_for,
     )
 
-    # Execute backward scan.
+    # Execute scan function. The result is the final carry value.
     final_carry, _ = jax.lax.scan(
         f=partial_body, init=carry_to_update, xs=indexes_to_scan
     )
 
+    # Read out final carry.
     (
-        found_value_before_already,
-        idx_point_before_on_same_value,
-        grad_before_on_same_value,
+        found_value_already,
+        idx_on_same_value,
+        grad_we_search_for,
     ) = final_carry
 
     return (
-        grad_before_on_same_value,
-        idx_point_before_on_same_value,
+        grad_we_search_for,
+        idx_on_same_value,
     )
 
 
@@ -709,13 +687,15 @@ def back_and_forward_scan_body(
     jump_thresh,
 ):
     (
-        found_value_before_already,
-        idx_point_before_on_same_value,
-        grad_before_on_same_value,
+        found_value_already,
+        idx_on_same_value,
+        grad_we_search_for,
     ) = carry
 
-    max_index = endog_grid.shape[0] - 1
-    idx_scan = jax.lax.clamp(0, current_scaned_index, max_index)
+    # Make sure that we do not index out of bounds. If we reach the beginning or end of
+    # the array, we'll just du dummy evaluations on the same point.
+    max_index_in_array = endog_grid.shape[0] - 1
+    idx_scan = jax.lax.clamp(0, current_scaned_index, max_index_in_array)
 
     is_not_on_same_value = create_indicator_if_value_function_is_switched(
         endog_grid_1=endog_grid_to_scan_from,
@@ -726,7 +706,7 @@ def back_and_forward_scan_body(
     )
     is_on_same_value = ~is_not_on_same_value
 
-    grad_before = calc_gradient(
+    grad_to_idx_to_scan = calc_gradient(
         x1=endog_grid_to_calculate_gradient,
         y1=value_to_calculate_gradient,
         x2=endog_grid[idx_scan],
@@ -735,20 +715,20 @@ def back_and_forward_scan_body(
     # Now check if this is the first value on the same value function
     # This is only 1 if so far there hasn't been found a point and the point is on
     # the same value function
-    is_before = is_on_same_value & (1 - found_value_before_already)
+    is_point_we_search = is_on_same_value & (1 - found_value_already)
     # Update if you have found a point. Always 1 (=True) if you have found a point
     # already
-    found_value_before_already = found_value_before_already | is_on_same_value
+    found_value_already = found_value_already | is_on_same_value
 
     # Update the first time a new point is found
-    idx_point_before_on_same_value += idx_scan * is_before
+    idx_on_same_value += idx_scan * is_point_we_search
 
     # Update the first time a new point is found
-    grad_before_on_same_value += grad_before * is_before
+    grad_we_search_for += grad_to_idx_to_scan * is_point_we_search
     return (
-        found_value_before_already,
-        idx_point_before_on_same_value,
-        grad_before_on_same_value,
+        found_value_already,
+        idx_on_same_value,
+        grad_we_search_for,
     ), None
 
 
