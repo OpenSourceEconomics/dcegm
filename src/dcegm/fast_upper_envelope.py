@@ -13,6 +13,7 @@ from typing import Tuple
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 from dcegm.math_funcs import calc_gradient
 from dcegm.math_funcs import calc_intersection_and_extrapolate_policy
 from jax import vmap
@@ -74,7 +75,7 @@ def fast_upper_envelope_wrapper(
             containing refined state- and choice-specific value function.
 
     """
-    min_wealth_grid = jnp.min(endog_grid)
+    min_wealth_grid = np.min(endog_grid)
     # These tuning parameters should be set outside. Don't want to touch solve.py now
     points_to_add = len(endog_grid) // 10
     num_iter = int(1.2 * value.shape[0])
@@ -542,7 +543,7 @@ def _forward_scan(
         - idx_on_same_value (int): Index of next point on the value function.
 
     """
-    indexes_to_scan = idx_to_inspect + jnp.arange(1, n_points_to_scan + 1, dtype=int)
+    indexes_to_scan = idx_to_inspect + np.arange(1, n_points_to_scan + 1, dtype=int)
     (
         grad_next_on_same_value,
         idx_on_same_value,
@@ -601,7 +602,7 @@ def _backward_scan(
             previous point on the same value function.
 
     """
-    indexes_to_scan = idx_to_inspect - jnp.arange(1, n_points_to_scan + 1, dtype=int)
+    indexes_to_scan = idx_to_inspect - np.arange(1, n_points_to_scan + 1, dtype=int)
     (
         grad_before_on_same_value,
         idx_point_before_on_same_value,
