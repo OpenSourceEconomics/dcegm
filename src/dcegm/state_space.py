@@ -97,6 +97,7 @@ def create_state_choice_space(
                         state_idx, choice
                     ] = out_of_bounds_index
 
+    # breakpoint()
     return (
         state_choice_space[:idx],
         map_state_choice_vec_to_parent_state[:idx],

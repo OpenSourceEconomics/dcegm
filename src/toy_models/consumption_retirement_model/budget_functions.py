@@ -1,3 +1,6 @@
+from typing import Any
+from typing import Dict
+
 import jax
 import jax.numpy as jnp
 
@@ -6,14 +9,13 @@ def budget_constraint(
     state_beginning_of_period: jnp.ndarray,
     savings_end_of_previous_period: float,
     income_shock_previous_period: float,
-    # *,
-    min_age: int,
-    interest_rate: float,
-    consumption_floor: float,
-    constant: float,
-    exp: float,
-    exp_squared: float,
-    # options: Dict[str, Any],
+    # min_age: int,
+    # interest_rate: float,
+    # consumption_floor: float,
+    # constant: float,
+    # exp: float,
+    # exp_squared: float,
+    options: Dict[str, Any],
 ) -> float:
     """Compute possible current beginning of period resources.
 
@@ -40,21 +42,21 @@ def budget_constraint(
     income_from_previous_period = _calc_stochastic_income(
         state_beginning_of_period,
         wage_shock=income_shock_previous_period,
-        min_age=min_age,
-        constant=constant,
-        exp=exp,
-        exp_squared=exp_squared,
+        min_age=options["min_age"],
+        constant=options["constant"],
+        exp=options["exp"],
+        exp_squared=options["exp_squared"],
     )
 
     wealth_beginning_of_period = (
         income_from_previous_period
-        + (1 + interest_rate) * savings_end_of_previous_period
+        + (1 + options["interest_rate"]) * savings_end_of_previous_period
     )
 
     # Retirement safety net, only in retirement model, but we require to have it always
     # as a parameter
     wealth_beginning_of_period = jnp.maximum(
-        wealth_beginning_of_period, consumption_floor
+        wealth_beginning_of_period, options["consumption_floor"]
     )
 
     return wealth_beginning_of_period

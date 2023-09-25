@@ -1,5 +1,6 @@
 """Interface for the DC-EGM algorithm."""
 from functools import partial
+from typing import Any
 from typing import Callable
 from typing import Dict
 
@@ -13,57 +14,57 @@ from dcegm.marg_utilities_and_exp_value import (
     aggregate_marg_utils_exp_values,
 )
 from dcegm.process_model import convert_params_to_dict
+from dcegm.process_model import create_exog_transition_mat_recursively
+from dcegm.process_model import get_exog_transition_func
+from dcegm.process_model import get_utils_exog_processes
 from dcegm.process_model import process_model_functions
-from dcegm.process_model import recursive_loop
 from dcegm.state_space import create_map_from_state_to_child_nodes
 from dcegm.state_space import (
     create_period_state_and_state_choice_objects,
 )
 from dcegm.state_space import create_state_choice_space
-from jax import jit
 from jax import vmap
 
+# def func_exog_ltc(
+#     age,
+#     married,
+#     lagged_ltc,
+#     lagged_job_offer,
+#     *,
+#     ltc_prob_constant,
+#     ltc_prob_age,
+#     job_offer_constant,
+#     job_offer_age,
+#     job_offer_educ,
+#     job_offer_type_two,
+# ):
+#     prob_ltc = (lagged_ltc == 0) * (ltc_prob_constant + age * ltc_prob_age) + (
+#         lagged_ltc == 1
+#     )
+#     prob_no_ltc = 1 - prob_ltc
 
-def func_exog_ltc(
-    age,
-    married,
-    lagged_ltc,
-    lagged_job_offer,
-    *,
-    ltc_prob_constant,
-    ltc_prob_age,
-    job_offer_constant,
-    job_offer_age,
-    job_offer_educ,
-    job_offer_type_two,
-):
-    prob_ltc = (lagged_ltc == 0) * (ltc_prob_constant + age * ltc_prob_age) + (
-        lagged_ltc == 1
-    )
-    prob_no_ltc = 1 - prob_ltc
-
-    return prob_no_ltc, prob_ltc
+#     return prob_no_ltc, prob_ltc
 
 
-def func_exog_job_offer(
-    age,
-    married,
-    lagged_ltc,
-    lagged_job_offer,
-    *,
-    ltc_prob_constant,
-    ltc_prob_age,
-    job_offer_constant,
-    job_offer_age,
-    job_offer_educ,
-    job_offer_type_two,
-):
-    prob_job_offer = (lagged_job_offer == 0) * job_offer_constant + (
-        lagged_job_offer == 1
-    ) * (job_offer_constant + job_offer_type_two)
-    prob_no_job_offer = 1 - prob_job_offer
+# def func_exog_job_offer(
+#     age,
+#     married,
+#     lagged_ltc,
+#     lagged_job_offer,
+#     *,
+#     ltc_prob_constant,
+#     ltc_prob_age,
+#     job_offer_constant,
+#     job_offer_age,
+#     job_offer_educ,
+#     job_offer_type_two,
+# ):
+#     prob_job_offer = (lagged_job_offer == 0) * job_offer_constant + (
+#         lagged_job_offer == 1
+#     ) * (job_offer_constant + job_offer_type_two)
+#     prob_no_job_offer = 1 - prob_job_offer
 
-    return prob_no_job_offer, prob_job_offer
+#     return prob_no_job_offer, prob_job_offer
 
 
 def get_solve_function(
@@ -73,7 +74,7 @@ def get_solve_function(
     utility_functions: Dict[str, Callable],
     budget_constraint: Callable,
     final_period_solution: Callable,
-    transition_function: Callable,
+    # transition_function: Callable,
 ) -> Callable:
     """Create a solve function, which only takes params as input.
 
@@ -151,33 +152,34 @@ def get_solve_function(
         compute_beginning_of_period_wealth,
         compute_final_period,
         compute_upper_envelope,
-        compute_transitions_exog_states,
     ) = process_model_functions(
         options,
-        state_vars=state_vars,
         user_utility_functions=utility_functions,
         user_budget_constraint=budget_constraint,
         user_final_period_solution=final_period_solution,
-        exogenous_transition_function=transition_function,
     )
 
-    backward_jit = jit(
-        partial(
-            backward_induction,
-            period_specific_state_objects=period_specific_state_objects,
-            exog_savings_grid=exog_savings_grid,
-            state_space=state_space,
-            income_shock_draws_unscaled=income_shock_draws_unscaled,
-            income_shock_weights=income_shock_weights,
-            n_periods=n_periods,
-            compute_utility=compute_utility,
-            compute_marginal_utility=compute_marginal_utility,
-            compute_inverse_marginal_utility=compute_inverse_marginal_utility,
-            compute_beginning_of_period_wealth=compute_beginning_of_period_wealth,
-            compute_final_period=compute_final_period,
-            compute_upper_envelope=compute_upper_envelope,
-            compute_transitions_exog_states=compute_transitions_exog_states,
-        )
+    exog_utils, _exog_shape = get_utils_exog_processes(options)
+    exog_transition_mat = np.empty(_exog_shape)
+
+    backward_jit = partial(
+        backward_induction,
+        period_specific_state_objects=period_specific_state_objects,
+        exog_savings_grid=exog_savings_grid,
+        state_space=state_space,
+        income_shock_draws_unscaled=income_shock_draws_unscaled,
+        income_shock_weights=income_shock_weights,
+        n_periods=n_periods,
+        exog_utils=exog_utils,
+        exog_transition_mat=exog_transition_mat,
+        compute_utility=compute_utility,
+        compute_marginal_utility=compute_marginal_utility,
+        compute_inverse_marginal_utility=compute_inverse_marginal_utility,
+        compute_beginning_of_period_wealth=compute_beginning_of_period_wealth,
+        compute_final_period=compute_final_period,
+        compute_upper_envelope=compute_upper_envelope,
+        # compute_transitions_exog_states=compute_transitions_exog_states,
+        # )
     )
 
     def solve_func(params, options):
@@ -195,7 +197,6 @@ def solve_dcegm(
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable],
     final_period_solution: Callable,
-    transition_function: Callable,
 ) -> Dict[int, np.ndarray]:
     """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
@@ -232,37 +233,7 @@ def solve_dcegm(
         utility_functions=utility_functions,
         budget_constraint=budget_constraint,
         final_period_solution=final_period_solution,
-        transition_function=transition_function,
     )
-
-    # ============================================================================
-
-    res = np.empty((4, 4, 2, 2))
-    # interface
-    age = [0, 1]
-    married = [0, 1]
-
-    exog_ltc = [0, 1]
-    exog_job_offer = [0, 1]
-
-    # positional order matters
-    state_vars = [age, married]
-    exog_vars = [exog_ltc, exog_job_offer]
-
-    exog_funcs = [func_exog_ltc, func_exog_job_offer]
-
-    _params = {
-        "ltc_prob_constant": 0.3,
-        "ltc_prob_age": 0.1,
-        "job_offer_constant": 0.5,
-        "job_offer_age": 0,
-        "job_offer_educ": 0,
-        "job_offer_type_two": 0.4,
-    }
-
-    recursive_loop(res, state_vars, exog_vars, [], [], exog_funcs, **_params)
-
-    # ===============================================================================
 
     results = backward_jit(params=params, options=options)
 
@@ -278,13 +249,15 @@ def backward_induction(
     income_shock_draws_unscaled: np.ndarray,
     income_shock_weights: np.ndarray,
     n_periods: int,
+    exog_utils: Dict[str, Any],
+    exog_transition_mat: np.ndarray,
     compute_utility: Callable,
     compute_marginal_utility: Callable,
     compute_inverse_marginal_utility: Callable,
     compute_beginning_of_period_wealth: Callable,
     compute_final_period: Callable,
     compute_upper_envelope: Callable,
-    compute_transitions_exog_states: Callable,
+    # compute_transitions_exog_states: Callable,
 ) -> Dict[int, np.ndarray]:
     """Do backward induction and solve for optimal policy and value function.
 
@@ -350,6 +323,24 @@ def backward_induction(
             policy_right, and value from the backward induction.
 
     """
+    # ======================================================================
+    # exog_transition_mat[:] = 0.0  # needed ?
+
+    # transition probabilities may depend on params, which change during
+    # numerical optimization
+    create_exog_transition_mat_recursively(
+        transition_mat=exog_transition_mat, **exog_utils["recursion"] | params
+    )
+
+    compute_exog_transition_probs = get_exog_transition_func(
+        transition_mat=exog_transition_mat,
+        # filtered_endog_state_vars=names_filtered_endog_state_vars_and_choice,
+        # state_vars_to_index=state_vars_to_index,
+        **exog_utils["mat_to_func"]
+    )
+
+    # ======================================================================
+    # breakpoint()
 
     taste_shock_scale = params["lambda"]
     income_shock_draws = income_shock_draws_unscaled * params["sigma"]
@@ -376,14 +367,13 @@ def backward_induction(
         vmap(
             vmap(
                 compute_final_period,
-                in_axes=(None, None, 0, None),
+                in_axes=(None, 0, None),
             ),
-            in_axes=(None, None, 0, None),
+            in_axes=(None, 0, None),
         ),
-        in_axes=(0, 0, 0, None),
+        in_axes=(0, 0, None),
     )(
-        state_objects["state_choice_mat"][:, :-1],  # state_vec
-        state_objects["state_choice_mat"][:, -1],  # choice
+        state_objects["state_choice_mat"],
         resources_beginning_of_period[state_objects["idx_parent_states"]],
         # options,
         params,
@@ -426,11 +416,11 @@ def backward_induction(
             exogenous_savings_grid=exog_savings_grid,
             marg_util=marg_util,
             emax=emax,
-            state_choice_mat=state_objects["state_choice_mat"],  # state_vec and choice
+            state_choice_vec=state_objects["state_choice_mat"],  # state_vec and choice
             idx_post_decision_child_states=state_objects["idx_feasible_child_nodes"],
             compute_inverse_marginal_utility=compute_inverse_marginal_utility,
             compute_utility=compute_utility,
-            compute_transition_probs_exog_states=compute_transitions_exog_states,
+            compute_transition_probs_exog_states=compute_exog_transition_probs,
             params=params,
         )
 

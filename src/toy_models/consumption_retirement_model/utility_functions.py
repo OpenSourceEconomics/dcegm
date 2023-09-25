@@ -31,8 +31,8 @@ def utiility_func_log_crra(
 
 def utility_func_crra(
     consumption: jnp.array,
+    period: int,
     choice: int,
-    period: int,  # state_var
     # lagged_choice: int,
     theta: float,
     delta: float,

@@ -46,9 +46,52 @@ def inverse_marginal_utility(marginal_utility, rho):
     return marginal_utility ** (-1 / rho)
 
 
+def func_exog_ltc(
+    period,
+    # married,
+    lagged_ltc,
+    # lagged_job_offer,
+    choice,
+    *,
+    ltc_prob_constant,
+    ltc_prob_age,
+    job_offer_constant,
+    job_offer_age,
+    job_offer_educ,
+    job_offer_type_two,
+):
+    prob_ltc = (lagged_ltc == 0) * (ltc_prob_constant + period * ltc_prob_age) + (
+        lagged_ltc == 1
+    )
+    prob_no_ltc = 1 - prob_ltc
+
+    return prob_no_ltc, prob_ltc
+
+
+def func_exog_job_offer(
+    age,
+    married,
+    # choice,
+    # lagged_ltc,
+    lagged_job_offer,
+    *,
+    ltc_prob_constant,
+    ltc_prob_age,
+    job_offer_constant,
+    job_offer_age,
+    job_offer_educ,
+    job_offer_type_two,
+):
+    prob_job_offer = (lagged_job_offer == 0) * job_offer_constant + (
+        lagged_job_offer == 1
+    ) * (job_offer_constant + job_offer_type_two)
+    prob_no_job_offer = 1 - prob_job_offer
+
+    return prob_no_job_offer, prob_job_offer
+
+
 def solve_final_period_scalar(
-    state_vec: np.ndarray,  # noqa: U100
-    choice: int,
+    state_choice_vec: np.ndarray,  # noqa: U100
     begin_of_period_resources: float,
     rho: float,
     delta: float,
@@ -80,7 +123,7 @@ def solve_final_period_scalar(
     consumption = begin_of_period_resources
 
     value = compute_utility(
-        consumption=begin_of_period_resources, choice=choice, rho=rho, delta=delta
+        consumption=begin_of_period_resources, rho=rho, delta=delta, *state_choice_vec
     )
 
     marginal_utility = compute_marginal_utility(
@@ -481,7 +524,6 @@ def test_two_period(input_data, wealth_idx, state_idx):
 
 @pytest.fixture(scope="module")
 def input_data_two_exog_processes():
-    n_exog_states = 4
 
     index = pd.MultiIndex.from_tuples(
         [("utility_function", "rho"), ("utility_function", "delta")],
@@ -495,14 +537,40 @@ def input_data_two_exog_processes():
     params.loc[("shocks", "lambda"), "value"] = 1
     params.loc[("transition", "ltc_prob"), "value"] = 0.3
     params.loc[("beta", "beta"), "value"] = 0.95
-    # params.loc[("beta", "beta"), "value"] = 0.95
+
+    # exog params
+    params.loc[("ltc_prob_constant", "ltc_prob_constant"), "value"] = 0.3
+    params.loc[("ltc_prob_age", "ltc_prob_age"), "value"] = 0.1
+    params.loc[("job_offer_constant", "job_offer_constant"), "value"] = 0.5
+    params.loc[("job_offer_age", "job_offer_age"), "value"] = 0
+    params.loc[("job_offer_educ", "job_offer_educ"), "value"] = 0
+    params.loc[("job_offer_type_two", "job_offer_type_two"), "value"] = 0.4
+
     options = {
         "n_periods": 2,
         "n_discrete_choices": 2,
         "n_grid_points": WEALTH_GRID_POINTS,
         "max_wealth": 50,
         "quadrature_points_stochastic": 5,
-        "n_exog_states": n_exog_states,
+        "n_exog_states": 2,
+        "n_exog_one": 2,
+        "n_exog_two": 1,
+        "exogenous_processes": {
+            "ltc": func_exog_ltc,
+            # "job_offer": func_exog_job_offer,
+        },
+        "state_variables": {
+            "endogenous": {
+                "period": np.arange(2),
+                # "age": np.arange(2),
+                "married": [0, 1],
+                "lagged_choice": [0, 1],
+            },
+            # "exogenous": {"lagged_ltc": [0, 1], "lagged_job_offer": [0, 1]},
+            "exogenous": {"lagged_ltc": [0, 1]},
+            "choice": [33, 333],
+        },
+        # "model_params": {},
     }
     state_space_functions = {
         "create_state_space": create_state_space_two_exog_processes,
@@ -515,105 +583,105 @@ def input_data_two_exog_processes():
         "marginal_utility": marginal_utility,
     }
 
-    ltc_probabilities = jnp.array([[0.7, 0.3], [0, 1]])
-    job_offer_probabilities = jnp.array([[0.5, 0.5], [0.1, 0.9]])
-    job_offer_probabilities_period_specific = jnp.repeat(
-        job_offer_probabilities[:, :, jnp.newaxis], 2, axis=2
-    )
-
-    transition_matrix_age0 = jnp.kron(
-        ltc_probabilities, job_offer_probabilities_period_specific[..., 0]
-    )
-    transition_matrix_age1 = jnp.kron(
-        ltc_probabilities, job_offer_probabilities_period_specific[..., 1]
-    )
-    transition_matrix = jnp.dstack((transition_matrix_age0, transition_matrix_age1))
-    # Has shape (4, 4, 2)
-    # The third dimension, contains the age-specific transition matrices.
-    # Note that age (or period) is a state variable.
-    # [..., 0] is the transition matrix for age 0
-    # [..., 1] is the transition matrix for age 1
-
-    # =================================================================================
-    # just for fun, 4d with shape
-
-    # exog-process and state- specific transition probabilities
-    ltc_probs_age0 = jnp.array([[0.7, 0.3], [0, 1]])
-    ltc_probs_age1 = jnp.array([[0.6, 0.4], [0, 1]])  # ltc prob increases with age
-    job_offer_probs_age0_lagged_choice0 = jnp.array([[0.5, 0.5], [0.1, 0.9]])
-    job_offer_probs_age1_lagged_choice0 = jnp.array(
-        # [[0.6, 0.4], [0.05, 0.95]]
-        [[0.5, 0.5], [0.1, 0.9]]
-    )  # older and no job previously, harder to find job
-    job_offer_probs_age0_lagged_choice1 = jnp.array([[0.5, 0.5], [0.1, 0.9]])
-    job_offer_probs_age1_lagged_choice1 = jnp.array([[0.5, 0.5], [0.1, 0.9]])
-
-    # state-specific transition probabilities
-
-    # repeat/stack first layer
-    # health first, job second. So start with second?
-    # _job_offer_probs_lagged_choice0 = jnp.stack(
-    #     (
-    #         job_offer_probs_age0_lagged_choice0,
-    #         job_offer_probs_age1_lagged_choice0,
-    #     ),
-    #     axis=2,
-    # )
-    # # select by age via [:, :, period]
-
-    # _job_offer_probs_lagged_choice1 = jnp.stack(
-    #     (
-    #         job_offer_probs_age0_lagged_choice1,
-    #         job_offer_probs_age1_lagged_choice1,
-    #     ),
-    #     axis=2,
+    # ltc_probabilities = jnp.array([[0.7, 0.3], [0, 1]])
+    # job_offer_probabilities = jnp.array([[0.5, 0.5], [0.1, 0.9]])
+    # job_offer_probabilities_period_specific = jnp.repeat(
+    #     job_offer_probabilities[:, :, jnp.newaxis], 2, axis=2
     # )
 
-    # multiply with exog process 2
-    matrix_age0_lagged_choice0 = jnp.kron(
-        ltc_probs_age0, job_offer_probs_age0_lagged_choice0
-    )
-    matrix_age1_lagged_choice0 = jnp.kron(
-        ltc_probs_age1, job_offer_probs_age1_lagged_choice0
-    )
-
-    matrix_age0_lagged_choice1 = jnp.kron(
-        ltc_probs_age0, job_offer_probs_age0_lagged_choice1
-    )
-    matrix_age1_lagged_choice1 = jnp.kron(
-        ltc_probs_age1, job_offer_probs_age1_lagged_choice1
-    )
-
-    # transition_matrix_age0_lagged_choice0 = jnp.kron(
-    #     ltc_probabilities_age0, job_offer_probabilities_period_specific[..., 0]
+    # transition_matrix_age0 = jnp.kron(
+    #     ltc_probabilities, job_offer_probabilities_period_specific[..., 0]
     # )
-    # transition_matrix_age0_lagged_choice1 = jnp.kron(
-    #     ltc_probabilities_age0, job_offer_probabilities_period_specific[..., 0]
+    # transition_matrix_age1 = jnp.kron(
+    #     ltc_probabilities, job_offer_probabilities_period_specific[..., 1]
+    # )
+    # transition_matrix = jnp.dstack((transition_matrix_age0, transition_matrix_age1))
+    # # Has shape (4, 4, 2)
+    # # The third dimension, contains the age-specific transition matrices.
+    # # Note that age (or period) is a state variable.
+    # # [..., 0] is the transition matrix for age 0
+    # # [..., 1] is the transition matrix for age 1
+
+    # # =================================================================================
+    # # just for fun, 4d with shape
+
+    # # exog-process and state- specific transition probabilities
+    # ltc_probs_age0 = jnp.array([[0.7, 0.3], [0, 1]])
+    # ltc_probs_age1 = jnp.array([[0.6, 0.4], [0, 1]])  # ltc prob increases with age
+    # job_offer_probs_age0_lagged_choice0 = jnp.array([[0.5, 0.5], [0.1, 0.9]])
+    # job_offer_probs_age1_lagged_choice0 = jnp.array(
+    #     # [[0.6, 0.4], [0.05, 0.95]]
+    #     [[0.5, 0.5], [0.1, 0.9]]
+    # )  # older and no job previously, harder to find job
+    # job_offer_probs_age0_lagged_choice1 = jnp.array([[0.5, 0.5], [0.1, 0.9]])
+    # job_offer_probs_age1_lagged_choice1 = jnp.array([[0.5, 0.5], [0.1, 0.9]])
+
+    # # state-specific transition probabilities
+
+    # # repeat/stack first layer
+    # # health first, job second. So start with second?
+    # # _job_offer_probs_lagged_choice0 = jnp.stack(
+    # #     (
+    # #         job_offer_probs_age0_lagged_choice0,
+    # #         job_offer_probs_age1_lagged_choice0,
+    # #     ),
+    # #     axis=2,
+    # # )
+    # # # select by age via [:, :, period]
+
+    # # _job_offer_probs_lagged_choice1 = jnp.stack(
+    # #     (
+    # #         job_offer_probs_age0_lagged_choice1,
+    # #         job_offer_probs_age1_lagged_choice1,
+    # #     ),
+    # #     axis=2,
+    # # )
+
+    # # multiply with exog process 2
+    # matrix_age0_lagged_choice0 = jnp.kron(
+    #     ltc_probs_age0, job_offer_probs_age0_lagged_choice0
+    # )
+    # matrix_age1_lagged_choice0 = jnp.kron(
+    #     ltc_probs_age1, job_offer_probs_age1_lagged_choice0
     # )
 
-    # transition_matrix_age1_lagged_choice0 = jnp.kron(
-    #     ltc_probabilities_age1, job_offer_probabilities_period_specific[..., 1]
+    # matrix_age0_lagged_choice1 = jnp.kron(
+    #     ltc_probs_age0, job_offer_probs_age0_lagged_choice1
     # )
-    # transition_matrix_age1_lagged_choice1 = jnp.kron(
-    #     ltc_probabilities_age1, job_offer_probabilities_period_specific[..., 1]
+    # matrix_age1_lagged_choice1 = jnp.kron(
+    #     ltc_probs_age1, job_offer_probs_age1_lagged_choice1
     # )
 
-    jnp.stack(
-        (matrix_age0_lagged_choice0, matrix_age1_lagged_choice0), axis=2
-    )  # expected shape (4, 4, 2)
-    jnp.stack(
-        (matrix_age0_lagged_choice1, matrix_age1_lagged_choice1), axis=2
-    )  # expected shape (4, 4, 2)
+    # # transition_matrix_age0_lagged_choice0 = jnp.kron(
+    # #     ltc_probabilities_age0, job_offer_probabilities_period_specific[..., 0]
+    # # )
+    # # transition_matrix_age0_lagged_choice1 = jnp.kron(
+    # #     ltc_probabilities_age0, job_offer_probabilities_period_specific[..., 0]
+    # # )
 
-    # jnp.stack((stack_lagged_choice0, stack_lagged_choice1), axis=3)
+    # # transition_matrix_age1_lagged_choice0 = jnp.kron(
+    # #     ltc_probabilities_age1, job_offer_probabilities_period_specific[..., 1]
+    # # )
+    # # transition_matrix_age1_lagged_choice1 = jnp.kron(
+    # #     ltc_probabilities_age1, job_offer_probabilities_period_specific[..., 1]
+    # # )
 
-    # stack into multi-dimensional matrix
+    # jnp.stack(
+    #     (matrix_age0_lagged_choice0, matrix_age1_lagged_choice0), axis=2
+    # )  # expected shape (4, 4, 2)
+    # jnp.stack(
+    #     (matrix_age0_lagged_choice1, matrix_age1_lagged_choice1), axis=2
+    # )  # expected shape (4, 4, 2)
 
-    # =================================================================================
-    get_transition_vector_partial = partial(
-        get_transition_vector_dcegm_two_exog_processes,
-        transition_matrix=transition_matrix,
-    )
+    # # jnp.stack((stack_lagged_choice0, stack_lagged_choice1), axis=3)
+
+    # # stack into multi-dimensional matrix
+
+    # # =================================================================================
+    # get_transition_vector_partial = partial(
+    #     get_transition_vector_dcegm_two_exog_processes,
+    #     transition_matrix=transition_matrix,
+    # )
 
     exog_savings_grid = np.linspace(0, options["max_wealth"], options["n_grid_points"])
 
@@ -625,13 +693,12 @@ def input_data_two_exog_processes():
         budget_constraint=budget_dcegm_two_exog_processes,
         final_period_solution=solve_final_period_scalar,
         state_space_functions=state_space_functions,
-        transition_function=get_transition_vector_partial,
     )
 
     out = {}
     out["params"] = params
     out["options"] = options
-    out["get_transition_vector_by_state"] = get_transition_vector_partial
+    # out["get_transition_vector_by_state"] = get_transition_vector_partial
     out["result"] = result_dict
 
     return out

@@ -12,7 +12,7 @@ def calculate_candidate_solutions_from_euler_equation(
     exogenous_savings_grid: np.ndarray,
     marg_util: np.ndarray,
     emax: np.ndarray,
-    state_choice_mat: np.ndarray,
+    state_choice_vec: np.ndarray,
     idx_post_decision_child_states: jnp.ndarray,
     compute_utility: Callable,
     compute_inverse_marginal_utility: Callable,
@@ -41,7 +41,7 @@ def calculate_candidate_solutions_from_euler_equation(
         feasible_marg_utils,
         feasible_emax,
         exogenous_savings_grid,
-        state_choice_mat,
+        state_choice_vec,
         compute_inverse_marginal_utility,
         compute_utility,
         compute_transition_probs_exog_states,
@@ -59,7 +59,7 @@ def compute_optimal_policy_and_value(
     marg_utils: np.ndarray,
     emax: np.ndarray,
     exogenous_savings_grid: np.ndarray,
-    state_choice_mat: np.ndarray,
+    state_choice_vec: np.ndarray,
     compute_inverse_marginal_utility: Callable,
     compute_utility: Callable,
     compute_transition_probs_exog_states: Callable,
@@ -107,16 +107,19 @@ def compute_optimal_policy_and_value(
             she saves nothing.
 
     """
-
+    # breakpoint()
     #
-    state_vec = state_choice_mat[:-1]
-    choice = state_choice_mat[-1]
-    transition_probs = compute_transition_probs_exog_states(state_vec, params)
+    # state_vec = state_choice_vec[:-1]
+    # choice = state_choice_vec[-1]
+    transition_probs = compute_transition_probs_exog_states(*state_choice_vec)
+    # transition_probs = compute_transition_probs_exog_states(state_choice_vec, params)
     # choice, options
+    breakpoint()
 
     policy, expected_value = solve_euler_equation(
-        state_vec=state_vec,
-        choice=choice,
+        # state_vec=state_vec,
+        # choice=choice,
+        state_choice_vec=state_choice_vec,
         marg_utils=marg_utils,
         emax=emax,
         transition_probs=transition_probs,
@@ -129,15 +132,16 @@ def compute_optimal_policy_and_value(
     # policy
     # choice
 
-    utility = compute_utility(consumption=policy, choice=choice, *state_vec, **params)
+    utility = compute_utility(consumption=policy, *state_choice_vec, **params)
     value = utility + params["beta"] * expected_value
 
     return endog_grid, policy, value, expected_value
 
 
 def solve_euler_equation(
-    state_vec: np.ndarray,
-    choice: int,
+    # state_vec: np.ndarray,
+    # choice: int,
+    state_choice_vec: np.ndarray,
     marg_utils: np.ndarray,
     emax: np.ndarray,
     transition_probs: np.ndarray,
@@ -181,7 +185,7 @@ def solve_euler_equation(
 
     policy = compute_inverse_marginal_utility(
         marginal_utility=rhs_euler,
-        *state_vec,
+        *state_choice_vec,
         **params,
     )
 

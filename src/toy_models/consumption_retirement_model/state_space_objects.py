@@ -86,25 +86,38 @@ def create_state_space_two_exog_processes(
     """
     n_periods = options["n_periods"]
     n_choices = options["n_discrete_choices"]  # lagged_choice is a state variable
-    n_exog_states = options["n_exog_states"]
+    n_exog_one = options["n_exog_one"]
+    n_exog_two = options["n_exog_two"]
 
-    shape = (n_periods, n_choices, n_exog_states)
+    n_married = 2
 
-    state_vars = ["period", "lagged_choice", "exog_state"]
+    shape = (
+        n_periods,
+        n_periods,
+        n_choices,
+        n_exog_one * n_exog_two,
+        # n_exog_one * n_exog_two,
+    )
+
+    state_vars = ["period", "married", "lagged_choice", "lagged_exog"]
 
     map_state_to_index = np.full(shape, -9999, dtype=np.int64)
     _state_space = []
 
     i = 0
     for period in range(n_periods):
-        for choice in range(n_choices):
-            for exog_state in range(n_exog_states):
-                map_state_to_index[period, choice, exog_state] = i
+        for married in range(n_married):
+            # for exog1 in range(n_exog_one):
+            #     for exog2 in range(n_exog_two):
+            for lagged_choice in range(n_choices):
+                for lagged_exog in range(n_exog_one * n_exog_two):
+                    # for exog in range(n_exog_one * n_exog_two):
+                    map_state_to_index[period, married, lagged_choice, lagged_exog] = i
 
-                row = [period, choice, exog_state]
-                _state_space.append(row)
+                    row = [period, married, lagged_choice, lagged_exog]
+                    _state_space.append(row)
 
-                i += 1
+                    i += 1
 
     state_space = np.array(_state_space, dtype=np.int64)
 

@@ -129,9 +129,6 @@ def calc_interpolated_values_and_marg_utils(
 
     """
 
-    state_vec = state_choice_vec[:-1]
-    choice = state_choice_vec[-1]
-
     policy_interp, value_interp_on_grid = interpolate_policy_and_value(
         policy_high=policy_high,
         value_high=value_high,
@@ -144,8 +141,8 @@ def calc_interpolated_values_and_marg_utils(
 
     utility = compute_utility(
         consumption=new_wealth,
-        choice=choice,
-        *state_vec,
+        # choice=choice,
+        *state_choice_vec,
         **params,
     )
     value_interp_closed_form = utility + params["beta"] * value_min
@@ -157,7 +154,7 @@ def calc_interpolated_values_and_marg_utils(
     )
 
     marg_utility_interp = compute_marginal_utility(
-        consumption=policy_interp, *state_vec, **params
+        consumption=policy_interp, *state_choice_vec, **params
     )
 
     return marg_utility_interp, value_interp

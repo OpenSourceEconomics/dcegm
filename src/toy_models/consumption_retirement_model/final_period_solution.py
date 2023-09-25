@@ -8,8 +8,7 @@ import numpy as np
 
 
 def solve_final_period_scalar(
-    state_vec: np.ndarray,  # noqa: U100
-    choice: int,
+    state_choice_vec: np.ndarray,  # noqa: U100
     begin_of_period_resources: float,
     theta: float,
     delta: float,
@@ -45,11 +44,10 @@ def solve_final_period_scalar(
 
     value = compute_utility(
         consumption=begin_of_period_resources,
-        choice=choice,
         theta=theta,
         delta=delta,
         options=options,
-        *state_vec,
+        *state_choice_vec,
     )
 
     marginal_utility = compute_marginal_utility(
