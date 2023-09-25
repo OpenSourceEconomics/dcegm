@@ -14,6 +14,7 @@ from dcegm.marg_utilities_and_exp_value import (
 )
 from dcegm.process_model import convert_params_to_dict
 from dcegm.process_model import process_model_functions
+from dcegm.process_model import recursive_loop
 from dcegm.state_space import create_map_from_state_to_child_nodes
 from dcegm.state_space import (
     create_period_state_and_state_choice_objects,
@@ -21,6 +22,48 @@ from dcegm.state_space import (
 from dcegm.state_space import create_state_choice_space
 from jax import jit
 from jax import vmap
+
+
+def func_exog_ltc(
+    age,
+    married,
+    lagged_ltc,
+    lagged_job_offer,
+    *,
+    ltc_prob_constant,
+    ltc_prob_age,
+    job_offer_constant,
+    job_offer_age,
+    job_offer_educ,
+    job_offer_type_two,
+):
+    prob_ltc = (lagged_ltc == 0) * (ltc_prob_constant + age * ltc_prob_age) + (
+        lagged_ltc == 1
+    )
+    prob_no_ltc = 1 - prob_ltc
+
+    return prob_no_ltc, prob_ltc
+
+
+def func_exog_job_offer(
+    age,
+    married,
+    lagged_ltc,
+    lagged_job_offer,
+    *,
+    ltc_prob_constant,
+    ltc_prob_age,
+    job_offer_constant,
+    job_offer_age,
+    job_offer_educ,
+    job_offer_type_two,
+):
+    prob_job_offer = (lagged_job_offer == 0) * job_offer_constant + (
+        lagged_job_offer == 1
+    ) * (job_offer_constant + job_offer_type_two)
+    prob_no_job_offer = 1 - prob_job_offer
+
+    return prob_no_job_offer, prob_job_offer
 
 
 def get_solve_function(
@@ -192,7 +235,37 @@ def solve_dcegm(
         transition_function=transition_function,
     )
 
+    # ============================================================================
+
+    res = np.empty((4, 4, 2, 2))
+    # interface
+    age = [0, 1]
+    married = [0, 1]
+
+    exog_ltc = [0, 1]
+    exog_job_offer = [0, 1]
+
+    # positional order matters
+    state_vars = [age, married]
+    exog_vars = [exog_ltc, exog_job_offer]
+
+    exog_funcs = [func_exog_ltc, func_exog_job_offer]
+
+    _params = {
+        "ltc_prob_constant": 0.3,
+        "ltc_prob_age": 0.1,
+        "job_offer_constant": 0.5,
+        "job_offer_age": 0,
+        "job_offer_educ": 0,
+        "job_offer_type_two": 0.4,
+    }
+
+    recursive_loop(res, state_vars, exog_vars, [], [], exog_funcs, **_params)
+
+    # ===============================================================================
+
     results = backward_jit(params=params, options=options)
+
     return results
 
 
@@ -316,7 +389,7 @@ def backward_induction(
         params,
     )
 
-    # Choose which draw we take for policy and value function as those are note
+    # Choose which draw we take for policy and value function as those are not
     # saved with respect to the draws
     middle_of_draws = int(len(income_shock_draws) + 1 / 2)
 

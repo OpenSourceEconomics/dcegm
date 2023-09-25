@@ -7,6 +7,7 @@ from dcegm.process_model import convert_params_to_dict
 from dcegm.process_model import process_exog_funcs
 from dcegm.process_model import recursive_loop
 from numpy.testing import assert_array_almost_equal as aaae
+from pybaum import get_registry
 from toy_models.consumption_retirement_model.utility_functions import (
     inverse_marginal_utility_crra,
 )
@@ -17,7 +18,6 @@ from toy_models.consumption_retirement_model.utility_functions import (
     utiility_func_log_crra,
 )
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
-
 
 # Obtain the test directory of the package.
 TEST_DIR = Path(__file__).parent
@@ -31,6 +31,7 @@ def func_exog_ltc(
     # married,
     lagged_ltc,
     # lagged_job_offer,
+    choice,
     *,
     ltc_prob_constant,
     ltc_prob_age,
@@ -39,14 +40,18 @@ def func_exog_ltc(
     job_offer_educ,
     job_offer_type_two,
 ):
-    return (lagged_ltc == 0) * (ltc_prob_constant + age * ltc_prob_age) + (
+    prob_ltc = (lagged_ltc == 0) * (ltc_prob_constant + age * ltc_prob_age) + (
         lagged_ltc == 1
     )
+    prob_no_ltc = 1 - prob_ltc
+
+    return prob_no_ltc, prob_ltc
 
 
 def func_exog_job_offer(
     age,
     married,
+    # choice,
     # lagged_ltc,
     lagged_job_offer,
     *,
@@ -57,12 +62,15 @@ def func_exog_job_offer(
     job_offer_educ,
     job_offer_type_two,
 ):
-    return (lagged_job_offer == 0) * job_offer_constant + (lagged_job_offer == 1) * (
-        job_offer_constant + job_offer_type_two
-    )
+    prob_job_offer = (lagged_job_offer == 0) * job_offer_constant + (
+        lagged_job_offer == 1
+    ) * (job_offer_constant + job_offer_type_two)
+    prob_no_job_offer = 1 - prob_job_offer
+
+    return prob_no_job_offer, prob_job_offer
 
 
-def func_exog_good_health(
+def func_exog_health(
     age,
     married,
     lagged_health,
@@ -74,61 +82,25 @@ def func_exog_good_health(
     job_offer_educ,
     job_offer_type_two,
 ):
-    return (
+    prob_good_health = (
         (lagged_health == 0) * 0
         + (lagged_health == 1) * 0.3
         + (lagged_health == 2) * 0.7
     )
 
-
-def func_exog_medium_health(
-    age,
-    married,
-    lagged_health,
-    *,
-    ltc_prob_constant,
-    ltc_prob_age,
-    job_offer_constant,
-    job_offer_age,
-    job_offer_educ,
-    job_offer_type_two,
-):
-    return (
+    prob_medium_health = (
         (lagged_health == 0) * 0
         + (lagged_health == 1) * 0.5
         + (lagged_health == 2) * 0.2
     )
 
-
-def func_exog_bad_health(
-    age,
-    married,
-    lagged_health,
-    # choice,
-    options,
-    params,
-    # *,
-    # ltc_prob_constant,
-    # ltc_prob_age,
-    # job_offer_constant,
-    # job_offer_age,
-    # job_offer_educ,
-    # job_offer_type_two,
-):
-    return (
+    prob_bad_health = (
         (lagged_health == 0) * 1
         + (lagged_health == 1) * 0.2
         + (lagged_health == 2) * 0.1
     )
-    # return 0.7, 0.3, 0
 
-
-def exog_health_mat(options):
-    """Good, medium, bad health."""
-    # mat = options["anytin"]
-
-    # only allow to return vector, otherwise specify matrix
-    return np.array([[0.7, 0.2, 0.1], [0.3, 0.5, 0.2], [0, 0, 1]])
+    return prob_bad_health, prob_medium_health, prob_good_health
 
 
 @pytest.fixture()
@@ -155,24 +127,23 @@ def example_exog_processes():
         "job_offer_type_two": 0.4,
     }
 
-    # mat = np.
     options = {
-        # "model_structure":
+        # "model_structure": {
         "exogenous_processes": {
-            "ltc": [func_exog_ltc],
-            "job_offer": np.array(
-                [[0.7, 0.2, 0.1], [0.3, 0.5, 0.2], [0, 0, 1]]
-            ),  # func_exog_job_offer,
+            "ltc": func_exog_ltc,
+            "job_offer": func_exog_job_offer,
         },
         "state_variables": {
             "endogenous": {
                 "age": np.arange(2),
                 "married": [0, 1],
                 "lagged_choice": [0, 1],
+                # "choice": [0, 1],
             },
             "exogenous": {"lagged_ltc": [0, 1], "lagged_job_offer": [0, 1]},
+            "choice": [33, 333],
         },
-        # "model_params":
+        # "model_params": {}
     }
 
     return state_vars, exog_vars, options, params
@@ -254,7 +225,7 @@ def test_recursive_loop(example_exog_processes):
 
     # ============ state_vars ============
 
-    _options = {"exogenous_processes": {"health": exog_health_mat}}
+    # _options = {"exogenous_processes": {"health": exog_health_mat}}
 
     # func = _process_exog_funcs(_options, state_vars_to_index)
 
@@ -266,14 +237,77 @@ def test_recursive_loop(example_exog_processes):
 
     # ============ exog_funcs ============
 
-    exog_funcs = process_exog_funcs(options)
+    state_vars = (
+        options["state_variables"]["endogenous"]
+        | options["state_variables"]["exogenous"]
+        # | {"choice": options["state_variables"]["choice"]}
+    )
+
+    # state_vars_and_choice = (
+    #     options["state_variables"]["endogenous"]
+    #     | options["state_variables"]["exogenous"]
+    #     | {"choice": options["state_variables"]["choice"]}
+    # )
+    endog_state_vars_and_choice = options["state_variables"]["endogenous"] | {
+        "choice": options["state_variables"]["choice"]
+    }
+    # flatten directly!
+    state_vars_to_index = {key: idx for idx, key in enumerate(state_vars.keys())}
+
+    exog_funcs_list, signature = process_exog_funcs(options)
+    _filtered_state_vars = [
+        key for key in signature if key in set(state_vars_to_index.keys())
+    ]
+    _filtered_endog_state_vars = [
+        key
+        for key in _filtered_state_vars
+        if key in options["state_variables"]["endogenous"].keys()
+    ]
+    filtered_endog_state_vars_and_values = {
+        key: val
+        for key, val in options["state_variables"]["endogenous"].items()
+        if key in _filtered_state_vars
+    }
+    if "choice" in signature:
+        filtered_endog_state_vars_and_values["choice"] = options["state_variables"][
+            "choice"
+        ]
+    exog_state_vars_and_values = options["state_variables"]["exogenous"]
 
     # Create a result array with the desired shape
     n_exog_states = np.prod([len(var) for var in exog_vars])
-    result_shape = [n_exog_states, n_exog_states]
-    result_shape.extend([len(var) for var in state_vars])
+    _shape = [n_exog_states, n_exog_states]
+    _shape.extend(
+        [len(v) for k, v in endog_state_vars_and_choice.items() if k in signature]
+    )
 
-    transition_mat = np.zeros(result_shape)
+    transition_mat = np.empty((_shape))
+
+    _registry = get_registry(
+        types=["pandas.Series", "numpy.ndarray"],
+        include_defaults=True,
+    )
+    filtered_endog_state_vars = [
+        v for v in filtered_endog_state_vars_and_values.values()
+    ]
+    exog_state_vars = [v for v in exog_state_vars_and_values.values()]
+
+    # tree_just_flatten(
+    #     filtered_endog_state_vars_and_values, registry=_registry
+    # )
+
+    _filtered_endog_and_exog = (
+        filtered_endog_state_vars_and_values | exog_state_vars_and_values
+    )
+    state_vars_to_index = {
+        key: idx for idx, key in enumerate(_filtered_endog_and_exog.keys())
+    }
+
+    exog_funcs, _signature = process_exog_funcs(
+        options, state_vars_to_index=state_vars_to_index
+    )
+
+    # breakpoint()
 
     expected = np.array(
         [
@@ -304,6 +338,17 @@ def test_recursive_loop(example_exog_processes):
         ]
     )
 
-    recursive_loop(transition_mat, state_vars, exog_vars, [], [], exog_funcs, **params)
+    recursive_loop(
+        transition_mat=transition_mat,
+        state_vars=filtered_endog_state_vars,
+        exog_vars=exog_state_vars,
+        state_indices=[],
+        exog_indices=[],
+        exog_funcs=exog_funcs,
+        **params,
+    )
 
-    aaae(transition_mat, expected)
+    if "choice" in signature:
+        aaae(transition_mat, np.stack([expected, expected], axis=4))
+    else:
+        aaae(transition_mat, expected)

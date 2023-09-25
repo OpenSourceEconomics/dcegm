@@ -2,7 +2,6 @@ import functools
 import inspect
 from functools import partial
 from functools import reduce
-from itertools import product
 from typing import Callable
 from typing import Dict
 from typing import List
@@ -186,6 +185,8 @@ def _matrix_to_func(transition_matrix, filtered_endog_state_vars, state_vars_to_
     # state_vars_filtered = ["age", "married"]
     # signature = state_vars_filtered
 
+    # include (current) choice as state var
+
     def get_transition_vec(*args):
         _filtered_args = [
             args[idx]
@@ -193,8 +194,7 @@ def _matrix_to_func(transition_matrix, filtered_endog_state_vars, state_vars_to_
             if key in filtered_endog_state_vars
         ]
 
-        # function takes no kwargs
-
+        # takes no kwargs
         return transition_matrix[..., tuple(_filtered_args)]
 
     return get_transition_vec
@@ -307,15 +307,30 @@ def _get_vmapped_function_with_args_and_filtered_kwargs(func, options):
 
 
 def _get_function_with_filtered_kwargs(func, options, state_vars_to_index):
-    """For funcs that doe not take state_vec."""
+    """For funcs that do not take state_vec."""
     signature = list(inspect.signature(func).parameters)
 
     @functools.wraps(func)
     def processed_func(*args, **kwargs):
-        _args = [arg for arg in args if not isinstance(arg, dict)]
+        # _args = [arg for arg in args if not isinstance(arg, dict)]
+
+        _args = [
+            args[idx]
+            for key, idx in state_vars_to_index.items()
+            if key in signature and key != "choice"  # and key not in kwargs
+        ]
+        # _exog_state_args = {
+        #     args for key, idx in state_vars_to_index.items() if key in signature
+        # }
+
+        # _choice
+
         _kwargs = {
             key: kwargs[key] for key in signature if key in kwargs and key != "options"
         }
+
+        if "choice" in signature:
+            _kwargs["choice"] = args[signature.index("choice")]
 
         # partial in
         if "options" in signature:
@@ -334,6 +349,7 @@ def _return_policy_and_value(
     endog_grid = jnp.append(0, endog_grid)
     policy = jnp.append(0, policy)
     value = jnp.append(expected_value_zero_savings, value)
+
     return endog_grid, policy, policy, value
 
 
@@ -348,32 +364,24 @@ def recursive_loop(
 ):
     if len(state_indices) == len(state_vars):
         if len(exog_indices) == len(exog_vars):
-            # Get the values of state variables at the current indices
             state_var_values = [
                 state_vars[i][state_indices[i]] for i in range(len(state_vars))
             ]
-
-            # Get the values of exogenous variables at the current indices
             exog_var_values = [
                 exog_vars[i][exog_indices[i]] for i in range(len(exog_vars))
             ]
 
-            # row = exog_indices[-1] + sum(
-            #    exog_indices[i] * len(exog_vars[i + 1])
-            #    for i in range(-len(exog_vars), -1)
-            # )
-            row = exog_indices[-1] + sum(
+            _row = exog_indices[-1] + sum(
                 i * len(var) for i, var in zip(exog_indices[:-1], exog_vars)
             )
 
-            for col, funcs in enumerate(product(*exog_funcs)):
-                transition_mat[tuple([row, col] + state_indices)] = reduce(
-                    jnp.multiply,
-                    [
-                        func(*state_var_values, *exog_var_values, **kwargs)
-                        for func in funcs
-                    ],
-                )
+            transition_mat[np.s_[_row, :] + tuple(state_indices)] = reduce(
+                np.kron,
+                [
+                    func(*state_var_values, *exog_var_values, **kwargs)
+                    for func in exog_funcs
+                ],
+            )
 
         else:
             for exog_i in range(len(exog_vars[0])):
@@ -418,51 +426,37 @@ def process_exog_funcs(options, state_vars_to_index=None):
     for exog in exog_processes.values():
         if isinstance(exog, Callable):
             exog_funcs += [
-                [
-                    _get_opposite_prob(exog),
-                    _get_function_with_filtered_kwargs(
-                        exog, options, state_vars_to_index
-                    ),
-                ]
+                _get_function_with_filtered_kwargs(exog, options, state_vars_to_index),
             ]
             signature += list(inspect.signature(exog).parameters)
-        elif isinstance(exog, list):
-            if len(exog) == 1:
-                exog_funcs += [
-                    [
-                        _get_opposite_prob(exog[0]),
-                        _get_function_with_filtered_kwargs(
-                            exog[0], options, state_vars_to_index
-                        ),
-                    ]
-                ]
-                signature += list(inspect.signature(exog[0]).parameters)
-            else:
-                _group = []
-                for func in exog:
-                    _group += [
-                        _get_function_with_filtered_kwargs(
-                            func, options, state_vars_to_index
-                        )
-                    ]
+        # elif isinstance(exog, list):
+        #     if len(exog) == 1:
+        #         exog_funcs += [
+        #             [
+        #                 _get_opposite_prob(exog[0]),
+        #                 _get_function_with_filtered_kwargs(
+        #                     exog[0], options, state_vars_to_index
+        #                 ),
+        #             ]
+        #         ]
+        #         signature += list(inspect.signature(exog[0]).parameters)
+        #     else:
+        #         _group = []
+        #         for func in exog:
+        #             _group += [
+        #                 _get_function_with_filtered_kwargs(
+        #                     func, options, state_vars_to_index
+        #                 )
+        #             ]
 
-                    signature += list(inspect.signature(func).parameters)
+        #             signature += list(inspect.signature(func).parameters)
 
-                exog_funcs += [_group]
-        elif isinstance(exog, (np.ndarray, jnp.ndarray)):
-            for row in exog:
-                exog_funcs += [[_dummy_prob(prob) for prob in row]]
+        #         exog_funcs += [_group]
+        # elif isinstance(exog, (np.ndarray, jnp.ndarray)):
+        #     for row in exog:
+        #         exog_funcs += [[_dummy_prob(prob) for prob in row]]
 
     return exog_funcs, list(set(signature))
-
-
-def _get_opposite_prob(func, options, state_vars_to_index):
-    def opposite_prob(*args, **kwargs):
-        return 1 - func(*args, **kwargs)
-
-    return _get_function_with_filtered_kwargs(
-        opposite_prob, options=options, state_vars_to_index=state_vars_to_index
-    )
 
 
 def _dummy_prob(prob, options=None, state_vars_to_index=None):
