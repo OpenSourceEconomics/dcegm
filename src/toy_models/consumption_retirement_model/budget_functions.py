@@ -16,6 +16,7 @@ def budget_constraint(
     # exp: float,
     # exp_squared: float,
     options: Dict[str, Any],
+    params: Dict[str, float],
 ) -> float:
     """Compute possible current beginning of period resources.
 
@@ -43,20 +44,20 @@ def budget_constraint(
         state_beginning_of_period,
         wage_shock=income_shock_previous_period,
         min_age=options["min_age"],
-        constant=options["constant"],
-        exp=options["exp"],
-        exp_squared=options["exp_squared"],
+        constant=params["constant"],
+        exp=params["exp"],
+        exp_squared=params["exp_squared"],
     )
 
     wealth_beginning_of_period = (
         income_from_previous_period
-        + (1 + options["interest_rate"]) * savings_end_of_previous_period
+        + (1 + params["interest_rate"]) * savings_end_of_previous_period
     )
 
     # Retirement safety net, only in retirement model, but we require to have it always
     # as a parameter
     wealth_beginning_of_period = jnp.maximum(
-        wealth_beginning_of_period, options["consumption_floor"]
+        wealth_beginning_of_period, params["consumption_floor"]
     )
 
     return wealth_beginning_of_period

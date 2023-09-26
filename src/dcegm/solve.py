@@ -14,57 +14,15 @@ from dcegm.marg_utilities_and_exp_value import (
     aggregate_marg_utils_exp_values,
 )
 from dcegm.process_model import convert_params_to_dict
-from dcegm.process_model import create_exog_transition_mat_recursively
-from dcegm.process_model import get_exog_transition_func
 from dcegm.process_model import get_utils_exog_processes
 from dcegm.process_model import process_model_functions
+from dcegm.state_space import create_exog_transition_mat
 from dcegm.state_space import create_map_from_state_to_child_nodes
 from dcegm.state_space import (
     create_period_state_and_state_choice_objects,
 )
 from dcegm.state_space import create_state_choice_space
 from jax import vmap
-
-# def func_exog_ltc(
-#     age,
-#     married,
-#     lagged_ltc,
-#     lagged_job_offer,
-#     *,
-#     ltc_prob_constant,
-#     ltc_prob_age,
-#     job_offer_constant,
-#     job_offer_age,
-#     job_offer_educ,
-#     job_offer_type_two,
-# ):
-#     prob_ltc = (lagged_ltc == 0) * (ltc_prob_constant + age * ltc_prob_age) + (
-#         lagged_ltc == 1
-#     )
-#     prob_no_ltc = 1 - prob_ltc
-
-#     return prob_no_ltc, prob_ltc
-
-
-# def func_exog_job_offer(
-#     age,
-#     married,
-#     lagged_ltc,
-#     lagged_job_offer,
-#     *,
-#     ltc_prob_constant,
-#     ltc_prob_age,
-#     job_offer_constant,
-#     job_offer_age,
-#     job_offer_educ,
-#     job_offer_type_two,
-# ):
-#     prob_job_offer = (lagged_job_offer == 0) * job_offer_constant + (
-#         lagged_job_offer == 1
-#     ) * (job_offer_constant + job_offer_type_two)
-#     prob_no_job_offer = 1 - prob_job_offer
-
-#     return prob_no_job_offer, prob_job_offer
 
 
 def get_solve_function(
@@ -102,25 +60,24 @@ def get_solve_function(
         callable: The partial solve function that only takes ```params``` as input.
 
     """
+    model_params = options["model_params"]
 
-    n_periods = options["n_periods"]
+    n_periods = model_params["n_periods"]
 
     # ToDo: Make interface with several draw possibilities.
     # ToDo: Some day make user supplied draw function.
     income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
-        options["quadrature_points_stochastic"]
+        model_params["quadrature_points_stochastic"]
     )
 
     create_state_space = state_space_functions["create_state_space"]
-    state_vars, state_space, map_state_to_state_space_index = create_state_space(
-        options
-    )
+    state_space, map_state_to_state_space_index = create_state_space(model_params)
     (
         state_choice_space,
         map_state_choice_vec_to_parent_state,
         reshape_state_choice_vec_to_mat,
     ) = create_state_choice_space(
-        options,
+        model_params,
         state_space,
         map_state_to_state_space_index,
         state_space_functions["get_state_specific_choice_set"],
@@ -128,7 +85,7 @@ def get_solve_function(
 
     #
     period_specific_state_objects = create_period_state_and_state_choice_objects(
-        options=options,
+        options=model_params,
         state_space=state_space,
         state_choice_space=state_choice_space,
         map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
@@ -136,7 +93,7 @@ def get_solve_function(
     )
 
     period_specific_state_objects = create_map_from_state_to_child_nodes(
-        options=options,
+        options=model_params,
         period_specific_state_objects=period_specific_state_objects,
         map_state_to_index=map_state_to_state_space_index,
         update_endog_state_by_state_and_choice=state_space_functions[
@@ -178,8 +135,7 @@ def get_solve_function(
         compute_beginning_of_period_wealth=compute_beginning_of_period_wealth,
         compute_final_period=compute_final_period,
         compute_upper_envelope=compute_upper_envelope,
-        # compute_transitions_exog_states=compute_transitions_exog_states,
-        # )
+        state_choice_space=state_choice_space,
     )
 
     def solve_func(params, options):
@@ -257,7 +213,7 @@ def backward_induction(
     compute_beginning_of_period_wealth: Callable,
     compute_final_period: Callable,
     compute_upper_envelope: Callable,
-    # compute_transitions_exog_states: Callable,
+    state_choice_space: np.ndarray,
 ) -> Dict[int, np.ndarray]:
     """Do backward induction and solve for optimal policy and value function.
 
@@ -323,24 +279,20 @@ def backward_induction(
             policy_right, and value from the backward induction.
 
     """
+
     # ======================================================================
-    # exog_transition_mat[:] = 0.0  # needed ?
 
     # transition probabilities may depend on params, which change during
     # numerical optimization
-    create_exog_transition_mat_recursively(
-        transition_mat=exog_transition_mat, **exog_utils["recursion"] | params
-    )
 
-    compute_exog_transition_probs = get_exog_transition_func(
-        transition_mat=exog_transition_mat,
-        # filtered_endog_state_vars=names_filtered_endog_state_vars_and_choice,
-        # state_vars_to_index=state_vars_to_index,
-        **exog_utils["mat_to_func"]
+    _trans_mat, transition_mat_dict = create_exog_transition_mat(
+        state_choice_space,
+        exog_funcs=exog_utils["exog_funcs"],
+        options=options,  # n_period, n_exog_states
+        params=params,
     )
 
     # ======================================================================
-    # breakpoint()
 
     taste_shock_scale = params["lambda"]
     income_shock_draws = income_shock_draws_unscaled * params["sigma"]
@@ -375,7 +327,6 @@ def backward_induction(
     )(
         state_objects["state_choice_mat"],
         resources_beginning_of_period[state_objects["idx_parent_states"]],
-        # options,
         params,
     )
 
@@ -417,10 +368,11 @@ def backward_induction(
             marg_util=marg_util,
             emax=emax,
             state_choice_vec=state_objects["state_choice_mat"],  # state_vec and choice
+            transition_vec=transition_mat_dict[period],
             idx_post_decision_child_states=state_objects["idx_feasible_child_nodes"],
             compute_inverse_marginal_utility=compute_inverse_marginal_utility,
             compute_utility=compute_utility,
-            compute_transition_probs_exog_states=compute_exog_transition_probs,
+            # compute_transition_probs_exog_states=compute_exog_transition_probs,
             params=params,
         )
 

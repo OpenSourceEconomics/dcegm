@@ -36,8 +36,6 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
 
     shape = (n_periods, n_choices, n_exog_states)
 
-    state_vars = ["period", "lagged_choice", "exog_state"]
-
     map_state_to_index = np.full(shape, -9999, dtype=np.int64)
     _state_space = []
 
@@ -54,7 +52,7 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
 
     state_space = np.array(_state_space, dtype=np.int64)
 
-    return state_vars, state_space, map_state_to_index
+    return state_space, map_state_to_index
 
 
 def create_state_space_two_exog_processes(
@@ -99,8 +97,6 @@ def create_state_space_two_exog_processes(
         # n_exog_one * n_exog_two,
     )
 
-    state_vars = ["period", "married", "lagged_choice", "lagged_exog"]
-
     map_state_to_index = np.full(shape, -9999, dtype=np.int64)
     _state_space = []
 
@@ -121,7 +117,7 @@ def create_state_space_two_exog_processes(
 
     state_space = np.array(_state_space, dtype=np.int64)
 
-    return state_vars, state_space, map_state_to_index
+    return state_space, map_state_to_index
 
 
 def update_state(state, choice):

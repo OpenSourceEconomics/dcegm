@@ -128,45 +128,10 @@ def process_model_functions(
         compute_beginning_of_period_wealth,
         compute_final_period,
         compute_upper_envelope,
-        # compute_exog_transition_probs,
     )
 
 
 def get_utils_exog_processes(options):
-    # needed !!!
-    # state_vars = (
-    #     options["state_variables"]["endogenous"]
-    #     | options["state_variables"]["exogenous"]
-    # )
-    # # flatten directly!
-    # state_vars_to_index = {key: idx for idx, key in enumerate(state_vars.keys())}
-    # # for idx, key in enumerate(state_vars.keys()):
-    # #     state_vars_to_index[key] = idx
-
-    # # read state vars from function
-
-    # exog_funcs_list, signature = process_exog_funcs(options)
-    # _filtered_state_vars = [
-    #     key for key in signature if key in set(state_vars_to_index.keys())
-    # ]
-    # _filtered_endog_state_vars = [
-    #     key
-    #     for key in _filtered_state_vars
-    #     if key in options["state_variables"]["endogenous"].keys()
-    # ]
-    # filtered_endog_state_vars_and_values = {
-    #     key: val
-    #     for key, val in options["state_variables"]["endogenous"].items()
-    #     if key in _filtered_state_vars
-    # }
-    # exog_state_vars_and_values = options["state_variables"]["exogenous"]
-    # # create the filtered range thingy for recursion
-
-    # ===============================================================================
-    (
-        options["state_variables"]["endogenous"]
-        | options["state_variables"]["exogenous"]
-    )
     state_vars_and_choice = (
         options["state_variables"]["endogenous"]
         | options["state_variables"]["exogenous"]
@@ -206,9 +171,7 @@ def get_utils_exog_processes(options):
         v for v in filtered_endog_state_vars_and_choice_dict.values()
     ]
 
-    [
-        v for v in filtered_endog_state_vars_and_choice_dict.values()
-    ] + exog_state_vars
+    [v for v in filtered_endog_state_vars_and_choice_dict.values()] + exog_state_vars
 
     filtered_vars_to_index = {
         key: idx for idx, key in enumerate(filtered_vars_dict.keys())
@@ -242,24 +205,14 @@ def get_utils_exog_processes(options):
         for key in filtered_endog_state_vars_and_choice_dict.keys()
         if key in endog_state_vars_and_choice.keys()
     ]
-    # breakpoint()
 
     kwargs = {
-        # "transition_mat": transition_mat,
-        "recursion": {
-            "state_vars": filtered_endog_state_vars_and_choice,
-            "exog_vars": exog_state_vars,
-            "state_indices": [],
-            "exog_indices": [],
-            "exog_funcs": exog_funcs_list,
-        },
-        "mat_to_func": {
-            # "names_filtered_endog_state_vars_and_choice": names_filtered_endog_state_vars_and_choice,
-            "names_filtered_endog_state_vars_and_choice": filtered_vars_dict.keys(),
-            "state_vars_and_choice_to_index": state_vars_and_choice_to_index,
-        },
+        "state_vars": filtered_endog_state_vars_and_choice,
+        "exog_vars": exog_state_vars,
+        "state_indices": [],
+        "exog_indices": [],
+        "exog_funcs": exog_funcs_list,
     }
-    # breakpoint()
 
     return kwargs, _shape
 
@@ -275,14 +228,16 @@ def get_exog_transition_func(
     # include (current) choice as state var
 
     def get_transition_vec(*args):
-        _filtered_args = [
+        _args = [
             args[idx]
             for key, idx in state_vars_and_choice_to_index.items()
             if key in names_filtered_endog_state_vars_and_choice
         ]
 
-        # takes no kwargs
-        return transition_mat[..., tuple(_filtered_args)]
+        # map exog state to index
+        # exog_state =
+        # breakpoint()
+        return transition_mat[0, :, 0, 0]
 
     return get_transition_vec
 
@@ -344,12 +299,16 @@ def _get_vmapped_function_with_args_and_filtered_kwargs(func, options):
         _args = [arg for arg in args if not isinstance(arg, dict)]
         _options_and_params = [arg for arg in args if isinstance(arg, dict)]
 
-        _kwargs = {
-            key: _dict.pop(key)
-            for key in signature
-            for _dict in _options_and_params
-            if key in _dict and key != "options"
-        }
+        # _kwargs = {
+        #     key: _dict.pop(key)
+        #     for key in signature
+        #     for _dict in _options_and_params
+        #     if key in _dict and key != "options"
+        # }
+        _kwargs = {}
+        if "params" in signature:
+            idx = 1 if len(_options_and_params) == 2 else 0
+            _kwargs["params"] = _options_and_params[idx]  # fix this! flexible position
 
         # partial in
         if "options" in signature and "model_params" in options:
@@ -465,8 +424,6 @@ def create_exog_transition_mat_recursively(
             _row = exog_indices[-1] + sum(
                 i * len(var) for i, var in zip(exog_indices[:-1], exog_vars)
             )
-
-            # breakpoint()
 
             transition_mat[np.s_[_row, :] + tuple(state_indices)] = reduce(
                 np.kron,

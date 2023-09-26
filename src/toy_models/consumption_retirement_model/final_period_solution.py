@@ -10,9 +10,8 @@ import numpy as np
 def solve_final_period_scalar(
     state_choice_vec: np.ndarray,  # noqa: U100
     begin_of_period_resources: float,
-    theta: float,
-    delta: float,
     options: Dict[str, Any],
+    params: Dict[str, float],
     compute_utility: Callable,
     compute_marginal_utility: Callable,
 ) -> Tuple[float, float]:
@@ -44,14 +43,13 @@ def solve_final_period_scalar(
 
     value = compute_utility(
         consumption=begin_of_period_resources,
-        theta=theta,
-        delta=delta,
-        options=options,
+        # options=options,
         *state_choice_vec,
+        **params
     )
 
     marginal_utility = compute_marginal_utility(
-        consumption=begin_of_period_resources, theta=theta, options=options
+        consumption=begin_of_period_resources, **params
     )
 
     return marginal_utility, value, consumption

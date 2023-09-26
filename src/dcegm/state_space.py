@@ -1,4 +1,5 @@
 """Functions for creating internal state space objects."""
+from functools import reduce
 from typing import Callable
 from typing import Dict
 
@@ -243,3 +244,26 @@ def create_period_state_and_state_choice_objects(
         out[period] = period_dict
 
     return out
+
+
+def create_exog_transition_mat(
+    state_choice_space,
+    exog_funcs,
+    options,
+    params,
+):
+    out = {}
+    transition_mat = np.empty(
+        (len(state_choice_space), options["model_params"]["n_exog_states"])
+    )
+
+    for idx, state_choice_vec in enumerate(state_choice_space):
+        transition_mat[idx] = reduce(
+            np.kron,
+            [func(*state_choice_vec, **params) for func in exog_funcs],
+        )
+
+    for period in range(options["model_params"]["n_periods"]):
+        out[period] = transition_mat[state_choice_space[:, 0] == period]
+
+    return transition_mat, out
