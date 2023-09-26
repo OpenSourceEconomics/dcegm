@@ -22,6 +22,7 @@ from dcegm.state_space import (
     create_period_state_and_state_choice_objects,
 )
 from dcegm.state_space import create_state_choice_space
+from jax import jit
 from jax import vmap
 
 
@@ -117,30 +118,33 @@ def get_solve_function(
     )
 
     exog_utils, _exog_shape = get_utils_exog_processes(options)
-    exog_transition_mat = np.empty(_exog_shape)
+    # exog_transition_mat = np.empty(_exog_shape)
 
-    backward_jit = partial(
-        backward_induction,
-        period_specific_state_objects=period_specific_state_objects,
-        exog_savings_grid=exog_savings_grid,
-        state_space=state_space,
-        income_shock_draws_unscaled=income_shock_draws_unscaled,
-        income_shock_weights=income_shock_weights,
-        n_periods=n_periods,
-        exog_utils=exog_utils,
-        exog_transition_mat=exog_transition_mat,
-        compute_utility=compute_utility,
-        compute_marginal_utility=compute_marginal_utility,
-        compute_inverse_marginal_utility=compute_inverse_marginal_utility,
-        compute_beginning_of_period_wealth=compute_beginning_of_period_wealth,
-        compute_final_period=compute_final_period,
-        compute_upper_envelope=compute_upper_envelope,
-        state_choice_space=state_choice_space,
+    backward_jit = jit(
+        partial(
+            backward_induction,
+            options=options,
+            period_specific_state_objects=period_specific_state_objects,
+            exog_savings_grid=exog_savings_grid,
+            state_space=state_space,
+            income_shock_draws_unscaled=income_shock_draws_unscaled,
+            income_shock_weights=income_shock_weights,
+            n_periods=n_periods,
+            exog_utils=exog_utils,
+            # exog_transition_mat=exog_transition_mat,
+            compute_utility=compute_utility,
+            compute_marginal_utility=compute_marginal_utility,
+            compute_inverse_marginal_utility=compute_inverse_marginal_utility,
+            compute_beginning_of_period_wealth=compute_beginning_of_period_wealth,
+            compute_final_period=compute_final_period,
+            compute_upper_envelope=compute_upper_envelope,
+            state_choice_space=state_choice_space,
+        )
     )
 
-    def solve_func(params, options):
+    def solve_func(params):
         params_initial = convert_params_to_dict(params)
-        return backward_jit(params=params_initial, options=options)
+        return backward_jit(params=params_initial)
 
     return solve_func
 
@@ -191,7 +195,7 @@ def solve_dcegm(
         final_period_solution=final_period_solution,
     )
 
-    results = backward_jit(params=params, options=options)
+    results = backward_jit(params=params)
 
     return results
 
@@ -206,7 +210,7 @@ def backward_induction(
     income_shock_weights: np.ndarray,
     n_periods: int,
     exog_utils: Dict[str, Any],
-    exog_transition_mat: np.ndarray,
+    # exog_transition_mat: np.ndarray,
     compute_utility: Callable,
     compute_marginal_utility: Callable,
     compute_inverse_marginal_utility: Callable,
@@ -291,7 +295,7 @@ def backward_induction(
         options=options,  # n_period, n_exog_states
         params=params,
     )
-
+    # breakpoint()
     # ======================================================================
 
     taste_shock_scale = params["lambda"]
