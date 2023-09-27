@@ -41,17 +41,18 @@ def func_exog_ltc(
     lagged_ltc,
     # lagged_job_offer,
     choice,
-    *,
-    ltc_prob_constant,
-    ltc_prob_age,
-    job_offer_constant,
-    job_offer_age,
-    job_offer_educ,
-    job_offer_type_two,
+    # *,
+    # ltc_prob_constant,
+    # ltc_prob_age,
+    # job_offer_constant,
+    # job_offer_age,
+    # job_offer_educ,
+    # job_offer_type_two,
+    params,
 ):
-    prob_ltc = (lagged_ltc == 0) * (ltc_prob_constant + age * ltc_prob_age) + (
-        lagged_ltc == 1
-    )
+    prob_ltc = (lagged_ltc == 0) * (
+        params["ltc_prob_constant"] + age * params["ltc_prob_age"]
+    ) + (lagged_ltc == 1)
     prob_no_ltc = 1 - prob_ltc
 
     return prob_no_ltc, prob_ltc
@@ -63,17 +64,17 @@ def func_exog_job_offer(
     # choice,
     # lagged_ltc,
     lagged_job_offer,
-    *,
-    ltc_prob_constant,
-    ltc_prob_age,
-    job_offer_constant,
-    job_offer_age,
-    job_offer_educ,
-    job_offer_type_two,
+    # ltc_prob_constant,
+    # ltc_prob_age,
+    # job_offer_constant,
+    # job_offer_age,
+    # job_offer_educ,
+    # job_offer_type_two,
+    params,
 ):
-    prob_job_offer = (lagged_job_offer == 0) * job_offer_constant + (
+    prob_job_offer = (lagged_job_offer == 0) * params["job_offer_constant"] + (
         lagged_job_offer == 1
-    ) * (job_offer_constant + job_offer_type_two)
+    ) * (params["job_offer_constant"] + params["job_offer_type_two"])
     prob_no_job_offer = 1 - prob_job_offer
 
     return prob_no_job_offer, prob_job_offer

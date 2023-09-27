@@ -565,8 +565,8 @@ def _get_exog_function_with_filtered_args(func, options):
     exog_key = (signature & options["state_variables"]["exogenous"].keys()).pop()
 
     @functools.wraps(func)
-    def processed_func(*args, **kwargs):
-        exog_arg, endog_args = args[0], args[1:]
+    def processed_func(*args):
+        exog_arg, endog_args = args[0], args[1:-1]
 
         # Allows for flexible position of arguments in user function.
         # The endog states and choice variable in the state_choice_vec
@@ -575,23 +575,19 @@ def _get_exog_function_with_filtered_args(func, options):
         _args_to_kwargs = {
             key: endog_args[idx]
             for key, idx in endog_to_index.items()
-            if key in signature  # and key != "choice"  # and key not in kwargs
+            if key in signature  # and key != "choice"
         }
-        # Allow for flexible position of "choice" argument in user function
-        # if "choice" in signature:
-        #     _args_to_kwargs["choice"] = args[signature.index("choice")]
 
         _args_to_kwargs[exog_key] = exog_arg
 
-        # In the future, no kwargs taken, since params passed as dict
-        _params = {
-            key: kwargs[key] for key in signature if key in kwargs and key != "options"
-        }
+        if "params" in signature:
+            _args_to_kwargs["params"] = args[-1]
+
         # partial in OUTSIDE!
         if "options" in signature and "model_params" in options:
-            _params["options"] = options["model_params"]
+            _args_to_kwargs["options"] = options["model_params"]
 
-        return func(**_args_to_kwargs | _params)
+        return func(**_args_to_kwargs)
 
     # Set name of the original func
     processed_func.__name__ = func.__name__
@@ -609,7 +605,7 @@ def get_exog_transition_vec(state_choice_vec, exog_mapping, exog_funcs, params):
 
     for exog_state, exog_func in zip(exog_mapping[exog_state_global], exog_funcs):
         # options already partialled in!!
-        trans_vec = exog_func(exog_state, *endog_states_and_choice, **params)
+        trans_vec = exog_func(exog_state, *endog_states_and_choice, params)
         trans_vecs.append(trans_vec)
 
     trans_vec_kron = reduce(np.kron, trans_vecs)
