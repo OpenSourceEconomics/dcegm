@@ -91,10 +91,9 @@ def create_state_space_two_exog_processes(
 
     shape = (
         n_periods,
-        n_periods,
+        n_married,
         n_choices,
         n_exog_one * n_exog_two,
-        # n_exog_one * n_exog_two,
     )
 
     map_state_to_index = np.full(shape, -9999, dtype=np.int64)
@@ -103,8 +102,6 @@ def create_state_space_two_exog_processes(
     i = 0
     for period in range(n_periods):
         for married in range(n_married):
-            # for exog1 in range(n_exog_one):
-            #     for exog2 in range(n_exog_two):
             for lagged_choice in range(n_choices):
                 for lagged_exog in range(n_exog_one * n_exog_two):
                     # for exog in range(n_exog_one * n_exog_two):
@@ -142,46 +139,6 @@ def update_state(state, choice):
 
 
 def get_state_specific_feasible_choice_set(
-    state: np.ndarray,
-    map_state_to_state_space_index: np.ndarray,
-) -> np.ndarray:
-    """Select state-specific feasible choice set.
-
-    Will be a user defined function later.
-
-    This is very basic in Ishkakov et al (2017).
-
-    Args:
-        state (np.ndarray): Array of shape (n_state_variables,) defining the agent's
-            state. In Ishkakov, an agent's state is defined by her (i) age (i.e. the
-            current period) and (ii) her lagged labor market choice.
-            Hence n_state_variables = 2.
-        map_state_to_state_space_index (np.ndarray): Indexer array that maps
-            a period-specific state vector to the respective index positions in the
-            state space.
-            The shape of this object is quite complicated. For each state variable it
-            has the number of potential states as rows, i.e.
-            (n_potential_states_state_var_1, n_potential_states_state_var_2, ....).
-
-    Returns:
-        choice_set (np.ndarray): 1d array of length (n_feasible_choices,) with the
-            agent's (restricted) feasible choice set in the given state.
-
-    """
-    # lagged_choice is a state variable
-    n_choices = map_state_to_state_space_index.shape[1]
-
-    # Once the agent choses retirement, she can only choose retirement thereafter.
-    # Hence, retirement is an absorbing state.
-    if state[1] == 1:
-        feasible_choice_set = np.array([1])
-    else:
-        feasible_choice_set = np.arange(n_choices)
-
-    return feasible_choice_set
-
-
-def get_feasible_choice_set_two_exog_processes(
     state: np.ndarray,
     map_state_to_state_space_index: np.ndarray,
 ) -> np.ndarray:

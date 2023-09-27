@@ -30,7 +30,6 @@ def get_solve_function(
     utility_functions: Dict[str, Callable],
     budget_constraint: Callable,
     final_period_solution: Callable,
-    # transition_function: Callable,
 ) -> Callable:
     """Create a solve function, which only takes params as input.
 
@@ -346,7 +345,6 @@ def backward_induction(
             marg_util=marg_util,
             emax=emax,
             state_choice_vec=state_objects["state_choice_mat"],  # state_vec and choice
-            # transition_vec=transition_mat_dict[period],
             idx_post_decision_child_states=state_objects["idx_feasible_child_nodes"],
             compute_inverse_marginal_utility=compute_inverse_marginal_utility,
             compute_utility=compute_utility,
@@ -384,7 +382,6 @@ def backward_induction(
             compute_marginal_utility,
             compute_utility,
             state_objects["state_choice_mat"],  # state_vec and choice
-            # state_objects["state_choice_mat"][:, -1],  # choice
             resources_period,
             endog_grid_state_choice,
             policy_left_state_choice,

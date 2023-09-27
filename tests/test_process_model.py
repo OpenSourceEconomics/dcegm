@@ -2,13 +2,14 @@ from functools import partial
 from pathlib import Path
 from typing import Dict
 
+import jax.numpy as jnp
 import numpy as np
 import pytest
-from dcegm.process_model import _get_function_with_filtered_args_and_kwargs
+from dcegm.process_model import _get_utility_function_with_filtered_args_and_kwargs
 from dcegm.process_model import convert_params_to_dict
 from dcegm.process_model import create_exog_mapping
 from dcegm.process_model import get_exog_transition_vec
-from dcegm.process_model import process_exog_funcs_new
+from dcegm.process_model import process_exog_funcs
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import (
     inverse_marginal_utility_crra,
@@ -30,9 +31,7 @@ TEST_RESOURCES_DIR = TEST_DIR / "resources"
 
 def func_exog_ltc(
     age,
-    # married,
     lagged_ltc,
-    # lagged_job_offer,
     choice,
     params,
     options,
@@ -48,8 +47,6 @@ def func_exog_ltc(
 def func_exog_job_offer(
     age,
     married,
-    # choice,
-    # lagged_ltc,
     lagged_job_offer,
     params,
 ):
@@ -61,18 +58,7 @@ def func_exog_job_offer(
     return prob_no_job_offer, prob_job_offer
 
 
-def func_exog_health(
-    age,
-    married,
-    lagged_health,
-    *,
-    ltc_prob_constant,
-    ltc_prob_age,
-    job_offer_constant,
-    job_offer_age,
-    job_offer_educ,
-    job_offer_type_two,
-):
+def func_exog_health(age, married, lagged_health, options):
     prob_good_health = (
         (lagged_health == 0) * 0
         + (lagged_health == 1) * 0.3
@@ -220,7 +206,7 @@ def test_process_utility_funcs():
     params = {"theta": 0.3, "delta": 0.5, "beta": 0.9}
 
     exog_mapping = create_exog_mapping(options)
-    compute_utility = _get_function_with_filtered_args_and_kwargs(
+    compute_utility = _get_utility_function_with_filtered_args_and_kwargs(
         utility_func_crra,
         options=options,
         # state_vars_to_index=state_vars_and_choice_to_index,
@@ -285,10 +271,12 @@ def test_get_function_with_filtered_args_and_kwargs(func):
     }
 
     exog_mapping = create_exog_mapping(options)
-    func_with_filtered_args_and_kwargs = _get_function_with_filtered_args_and_kwargs(
-        func,
-        options=options,
-        exog_mapping=exog_mapping,
+    func_with_filtered_args_and_kwargs = (
+        _get_utility_function_with_filtered_args_and_kwargs(
+            func,
+            options=options,
+            exog_mapping=exog_mapping,
+        )
     )
 
     state_choice_vec = np.array([10, 1, 9, 2, 2])
@@ -395,13 +383,13 @@ def test_get_exog_transition_vec():
     }
 
     exog_mapping = create_exog_mapping(options)
-    exog_funcs, _signature = process_exog_funcs_new(options)
+    exog_funcs = process_exog_funcs(options)
 
     # {'age': 0, 'married': 1, 'lagged_choice': 2, 'lagged_ltc': 3,
     # 'lagged_job_offer': 4, 'choice': 5}
 
     # [-2]: global exog state
-    state_choice_vec = np.array([0, 0, 0, 2, 1])
+    state_choice_vec = jnp.array([0, 0, 0, 2, 1])
 
     trans_vec = get_exog_transition_vec(
         state_choice_vec, exog_mapping, exog_funcs=exog_funcs, params=params
@@ -410,7 +398,7 @@ def test_get_exog_transition_vec():
     n_exog_states = sum(map(len, options["state_variables"]["exogenous"].values()))
     assert np.equal(len(trans_vec), n_exog_states)
 
-    exog_funcs, _signature = process_exog_funcs_new(options)
+    exog_funcs = process_exog_funcs(options)
     compute_exog_transition_vec = partial(
         get_exog_transition_vec, exog_mapping=exog_mapping, exog_funcs=exog_funcs
     )

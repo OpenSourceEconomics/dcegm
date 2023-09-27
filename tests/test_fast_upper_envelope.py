@@ -6,7 +6,7 @@ from dcegm.fast_upper_envelope import fast_upper_envelope
 from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
 from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
 from dcegm.interpolation import linear_interpolation_with_extrapolation
-from dcegm.process_model import _get_function_with_filtered_args_and_kwargs
+from dcegm.process_model import _get_utility_function_with_filtered_args_and_kwargs
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
 from utils.fast_upper_envelope_org import fast_upper_envelope_wrapper_org
@@ -48,7 +48,7 @@ def setup_model():
 
     exog_mapping = np.array([1])
     options["state_variables"]["exogenous"] = {"exog_state": [0]}
-    compute_utility = _get_function_with_filtered_args_and_kwargs(
+    compute_utility = _get_utility_function_with_filtered_args_and_kwargs(
         utility_func_crra, options=options, exog_mapping=exog_mapping
     )
 
