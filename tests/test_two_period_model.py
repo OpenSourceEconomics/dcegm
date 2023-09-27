@@ -24,9 +24,6 @@ from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space_two_exog_processes,
 )
 from toy_models.consumption_retirement_model.state_space_objects import (
-    get_feasible_choice_set_two_exog_processes,
-)
-from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_feasible_choice_set,
 )
 from toy_models.consumption_retirement_model.state_space_objects import (
@@ -522,7 +519,7 @@ def input_data_two_exog_processes():
     }
     state_space_functions = {
         "create_state_space": create_state_space_two_exog_processes,
-        "get_state_specific_choice_set": get_feasible_choice_set_two_exog_processes,
+        "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
         "update_endog_state_by_state_and_choice": update_state,
     }
     utility_functions = {
