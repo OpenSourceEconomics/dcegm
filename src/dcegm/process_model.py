@@ -18,7 +18,6 @@ from pybaum import tree_flatten
 
 def process_model_functions(
     options: Dict[str, float],
-    # state_vars: List[str],
     user_utility_functions: Dict[str, Callable],
     user_budget_constraint: Callable,
     user_final_period_solution: Callable,
@@ -64,37 +63,32 @@ def process_model_functions(
 
     """
 
-    # _flat_dict_registry = get_registry(types=["dict"], include_defaults=False)
-    # flat, treedef = tree_flatten(
-    #     options["state_variables"], registry=_flat_dict_registry
-    # )
+    if "exogenous_processes" not in options:
+        exog_mapping = jnp.array([1])
+        options["state_variables"]["exogenous"] = {"exog_state": [0]}
+        compute_exog_transition_vec = _return_one
+    else:
+        exog_mapping = create_exog_mapping(options)
+        exog_funcs, _signature = process_exog_funcs_new(options)
 
-    state_vars_and_choice = (
-        options["state_variables"]["endogenous"]
-        | options["state_variables"]["exogenous"]
-        | {"choice": options["state_variables"]["choice"]}
-    )
-    _state_vars_to_index = {key: idx for idx, key in enumerate(state_vars_and_choice)}
-
-    # compute_utility = _get_function_with_filtered_args_and_kwargs(
-    #     partial(user_utility_functions["utility"], options=options),
-    #     _state_vars_to_index,
-    # )
+        compute_exog_transition_vec = partial(
+            get_exog_transition_vec, exog_mapping=exog_mapping, exog_funcs=exog_funcs
+        )
 
     compute_utility = _get_function_with_filtered_args_and_kwargs(
         user_utility_functions["utility"],
         options=options,
-        state_vars_to_index=_state_vars_to_index,
+        exog_mapping=exog_mapping,
     )
     compute_marginal_utility = _get_function_with_filtered_args_and_kwargs(
         user_utility_functions["marginal_utility"],
         options=options,
-        state_vars_to_index=_state_vars_to_index,
+        exog_mapping=exog_mapping,
     )
     compute_inverse_marginal_utility = _get_function_with_filtered_args_and_kwargs(
         user_utility_functions["inverse_marginal_utility"],
         options=options,
-        state_vars_to_index=_state_vars_to_index,
+        exog_mapping=exog_mapping,
     )
 
     compute_beginning_of_period_wealth = (
@@ -113,13 +107,6 @@ def process_model_functions(
 
     # ! update endgo also partial !
 
-    exog_mapping = create_exog_mapping(options)
-    exog_funcs, _signature = process_exog_funcs_new(options)
-
-    compute_exog_transition_vec = partial(
-        get_exog_transition_vec, exog_mapping=exog_mapping, exog_funcs=exog_funcs
-    )
-
     if len(options["state_variables"]["choice"]) < 2:
         compute_upper_envelope = _return_policy_and_value
     else:
@@ -136,115 +123,8 @@ def process_model_functions(
     )
 
 
-def get_utils_exog_processes(options):
-    state_vars_and_choice = (
-        options["state_variables"]["endogenous"]
-        | options["state_variables"]["exogenous"]
-        | {"choice": options["state_variables"]["choice"]}
-    )
-    endog_state_vars_and_choice = options["state_variables"]["endogenous"] | {
-        "choice": options["state_variables"]["choice"]
-    }
-    exog_state_vars = list(options["state_variables"]["exogenous"].values())
-
-    state_vars_and_choice_to_index = {
-        key: idx for idx, key in enumerate(state_vars_and_choice.keys())
-    }
-    exog_funcs_list, signature = process_exog_funcs(
-        options, state_vars_to_index=state_vars_and_choice_to_index
-    )
-
-    _names_filtered_state_vars_and_choice = [
-        key for key in signature if key in set(state_vars_and_choice_to_index.keys())
-    ]
-    filtered_endog_state_vars_and_choice_dict = {
-        key: val
-        for key, val in options["state_variables"]["endogenous"].items()
-        if key in _names_filtered_state_vars_and_choice
-    }
-    if "choice" in signature:
-        filtered_endog_state_vars_and_choice_dict["choice"] = options[
-            "state_variables"
-        ]["choice"]
-
-    filtered_vars_dict = (
-        filtered_endog_state_vars_and_choice_dict
-        | options["state_variables"]["exogenous"]
-    )
-
-    filtered_endog_state_vars_and_choice = [
-        v for v in filtered_endog_state_vars_and_choice_dict.values()
-    ]
-
-    [v for v in filtered_endog_state_vars_and_choice_dict.values()] + exog_state_vars
-
-    filtered_vars_to_index = {
-        key: idx for idx, key in enumerate(filtered_vars_dict.keys())
-    }
-    # | options["state_variables"]["exogenous"]
-    # breakpoint()
-
-    exog_funcs_list, signature = process_exog_funcs(
-        options, state_vars_to_index=filtered_vars_to_index
-    )
-    # breakpoint()
-    # ===============================================================================
-
-    # Create transition matrix
-    n_exog_states = np.prod([len(var) for var in exog_state_vars])
-    _shape = [n_exog_states, n_exog_states]
-    _shape.extend(
-        [len(v) for k, v in endog_state_vars_and_choice.items() if k in signature]
-    )
-
-    # _filtered_state_vars = [
-    #     key for key in signature if key in set(state_vars_to_index.keys())
-    # ]
-    # _names_filtered_endog_state_vars = [
-    #     key
-    #     for key in _filtered_state_vars
-    #     if key in options["state_variables"]["endogenous"].keys()
-    # ]
-    [
-        key
-        for key in filtered_endog_state_vars_and_choice_dict.keys()
-        if key in endog_state_vars_and_choice.keys()
-    ]
-
-    kwargs = {
-        "state_vars": filtered_endog_state_vars_and_choice,
-        "exog_vars": exog_state_vars,
-        "state_indices": [],
-        "exog_indices": [],
-        "exog_funcs": exog_funcs_list,
-    }
-
-    return kwargs, _shape
-
-
-def get_exog_transition_func(
-    transition_mat,
-    names_filtered_endog_state_vars_and_choice,
-    state_vars_and_choice_to_index,
-):
-    # state_vars_filtered = ["age", "married"]
-    # signature = state_vars_filtered
-
-    # include (current) choice as state var
-
-    def get_transition_vec(*args):
-        _args = [
-            args[idx]
-            for key, idx in state_vars_and_choice_to_index.items()
-            if key in names_filtered_endog_state_vars_and_choice
-        ]
-
-        # map exog state to index
-        # exog_state =
-        # breakpoint()
-        return transition_mat[0, :, 0, 0]
-
-    return get_transition_vec
+def _return_one(*args, **kwargs):
+    return jnp.array([1])
 
 
 def convert_params_to_dict(
@@ -321,13 +201,10 @@ def _get_vmapped_function_with_args_and_filtered_kwargs(func, options):
 
         return func(*_args, **_kwargs)
 
-    # Set name of the original func
-    # processed_func.__name__ = func.__name__
-
     return processed_func
 
 
-def _get_function_with_filtered_args_and_kwargs(func, options, state_vars_to_index):
+def _get_function_with_filtered_args_and_kwargs(func, options, exog_mapping):
     """The order of inputs in the user function does not matter!
 
     ;)
@@ -335,21 +212,46 @@ def _get_function_with_filtered_args_and_kwargs(func, options, state_vars_to_ind
     """
     signature = list(inspect.signature(func).parameters)
 
+    exog_state_vars = options["state_variables"]["exogenous"]
+    exog_to_index = {key: idx for idx, key in enumerate(exog_state_vars.keys())}
+    exog_keys_in_signature = signature & exog_state_vars.keys()
+
+    endog_state_vars = options["state_variables"]["endogenous"]
+    endog_to_index = {key: idx for idx, key in enumerate(endog_state_vars.keys())}
+
     @functools.wraps(func)
     def processed_func(*args, **kwargs):
+        exog_state_global = args[-2]
+        endog_args, choice = args[:-2], args[-1]
+
         _args_to_kwargs = {
-            key: args[idx]
-            for key, idx in state_vars_to_index.items()
-            if key in signature  # and key not in kwargs
+            key: endog_args[idx]
+            for key, idx in endog_to_index.items()
+            if key in signature
         }
 
-        _kwargs = {
-            key: kwargs[key] for key in signature if key in kwargs and key != "options"
-        }
+        if "choice" in signature:
+            _args_to_kwargs["choice"] = choice
+
+        if exog_keys_in_signature:
+            exog_states = exog_mapping[exog_state_global]
+            _args_to_kwargs.update(
+                {
+                    key: exog_states[idx]
+                    for key, idx in exog_to_index.items()
+                    if key in signature
+                }
+            )
 
         # partial in
         if "options" in signature and "model_params" in options:
-            _kwargs["options"] = options["model_params"]
+            _args_to_kwargs["options"] = options["model_params"]
+
+        _kwargs = {
+            key: kwargs[key]
+            for key in signature
+            if key in kwargs  # and key != "options"
+        }
 
         return func(**_args_to_kwargs | _kwargs)
 
@@ -359,22 +261,46 @@ def _get_function_with_filtered_args_and_kwargs(func, options, state_vars_to_ind
     return processed_func
 
 
-def _get_function_with_filtered_kwargs(func, options, state_vars_to_index):
+def _get_function_with_filtered_kwargs(func, options, exog_mapping):
     """For funcs that do not take state_vec."""
     signature = list(inspect.signature(func).parameters)
+
+    # exog state global to exog states
+    signature = list(inspect.signature(func).parameters)
+    (signature & options["state_variables"]["exogenous"].keys()).pop()
+
+    _endog_state_vars_and_choice = options["state_variables"]["endogenous"] | {
+        "choice": options["state_variables"]["choice"]
+    }
+    endog_to_index = {
+        key: idx for idx, key in enumerate(_endog_state_vars_and_choice.keys())
+    }
 
     @functools.wraps(func)
     def processed_func(*args, **kwargs):
         # _args = [arg for arg in args if not isinstance(arg, dict)]
+        exog_state_global = args[-2]
+        exog_mapping[exog_state_global]
 
         _args = [
             args[idx]
-            for key, idx in state_vars_to_index.items()
+            for key, idx in endog_to_index.items()
             if key in signature and key != "choice"  # and key not in kwargs
         ]
-        # _exog_state_args = {
-        #     args for key, idx in state_vars_to_index.items() if key in signature
+
+        # exog_arg, endog_args = args[0], args[1:-1]
+
+        # # Allows for flexible position of arguments in user function.
+        # # The endog states and choice variable in the state_choice_vec
+        # # (passed as args to the user function) have the same order
+        # # as they appear in options["state_variables"]
+        # _args_to_kwargs = {
+        #     key: endog_args[idx]
+        #     for key, idx in endog_to_index.items()
+        #     if key in signature  # and key != "choice"
         # }
+
+        # _args_to_kwargs[exog_key] = exog_arg
 
         # _choice
 
@@ -514,15 +440,6 @@ def process_exog_funcs(options, state_vars_to_index):
     return exog_funcs, list(set(signature))
 
 
-def compute_transition_probs(state_choice_vec, params):
-    state_choice_vec[-1]
-    state_choice_vec[-2]
-    state_choice_vec[:-2]
-
-    _idx_endog_states_and_choice = list(range(len(state_choice_vec) - 2)) + [-1]
-    state_choice_vec[_idx_endog_states_and_choice]
-
-
 # ====================================================================================
 
 
@@ -554,6 +471,7 @@ def process_exog_funcs_new(options):
 def _get_exog_function_with_filtered_args(func, options):
     """Args is state_vec with one global exog state."""
     signature = list(inspect.signature(func).parameters)
+    exog_key = signature & options["state_variables"]["exogenous"].keys()
 
     _endog_state_vars_and_choice = options["state_variables"]["endogenous"] | {
         "choice": options["state_variables"]["choice"]
@@ -561,8 +479,6 @@ def _get_exog_function_with_filtered_args(func, options):
     endog_to_index = {
         key: idx for idx, key in enumerate(_endog_state_vars_and_choice.keys())
     }
-
-    exog_key = (signature & options["state_variables"]["exogenous"].keys()).pop()
 
     @functools.wraps(func)
     def processed_func(*args):
@@ -578,7 +494,8 @@ def _get_exog_function_with_filtered_args(func, options):
             if key in signature  # and key != "choice"
         }
 
-        _args_to_kwargs[exog_key] = exog_arg
+        if exog_key:
+            _args_to_kwargs[exog_key.pop()] = exog_arg
 
         if "params" in signature:
             _args_to_kwargs["params"] = args[-1]
@@ -604,7 +521,7 @@ def get_exog_transition_vec(state_choice_vec, exog_mapping, exog_funcs, params):
     trans_vecs = []
 
     for exog_state, exog_func in zip(exog_mapping[exog_state_global], exog_funcs):
-        # options already partialled in!!
+        # options already partialled in
         trans_vec = exog_func(exog_state, *endog_states_and_choice, params)
         trans_vecs.append(trans_vec)
 
@@ -615,6 +532,7 @@ def get_exog_transition_vec(state_choice_vec, exog_mapping, exog_funcs, params):
 
 def create_exog_mapping(options):
     """Create mapping from separate exog state variables to global exog state."""
+
     exog_state_vars = options["state_variables"]["exogenous"]
 
     n_elements = []

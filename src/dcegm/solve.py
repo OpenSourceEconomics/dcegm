@@ -118,7 +118,6 @@ def get_solve_function(
     backward_jit = jit(
         partial(
             backward_induction,
-            options=options,
             period_specific_state_objects=period_specific_state_objects,
             exog_savings_grid=exog_savings_grid,
             state_space=state_space,
@@ -195,7 +194,6 @@ def solve_dcegm(
 
 def backward_induction(
     params: Dict[str, float],
-    options: Dict[str, int],
     period_specific_state_objects: Dict[int, jnp.ndarray],
     exog_savings_grid: np.ndarray,
     state_space: np.ndarray,
@@ -284,13 +282,12 @@ def backward_induction(
         vmap(
             vmap(
                 compute_beginning_of_period_wealth,
-                in_axes=(None, None, 0, None, None),
+                in_axes=(None, None, 0, None),
             ),
-            in_axes=(None, 0, None, None, None),
+            in_axes=(None, 0, None, None),
         ),
-        in_axes=(0, None, None, None, None),
-        # )(state_space, exog_savings_grid, income_shock_draws, params)
-    )(state_space, exog_savings_grid, income_shock_draws, options, params)
+        in_axes=(0, None, None, None),
+    )(state_space, exog_savings_grid, income_shock_draws, params)
 
     resources_final_period = resources_beginning_of_period[
         state_objects["idx_parent_states"]

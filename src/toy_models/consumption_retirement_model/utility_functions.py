@@ -5,7 +5,9 @@ import jax.numpy as jnp
 
 
 def utiility_func_log_crra(
-    consumption: jnp.array, choice: int, delta: float
+    consumption: jnp.array,
+    choice: int,
+    params: Dict[str, float],  # delta: float
 ) -> jnp.array:
     """Compute the agent's utility in case of theta equal to 1.
 
@@ -26,7 +28,7 @@ def utiility_func_log_crra(
 
     """
     # delta = params["delta"]
-    return jnp.log(consumption) - (1 - choice) * delta
+    return jnp.log(consumption) - (1 - choice) * params["delta"]
 
 
 def utility_func_crra(
@@ -34,9 +36,10 @@ def utility_func_crra(
     period: int,
     choice: int,
     # lagged_choice: int,
-    theta: float,
-    delta: float,
-    options: Dict[str, Any],
+    # theta: float,
+    # delta: float,
+    params: Dict[str, float],
+    options: Dict[str, float],
 ) -> jnp.array:
     """Computes the agent's current utility based on a CRRA utility function.
 
@@ -59,15 +62,17 @@ def utility_func_crra(
     # theta = params["theta"]
     # delta = params["delta"]
 
-    utility_consumption = (consumption ** (1 - theta) - 1) / (1 - theta)
+    utility_consumption = (consumption ** (1 - params["theta"]) - 1) / (
+        1 - params["theta"]
+    )
 
-    utility = utility_consumption - (1 - choice) * delta
+    utility = utility_consumption - (1 - choice) * params["delta"]
 
     return utility
 
 
 def marginal_utility_crra(
-    consumption: jnp.array, theta: float, options: Dict[str, Any]
+    consumption: jnp.array, params: Dict[str, float], options: Dict[str, Any]
 ) -> jnp.array:
     """Computes marginal utility of CRRA utility function.
 
@@ -82,15 +87,14 @@ def marginal_utility_crra(
             function. Array of shape (n_quad_stochastic * n_grid_wealth,).
 
     """
-    # theta = params["theta"]
-    marginal_utility = consumption ** (-theta)
+    marginal_utility = consumption ** (-params["theta"])
 
     return marginal_utility
 
 
 def inverse_marginal_utility_crra(
     marginal_utility: jnp.array,
-    theta: float,
+    params: Dict[str, float],
     options: Dict[str, Any],
 ) -> jnp.array:
     """Computes the inverse marginal utility of a CRRA utility function.
@@ -105,7 +109,6 @@ def inverse_marginal_utility_crra(
             a CRRA consumption function. Array of shape (n_grid_wealth,).
 
     """
-    # theta = params["theta"]
-    inverse_marginal_utility = marginal_utility ** (-1 / theta)
+    inverse_marginal_utility = marginal_utility ** (-1 / params["theta"])
 
     return inverse_marginal_utility

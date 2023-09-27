@@ -1,22 +1,15 @@
 from functools import partial
 from pathlib import Path
+from typing import Dict
 
 import numpy as np
 import pytest
 from dcegm.process_model import _get_function_with_filtered_args_and_kwargs
 from dcegm.process_model import convert_params_to_dict
 from dcegm.process_model import create_exog_mapping
-from dcegm.process_model import create_exog_transition_mat_recursively
 from dcegm.process_model import get_exog_transition_vec
-from dcegm.process_model import get_utils_exog_processes
-from dcegm.process_model import process_exog_funcs
 from dcegm.process_model import process_exog_funcs_new
-from dcegm.process_model import process_model_functions
 from numpy.testing import assert_array_almost_equal as aaae
-from toy_models.consumption_retirement_model.budget_functions import budget_constraint
-from toy_models.consumption_retirement_model.final_period_solution import (
-    solve_final_period_scalar,
-)
 from toy_models.consumption_retirement_model.utility_functions import (
     inverse_marginal_utility_crra,
 )
@@ -41,14 +34,8 @@ def func_exog_ltc(
     lagged_ltc,
     # lagged_job_offer,
     choice,
-    # *,
-    # ltc_prob_constant,
-    # ltc_prob_age,
-    # job_offer_constant,
-    # job_offer_age,
-    # job_offer_educ,
-    # job_offer_type_two,
     params,
+    options,
 ):
     prob_ltc = (lagged_ltc == 0) * (
         params["ltc_prob_constant"] + age * params["ltc_prob_age"]
@@ -64,12 +51,6 @@ def func_exog_job_offer(
     # choice,
     # lagged_ltc,
     lagged_job_offer,
-    # ltc_prob_constant,
-    # ltc_prob_age,
-    # job_offer_constant,
-    # job_offer_age,
-    # job_offer_educ,
-    # job_offer_type_two,
     params,
 ):
     prob_job_offer = (lagged_job_offer == 0) * params["job_offer_constant"] + (
@@ -113,6 +94,43 @@ def func_exog_health(
     return prob_bad_health, prob_medium_health, prob_good_health
 
 
+def utility_func_crra_exog(
+    consumption: np.array,
+    period: int,
+    choice: int,
+    lagged_ltc: int,
+    lagged_job_offer: int,
+    params: Dict[str, float],
+    options: Dict[str, float],
+):
+    """Computes the agent's current utility based on a CRRA utility function.
+
+    Args:
+        consumption (jnp.array): Level of the agent's consumption.
+            Array of shape (i) (n_quad_stochastic * n_grid_wealth,)
+            when called by :func:`~dcgm.call_egm_step.map_exog_to_endog_grid`
+            and :func:`~dcgm.call_egm_step.get_next_period_value`, or
+            (ii) of shape (n_grid_wealth,) when called by
+            :func:`~dcgm.call_egm_step.get_current_period_value`.
+        choice (int): Choice of the agent, e.g. 0 = "retirement", 1 = "working".
+        params (dict): Dictionary containing model parameters.
+            Relevant here is the CRRA coefficient theta.
+
+    Returns:
+        utility (jnp.array): Agent's utility . Array of shape
+            (n_quad_stochastic * n_grid_wealth,) or (n_grid_wealth,).
+
+    """
+
+    utility_consumption = (consumption ** (1 - params["theta"]) - 1) / (
+        1 - params["theta"]
+    )
+
+    utility = utility_consumption - (1 - choice) * params["delta"]
+
+    return utility
+
+
 @pytest.fixture()
 def example_exog_processes():
     """Define example exogenous processes."""
@@ -153,7 +171,7 @@ def example_exog_processes():
             "exogenous": {"lagged_ltc": [0, 1], "lagged_job_offer": [0, 1]},
             "choice": [33, 333],
         },
-        # "model_params": {}
+        "model_params": {},
     }
 
     return state_vars, exog_vars, options, params
@@ -176,41 +194,6 @@ def test_data(load_example_model):
     compute_utility = utiility_func_log_crra
 
     return consumption, next_period_value, params, compute_utility
-
-
-def test_process_model_functions():
-    options = {
-        # "model_structure": {
-        "exogenous_processes": {
-            "ltc": func_exog_ltc,
-            "job_offer": func_exog_job_offer,
-        },
-        "state_variables": {
-            "endogenous": {
-                "age": np.arange(2),
-                "married": [0, 1],
-                "lagged_choice": [0, 1],
-                # "choice": [0, 1],
-            },
-            "exogenous": {"lagged_ltc": [0, 1], "lagged_job_offer": [0, 1]},
-            "choice": [33, 333],
-        },
-        "model_params": {},
-    }
-
-    utility_funcs = {
-        "utility": utility_func_crra,
-        "inverse_marginal_utility": inverse_marginal_utility_crra,
-        "marginal_utility": marginal_utility_crra,
-    }
-
-    process_model_functions(
-        options,
-        # state_vars,
-        user_utility_functions=utility_funcs,
-        user_budget_constraint=budget_constraint,
-        user_final_period_solution=solve_final_period_scalar,
-    )
 
 
 def test_process_utility_funcs():
@@ -236,28 +219,22 @@ def test_process_utility_funcs():
 
     params = {"theta": 0.3, "delta": 0.5, "beta": 0.9}
 
-    state_vars_and_choice = (
-        options["state_variables"]["endogenous"]
-        | options["state_variables"]["exogenous"]
-        | {"choice": options["state_variables"]["choice"]}
-    )
-    state_vars_and_choice_to_index = {
-        key: idx for idx, key in enumerate(state_vars_and_choice)
-    }
-
+    exog_mapping = create_exog_mapping(options)
     compute_utility = _get_function_with_filtered_args_and_kwargs(
         utility_func_crra,
         options=options,
-        state_vars_to_index=state_vars_and_choice_to_index,
+        # state_vars_to_index=state_vars_and_choice_to_index,
+        exog_mapping=exog_mapping,
     )
 
     policy = np.arange(10)
 
+    # for now, exog state is one global exog state: lagged_ltc x lagged_job_offer
     # ['period', 'age, 'married', 'lagged_choice', 'lagged_ltc',
     # 'lagged_job_offer', 'choice']
-    state_choice_vec = [0, 0, 0, 0, 0, 1, 10]
+    state_choice_vec = [0, 0, 0, 0, 1, 10]
 
-    compute_utility(consumption=policy, *state_choice_vec, **params)
+    compute_utility(consumption=policy, params=params, *state_choice_vec)
 
 
 @pytest.mark.parametrize(
@@ -281,6 +258,7 @@ def test_missing_beta(
 @pytest.mark.parametrize(
     "func",
     [
+        utility_func_crra_exog,
         utiility_func_log_crra,
         utility_func_crra,
         marginal_utility_crra,
@@ -288,68 +266,46 @@ def test_missing_beta(
     ],
 )
 def test_get_function_with_filtered_args_and_kwargs(func):
-    state_vars_to_index = {
-        "period": 0,
-        "lagged_choice": 1,
-        "married": 1,
-        "exog_state": 2,
+    options = {
+        # "model_structure": {
+        "exogenous_processes": {
+            "ltc": func_exog_ltc,
+            "job_offer": func_exog_job_offer,
+        },
+        "state_variables": {
+            "endogenous": {
+                "period": np.arange(2),
+                "married": [0, 1],
+                "lagged_choice": [0, 1],
+            },
+            "exogenous": {"lagged_ltc": [0, 1], "lagged_job_offer": [0, 1]},
+            "choice": [33, 333],
+        },
+        "model_params": {"min_age": 50, "max_age": 80},
     }
-    options = {"model_params": {"min_age": 50, "max_age": 80}}
 
+    exog_mapping = create_exog_mapping(options)
     func_with_filtered_args_and_kwargs = _get_function_with_filtered_args_and_kwargs(
-        func, options=options, state_vars_to_index=state_vars_to_index
+        func,
+        options=options,
+        exog_mapping=exog_mapping,
     )
 
-    state_vec_full = np.array([10, 1, 9])
+    state_choice_vec = np.array([10, 1, 9, 2, 2])
     kwargs = {
         "consumption": np.arange(10, 20),
         "choice": 0,
         "marginal_utility": np.arange(1, 11),
-        "theta": 0.5,
-        "delta": 0.1,
+        "params": {"theta": 0.5, "delta": 0.1},
         "options": options,
     }
 
-    _util = func_with_filtered_args_and_kwargs(*state_vec_full, **kwargs)
+    _util = func_with_filtered_args_and_kwargs(*state_choice_vec, **kwargs)
 
 
 @pytest.mark.skip
 def test_recursive_loop(example_exog_processes):
-    state_vars_and_choice, exog_vars, options, params = example_exog_processes
-
-    # ============ state_vars ============
-
-    # _options = {"exogenous_processes": {"health": exog_health_mat}}
-
-    # func = _process_exog_funcs(_options, state_vars_to_index)
-
-    # args = [0, 0, 0]
-    # f = func[0][0]
-    # out = func[0][0](*args, **params)
-
-    # breakpoint()
-
-    # ============ exog_funcs ============
-
-    state_vars_and_choice = (
-        options["state_variables"]["endogenous"]
-        | options["state_variables"]["exogenous"]
-        | {"choice": options["state_variables"]["choice"]}
-    )
-    state_vars_to_index = {
-        key: idx for idx, key in enumerate(state_vars_and_choice.keys())
-    }
-    _, signature = process_exog_funcs(options, state_vars_to_index)
-
-    exog_utils, exog_shape = get_utils_exog_processes(options)
-    transition_mat = np.empty(exog_shape)
-
-    create_exog_transition_mat_recursively(
-        transition_mat=transition_mat,
-        **exog_utils["recursion"] | params | params,
-    )
-
-    expected = np.array(
+    np.array(
         [
             [
                 [[0.35, 0.35], [0.3, 0.3]],
@@ -377,11 +333,6 @@ def test_recursive_loop(example_exog_processes):
             ],
         ]
     )
-
-    if "choice" in signature:
-        aaae(transition_mat, np.stack([expected, expected], axis=4))
-    else:
-        aaae(transition_mat, expected)
 
 
 def test_exog_mapping():
@@ -431,7 +382,7 @@ def test_get_exog_transition_vec():
             "exogenous": {"lagged_ltc": [0, 1], "lagged_job_offer": [0, 1]},
             "choice": [0, 1],
         },
-        # "model_params": {}
+        "model_params": {},
     }
 
     params = {

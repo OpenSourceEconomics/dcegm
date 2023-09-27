@@ -120,19 +120,13 @@ def compute_optimal_policy_and_value(
     )
     endog_grid = exogenous_savings_grid + policy
 
-    # state
-    # policy
-    # choice
-
-    utility = compute_utility(consumption=policy, *state_choice_vec, **params)
+    utility = compute_utility(consumption=policy, params=params, *state_choice_vec)
     value = utility + params["beta"] * expected_value
 
     return endog_grid, policy, value, expected_value
 
 
 def solve_euler_equation(
-    # state_vec: np.ndarray,
-    # choice: int,
     state_choice_vec: np.ndarray,
     marg_utils: np.ndarray,
     emax: np.ndarray,
@@ -182,8 +176,8 @@ def solve_euler_equation(
 
     policy = compute_inverse_marginal_utility(
         marginal_utility=rhs_euler,
+        params=params,
         *state_choice_vec,
-        **params,
     )
 
     return policy, expected_value

@@ -82,20 +82,22 @@ def test_benchmark_models(
     _options["n_exog_states"] = 1
 
     options["model_params"] = _options
-    options = options | {
-        "exogenous_processes": {
-            "exog": _return_one,
-        },
-        "state_variables": {
-            "endogenous": {
-                "period": jnp.arange(2),
-                "lagged_choice": [0, 1],
+    options.update(
+        {
+            # "exogenous_processes": {
+            #     "exog": _return_one,
+            # },
+            "state_variables": {
+                "endogenous": {
+                    "period": jnp.arange(2),
+                    "lagged_choice": [0, 1],
+                },
+                # "exogenous": {"exog_state": []},
+                "choice": [0, 1],
             },
-            "exogenous": {"exog_state": [1]},
-            "choice": [0, 1],
-        },
-        # "model_params": {},
-    }
+            # "model_params": {},
+        }
+    )
 
     exog_savings_grid = jnp.linspace(
         0,

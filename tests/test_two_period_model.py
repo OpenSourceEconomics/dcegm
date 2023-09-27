@@ -35,16 +35,18 @@ from toy_models.consumption_retirement_model.state_space_objects import (
 )
 
 
-def flow_util(consumption, choice, rho, delta):
-    return consumption ** (1 - rho) / (1 - rho) - delta * (1 - choice)
+def flow_util(consumption, choice, params):
+    return consumption ** (1 - params["rho"]) / (1 - params["rho"]) - params[
+        "delta"
+    ] * (1 - choice)
 
 
-def marginal_utility(consumption, rho):
-    return consumption ** (-rho)
+def marginal_utility(consumption, params):
+    return consumption ** (-params["rho"])
 
 
-def inverse_marginal_utility(marginal_utility, rho):
-    return marginal_utility ** (-1 / rho)
+def inverse_marginal_utility(marginal_utility, params):
+    return marginal_utility ** (-1 / params["rho"])
 
 
 def func_exog_ltc(
@@ -129,11 +131,13 @@ def solve_final_period_scalar(
     consumption = begin_of_period_resources
 
     value = compute_utility(
-        consumption=begin_of_period_resources, *state_choice_vec, **params
+        consumption=begin_of_period_resources,
+        params=params,
+        *state_choice_vec,
     )
 
     marginal_utility = compute_marginal_utility(
-        consumption=begin_of_period_resources, **params
+        consumption=begin_of_period_resources, params=params, *state_choice_vec
     )
 
     return marginal_utility, value, consumption
@@ -255,10 +259,10 @@ def prob_job_offer(params, lagged_job_offer, job_offer):
     return pi
 
 
-def choice_prob_retirement(consumption, choice, rho, delta):
-    v = flow_util(consumption=consumption, choice=choice, rho=rho, delta=delta)
-    v_0 = flow_util(consumption=consumption, choice=0, rho=rho, delta=delta)
-    v_1 = flow_util(consumption=consumption, choice=1, rho=rho, delta=delta)
+def choice_prob_retirement(consumption, choice, params):
+    v = flow_util(consumption=consumption, params=params, choice=choice)
+    v_0 = flow_util(consumption=consumption, params=params, choice=0)
+    v_1 = flow_util(consumption=consumption, params=params, choice=1)
     choice_prob = np.exp(v) / (np.exp(v_0) + np.exp(v_1))
     return choice_prob
 
@@ -331,12 +335,9 @@ def marginal_utility_weighted_two_exog_processes(
             # choice_prob = choice_prob_retirement(
             #     budget_2, retirement_choice_2, params
             # )
-            marginal_util = marginal_utility(consumption=budget_2, rho=params["rho"])
+            marginal_util = marginal_utility(consumption=budget_2, params=params)
             choice_prob = choice_prob_retirement(
-                consumption=budget_2,
-                choice=retirement_choice_2,
-                rho=params["rho"],
-                delta=params["delta"],
+                consumption=budget_2, choice=retirement_choice_2, params=params
             )
 
             ltc_prob = prob_long_term_care_patient(params, ltc_state_1, ltc_state_2)
@@ -693,6 +694,6 @@ def test_two_period_two_exog_processes(
                 quad_weights,
                 choice_in_period_1,
                 cons_calc,
-            ) - marginal_utility(consumption=cons_calc, rho=params["rho"])
+            ) - marginal_utility(consumption=cons_calc, params=params)
 
             assert_allclose(diff, 0, atol=1e-6)
