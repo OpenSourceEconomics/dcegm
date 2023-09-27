@@ -64,9 +64,12 @@ def func_exog_ltc(
     prob_ltc = (lagged_ltc == 0) * (ltc_prob_constant + period * ltc_prob_age) + (
         lagged_ltc == 1
     )
-    1 - prob_ltc
+    prob_no_ltc = 1 - prob_ltc
 
-    return np.array([0, 1])
+    prob_ltc = 1
+    prob_no_ltc = 0
+
+    return prob_no_ltc, prob_ltc
 
 
 def func_exog_job_offer(

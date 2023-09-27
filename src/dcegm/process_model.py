@@ -614,7 +614,7 @@ def get_exog_transition_vec(state_choice_vec, exog_mapping, exog_funcs, params):
 
     trans_vec_kron = reduce(np.kron, trans_vecs)
 
-    return trans_vec_kron
+    return jnp.array(trans_vec_kron)
 
 
 def create_exog_mapping(options):
