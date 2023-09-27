@@ -509,10 +509,145 @@ def process_exog_funcs(options, state_vars_to_index):
     return exog_funcs, list(set(signature))
 
 
-def _dummy_prob(prob, options=None, state_vars_to_index=None):
-    def dummy_prob(*args, **kwargs):
-        return prob
+def compute_transition_probs(state_choice_vec, params):
+    state_choice_vec[-1]
+    state_choice_vec[-2]
+    state_choice_vec[:-2]
 
-    return _get_function_with_filtered_kwargs(
-        dummy_prob, options=options, state_vars_to_index=state_vars_to_index
+    _idx_endog_states_and_choice = list(range(len(state_choice_vec) - 2)) + [-1]
+    state_choice_vec[_idx_endog_states_and_choice]
+
+
+# ====================================================================================
+
+
+def process_exog_funcs_new(options):
+    """Process exogenous functions.
+
+    Args:
+        options (dict): Options dictionary.
+
+    Returns:
+        tuple: Tuple of exogenous processes.
+
+    """
+    exog_processes = options["exogenous_processes"]
+
+    exog_funcs = []
+    signature = []
+
+    for exog in exog_processes.values():
+        if isinstance(exog, Callable):
+            exog_funcs += [
+                _get_exog_function_with_filtered_args(exog, options),
+            ]
+            signature += list(inspect.signature(exog).parameters)
+
+    return exog_funcs, list(set(signature))
+
+
+def _get_exog_function_with_filtered_args(func, options):
+    """Args is state_vec with one global exog state."""
+    signature = list(inspect.signature(func).parameters)
+
+    _endog_state_vars_and_choice = options["state_variables"]["endogenous"] | {
+        "choice": options["state_variables"]["choice"]
+    }
+    endog_to_index = {
+        key: idx for idx, key in enumerate(_endog_state_vars_and_choice.keys())
+    }
+
+    exog_key = (signature & options["state_variables"]["exogenous"].keys()).pop()
+
+    @functools.wraps(func)
+    def processed_func(*args, **kwargs):
+        exog_arg, endog_args = args[0], args[1:]
+        _args_to_kwargs = {
+            key: endog_args[idx]
+            for key, idx in endog_to_index.items()
+            if key in signature  # and key != "choice"  # and key not in kwargs
+        }
+        # Allow for flexible position of "choice" argument in user function
+        # if "choice" in signature:
+        #     _args_to_kwargs["choice"] = args[signature.index("choice")]
+
+        _args_to_kwargs[exog_key] = exog_arg
+
+        # In the future, no kwargs taken, since params passed as dict
+        _params = {
+            key: kwargs[key] for key in signature if key in kwargs and key != "options"
+        }
+        # partial in OUTSIDE!
+        if "options" in signature and "model_params" in options:
+            _params["options"] = options["model_params"]
+
+        # breakpoint()
+        return func(**_args_to_kwargs | _params)
+
+    # Set name of the original func
+    processed_func.__name__ = func.__name__
+
+    return processed_func
+
+
+def _get_exog_transition_probs(
+    state_choice_vec, exog_mapping, exog_funcs, options, params
+):
+    exog_func_1, exog_func_2, exog_func_3 = exog_funcs
+    big_exog_state = state_choice_vec[-2]
+
+    idx_endog_states_and_choice = list(range(len(state_choice_vec) - 2)) + [-1]
+    endog_states_and_choice = state_choice_vec[idx_endog_states_and_choice]
+
+    exog_state_1, exog_state_2, exog_state_3 = exog_mapping[big_exog_state]
+
+    trans_vec_1 = exog_func_1(exog_state_1, **endog_states_and_choice, **params)
+    trans_vec_2 = exog_func_2(exog_state_2, **endog_states_and_choice, **params)
+    trans_vec_3 = exog_func_3(exog_state_3, **endog_states_and_choice, **params)
+
+    trans_vec_kron = reduce(
+        np.kron,
+        [trans_vec_1, trans_vec_2, trans_vec_3],
     )
+
+    return trans_vec_kron
+
+
+def get_exog_transition_vec(state_choice_vec, exog_mapping, exog_funcs, params):
+    exog_state_global = state_choice_vec[-2]
+
+    _idx_endog_states_and_choice = list(range(len(state_choice_vec) - 2)) + [-1]
+    endog_states_and_choice = state_choice_vec[_idx_endog_states_and_choice]
+
+    trans_vecs = []
+
+    for exog_state, exog_func in zip(exog_mapping[exog_state_global], exog_funcs):
+        # options partialled in!!
+        trans_vec = exog_func(exog_state, *endog_states_and_choice, **params)
+        trans_vecs.append(trans_vec)
+
+    trans_vec_kron = reduce(np.kron, trans_vecs)
+
+    return trans_vec_kron
+
+
+def create_exog_mapping(options):
+    """Create mapping from separate exog state variables to global exog state."""
+    exog_state_vars = options["state_variables"]["exogenous"]
+
+    n_elements = []
+    for key in exog_state_vars:
+        n_elements.append(len(exog_state_vars[key]))
+
+    def recursive_generator(n_elements, current_mapping=[]):
+        if not n_elements:
+            exog_mapping.append(current_mapping)
+            return
+
+        for i in range(n_elements[0]):
+            recursive_generator(n_elements[1:], current_mapping + [i])
+
+    exog_mapping = []
+    recursive_generator(n_elements)
+
+    return np.array(exog_mapping)

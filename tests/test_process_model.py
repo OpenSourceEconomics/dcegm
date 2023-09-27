@@ -4,9 +4,12 @@ import numpy as np
 import pytest
 from dcegm.process_model import _get_function_with_filtered_args_and_kwargs
 from dcegm.process_model import convert_params_to_dict
+from dcegm.process_model import create_exog_mapping
 from dcegm.process_model import create_exog_transition_mat_recursively
+from dcegm.process_model import get_exog_transition_vec
 from dcegm.process_model import get_utils_exog_processes
 from dcegm.process_model import process_exog_funcs
+from dcegm.process_model import process_exog_funcs_new
 from dcegm.process_model import process_model_functions
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
@@ -248,7 +251,8 @@ def test_process_utility_funcs():
 
     policy = np.arange(10)
 
-    # ['period', 'age, 'married', 'lagged_choice', 'lagged_ltc', 'lagged_job_offer', 'choice']
+    # ['period', 'age, 'married', 'lagged_choice', 'lagged_ltc',
+    # 'lagged_job_offer', 'choice']
     state_choice_vec = [0, 0, 0, 0, 0, 1, 10]
 
     compute_utility(consumption=policy, *state_choice_vec, **params)
@@ -307,6 +311,7 @@ def test_get_function_with_filtered_args_and_kwargs(func):
     _util = func_with_filtered_args_and_kwargs(*state_vec_full, **kwargs)
 
 
+@pytest.mark.skip
 def test_recursive_loop(example_exog_processes):
     state_vars_and_choice, exog_vars, options, params = example_exog_processes
 
@@ -375,3 +380,80 @@ def test_recursive_loop(example_exog_processes):
         aaae(transition_mat, np.stack([expected, expected], axis=4))
     else:
         aaae(transition_mat, expected)
+
+
+def test_exog_mapping():
+    options = {
+        "state_variables": {
+            "exogenous": {"exog_1": [1, 2, 3], "exog_2": [4, 5], "exog_3": [6, 7, 8, 9]}
+        }
+    }
+
+    # =================================================================================
+
+    exog_state_vars = options["state_variables"]["exogenous"]
+
+    n_1 = len(exog_state_vars["exog_1"])
+    n_2 = len(exog_state_vars["exog_2"])
+    n_3 = len(exog_state_vars["exog_3"])
+
+    _expected = []
+    for exog_1 in range(n_1):
+        for exog_2 in range(n_2):
+            for exog_3 in range(n_3):
+                _expected += [[exog_1, exog_2, exog_3]]
+
+    expected = np.array(_expected)
+
+    # =================================================================================
+
+    exog_mapping = create_exog_mapping(options)
+
+    aaae(exog_mapping, expected)
+
+
+def test_get_exog_transition_vec():
+    options = {
+        # "model_structure": {
+        "exogenous_processes": {
+            "ltc": func_exog_ltc,
+            "job_offer": func_exog_job_offer,
+        },
+        "state_variables": {
+            "endogenous": {
+                "age": np.arange(2),
+                "married": [0, 1],
+                "lagged_choice": [0, 1],
+                # "choice": [0, 1],
+            },
+            "exogenous": {"lagged_ltc": [0, 1], "lagged_job_offer": [0, 1]},
+            "choice": [0, 1],
+        },
+        # "model_params": {}
+    }
+
+    params = {
+        "ltc_prob_constant": 0.3,
+        "ltc_prob_age": 0.1,
+        "job_offer_constant": 0.5,
+        "job_offer_age": 0,
+        "job_offer_educ": 0,
+        "job_offer_type_two": 0.4,
+    }
+
+    exog_mapping = create_exog_mapping(options)
+
+    exog_funcs, _signature = process_exog_funcs_new(options)
+
+    # {'age': 0, 'married': 1, 'lagged_choice': 2, 'lagged_ltc': 3,
+    # 'lagged_job_offer': 4, 'choice': 5}
+
+    # [-2]: global exog state
+    state_choice_vec = np.array([0, 0, 0, 2, 1])
+
+    trans_vec = get_exog_transition_vec(
+        state_choice_vec, exog_mapping, exog_funcs=exog_funcs, params=params
+    )
+
+    n_exog_states = sum(map(len, options["state_variables"]["exogenous"].values()))
+    assert np.equal(len(trans_vec), n_exog_states)

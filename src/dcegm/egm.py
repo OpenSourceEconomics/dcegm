@@ -48,7 +48,6 @@ def calculate_candidate_solutions_from_euler_equation(
         transition_vec,  # 0
         compute_inverse_marginal_utility,
         compute_utility,
-        # compute_transition_probs_exog_states,
         params,
     )
     return (
