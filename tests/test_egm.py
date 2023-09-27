@@ -49,12 +49,8 @@ def test_get_beginning_of_period_wealth(
         child_state,
         savings_end_of_previous_period=savings_grid[random_saving_scalar],
         income_shock_previous_period=quad_points[random_shock_scalar],
-        min_age=options["min_age"],
-        interest_rate=r,
-        consumption_floor=consump_floor,
-        constant=params["constant"],
-        exp=params["exp"],
-        exp_squared=params["exp_squared"],
+        options=options,
+        params=params,
     )
 
     _labor_income = _calc_stochastic_income(

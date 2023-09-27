@@ -30,15 +30,28 @@ def setup_model():
     params["theta"] = 1.95
     params["delta"] = 0.35
 
-    options = {"min_age": 50, "max_age": 80, "n_periods": 25, "n_choices": 2}
+    options = {
+        # "model_structure": {
+        "state_variables": {
+            "endogenous": {
+                "period": np.arange(2),
+                "lagged_choice": [0, 1],
+                # "choice": [0, 1],
+            },
+            # "exogenous": {"lagged_ltc": [0, 1], "lagged_job_offer": [0, 1]},
+            "choice": [0, 1],
+        },
+        "model_params": {"min_age": 50, "max_age": 80, "n_periods": 25, "n_choices": 2},
+    }
 
-    _state_vars = ["period", "lagged_choice", "exog_state"]
-    _state_vars_to_index = {key: idx for idx, key in enumerate(_state_vars)}
+    # _state_vars = ["period", "lagged_choice", "exog_state"]
 
     state_choice_vec = [23, 0, 0, 0]  # has to be a list!
 
+    exog_mapping = np.array([1])
+    options["state_variables"]["exogenous"] = {"exog_state": [0]}
     compute_utility = _get_function_with_filtered_args_and_kwargs(
-        utility_func_crra, options=options, state_vars_to_index=_state_vars_to_index
+        utility_func_crra, options=options, exog_mapping=exog_mapping
     )
 
     return params, exog_savings_grid, state_choice_vec, compute_utility

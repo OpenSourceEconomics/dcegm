@@ -570,15 +570,14 @@ def _augment_grid(
 
     """
 
-    state_vec = state_choice_vec[:-1]
-    choice = state_choice_vec[-1]
-
     grid_points_to_add = np.linspace(min_wealth_grid, value[0, 1], n_grid_wealth // 10)[
         :-1
     ]
 
     utility = compute_utility(
-        consumption=grid_points_to_add, choice=choice, *state_vec, **params
+        consumption=grid_points_to_add,
+        params=params,
+        *state_choice_vec,
     )
     values_to_add = utility + params["beta"] * expected_value_zero_wealth
 
