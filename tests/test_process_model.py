@@ -410,6 +410,7 @@ def test_get_exog_transition_vec():
     n_exog_states = sum(map(len, options["state_variables"]["exogenous"].values()))
     assert np.equal(len(trans_vec), n_exog_states)
 
+    exog_funcs, _signature = process_exog_funcs_new(options)
     compute_exog_transition_vec = partial(
         get_exog_transition_vec, exog_mapping=exog_mapping, exog_funcs=exog_funcs
     )

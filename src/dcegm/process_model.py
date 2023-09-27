@@ -500,7 +500,7 @@ def _get_exog_function_with_filtered_args(func, options):
         if "params" in signature:
             _args_to_kwargs["params"] = args[-1]
 
-        # partial in OUTSIDE!
+        # partial in
         if "options" in signature and "model_params" in options:
             _args_to_kwargs["options"] = options["model_params"]
 

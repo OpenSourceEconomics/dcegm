@@ -44,8 +44,6 @@ def setup_model():
         "model_params": {"min_age": 50, "max_age": 80, "n_periods": 25, "n_choices": 2},
     }
 
-    # _state_vars = ["period", "lagged_choice", "exog_state"]
-
     state_choice_vec = [23, 0, 0, 0]  # has to be a list!
 
     exog_mapping = np.array([1])
