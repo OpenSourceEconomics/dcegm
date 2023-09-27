@@ -111,10 +111,14 @@ def process_model_functions(
         options=options,
     )
 
-    # update endgo also partial
+    # ! update endgo also partial !
 
-    # compute_exog_transition_probs = create_exogenous_transition_function(options)
-    # compute_exog_transition_probs = exogenous_transition_function
+    exog_mapping = create_exog_mapping(options)
+    exog_funcs, _signature = process_exog_funcs_new(options)
+
+    compute_exog_transition_vec = partial(
+        get_exog_transition_vec, exog_mapping=exog_mapping, exog_funcs=exog_funcs
+    )
 
     if len(options["state_variables"]["choice"]) < 2:
         compute_upper_envelope = _return_policy_and_value
@@ -127,6 +131,7 @@ def process_model_functions(
         compute_inverse_marginal_utility,
         compute_beginning_of_period_wealth,
         compute_final_period,
+        compute_exog_transition_vec,
         compute_upper_envelope,
     )
 
@@ -562,6 +567,11 @@ def _get_exog_function_with_filtered_args(func, options):
     @functools.wraps(func)
     def processed_func(*args, **kwargs):
         exog_arg, endog_args = args[0], args[1:]
+
+        # Allows for flexible position of arguments in user function.
+        # The endog states and choice variable in the state_choice_vec
+        # (passed as args to the user function) have the same order
+        # as they appear in options["state_variables"]
         _args_to_kwargs = {
             key: endog_args[idx]
             for key, idx in endog_to_index.items()
@@ -581,7 +591,6 @@ def _get_exog_function_with_filtered_args(func, options):
         if "options" in signature and "model_params" in options:
             _params["options"] = options["model_params"]
 
-        # breakpoint()
         return func(**_args_to_kwargs | _params)
 
     # Set name of the original func
@@ -590,39 +599,16 @@ def _get_exog_function_with_filtered_args(func, options):
     return processed_func
 
 
-def _get_exog_transition_probs(
-    state_choice_vec, exog_mapping, exog_funcs, options, params
-):
-    exog_func_1, exog_func_2, exog_func_3 = exog_funcs
-    big_exog_state = state_choice_vec[-2]
-
-    idx_endog_states_and_choice = list(range(len(state_choice_vec) - 2)) + [-1]
-    endog_states_and_choice = state_choice_vec[idx_endog_states_and_choice]
-
-    exog_state_1, exog_state_2, exog_state_3 = exog_mapping[big_exog_state]
-
-    trans_vec_1 = exog_func_1(exog_state_1, **endog_states_and_choice, **params)
-    trans_vec_2 = exog_func_2(exog_state_2, **endog_states_and_choice, **params)
-    trans_vec_3 = exog_func_3(exog_state_3, **endog_states_and_choice, **params)
-
-    trans_vec_kron = reduce(
-        np.kron,
-        [trans_vec_1, trans_vec_2, trans_vec_3],
-    )
-
-    return trans_vec_kron
-
-
 def get_exog_transition_vec(state_choice_vec, exog_mapping, exog_funcs, params):
     exog_state_global = state_choice_vec[-2]
 
     _idx_endog_states_and_choice = list(range(len(state_choice_vec) - 2)) + [-1]
-    endog_states_and_choice = state_choice_vec[_idx_endog_states_and_choice]
+    endog_states_and_choice = state_choice_vec[jnp.array(_idx_endog_states_and_choice)]
 
     trans_vecs = []
 
     for exog_state, exog_func in zip(exog_mapping[exog_state_global], exog_funcs):
-        # options partialled in!!
+        # options already partialled in!!
         trans_vec = exog_func(exog_state, *endog_states_and_choice, **params)
         trans_vecs.append(trans_vec)
 
@@ -650,4 +636,4 @@ def create_exog_mapping(options):
     exog_mapping = []
     recursive_generator(n_elements)
 
-    return np.array(exog_mapping)
+    return jnp.asarray(exog_mapping)

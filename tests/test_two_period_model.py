@@ -66,8 +66,7 @@ def func_exog_ltc(
     )
     1 - prob_ltc
 
-    # return prob_no_ltc, prob_ltc
-    return 1
+    return np.array([0, 1])
 
 
 def func_exog_job_offer(
@@ -338,7 +337,7 @@ def marginal_utility_weighted_two_exog_processes(
             )
 
             ltc_prob = prob_long_term_care_patient(params, ltc_state_1, ltc_state_2)
-            ltc_prob = 1
+            # ltc_prob = 1
             # job_offer_prob = prob_job_offer(params, job_state_1, job_state_2)
 
             weighted_marginal += (

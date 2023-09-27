@@ -1,6 +1,5 @@
 """Interface for the DC-EGM algorithm."""
 from functools import partial
-from typing import Any
 from typing import Callable
 from typing import Dict
 
@@ -14,9 +13,7 @@ from dcegm.marg_utilities_and_exp_value import (
     aggregate_marg_utils_exp_values,
 )
 from dcegm.process_model import convert_params_to_dict
-from dcegm.process_model import get_utils_exog_processes
 from dcegm.process_model import process_model_functions
-from dcegm.state_space import create_exog_transition_mat
 from dcegm.state_space import create_map_from_state_to_child_nodes
 from dcegm.state_space import (
     create_period_state_and_state_choice_objects,
@@ -109,6 +106,7 @@ def get_solve_function(
         compute_inverse_marginal_utility,
         compute_beginning_of_period_wealth,
         compute_final_period,
+        compute_exog_transition_vec,
         compute_upper_envelope,
     ) = process_model_functions(
         options,
@@ -116,9 +114,6 @@ def get_solve_function(
         user_budget_constraint=budget_constraint,
         user_final_period_solution=final_period_solution,
     )
-
-    exog_utils, _exog_shape = get_utils_exog_processes(options)
-    # exog_transition_mat = np.empty(_exog_shape)
 
     backward_jit = jit(
         partial(
@@ -130,15 +125,13 @@ def get_solve_function(
             income_shock_draws_unscaled=income_shock_draws_unscaled,
             income_shock_weights=income_shock_weights,
             n_periods=n_periods,
-            exog_utils=exog_utils,
-            # exog_transition_mat=exog_transition_mat,
             compute_utility=compute_utility,
             compute_marginal_utility=compute_marginal_utility,
             compute_inverse_marginal_utility=compute_inverse_marginal_utility,
             compute_beginning_of_period_wealth=compute_beginning_of_period_wealth,
             compute_final_period=compute_final_period,
+            compute_exog_transition_vec=compute_exog_transition_vec,
             compute_upper_envelope=compute_upper_envelope,
-            state_choice_space=state_choice_space,
         )
     )
 
@@ -209,15 +202,13 @@ def backward_induction(
     income_shock_draws_unscaled: np.ndarray,
     income_shock_weights: np.ndarray,
     n_periods: int,
-    exog_utils: Dict[str, Any],
-    # exog_transition_mat: np.ndarray,
     compute_utility: Callable,
     compute_marginal_utility: Callable,
     compute_inverse_marginal_utility: Callable,
     compute_beginning_of_period_wealth: Callable,
     compute_final_period: Callable,
+    compute_exog_transition_vec: Callable,
     compute_upper_envelope: Callable,
-    state_choice_space: np.ndarray,
 ) -> Dict[int, np.ndarray]:
     """Do backward induction and solve for optimal policy and value function.
 
@@ -283,20 +274,6 @@ def backward_induction(
             policy_right, and value from the backward induction.
 
     """
-
-    # ======================================================================
-
-    # transition probabilities may depend on params, which change during
-    # numerical optimization
-
-    _trans_mat, transition_mat_dict = create_exog_transition_mat(
-        state_choice_space,
-        exog_funcs=exog_utils["exog_funcs"],
-        options=options,  # n_period, n_exog_states
-        params=params,
-    )
-    # breakpoint()
-    # ======================================================================
 
     taste_shock_scale = params["lambda"]
     income_shock_draws = income_shock_draws_unscaled * params["sigma"]
@@ -372,11 +349,11 @@ def backward_induction(
             marg_util=marg_util,
             emax=emax,
             state_choice_vec=state_objects["state_choice_mat"],  # state_vec and choice
-            transition_vec=transition_mat_dict[period],
+            # transition_vec=transition_mat_dict[period],
             idx_post_decision_child_states=state_objects["idx_feasible_child_nodes"],
             compute_inverse_marginal_utility=compute_inverse_marginal_utility,
             compute_utility=compute_utility,
-            # compute_transition_probs_exog_states=compute_exog_transition_probs,
+            compute_exog_transition_vec=compute_exog_transition_vec,
             params=params,
         )
 

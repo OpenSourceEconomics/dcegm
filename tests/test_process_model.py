@@ -1,3 +1,4 @@
+from functools import partial
 from pathlib import Path
 
 import numpy as np
@@ -442,7 +443,6 @@ def test_get_exog_transition_vec():
     }
 
     exog_mapping = create_exog_mapping(options)
-
     exog_funcs, _signature = process_exog_funcs_new(options)
 
     # {'age': 0, 'married': 1, 'lagged_choice': 2, 'lagged_ltc': 3,
@@ -457,3 +457,12 @@ def test_get_exog_transition_vec():
 
     n_exog_states = sum(map(len, options["state_variables"]["exogenous"].values()))
     assert np.equal(len(trans_vec), n_exog_states)
+
+    compute_exog_transition_vec = partial(
+        get_exog_transition_vec, exog_mapping=exog_mapping, exog_funcs=exog_funcs
+    )
+
+    trans_vec_from_partial = compute_exog_transition_vec(
+        state_choice_vec=state_choice_vec, params=params
+    )
+    aaae(trans_vec_from_partial, trans_vec)
