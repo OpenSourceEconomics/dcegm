@@ -29,6 +29,7 @@ def determine_function_arguments_and_partial_options(
 def partial_options_and_addtional_arguments_and_update_signature(
     func, signature, options, additional_partial
 ):
+    """Partial in options and additional arguments and update signature."""
     if "options" in signature:
         func = partial(func, options=options)
         signature = signature - {"options"}

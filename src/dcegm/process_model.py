@@ -271,54 +271,6 @@ def _get_exog_function_with_filtered_args(func, options):
     return processed_func
 
 
-def _get_utility_function_with_filtered_args_and_kwargs(func, options, exog_mapping):
-    """The order of inputs in the user function does not matter!"""
-    signature = list(inspect.signature(func).parameters)
-
-    exog_state_vars = options["state_space"]["exogenous_states"]
-    exog_to_index = {key: idx for idx, key in enumerate(exog_state_vars.keys())}
-    exog_keys_in_signature = signature & exog_state_vars.keys()
-
-    endog_state_vars = options["state_space"]["endogenous_states"]
-    endog_to_index = {key: idx for idx, key in enumerate(endog_state_vars.keys())}
-
-    @functools.wraps(func)
-    def processed_func(*args, **kwargs):
-        # args is state_choice_vec
-        exog_state_global = args[-2]
-        endog_args, choice = args[:-2], args[-1]
-
-        _args_to_kwargs = {
-            key: endog_args[idx]
-            for key, idx in endog_to_index.items()
-            if key in signature
-        }
-
-        if "choice" in signature:
-            _args_to_kwargs["choice"] = choice
-
-        if exog_keys_in_signature:
-            exog_states = exog_mapping[exog_state_global]
-            _args_to_kwargs.update(
-                {
-                    key: exog_states[idx]
-                    for key, idx in exog_to_index.items()
-                    if key in signature
-                }
-            )
-
-        # partial in
-        if "options" in signature and "model_params" in options:
-            _args_to_kwargs["options"] = options["model_params"]
-
-        # params
-        _kwargs = {key: kwargs[key] for key in signature if key in kwargs}
-
-        return func(**_args_to_kwargs | _kwargs)
-
-    return processed_func
-
-
 def _get_vmapped_function_with_args_and_filtered_kwargs(func, options):
     signature = list(inspect.signature(func).parameters)
 
