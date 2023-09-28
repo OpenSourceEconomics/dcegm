@@ -61,9 +61,11 @@ def create_state_space_and_choice_objects(state_space_options, state_space_funct
         idxs_states = jnp.where(state_space[:, 0] == period)[0]
 
         idxs_state_choices_period = jnp.where(state_choice_space[:, 0] == period)[0]
-        period_dict["state_choice_mat"] = jnp.take(
+        state_choice_mat = jnp.take(
             state_choice_space, idxs_state_choices_period, axis=0
         )
+
+        period_dict["state_choice_mat"] = state_choice_mat
 
         period_dict["idx_parent_states"] = jnp.take(
             map_state_choice_vec_to_parent_state, idxs_state_choices_period, axis=0
