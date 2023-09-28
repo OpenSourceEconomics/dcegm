@@ -120,7 +120,9 @@ def compute_optimal_policy_and_value(
     )
     endog_grid = exogenous_savings_grid + policy
 
-    utility = compute_utility(consumption=policy, params=params, *state_choice_vec)
+    utility = compute_utility(
+        consumption=policy, params=params, choice=state_choice_vec[-1]
+    )
     value = utility + params["beta"] * expected_value
 
     return endog_grid, policy, value, expected_value

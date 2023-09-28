@@ -17,7 +17,7 @@ from dcegm.marg_utilities_and_exp_value import (
 from dcegm.process_model import process_model_functions
 from dcegm.process_model import process_params
 from dcegm.state_space import (
-    create_period_state_and_state_choice_objects,
+    create_state_space_and_choice_objects,
 )
 from jax import jit
 from jax import vmap
@@ -72,7 +72,7 @@ def get_solve_function(
     (
         period_specific_state_objects,
         state_space,
-    ) = create_period_state_and_state_choice_objects(
+    ) = create_state_space_and_choice_objects(
         state_space_options=options["state_space"],
         state_space_functions=state_space_functions,
     )

@@ -129,7 +129,12 @@ def fast_upper_envelope_wrapper(
 def _compute_value(
     consumption, next_period_value, state_choice_vec, params, compute_utility
 ):
-    utility = compute_utility(consumption=consumption, params=params, *state_choice_vec)
+    utility = compute_utility(
+        consumption=consumption,
+        params=params,
+        choice=state_choice_vec[-1],
+        period=state_choice_vec[0],
+    )
     return utility + params["beta"] * next_period_value
 
 

@@ -10,6 +10,7 @@ from typing import Union
 import jax.numpy as jnp
 import pandas as pd
 from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
+from dcegm.process_functions import determine_function_arguments_and_partial_options
 from pybaum import get_registry
 from pybaum import tree_flatten
 
@@ -72,10 +73,8 @@ def process_model_functions(
             get_exog_transition_vec, exog_mapping=exog_mapping, exog_funcs=exog_funcs
         )
 
-    compute_utility = _get_utility_function_with_filtered_args_and_kwargs(
-        user_utility_functions["utility"],
-        options=options,
-        exog_mapping=exog_mapping,
+    compute_utility = determine_function_arguments_and_partial_options(
+        func=user_utility_functions["utility"], options=options
     )
     compute_marginal_utility = _get_utility_function_with_filtered_args_and_kwargs(
         user_utility_functions["marginal_utility"],
@@ -165,14 +164,13 @@ def process_exog_funcs(options):
     exog_processes = options["state_space"]["exogenous_processes"]
 
     exog_funcs = []
-    signature = []
 
+    # What about vectors instead of callables supplied?
     for exog in exog_processes.values():
         if isinstance(exog, Callable):
             exog_funcs += [
                 _get_exog_function_with_filtered_args(exog, options),
             ]
-            signature += list(inspect.signature(exog).parameters)
 
     return exog_funcs
 

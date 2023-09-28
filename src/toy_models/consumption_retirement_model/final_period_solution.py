@@ -44,7 +44,7 @@ def solve_final_period_scalar(
     value = compute_utility(
         consumption=begin_of_period_resources,
         params=params,
-        *state_choice_vec,
+        choice=state_choice_vec[-1],
     )
 
     marginal_utility = compute_marginal_utility(

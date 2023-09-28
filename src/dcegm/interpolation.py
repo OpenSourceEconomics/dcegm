@@ -142,7 +142,7 @@ def calc_interpolated_values_and_marg_utils(
     utility = compute_utility(
         consumption=new_wealth,
         params=params,
-        *state_choice_vec,
+        choice=state_choice_vec[-1],
     )
     value_interp_closed_form = utility + params["beta"] * value_min
 
