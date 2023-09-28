@@ -1,5 +1,4 @@
 from functools import partial
-from functools import reduce
 from typing import Callable
 from typing import Dict
 from typing import Tuple
@@ -183,16 +182,13 @@ def get_exog_transition_vec(state_choice_vec, exog_mapping, exog_funcs, params):
         "job_offer": exog_states[1],
     }
 
-    trans_vecs = []
+    trans_vector = exog_funcs[0](**max_args, params=params)
 
-    for exog_func in exog_funcs:
+    for exog_func in exog_funcs[1:]:
         # options already partialled in
-        trans_vec = exog_func(**max_args, params=params)
-        trans_vecs.append(jnp.array(trans_vec))
+        trans_vector = jnp.kron(trans_vector, exog_func(**max_args, params=params))
 
-    trans_vec_kron = reduce(jnp.kron, trans_vecs)
-
-    return trans_vec_kron
+    return trans_vector
     # return jnp.array(trans_vec_kron)
 
 

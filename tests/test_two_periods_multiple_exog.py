@@ -141,7 +141,7 @@ def func_exog_ltc(
     ) + (ltc == 1)
     prob_no_ltc = 1 - prob_ltc
 
-    return prob_no_ltc, prob_ltc
+    return jnp.array([prob_no_ltc, prob_ltc])
 
 
 def func_exog_job_offer(
@@ -153,7 +153,7 @@ def func_exog_job_offer(
     ) * (params["job_offer_constant"] + params["job_offer_type_two"])
     prob_no_job_offer = 1 - prob_job_offer
 
-    return prob_no_job_offer, prob_job_offer
+    return jnp.array([prob_no_job_offer, prob_job_offer])
 
 
 def budget_two_exog_processes(
