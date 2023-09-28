@@ -276,9 +276,6 @@ def _get_exog_function_with_filtered_args(func, options):
 
         return func(**_args_to_kwargs)
 
-    # Set name of the original func
-    processed_func.__name__ = func.__name__
-
     return processed_func
 
 
@@ -326,9 +323,6 @@ def _get_utility_function_with_filtered_args_and_kwargs(func, options, exog_mapp
         _kwargs = {key: kwargs[key] for key in signature if key in kwargs}
 
         return func(**_args_to_kwargs | _kwargs)
-
-    # Set name of the original func
-    processed_func.__name__ = func.__name__
 
     return processed_func
 
