@@ -6,6 +6,7 @@ from typing import Dict
 import jax.numpy as jnp
 import numpy as np
 import pandas as pd
+from dcegm.budget import calculate_resources
 from dcegm.egm import calculate_candidate_solutions_from_euler_equation
 from dcegm.integration import quadrature_legendre
 from dcegm.interpolation import interpolate_and_calc_marginal_utilities
@@ -282,16 +283,13 @@ def backward_induction(
 
     state_objects = period_specific_state_objects[n_periods - 1]
 
-    resources_beginning_of_period = vmap(
-        vmap(
-            vmap(
-                compute_beginning_of_period_wealth,
-                in_axes=(None, None, 0, None),
-            ),
-            in_axes=(None, 0, None, None),
-        ),
-        in_axes=(0, None, None, None),
-    )(state_space, exog_savings_grid, income_shock_draws, params)
+    resources_beginning_of_period = calculate_resources(
+        state_space,
+        exog_savings_grid,
+        income_shock_draws,
+        params,
+        compute_beginning_of_period_wealth,
+    )
 
     resources_final_period = resources_beginning_of_period[
         state_objects["idx_parent_states"]
