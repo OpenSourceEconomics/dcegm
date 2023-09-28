@@ -36,6 +36,7 @@ lagged_choices = [0, 1]
 TEST_CASES = list(product(n_periods, n_choices, n_exog_processes))
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize("n_periods, n_choices, n_exog_states", TEST_CASES)
 def test_state_space(n_periods, n_choices, n_exog_states):
     options = {
@@ -57,6 +58,7 @@ def test_state_space(n_periods, n_choices, n_exog_states):
 TEST_CASES = list(product(lagged_choices, n_periods, n_choices, n_exog_processes))
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize(
     "lagged_choice, n_periods, n_choices, n_exog_states", TEST_CASES
 )

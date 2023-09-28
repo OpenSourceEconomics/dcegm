@@ -1,4 +1,5 @@
 """User-supplied function for the final period."""
+from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Tuple
@@ -7,11 +8,10 @@ import numpy as np
 
 
 def solve_final_period_scalar(
-    state_vec: np.ndarray,  # noqa: U100
-    choice: int,
+    state_choice_vec: np.ndarray,  # noqa: U100
     begin_of_period_resources: float,
+    options: Dict[str, Any],
     params: Dict[str, float],
-    options: Dict[str, int],  # noqa: U100
     compute_utility: Callable,
     compute_marginal_utility: Callable,
 ) -> Tuple[float, float]:
@@ -20,8 +20,9 @@ def solve_final_period_scalar(
     In the last period, everything is consumed, i.e. consumption = savings.
 
     Args:
-        state (np.ndarray): 1d array of shape (n_state_variables,) containing the
-            period-specific state vector.
+        state_vec (np.ndarray): 1d array of shape (n_state_variables,)
+            containing the period- and state-choice specific vector of
+            state variables
         choice (int): The agent's choice in the current period.
         begin_of_period_resources (float): The agent's begin of period resources.
         compute_utility (callable): Function for computation of agent's utility.
@@ -37,12 +38,17 @@ def solve_final_period_scalar(
         - marginal_utility (float): The agent's marginal utility .
 
     """
-    marginal_utility = compute_marginal_utility(
-        consumption=begin_of_period_resources, params_dict=params
-    )
-    value = compute_utility(
-        consumption=begin_of_period_resources, choice=choice, params_dict=params
-    )
+
     consumption = begin_of_period_resources
+
+    value = compute_utility(
+        consumption=begin_of_period_resources,
+        params=params,
+        *state_choice_vec,
+    )
+
+    marginal_utility = compute_marginal_utility(
+        consumption=begin_of_period_resources, params=params, *state_choice_vec
+    )
 
     return marginal_utility, value, consumption

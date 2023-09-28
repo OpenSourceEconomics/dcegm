@@ -27,6 +27,7 @@ dependencies:
   - matplotlib
   - pdbpp
   - pre-commit
+  - pybaum
   - setuptools_scm
   - toml
 

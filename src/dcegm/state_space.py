@@ -58,8 +58,8 @@ def create_state_choice_space(
     """
     n_states, n_state_and_exog_variables = state_space.shape
 
-    n_choices = options["n_discrete_choices"]
-    n_periods = options["n_periods"]
+    n_periods = len(options["endogenous_states"]["period"])
+    n_choices = len(options["choice"])
 
     state_choice_space = np.zeros(
         (n_states * n_choices, n_state_and_exog_variables + 1),
@@ -134,17 +134,19 @@ def create_map_from_state_to_child_nodes(
             choice.
 
     Returns:
-        np.ndarray: 2d array of shape
-            (n_feasible_state_choice_combs, n_choices * n_exog_processes)
-            containing indices of all child nodes the agent can reach
-            from a given state.
+        tuple:
+            period_specific_state_space_objects (np.ndarray): 2d array of shape
+                (n_feasible_state_choice_combs, n_choices * n_exog_processes)
+                containing indices of all child nodes the agent can reach
+                from a given state.
 
     """
+
     # Exogenous processes are always on the last entry of the state space. Moreover, we
     # treat all of them as admissible in each period. If there exists an absorbing
     # state, this is reflected by a 0 percent transition probability.
-    n_periods = options["n_periods"]
-    n_exog_states = options["n_exog_states"]
+    n_periods = len(options["endogenous_states"]["period"])
+    n_exog_states = sum(map(len, options["exogenous_states"].values()))
 
     for period in range(n_periods - 1):
         period_dict = period_specific_state_objects[period]
@@ -164,6 +166,8 @@ def create_map_from_state_to_child_nodes(
             state_vec_next = update_endog_state_by_state_and_choice(
                 state=np.array(state_choice_vec[:-1]),
                 choice=np.array(state_choice_vec[-1]),
+                # ToDo: options
+                # all optional
             )
 
             for exog_process in range(n_exog_states):
@@ -182,7 +186,7 @@ def create_map_from_state_to_child_nodes(
 
 
 def create_period_state_and_state_choice_objects(
-    options,
+    n_periods,
     state_space,
     state_choice_space,
     map_state_choice_vec_to_parent_state,
@@ -215,7 +219,6 @@ def create_period_state_and_state_choice_objects(
             - "transform_between_state_and_state_choice_vec" (callable)
 
     """
-    n_periods = options["n_periods"]
     out = {}
 
     for period in range(n_periods):

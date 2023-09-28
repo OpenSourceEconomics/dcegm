@@ -9,14 +9,14 @@ from jax import vmap
 
 
 def calculate_candidate_solutions_from_euler_equation(
+    exogenous_savings_grid: np.ndarray,
     marg_util: np.ndarray,
     emax: np.ndarray,
+    state_choice_vec: np.ndarray,
     idx_post_decision_child_states: jnp.ndarray,
-    exogenous_savings_grid: np.ndarray,
-    transition_vector_by_state: Callable,
-    state_choice_mat: np.ndarray,
+    compute_utility: Callable,
     compute_inverse_marginal_utility: Callable,
-    compute_value: Callable,
+    compute_exog_transition_vec: Callable,
     params: Dict[str, float],
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Calculate candidates for the optimal policy and value function."""
@@ -26,11 +26,13 @@ def calculate_candidate_solutions_from_euler_equation(
         idx_post_decision_child_states=idx_post_decision_child_states,
     )
 
+    # transform exog_transition_mat to matrix with same shape as state_choice_vec
+
     (
-        endog_grid_candidate,
-        policy_candidate,
-        value_candiadate,
-        expected_values,
+        endog_grid,
+        policy,
+        value,
+        expected_value,
     ) = vmap(
         vmap(
             compute_optimal_policy_and_value,
@@ -41,17 +43,17 @@ def calculate_candidate_solutions_from_euler_equation(
         feasible_marg_utils,
         feasible_emax,
         exogenous_savings_grid,
-        state_choice_mat,
+        state_choice_vec,
         compute_inverse_marginal_utility,
-        compute_value,
-        transition_vector_by_state,
+        compute_utility,
+        compute_exog_transition_vec,
         params,
     )
     return (
-        endog_grid_candidate,
-        value_candiadate,
-        policy_candidate,
-        expected_values,
+        endog_grid,
+        value,
+        policy,
+        expected_value,
     )
 
 
@@ -59,10 +61,10 @@ def compute_optimal_policy_and_value(
     marg_utils: np.ndarray,
     emax: np.ndarray,
     exogenous_savings_grid: np.ndarray,
-    state_choice_mat: np.ndarray,
+    state_choice_vec: np.ndarray,
     compute_inverse_marginal_utility: Callable,
-    compute_value: Callable,
-    transition_vector_by_state: Callable,
+    compute_utility: Callable,
+    compute_exog_transition_vec: Callable,
     params: Dict[str, float],
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Compute optimal child-state- and choice-specific policy and value function.
@@ -103,35 +105,33 @@ def compute_optimal_policy_and_value(
             containing the current state- and choice-specific policy function.
         - value (np.ndarray): 1d array of shape (n_grid_wealth + 1,)
             containing the current state- and choice-specific value function.
-        expected_value_zero_savings (float): The agent's expected value given that she
-            saves zero.
+        - expected_value_zero_savings (float): The agent's expected value given that
+            she saves nothing.
 
     """
-    state_vec = state_choice_mat[:-1]
-    choice = state_choice_mat[-1]
-    transition_probs = transition_vector_by_state(state_vec, params)
 
     policy, expected_value = solve_euler_equation(
+        state_choice_vec=state_choice_vec,
         marg_utils=marg_utils,
         emax=emax,
-        transition_probs=transition_probs,
         compute_inverse_marginal_utility=compute_inverse_marginal_utility,
+        compute_exog_transition_vec=compute_exog_transition_vec,
         params=params,
     )
     endog_grid = exogenous_savings_grid + policy
 
-    value = compute_value(
-        policy, next_period_value=expected_value, choice=choice, params=params
-    )
+    utility = compute_utility(consumption=policy, params=params, *state_choice_vec)
+    value = utility + params["beta"] * expected_value
 
     return endog_grid, policy, value, expected_value
 
 
 def solve_euler_equation(
+    state_choice_vec: np.ndarray,
     marg_utils: np.ndarray,
     emax: np.ndarray,
-    transition_probs: np.ndarray,
     compute_inverse_marginal_utility: Callable,
+    compute_exog_transition_vec: Callable,
     params: Dict[str, float],
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Solve the Euler equation for given discrete choice and child states.
@@ -162,13 +162,23 @@ def solve_euler_equation(
             choice-specific expected value. Has shape (n_grid_wealth,).
 
     """
-    # Integrate out uncertainty over exogenous process
-    marginal_utility = transition_probs @ marg_utils
-    expected_value = transition_probs @ emax
+
+    transition_vec = compute_exog_transition_vec(
+        state_choice_vec=state_choice_vec, params=params
+    )
+
+    # Integrate out uncertainty over exogenous processes
+    marginal_utility = transition_vec @ marg_utils
+    expected_value = transition_vec @ emax
 
     # RHS of Euler Eq., p. 337 IJRS (2017) by multiplying with marginal wealth
     rhs_euler = marginal_utility * (1 + params["interest_rate"]) * params["beta"]
-    policy = compute_inverse_marginal_utility(rhs_euler, params)
+
+    policy = compute_inverse_marginal_utility(
+        marginal_utility=rhs_euler,
+        params=params,
+        *state_choice_vec,
+    )
 
     return policy, expected_value
 

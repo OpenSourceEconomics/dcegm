@@ -9,9 +9,6 @@ from dcegm.solve import solve_dcegm
 from dcegm.state_space import create_state_choice_space
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
-from toy_models.consumption_retirement_model.exogenous_processes import (
-    get_transition_matrix_by_state,
-)
 from toy_models.consumption_retirement_model.final_period_solution import (
     solve_final_period_scalar,
 )
@@ -76,14 +73,32 @@ def test_benchmark_models(
     state_space_functions,
     load_example_model,
 ):
-    params, options = load_example_model(f"{model}")
-    options["n_exog_states"] = 1
+    options = {}
+    params, _raw_options = load_example_model(f"{model}")
 
-    exog_savings_grid = jnp.linspace(0, options["max_wealth"], options["n_grid_points"])
+    options["model_params"] = _raw_options
+    options.update(
+        {
+            "state_space": {
+                "endogenous_states": {
+                    "period": jnp.arange(25),
+                    "lagged_choice": [0, 1],
+                },
+                "exogenous_states": {"exog_state": [0]},
+                "choice": [i for i in range(_raw_options["n_discrete_choices"])],
+            },
+        }
+    )
 
-    state_space, map_state_to_index = create_state_space(options)
+    exog_savings_grid = jnp.linspace(
+        0,
+        options["model_params"]["max_wealth"],
+        options["model_params"]["n_grid_points"],
+    )
+
+    state_space, map_state_to_index = create_state_space(options["state_space"])
     state_choice_space, *_ = create_state_choice_space(
-        options,
+        options["state_space"],
         state_space,
         map_state_to_index,
         state_space_functions["get_state_specific_choice_set"],
@@ -100,7 +115,6 @@ def test_benchmark_models(
         budget_constraint=budget_constraint,
         final_period_solution=solve_final_period_scalar,
         state_space_functions=state_space_functions,
-        transition_function=get_transition_matrix_by_state,
     )
 
     policy_expected = pickle.load(
@@ -108,7 +122,6 @@ def test_benchmark_models(
     )
     value_expected = pickle.load((TEST_RESOURCES_DIR / f"value_{model}.pkl").open("rb"))
 
-    # need to loop over period? Isn't state_choice space enough?
     for period in range(23, -1, -1):
         idxs_state_choice_combs = jnp.where(state_choice_space[:, 0] == period)[0]
 

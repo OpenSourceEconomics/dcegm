@@ -9,8 +9,8 @@ from jax import vmap
 
 def interpolate_and_calc_marginal_utilities(
     compute_marginal_utility: Callable,
-    compute_value: Callable,
-    choice: int,
+    compute_utility: Callable,
+    state_choice_vec: jnp.ndarray,
     wealth_beginning_of_period: jnp.ndarray,
     endog_grid_child_state_choice: jnp.ndarray,
     policy_left_child_state_choice: jnp.ndarray,
@@ -50,6 +50,7 @@ def interpolate_and_calc_marginal_utilities(
             containing the interpolated value function.
 
     """
+
     ind_high, ind_low = get_index_high_and_low(
         x=endog_grid_child_state_choice, x_new=wealth_beginning_of_period
     )
@@ -67,11 +68,11 @@ def interpolate_and_calc_marginal_utilities(
         value_child_state_choice[ind_low],
         endog_grid_child_state_choice[ind_low],
         wealth_beginning_of_period,
-        compute_value,
+        compute_utility,
         compute_marginal_utility,
         endog_grid_child_state_choice[1],
         value_child_state_choice[0],
-        choice,
+        state_choice_vec,
         params,
     )
 
@@ -86,11 +87,11 @@ def calc_interpolated_values_and_marg_utils(
     value_low: float,
     wealth_low: float,
     new_wealth: float,
-    compute_value: Callable,
+    compute_utility: Callable,
     compute_marginal_utility: Callable,
     endog_grid_min: float,
     value_min: float,
-    choice: int,
+    state_choice_vec: jnp.ndarray,
     params: Dict[str, float],
 ) -> Tuple[float, float]:
     """Calculate interpolated marginal utility and value function.
@@ -138,12 +139,12 @@ def calc_interpolated_values_and_marg_utils(
         wealth_new=new_wealth,
     )
 
-    value_interp_closed_form = compute_value(
+    utility = compute_utility(
         consumption=new_wealth,
-        next_period_value=value_min,
-        choice=choice,
         params=params,
+        *state_choice_vec,
     )
+    value_interp_closed_form = utility + params["beta"] * value_min
 
     credit_constraint = new_wealth < endog_grid_min
     value_interp = (
@@ -151,7 +152,9 @@ def calc_interpolated_values_and_marg_utils(
         + (1 - credit_constraint) * value_interp_on_grid
     )
 
-    marg_utility_interp = compute_marginal_utility(policy_interp, params_dict=params)
+    marg_utility_interp = compute_marginal_utility(
+        consumption=policy_interp, params=params, *state_choice_vec
+    )
 
     return marg_utility_interp, value_interp
 

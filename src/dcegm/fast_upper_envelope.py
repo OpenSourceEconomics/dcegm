@@ -24,9 +24,10 @@ def fast_upper_envelope_wrapper(
     policy: jnp.ndarray,
     value: jnp.ndarray,
     expected_value_zero_savings: float,
-    choice: int,
+    state_choice_vec: jnp.ndarray,
     params: Dict[str, float],
-    compute_value: Callable,
+    compute_utility: Callable,
+    # compute_value: Callable,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Drop suboptimal points and refines the endogenous grid, policy, and value.
 
@@ -93,11 +94,12 @@ def fast_upper_envelope_wrapper(
     grid_points_to_add = jnp.linspace(min_wealth_grid, endog_grid[0], points_to_add)[
         :-1
     ]
-    values_to_add = vmap(compute_value, in_axes=(0, None, None, None))(
+    values_to_add = vmap(_compute_value, in_axes=(0, None, None, None, None))(
         grid_points_to_add,
         expected_value_zero_savings,
-        choice,
+        state_choice_vec,
         params,
+        compute_utility,
     )
 
     grid_augmented = jnp.append(grid_points_to_add, endog_grid)
@@ -123,6 +125,13 @@ def fast_upper_envelope_wrapper(
         policy_right_refined,
         value_refined,
     )
+
+
+def _compute_value(
+    consumption, next_period_value, state_choice_vec, params, compute_utility
+):
+    utility = compute_utility(consumption=consumption, params=params, *state_choice_vec)
+    return utility + params["beta"] * next_period_value
 
 
 def fast_upper_envelope(
