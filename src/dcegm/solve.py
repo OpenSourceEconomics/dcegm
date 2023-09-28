@@ -293,7 +293,6 @@ def backward_induction(
         final_period_results,
         marg_util_interpolated,
         value_interpolated,
-        policy_final,
     ) = solve_final_period(
         state_objects_final_period=period_specific_state_objects[n_periods - 1],
         compute_final_period=compute_final_period,
