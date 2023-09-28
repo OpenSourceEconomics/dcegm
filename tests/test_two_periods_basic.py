@@ -55,12 +55,19 @@ def func_exog_ltc(
     return prob_no_ltc, prob_ltc
 
 
-def budget_dcegm(state, saving, income_shock, options, params):
-    ltc_patient = state[-1] == 1
+def budget_dcegm(
+    state_beginning_of_period,
+    savings_end_of_previous_period,
+    income_shock_previous_period,
+    options,
+    params,
+):
+    ltc_patient = state_beginning_of_period[-1] == 1
 
     resource = (
-        (1 + params["interest_rate"]) * saving
-        + (params["wage_avg"] + income_shock) * (1 - state[1])  # if worked last period
+        (1 + params["interest_rate"]) * savings_end_of_previous_period
+        + (params["wage_avg"] + income_shock_previous_period)
+        * (1 - state_beginning_of_period[1])  # if worked last period
         - ltc_patient * params["ltc_cost"]
     )
     return jnp.maximum(resource, 0.5)
@@ -184,6 +191,8 @@ def input_data():
             "quadrature_points_stochastic": 5,
         },
         "state_space": {
+            "n_periods": 2,
+            "choices": [0, 1],
             "endogenous_states": {
                 "period": np.arange(2),
                 "lagged_choice": [0, 1],

@@ -56,13 +56,20 @@ def euler_rhs_two_exog_processes(
     return rhs * beta * interest_factor
 
 
-def budget_dcegm_two_exog_processes(state, saving, income_shock, options, params):
+def budget_dcegm_two_exog_processes(
+    state_beginning_of_period,
+    savings_end_of_previous_period,
+    income_shock_previous_period,
+    options,
+    params,
+):
     # lagged_job_offer = jnp.abs(state[-1] - 2) * (state[-1] > 0) * state[0]  # [1, 3]
-    ltc_patient = state[-1] > 1  # [2, 3]
+    ltc_patient = state_beginning_of_period[-1] > 1  # [2, 3]
 
     resource = (
-        (1 + params["interest_rate"]) * saving
-        + (params["wage_avg"] + income_shock) * (1 - state[1])  # if worked last period
+        (1 + params["interest_rate"]) * savings_end_of_previous_period
+        + (params["wage_avg"] + income_shock_previous_period)
+        * (1 - state_beginning_of_period[1])  # if worked last period
         - ltc_patient * params["ltc_cost"]
     )
     return jnp.maximum(resource, 0.5)

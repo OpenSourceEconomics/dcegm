@@ -73,24 +73,27 @@ def process_model_functions(
             get_exog_transition_vec, exog_mapping=exog_mapping, exog_funcs=exog_funcs
         )
 
+    model_params_options = options["model_params"]
     compute_utility = determine_function_arguments_and_partial_options(
-        func=user_utility_functions["utility"], options=options
+        func=user_utility_functions["utility"], options=model_params_options
     )
     compute_marginal_utility = determine_function_arguments_and_partial_options(
-        func=user_utility_functions["marginal_utility"], options=options
+        func=user_utility_functions["marginal_utility"], options=model_params_options
     )
     compute_inverse_marginal_utility = determine_function_arguments_and_partial_options(
-        func=user_utility_functions["inverse_marginal_utility"], options=options
+        func=user_utility_functions["inverse_marginal_utility"],
+        options=model_params_options,
     )
 
     compute_beginning_of_period_wealth = (
-        _get_vmapped_function_with_args_and_filtered_kwargs(
-            user_budget_constraint, options=options
+        determine_function_arguments_and_partial_options(
+            func=user_budget_constraint, options=model_params_options
         )
     )
+
     compute_final_period = determine_function_arguments_and_partial_options(
         func=user_final_period_solution,
-        options=options,
+        options=model_params_options,
         additional_partial={
             "compute_utility": compute_utility,
             "compute_marginal_utility": compute_marginal_utility,
@@ -99,7 +102,7 @@ def process_model_functions(
 
     # ! update endog also partial !
 
-    if len(options["state_space"]["choice"]) < 2:
+    if len(options["state_space"]["choices"]) < 2:
         compute_upper_envelope = _return_policy_and_value
     else:
         compute_upper_envelope = fast_upper_envelope_wrapper

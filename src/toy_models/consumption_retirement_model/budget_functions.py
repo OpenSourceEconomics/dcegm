@@ -9,12 +9,6 @@ def budget_constraint(
     state_beginning_of_period: jnp.ndarray,
     savings_end_of_previous_period: float,
     income_shock_previous_period: float,
-    # min_age: int,
-    # interest_rate: float,
-    # consumption_floor: float,
-    # constant: float,
-    # exp: float,
-    # exp_squared: float,
     options: Dict[str, Any],
     params: Dict[str, float],
 ) -> float:
