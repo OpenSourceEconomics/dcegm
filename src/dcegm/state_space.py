@@ -189,11 +189,7 @@ def create_map_from_state_to_child_nodes(
 
 
 def create_period_state_and_state_choice_objects(
-    n_periods,
-    state_space,
-    state_choice_space,
-    map_state_choice_vec_to_parent_state,
-    reshape_state_choice_vec_to_mat,
+    state_space_options, state_space_functions
 ):
     """Create dictionary of state and state-choice objects for each period.
 
@@ -222,6 +218,26 @@ def create_period_state_and_state_choice_objects(
             - "transform_between_state_and_state_choice_vec" (callable)
 
     """
+    create_state_space = state_space_functions["create_state_space"]
+    state_space, map_state_to_state_space_index = create_state_space(
+        state_space_options
+    )
+
+    (
+        state_choice_space,
+        map_state_choice_vec_to_parent_state,
+        reshape_state_choice_vec_to_mat,
+    ) = create_state_choice_space(
+        state_space_options=state_space_options,
+        state_space=state_space,
+        map_state_to_state_space_index=map_state_to_state_space_index,
+        get_state_specific_choice_set=state_space_functions[
+            "get_state_specific_choice_set"
+        ],
+    )
+
+    n_periods = state_space_options["n_periods"]
+
     out = {}
 
     for period in range(n_periods):
@@ -243,4 +259,13 @@ def create_period_state_and_state_choice_objects(
 
         out[period] = period_dict
 
-    return out
+    out = create_map_from_state_to_child_nodes(
+        options=state_space_options,
+        period_specific_state_objects=out,
+        map_state_to_index=map_state_to_state_space_index,
+        update_endog_state_by_state_and_choice=state_space_functions[
+            "update_endog_state_by_state_and_choice"
+        ],
+    )
+
+    return out, state_space

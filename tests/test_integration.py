@@ -74,6 +74,8 @@ def test_benchmark_models(
     options.update(
         {
             "state_space": {
+                "n_periods": 25,
+                "choices": [i for i in range(_raw_options["n_discrete_choices"])],
                 "endogenous_states": {
                     "period": jnp.arange(25),
                     "lagged_choice": [0, 1],

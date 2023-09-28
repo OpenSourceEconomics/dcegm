@@ -16,11 +16,9 @@ from dcegm.marg_utilities_and_exp_value import (
 )
 from dcegm.process_model import process_model_functions
 from dcegm.process_model import process_params
-from dcegm.state_space import create_map_from_state_to_child_nodes
 from dcegm.state_space import (
     create_period_state_and_state_choice_objects,
 )
-from dcegm.state_space import create_state_choice_space
 from jax import jit
 from jax import vmap
 
@@ -70,42 +68,15 @@ def get_solve_function(
         options["model_params"]["quadrature_points_stochastic"]
     )
 
-    create_state_space = state_space_functions["create_state_space"]
-    state_space, map_state_to_state_space_index = create_state_space(
-        options["state_space"]
-    )
+    #
     (
-        state_choice_space,
-        map_state_choice_vec_to_parent_state,
-        reshape_state_choice_vec_to_mat,
-    ) = create_state_choice_space(
+        period_specific_state_objects,
+        state_space,
+    ) = create_period_state_and_state_choice_objects(
         state_space_options=options["state_space"],
-        state_space=state_space,
-        map_state_to_state_space_index=map_state_to_state_space_index,
-        get_state_specific_choice_set=state_space_functions[
-            "get_state_specific_choice_set"
-        ],
-    )
-
-    #
-    period_specific_state_objects = create_period_state_and_state_choice_objects(
-        n_periods=n_periods,
-        state_space=state_space,
-        state_choice_space=state_choice_space,
-        map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
-        reshape_state_choice_vec_to_mat=reshape_state_choice_vec_to_mat,
-    )
-
-    period_specific_state_objects = create_map_from_state_to_child_nodes(
-        options=options["state_space"],
-        period_specific_state_objects=period_specific_state_objects,
-        map_state_to_index=map_state_to_state_space_index,
-        update_endog_state_by_state_and_choice=state_space_functions[
-            "update_endog_state_by_state_and_choice"
-        ],
+        state_space_functions=state_space_functions,
     )
     #
-
     (
         compute_utility,
         compute_marginal_utility,

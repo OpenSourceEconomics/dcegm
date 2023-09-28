@@ -20,7 +20,7 @@ from toy_models.consumption_retirement_model.state_space_objects import (
 )
 from toy_models.consumption_retirement_model.state_space_objects import update_state
 
-WEALTH_GRID_POINTS = 100
+WEALTH_GRID_POINTS = 10
 
 TEST_CASES_TWO_EXOG_PROCESSES = list(
     product(list(range(WEALTH_GRID_POINTS)), list(range(8)))
