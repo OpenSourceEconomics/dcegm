@@ -62,7 +62,6 @@ def process_model_functions(
     """
 
     if "exogenous_processes" not in options["state_space"]:
-        exog_mapping = jnp.array([1])
         options["state_space"]["exogenous_states"] = {"exog_state": [0]}
         compute_exog_transition_vec = _return_one
     else:
@@ -164,9 +163,12 @@ def process_exog_funcs(options):
 
     # What about vectors instead of callables supplied?
     for exog in exog_processes.values():
-        if isinstance(exog, Callable):
+        if isinstance(exog["transition"], Callable):
             exog_funcs += [
-                _get_exog_function_with_filtered_args(exog, options),
+                determine_function_arguments_and_partial_options(
+                    func=exog["transition"],
+                    options=options["model_params"],
+                )
             ]
 
     return exog_funcs
@@ -175,14 +177,19 @@ def process_exog_funcs(options):
 def get_exog_transition_vec(state_choice_vec, exog_mapping, exog_funcs, params):
     exog_state_global = state_choice_vec[-2]
 
-    _idx_endog_states_and_choice = list(range(len(state_choice_vec) - 2)) + [-1]
-    endog_states_and_choice = state_choice_vec[jnp.array(_idx_endog_states_and_choice)]
+    exog_states = exog_mapping[exog_state_global]
+
+    max_args = {
+        "period": state_choice_vec[0],
+        "ltc": exog_states[0],
+        "job_offer": exog_states[1],
+    }
 
     trans_vecs = []
 
-    for exog_state, exog_func in zip(exog_mapping[exog_state_global], exog_funcs):
+    for exog_func in exog_funcs:
         # options already partialled in
-        trans_vec = exog_func(exog_state, *endog_states_and_choice, params)
+        trans_vec = exog_func(**max_args, params=params)
         trans_vecs.append(jnp.array(trans_vec))
 
     trans_vec_kron = reduce(jnp.kron, trans_vecs)
@@ -194,7 +201,7 @@ def get_exog_transition_vec(state_choice_vec, exog_mapping, exog_funcs, params):
 def create_exog_mapping(options):
     """Create mapping from separate exog state variables to global exog state."""
 
-    exog_state_vars = options["state_space"]["exogenous_states"]
+    exog_state_vars = options["state_space"]["exogenous_processes"]
 
     n_elements = []
     for key in exog_state_vars:

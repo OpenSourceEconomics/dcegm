@@ -13,9 +13,6 @@ from toy_models.consumption_retirement_model.final_period_solution import (
     solve_final_period_scalar,
 )
 from toy_models.consumption_retirement_model.state_space_objects import (
-    create_state_space_two_exog_processes,
-)
-from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_feasible_choice_set,
 )
 from toy_models.consumption_retirement_model.state_space_objects import update_state
@@ -75,25 +72,84 @@ def budget_dcegm_two_exog_processes(
     return jnp.maximum(resource, 0.5)
 
 
+def create_state_space_two_exog_processes(options):
+    """Create state space object and indexer.
+
+    We need to add the convention for the state space objects.
+
+    Args:
+        options (dict): Options dictionary.
+
+    Returns:
+        tuple:
+
+        - state_vars (list): List of state variables.
+        - state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
+            which serves as a collection of all possible states. By convention,
+            the first column must contain the period and the last column the
+            exogenous processes. Any other state variables are in between.
+            E.g. if the two state variables are period and lagged choice and all choices
+            are admissible in each period, the shape of the state space array is
+            (n_periods * n_choices, 3).
+        - map_state_to_index (np.ndarray): Indexer array that maps states to indexes.
+            The shape of this object is quite complicated. For each state variable it
+            has the number of possible states as rows, i.e.
+            (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
+
+    """
+    n_periods = len(options["endogenous_states"]["period"])
+    n_lagged_choices = len(options["choice"])
+    n_exog_one = len(options["exogenous_processes"]["ltc"]["states"])
+    n_exog_two = len(options["exogenous_processes"]["job_offer"]["states"])
+
+    n_married = 2
+
+    shape = (
+        n_periods,
+        n_married,
+        n_lagged_choices,
+        n_exog_one * n_exog_two,
+    )
+
+    map_state_to_index = np.full(shape, -9999, dtype=np.int64)
+    _state_space = []
+
+    i = 0
+    for period in range(n_periods):
+        for married in range(n_married):
+            for lagged_choice in range(n_lagged_choices):
+                for lagged_exog in range(n_exog_one * n_exog_two):
+                    map_state_to_index[period, married, lagged_choice, lagged_exog] = i
+
+                    row = [period, married, lagged_choice, lagged_exog]
+                    _state_space.append(row)
+
+                    i += 1
+
+    state_space = np.array(_state_space, dtype=np.int64)
+
+    return state_space, map_state_to_index
+
+
 def func_exog_ltc(
     period,
-    lagged_ltc,
+    ltc,
     params,
 ):
-    prob_ltc = (lagged_ltc == 0) * (
+    prob_ltc = (ltc == 0) * (
         params["ltc_prob_constant"] + period * params["ltc_prob_age"]
-    ) + (lagged_ltc == 1)
+    ) + (ltc == 1)
     prob_no_ltc = 1 - prob_ltc
 
     return prob_no_ltc, prob_ltc
 
 
 def func_exog_job_offer(
-    lagged_job_offer,
+    job_offer,
     params,
 ):
-    prob_job_offer = (lagged_job_offer == 0) * params["job_offer_constant"] + (
-        lagged_job_offer == 1
+    prob_job_offer = (job_offer == 0) * params["job_offer_constant"] + (
+        job_offer == 1
     ) * (params["job_offer_constant"] + params["job_offer_type_two"])
     prob_no_job_offer = 1 - prob_job_offer
 
@@ -237,10 +293,9 @@ def input_data_two_exog_processes():
                 "married": [0, 1],
                 "lagged_choice": [0, 1],
             },
-            "exogenous_states": {"lagged_ltc": [0, 1], "lagged_job_offer": [0, 1]},
             "exogenous_processes": {
-                "ltc": func_exog_ltc,
-                "job_offer": func_exog_job_offer,
+                "ltc": {"transition": func_exog_ltc, "states": [0, 1]},
+                "job_offer": {"transition": func_exog_job_offer, "states": [0, 1]},
             },
             "choice": [0, 1],
         },

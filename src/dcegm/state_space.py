@@ -229,8 +229,11 @@ def create_map_from_state_to_child_nodes(
     # Exogenous processes are always on the last entry of the state space. Moreover, we
     # treat all of them as admissible in each period. If there exists an absorbing
     # state, this is reflected by a 0 percent transition probability.
-    n_periods = len(options["endogenous_states"]["period"])
-    n_exog_states = sum(map(len, options["exogenous_states"].values()))
+    n_periods = options["n_periods"]
+    n_exog_states = 0
+
+    for exog_process in options["exogenous_processes"].keys():
+        n_exog_states += len(options["exogenous_processes"][exog_process]["states"])
 
     for period in range(n_periods - 1):
         period_dict = period_specific_state_objects[period]
