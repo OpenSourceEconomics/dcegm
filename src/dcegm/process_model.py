@@ -76,17 +76,11 @@ def process_model_functions(
     compute_utility = determine_function_arguments_and_partial_options(
         func=user_utility_functions["utility"], options=options
     )
-    compute_marginal_utility = _get_utility_function_with_filtered_args_and_kwargs(
-        user_utility_functions["marginal_utility"],
-        options=options,
-        exog_mapping=exog_mapping,
+    compute_marginal_utility = determine_function_arguments_and_partial_options(
+        func=user_utility_functions["marginal_utility"], options=options
     )
-    compute_inverse_marginal_utility = (
-        _get_utility_function_with_filtered_args_and_kwargs(
-            user_utility_functions["inverse_marginal_utility"],
-            options=options,
-            exog_mapping=exog_mapping,
-        )
+    compute_inverse_marginal_utility = determine_function_arguments_and_partial_options(
+        func=user_utility_functions["inverse_marginal_utility"], options=options
     )
 
     compute_beginning_of_period_wealth = (
@@ -94,13 +88,13 @@ def process_model_functions(
             user_budget_constraint, options=options
         )
     )
-    compute_final_period = _get_vmapped_function_with_args_and_filtered_kwargs(
-        partial(
-            user_final_period_solution,
-            compute_utility=compute_utility,
-            compute_marginal_utility=compute_marginal_utility,
-        ),
+    compute_final_period = determine_function_arguments_and_partial_options(
+        func=user_final_period_solution,
         options=options,
+        additional_partial={
+            "compute_utility": compute_utility,
+            "compute_marginal_utility": compute_marginal_utility,
+        },
     )
 
     # ! update endog also partial !

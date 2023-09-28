@@ -77,6 +77,8 @@ def calculate_final_period_solution_for_each_gridpoint(
     state_choice_vec, resources, params, compute_final_period
 ):
     marg_util_interpolated, value_interpolated, _ = compute_final_period(
-        state_choice_vec, resources, params
+        state_choice_vec=state_choice_vec,
+        begin_of_period_resources=resources,
+        params=params,
     )
     return marg_util_interpolated, value_interpolated

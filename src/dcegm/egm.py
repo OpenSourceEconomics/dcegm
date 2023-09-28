@@ -179,7 +179,7 @@ def solve_euler_equation(
     policy = compute_inverse_marginal_utility(
         marginal_utility=rhs_euler,
         params=params,
-        *state_choice_vec,
+        choice=state_choice_vec[-1],
     )
 
     return policy, expected_value

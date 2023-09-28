@@ -153,7 +153,7 @@ def calc_interpolated_values_and_marg_utils(
     )
 
     marg_utility_interp = compute_marginal_utility(
-        consumption=policy_interp, params=params, *state_choice_vec
+        consumption=policy_interp, params=params, choice=state_choice_vec[-1]
     )
 
     return marg_utility_interp, value_interp
