@@ -29,13 +29,13 @@ def calculate_resources(
 
 
 def calculate_resources_for_each_grid_point(
-    state_space,
-    exog_savings_grid,
-    income_shock_draws,
+    state_vec,
+    exog_savings_grid_point,
+    income_shock_draw,
     params,
     compute_beginning_of_period_wealth,
 ):
     out = compute_beginning_of_period_wealth(
-        state_space, exog_savings_grid, income_shock_draws, params
+        state_vec, exog_savings_grid_point, income_shock_draw, params
     )
     return out
