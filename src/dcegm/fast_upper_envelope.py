@@ -27,7 +27,6 @@ def fast_upper_envelope_wrapper(
     state_choice_vec: jnp.ndarray,
     params: Dict[str, float],
     compute_utility: Callable,
-    # compute_value: Callable,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Drop suboptimal points and refines the endogenous grid, policy, and value.
 
