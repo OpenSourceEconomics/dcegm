@@ -12,8 +12,8 @@ from dcegm.interpolation import interpolate_and_calc_marginal_utilities
 from dcegm.marg_utilities_and_exp_value import (
     aggregate_marg_utils_exp_values,
 )
-from dcegm.process_model import convert_params_to_dict
 from dcegm.process_model import process_model_functions
+from dcegm.process_model import process_params
 from dcegm.state_space import create_map_from_state_to_child_nodes
 from dcegm.state_space import (
     create_period_state_and_state_choice_objects,
@@ -57,8 +57,8 @@ def get_solve_function(
         callable: The partial solve function that only takes ```params``` as input.
 
     """
-    if "exogenous_states" not in options["state_space"]:
-        options["state_space"]["exogenous_states"] = {"exog_state": [0]}
+    # if "exogenous_states" not in options["state_space"]:
+    #     options["state_space"]["exogenous_states"] = {"exog_state": [0]}
 
     n_periods = len(options["state_space"]["endogenous_states"]["period"])
 
@@ -139,7 +139,7 @@ def get_solve_function(
     )
 
     def solve_func(params):
-        params_initial = convert_params_to_dict(params)
+        params_initial = process_params(params)
         return backward_jit(params=params_initial)
 
     return solve_func

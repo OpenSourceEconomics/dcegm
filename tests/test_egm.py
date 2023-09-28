@@ -2,7 +2,7 @@ from itertools import product
 
 import numpy as np
 import pytest
-from dcegm.process_model import convert_params_to_dict
+from dcegm.process_model import process_params
 from numpy.testing import assert_array_almost_equal as aaae
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
@@ -28,7 +28,7 @@ def test_get_beginning_of_period_wealth(
 ):
     params, options = load_example_model(f"{model}")
 
-    params = convert_params_to_dict(params)
+    params = process_params(params)
 
     sigma = params["sigma"]
     r = params["interest_rate"]

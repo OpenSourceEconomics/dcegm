@@ -11,7 +11,6 @@ import jax.numpy as jnp
 import pandas as pd
 from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
 from pybaum import get_registry
-from pybaum import leaf_names
 from pybaum import tree_flatten
 
 
@@ -123,12 +122,10 @@ def process_model_functions(
     )
 
 
-def convert_params_to_dict(
-    params: Union[dict, pd.Series, pd.DataFrame]
-) -> Dict[str, float]:
+def process_params(params: Union[dict, pd.Series, pd.DataFrame]) -> Dict[str, float]:
     """Transforms params DataFrame into a dictionary.
 
-    Checks if given params DataFrame contains taste shock scale, interest rate
+    Checks if given params contains beta, taste shock scale, interest rate
     and discount factor.
 
     Args:
@@ -139,35 +136,37 @@ def convert_params_to_dict(
         dict: Dictionary of model parameters.
 
     """
+
+    if isinstance(params, (pd.Series, pd.DataFrame)):
+        params = _convert_params_to_dict(params)
+
+    if "interest_rate" not in params:
+        params["interest_rate"] = 0
+    if "lambda" not in params:
+        params["lambda"] = 0
+    if "sigma" not in params:
+        params["sigma"] = 0
+    if "beta" not in params:
+        raise ValueError("beta must be provided in params.")
+
+    return params
+
+
+def _convert_params_to_dict(params: Union[pd.Series, pd.DataFrame]):
+    """Converts params to dictionary."""
     _registry = get_registry(
         types=[
+            "dict",
             "pandas.Series",
             "pandas.DataFrame",
         ],
-        include_defaults=True,
+        include_defaults=False,
     )
-
-    _params, _treedef = tree_flatten(params, registry=_registry)
-
-    values = [i for i in _params if isinstance(i, (int, float))]
-
     # {level: df.xs(level).to_dict('index') for level in df.index.levels[0]}
-
-    if isinstance(params, (pd.Series, pd.DataFrame)):
-        keys = _treedef.index.get_level_values(_treedef.index.names[-1]).tolist()
-    else:
-        keys = leaf_names(_treedef, registry=_registry)
-
+    _params, _treedef = tree_flatten(params, registry=_registry)
+    values = [i for i in _params if isinstance(i, (int, float))]
+    keys = _treedef.index.get_level_values(_treedef.index.names[-1]).tolist()
     params_dict = dict(zip(keys, values))
-
-    if "interest_rate" not in params_dict:
-        params_dict["interest_rate"] = 0
-    if "lambda" not in params_dict:
-        params_dict["lambda"] = 0
-    if "sigma" not in params_dict:
-        params_dict["sigma"] = 0
-    if "beta" not in params_dict:
-        raise ValueError("Beta must be provided in params.")
 
     return params_dict
 

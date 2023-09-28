@@ -6,10 +6,10 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 from dcegm.process_model import _get_utility_function_with_filtered_args_and_kwargs
-from dcegm.process_model import convert_params_to_dict
 from dcegm.process_model import create_exog_mapping
 from dcegm.process_model import get_exog_transition_vec
 from dcegm.process_model import process_exog_funcs
+from dcegm.process_model import process_params
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import (
     inverse_marginal_utility_crra,
@@ -182,14 +182,27 @@ def test_process_utility_funcs(model_setup):
         ("deaton"),
     ],
 )
-def test_missing_beta(
+def test_missing_parameter(
     model,
     load_example_model,
 ):
     params, _ = load_example_model(f"{model}")
-    params_without_beta = params.drop(index=("beta", "beta"))
-    with pytest.raises(ValueError, match="Beta must be provided in params."):
-        convert_params_to_dict(params_without_beta)
+
+    indices_to_drop = [
+        ("assets", "interest_rate"),
+        ("shocks", "sigma"),
+        ("shocks", "lambda"),
+    ]
+    params_missing = params.drop(index=indices_to_drop)
+
+    params_dict = process_params(params_missing)
+
+    for param in ["interest_rate", "sigma", "lambda"]:
+        assert param in params_dict.keys()
+
+    params_missing = params_missing.drop(index=("beta", "beta"))
+    with pytest.raises(ValueError, match="beta must be provided in params."):
+        process_params(params_missing)
 
 
 @pytest.mark.parametrize(
@@ -202,8 +215,8 @@ def test_missing_beta(
         inverse_marginal_utility_crra,
     ],
 )
-def test_get_function_with_filtered_args_and_kwargs(func, model_setup):
-    options, params = model_setup
+def test_get_utility_function_with_filtered_args_and_kwargs(func, model_setup):
+    options, _ = model_setup
 
     exog_mapping = create_exog_mapping(options)
     func_with_filtered_args_and_kwargs = (
@@ -223,7 +236,9 @@ def test_get_function_with_filtered_args_and_kwargs(func, model_setup):
         "options": options,
     }
 
-    _util = func_with_filtered_args_and_kwargs(*state_choice_vec, **kwargs)
+    util = func_with_filtered_args_and_kwargs(*state_choice_vec, **kwargs)
+
+    assert np.allclose(len(util), len(kwargs["consumption"]))
 
 
 @pytest.mark.skip
