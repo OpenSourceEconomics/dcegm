@@ -1,9 +1,11 @@
+import functools
 import inspect
 from functools import partial
 
 import jax.numpy as jnp
 import numpy as np
 from dcegm.process_model import _convert_params_to_dict
+from jax import vmap
 from toy_models.consumption_retirement_model.utility_functions import (
     utiility_func_log_crra,
 )
@@ -32,26 +34,29 @@ def test_function_wrapping(load_example_model):
 
     params = _convert_params_to_dict(params)
 
-    global_dict = {
+    state_dict = {
         "consumption": jnp.arange(1, 7),
         "choice": jnp.arange(1, 7),
-        # "periods": jnp.arange(6),
-        "params": params,
+        "global_exog": np.zeros(6, dtype=int),
+        "periods": jnp.arange(6),
     }
 
     util_expec = jnp.array(
         [0.0, 0.69314718, 1.09861229, 1.38629436, 1.60943791, 1.79175947], dtype=float
     )
 
-    calc_util = utiility_func_log_crra(**global_dict)
+    util_processed = simple_wrapping(
+        utiility_func_log_crra, options, {"ltc": np.array([0])}
+    )
+
+    calc_util = vmap(util_wrap, in_axes=(0, None, None))(
+        state_dict, params, util_processed
+    )
     assert jnp.allclose(calc_util, util_expec)
 
 
-def exog_map(global_exog, exog_states_space):
-    exog_map = {}
-    for exog in exog_states_space.keys():
-        exog_map[exog] = exog_states_space[exog][global_exog]
-    return exog_map
+def util_wrap(state_dict, params, util_func):
+    return util_func(**state_dict, params=params)
 
 
 def simple_wrapping(func, options, exog_state_space):
@@ -64,26 +69,39 @@ def simple_wrapping(func, options, exog_state_space):
     exogs_in_signature = list(signature.intersection(exogenous_processes_names))
     signature_kwargs_without_exog = list(signature.difference(exogs_in_signature))
 
+    exog_mapping = create_exog_mapt(exogs_in_signature, exog_state_space)
+
+    options_processed_func = partial_options(func, signature, options)
+
+    @functools.wraps(func)
+    def processed_func(**kwargs):
+        exog_kwargs = exog_mapping(kwargs["global_exog"])
+
+        other_kwargs = {key: kwargs[key] for key in signature_kwargs_without_exog}
+
+        return options_processed_func(**exog_kwargs, **other_kwargs)
+
+    return processed_func
+
+
+def partial_options(func, signature, options):
+    if "options" in signature:
+        return partial(func, options=options)
+    else:
+        return func
+
+
+def create_exog_mapt(exogs_in_signature, exog_state_space):
     if len(exogs_in_signature) > 0:
 
         def exog_mapping(x):
-            return {exog: exog_state_space[exog][x] for exog in exogs_in_signature}
+            return {
+                exog: jnp.take(exog_state_space[exog], x) for exog in exogs_in_signature
+            }
 
     else:
 
         def exog_mapping(x):
             return {}
 
-    if options in signature:
-        partial_func = partial(func, options=options)
-    else:
-        partial_func = func
-
-    def processed_func(kwargs):
-        exog_kwargs = exog_mapping(kwargs["global_exog"])
-
-        other_kwargs = {key: kwargs[key] for key in signature_kwargs_without_exog}
-
-        return partial_func(**exog_kwargs, **other_kwargs)
-
-    return processed_func
+    return exog_mapping
