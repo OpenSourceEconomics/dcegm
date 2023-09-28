@@ -1,5 +1,3 @@
-import functools
-import inspect
 from functools import partial
 from functools import reduce
 from typing import Callable
@@ -238,69 +236,6 @@ def _convert_params_to_dict(params: Union[pd.Series, pd.DataFrame]):
     params_dict = dict(zip(keys, values))
 
     return params_dict
-
-
-def _get_exog_function_with_filtered_args(func, options):
-    """Args is state_vec with one global exog state."""
-    signature = list(inspect.signature(func).parameters)
-    exog_key = signature & options["state_space"]["exogenous_states"].keys()
-
-    _endog_state_vars_and_choice = options["state_space"]["endogenous_states"] | {
-        "choice": options["state_space"]["choice"]
-    }
-    endog_to_index = {
-        key: idx for idx, key in enumerate(_endog_state_vars_and_choice.keys())
-    }
-
-    @functools.wraps(func)
-    def processed_func(*args):
-        exog_arg, endog_args = args[0], args[1:-1]
-
-        # Allows for flexible position of arguments in user function.
-        # The endog states and choice variable in the state_choice_vec
-        # (passed as args to the user function) have the same order
-        # as they appear in options["state_variables"]
-        _args_to_kwargs = {
-            key: endog_args[idx]
-            for key, idx in endog_to_index.items()
-            if key in signature  # and key != "choice"
-        }
-
-        if exog_key:
-            _args_to_kwargs[exog_key.pop()] = exog_arg
-
-        if "params" in signature:
-            _args_to_kwargs["params"] = args[-1]
-
-        # partial in
-        if "options" in signature and "model_params" in options:
-            _args_to_kwargs["options"] = options["model_params"]
-
-        return func(**_args_to_kwargs)
-
-    return processed_func
-
-
-def _get_vmapped_function_with_args_and_filtered_kwargs(func, options):
-    signature = list(inspect.signature(func).parameters)
-
-    @functools.wraps(func)
-    def processed_func(*args):
-        _args = [arg for arg in args if not isinstance(arg, dict)]
-        _options_and_params = [arg for arg in args if isinstance(arg, dict)]
-
-        _kwargs = {}
-        if "params" in signature:
-            idx = 1 if len(_options_and_params) == 2 else 0
-            _kwargs["params"] = _options_and_params[idx]  # fix this! flexible position
-
-        # partial in
-        if "options" in signature and "model_params" in options:
-            _kwargs["options"] = options["model_params"]
-
-        return func(*_args, **_kwargs)
-
-    return processed_func
 
 
 def _return_policy_and_value(
