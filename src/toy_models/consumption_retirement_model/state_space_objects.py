@@ -30,18 +30,18 @@ def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]
             (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
 
     """
-    n_periods = options["n_periods"]
-    n_choices = options["n_discrete_choices"]  # lagged_choice is a state variable
-    n_exog_states = options["n_exog_states"]
+    n_periods = len(options["endogenous_states"]["period"])
+    n_lagged_choices = len(options["choice"])
+    n_exog_states = sum(map(len, options["exogenous_states"].values()))
 
-    shape = (n_periods, n_choices, n_exog_states)
+    shape = (n_periods, n_lagged_choices, n_exog_states)
 
     map_state_to_index = np.full(shape, -9999, dtype=np.int64)
     _state_space = []
 
     i = 0
     for period in range(n_periods):
-        for lagged_choice in range(n_choices):
+        for lagged_choice in range(n_lagged_choices):
             for exog_state in range(n_exog_states):
                 map_state_to_index[period, lagged_choice, exog_state] = i
 
@@ -82,17 +82,17 @@ def create_state_space_two_exog_processes(
             (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
 
     """
-    n_periods = options["n_periods"]
-    n_choices = options["n_discrete_choices"]  # lagged_choice is a state variable
-    n_exog_one = options["n_exog_one"]
-    n_exog_two = options["n_exog_two"]
+    n_periods = len(options["endogenous_states"]["period"])
+    n_lagged_choices = len(options["choice"])
+    n_exog_one = len(options["exogenous_states"]["lagged_ltc"])
+    n_exog_two = len(options["exogenous_states"]["lagged_job_offer"])
 
     n_married = 2
 
     shape = (
         n_periods,
         n_married,
-        n_choices,
+        n_lagged_choices,
         n_exog_one * n_exog_two,
     )
 
@@ -102,9 +102,8 @@ def create_state_space_two_exog_processes(
     i = 0
     for period in range(n_periods):
         for married in range(n_married):
-            for lagged_choice in range(n_choices):
+            for lagged_choice in range(n_lagged_choices):
                 for lagged_exog in range(n_exog_one * n_exog_two):
-                    # for exog in range(n_exog_one * n_exog_two):
                     map_state_to_index[period, married, lagged_choice, lagged_exog] = i
 
                     row = [period, married, lagged_choice, lagged_exog]

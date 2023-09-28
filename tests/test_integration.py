@@ -39,10 +39,6 @@ TEST_DIR = Path(__file__).parent
 TEST_RESOURCES_DIR = TEST_DIR / "resources"
 
 
-def _return_one(*args, **kwargs):
-    return 1
-
-
 @pytest.fixture()
 def utility_functions():
     """Return dict with utility functions."""
@@ -78,24 +74,19 @@ def test_benchmark_models(
     load_example_model,
 ):
     options = {}
-    params, _options = load_example_model(f"{model}")
-    _options["n_exog_states"] = 1
+    params, _raw_options = load_example_model(f"{model}")
 
-    options["model_params"] = _options
+    options["model_params"] = _raw_options
     options.update(
         {
-            # "exogenous_processes": {
-            #     "exog": _return_one,
-            # },
-            "state_variables": {
-                "endogenous": {
-                    "period": jnp.arange(2),
+            "state_space": {
+                "endogenous_states": {
+                    "period": jnp.arange(25),
                     "lagged_choice": [0, 1],
                 },
-                # "exogenous": {"exog_state": []},
-                "choice": [0, 1],
+                "exogenous_states": {"exog_state": [0]},
+                "choice": [i for i in range(_raw_options["n_discrete_choices"])],
             },
-            # "model_params": {},
         }
     )
 
@@ -105,9 +96,9 @@ def test_benchmark_models(
         options["model_params"]["n_grid_points"],
     )
 
-    state_space, map_state_to_index = create_state_space(options["model_params"])
+    state_space, map_state_to_index = create_state_space(options["state_space"])
     state_choice_space, *_ = create_state_choice_space(
-        options["model_params"],
+        options["state_space"],
         state_space,
         map_state_to_index,
         state_space_functions["get_state_specific_choice_set"],
@@ -131,7 +122,6 @@ def test_benchmark_models(
     )
     value_expected = pickle.load((TEST_RESOURCES_DIR / f"value_{model}.pkl").open("rb"))
 
-    # need to loop over period? Isn't state_choice space enough?
     for period in range(23, -1, -1):
         idxs_state_choice_combs = jnp.where(state_choice_space[:, 0] == period)[0]
 

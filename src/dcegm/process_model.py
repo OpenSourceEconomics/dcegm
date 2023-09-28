@@ -20,7 +20,6 @@ def process_model_functions(
     user_utility_functions: Dict[str, Callable],
     user_budget_constraint: Callable,
     user_final_period_solution: Callable,
-    # exogenous_transition_function: Callable,
 ) -> Tuple[Callable, Callable, Callable, Callable, Callable, Callable, Callable]:
     """Create wrapped functions from user supplied functions.
 
@@ -62,9 +61,9 @@ def process_model_functions(
 
     """
 
-    if "exogenous_processes" not in options:
+    if "exogenous_processes" not in options["state_space"]:
         exog_mapping = jnp.array([1])
-        options["state_variables"]["exogenous"] = {"exog_state": [0]}
+        options["state_space"]["exogenous_states"] = {"exog_state": [0]}
         compute_exog_transition_vec = _return_one
     else:
         exog_mapping = create_exog_mapping(options)
@@ -108,7 +107,7 @@ def process_model_functions(
 
     # ! update endog also partial !
 
-    if len(options["state_variables"]["choice"]) < 2:
+    if len(options["state_space"]["choice"]) < 2:
         compute_upper_envelope = _return_policy_and_value
     else:
         compute_upper_envelope = fast_upper_envelope_wrapper
@@ -183,7 +182,7 @@ def process_exog_funcs(options):
         tuple: Tuple of exogenous processes.
 
     """
-    exog_processes = options["exogenous_processes"]
+    exog_processes = options["state_space"]["exogenous_processes"]
 
     exog_funcs = []
     signature = []
@@ -213,13 +212,14 @@ def get_exog_transition_vec(state_choice_vec, exog_mapping, exog_funcs, params):
 
     trans_vec_kron = reduce(jnp.kron, trans_vecs)
 
-    return jnp.array(trans_vec_kron)
+    return trans_vec_kron
+    # return jnp.array(trans_vec_kron)
 
 
 def create_exog_mapping(options):
     """Create mapping from separate exog state variables to global exog state."""
 
-    exog_state_vars = options["state_variables"]["exogenous"]
+    exog_state_vars = options["state_space"]["exogenous_states"]
 
     n_elements = []
     for key in exog_state_vars:
@@ -242,10 +242,10 @@ def create_exog_mapping(options):
 def _get_exog_function_with_filtered_args(func, options):
     """Args is state_vec with one global exog state."""
     signature = list(inspect.signature(func).parameters)
-    exog_key = signature & options["state_variables"]["exogenous"].keys()
+    exog_key = signature & options["state_space"]["exogenous_states"].keys()
 
-    _endog_state_vars_and_choice = options["state_variables"]["endogenous"] | {
-        "choice": options["state_variables"]["choice"]
+    _endog_state_vars_and_choice = options["state_space"]["endogenous_states"] | {
+        "choice": options["state_space"]["choice"]
     }
     endog_to_index = {
         key: idx for idx, key in enumerate(_endog_state_vars_and_choice.keys())
@@ -287,11 +287,11 @@ def _get_utility_function_with_filtered_args_and_kwargs(func, options, exog_mapp
     """The order of inputs in the user function does not matter!"""
     signature = list(inspect.signature(func).parameters)
 
-    exog_state_vars = options["state_variables"]["exogenous"]
+    exog_state_vars = options["state_space"]["exogenous_states"]
     exog_to_index = {key: idx for idx, key in enumerate(exog_state_vars.keys())}
     exog_keys_in_signature = signature & exog_state_vars.keys()
 
-    endog_state_vars = options["state_variables"]["endogenous"]
+    endog_state_vars = options["state_space"]["endogenous_states"]
     endog_to_index = {key: idx for idx, key in enumerate(endog_state_vars.keys())}
 
     @functools.wraps(func)

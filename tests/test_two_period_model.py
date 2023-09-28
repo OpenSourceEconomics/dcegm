@@ -188,10 +188,8 @@ def prob_long_term_care_patient(params, lagged_bad_health, bad_health):
 
     if lagged_bad_health == bad_health == 0:
         pi = 1 - p
-        # pi = 0
     elif (lagged_bad_health == 0) and (bad_health == 1):
         pi = p
-        # pi = 1
     elif lagged_bad_health == 1 and bad_health == 0:
         pi = 0
     elif lagged_bad_health == bad_health == 1:
@@ -341,26 +339,21 @@ def input_data():
 
     options = {
         "model_params": {
-            "n_periods": 2,
-            "n_discrete_choices": 2,
             "n_grid_points": WEALTH_GRID_POINTS,
             "max_wealth": 50,
             "quadrature_points_stochastic": 5,
-            "n_exog_states": 2,
-            "n_exog_one": 2,
         },
-        "exogenous_processes": {
-            "ltc": func_exog_ltc,
-        },
-        "state_variables": {
-            "endogenous": {
+        "state_space": {
+            "endogenous_states": {
                 "period": np.arange(2),
                 "lagged_choice": [0, 1],
             },
-            "exogenous": {"lagged_ltc": [0, 1]},
+            "exogenous_states": {"lagged_ltc": [0, 1]},
+            "exogenous_processes": {
+                "ltc": func_exog_ltc,
+            },
             "choice": [0, 1],
         },
-        # "model_params": {},
     }
     state_space_functions = {
         "create_state_space": create_state_space,
@@ -415,13 +408,13 @@ def test_two_period(input_data, wealth_idx, state_idx):
     (
         state_space,
         map_state_to_index,
-    ) = create_state_space(input_data["options"]["model_params"])
+    ) = create_state_space(input_data["options"]["state_space"])
     (
         state_choice_space,
         _map_state_choice_vec_to_parent_state,
         reshape_state_choice_vec_to_mat,
     ) = create_state_choice_space(
-        options=input_data["options"]["model_params"],
+        options=input_data["options"]["state_space"],
         state_space=state_space,
         map_state_to_state_space_index=map_state_to_index,
         get_state_specific_choice_set=get_state_specific_feasible_choice_set,
@@ -493,29 +486,23 @@ def input_data_two_exog_processes():
 
     options = {
         "model_params": {
-            "n_periods": 2,
-            "n_discrete_choices": 2,
             "n_grid_points": WEALTH_GRID_POINTS,
             "max_wealth": 50,
             "quadrature_points_stochastic": 5,
-            "n_exog_states": 4,
-            "n_exog_one": 2,
-            "n_exog_two": 2,
         },
-        "exogenous_processes": {
-            "ltc": func_exog_ltc,
-            "job_offer": func_exog_job_offer,
-        },
-        "state_variables": {
-            "endogenous": {
+        "state_space": {
+            "endogenous_states": {
                 "period": np.arange(2),
                 "married": [0, 1],
                 "lagged_choice": [0, 1],
             },
-            "exogenous": {"lagged_ltc": [0, 1], "lagged_job_offer": [0, 1]},
+            "exogenous_states": {"lagged_ltc": [0, 1], "lagged_job_offer": [0, 1]},
+            "exogenous_processes": {
+                "ltc": func_exog_ltc,
+                "job_offer": func_exog_job_offer,
+            },
             "choice": [0, 1],
         },
-        # "model_params": {},
     }
     state_space_functions = {
         "create_state_space": create_state_space_two_exog_processes,
@@ -575,14 +562,14 @@ def test_two_period_two_exog_processes(
         state_space,
         map_state_to_index,
     ) = create_state_space_two_exog_processes(
-        input_data_two_exog_processes["options"]["model_params"]
+        input_data_two_exog_processes["options"]["state_space"]
     )
     (
         state_choice_space,
         _map_state_choice_vec_to_parent_state,
         reshape_state_choice_vec_to_mat,
     ) = create_state_choice_space(
-        options=input_data_two_exog_processes["options"]["model_params"],
+        options=input_data_two_exog_processes["options"]["state_space"],
         state_space=state_space,
         map_state_to_state_space_index=map_state_to_index,
         get_state_specific_choice_set=get_state_specific_feasible_choice_set,

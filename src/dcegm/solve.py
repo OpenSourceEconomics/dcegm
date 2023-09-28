@@ -57,32 +57,37 @@ def get_solve_function(
         callable: The partial solve function that only takes ```params``` as input.
 
     """
-    model_params = options["model_params"]
+    if "exogenous_states" not in options["state_space"]:
+        options["state_space"]["exogenous_states"] = {"exog_state": [0]}
 
-    n_periods = model_params["n_periods"]
+    n_periods = len(options["state_space"]["endogenous_states"]["period"])
 
     # ToDo: Make interface with several draw possibilities.
     # ToDo: Some day make user supplied draw function.
     income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
-        model_params["quadrature_points_stochastic"]
+        options["model_params"]["quadrature_points_stochastic"]
     )
 
     create_state_space = state_space_functions["create_state_space"]
-    state_space, map_state_to_state_space_index = create_state_space(model_params)
+    state_space, map_state_to_state_space_index = create_state_space(
+        options["state_space"]
+    )
     (
         state_choice_space,
         map_state_choice_vec_to_parent_state,
         reshape_state_choice_vec_to_mat,
     ) = create_state_choice_space(
-        model_params,
-        state_space,
-        map_state_to_state_space_index,
-        state_space_functions["get_state_specific_choice_set"],
+        options=options["state_space"],
+        state_space=state_space,
+        map_state_to_state_space_index=map_state_to_state_space_index,
+        get_state_specific_choice_set=state_space_functions[
+            "get_state_specific_choice_set"
+        ],
     )
 
     #
     period_specific_state_objects = create_period_state_and_state_choice_objects(
-        options=model_params,
+        n_periods=n_periods,
         state_space=state_space,
         state_choice_space=state_choice_space,
         map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
@@ -90,7 +95,7 @@ def get_solve_function(
     )
 
     period_specific_state_objects = create_map_from_state_to_child_nodes(
-        options=model_params,
+        options=options["state_space"],
         period_specific_state_objects=period_specific_state_objects,
         map_state_to_index=map_state_to_state_space_index,
         update_endog_state_by_state_and_choice=state_space_functions[

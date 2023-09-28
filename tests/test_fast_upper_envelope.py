@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import jax.numpy as jnp
 import numpy as np
 import pytest
 from dcegm.fast_upper_envelope import fast_upper_envelope
@@ -31,23 +32,20 @@ def setup_model():
     params["delta"] = 0.35
 
     options = {
-        # "model_structure": {
-        "state_variables": {
-            "endogenous": {
+        "state_space": {
+            "endogenous_states": {
                 "period": np.arange(2),
                 "lagged_choice": [0, 1],
-                # "choice": [0, 1],
             },
-            # "exogenous": {"lagged_ltc": [0, 1], "lagged_job_offer": [0, 1]},
             "choice": [0, 1],
         },
         "model_params": {"min_age": 50, "max_age": 80, "n_periods": 25, "n_choices": 2},
     }
 
-    state_choice_vec = [23, 0, 0, 0]  # has to be a list!
+    state_choice_vec = jnp.array([23, 0, 0, 0])
 
-    exog_mapping = np.array([1])
-    options["state_variables"]["exogenous"] = {"exog_state": [0]}
+    exog_mapping = jnp.array([1])
+    options["state_space"]["exogenous_states"] = {"exog_state": [0]}
     compute_utility = _get_utility_function_with_filtered_args_and_kwargs(
         utility_func_crra, options=options, exog_mapping=exog_mapping
     )
