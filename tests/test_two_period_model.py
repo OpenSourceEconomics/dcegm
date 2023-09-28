@@ -48,8 +48,6 @@ def inverse_marginal_utility(marginal_utility, params):
 def func_exog_ltc(
     period,
     lagged_ltc,
-    choice,
-    options,
     params,
 ):
     prob_ltc = (lagged_ltc == 0) * (
