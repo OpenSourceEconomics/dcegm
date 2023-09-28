@@ -152,25 +152,6 @@ def process_params(params: Union[dict, pd.Series, pd.DataFrame]) -> Dict[str, fl
     return params
 
 
-def _convert_params_to_dict(params: Union[pd.Series, pd.DataFrame]):
-    """Converts params to dictionary."""
-    _registry = get_registry(
-        types=[
-            "dict",
-            "pandas.Series",
-            "pandas.DataFrame",
-        ],
-        include_defaults=False,
-    )
-    # {level: df.xs(level).to_dict('index') for level in df.index.levels[0]}
-    _params, _treedef = tree_flatten(params, registry=_registry)
-    values = [i for i in _params if isinstance(i, (int, float))]
-    keys = _treedef.index.get_level_values(_treedef.index.names[-1]).tolist()
-    params_dict = dict(zip(keys, values))
-
-    return params_dict
-
-
 def process_exog_funcs(options):
     """Process exogenous functions.
 
@@ -238,6 +219,25 @@ def create_exog_mapping(options):
     return jnp.asarray(exog_mapping)
 
 
+def _convert_params_to_dict(params: Union[pd.Series, pd.DataFrame]):
+    """Converts params to dictionary."""
+    _registry = get_registry(
+        types=[
+            "dict",
+            "pandas.Series",
+            "pandas.DataFrame",
+        ],
+        include_defaults=False,
+    )
+    # {level: df.xs(level).to_dict('index') for level in df.index.levels[0]}
+    _params, _treedef = tree_flatten(params, registry=_registry)
+    values = [i for i in _params if isinstance(i, (int, float))]
+    keys = _treedef.index.get_level_values(_treedef.index.names[-1]).tolist()
+    params_dict = dict(zip(keys, values))
+
+    return params_dict
+
+
 def _get_exog_function_with_filtered_args(func, options):
     """Args is state_vec with one global exog state."""
     signature = list(inspect.signature(func).parameters)
@@ -295,6 +295,7 @@ def _get_utility_function_with_filtered_args_and_kwargs(func, options, exog_mapp
 
     @functools.wraps(func)
     def processed_func(*args, **kwargs):
+        # args is state_choice_vec
         exog_state_global = args[-2]
         endog_args, choice = args[:-2], args[-1]
 
@@ -321,11 +322,8 @@ def _get_utility_function_with_filtered_args_and_kwargs(func, options, exog_mapp
         if "options" in signature and "model_params" in options:
             _args_to_kwargs["options"] = options["model_params"]
 
-        _kwargs = {
-            key: kwargs[key]
-            for key in signature
-            if key in kwargs  # and key != "options"
-        }
+        # params
+        _kwargs = {key: kwargs[key] for key in signature if key in kwargs}
 
         return func(**_args_to_kwargs | _kwargs)
 
