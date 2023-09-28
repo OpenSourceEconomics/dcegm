@@ -40,19 +40,21 @@ def solve_final_period(
         state_objects_final_period["idx_parent_states"]
     ]
 
-    marg_util_interpolated, value_interpolated, _ = vmap(
+    # Calculate the final period solution for each gridpoint
+    marg_util_interpolated, value_interpolated = vmap(
         vmap(
             vmap(
-                compute_final_period,
-                in_axes=(None, 0, None),
+                calculate_final_period_solution_for_each_gridpoint,
+                in_axes=(None, 0, None, None),
             ),
-            in_axes=(None, 0, None),
+            in_axes=(None, 0, None, None),
         ),
-        in_axes=(0, 0, None),
+        in_axes=(0, 0, None, None),
     )(
         state_objects_final_period["state_choice_mat"],
         resources_final_period,
         params,
+        compute_final_period,
     )
 
     # Choose which draw we take for policy and value function as those are not
@@ -69,3 +71,12 @@ def solve_final_period(
     results["endog_grid"] = resources_to_save
 
     return results, marg_util_interpolated, value_interpolated
+
+
+def calculate_final_period_solution_for_each_gridpoint(
+    state_choice_vec, resources, params, compute_final_period
+):
+    marg_util_interpolated, value_interpolated, _ = compute_final_period(
+        state_choice_vec, resources, params
+    )
+    return marg_util_interpolated, value_interpolated
