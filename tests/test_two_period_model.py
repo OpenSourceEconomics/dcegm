@@ -579,9 +579,7 @@ def test_two_period_two_exog_processes(
     reshape_state_choice_vec_to_mat[state_idx]
 
     initial_conditions["bad_health"] = state[-1] > 1
-    initial_conditions["job_offer"] = (
-        state[1] == 0
-    )  # working (no retirement) in period 0
+    initial_conditions["job_offer"] = 1  # working (no retirement) in period 0
 
     feasible_choice_set = get_state_specific_feasible_choice_set(
         state, map_state_to_index

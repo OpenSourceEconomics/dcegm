@@ -17,6 +17,8 @@ ignore:
   - .tox/**/*
   - setup.py
   - src/dcegm/fast_upper_envelope.py
+  - tests/conftest.py
   - tests/utils/upper_envelope_fedor.py
   - tests/utils/fast_upper_envelope_org.py
-  - tests/conftest.py
+  - tests/test_two_period_model.py
+  - tests/test_state_space.py
