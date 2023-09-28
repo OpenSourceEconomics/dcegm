@@ -20,6 +20,7 @@ ignore:
   - tests/conftest.py
   - tests/utils/upper_envelope_fedor.py
   - tests/utils/fast_upper_envelope_org.py
-  - tests/test_two_period_model.py
+  - tests/test_two_periods_basic.py
+  - tests/test_two_periods_multiple_exog.py
   - tests/test_process_model.py
   - tests/test_state_space.py
