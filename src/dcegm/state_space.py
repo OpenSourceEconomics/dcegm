@@ -7,7 +7,10 @@ import numpy as np
 
 
 def create_state_choice_space(
-    options, state_space, map_state_to_state_space_index, get_state_specific_choice_set
+    state_space_options,
+    state_space,
+    map_state_to_state_space_index,
+    get_state_specific_choice_set,
 ):
     """Create state choice space of all feasible state-choice combinations.
 
@@ -58,8 +61,8 @@ def create_state_choice_space(
     """
     n_states, n_state_and_exog_variables = state_space.shape
 
-    n_periods = len(options["endogenous_states"]["period"])
-    n_choices = len(options["choice"])
+    n_periods = state_space_options["n_periods"]
+    n_choices = len(state_space_options["choices"])
 
     state_choice_space = np.zeros(
         (n_states * n_choices, n_state_and_exog_variables + 1),

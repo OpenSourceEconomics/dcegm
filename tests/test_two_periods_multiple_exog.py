@@ -223,6 +223,8 @@ def input_data_two_exog_processes():
             "quadrature_points_stochastic": 5,
         },
         "state_space": {
+            "n_periods": 2,
+            "choices": np.arange(2),
             "endogenous_states": {
                 "period": np.arange(2),
                 "married": [0, 1],
@@ -296,7 +298,7 @@ def test_two_period_two_exog_processes(
         _map_state_choice_vec_to_parent_state,
         reshape_state_choice_vec_to_mat,
     ) = create_state_choice_space(
-        options=input_data_two_exog_processes["options"]["state_space"],
+        state_space_options=input_data_two_exog_processes["options"]["state_space"],
         state_space=state_space,
         map_state_to_state_space_index=map_state_to_index,
         get_state_specific_choice_set=get_state_specific_feasible_choice_set,

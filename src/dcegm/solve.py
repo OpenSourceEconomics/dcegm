@@ -62,7 +62,7 @@ def get_solve_function(
     # if "exogenous_states" not in options["state_space"]:
     #     options["state_space"]["exogenous_states"] = {"exog_state": [0]}
 
-    n_periods = len(options["state_space"]["endogenous_states"]["period"])
+    n_periods = options["state_space"]["n_periods"]
 
     # ToDo: Make interface with several draw possibilities.
     # ToDo: Some day make user supplied draw function.
@@ -79,7 +79,7 @@ def get_solve_function(
         map_state_choice_vec_to_parent_state,
         reshape_state_choice_vec_to_mat,
     ) = create_state_choice_space(
-        options=options["state_space"],
+        state_space_options=options["state_space"],
         state_space=state_space,
         map_state_to_state_space_index=map_state_to_state_space_index,
         get_state_specific_choice_set=state_space_functions[
