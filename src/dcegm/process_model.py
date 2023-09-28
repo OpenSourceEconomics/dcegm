@@ -237,6 +237,7 @@ def _convert_params_to_dict(params: Union[pd.Series, pd.DataFrame]):
 def _return_policy_and_value(
     endog_grid, policy, value, expected_value_zero_savings, *args
 ):
+    """This is a dummy function for the case of only one discrete choice."""
     endog_grid = jnp.append(0, endog_grid)
     policy = jnp.append(0, policy)
     value = jnp.append(expected_value_zero_savings, value)
