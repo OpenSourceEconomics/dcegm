@@ -4,10 +4,11 @@ from jax import vmap
 def calculate_resources(
     state_space,
     exog_savings_grid,
-    income_shock_draws,
+    income_shock_draws_unscaled,
     params,
     compute_beginning_of_period_wealth,
 ):
+    income_shock_draws = income_shock_draws_unscaled * params["sigma"]
     resources_beginning_of_period = vmap(
         vmap(
             vmap(

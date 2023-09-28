@@ -279,14 +279,13 @@ def backward_induction(
     """
 
     taste_shock_scale = params["lambda"]
-    income_shock_draws = income_shock_draws_unscaled * params["sigma"]
 
     state_objects = period_specific_state_objects[n_periods - 1]
 
     resources_beginning_of_period = calculate_resources(
         state_space,
         exog_savings_grid,
-        income_shock_draws,
+        income_shock_draws_unscaled,
         params,
         compute_beginning_of_period_wealth,
     )
@@ -312,7 +311,7 @@ def backward_induction(
 
     # Choose which draw we take for policy and value function as those are not
     # saved with respect to the draws
-    middle_of_draws = int(len(income_shock_draws) + 1 / 2)
+    middle_of_draws = int(len(value_interpolated.shape[2]) + 1 / 2)
 
     final_period_results = {}
     final_period_results["value"] = value_interpolated[:, :, middle_of_draws]
