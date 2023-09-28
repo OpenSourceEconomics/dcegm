@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from dcegm.budget import calculate_resources
 from dcegm.egm import calculate_candidate_solutions_from_euler_equation
+from dcegm.final_period import solve_final_period
 from dcegm.integration import quadrature_legendre
 from dcegm.interpolation import interpolate_and_calc_marginal_utilities
 from dcegm.marg_utilities_and_exp_value import (
@@ -199,7 +200,7 @@ def solve_dcegm(
 
 def backward_induction(
     params: Dict[str, float],
-    period_specific_state_objects: Dict[int, jnp.ndarray],
+    period_specific_state_objects: Dict[int, np.ndarray],
     exog_savings_grid: np.ndarray,
     state_space: np.ndarray,
     income_shock_draws_unscaled: np.ndarray,
@@ -280,8 +281,6 @@ def backward_induction(
 
     taste_shock_scale = params["lambda"]
 
-    state_objects = period_specific_state_objects[n_periods - 1]
-
     resources_beginning_of_period = calculate_resources(
         state_space,
         exog_savings_grid,
@@ -290,34 +289,17 @@ def backward_induction(
         compute_beginning_of_period_wealth,
     )
 
-    resources_final_period = resources_beginning_of_period[
-        state_objects["idx_parent_states"]
-    ]
-
-    marg_util_interpolated, value_interpolated, policy_final = vmap(
-        vmap(
-            vmap(
-                compute_final_period,
-                in_axes=(None, 0, None),
-            ),
-            in_axes=(None, 0, None),
-        ),
-        in_axes=(0, 0, None),
-    )(
-        state_objects["state_choice_mat"],
-        resources_beginning_of_period[state_objects["idx_parent_states"]],
-        params,
+    (
+        final_period_results,
+        marg_util_interpolated,
+        value_interpolated,
+        policy_final,
+    ) = solve_final_period(
+        state_objects_final_period=period_specific_state_objects[n_periods - 1],
+        compute_final_period=compute_final_period,
+        resources_beginning_of_period=resources_beginning_of_period,
+        params=params,
     )
-
-    # Choose which draw we take for policy and value function as those are not
-    # saved with respect to the draws
-    middle_of_draws = int(len(value_interpolated.shape[2]) + 1 / 2)
-
-    final_period_results = {}
-    final_period_results["value"] = value_interpolated[:, :, middle_of_draws]
-    final_period_results["policy_left"] = policy_final[:, :, middle_of_draws]
-    final_period_results["policy_right"] = policy_final[:, :, middle_of_draws]
-    final_period_results["endog_grid"] = resources_final_period[:, :, middle_of_draws]
 
     results = {}
     results[n_periods - 1] = final_period_results
