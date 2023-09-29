@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 from dcegm.solve import solve_dcegm
 from dcegm.state_space import create_state_choice_space
+from dcegm.state_space import create_state_space
 from numpy.testing import assert_allclose
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
@@ -72,65 +73,6 @@ def budget_dcegm_two_exog_processes(
         - ltc_patient * params["ltc_cost"]
     )
     return jnp.maximum(resource, 0.5)
-
-
-def create_state_space_two_exog_processes(options):
-    """Create state space object and indexer.
-
-    We need to add the convention for the state space objects.
-
-    Args:
-        options (dict): Options dictionary.
-
-    Returns:
-        tuple:
-
-        - state_vars (list): List of state variables.
-        - state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
-            which serves as a collection of all possible states. By convention,
-            the first column must contain the period and the last column the
-            exogenous processes. Any other state variables are in between.
-            E.g. if the two state variables are period and lagged choice and all choices
-            are admissible in each period, the shape of the state space array is
-            (n_periods * n_choices, 3).
-        - map_state_to_index (np.ndarray): Indexer array that maps states to indexes.
-            The shape of this object is quite complicated. For each state variable it
-            has the number of possible states as rows, i.e.
-            (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
-
-    """
-    n_periods = len(options["endogenous_states"]["period"])
-    n_lagged_choices = len(options["choice"])
-    n_exog_one = len(options["exogenous_processes"]["ltc"]["states"])
-    n_exog_two = len(options["exogenous_processes"]["job_offer"]["states"])
-
-    n_married = 2
-
-    shape = (
-        n_periods,
-        n_married,
-        n_lagged_choices,
-        n_exog_one * n_exog_two,
-    )
-
-    map_state_to_index = np.full(shape, -9999, dtype=np.int64)
-    _state_space = []
-
-    i = 0
-    for period in range(n_periods):
-        for married in range(n_married):
-            for lagged_choice in range(n_lagged_choices):
-                for lagged_exog in range(n_exog_one * n_exog_two):
-                    map_state_to_index[period, married, lagged_choice, lagged_exog] = i
-
-                    row = [period, married, lagged_choice, lagged_exog]
-                    _state_space.append(row)
-
-                    i += 1
-
-    state_space = np.array(_state_space, dtype=np.int64)
-
-    return state_space, map_state_to_index
 
 
 def func_exog_ltc(
@@ -292,19 +234,16 @@ def input_data_two_exog_processes():
             "n_periods": 2,
             "choices": np.arange(2),
             "endogenous_states": {
-                "period": np.arange(2),
                 "married": [0, 1],
-                "lagged_choice": [0, 1],
+                # "old": [2, 3],
             },
             "exogenous_processes": {
                 "ltc": {"transition": func_exog_ltc, "states": [0, 1]},
                 "job_offer": {"transition": func_exog_job_offer, "states": [0, 1]},
             },
-            "choice": [0, get_state_specific_feasible_choice_set],
         },
     }
     state_space_functions = {
-        "create_state_space": create_state_space_two_exog_processes,
         "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
         "update_endog_state_by_state_and_choice": update_state,
     }
@@ -355,9 +294,7 @@ def test_two_period_two_exog_processes(
     (
         state_space,
         map_state_to_index,
-    ) = create_state_space_two_exog_processes(
-        input_data_two_exog_processes["options"]["state_space"]
-    )
+    ) = create_state_space(input_data_two_exog_processes["options"]["state_space"])
     model_params_options = input_data_two_exog_processes["options"]["model_params"]
     (
         state_choice_space,

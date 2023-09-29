@@ -144,7 +144,6 @@ def get_solve_function(
         state_space,
     ) = create_state_space_and_choice_objects(
         state_space_options=options["state_space"],
-        state_space_functions=state_space_functions,
         get_state_specific_choice_set=get_state_specific_choice_set,
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
         exog_mapping=exog_mapping,

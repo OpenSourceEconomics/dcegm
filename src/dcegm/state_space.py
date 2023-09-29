@@ -1,4 +1,5 @@
 """Functions for creating internal state space objects."""
+from functools import reduce
 from typing import Callable
 from typing import Dict
 
@@ -8,7 +9,6 @@ import numpy as np
 
 def create_state_space_and_choice_objects(
     state_space_options,
-    state_space_functions,
     get_state_specific_choice_set,
     update_endog_state_by_state_and_choice,
     exog_mapping,
@@ -40,7 +40,6 @@ def create_state_space_and_choice_objects(
             - "transform_between_state_and_state_choice_vec" (callable)
 
     """
-    create_state_space = state_space_functions["create_state_space"]
     state_space, map_state_to_state_space_index = create_state_space(
         state_space_options
     )
@@ -107,6 +106,116 @@ def create_state_space_and_choice_objects(
     }
 
     return out, state_space
+
+
+def create_state_space(state_space_options):
+    """Create state space object and indexer.
+
+    We need to add the convention for the state space objects.
+
+    Args:
+        options (dict): Options dictionary.
+
+    Returns:
+        tuple:
+
+        - state_vars (list): List of state variables.
+        - state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
+            which serves as a collection of all possible states. By convention,
+            the first column must contain the period and the last column the
+            exogenous processes. Any other state variables are in between.
+            E.g. if the two state variables are period and lagged choice and all choices
+            are admissible in each period, the shape of the state space array is
+            (n_periods * n_choices, 3).
+        - map_state_to_index (np.ndarray): Indexer array that maps states to indexes.
+            The shape of this object is quite complicated. For each state variable it
+            has the number of possible states as rows, i.e.
+            (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
+
+    """
+    n_periods = state_space_options["n_periods"]
+    n_choices = len(state_space_options["choices"])
+
+    (
+        add_endog_state_func,
+        num_of_endog_combinations,
+        endog_states_names,
+        num_endog_states,
+    ) = determine_endog_states_and_create_add_function(state_space_options)
+
+    if "exogenous_processes" in state_space_options:
+        n_exog = 0
+        for exog_processes in state_space_options["exogenous_processes"].keys():
+            n_exog += len(
+                state_space_options["exogenous_processes"][exog_processes]["states"]
+            )
+
+    shape = [n_periods, n_choices] + num_endog_states
+
+    map_state_to_index = np.full(shape, -9999, dtype=np.int64)
+    state_space_list = []
+
+    i = 0
+    for period in range(n_periods):
+        for lagged_choice in range(n_choices):
+            for endog_state_id in range(num_of_endog_combinations):
+                endog_states = add_endog_state_func(endog_state_id)
+                state_without_exog = [period, lagged_choice] + endog_states
+                # state_dict_without
+
+                state_space_list += [state_without_exog]
+                map_state_to_index[tuple(state_without_exog)] = i
+                i += 1
+
+    np.array(state_space_list)
+    # breakpoint()
+
+
+def determine_endog_states_and_create_add_function(state_space_options):
+    num_of_endog_combinations = 1
+    if "endogenous_states" in state_space_options:
+        endog_all_states_values = []
+        endog_states_names = state_space_options["endogenous_states"].keys()
+        num_endog_states = []
+        for endog_state in endog_states_names:
+            endog_state_values = state_space_options["endogenous_states"][endog_state]
+            # Add if size_endog_state is 1, then raise Error
+            num_states = len(endog_state_values)
+            num_of_endog_combinations *= num_states
+            num_endog_states += [num_states]
+            endog_all_states_values += [endog_state_values]
+
+        num_of_endog_state_vars = len(state_space_options["endogenous_states"].keys())
+        endog_state_space = np.array(
+            reduce(np.meshgrid, endog_all_states_values)
+        ).T.reshape(-1, num_of_endog_state_vars)
+    else:
+        endog_state_space = None
+
+    endog_states_add_func = create_endog_state_add_function(
+        endog_state_space, num_of_endog_combinations
+    )
+
+    return (
+        endog_states_add_func,
+        num_of_endog_combinations,
+        endog_states_names,
+        num_endog_states,
+    )
+
+
+def create_endog_state_add_function(endog_state_space, num_of_endog_combinations):
+    if num_of_endog_combinations == 1:
+
+        def add_endog_states(id_endog_state):
+            return []
+
+    else:
+
+        def add_endog_states(id_endog_state):
+            return list(endog_state_space[id_endog_state])
+
+    return add_endog_states
 
 
 def create_state_choice_space(
