@@ -293,8 +293,11 @@ def test_two_period_two_exog_processes(
     params = dict(zip(keys, values))
     (
         state_space,
-        map_state_to_index,
-    ) = create_state_space(input_data_two_exog_processes["options"]["state_space"])
+        map_state_to_state_space_index,
+        state_space_names,
+        n_exog_states,
+        exog_state_space,
+    ) = create_state_space(input_data_two_exog_processes["options"])
     model_params_options = input_data_two_exog_processes["options"]["model_params"]
     (
         state_choice_space,
@@ -303,7 +306,7 @@ def test_two_period_two_exog_processes(
     ) = create_state_choice_space(
         state_space_options=input_data_two_exog_processes["options"]["state_space"],
         state_space=state_space,
-        map_state_to_state_space_index=map_state_to_index,
+        map_state_to_state_space_index=map_state_to_state_space_index,
         get_state_specific_choice_set=partial(
             get_state_specific_feasible_choice_set, options=model_params_options
         ),
@@ -312,7 +315,7 @@ def test_two_period_two_exog_processes(
     state = state_space[state_idx, :]
     reshape_state_choice_vec_to_mat[state_idx]
 
-    initial_conditions["bad_health"] = state[-1] > 1
+    initial_conditions["bad_health"] = state[-2] == 1
     initial_conditions["job_offer"] = 1  # working (no retirement) in period 0
 
     feasible_choice_set = get_state_specific_feasible_choice_set(

@@ -5,13 +5,13 @@ from typing import Dict
 
 import jax.numpy as jnp
 import numpy as np
+from dcegm.process_functions import determine_function_arguments_and_partial_options
 
 
 def create_state_space_and_choice_objects(
-    state_space_options,
+    options,
     get_state_specific_choice_set,
     update_endog_state_by_state_and_choice,
-    exog_mapping,
 ):
     """Create dictionary of state and state-choice objects for each period.
 
@@ -40,9 +40,14 @@ def create_state_space_and_choice_objects(
             - "transform_between_state_and_state_choice_vec" (callable)
 
     """
-    state_space, map_state_to_state_space_index = create_state_space(
-        state_space_options
-    )
+    (
+        state_space,
+        map_state_to_state_space_index,
+        state_space_names,
+        n_exog_states,
+        exog_state_space,
+    ) = create_state_space(options)
+    state_space_options = options["state_space"]
 
     (
         state_choice_space,
@@ -81,6 +86,8 @@ def create_state_space_and_choice_objects(
         out[period] = period_dict
 
     out = create_map_from_state_to_child_nodes(
+        n_exog_states=n_exog_states,
+        exog_state_space=exog_state_space,
         options=state_space_options,
         period_specific_state_objects=out,
         map_state_to_index=map_state_to_state_space_index,
@@ -89,26 +96,16 @@ def create_state_space_and_choice_objects(
 
     for period in range(n_periods):
         out[period]["state_choice_mat"] = {
-            "period": out[period]["state_choice_mat"][:, 0],
-            "lagged_choice": out[period]["state_choice_mat"][:, 1],
-            "married": out[period]["state_choice_mat"][:, 2],
-            "ltc": exog_mapping[:, 0][out[period]["state_choice_mat"][:, 3]],
-            "job_offer": exog_mapping[:, 1][out[period]["state_choice_mat"][:, 3]],
-            "choice": out[period]["state_choice_mat"][:, 4],
+            key: out[period]["state_choice_mat"][:, i]
+            for i, key in enumerate(state_space_names + ["choice"])
         }
 
-    state_space = {
-        "period": state_space[:, 0],
-        "lagged_choice": state_space[:, 1],
-        "married": state_space[:, 2],
-        "ltc": exog_mapping[:, 0][state_space[:, 3]],
-        "job_offer": exog_mapping[:, 1][state_space[:, 3]],
-    }
+    state_space = {key: state_space[:, i] for i, key in enumerate(state_space_names)}
 
     return out, state_space
 
 
-def create_state_space(state_space_options):
+def create_state_space(options):
     """Create state space object and indexer.
 
     We need to add the convention for the state space objects.
@@ -133,26 +130,37 @@ def create_state_space(state_space_options):
             (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
 
     """
+    state_space_options = options["state_space"]
+    model_params = options["model_params"]
+
     n_periods = state_space_options["n_periods"]
     n_choices = len(state_space_options["choices"])
 
     (
         add_endog_state_func,
-        num_of_endog_combinations,
         endog_states_names,
+        num_states_of_all_endog_states,
         num_endog_states,
-    ) = determine_endog_states_and_create_add_function(state_space_options)
+        sparsity_func,
+    ) = process_endog_state_specifications(
+        state_space_options=state_space_options, model_params=model_params
+    )
+
+    (
+        add_exog_state_func,
+        exog_states_names,
+        num_states_of_all_exog_states,
+        n_exog_states,
+        exog_state_space,
+    ) = process_exog_model_specifications(state_space_options=state_space_options)
 
     state_names_without_exog = ["period", "lagged_choice"] + endog_states_names
 
-    if "exogenous_processes" in state_space_options:
-        n_exog = 0
-        for exog_processes in state_space_options["exogenous_processes"].keys():
-            n_exog += len(
-                state_space_options["exogenous_processes"][exog_processes]["states"]
-            )
-
-    shape = [n_periods, n_choices] + num_endog_states
+    shape = (
+        [n_periods, n_choices]
+        + num_states_of_all_endog_states
+        + num_states_of_all_exog_states
+    )
 
     map_state_to_index = np.full(shape, -9999, dtype=np.int64)
     state_space_list = []
@@ -160,56 +168,167 @@ def create_state_space(state_space_options):
     index = 0
     for period in range(n_periods):
         for lagged_choice in range(n_choices):
-            for endog_state_id in range(num_of_endog_combinations):
+            for endog_state_id in range(num_endog_states):
+                # Select the endogenous state combination
                 endog_states = add_endog_state_func(endog_state_id)
+                # Create the state vector without the exogenous processes
                 state_without_exog = [period, lagged_choice] + endog_states
-                {
+                # Transform to dictionary to call sparsity function, the user can
+                # provide
+                state_dict_without_exog = {
                     state_names_without_exog[i]: state_value
                     for i, state_value in enumerate(state_without_exog)
                 }
-                state_space_list += [state_without_exog]
-                map_state_to_index[tuple(state_without_exog)] = index
-                index += 1
+                # Check if the state is valid by calling the sparsity function
+                is_state_valid = sparsity_func(**state_dict_without_exog)
+                if not is_state_valid:
+                    continue
+                else:
+                    # If is valid, we continue to add all exogenous processes
+                    for exog_state_id in range(n_exog_states):
+                        exog_states = add_exog_state_func(exog_state_id)
+                        state = state_without_exog + exog_states
+                        state_space_list += [state]
+                        map_state_to_index[tuple(state)] = index
+                        index += 1
 
-    np.array(state_space_list)
-    # breakpoint()
+    state_space_names = state_names_without_exog + exog_states_names
+    state_space = np.array(state_space_list)
 
-
-def determine_endog_states_and_create_add_function(state_space_options):
-    num_of_endog_combinations = 1
-    if "endogenous_states" in state_space_options:
-        endog_all_states_values = []
-        endog_states_names = list(state_space_options["endogenous_states"].keys())
-        num_endog_states = []
-        for endog_state in endog_states_names:
-            endog_state_values = state_space_options["endogenous_states"][endog_state]
-            # Add if size_endog_state is 1, then raise Error
-            num_states = len(endog_state_values)
-            num_of_endog_combinations *= num_states
-            num_endog_states += [num_states]
-            endog_all_states_values += [endog_state_values]
-
-        num_of_endog_state_vars = len(state_space_options["endogenous_states"].keys())
-        endog_state_space = np.array(
-            reduce(np.meshgrid, endog_all_states_values)
-        ).T.reshape(-1, num_of_endog_state_vars)
-    else:
-        endog_state_space = None
-
-    endog_states_add_func = create_endog_state_add_function(
-        endog_state_space, num_of_endog_combinations
+    return (
+        state_space,
+        map_state_to_index,
+        state_space_names,
+        n_exog_states,
+        exog_state_space,
     )
+
+
+def process_exog_model_specifications(state_space_options):
+    if "exogenous_processes" in state_space_options:
+        exog_state_names = list(state_space_options["exogenous_processes"].keys())
+        dict_of_only_states = {
+            key: state_space_options["exogenous_processes"][key]["states"]
+            for key in exog_state_names
+        }
+
+        (
+            exog_state_space,
+            num_states_of_all_exog_states,
+        ) = span_subspace_and_read_information(
+            subdict_of_space=dict_of_only_states,
+            states_names=exog_state_names,
+        )
+        n_exog_states = exog_state_space.shape[0]
+
+    else:
+        exog_state_names = ["dummy_exog"]
+        num_states_of_all_exog_states = [1]
+        n_exog_states = 1
+
+        exog_state_space = np.array([[0]])
+
+    exog_states_add_func = create_exog_state_add_function(exog_state_space)
+
+    return (
+        exog_states_add_func,
+        exog_state_names,
+        num_states_of_all_exog_states,
+        n_exog_states,
+        exog_state_space,
+    )
+
+
+def create_exog_state_add_function(exog_state_space):
+    def add_exog_states(id_exog_state):
+        return list(exog_state_space[id_exog_state])
+
+    return add_exog_states
+
+
+def span_subspace_and_read_information(subdict_of_space, states_names):
+    all_states_values = []
+
+    num_states_of_all_states = []
+    for state_name in states_names:
+        state_values = subdict_of_space[state_name]
+        # Add if size_endog_state is 1, then raise Error
+        num_states = len(state_values)
+        num_states_of_all_states += [num_states]
+        all_states_values += [state_values]
+
+    sub_state_space = np.array(reduce(np.meshgrid, all_states_values)).T.reshape(
+        -1, len(states_names)
+    )
+
+    return sub_state_space, num_states_of_all_states
+
+
+def process_endog_state_specifications(state_space_options, model_params):
+    """Create endog state space, to loop over in the main create state space
+    function."""
+
+    if "endogenous_states" in state_space_options:
+        endog_state_keys = state_space_options["endogenous_states"].keys()
+        if "sparsity_condition" in state_space_options["endogenous_states"].keys():
+            endog_states_names = list(set(endog_state_keys) - {"sparsity_condition"})
+            sparsity_cond_specified = True
+        else:
+            sparsity_cond_specified = False
+            endog_states_names = list(endog_state_keys)
+
+        (
+            endog_state_space,
+            num_states_of_all_endog_states,
+        ) = span_subspace_and_read_information(
+            subdict_of_space=state_space_options["endogenous_states"],
+            states_names=endog_states_names,
+        )
+        num_endog_states = endog_state_space.shape[0]
+
+    else:
+        endog_states_names = []
+        num_states_of_all_endog_states = []
+        num_endog_states = 1
+
+        endog_state_space = None
+        sparsity_cond_specified = False
+
+    sparsity_func = select_sparsity_function(
+        sparsity_cond_specified=sparsity_cond_specified,
+        state_space_options=state_space_options,
+        model_params=model_params,
+    )
+
+    endog_states_add_func = create_endog_state_add_function(endog_state_space)
 
     return (
         endog_states_add_func,
-        num_of_endog_combinations,
         endog_states_names,
+        num_states_of_all_endog_states,
         num_endog_states,
+        sparsity_func,
     )
 
 
-def create_endog_state_add_function(endog_state_space, num_of_endog_combinations):
-    if num_of_endog_combinations == 1:
+def select_sparsity_function(
+    sparsity_cond_specified, state_space_options, model_params
+):
+    if sparsity_cond_specified:
+        sparsity_func = determine_function_arguments_and_partial_options(
+            func=state_space_options["endogenous_states"]["sparsity_condition"],
+            options=model_params,
+        )
+    else:
+
+        def sparsity_func(**kwargs):
+            return True
+
+    return sparsity_func
+
+
+def create_endog_state_add_function(endog_state_space):
+    if endog_state_space is None:
 
         def add_endog_states(id_endog_state):
             return []
@@ -324,6 +443,8 @@ def create_state_choice_space(
 
 
 def create_map_from_state_to_child_nodes(
+    n_exog_states: int,
+    exog_state_space: np.ndarray,
     options: Dict[str, int],
     period_specific_state_objects: np.ndarray,
     map_state_to_index: np.ndarray,
@@ -365,10 +486,8 @@ def create_map_from_state_to_child_nodes(
     # treat all of them as admissible in each period. If there exists an absorbing
     # state, this is reflected by a 0 percent transition probability.
     n_periods = options["n_periods"]
-    n_exog_states = 0
 
-    for exog_process in options["exogenous_processes"].keys():
-        n_exog_states += len(options["exogenous_processes"][exog_process]["states"])
+    n_exog_vars = exog_state_space.shape[1]
 
     for period in range(n_periods - 1):
         period_dict = period_specific_state_objects[period]
@@ -393,7 +512,7 @@ def create_map_from_state_to_child_nodes(
             )
 
             for exog_process in range(n_exog_states):
-                state_vec_next[-1] = exog_process
+                state_vec_next[-n_exog_vars:] = exog_state_space[exog_process]
                 # We want the index every period to start at 0.
                 map_state_to_feasible_child_nodes_period[idx, exog_process] = (
                     map_state_to_index[tuple(state_vec_next)]

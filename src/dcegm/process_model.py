@@ -63,7 +63,6 @@ def process_model_functions(
         options["state_space"]["exogenous_states"] = {"exog_state": [0]}
         compute_exog_transition_vec = _return_one
     else:
-        exog_mapping = create_exog_mapping(options)
         exog_funcs = process_exog_funcs(options)
 
         compute_exog_transition_vec = partial(
@@ -126,7 +125,6 @@ def process_model_functions(
         compute_upper_envelope,
         get_state_specific_choice_set,
         update_endog_state_by_state_and_choice,
-        exog_mapping,
     )
 
 
