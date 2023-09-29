@@ -6,7 +6,12 @@ import jax.numpy as jnp
 import numpy as np
 
 
-def create_state_space_and_choice_objects(state_space_options, state_space_functions):
+def create_state_space_and_choice_objects(
+    state_space_options,
+    state_space_functions,
+    get_state_specific_choice_set,
+    update_endog_state_by_state_and_choice,
+):
     """Create dictionary of state and state-choice objects for each period.
 
     Args:
@@ -47,9 +52,7 @@ def create_state_space_and_choice_objects(state_space_options, state_space_funct
         state_space_options=state_space_options,
         state_space=state_space,
         map_state_to_state_space_index=map_state_to_state_space_index,
-        get_state_specific_choice_set=state_space_functions[
-            "get_state_specific_choice_set"
-        ],
+        get_state_specific_choice_set=get_state_specific_choice_set,
     )
 
     n_periods = state_space_options["n_periods"]
@@ -81,9 +84,7 @@ def create_state_space_and_choice_objects(state_space_options, state_space_funct
         options=state_space_options,
         period_specific_state_objects=out,
         map_state_to_index=map_state_to_state_space_index,
-        update_endog_state_by_state_and_choice=state_space_functions[
-            "update_endog_state_by_state_and_choice"
-        ],
+        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
     return out, state_space
@@ -165,7 +166,7 @@ def create_state_choice_space(
             state_idx = map_state_to_state_space_index[tuple(state_vec)]
 
             feasible_choice_set = get_state_specific_choice_set(
-                state_vec, map_state_to_state_space_index
+                state=state_vec,
             )
 
             for choice in range(n_choices):

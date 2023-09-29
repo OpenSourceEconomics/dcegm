@@ -1,3 +1,4 @@
+from functools import partial
 from itertools import product
 
 import jax.numpy as jnp
@@ -282,6 +283,7 @@ def input_data_two_exog_processes():
     options = {
         "model_params": {
             "n_grid_points": WEALTH_GRID_POINTS,
+            "n_choices": 2,
             "max_wealth": 50,
             "quadrature_points_stochastic": 5,
         },
@@ -297,7 +299,7 @@ def input_data_two_exog_processes():
                 "ltc": {"transition": func_exog_ltc, "states": [0, 1]},
                 "job_offer": {"transition": func_exog_job_offer, "states": [0, 1]},
             },
-            "choice": [0, 1],
+            "choice": [0, get_state_specific_feasible_choice_set],
         },
     }
     state_space_functions = {
@@ -355,6 +357,7 @@ def test_two_period_two_exog_processes(
     ) = create_state_space_two_exog_processes(
         input_data_two_exog_processes["options"]["state_space"]
     )
+    model_params_options = input_data_two_exog_processes["options"]["model_params"]
     (
         state_choice_space,
         _map_state_choice_vec_to_parent_state,
@@ -363,7 +366,9 @@ def test_two_period_two_exog_processes(
         state_space_options=input_data_two_exog_processes["options"]["state_space"],
         state_space=state_space,
         map_state_to_state_space_index=map_state_to_index,
-        get_state_specific_choice_set=get_state_specific_feasible_choice_set,
+        get_state_specific_choice_set=partial(
+            get_state_specific_feasible_choice_set, options=model_params_options
+        ),
     )
     initial_conditions = {}
     state = state_space[state_idx, :]
@@ -373,7 +378,7 @@ def test_two_period_two_exog_processes(
     initial_conditions["job_offer"] = 1  # working (no retirement) in period 0
 
     feasible_choice_set = get_state_specific_feasible_choice_set(
-        state, map_state_to_index
+        state=state, options=model_params_options
     )
 
     endog_grid_period = input_data_two_exog_processes["result"][state[0]]["endog_grid"]

@@ -23,101 +23,6 @@ from jax import jit
 from jax import vmap
 
 
-def get_solve_function(
-    options: Dict[str, int],
-    exog_savings_grid: jnp.ndarray,
-    state_space_functions: Dict[str, Callable],
-    utility_functions: Dict[str, Callable],
-    budget_constraint: Callable,
-    final_period_solution: Callable,
-) -> Callable:
-    """Create a solve function, which only takes params as input.
-
-    Args:
-        options (dict): Options dictionary.
-        exog_savings_grid (jnp.ndarray): 1d array of shape (n_grid_wealth,) containing
-            the user-supplied exogenous savings grid.
-        utility_functions (Dict[str, callable]): Dictionary of three user-supplied
-            functions for computation of:
-            (i) utility
-            (ii) inverse marginal utility
-            (iii) next period marginal utility
-        budget_constraint (callable): Callable budget constraint.
-        state_space_functions (Dict[str, callable]): Dictionary of two user-supplied
-            functions to:
-            (i) create the state space
-            (ii) get the state specific feasible choice set
-            (iii) update the endogenous part of the state by the choice
-        final_period_solution (callable): User-supplied function for solving the agent's
-            last period.
-        transition_function (callable): User-supplied function returning for each
-            state a transition matrix vector.
-
-    Returns:
-        callable: The partial solve function that only takes ```params``` as input.
-
-    """
-    # if "exogenous_states" not in options["state_space"]:
-    #     options["state_space"]["exogenous_states"] = {"exog_state": [0]}
-
-    n_periods = options["state_space"]["n_periods"]
-
-    # ToDo: Make interface with several draw possibilities.
-    # ToDo: Some day make user supplied draw function.
-    income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
-        options["model_params"]["quadrature_points_stochastic"]
-    )
-
-    #
-    (
-        period_specific_state_objects,
-        state_space,
-    ) = create_state_space_and_choice_objects(
-        state_space_options=options["state_space"],
-        state_space_functions=state_space_functions,
-    )
-    #
-    (
-        compute_utility,
-        compute_marginal_utility,
-        compute_inverse_marginal_utility,
-        compute_beginning_of_period_wealth,
-        compute_final_period,
-        compute_exog_transition_vec,
-        compute_upper_envelope,
-    ) = process_model_functions(
-        options,
-        user_utility_functions=utility_functions,
-        user_budget_constraint=budget_constraint,
-        user_final_period_solution=final_period_solution,
-    )
-
-    backward_jit = jit(
-        partial(
-            backward_induction,
-            period_specific_state_objects=period_specific_state_objects,
-            exog_savings_grid=exog_savings_grid,
-            state_space=state_space,
-            income_shock_draws_unscaled=income_shock_draws_unscaled,
-            income_shock_weights=income_shock_weights,
-            n_periods=n_periods,
-            compute_utility=compute_utility,
-            compute_marginal_utility=compute_marginal_utility,
-            compute_inverse_marginal_utility=compute_inverse_marginal_utility,
-            compute_beginning_of_period_wealth=compute_beginning_of_period_wealth,
-            compute_final_period=compute_final_period,
-            compute_exog_transition_vec=compute_exog_transition_vec,
-            compute_upper_envelope=compute_upper_envelope,
-        )
-    )
-
-    def solve_func(params):
-        params_initial = process_params(params)
-        return backward_jit(params=params_initial)
-
-    return solve_func
-
-
 def solve_dcegm(
     params: pd.DataFrame,
     options: Dict[str, int],
@@ -167,6 +72,106 @@ def solve_dcegm(
     results = backward_jit(params=params)
 
     return results
+
+
+def get_solve_function(
+    options: Dict[str, int],
+    exog_savings_grid: jnp.ndarray,
+    state_space_functions: Dict[str, Callable],
+    utility_functions: Dict[str, Callable],
+    budget_constraint: Callable,
+    final_period_solution: Callable,
+) -> Callable:
+    """Create a solve function, which only takes params as input.
+
+    Args:
+        options (dict): Options dictionary.
+        exog_savings_grid (jnp.ndarray): 1d array of shape (n_grid_wealth,) containing
+            the user-supplied exogenous savings grid.
+        utility_functions (Dict[str, callable]): Dictionary of three user-supplied
+            functions for computation of:
+            (i) utility
+            (ii) inverse marginal utility
+            (iii) next period marginal utility
+        budget_constraint (callable): Callable budget constraint.
+        state_space_functions (Dict[str, callable]): Dictionary of two user-supplied
+            functions to:
+            (i) create the state space
+            (ii) get the state specific feasible choice set
+            (iii) update the endogenous part of the state by the choice
+        final_period_solution (callable): User-supplied function for solving the agent's
+            last period.
+        transition_function (callable): User-supplied function returning for each
+            state a transition matrix vector.
+
+    Returns:
+        callable: The partial solve function that only takes ```params``` as input.
+
+    """
+    # if "exogenous_states" not in options["state_space"]:
+    #     options["state_space"]["exogenous_states"] = {"exog_state": [0]}
+
+    n_periods = options["state_space"]["n_periods"]
+
+    # ToDo: Make interface with several draw possibilities.
+    # ToDo: Some day make user supplied draw function.
+    income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
+        options["model_params"]["quadrature_points_stochastic"]
+    )
+
+    (
+        compute_utility,
+        compute_marginal_utility,
+        compute_inverse_marginal_utility,
+        compute_beginning_of_period_wealth,
+        compute_final_period,
+        compute_exog_transition_vec,
+        compute_upper_envelope,
+        get_state_specific_choice_set,
+        update_endog_state_by_state_and_choice,
+    ) = process_model_functions(
+        options,
+        user_utility_functions=utility_functions,
+        user_budget_constraint=budget_constraint,
+        user_final_period_solution=final_period_solution,
+        state_space_functions=state_space_functions,
+    )
+
+    #
+    (
+        period_specific_state_objects,
+        state_space,
+    ) = create_state_space_and_choice_objects(
+        state_space_options=options["state_space"],
+        state_space_functions=state_space_functions,
+        get_state_specific_choice_set=get_state_specific_choice_set,
+        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+    )
+
+    backward_jit = jit(
+        partial(
+            backward_induction,
+            period_specific_state_objects=period_specific_state_objects,
+            exog_savings_grid=exog_savings_grid,
+            state_space=state_space,
+            income_shock_draws_unscaled=income_shock_draws_unscaled,
+            income_shock_weights=income_shock_weights,
+            n_periods=n_periods,
+            compute_utility=compute_utility,
+            compute_marginal_utility=compute_marginal_utility,
+            compute_inverse_marginal_utility=compute_inverse_marginal_utility,
+            compute_beginning_of_period_wealth=compute_beginning_of_period_wealth,
+            compute_final_period=compute_final_period,
+            compute_exog_transition_vec=compute_exog_transition_vec,
+            compute_upper_envelope=compute_upper_envelope,
+        )
+    )
+
+    def solve_func(params):
+        params_initial = process_params(params)
+        return backward_jit(params=params_initial)
+
+    return solve_func
 
 
 def backward_induction(

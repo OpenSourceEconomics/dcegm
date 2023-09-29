@@ -78,7 +78,7 @@ def update_state(state, choice):
 
 def get_state_specific_feasible_choice_set(
     state: np.ndarray,
-    map_state_to_state_space_index: np.ndarray,
+    options: Dict,
 ) -> np.ndarray:
     """Select state-specific feasible choice set.
 
@@ -104,7 +104,7 @@ def get_state_specific_feasible_choice_set(
 
     """
     # lagged_choice is a state variable
-    n_choices = map_state_to_state_space_index.shape[1]
+    n_choices = options["n_choices"]
 
     # Once the agent choses retirement, she can only choose retirement thereafter.
     # Hence, retirement is an absorbing state.

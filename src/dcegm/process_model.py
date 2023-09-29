@@ -17,6 +17,7 @@ def process_model_functions(
     user_utility_functions: Dict[str, Callable],
     user_budget_constraint: Callable,
     user_final_period_solution: Callable,
+    state_space_functions: Dict[str, Callable],
 ) -> Tuple[Callable, Callable, Callable, Callable, Callable, Callable, Callable]:
     """Create wrapped functions from user supplied functions.
 
@@ -96,6 +97,18 @@ def process_model_functions(
         },
     )
 
+    get_state_specific_choice_set = determine_function_arguments_and_partial_options(
+        func=state_space_functions["get_state_specific_choice_set"],
+        options=model_params_options,
+    )
+
+    update_endog_state_by_state_and_choice = (
+        determine_function_arguments_and_partial_options(
+            func=state_space_functions["update_endog_state_by_state_and_choice"],
+            options=model_params_options,
+        )
+    )
+
     # ! update endog also partial !
 
     if len(options["state_space"]["choices"]) < 2:
@@ -111,6 +124,8 @@ def process_model_functions(
         compute_final_period,
         compute_exog_transition_vec,
         compute_upper_envelope,
+        get_state_specific_choice_set,
+        update_endog_state_by_state_and_choice,
     )
 
 
