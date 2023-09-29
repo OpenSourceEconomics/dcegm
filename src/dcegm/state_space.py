@@ -143,6 +143,8 @@ def create_state_space(state_space_options):
         num_endog_states,
     ) = determine_endog_states_and_create_add_function(state_space_options)
 
+    state_names_without_exog = ["period", "lagged_choice"] + endog_states_names
+
     if "exogenous_processes" in state_space_options:
         n_exog = 0
         for exog_processes in state_space_options["exogenous_processes"].keys():
@@ -155,17 +157,19 @@ def create_state_space(state_space_options):
     map_state_to_index = np.full(shape, -9999, dtype=np.int64)
     state_space_list = []
 
-    i = 0
+    index = 0
     for period in range(n_periods):
         for lagged_choice in range(n_choices):
             for endog_state_id in range(num_of_endog_combinations):
                 endog_states = add_endog_state_func(endog_state_id)
                 state_without_exog = [period, lagged_choice] + endog_states
-                # state_dict_without
-
+                {
+                    state_names_without_exog[i]: state_value
+                    for i, state_value in enumerate(state_without_exog)
+                }
                 state_space_list += [state_without_exog]
-                map_state_to_index[tuple(state_without_exog)] = i
-                i += 1
+                map_state_to_index[tuple(state_without_exog)] = index
+                index += 1
 
     np.array(state_space_list)
     # breakpoint()
@@ -175,7 +179,7 @@ def determine_endog_states_and_create_add_function(state_space_options):
     num_of_endog_combinations = 1
     if "endogenous_states" in state_space_options:
         endog_all_states_values = []
-        endog_states_names = state_space_options["endogenous_states"].keys()
+        endog_states_names = list(state_space_options["endogenous_states"].keys())
         num_endog_states = []
         for endog_state in endog_states_names:
             endog_state_values = state_space_options["endogenous_states"][endog_state]
