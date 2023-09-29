@@ -36,7 +36,7 @@ def calculate_resources_for_each_grid_point(
     compute_beginning_of_period_wealth,
 ):
     out = compute_beginning_of_period_wealth(
-        state_beginning_of_period=state_vec,
+        **state_vec,
         savings_end_of_previous_period=exog_savings_grid_point,
         income_shock_previous_period=income_shock_draw,
         params=params,

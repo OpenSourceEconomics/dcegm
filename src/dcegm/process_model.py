@@ -67,7 +67,7 @@ def process_model_functions(
         exog_funcs = process_exog_funcs(options)
 
         compute_exog_transition_vec = partial(
-            get_exog_transition_vec, exog_mapping=exog_mapping, exog_funcs=exog_funcs
+            get_exog_transition_vec, exog_funcs=exog_funcs
         )
 
     model_params_options = options["model_params"]
@@ -187,22 +187,14 @@ def process_exog_funcs(options):
     return exog_funcs
 
 
-def get_exog_transition_vec(state_choice_vec, exog_mapping, exog_funcs, params):
-    exog_state_global = state_choice_vec[-2]
-
-    exog_states = exog_mapping[exog_state_global]
-
-    max_args = {
-        "period": state_choice_vec[0],
-        "ltc": exog_states[0],
-        "job_offer": exog_states[1],
-    }
-
-    trans_vector = exog_funcs[0](**max_args, params=params)
+def get_exog_transition_vec(exog_funcs, params, **state_choice_vars):
+    trans_vector = exog_funcs[0](**state_choice_vars, params=params)
 
     for exog_func in exog_funcs[1:]:
         # options already partialled in
-        trans_vector = jnp.kron(trans_vector, exog_func(**max_args, params=params))
+        trans_vector = jnp.kron(
+            trans_vector, exog_func(**state_choice_vars, params=params)
+        )
 
     return trans_vector
     # return jnp.array(trans_vec_kron)

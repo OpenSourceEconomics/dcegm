@@ -132,8 +132,7 @@ def _compute_value(
     utility = compute_utility(
         consumption=consumption,
         params=params,
-        choice=state_choice_vec[-1],
-        period=state_choice_vec[0],
+        **state_choice_vec,
     )
     return utility + params["beta"] * next_period_value
 
