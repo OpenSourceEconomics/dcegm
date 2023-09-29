@@ -126,6 +126,7 @@ def process_model_functions(
         compute_upper_envelope,
         get_state_specific_choice_set,
         update_endog_state_by_state_and_choice,
+        exog_mapping,
     )
 
 

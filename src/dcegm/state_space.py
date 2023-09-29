@@ -11,6 +11,7 @@ def create_state_space_and_choice_objects(
     state_space_functions,
     get_state_specific_choice_set,
     update_endog_state_by_state_and_choice,
+    exog_mapping,
 ):
     """Create dictionary of state and state-choice objects for each period.
 
@@ -86,6 +87,23 @@ def create_state_space_and_choice_objects(
         map_state_to_index=map_state_to_state_space_index,
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
+
+    for period in range(n_periods):
+        out[period]["state_choice_mat"] = {
+            "period": state_choice_mat[:, 0],
+            "lagged_choice": state_choice_mat[:, 1],
+            "married": state_choice_mat[:, 2],
+            "ltc": state_choice_mat[state_space[:, 3]][0],
+            "job_offer": state_choice_mat[state_space[:, 3]][1],
+            "choice": state_choice_mat[:, 4],
+        }
+    state_space = {
+        "period": state_space[:, 0],
+        "lagged_choice": state_space[:, 1],
+        "married": state_space[:, 2],
+        "ltc": exog_mapping[state_space[:, 3]][0],
+        "job_offer": exog_mapping[state_space[:, 3]][1],
+    }
 
     return out, state_space
 

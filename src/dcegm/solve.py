@@ -129,6 +129,7 @@ def get_solve_function(
         compute_upper_envelope,
         get_state_specific_choice_set,
         update_endog_state_by_state_and_choice,
+        exog_mapping,
     ) = process_model_functions(
         options,
         user_utility_functions=utility_functions,
@@ -146,6 +147,7 @@ def get_solve_function(
         state_space_functions=state_space_functions,
         get_state_specific_choice_set=get_state_specific_choice_set,
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+        exog_mapping=exog_mapping,
     )
 
     backward_jit = jit(
