@@ -14,15 +14,21 @@ from scipy.stats import norm
 from toy_models.consumption_retirement_model.final_period_solution import (
     solve_final_period_scalar,
 )
+from toy_models.consumption_retirement_model.state_space_objects import (
+    get_state_specific_feasible_choice_set,
+)
+from toy_models.consumption_retirement_model.state_space_objects import update_state
 
 from tests.two_period_models.ltc_and_job_offer.dcegm_code import (
     budget_dcegm_two_exog_processes,
 )
+from tests.two_period_models.ltc_and_job_offer.dcegm_code import flow_util
 from tests.two_period_models.ltc_and_job_offer.dcegm_code import func_exog_job_offer
 from tests.two_period_models.ltc_and_job_offer.dcegm_code import func_exog_ltc
+from tests.two_period_models.ltc_and_job_offer.dcegm_code import (
+    inverse_marginal_utility,
+)
 from tests.two_period_models.ltc_and_job_offer.dcegm_code import marginal_utility
-from tests.two_period_models.ltc_and_job_offer.dcegm_code import state_space_functions
-from tests.two_period_models.ltc_and_job_offer.dcegm_code import utility_functions
 from tests.two_period_models.ltc_and_job_offer.eueler_equation_code import (
     euler_rhs_two_exog_processes,
 )
@@ -32,6 +38,25 @@ WEALTH_GRID_POINTS = 100
 TEST_CASES_TWO_EXOG_PROCESSES = list(
     product(list(range(WEALTH_GRID_POINTS)), list(range(8)))
 )
+
+
+@pytest.fixture(scope="module")
+def state_space_functions():
+    out = {
+        "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
+        "update_endog_state_by_state_and_choice": update_state,
+    }
+    return out
+
+
+@pytest.fixture(scope="module")
+def utility_functions():
+    out = {
+        "utility": flow_util,
+        "inverse_marginal_utility": inverse_marginal_utility,
+        "marginal_utility": marginal_utility,
+    }
+    return out
 
 
 @pytest.fixture(scope="module")
@@ -137,20 +162,20 @@ def test_two_period_two_exog_processes(
         user_final_period_solution=solve_final_period_scalar,
         state_space_functions=state_space_functions,
     )
-    initial_conditions = {}
     period = state_space["period"][state_idx]
 
     endog_grid_period = input_data_two_exog_processes["result"][period]["endog_grid"]
     policy_period = input_data_two_exog_processes["result"][period]["policy_left"]
-
-    initial_conditions["bad_health"] = state_space["ltc"][state_idx] == 1
-    initial_conditions["job_offer"] = 1  # working (no retirement) in period 0
 
     state_choices_period = period_specific_state_objects[period]["state_choice_mat"]
 
     state_choice_idxs_of_state = np.where(
         period_specific_state_objects[period]["idx_parent_states"] == state_idx
     )[0]
+
+    initial_conditions = {}
+    initial_conditions["bad_health"] = state_space["ltc"][state_idx] == 1
+    initial_conditions["job_offer"] = 1  # working (no retirement) in period 0
 
     for state_choice_idx in state_choice_idxs_of_state:
         endog_grid = endog_grid_period[state_choice_idx, wealth_idx + 1]

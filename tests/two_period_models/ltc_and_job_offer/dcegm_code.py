@@ -1,18 +1,4 @@
-import pytest
 from jax import numpy as jnp
-from toy_models.consumption_retirement_model.state_space_objects import (
-    get_state_specific_feasible_choice_set,
-)
-from toy_models.consumption_retirement_model.state_space_objects import update_state
-
-
-@pytest.fixture(scope="module")
-def state_space_functions():
-    out = {
-        "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
-        "update_endog_state_by_state_and_choice": update_state,
-    }
-    return out
 
 
 def flow_util(consumption, choice, params):
@@ -27,16 +13,6 @@ def marginal_utility(consumption, params):
 
 def inverse_marginal_utility(marginal_utility, params):
     return marginal_utility ** (-1 / params["rho"])
-
-
-@pytest.fixture(scope="module")
-def utility_functions():
-    out = {
-        "utility": flow_util,
-        "inverse_marginal_utility": inverse_marginal_utility,
-        "marginal_utility": marginal_utility,
-    }
-    return out
 
 
 def budget_dcegm_two_exog_processes(

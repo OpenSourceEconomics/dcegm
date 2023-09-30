@@ -1,7 +1,7 @@
 import numpy as np
 
-from tests.test_two_periods_one_exog import flow_util
-from tests.test_two_periods_one_exog import marginal_utility
+from tests.two_period_models.only_ltc_process.dcegm_code import flow_util
+from tests.two_period_models.only_ltc_process.dcegm_code import marginal_utility
 
 
 def budget(

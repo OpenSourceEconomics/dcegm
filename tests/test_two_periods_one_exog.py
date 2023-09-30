@@ -9,7 +9,9 @@ import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import pytest
-from dcegm.pre_processing.state_space import create_state_choice_space
+from dcegm.pre_processing.process_model import (
+    process_model_functions_and_create_state_space_objects,
+)
 from dcegm.solve import solve_dcegm
 from numpy.testing import assert_allclose
 from scipy.special import roots_sh_legendre
@@ -24,109 +26,37 @@ from toy_models.consumption_retirement_model.state_space_objects import (
     update_state,
 )
 
+from tests.two_period_models.only_ltc_process.dcegm_code import budget_dcegm
+from tests.two_period_models.only_ltc_process.dcegm_code import flow_util
+from tests.two_period_models.only_ltc_process.dcegm_code import func_exog_ltc
+from tests.two_period_models.only_ltc_process.dcegm_code import inverse_marginal_utility
+from tests.two_period_models.only_ltc_process.dcegm_code import marginal_utility
 from tests.two_period_models.only_ltc_process.eueler_equation_code import euler_rhs
-
-
-def flow_util(consumption, choice, params):
-    return consumption ** (1 - params["rho"]) / (1 - params["rho"]) - params[
-        "delta"
-    ] * (1 - choice)
-
-
-def marginal_utility(consumption, params):
-    return consumption ** (-params["rho"])
-
-
-def inverse_marginal_utility(marginal_utility, params):
-    return marginal_utility ** (-1 / params["rho"])
-
-
-def func_exog_ltc(
-    period,
-    lagged_ltc,
-    params,
-):
-    prob_ltc = (lagged_ltc == 0) * (
-        params["ltc_prob_constant"] + period * params["ltc_prob_age"]
-    ) + (lagged_ltc == 1)
-    prob_no_ltc = 1 - prob_ltc
-
-    return jnp.array([prob_no_ltc, prob_ltc])
-
-
-def budget_dcegm(
-    state_beginning_of_period,
-    savings_end_of_previous_period,
-    income_shock_previous_period,
-    options,
-    params,
-):
-    ltc_patient = state_beginning_of_period[-1] == 1
-
-    resource = (
-        (1 + params["interest_rate"]) * savings_end_of_previous_period
-        + (params["wage_avg"] + income_shock_previous_period)
-        * (1 - state_beginning_of_period[1])  # if worked last period
-        - ltc_patient * params["ltc_cost"]
-    )
-    return jnp.maximum(resource, 0.5)
-
 
 WEALTH_GRID_POINTS = 100
 
 
-def create_state_space(options):
-    """Create state space object and indexer.
-
-    We need to add the convention for the state space objects.
-
-    Args:
-        options (dict): Options dictionary.
-
-    Returns:
-        tuple:
-
-        - state_vars (list): List of state variables.
-        - state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
-            which serves as a collection of all possible states. By convention,
-            the first column must contain the period and the last column the
-            exogenous processes. Any other state variables are in between.
-            E.g. if the two state variables are period and lagged choice and all choices
-            are admissible in each period, the shape of the state space array is
-            (n_periods * n_choices, 3).
-        - map_state_to_index (np.ndarray): Indexer array that maps states to indexes.
-            The shape of this object is quite complicated. For each state variable it
-            has the number of possible states as rows, i.e.
-            (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
-
-    """
-    n_periods = len(options["endogenous_states"]["period"])
-    n_lagged_choices = len(options["choice"])
-    n_exog_states = sum(map(len, options["exogenous_states"].values()))
-
-    shape = (n_periods, n_lagged_choices, n_exog_states)
-
-    map_state_to_index = np.full(shape, -9999, dtype=np.int64)
-    _state_space = []
-
-    i = 0
-    for period in range(n_periods):
-        for lagged_choice in range(n_lagged_choices):
-            for exog_state in range(n_exog_states):
-                map_state_to_index[period, lagged_choice, exog_state] = i
-
-                row = [period, lagged_choice, exog_state]
-                _state_space.append(row)
-
-                i += 1
-
-    state_space = np.array(_state_space, dtype=np.int64)
-
-    return state_space, map_state_to_index
+@pytest.fixture(scope="module")
+def state_space_functions():
+    out = {
+        "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
+        "update_endog_state_by_state_and_choice": update_state,
+    }
+    return out
 
 
 @pytest.fixture(scope="module")
-def input_data():
+def utility_functions():
+    out = {
+        "utility": flow_util,
+        "inverse_marginal_utility": inverse_marginal_utility,
+        "marginal_utility": marginal_utility,
+    }
+    return out
+
+
+@pytest.fixture(scope="module")
+def input_data(utility_functions, state_space_functions):
     index = pd.MultiIndex.from_tuples(
         [("utility_function", "rho"), ("utility_function", "delta")],
         names=["category", "name"],
@@ -149,24 +79,15 @@ def input_data():
             "n_grid_points": WEALTH_GRID_POINTS,
             "max_wealth": 50,
             "quadrature_points_stochastic": 5,
+            "n_choices": 2,
         },
         "state_space": {
             "n_periods": 2,
             "choices": [0, 1],
-            "exogenous_states": {"lagged_ltc": [0, 1]},
             "exogenous_processes": {
                 "ltc": {"transition": func_exog_ltc, "states": [0, 1]},
             },
         },
-    }
-    state_space_functions = {
-        "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
-        "update_endog_state_by_state_and_choice": update_state,
-    }
-    utility_functions = {
-        "utility": flow_util,
-        "inverse_marginal_utility": inverse_marginal_utility,
-        "marginal_utility": marginal_utility,
     }
 
     exog_savings_grid = jnp.linspace(
@@ -200,7 +121,9 @@ TEST_CASES = list(product(list(range(WEALTH_GRID_POINTS)), list(range(4))))
     "wealth_idx, state_idx",
     TEST_CASES,
 )
-def test_two_period(input_data, wealth_idx, state_idx):
+def test_two_period(
+    input_data, wealth_idx, state_idx, utility_functions, state_space_functions
+):
     quad_points, quad_weights = roots_sh_legendre(5)
     quad_draws = norm.ppf(quad_points) * 1
 
@@ -209,39 +132,40 @@ def test_two_period(input_data, wealth_idx, state_idx):
     values = params["value"].tolist()
     params = dict(zip(keys, values))
     (
+        compute_utility,
+        compute_marginal_utility,
+        compute_inverse_marginal_utility,
+        compute_beginning_of_period_wealth,
+        compute_final_period,
+        compute_exog_transition_vec,
+        compute_upper_envelope,
+        period_specific_state_objects,
         state_space,
-        map_state_to_index,
-    ) = create_state_space(input_data["options"]["state_space"])
-    (
-        state_choice_space,
-        _map_state_choice_vec_to_parent_state,
-        reshape_state_choice_vec_to_mat,
-    ) = create_state_choice_space(
-        state_space_options=input_data["options"]["state_space"],
-        state_space=state_space,
-        map_state_to_state_space_index=map_state_to_index,
-        get_state_specific_choice_set=get_state_specific_feasible_choice_set,
+    ) = process_model_functions_and_create_state_space_objects(
+        options=input_data["options"],
+        user_utility_functions=utility_functions,
+        user_budget_constraint=budget_dcegm,
+        user_final_period_solution=solve_final_period_scalar,
+        state_space_functions=state_space_functions,
     )
+    period = state_space["period"][state_idx]
+
+    endog_grid_period = input_data["result"][period]["endog_grid"]
+    policy_period = input_data["result"][period]["policy_left"]
+
+    state_choices_period = period_specific_state_objects[period]["state_choice_mat"]
+
+    state_choice_idxs_of_state = np.where(
+        period_specific_state_objects[period]["idx_parent_states"] == state_idx
+    )[0]
+
     initial_conditions = {}
-    state = state_space[state_idx, :]
-    reshape_state_choice_vec_to_mat[state_idx]
+    initial_conditions["bad_health"] = state_space["ltc"][state_idx]
 
-    initial_conditions["bad_health"] = state[-1]
-
-    feasible_choice_set = get_state_specific_feasible_choice_set(
-        state, map_state_to_index
-    )
-
-    endog_grid_period = input_data["result"][state[0]]["endog_grid"]
-    policy_period = input_data["result"][state[0]]["policy_left"]
-
-    for choice_in_period_1 in feasible_choice_set:
-        state_choice_idx = reshape_state_choice_vec_to_mat[
-            state_idx, choice_in_period_1
-        ]
-
+    for state_choice_idx in state_choice_idxs_of_state:
         endog_grid = endog_grid_period[state_choice_idx, wealth_idx + 1]
         policy = policy_period[state_choice_idx]
+        choice = state_choices_period["choice"][state_choice_idx]
 
         if ~np.isnan(endog_grid) and endog_grid > 0:
             initial_conditions["wealth"] = endog_grid
@@ -252,7 +176,7 @@ def test_two_period(input_data, wealth_idx, state_idx):
                 params,
                 quad_draws,
                 quad_weights,
-                choice_in_period_1,
+                choice,
                 cons_calc,
             ) - marginal_utility(consumption=cons_calc, params=params)
 
