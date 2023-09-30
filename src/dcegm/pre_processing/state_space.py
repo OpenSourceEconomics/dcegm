@@ -45,7 +45,8 @@ def create_state_space_and_choice_objects(
     (
         state_space,
         map_state_to_state_space_index,
-        state_space_names,
+        states_names_without_exog,
+        exog_state_names,
         n_exog_states,
         exog_state_space,
     ) = create_state_space(options)
@@ -93,9 +94,11 @@ def create_state_space_and_choice_objects(
         options=state_space_options,
         period_specific_state_objects=out,
         map_state_to_index=map_state_to_state_space_index,
+        states_names_without_exog=states_names_without_exog,
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
+    state_space_names = states_names_without_exog + exog_state_names
     for period in range(n_periods):
         out[period]["state_choice_mat"] = {
             key: out[period]["state_choice_mat"][:, i]
@@ -156,7 +159,7 @@ def create_state_space(options):
         exog_state_space,
     ) = process_exog_model_specifications(state_space_options=state_space_options)
 
-    state_names_without_exog = ["period", "lagged_choice"] + endog_states_names
+    states_names_without_exog = ["period", "lagged_choice"] + endog_states_names
 
     shape = (
         [n_periods, n_choices]
@@ -178,7 +181,7 @@ def create_state_space(options):
                 # Transform to dictionary to call sparsity function, the user can
                 # provide
                 state_dict_without_exog = {
-                    state_names_without_exog[i]: state_value
+                    states_names_without_exog[i]: state_value
                     for i, state_value in enumerate(state_without_exog)
                 }
                 # Check if the state is valid by calling the sparsity function
@@ -194,13 +197,13 @@ def create_state_space(options):
                         map_state_to_index[tuple(state)] = index
                         index += 1
 
-    state_space_names = state_names_without_exog + exog_states_names
     state_space = np.array(state_space_list)
 
     return (
         state_space,
         map_state_to_index,
-        state_space_names,
+        states_names_without_exog,
+        exog_states_names,
         n_exog_states,
         exog_state_space,
     )
@@ -450,6 +453,7 @@ def create_map_from_state_to_child_nodes(
     options: Dict[str, int],
     period_specific_state_objects: np.ndarray,
     map_state_to_index: np.ndarray,
+    states_names_without_exog: list,
     update_endog_state_by_state_and_choice: Callable,
 ):
     """Create indexer array that maps states to state-specific child nodes.
@@ -506,14 +510,31 @@ def create_map_from_state_to_child_nodes(
 
         # Loop over all state-choice combinations in period.
         for idx, state_choice_vec in enumerate(state_choice_space_period):
-            state_vec_next = update_endog_state_by_state_and_choice(
-                state=np.array(state_choice_vec[:-1]),
-                choice=np.array(state_choice_vec[-1]),
-                # ToDo: options
-                # all optional
+            current_state = state_choice_vec[:-1]
+            current_state_without_exog = current_state[:-n_exog_vars]
+
+            # The update function is not allowed to depend on exogenous process. It is
+            # only about the exogenous part.
+            state_dict_without_exog = {
+                key: current_state_without_exog[i]
+                for i, key in enumerate(states_names_without_exog)
+            }
+
+            endog_state_update = update_endog_state_by_state_and_choice(
+                **state_dict_without_exog, choice=state_choice_vec[-1]
+            )
+
+            state_dict_without_exog.update(endog_state_update)
+
+            state_next_without_exog = np.array(
+                [state_dict_without_exog[key] for key in states_names_without_exog]
             )
 
             for exog_process in range(n_exog_states):
+                state_vec_next = np.empty_like(current_state)
+                # Fill up the next state with the endogenous part.
+                state_vec_next[:-n_exog_vars] = state_next_without_exog
+                # Then with the endogenous part.
                 state_vec_next[-n_exog_vars:] = exog_state_space[exog_process]
                 # We want the index every period to start at 0.
                 map_state_to_feasible_child_nodes_period[idx, exog_process] = (

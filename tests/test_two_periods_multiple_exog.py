@@ -294,7 +294,8 @@ def test_two_period_two_exog_processes(
     (
         state_space,
         map_state_to_state_space_index,
-        state_space_names,
+        states_names_without_exog,
+        exog_state_names,
         n_exog_states,
         exog_state_space,
     ) = create_state_space(input_data_two_exog_processes["options"])

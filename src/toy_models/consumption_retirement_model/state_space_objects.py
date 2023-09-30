@@ -4,7 +4,7 @@ from typing import Dict
 import numpy as np
 
 
-def update_state(state, choice):
+def update_state(period, choice):
     """Get endogenous state by state and choice.
 
     Args:
@@ -17,10 +17,8 @@ def update_state(state, choice):
             next period, where the endogenous part of the state is updated.
 
     """
-    state_next = state.copy()
 
-    state_next[0] += 1
-    state_next[1] = choice
+    state_next = {"period": period + 1, "lagged_choice": choice}
 
     return state_next
 

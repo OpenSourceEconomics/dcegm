@@ -1,11 +1,13 @@
 from functools import partial
 from typing import Callable
 from typing import Dict
-from typing import Tuple
 from typing import Union
 
 import jax.numpy as jnp
 import pandas as pd
+from dcegm.pre_processing.exog_processes import get_exog_transition_vec
+from dcegm.pre_processing.exog_processes import process_exog_funcs
+from dcegm.pre_processing.exog_processes import return_dummy_exog_transition
 from dcegm.pre_processing.process_functions import (
     determine_function_arguments_and_partial_options,
 )
@@ -20,7 +22,7 @@ def process_model_functions(
     user_budget_constraint: Callable,
     user_final_period_solution: Callable,
     state_space_functions: Dict[str, Callable],
-) -> Tuple[Callable, Callable, Callable, Callable, Callable, Callable, Callable]:
+):
     """Create wrapped functions from user supplied functions.
 
     Args:
@@ -63,7 +65,7 @@ def process_model_functions(
 
     if "exogenous_processes" not in options["state_space"]:
         options["state_space"]["exogenous_states"] = {"exog_state": [0]}
-        compute_exog_transition_vec = _return_one
+        compute_exog_transition_vec = return_dummy_exog_transition
     else:
         exog_funcs = process_exog_funcs(options)
 
@@ -160,68 +162,6 @@ def process_params(params: Union[dict, pd.Series, pd.DataFrame]) -> Dict[str, fl
     return params
 
 
-def process_exog_funcs(options):
-    """Process exogenous functions.
-
-    Args:
-        options (dict): Options dictionary.
-
-    Returns:
-        tuple: Tuple of exogenous processes.
-
-    """
-    exog_processes = options["state_space"]["exogenous_processes"]
-
-    exog_funcs = []
-
-    # What about vectors instead of callables supplied?
-    for exog in exog_processes.values():
-        if isinstance(exog["transition"], Callable):
-            exog_funcs += [
-                determine_function_arguments_and_partial_options(
-                    func=exog["transition"],
-                    options=options["model_params"],
-                )
-            ]
-
-    return exog_funcs
-
-
-def get_exog_transition_vec(exog_funcs, params, **state_choice_vars):
-    trans_vector = exog_funcs[0](**state_choice_vars, params=params)
-
-    for exog_func in exog_funcs[1:]:
-        # options already partialled in
-        trans_vector = jnp.kron(
-            trans_vector, exog_func(**state_choice_vars, params=params)
-        )
-
-    return trans_vector
-
-
-def create_exog_mapping(options):
-    """Create mapping from separate exog state variables to global exog state."""
-
-    exog_state_vars = options["state_space"]["exogenous_processes"]
-
-    n_elements = []
-    for key in exog_state_vars:
-        n_elements.append(len(exog_state_vars[key]))
-
-    def recursive_generator(n_elements, current_mapping=[]):
-        if not n_elements:
-            exog_mapping.append(current_mapping)
-            return
-
-        for i in range(n_elements[0]):
-            recursive_generator(n_elements[1:], current_mapping + [i])
-
-    exog_mapping = []
-    recursive_generator(n_elements)
-
-    return jnp.asarray(exog_mapping)
-
-
 def _convert_params_to_dict(params: Union[pd.Series, pd.DataFrame]):
     """Converts params to dictionary."""
     _registry = get_registry(
@@ -250,7 +190,3 @@ def _return_policy_and_value(
     value = jnp.append(expected_value_zero_savings, value)
 
     return endog_grid, policy, policy, value
-
-
-def _return_one(*args, **kwargs):
-    return jnp.array([1])
