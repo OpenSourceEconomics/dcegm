@@ -11,9 +11,57 @@ from dcegm.pre_processing.exog_processes import return_dummy_exog_transition
 from dcegm.pre_processing.process_functions import (
     determine_function_arguments_and_partial_options,
 )
+from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
 from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope_wrapper
 from pybaum import get_registry
 from pybaum import tree_flatten
+
+
+def process_model_functions_and_create_state_space_objects(
+    options: Dict[str, float],
+    user_utility_functions: Dict[str, Callable],
+    user_budget_constraint: Callable,
+    user_final_period_solution: Callable,
+    state_space_functions: Dict[str, Callable],
+):
+    (
+        compute_utility,
+        compute_marginal_utility,
+        compute_inverse_marginal_utility,
+        compute_beginning_of_period_wealth,
+        compute_final_period,
+        compute_exog_transition_vec,
+        compute_upper_envelope,
+        get_state_specific_choice_set,
+        update_endog_state_by_state_and_choice,
+    ) = process_model_functions(
+        options,
+        user_utility_functions=user_utility_functions,
+        user_budget_constraint=user_budget_constraint,
+        user_final_period_solution=user_final_period_solution,
+        state_space_functions=state_space_functions,
+    )
+
+    #
+    (
+        period_specific_state_objects,
+        state_space,
+    ) = create_state_space_and_choice_objects(
+        options=options,
+        get_state_specific_choice_set=get_state_specific_choice_set,
+        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+    )
+    return (
+        compute_utility,
+        compute_marginal_utility,
+        compute_inverse_marginal_utility,
+        compute_beginning_of_period_wealth,
+        compute_final_period,
+        compute_exog_transition_vec,
+        compute_upper_envelope,
+        period_specific_state_objects,
+        state_space,
+    )
 
 
 def process_model_functions(

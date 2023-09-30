@@ -9,16 +9,15 @@ import pandas as pd
 from dcegm.budget import calculate_resources
 from dcegm.egm import calculate_candidate_solutions_from_euler_equation
 from dcegm.final_period import solve_final_period
-from dcegm.integration import quadrature_legendre
 from dcegm.interpolation import interpolate_and_calc_marginal_utilities
 from dcegm.marg_utilities_and_exp_value import (
     aggregate_marg_utils_exp_values,
 )
-from dcegm.pre_processing.process_model import process_model_functions
-from dcegm.pre_processing.process_model import process_params
-from dcegm.pre_processing.state_space import (
-    create_state_space_and_choice_objects,
+from dcegm.pre_processing.numerical_integration import quadrature_legendre
+from dcegm.pre_processing.process_model import (
+    process_model_functions_and_create_state_space_objects,
 )
+from dcegm.pre_processing.process_model import process_params
 from jax import jit
 from jax import vmap
 
@@ -127,24 +126,14 @@ def get_solve_function(
         compute_final_period,
         compute_exog_transition_vec,
         compute_upper_envelope,
-        get_state_specific_choice_set,
-        update_endog_state_by_state_and_choice,
-    ) = process_model_functions(
-        options,
+        period_specific_state_objects,
+        state_space,
+    ) = process_model_functions_and_create_state_space_objects(
+        options=options,
         user_utility_functions=utility_functions,
         user_budget_constraint=budget_constraint,
         user_final_period_solution=final_period_solution,
         state_space_functions=state_space_functions,
-    )
-
-    #
-    (
-        period_specific_state_objects,
-        state_space,
-    ) = create_state_space_and_choice_objects(
-        options=options,
-        get_state_specific_choice_set=get_state_specific_choice_set,
-        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
     backward_jit = jit(
