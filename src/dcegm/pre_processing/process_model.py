@@ -6,8 +6,10 @@ from typing import Union
 
 import jax.numpy as jnp
 import pandas as pd
-from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
-from dcegm.process_functions import determine_function_arguments_and_partial_options
+from dcegm.pre_processing.process_functions import (
+    determine_function_arguments_and_partial_options,
+)
+from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope_wrapper
 from pybaum import get_registry
 from pybaum import tree_flatten
 

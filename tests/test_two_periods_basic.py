@@ -9,16 +9,13 @@ import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import pytest
+from dcegm.pre_processing.state_space import create_state_choice_space
 from dcegm.solve import solve_dcegm
-from dcegm.state_space import create_state_choice_space
 from numpy.testing import assert_allclose
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 from toy_models.consumption_retirement_model.final_period_solution import (
     solve_final_period_scalar,
-)
-from toy_models.consumption_retirement_model.state_space_objects import (
-    create_state_space,
 )
 from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_feasible_choice_set,
@@ -52,7 +49,7 @@ def func_exog_ltc(
     ) + (lagged_ltc == 1)
     prob_no_ltc = 1 - prob_ltc
 
-    return prob_no_ltc, prob_ltc
+    return jnp.array([prob_no_ltc, prob_ltc])
 
 
 def budget_dcegm(
@@ -165,6 +162,56 @@ def euler_rhs(init_cond, params, draws, weights, retirement_choice_1, consumptio
 WEALTH_GRID_POINTS = 100
 
 
+def create_state_space(options):
+    """Create state space object and indexer.
+
+    We need to add the convention for the state space objects.
+
+    Args:
+        options (dict): Options dictionary.
+
+    Returns:
+        tuple:
+
+        - state_vars (list): List of state variables.
+        - state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
+            which serves as a collection of all possible states. By convention,
+            the first column must contain the period and the last column the
+            exogenous processes. Any other state variables are in between.
+            E.g. if the two state variables are period and lagged choice and all choices
+            are admissible in each period, the shape of the state space array is
+            (n_periods * n_choices, 3).
+        - map_state_to_index (np.ndarray): Indexer array that maps states to indexes.
+            The shape of this object is quite complicated. For each state variable it
+            has the number of possible states as rows, i.e.
+            (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
+
+    """
+    n_periods = len(options["endogenous_states"]["period"])
+    n_lagged_choices = len(options["choice"])
+    n_exog_states = sum(map(len, options["exogenous_states"].values()))
+
+    shape = (n_periods, n_lagged_choices, n_exog_states)
+
+    map_state_to_index = np.full(shape, -9999, dtype=np.int64)
+    _state_space = []
+
+    i = 0
+    for period in range(n_periods):
+        for lagged_choice in range(n_lagged_choices):
+            for exog_state in range(n_exog_states):
+                map_state_to_index[period, lagged_choice, exog_state] = i
+
+                row = [period, lagged_choice, exog_state]
+                _state_space.append(row)
+
+                i += 1
+
+    state_space = np.array(_state_space, dtype=np.int64)
+
+    return state_space, map_state_to_index
+
+
 @pytest.fixture(scope="module")
 def input_data():
     index = pd.MultiIndex.from_tuples(
@@ -193,19 +240,13 @@ def input_data():
         "state_space": {
             "n_periods": 2,
             "choices": [0, 1],
-            "endogenous_states": {
-                "period": np.arange(2),
-                "lagged_choice": [0, 1],
-            },
             "exogenous_states": {"lagged_ltc": [0, 1]},
             "exogenous_processes": {
-                "ltc": func_exog_ltc,
+                "ltc": {"transition": func_exog_ltc, "states": [0, 1]},
             },
-            "choice": [0, 1],
         },
     }
     state_space_functions = {
-        "create_state_space": create_state_space,
         "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
         "update_endog_state_by_state_and_choice": update_state,
     }

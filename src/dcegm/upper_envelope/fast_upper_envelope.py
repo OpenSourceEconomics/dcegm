@@ -14,8 +14,8 @@ from typing import Tuple
 import jax
 import jax.numpy as jnp
 import numpy as np
-from dcegm.math_funcs import calc_gradient
-from dcegm.math_funcs import calc_intersection_and_extrapolate_policy
+from dcegm.upper_envelope.math_funcs import calc_gradient
+from dcegm.upper_envelope.math_funcs import calc_intersection_and_extrapolate_policy
 from jax import vmap
 
 

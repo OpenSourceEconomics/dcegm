@@ -5,7 +5,9 @@ from typing import Dict
 
 import jax.numpy as jnp
 import numpy as np
-from dcegm.process_functions import determine_function_arguments_and_partial_options
+from dcegm.pre_processing.process_functions import (
+    determine_function_arguments_and_partial_options,
+)
 
 
 def create_state_space_and_choice_objects(

@@ -3,11 +3,13 @@ from pathlib import Path
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from dcegm.fast_upper_envelope import fast_upper_envelope
-from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
 from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
 from dcegm.interpolation import linear_interpolation_with_extrapolation
-from dcegm.process_model import _get_utility_function_with_filtered_args_and_kwargs
+from dcegm.pre_processing.process_model import (
+    _get_utility_function_with_filtered_args_and_kwargs,
+)
+from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope
+from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope_wrapper
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
 from utils.fast_upper_envelope_org import fast_upper_envelope_wrapper_org

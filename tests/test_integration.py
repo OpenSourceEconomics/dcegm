@@ -5,8 +5,8 @@ import pytest
 from conftest import TEST_RESOURCES_DIR
 from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
 from dcegm.interpolation import linear_interpolation_with_extrapolation
+from dcegm.pre_processing.state_space import create_state_choice_space
 from dcegm.solve import solve_dcegm
-from dcegm.state_space import create_state_choice_space
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
 from toy_models.consumption_retirement_model.final_period_solution import (

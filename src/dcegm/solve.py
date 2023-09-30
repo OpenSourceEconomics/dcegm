@@ -14,9 +14,9 @@ from dcegm.interpolation import interpolate_and_calc_marginal_utilities
 from dcegm.marg_utilities_and_exp_value import (
     aggregate_marg_utils_exp_values,
 )
-from dcegm.process_model import process_model_functions
-from dcegm.process_model import process_params
-from dcegm.state_space import (
+from dcegm.pre_processing.process_model import process_model_functions
+from dcegm.pre_processing.process_model import process_params
+from dcegm.pre_processing.state_space import (
     create_state_space_and_choice_objects,
 )
 from jax import jit

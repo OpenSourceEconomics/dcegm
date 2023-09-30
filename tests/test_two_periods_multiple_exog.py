@@ -5,9 +5,9 @@ import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import pytest
+from dcegm.pre_processing.state_space import create_state_choice_space
+from dcegm.pre_processing.state_space import create_state_space
 from dcegm.solve import solve_dcegm
-from dcegm.state_space import create_state_choice_space
-from dcegm.state_space import create_state_space
 from numpy.testing import assert_allclose
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm

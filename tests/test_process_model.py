@@ -5,11 +5,13 @@ from typing import Dict
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from dcegm.process_model import _get_utility_function_with_filtered_args_and_kwargs
-from dcegm.process_model import create_exog_mapping
-from dcegm.process_model import get_exog_transition_vec
-from dcegm.process_model import process_exog_funcs
-from dcegm.process_model import process_params
+from dcegm.pre_processing.process_model import (
+    _get_utility_function_with_filtered_args_and_kwargs,
+)
+from dcegm.pre_processing.process_model import create_exog_mapping
+from dcegm.pre_processing.process_model import get_exog_transition_vec
+from dcegm.pre_processing.process_model import process_exog_funcs
+from dcegm.pre_processing.process_model import process_params
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import (
     inverse_marginal_utility_crra,
