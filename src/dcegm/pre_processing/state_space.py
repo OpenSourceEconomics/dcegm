@@ -51,6 +51,7 @@ def create_state_space_and_choice_objects(
         exog_state_space,
     ) = create_state_space(options)
     state_space_options = options["state_space"]
+    state_space_names = states_names_without_exog + exog_state_names
 
     (
         state_choice_space,
@@ -59,6 +60,7 @@ def create_state_space_and_choice_objects(
     ) = create_state_choice_space(
         state_space_options=state_space_options,
         state_space=state_space,
+        state_space_names=state_space_names,
         map_state_to_state_space_index=map_state_to_state_space_index,
         get_state_specific_choice_set=get_state_specific_choice_set,
     )
@@ -98,7 +100,6 @@ def create_state_space_and_choice_objects(
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
-    state_space_names = states_names_without_exog + exog_state_names
     for period in range(n_periods):
         out[period]["state_choice_mat"] = {
             key: out[period]["state_choice_mat"][:, i]
@@ -349,6 +350,7 @@ def create_endog_state_add_function(endog_state_space):
 def create_state_choice_space(
     state_space_options,
     state_space,
+    state_space_names,
     map_state_to_state_space_index,
     get_state_specific_choice_set,
 ):
@@ -421,8 +423,9 @@ def create_state_choice_space(
         for state_vec in period_states:
             state_idx = map_state_to_state_space_index[tuple(state_vec)]
 
+            state_dict = {key: state_vec[i] for i, key in enumerate(state_space_names)}
             feasible_choice_set = get_state_specific_choice_set(
-                state=state_vec,
+                **state_dict,
             )
 
             for choice in range(n_choices):

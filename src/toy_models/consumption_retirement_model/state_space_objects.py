@@ -4,7 +4,7 @@ from typing import Dict
 import numpy as np
 
 
-def update_state(period, choice):
+def update_state(period, choice, options):
     """Get endogenous state by state and choice.
 
     Args:
@@ -24,7 +24,7 @@ def update_state(period, choice):
 
 
 def get_state_specific_feasible_choice_set(
-    state: np.ndarray,
+    lagged_choice: int,
     options: Dict,
 ) -> np.ndarray:
     """Select state-specific feasible choice set.
@@ -55,7 +55,7 @@ def get_state_specific_feasible_choice_set(
 
     # Once the agent choses retirement, she can only choose retirement thereafter.
     # Hence, retirement is an absorbing state.
-    if state[1] == 1:
+    if lagged_choice == 1:
         feasible_choice_set = np.array([1])
     else:
         feasible_choice_set = np.arange(n_choices)

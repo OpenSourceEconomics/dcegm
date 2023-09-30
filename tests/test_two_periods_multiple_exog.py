@@ -1,10 +1,12 @@
-from functools import partial
 from itertools import product
 
 import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import pytest
+from dcegm.pre_processing.process_functions import (
+    determine_function_arguments_and_partial_options,
+)
 from dcegm.pre_processing.state_space import create_state_choice_space
 from dcegm.pre_processing.state_space import create_state_space
 from dcegm.solve import solve_dcegm
@@ -300,6 +302,14 @@ def test_two_period_two_exog_processes(
         exog_state_space,
     ) = create_state_space(input_data_two_exog_processes["options"])
     model_params_options = input_data_two_exog_processes["options"]["model_params"]
+
+    choice_specific_choice_set_processedd = (
+        determine_function_arguments_and_partial_options(
+            func=get_state_specific_feasible_choice_set,
+            options=model_params_options,
+        )
+    )
+
     (
         state_choice_space,
         _map_state_choice_vec_to_parent_state,
@@ -307,24 +317,23 @@ def test_two_period_two_exog_processes(
     ) = create_state_choice_space(
         state_space_options=input_data_two_exog_processes["options"]["state_space"],
         state_space=state_space,
+        state_space_names=states_names_without_exog + exog_state_names,
         map_state_to_state_space_index=map_state_to_state_space_index,
-        get_state_specific_choice_set=partial(
-            get_state_specific_feasible_choice_set, options=model_params_options
-        ),
+        get_state_specific_choice_set=choice_specific_choice_set_processedd,
     )
     initial_conditions = {}
     state = state_space[state_idx, :]
     reshape_state_choice_vec_to_mat[state_idx]
 
-    initial_conditions["bad_health"] = state[-2] == 1
-    initial_conditions["job_offer"] = 1  # working (no retirement) in period 0
-
-    feasible_choice_set = get_state_specific_feasible_choice_set(
-        state=state, options=model_params_options
+    feasible_choice_set = choice_specific_choice_set_processedd(
+        lagged_choice=state[1],
     )
 
     endog_grid_period = input_data_two_exog_processes["result"][state[0]]["endog_grid"]
     policy_period = input_data_two_exog_processes["result"][state[0]]["policy_left"]
+
+    initial_conditions["bad_health"] = state[-2] == 1
+    initial_conditions["job_offer"] = 1  # working (no retirement) in period 0
 
     for choice_in_period_1 in feasible_choice_set:
         state_choice_idx = reshape_state_choice_vec_to_mat[
