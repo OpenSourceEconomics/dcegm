@@ -21,11 +21,13 @@ from tests.two_period_models.ltc_and_job_offer.dcegm_code import (
 from tests.two_period_models.ltc_and_job_offer.dcegm_code import func_exog_job_offer
 from tests.two_period_models.ltc_and_job_offer.dcegm_code import func_exog_ltc
 from tests.two_period_models.ltc_and_job_offer.dcegm_code import marginal_utility
+from tests.two_period_models.ltc_and_job_offer.dcegm_code import state_space_functions
+from tests.two_period_models.ltc_and_job_offer.dcegm_code import utility_functions
 from tests.two_period_models.ltc_and_job_offer.eueler_equation_code import (
     euler_rhs_two_exog_processes,
 )
 
-WEALTH_GRID_POINTS = 10
+WEALTH_GRID_POINTS = 100
 
 TEST_CASES_TWO_EXOG_PROCESSES = list(
     product(list(range(WEALTH_GRID_POINTS)), list(range(8)))
