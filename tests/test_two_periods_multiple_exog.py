@@ -4,20 +4,15 @@ import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import pytest
-from dcegm.pre_processing.process_functions import (
-    determine_function_arguments_and_partial_options,
+from dcegm.pre_processing.process_model import (
+    process_model_functions_and_create_state_space_objects,
 )
-from dcegm.pre_processing.state_space import create_state_choice_space
-from dcegm.pre_processing.state_space import create_state_space
 from dcegm.solve import solve_dcegm
 from numpy.testing import assert_allclose
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 from toy_models.consumption_retirement_model.final_period_solution import (
     solve_final_period_scalar,
-)
-from toy_models.consumption_retirement_model.state_space_objects import (
-    get_state_specific_feasible_choice_set,
 )
 
 from tests.two_period_models.ltc_and_job_offer.dcegm_code import (
@@ -39,6 +34,7 @@ TEST_CASES_TWO_EXOG_PROCESSES = list(
 
 @pytest.fixture(scope="module")
 def input_data_two_exog_processes(state_space_functions, utility_functions):
+    # ToDo: Write this as dictionary such that it has a much nicer overview
     index = pd.MultiIndex.from_tuples(
         [("utility_function", "rho"), ("utility_function", "delta")],
         names=["category", "name"],
@@ -109,7 +105,11 @@ def input_data_two_exog_processes(state_space_functions, utility_functions):
     TEST_CASES_TWO_EXOG_PROCESSES,
 )
 def test_two_period_two_exog_processes(
-    input_data_two_exog_processes, wealth_idx, state_idx
+    input_data_two_exog_processes,
+    wealth_idx,
+    state_idx,
+    utility_functions,
+    state_space_functions,
 ):
     quad_points, quad_weights = roots_sh_legendre(5)
     quad_draws = norm.ppf(quad_points) * 1
@@ -119,54 +119,41 @@ def test_two_period_two_exog_processes(
     values = params["value"].tolist()
     params = dict(zip(keys, values))
     (
+        compute_utility,
+        compute_marginal_utility,
+        compute_inverse_marginal_utility,
+        compute_beginning_of_period_wealth,
+        compute_final_period,
+        compute_exog_transition_vec,
+        compute_upper_envelope,
+        period_specific_state_objects,
         state_space,
-        map_state_to_state_space_index,
-        states_names_without_exog,
-        exog_state_names,
-        n_exog_states,
-        exog_state_space,
-    ) = create_state_space(input_data_two_exog_processes["options"])
-    model_params_options = input_data_two_exog_processes["options"]["model_params"]
-
-    choice_specific_choice_set_processedd = (
-        determine_function_arguments_and_partial_options(
-            func=get_state_specific_feasible_choice_set,
-            options=model_params_options,
-        )
-    )
-
-    (
-        state_choice_space,
-        _map_state_choice_vec_to_parent_state,
-        reshape_state_choice_vec_to_mat,
-    ) = create_state_choice_space(
-        state_space_options=input_data_two_exog_processes["options"]["state_space"],
-        state_space=state_space,
-        state_space_names=states_names_without_exog + exog_state_names,
-        map_state_to_state_space_index=map_state_to_state_space_index,
-        get_state_specific_choice_set=choice_specific_choice_set_processedd,
+    ) = process_model_functions_and_create_state_space_objects(
+        options=input_data_two_exog_processes["options"],
+        user_utility_functions=utility_functions,
+        user_budget_constraint=budget_dcegm_two_exog_processes,
+        user_final_period_solution=solve_final_period_scalar,
+        state_space_functions=state_space_functions,
     )
     initial_conditions = {}
-    state = state_space[state_idx, :]
-    reshape_state_choice_vec_to_mat[state_idx]
+    period = state_space["period"][state_idx]
 
-    feasible_choice_set = choice_specific_choice_set_processedd(
-        lagged_choice=state[1],
-    )
+    endog_grid_period = input_data_two_exog_processes["result"][period]["endog_grid"]
+    policy_period = input_data_two_exog_processes["result"][period]["policy_left"]
 
-    endog_grid_period = input_data_two_exog_processes["result"][state[0]]["endog_grid"]
-    policy_period = input_data_two_exog_processes["result"][state[0]]["policy_left"]
-
-    initial_conditions["bad_health"] = state[-2] == 1
+    initial_conditions["bad_health"] = state_space["ltc"][state_idx] == 1
     initial_conditions["job_offer"] = 1  # working (no retirement) in period 0
 
-    for choice_in_period_1 in feasible_choice_set:
-        state_choice_idx = reshape_state_choice_vec_to_mat[
-            state_idx, choice_in_period_1
-        ]
+    state_choices_period = period_specific_state_objects[period]["state_choice_mat"]
 
+    state_choice_idxs_of_state = np.where(
+        period_specific_state_objects[period]["idx_parent_states"] == state_idx
+    )[0]
+
+    for state_choice_idx in state_choice_idxs_of_state:
         endog_grid = endog_grid_period[state_choice_idx, wealth_idx + 1]
         policy = policy_period[state_choice_idx]
+        choice = state_choices_period["choice"][state_choice_idx]
 
         if ~np.isnan(endog_grid) and endog_grid > 0:
             initial_conditions["wealth"] = endog_grid
@@ -177,7 +164,7 @@ def test_two_period_two_exog_processes(
                 params,
                 quad_draws,
                 quad_weights,
-                choice_in_period_1,
+                choice,
                 cons_calc,
             ) - marginal_utility(consumption=cons_calc, params=params)
 
