@@ -5,15 +5,14 @@ import pytest
 from conftest import TEST_RESOURCES_DIR
 from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
 from dcegm.interpolation import linear_interpolation_with_extrapolation
-from dcegm.pre_processing.state_space import create_state_choice_space
+from dcegm.pre_processing.process_model import (
+    process_model_functions_and_create_state_space_objects,
+)
 from dcegm.solve import solve_dcegm
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
 from toy_models.consumption_retirement_model.final_period_solution import (
     solve_final_period_scalar,
-)
-from toy_models.consumption_retirement_model.state_space_objects import (
-    create_state_space,
 )
 from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_feasible_choice_set,
@@ -47,7 +46,6 @@ def utility_functions():
 def state_space_functions():
     """Return dict with utility functions."""
     return {
-        "create_state_space": create_state_space,
         "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
         "update_endog_state_by_state_and_choice": update_state,
     }
@@ -71,20 +69,11 @@ def test_benchmark_models(
     params, _raw_options = load_example_model(f"{model}")
 
     options["model_params"] = _raw_options
-    options.update(
-        {
-            "state_space": {
-                "n_periods": 25,
-                "choices": [i for i in range(_raw_options["n_discrete_choices"])],
-                "endogenous_states": {
-                    "period": jnp.arange(25),
-                    "lagged_choice": [0, 1],
-                },
-                "exogenous_states": {"exog_state": [0]},
-                "choice": [i for i in range(_raw_options["n_discrete_choices"])],
-            },
-        }
-    )
+    options["model_params"]["n_choices"] = _raw_options["n_discrete_choices"]
+    options["state_space"] = {
+        "n_periods": 25,
+        "choices": [i for i in range(_raw_options["n_discrete_choices"])],
+    }
 
     exog_savings_grid = jnp.linspace(
         0,
@@ -92,16 +81,25 @@ def test_benchmark_models(
         options["model_params"]["n_grid_points"],
     )
 
-    state_space, map_state_to_index = create_state_space(options["state_space"])
-    state_choice_space, *_ = create_state_choice_space(
-        options["state_space"],
-        state_space,
-        map_state_to_index,
-        state_space_functions["get_state_specific_choice_set"],
-    )
-
     if params.loc[("utility_function", "theta"), "value"] == 1:
         utility_functions["utility"] = utiility_func_log_crra
+    (
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        period_specific_state_objects,
+        state_space,
+    ) = process_model_functions_and_create_state_space_objects(
+        options=options,
+        user_utility_functions=utility_functions,
+        user_budget_constraint=budget_constraint,
+        user_final_period_solution=solve_final_period_scalar,
+        state_space_functions=state_space_functions,
+    )
 
     result_dict = solve_dcegm(
         params,
@@ -119,16 +117,16 @@ def test_benchmark_models(
     value_expected = pickle.load((TEST_RESOURCES_DIR / f"value_{model}.pkl").open("rb"))
 
     for period in range(23, -1, -1):
-        idxs_state_choice_combs = jnp.where(state_choice_space[:, 0] == period)[0]
+        period_state_choice_dict = period_specific_state_objects[period][
+            "state_choice_mat"
+        ]
 
         endog_grid_got = result_dict[period]["endog_grid"]
         policy_left_got = result_dict[period]["policy_left"]
         policy_right_got = result_dict[period]["policy_right"]
         value_got = result_dict[period]["value"]
 
-        for state_choice_idx, state_choice_vec in enumerate(idxs_state_choice_combs):
-            choice = state_choice_space[state_choice_vec, -1]
-
+        for state_choice_idx, choice in enumerate(period_state_choice_dict["choice"]):
             if model == "deaton":
                 policy_expec = policy_expected[period, choice]
                 value_expec = value_expected[period, choice]

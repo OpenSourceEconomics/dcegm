@@ -577,7 +577,7 @@ def _augment_grid(
     utility = compute_utility(
         consumption=grid_points_to_add,
         params=params,
-        *state_choice_vec,
+        **state_choice_vec,
     )
     values_to_add = utility + params["beta"] * expected_value_zero_wealth
 

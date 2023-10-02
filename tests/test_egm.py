@@ -36,7 +36,7 @@ def test_get_beginning_of_period_wealth(
 
     n_quad_points = options["quadrature_points_stochastic"]
 
-    child_state = np.array([period, labor_choice])
+    child_state_dict = {"period": period, "lagged_choice": labor_choice}
     savings_grid = np.linspace(0, max_wealth, n_grid_points)
 
     _quad_points, _ = roots_sh_legendre(n_quad_points)
@@ -46,7 +46,7 @@ def test_get_beginning_of_period_wealth(
     random_shock_scalar = np.random.randint(0, n_quad_points)
 
     wealth_beginning_of_period = budget_constraint(
-        child_state,
+        **child_state_dict,
         savings_end_of_previous_period=savings_grid[random_saving_scalar],
         income_shock_previous_period=quad_points[random_shock_scalar],
         options=options,
@@ -54,7 +54,7 @@ def test_get_beginning_of_period_wealth(
     )
 
     _labor_income = _calc_stochastic_income(
-        child_state,
+        **child_state_dict,
         wage_shock=quad_points[random_shock_scalar],
         min_age=options["min_age"],
         constant=params["constant"],

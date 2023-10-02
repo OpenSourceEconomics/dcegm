@@ -6,7 +6,8 @@ import jax.numpy as jnp
 
 
 def budget_constraint(
-    state_beginning_of_period: jnp.ndarray,
+    period: int,
+    lagged_choice: int,
     savings_end_of_previous_period: float,
     income_shock_previous_period: float,
     options: Dict[str, Any],
@@ -35,7 +36,8 @@ def budget_constraint(
     """
     # Calculate stochastic labor income
     income_from_previous_period = _calc_stochastic_income(
-        state_beginning_of_period,
+        period=period,
+        lagged_choice=lagged_choice,
         wage_shock=income_shock_previous_period,
         min_age=options["min_age"],
         constant=params["constant"],
@@ -59,7 +61,8 @@ def budget_constraint(
 
 @jax.jit
 def _calc_stochastic_income(
-    state: jnp.ndarray,
+    period: int,
+    lagged_choice: int,
     wage_shock: float,
     min_age: int,
     constant: float,
@@ -96,7 +99,7 @@ def _calc_stochastic_income(
 
     """
     # For simplicity, assume current_age - min_age = experience
-    age = state[0] + min_age
+    age = period + min_age
 
     # Determinisctic component of income depending on experience:
     # constant + alpha_1 * age + alpha_2 * age**2
@@ -104,4 +107,4 @@ def _calc_stochastic_income(
     labor_income = exp_coeffs @ (age ** jnp.arange(len(exp_coeffs)))
     working_income = jnp.exp(labor_income + wage_shock)
 
-    return (1 - state[1]) * working_income
+    return (1 - lagged_choice) * working_income

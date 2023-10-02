@@ -132,13 +132,13 @@ def test_two_period(
     values = params["value"].tolist()
     params = dict(zip(keys, values))
     (
-        compute_utility,
-        compute_marginal_utility,
-        compute_inverse_marginal_utility,
-        compute_beginning_of_period_wealth,
-        compute_final_period,
-        compute_exog_transition_vec,
-        compute_upper_envelope,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
         period_specific_state_objects,
         state_space,
     ) = process_model_functions_and_create_state_space_objects(

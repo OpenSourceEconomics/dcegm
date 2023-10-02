@@ -45,7 +45,8 @@ def test_function_wrapping(load_example_model):
     )
 
     util_processed = determine_function_arguments_and_partial_options(
-        utiility_func_log_crra, options, {"ltc": np.array([0])}
+        utiility_func_log_crra,
+        options,
     )
 
     calc_util = vmap(util_wrap, in_axes=(0, None, None))(

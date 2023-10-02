@@ -1,12 +1,11 @@
 from pathlib import Path
 
-import jax.numpy as jnp
 import numpy as np
 import pytest
 from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
 from dcegm.interpolation import linear_interpolation_with_extrapolation
-from dcegm.pre_processing.process_model import (
-    _get_utility_function_with_filtered_args_and_kwargs,
+from dcegm.pre_processing.process_functions import (
+    determine_function_arguments_and_partial_options,
 )
 from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope
 from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope_wrapper
@@ -44,15 +43,14 @@ def setup_model():
         "model_params": {"min_age": 50, "max_age": 80, "n_periods": 25, "n_choices": 2},
     }
 
-    state_choice_vec = jnp.array([23, 0, 0, 0])
+    state_choice_vars = {"lagged_choice": 0, "choice": 0}
 
-    exog_mapping = jnp.array([1])
     options["state_space"]["exogenous_states"] = {"exog_state": [0]}
-    compute_utility = _get_utility_function_with_filtered_args_and_kwargs(
-        utility_func_crra, options=options, exog_mapping=exog_mapping
+    compute_utility = determine_function_arguments_and_partial_options(
+        utility_func_crra, options=options
     )
 
-    return params, exog_savings_grid, state_choice_vec, compute_utility
+    return params, exog_savings_grid, state_choice_vars, compute_utility
 
 
 @pytest.mark.parametrize("period", [2, 4, 9, 10, 18])
@@ -77,7 +75,7 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
         ~np.isnan(value_refined_fedor).any(axis=0),
     ]
 
-    params, _exog_savings_grid, state_choice_vec, compute_utility = setup_model
+    params, _exog_savings_grid, state_choice_vars, compute_utility = setup_model
 
     (
         endog_grid_refined,
@@ -89,7 +87,7 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
         policy=policy_egm[1, 1:],
         value=value_egm[1, 1:],
         expected_value_zero_savings=value_egm[1, 0],
-        state_choice_vec=state_choice_vec,
+        state_choice_vec=state_choice_vars,
         params=params,
         compute_utility=compute_utility,
     )
@@ -127,7 +125,7 @@ def test_fast_upper_envelope_against_org_fues(setup_model):
     value_egm = np.genfromtxt(
         TEST_RESOURCES_DIR / "period_tests/val10.csv", delimiter=","
     )
-    _params, exog_savings_grid, state_choice_vec, compute_utility = setup_model
+    _params, exog_savings_grid, state_choice_vars, compute_utility = setup_model
 
     (
         endog_grid_refined,
@@ -147,7 +145,7 @@ def test_fast_upper_envelope_against_org_fues(setup_model):
         policy=policy_egm[1],
         value=value_egm[1],
         exog_grid=exog_savings_grid,
-        choice=state_choice_vec[-1],
+        choice=state_choice_vars["choice"],
         compute_utility=compute_utility,
     )
 
