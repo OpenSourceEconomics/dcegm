@@ -1,5 +1,4 @@
 """Functions for creating internal state space objects."""
-from functools import reduce
 from typing import Callable
 from typing import Dict
 
@@ -264,10 +263,9 @@ def span_subspace_and_read_information(subdict_of_space, states_names):
         num_states_of_all_states += [num_states]
         all_states_values += [state_values]
 
-    sub_state_space = np.array(reduce(np.meshgrid, all_states_values)).T.reshape(
-        -1, len(states_names)
-    )
-
+    sub_state_space = np.array(
+        np.meshgrid(*all_states_values, indexing="ij")
+    ).T.reshape(-1, len(states_names))
     return sub_state_space, num_states_of_all_states
 
 
