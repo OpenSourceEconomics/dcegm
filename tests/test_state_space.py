@@ -79,11 +79,6 @@ def test_state_choice_set(lagged_choice, n_periods, n_choices, n_exog_states):
     assert np.allclose(choice_set, expected_choice_set)
 
 
-def test_inspect_state_space(options):
-    inspect_state_space(options=options)
-    state_space_mat, *_ = create_state_space(options)
-
-
 def create_state_space_test(options):
     n_periods = options["n_periods"]
     n_choices = options["n_discrete_choices"]
@@ -237,6 +232,9 @@ def test_state_space():
         n_exog_states,
         exog_state_space,
     ) = create_state_space(options=options_spars)
+
+    # The dcegm package create the state vector in the order of the dictionary keys.
+    # How these are ordered is not clear ex ante.
     state_space_sums_test = state_space_test.sum(axis=0)
     state_space_sums = state_space.sum(axis=0)
     state_space_sum_dict = {
@@ -260,3 +258,10 @@ def test_state_space():
     np.testing.assert_allclose(
         state_space_sum_dict["dummy_exog"], state_space_sums_test[5]
     )
+
+    ### Now test the inspection function.
+    state_space_df = inspect_state_space(options=options_spars)
+    admissible_df = state_space_df[state_space_df["is_feasible"]]
+
+    for i, column in enumerate(states_names_without_exog + exog_state_names):
+        np.testing.assert_allclose(admissible_df[column].values, state_space[:, i])
