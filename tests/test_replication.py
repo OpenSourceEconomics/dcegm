@@ -5,9 +5,8 @@ import jax.numpy as jnp
 import pytest
 from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
 from dcegm.interpolation import linear_interpolation_with_extrapolation
-from dcegm.pre_processing.process_model import (
-    process_model_functions_and_create_state_space_objects,
-)
+from dcegm.pre_processing.model_functions import process_model_functions
+from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
 from dcegm.solve import solve_dcegm
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
@@ -30,7 +29,6 @@ from toy_models.consumption_retirement_model.utility_functions import (
     utiility_func_log_crra,
 )
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
-
 
 # Obtain the test directory of the package
 TEST_DIR = Path(__file__).parent
@@ -90,16 +88,32 @@ def test_benchmark_models(
 
     if params.loc[("utility_function", "theta"), "value"] == 1:
         utility_functions["utility"] = utiility_func_log_crra
+
     (
-        *_,
-        period_specific_state_objects,
-        state_space,
-    ) = process_model_functions_and_create_state_space_objects(
-        options=options,
+        compute_utility,
+        compute_marginal_utility,
+        compute_inverse_marginal_utility,
+        compute_beginning_of_period_wealth,
+        compute_final_period,
+        compute_exog_transition_vec,
+        compute_upper_envelope,
+        get_state_specific_choice_set,
+        update_endog_state_by_state_and_choice,
+    ) = process_model_functions(
+        options,
         user_utility_functions=utility_functions,
         user_budget_constraint=budget_constraint,
         user_final_period_solution=solve_final_period_scalar,
         state_space_functions=state_space_functions,
+    )
+
+    (
+        period_specific_state_objects,
+        _state_space,
+    ) = create_state_space_and_choice_objects(
+        options=options,
+        get_state_specific_choice_set=get_state_specific_choice_set,
+        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
     result_dict = solve_dcegm(

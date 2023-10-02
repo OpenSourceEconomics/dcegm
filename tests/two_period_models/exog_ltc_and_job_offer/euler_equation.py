@@ -1,7 +1,9 @@
 import numpy as np
 
-from tests.two_period_models.ltc_and_job_offer.dcegm_code import flow_util
-from tests.two_period_models.ltc_and_job_offer.dcegm_code import marginal_utility
+from tests.two_period_models.exog_ltc_and_job_offer.model_functions import flow_util
+from tests.two_period_models.exog_ltc_and_job_offer.model_functions import (
+    marginal_utility,
+)
 
 
 def euler_rhs_two_exog_processes(

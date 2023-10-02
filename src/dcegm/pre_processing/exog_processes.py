@@ -1,7 +1,21 @@
+from functools import partial
 from typing import Callable
 
-from dcegm.pre_processing.utils import determine_function_arguments_and_partial_options
+from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from jax import numpy as jnp
+
+
+def create_exog_transition_function(options):
+    if "exogenous_processes" not in options["state_space"]:
+        options["state_space"]["exogenous_states"] = {"exog_state": [0]}
+        compute_exog_transition_vec = return_dummy_exog_transition
+    else:
+        exog_funcs = process_exog_funcs(options)
+
+        compute_exog_transition_vec = partial(
+            get_exog_transition_vec, exog_funcs=exog_funcs
+        )
+    return compute_exog_transition_vec
 
 
 def process_exog_funcs(options):

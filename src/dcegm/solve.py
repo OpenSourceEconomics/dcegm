@@ -17,11 +17,10 @@ from dcegm.egm.solve_euler_equation import (
     calculate_candidate_solutions_from_euler_equation,
 )
 from dcegm.final_period import solve_final_period
-from dcegm.pre_processing.numerical_integration import quadrature_legendre
-from dcegm.pre_processing.process_model import (
-    process_model_functions_and_create_state_space_objects,
-)
-from dcegm.pre_processing.process_model import process_params
+from dcegm.numerical_integration import quadrature_legendre
+from dcegm.pre_processing.model_functions import process_model_functions
+from dcegm.pre_processing.model_functions import process_params
+from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
 from jax import jit
 from jax import vmap
 
@@ -129,14 +128,23 @@ def get_solve_function(
         compute_final_period,
         compute_exog_transition_vec,
         compute_upper_envelope,
-        period_specific_state_objects,
-        state_space,
-    ) = process_model_functions_and_create_state_space_objects(
-        options=options,
+        get_state_specific_choice_set,
+        update_endog_state_by_state_and_choice,
+    ) = process_model_functions(
+        options,
         user_utility_functions=utility_functions,
         user_budget_constraint=budget_constraint,
         user_final_period_solution=final_period_solution,
         state_space_functions=state_space_functions,
+    )
+
+    (
+        period_specific_state_objects,
+        state_space,
+    ) = create_state_space_and_choice_objects(
+        options=options,
+        get_state_specific_choice_set=get_state_specific_choice_set,
+        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
     backward_jit = jit(
@@ -282,6 +290,7 @@ def backward_induction(
             state_objects["idx_parent_states"]
         ]
 
+        # EGM step 2)
         # Aggregate the marginal utilities and expected values over all choices and
         # income shock draws
         marg_util, emax = aggregate_marg_utils_and_exp_values(
@@ -294,6 +303,7 @@ def backward_induction(
             income_shock_weights=income_shock_weights,
         )
 
+        # EGM step 3)
         (
             endog_grid_candidate,
             value_candidate,
@@ -331,6 +341,7 @@ def backward_induction(
         )
 
         # ToDo: reorder function arguments
+        # EGM step 1)
         marg_util_interpolated, value_interpolated = vmap(
             interpolate_value_and_calc_marginal_utility,
             in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),

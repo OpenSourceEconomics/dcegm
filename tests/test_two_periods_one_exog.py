@@ -9,9 +9,8 @@ import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import pytest
-from dcegm.pre_processing.process_model import (
-    process_model_functions_and_create_state_space_objects,
-)
+from dcegm.pre_processing.model_functions import process_model_functions
+from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
 from dcegm.solve import solve_dcegm
 from numpy.testing import assert_allclose
 from scipy.special import roots_sh_legendre
@@ -26,12 +25,12 @@ from toy_models.consumption_retirement_model.state_space_objects import (
     update_state,
 )
 
-from tests.two_period_models.only_ltc_process.dcegm_code import budget_dcegm
-from tests.two_period_models.only_ltc_process.dcegm_code import flow_util
-from tests.two_period_models.only_ltc_process.dcegm_code import func_exog_ltc
-from tests.two_period_models.only_ltc_process.dcegm_code import inverse_marginal_utility
-from tests.two_period_models.only_ltc_process.dcegm_code import marginal_utility
-from tests.two_period_models.only_ltc_process.eueler_equation_code import euler_rhs
+from tests.two_period_models.exog_ltc.euler_equation import euler_rhs
+from tests.two_period_models.exog_ltc.model_functions import budget_dcegm
+from tests.two_period_models.exog_ltc.model_functions import flow_util
+from tests.two_period_models.exog_ltc.model_functions import func_exog_ltc
+from tests.two_period_models.exog_ltc.model_functions import inverse_marginal_utility
+from tests.two_period_models.exog_ltc.model_functions import marginal_utility
 
 WEALTH_GRID_POINTS = 100
 
@@ -131,17 +130,34 @@ def test_two_period(
     keys = params.index.droplevel("category").tolist()
     values = params["value"].tolist()
     params = dict(zip(keys, values))
+
     (
-        *_,
-        period_specific_state_objects,
-        state_space,
-    ) = process_model_functions_and_create_state_space_objects(
-        options=input_data["options"],
+        compute_utility,
+        compute_marginal_utility,
+        compute_inverse_marginal_utility,
+        compute_beginning_of_period_wealth,
+        compute_final_period,
+        compute_exog_transition_vec,
+        compute_upper_envelope,
+        get_state_specific_choice_set,
+        update_endog_state_by_state_and_choice,
+    ) = process_model_functions(
+        input_data["options"],
         user_utility_functions=utility_functions,
         user_budget_constraint=budget_dcegm,
         user_final_period_solution=solve_final_period_scalar,
         state_space_functions=state_space_functions,
     )
+
+    (
+        period_specific_state_objects,
+        state_space,
+    ) = create_state_space_and_choice_objects(
+        options=input_data["options"],
+        get_state_specific_choice_set=get_state_specific_choice_set,
+        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+    )
+
     period = state_space["period"][state_idx]
 
     endog_grid_period = input_data["result"][period]["endog_grid"]

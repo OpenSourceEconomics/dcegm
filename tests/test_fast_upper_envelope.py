@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
 from dcegm.interpolation import linear_interpolation_with_extrapolation
-from dcegm.pre_processing.utils import determine_function_arguments_and_partial_options
+from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope
 from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope_wrapper
 from numpy.testing import assert_array_almost_equal as aaae

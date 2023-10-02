@@ -5,7 +5,8 @@ from typing import Dict
 
 import jax.numpy as jnp
 import numpy as np
-from dcegm.pre_processing.utils import determine_function_arguments_and_partial_options
+import pandas as pd
+from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 
 
 def create_state_space_and_choice_objects(
@@ -550,3 +551,67 @@ def create_map_from_state_to_child_nodes(
             ] = jnp.array(map_state_to_feasible_child_nodes_period, dtype=int)
 
     return period_specific_state_objects
+
+
+def inspect_state_space(
+    options: Dict[str, float],
+):
+    """Creates a data frame of all potential states and a feasibility flag."""
+    state_space_options = options["state_space"]
+    model_params = options["model_params"]
+
+    n_periods = state_space_options["n_periods"]
+    n_choices = len(state_space_options["choices"])
+
+    (
+        add_endog_state_func,
+        endog_states_names,
+        _,
+        num_endog_states,
+        sparsity_func,
+    ) = process_endog_state_specifications(
+        state_space_options=state_space_options, model_params=model_params
+    )
+
+    (
+        add_exog_state_func,
+        exog_states_names,
+        _,
+        n_exog_states,
+        _,
+    ) = process_exog_model_specifications(state_space_options=state_space_options)
+
+    states_names_without_exog = ["period", "lagged_choice"] + endog_states_names
+
+    state_space_list = []
+
+    idx = 0
+    for period in range(n_periods):
+        for lagged_choice in range(n_choices):
+            for endog_state_id in range(num_endog_states):
+                # Select the endogenous state combination
+                endog_states = add_endog_state_func(endog_state_id)
+
+                # Create the state vector without the exogenous processes
+                state_without_exog = [period, lagged_choice] + endog_states
+
+                # Transform to dictionary to call sparsity function from user
+                state_dict_without_exog = {
+                    states_names_without_exog[i]: state_value
+                    for i, state_value in enumerate(state_without_exog)
+                }
+
+                is_state_valid = sparsity_func(**state_dict_without_exog)
+                for exog_state_id in range(n_exog_states):
+                    exog_states = add_exog_state_func(exog_state_id)
+                    state = state_without_exog + exog_states
+
+                    state_space_list += [state + [is_state_valid]]
+                    idx += 1
+
+    state_space_df = pd.DataFrame(
+        state_space_list,
+        columns=states_names_without_exog + exog_states_names + ["is_feasible"],
+    )
+
+    return state_space_df
