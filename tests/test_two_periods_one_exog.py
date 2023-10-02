@@ -132,13 +132,7 @@ def test_two_period(
     values = params["value"].tolist()
     params = dict(zip(keys, values))
     (
-        _,
-        _,
-        _,
-        _,
-        _,
-        _,
-        _,
+        *_,
         period_specific_state_objects,
         state_space,
     ) = process_model_functions_and_create_state_space_objects(

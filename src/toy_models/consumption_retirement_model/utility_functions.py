@@ -67,7 +67,7 @@ def utility_func_crra(
 
 
 def marginal_utility_crra(
-    consumption: jnp.array, params: Dict[str, float], options: Dict[str, Any]
+    consumption: jnp.array, params: Dict[str, float], choice, options: Dict[str, Any]
 ) -> jnp.array:
     """Computes marginal utility of CRRA utility function.
 

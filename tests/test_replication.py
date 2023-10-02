@@ -84,13 +84,7 @@ def test_benchmark_models(
     if params.loc[("utility_function", "theta"), "value"] == 1:
         utility_functions["utility"] = utiility_func_log_crra
     (
-        _,
-        _,
-        _,
-        _,
-        _,
-        _,
-        _,
+        *_,
         period_specific_state_objects,
         state_space,
     ) = process_model_functions_and_create_state_space_objects(
