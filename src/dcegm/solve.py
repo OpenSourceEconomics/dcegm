@@ -46,9 +46,8 @@ def solve_dcegm(
         budget_constraint (callable): Callable budget constraint.
         state_space_functions (Dict[str, callable]): Dictionary of two user-supplied
             functions to:
-            (i) create the state space
-            (ii) get the state specific feasible choice set
-            (iii) update the endogenous part of the state by the choice
+            (i) get the state specific feasible choice set
+            (ii) update the endogenous part of the state by the choice
         final_period_solution (callable): User-supplied function for solving the agent's
             last period.
         transition_function (callable): User-supplied function returning for each
