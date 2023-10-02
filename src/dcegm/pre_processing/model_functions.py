@@ -105,13 +105,17 @@ def process_model_functions(
     else:
         compute_upper_envelope = fast_upper_envelope_wrapper
 
+    model_funcs = {
+        "compute_utility": compute_utility,
+        "compute_marginal_utility": compute_marginal_utility,
+        "compute_inverse_marginal_utility": compute_inverse_marginal_utility,
+        "compute_beginning_of_period_wealth": compute_beginning_of_period_wealth,
+        "compute_final_period": compute_final_period,
+        "compute_exog_transition_vec": compute_exog_transition_vec,
+    }
+
     return (
-        compute_utility,
-        compute_marginal_utility,
-        compute_inverse_marginal_utility,
-        compute_beginning_of_period_wealth,
-        compute_final_period,
-        compute_exog_transition_vec,
+        model_funcs,
         compute_upper_envelope,
         get_state_specific_choice_set,
         update_endog_state_by_state_and_choice,

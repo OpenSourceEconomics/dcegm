@@ -109,9 +109,6 @@ def get_solve_function(
         callable: The partial solve function that only takes ```params``` as input.
 
     """
-    # if "exogenous_states" not in options["state_space"]:
-    #     options["state_space"]["exogenous_states"] = {"exog_state": [0]}
-
     n_periods = options["state_space"]["n_periods"]
 
     # ToDo: Make interface with several draw possibilities.
@@ -121,12 +118,7 @@ def get_solve_function(
     )
 
     (
-        compute_utility,
-        compute_marginal_utility,
-        compute_inverse_marginal_utility,
-        compute_beginning_of_period_wealth,
-        compute_final_period,
-        compute_exog_transition_vec,
+        model_funcs,
         compute_upper_envelope,
         get_state_specific_choice_set,
         update_endog_state_by_state_and_choice,
@@ -156,12 +148,7 @@ def get_solve_function(
             income_shock_draws_unscaled=income_shock_draws_unscaled,
             income_shock_weights=income_shock_weights,
             n_periods=n_periods,
-            compute_utility=compute_utility,
-            compute_marginal_utility=compute_marginal_utility,
-            compute_inverse_marginal_utility=compute_inverse_marginal_utility,
-            compute_beginning_of_period_wealth=compute_beginning_of_period_wealth,
-            compute_final_period=compute_final_period,
-            compute_exog_transition_vec=compute_exog_transition_vec,
+            model_funcs=model_funcs,
             compute_upper_envelope=compute_upper_envelope,
         )
     )
@@ -181,12 +168,7 @@ def backward_induction(
     income_shock_draws_unscaled: np.ndarray,
     income_shock_weights: np.ndarray,
     n_periods: int,
-    compute_utility: Callable,
-    compute_marginal_utility: Callable,
-    compute_inverse_marginal_utility: Callable,
-    compute_beginning_of_period_wealth: Callable,
-    compute_final_period: Callable,
-    compute_exog_transition_vec: Callable,
+    model_funcs: Dict[str, Callable],
     compute_upper_envelope: Callable,
 ) -> Dict[int, np.ndarray]:
     """Do backward induction and solve for optimal policy and value function.
@@ -261,7 +243,7 @@ def backward_induction(
         exog_savings_grid,
         income_shock_draws_unscaled,
         params,
-        compute_beginning_of_period_wealth,
+        model_funcs["compute_beginning_of_period_wealth"],
     )
 
     (
@@ -270,7 +252,7 @@ def backward_induction(
         value_interpolated,
     ) = solve_final_period(
         state_objects_final_period=period_specific_state_objects[n_periods - 1],
-        compute_final_period=compute_final_period,
+        compute_final_period=model_funcs["compute_final_period"],
         resources_beginning_of_period=resources_beginning_of_period,
         params=params,
     )
@@ -315,9 +297,11 @@ def backward_induction(
             emax=emax,
             state_choice_vec=state_objects["state_choice_mat"],
             idx_post_decision_child_states=state_objects["idx_feasible_child_nodes"],
-            compute_inverse_marginal_utility=compute_inverse_marginal_utility,
-            compute_utility=compute_utility,
-            compute_exog_transition_vec=compute_exog_transition_vec,
+            compute_inverse_marginal_utility=model_funcs[
+                "compute_inverse_marginal_utility"
+            ],
+            compute_utility=model_funcs["compute_utility"],
+            compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
             params=params,
         )
 
@@ -337,17 +321,16 @@ def backward_induction(
             expected_values[:, 0],
             state_objects["state_choice_mat"],
             params,
-            compute_utility,
+            model_funcs["compute_utility"],
         )
 
-        # ToDo: reorder function arguments
         # EGM step 1)
         marg_util_interpolated, value_interpolated = vmap(
             interpolate_value_and_calc_marginal_utility,
             in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),
         )(
-            compute_marginal_utility,
-            compute_utility,
+            model_funcs["compute_marginal_utility"],
+            model_funcs["compute_utility"],
             state_objects["state_choice_mat"],
             resources_period,
             endog_grid_state_choice,

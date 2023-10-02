@@ -15,5 +15,6 @@ coverage:
         target: 90%
 ignore:
   - setup.py
+  - tests/*
   - tests/**/*
   - .tox/**/*

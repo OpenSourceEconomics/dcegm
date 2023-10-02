@@ -90,13 +90,8 @@ def test_benchmark_models(
         utility_functions["utility"] = utiility_func_log_crra
 
     (
-        compute_utility,
-        compute_marginal_utility,
-        compute_inverse_marginal_utility,
-        compute_beginning_of_period_wealth,
-        compute_final_period,
-        compute_exog_transition_vec,
-        compute_upper_envelope,
+        _model_funcs,
+        _compute_upper_envelope,
         get_state_specific_choice_set,
         update_endog_state_by_state_and_choice,
     ) = process_model_functions(
