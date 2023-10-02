@@ -1,9 +1,7 @@
 import jax.numpy as jnp
 import numpy as np
-from dcegm.pre_processing.process_functions import (
-    determine_function_arguments_and_partial_options,
-)
 from dcegm.pre_processing.process_model import _convert_params_to_dict
+from dcegm.pre_processing.utils import determine_function_arguments_and_partial_options
 from jax import vmap
 from toy_models.consumption_retirement_model.utility_functions import (
     utiility_func_log_crra,

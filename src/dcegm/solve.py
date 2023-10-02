@@ -266,8 +266,36 @@ def backward_induction(
     results = {}
     results[n_periods - 1] = final_period_results
 
+    endog_grid_state_choice = final_period_results["endog_grid"]
+    value_state_choice = final_period_results["value"]
+    policy_left_state_choice = final_period_results["policy_left"]
+    policy_right_state_choice = final_period_results["policy_right"]
+
+    # breakpoint()
+
     for period in range(n_periods - 2, -1, -1):
         state_objects = period_specific_state_objects[period]
+
+        resources_period = resources_beginning_of_period[
+            state_objects["idx_parent_states"]
+        ]
+
+        # ToDo: reorder function arguments
+        _marg_util_interpolated, _value_interpolated = vmap(
+            interpolate_and_calc_marginal_utilities,
+            in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),
+        )(
+            compute_marginal_utility,
+            compute_utility,
+            state_objects["state_choice_mat"],  # state_vec and choice
+            resources_period,
+            endog_grid_state_choice,
+            policy_left_state_choice,
+            policy_right_state_choice,
+            value_state_choice,
+            params,
+        )
+        #
 
         # Aggregate the marginal utilities and expected values over all choices and
         # income shock draws
@@ -316,9 +344,10 @@ def backward_induction(
             params,
             compute_utility,
         )
-        resources_period = resources_beginning_of_period[
-            state_objects["idx_parent_states"]
-        ]
+
+        # resources_period = resources_beginning_of_period[
+        #     state_objects["idx_parent_states"]
+        # ]
 
         # ToDo: reorder function arguments
         marg_util_interpolated, value_interpolated = vmap(

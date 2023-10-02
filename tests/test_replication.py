@@ -1,8 +1,8 @@
 import pickle
+from pathlib import Path
 
 import jax.numpy as jnp
 import pytest
-from conftest import TEST_RESOURCES_DIR
 from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
 from dcegm.interpolation import linear_interpolation_with_extrapolation
 from dcegm.pre_processing.process_model import (
@@ -30,6 +30,13 @@ from toy_models.consumption_retirement_model.utility_functions import (
     utiility_func_log_crra,
 )
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
+
+
+# Obtain the test directory of the package
+TEST_DIR = Path(__file__).parent
+
+# Directory with additional resources for the testing harness
+TEST_RESOURCES_DIR = TEST_DIR / "resources"
 
 
 @pytest.fixture()

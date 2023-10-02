@@ -5,9 +5,7 @@ from typing import Dict
 
 import jax.numpy as jnp
 import numpy as np
-from dcegm.pre_processing.process_functions import (
-    determine_function_arguments_and_partial_options,
-)
+from dcegm.pre_processing.utils import determine_function_arguments_and_partial_options
 
 
 def create_state_space_and_choice_objects(
@@ -177,14 +175,16 @@ def create_state_space(options):
             for endog_state_id in range(num_endog_states):
                 # Select the endogenous state combination
                 endog_states = add_endog_state_func(endog_state_id)
+
                 # Create the state vector without the exogenous processes
                 state_without_exog = [period, lagged_choice] + endog_states
-                # Transform to dictionary to call sparsity function, the user can
-                # provide
+
+                # Transform to dictionary to call sparsity function from user
                 state_dict_without_exog = {
                     states_names_without_exog[i]: state_value
                     for i, state_value in enumerate(state_without_exog)
                 }
+
                 # Check if the state is valid by calling the sparsity function
                 is_state_valid = sparsity_func(**state_dict_without_exog)
                 if not is_state_valid:

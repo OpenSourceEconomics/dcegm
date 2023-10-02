@@ -4,15 +4,14 @@ import numpy as np
 import pytest
 from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
 from dcegm.interpolation import linear_interpolation_with_extrapolation
-from dcegm.pre_processing.process_functions import (
-    determine_function_arguments_and_partial_options,
-)
+from dcegm.pre_processing.utils import determine_function_arguments_and_partial_options
 from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope
 from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope_wrapper
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
-from utils.fast_upper_envelope_org import fast_upper_envelope_wrapper_org
-from utils.upper_envelope_fedor import upper_envelope
+
+from tests.utils.fast_upper_envelope_org import fast_upper_envelope_wrapper_org
+from tests.utils.upper_envelope_fedor import upper_envelope
 
 # Obtain the test directory of the package.
 TEST_DIR = Path(__file__).parent

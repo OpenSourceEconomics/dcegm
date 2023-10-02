@@ -1,8 +1,6 @@
 from typing import Callable
 
-from dcegm.pre_processing.process_functions import (
-    determine_function_arguments_and_partial_options,
-)
+from dcegm.pre_processing.utils import determine_function_arguments_and_partial_options
 from jax import numpy as jnp
 
 

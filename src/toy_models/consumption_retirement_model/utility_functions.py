@@ -27,7 +27,6 @@ def utiility_func_log_crra(
             (n_quad_stochastic * n_grid_wealth,) or (n_grid_wealth,).
 
     """
-    # delta = params["delta"]
     return jnp.log(consumption) - (1 - choice) * params["delta"]
 
 
@@ -54,8 +53,6 @@ def utility_func_crra(
             (n_quad_stochastic * n_grid_wealth,) or (n_grid_wealth,).
 
     """
-    # theta = params["theta"]
-    # delta = params["delta"]
 
     utility_consumption = (consumption ** (1 - params["theta"]) - 1) / (
         1 - params["theta"]

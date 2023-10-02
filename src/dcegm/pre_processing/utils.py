@@ -36,4 +36,5 @@ def partial_options_and_addtional_arguments_and_update_signature(
     if additional_partial is not None:
         func = partial(func, **additional_partial)
         signature = signature - set(additional_partial.keys())
+
     return func, signature
