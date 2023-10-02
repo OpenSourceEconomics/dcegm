@@ -14,13 +14,6 @@ coverage:
       default:
         target: 90%
 ignore:
-  - .tox/**/*
   - setup.py
-  - src/dcegm/fast_upper_envelope.py
-  - tests/conftest.py
-  - tests/utils/upper_envelope_fedor.py
-  - tests/utils/fast_upper_envelope_org.py
-  - tests/test_two_periods_one_exog.py
-  - tests/test_two_periods_multiple_exog.py
-  - tests/test_process_model.py
-  - tests/test_state_space.py
+  - tests/**/*
+  - .tox/**/*
