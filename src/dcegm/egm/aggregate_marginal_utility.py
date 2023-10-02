@@ -3,7 +3,7 @@ from typing import Tuple
 import jax.numpy as jnp
 
 
-def aggregate_marg_utils_exp_values(
+def aggregate_marg_utils_and_exp_values(
     value_state_choice_specific: jnp.ndarray,
     marg_util_state_choice_specific: jnp.ndarray,
     reshape_state_choice_vec_to_mat: jnp.ndarray,

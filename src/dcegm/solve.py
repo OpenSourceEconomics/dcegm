@@ -7,12 +7,16 @@ import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 from dcegm.budget import calculate_resources
-from dcegm.egm import calculate_candidate_solutions_from_euler_equation
-from dcegm.final_period import solve_final_period
-from dcegm.interpolation import interpolate_and_calc_marginal_utilities
-from dcegm.marg_utilities_and_exp_value import (
-    aggregate_marg_utils_exp_values,
+from dcegm.egm.aggregate_marginal_utility import (
+    aggregate_marg_utils_and_exp_values,
 )
+from dcegm.egm.interpolate_marginal_utility import (
+    interpolate_value_and_calc_marginal_utility,
+)
+from dcegm.egm.solve_euler_equation import (
+    calculate_candidate_solutions_from_euler_equation,
+)
+from dcegm.final_period import solve_final_period
 from dcegm.pre_processing.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.process_model import (
     process_model_functions_and_create_state_space_objects,
@@ -271,8 +275,6 @@ def backward_induction(
     policy_left_state_choice = final_period_results["policy_left"]
     policy_right_state_choice = final_period_results["policy_right"]
 
-    # breakpoint()
-
     for period in range(n_periods - 2, -1, -1):
         state_objects = period_specific_state_objects[period]
 
@@ -280,26 +282,9 @@ def backward_induction(
             state_objects["idx_parent_states"]
         ]
 
-        # ToDo: reorder function arguments
-        _marg_util_interpolated, _value_interpolated = vmap(
-            interpolate_and_calc_marginal_utilities,
-            in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),
-        )(
-            compute_marginal_utility,
-            compute_utility,
-            state_objects["state_choice_mat"],  # state_vec and choice
-            resources_period,
-            endog_grid_state_choice,
-            policy_left_state_choice,
-            policy_right_state_choice,
-            value_state_choice,
-            params,
-        )
-        #
-
         # Aggregate the marginal utilities and expected values over all choices and
         # income shock draws
-        marg_util, emax = aggregate_marg_utils_exp_values(
+        marg_util, emax = aggregate_marg_utils_and_exp_values(
             value_state_choice_specific=value_interpolated,
             marg_util_state_choice_specific=marg_util_interpolated,
             reshape_state_choice_vec_to_mat=state_objects[
@@ -318,7 +303,7 @@ def backward_induction(
             exogenous_savings_grid=exog_savings_grid,
             marg_util=marg_util,
             emax=emax,
-            state_choice_vec=state_objects["state_choice_mat"],  # state_vec and choice
+            state_choice_vec=state_objects["state_choice_mat"],
             idx_post_decision_child_states=state_objects["idx_feasible_child_nodes"],
             compute_inverse_marginal_utility=compute_inverse_marginal_utility,
             compute_utility=compute_utility,
@@ -340,23 +325,19 @@ def backward_induction(
             policy_candidate,
             value_candidate,
             expected_values[:, 0],
-            state_objects["state_choice_mat"],  # state_vec and choice
+            state_objects["state_choice_mat"],
             params,
             compute_utility,
         )
 
-        # resources_period = resources_beginning_of_period[
-        #     state_objects["idx_parent_states"]
-        # ]
-
         # ToDo: reorder function arguments
         marg_util_interpolated, value_interpolated = vmap(
-            interpolate_and_calc_marginal_utilities,
+            interpolate_value_and_calc_marginal_utility,
             in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),
         )(
             compute_marginal_utility,
             compute_utility,
-            state_objects["state_choice_mat"],  # state_vec and choice
+            state_objects["state_choice_mat"],
             resources_period,
             endog_grid_state_choice,
             policy_left_state_choice,
