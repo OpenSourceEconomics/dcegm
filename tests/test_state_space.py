@@ -68,10 +68,6 @@ TEST_CASES = list(product(lagged_choices, n_periods, n_choices, n_exog_processes
     "lagged_choice, n_periods, n_choices, n_exog_states", TEST_CASES
 )
 def test_state_choice_set(lagged_choice, n_periods, n_choices, n_exog_states):
-    # _, map_state_to_state_space_index = expected_state_space_and_indexer(
-    #     n_periods, n_choices, n_exog_states
-    # )
-
     choice_set = get_state_specific_feasible_choice_set(
         lagged_choice=lagged_choice, options={"n_choices": n_choices}
     )
