@@ -185,7 +185,6 @@ def sparsity_condition(
         return False
     # Starting from resolution age, there is no more adding of policy states.
     elif policy_state > n_policy_states - 1:
-        # breakpoint()
         return False
     # If you have not worked last period, you can't have worked all your live
     elif (lagged_choice != 1) & (period == experience) & (period > 0):
