@@ -264,8 +264,9 @@ def span_subspace_and_read_information(subdict_of_space, states_names):
         all_states_values += [state_values]
 
     sub_state_space = np.array(
-        np.meshgrid(*all_states_values, indexing="ij")
+        np.meshgrid(*all_states_values, indexing="xy")
     ).T.reshape(-1, len(states_names))
+
     return sub_state_space, num_states_of_all_states
 
 
