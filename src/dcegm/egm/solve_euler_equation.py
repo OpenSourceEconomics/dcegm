@@ -120,7 +120,7 @@ def compute_optimal_policy_and_value(
     )
     endog_grid = exogenous_savings_grid + policy
 
-    utility = compute_utility(consumption=policy, params=params, *state_choice_vec)
+    utility = compute_utility(consumption=policy, params=params, **state_choice_vec)
     value = utility + params["beta"] * expected_value
 
     return endog_grid, policy, value, expected_value
@@ -163,9 +163,7 @@ def solve_euler_equation(
 
     """
 
-    transition_vec = compute_exog_transition_vec(
-        state_choice_vec=state_choice_vec, params=params
-    )
+    transition_vec = compute_exog_transition_vec(params=params, **state_choice_vec)
 
     # Integrate out uncertainty over exogenous processes
     marginal_utility = transition_vec @ marg_utils
@@ -177,7 +175,7 @@ def solve_euler_equation(
     policy = compute_inverse_marginal_utility(
         marginal_utility=rhs_euler,
         params=params,
-        *state_choice_vec,
+        **state_choice_vec,
     )
 
     return policy, expected_value

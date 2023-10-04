@@ -4,11 +4,9 @@ from typing import Callable
 from typing import Dict
 from typing import Tuple
 
-import numpy as np
-
 
 def solve_final_period_scalar(
-    state_choice_vec: np.ndarray,  # noqa: U100
+    choice: int,
     begin_of_period_resources: float,
     options: Dict[str, Any],
     params: Dict[str, float],
@@ -44,11 +42,13 @@ def solve_final_period_scalar(
     value = compute_utility(
         consumption=begin_of_period_resources,
         params=params,
-        *state_choice_vec,
+        choice=choice,
     )
 
     marginal_utility = compute_marginal_utility(
-        consumption=begin_of_period_resources, params=params, *state_choice_vec
+        consumption=begin_of_period_resources,
+        params=params,
+        choice=choice,
     )
 
     return marginal_utility, value, consumption

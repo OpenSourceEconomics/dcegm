@@ -11,9 +11,12 @@ import numpy as np
 import pytest
 from dcegm.interpolation import linear_interpolation_with_extrapolation
 from dcegm.interpolation import linear_interpolation_with_extrapolation_jax
-from dcegm.interpolation import linear_interpolation_with_inserting_missing_values
 from numpy.testing import assert_allclose
 from scipy.interpolate import interp1d
+
+from tests.utils.upper_envelope_fedor import (
+    linear_interpolation_with_inserting_missing_values,
+)
 
 
 @pytest.fixture()

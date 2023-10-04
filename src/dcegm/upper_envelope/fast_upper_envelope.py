@@ -14,8 +14,8 @@ from typing import Tuple
 import jax
 import jax.numpy as jnp
 import numpy as np
-from dcegm.math_funcs import calc_gradient
-from dcegm.math_funcs import calc_intersection_and_extrapolate_policy
+from dcegm.upper_envelope.math_funcs import calc_gradient
+from dcegm.upper_envelope.math_funcs import calc_intersection_and_extrapolate_policy
 from jax import vmap
 
 
@@ -27,7 +27,6 @@ def fast_upper_envelope_wrapper(
     state_choice_vec: jnp.ndarray,
     params: Dict[str, float],
     compute_utility: Callable,
-    # compute_value: Callable,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Drop suboptimal points and refines the endogenous grid, policy, and value.
 
@@ -130,7 +129,11 @@ def fast_upper_envelope_wrapper(
 def _compute_value(
     consumption, next_period_value, state_choice_vec, params, compute_utility
 ):
-    utility = compute_utility(consumption=consumption, params=params, *state_choice_vec)
+    utility = compute_utility(
+        consumption=consumption,
+        params=params,
+        **state_choice_vec,
+    )
     return utility + params["beta"] * next_period_value
 
 

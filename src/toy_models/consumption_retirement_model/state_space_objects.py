@@ -1,122 +1,10 @@
 """User-defined functions for creating state space objects."""
 from typing import Dict
-from typing import Tuple
 
 import numpy as np
 
 
-def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]:
-    """Create state space object and indexer.
-
-    We need to add the convention for the state space objects.
-
-    Args:
-        options (dict): Options dictionary.
-
-    Returns:
-        tuple:
-
-        - state_vars (list): List of state variables.
-        - state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
-            which serves as a collection of all possible states. By convention,
-            the first column must contain the period and the last column the
-            exogenous processes. Any other state variables are in between.
-            E.g. if the two state variables are period and lagged choice and all choices
-            are admissible in each period, the shape of the state space array is
-            (n_periods * n_choices, 3).
-        - map_state_to_index (np.ndarray): Indexer array that maps states to indexes.
-            The shape of this object is quite complicated. For each state variable it
-            has the number of possible states as rows, i.e.
-            (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
-
-    """
-    n_periods = len(options["endogenous_states"]["period"])
-    n_lagged_choices = len(options["choice"])
-    n_exog_states = sum(map(len, options["exogenous_states"].values()))
-
-    shape = (n_periods, n_lagged_choices, n_exog_states)
-
-    map_state_to_index = np.full(shape, -9999, dtype=np.int64)
-    _state_space = []
-
-    i = 0
-    for period in range(n_periods):
-        for lagged_choice in range(n_lagged_choices):
-            for exog_state in range(n_exog_states):
-                map_state_to_index[period, lagged_choice, exog_state] = i
-
-                row = [period, lagged_choice, exog_state]
-                _state_space.append(row)
-
-                i += 1
-
-    state_space = np.array(_state_space, dtype=np.int64)
-
-    return state_space, map_state_to_index
-
-
-def create_state_space_two_exog_processes(
-    options: Dict[str, int]
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Create state space object and indexer.
-
-    We need to add the convention for the state space objects.
-
-    Args:
-        options (dict): Options dictionary.
-
-    Returns:
-        tuple:
-
-        - state_vars (list): List of state variables.
-        - state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
-            which serves as a collection of all possible states. By convention,
-            the first column must contain the period and the last column the
-            exogenous processes. Any other state variables are in between.
-            E.g. if the two state variables are period and lagged choice and all choices
-            are admissible in each period, the shape of the state space array is
-            (n_periods * n_choices, 3).
-        - map_state_to_index (np.ndarray): Indexer array that maps states to indexes.
-            The shape of this object is quite complicated. For each state variable it
-            has the number of possible states as rows, i.e.
-            (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
-
-    """
-    n_periods = len(options["endogenous_states"]["period"])
-    n_lagged_choices = len(options["choice"])
-    n_exog_one = len(options["exogenous_states"]["lagged_ltc"])
-    n_exog_two = len(options["exogenous_states"]["lagged_job_offer"])
-
-    n_married = 2
-
-    shape = (
-        n_periods,
-        n_married,
-        n_lagged_choices,
-        n_exog_one * n_exog_two,
-    )
-
-    map_state_to_index = np.full(shape, -9999, dtype=np.int64)
-    _state_space = []
-
-    i = 0
-    for period in range(n_periods):
-        for married in range(n_married):
-            for lagged_choice in range(n_lagged_choices):
-                for lagged_exog in range(n_exog_one * n_exog_two):
-                    map_state_to_index[period, married, lagged_choice, lagged_exog] = i
-
-                    row = [period, married, lagged_choice, lagged_exog]
-                    _state_space.append(row)
-
-                    i += 1
-
-    state_space = np.array(_state_space, dtype=np.int64)
-
-    return state_space, map_state_to_index
-
-
-def update_state(state, choice):
+def update_state(period, choice, options):
     """Get endogenous state by state and choice.
 
     Args:
@@ -129,17 +17,15 @@ def update_state(state, choice):
             next period, where the endogenous part of the state is updated.
 
     """
-    state_next = state.copy()
 
-    state_next[0] += 1
-    state_next[1] = choice
+    state_next = {"period": period + 1, "lagged_choice": choice}
 
     return state_next
 
 
 def get_state_specific_feasible_choice_set(
-    state: np.ndarray,
-    map_state_to_state_space_index: np.ndarray,
+    lagged_choice: int,
+    options: Dict,
 ) -> np.ndarray:
     """Select state-specific feasible choice set.
 
@@ -165,11 +51,13 @@ def get_state_specific_feasible_choice_set(
 
     """
     # lagged_choice is a state variable
-    n_choices = map_state_to_state_space_index.shape[1]
+    n_choices = options["n_choices"]
+
+    # n_choices = len(options["state_space"]["choices"])
 
     # Once the agent choses retirement, she can only choose retirement thereafter.
     # Hence, retirement is an absorbing state.
-    if state[1] == 1:
+    if lagged_choice == 1:
         feasible_choice_set = np.array([1])
     else:
         feasible_choice_set = np.arange(n_choices)
