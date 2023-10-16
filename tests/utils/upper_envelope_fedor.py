@@ -11,7 +11,6 @@ from typing import Tuple
 
 import numpy as np
 from dcegm.interpolation import linear_interpolation_with_extrapolation
-from dcegm.interpolation import linear_interpolation_with_inserting_missing_values
 from scipy.optimize import brenth as root
 
 eps = 2.2204e-16
@@ -21,9 +20,9 @@ def upper_envelope(
     policy: np.ndarray,
     value: np.ndarray,
     exog_grid: np.ndarray,
-    choice: int,
+    state_choice_vec: np.ndarray,
     params: Dict[str, float],
-    compute_value: Callable,
+    compute_utility: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Runs the Upper Envelope algorithm and drops sub-optimal points.
     Calculates the upper envelope over the overlapping segments of the
@@ -94,12 +93,12 @@ def upper_envelope(
         policy, value = _augment_grid(
             policy,
             value,
-            choice,
+            state_choice_vec,
             expected_value_zero_wealth,
             min_wealth_grid,
             n_grid_wealth,
             params,
-            compute_value,
+            compute_utility=compute_utility,
         )
         segments_non_mono = locate_non_concave_regions(value)
 
@@ -531,12 +530,12 @@ def refine_policy(
 def _augment_grid(
     policy: np.ndarray,
     value: np.ndarray,
-    choice,
+    state_choice_vec: np.ndarray,
     expected_value_zero_wealth: np.ndarray,
     min_wealth_grid: float,
     n_grid_wealth: int,
     params,
-    compute_value: Callable,
+    compute_utility: Callable,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Extends the endogenous wealth grid, value, and policy function to the left.
 
@@ -569,12 +568,17 @@ def _augment_grid(
             Shape (2, *n_grid_augmented*).
 
     """
+
     grid_points_to_add = np.linspace(min_wealth_grid, value[0, 1], n_grid_wealth // 10)[
         :-1
     ]
-    values_to_add = compute_value(
-        grid_points_to_add, expected_value_zero_wealth, choice, params
+
+    utility = compute_utility(
+        consumption=grid_points_to_add,
+        params=params,
+        **state_choice_vec,
     )
+    values_to_add = utility + params["beta"] * expected_value_zero_wealth
 
     value_augmented = np.vstack(
         [
@@ -643,3 +647,28 @@ def _subtract_values(grid_point: float, first_segment, second_segment):
     diff_values_segments = values_first_segment - values_second_segment
 
     return diff_values_segments
+
+
+def linear_interpolation_with_inserting_missing_values(x, y, x_new, missing_value):
+    """Linear interpolation with inserting missing values.
+
+    Args:
+        x (np.ndarray): 1d array of shape (n,) containing the x-values.
+        y (np.ndarray): 1d array of shape (n,) containing the y-values
+            corresponding to the x-values.
+        x_new (np.ndarray or float): 1d array of shape (m,) or float containing
+            the new x-values at which to evaluate the interpolation function.
+        missing_value (np.ndarray or float): Flat array of shape (1,) or float
+            to set for values of x_new outside of the range of x.
+
+    Returns:
+        np.ndarray or float: 1d array of shape (m,) or float containing the
+            new y-values corresponding to the new x-values.
+            In case x_new contains values outside of the range of x, these
+            values are set equal to missing_value.
+
+    """
+    interpol_res = linear_interpolation_with_extrapolation(x, y, x_new)
+    where_to_miss = (x_new < x.min()) | (x_new > x.max())
+    interpol_res[where_to_miss] = missing_value
+    return interpol_res

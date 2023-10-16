@@ -2,7 +2,7 @@ from itertools import product
 
 import numpy as np
 import pytest
-from dcegm.pre_processing import convert_params_to_dict
+from dcegm.pre_processing.model_functions import process_params
 from numpy.testing import assert_array_almost_equal as aaae
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
@@ -10,10 +10,6 @@ from toy_models.consumption_retirement_model.budget_functions import (
     _calc_stochastic_income,
 )
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
-
-# ======================================================================================
-# next_period_wealth_matrices
-# ======================================================================================
 
 model = ["deaton", "retirement_taste_shocks", "retirement_no_taste_shocks"]
 labor_choice = [0, 1]
@@ -27,21 +23,20 @@ TEST_CASES = list(product(model, period, labor_choice, max_wealth, n_grid_points
 @pytest.mark.parametrize(
     "model, period, labor_choice, max_wealth, n_grid_points", TEST_CASES
 )
-def test_get_next_period_wealth_matrices(
+def test_get_beginning_of_period_wealth(
     model, period, labor_choice, max_wealth, n_grid_points, load_example_model
 ):
     params, options = load_example_model(f"{model}")
 
-    params_dict = convert_params_to_dict(params)
+    params = process_params(params)
 
-    sigma = params_dict["sigma"]
-    r = params_dict["interest_rate"]
-    consump_floor = params_dict["consumption_floor"]
+    sigma = params["sigma"]
+    r = params["interest_rate"]
+    consump_floor = params["consumption_floor"]
 
     n_quad_points = options["quadrature_points_stochastic"]
-    options["grid_points_wealth"] = n_grid_points
 
-    child_state = np.array([period, labor_choice])
+    child_state_dict = {"period": period, "lagged_choice": labor_choice}
     savings_grid = np.linspace(0, max_wealth, n_grid_points)
 
     _quad_points, _ = roots_sh_legendre(n_quad_points)
@@ -50,21 +45,22 @@ def test_get_next_period_wealth_matrices(
     random_saving_scalar = np.random.randint(0, n_grid_points)
     random_shock_scalar = np.random.randint(0, n_quad_points)
 
-    wealth_next_period = budget_constraint(
-        child_state,
+    wealth_beginning_of_period = budget_constraint(
+        **child_state_dict,
         savings_end_of_previous_period=savings_grid[random_saving_scalar],
         income_shock_previous_period=quad_points[random_shock_scalar],
-        params=params_dict,
         options=options,
+        params=params,
     )
 
-    _income = _calc_stochastic_income(
-        child_state,
+    _labor_income = _calc_stochastic_income(
+        **child_state_dict,
         wage_shock=quad_points[random_shock_scalar],
-        params=params_dict,
-        options=options,
+        min_age=options["min_age"],
+        constant=params["constant"],
+        exp=params["exp"],
+        exp_squared=params["exp_squared"],
     )
+    budget_expected = (1 + r) * savings_grid[random_saving_scalar] + _labor_income
 
-    budget_expected = (1 + r) * savings_grid[random_saving_scalar] + _income
-
-    aaae(wealth_next_period, max(consump_floor, budget_expected))
+    aaae(wealth_beginning_of_period, max(consump_floor, budget_expected))

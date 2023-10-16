@@ -63,7 +63,7 @@ repos:
       - id: ruff
         exclude: |
           (?x)^(
-            tests/sandbox/|
+            tests/|
             docs/source/conf.py|
           )$
   - repo: https://github.com/PyCQA/docformatter

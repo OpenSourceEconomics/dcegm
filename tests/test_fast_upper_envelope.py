@@ -1,20 +1,17 @@
-from functools import partial
 from pathlib import Path
 
 import numpy as np
 import pytest
-from dcegm.fast_upper_envelope import fast_upper_envelope
-from dcegm.fast_upper_envelope import fast_upper_envelope_wrapper
 from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
 from dcegm.interpolation import linear_interpolation_with_extrapolation
-from dcegm.pre_processing import calc_current_value
-from jax import config
+from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
+from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope
+from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope_wrapper
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
-from utils.fast_upper_envelope_org import fast_upper_envelope_wrapper_org
-from utils.upper_envelope_fedor import upper_envelope
 
-config.update("jax_enable_x64", True)
+from tests.utils.fast_upper_envelope_org import fast_upper_envelope_wrapper_org
+from tests.utils.upper_envelope_fedor import upper_envelope
 
 # Obtain the test directory of the package.
 TEST_DIR = Path(__file__).parent
@@ -25,23 +22,34 @@ TEST_RESOURCES_DIR = TEST_DIR / "resources"
 
 @pytest.fixture
 def setup_model():
-    choice = 0
     max_wealth = 50
     n_grid_wealth = 500
     exog_savings_grid = np.linspace(0, max_wealth, n_grid_wealth)
 
-    params_dict = {}
-    params_dict["beta"] = 0.95  # discount_factor
-    params_dict["theta"] = 1.95
-    params_dict["delta"] = 0.35
+    params = {}
+    params["beta"] = 0.95  # discount_factor
+    params["theta"] = 1.95
+    params["delta"] = 0.35
 
-    compute_utility = utility_func_crra
-    compute_value = partial(
-        calc_current_value,
-        compute_utility=compute_utility,
+    options = {
+        "state_space": {
+            "endogenous_states": {
+                "period": np.arange(2),
+                "lagged_choice": [0, 1],
+            },
+            "choice": [0, 1],
+        },
+        "model_params": {"min_age": 50, "max_age": 80, "n_periods": 25, "n_choices": 2},
+    }
+
+    state_choice_vars = {"lagged_choice": 0, "choice": 0}
+
+    options["state_space"]["exogenous_states"] = {"exog_state": [0]}
+    compute_utility = determine_function_arguments_and_partial_options(
+        utility_func_crra, options=options
     )
 
-    return params_dict, choice, exog_savings_grid, compute_value
+    return params, exog_savings_grid, state_choice_vars, compute_utility
 
 
 @pytest.mark.parametrize("period", [2, 4, 9, 10, 18])
@@ -66,7 +74,7 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
         ~np.isnan(value_refined_fedor).any(axis=0),
     ]
 
-    params_dict, choice, _exog_savings_grid, compute_value = setup_model
+    params, _exog_savings_grid, state_choice_vars, compute_utility = setup_model
 
     (
         endog_grid_refined,
@@ -78,9 +86,9 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
         policy=policy_egm[1, 1:],
         value=value_egm[1, 1:],
         expected_value_zero_savings=value_egm[1, 0],
-        choice=choice,
-        params=params_dict,
-        compute_value=compute_value,
+        state_choice_vec=state_choice_vars,
+        params=params,
+        compute_utility=compute_utility,
     )
 
     wealth_max_to_test = np.max(endog_grid_refined[~np.isnan(endog_grid_refined)]) + 100
@@ -116,7 +124,7 @@ def test_fast_upper_envelope_against_org_fues(setup_model):
     value_egm = np.genfromtxt(
         TEST_RESOURCES_DIR / "period_tests/val10.csv", delimiter=","
     )
-    _params_dict, choice, exog_savings_grid, compute_value = setup_model
+    _params, exog_savings_grid, state_choice_vars, compute_utility = setup_model
 
     (
         endog_grid_refined,
@@ -136,8 +144,8 @@ def test_fast_upper_envelope_against_org_fues(setup_model):
         policy=policy_egm[1],
         value=value_egm[1],
         exog_grid=exog_savings_grid,
-        choice=choice,
-        compute_value=compute_value,
+        choice=state_choice_vars["choice"],
+        compute_utility=compute_utility,
     )
 
     endog_grid_expected = endog_grid_org[~np.isnan(endog_grid_org)]
@@ -158,15 +166,15 @@ def test_fast_upper_envelope_against_fedor(period, setup_model):
         TEST_RESOURCES_DIR / f"period_tests/pol{period}.csv", delimiter=","
     )
 
-    params_dict, choice, exog_savings_grid, compute_value = setup_model
+    params, exog_savings_grid, state_choice_vec, compute_utility = setup_model
 
     _policy_fedor, _value_fedor = upper_envelope(
         policy=policy_egm,
         value=value_egm,
         exog_grid=exog_savings_grid,
-        choice=choice,
-        params=params_dict,
-        compute_value=compute_value,
+        state_choice_vec=state_choice_vec,
+        params=params,
+        compute_utility=compute_utility,
     )
     policy_expected = _policy_fedor[:, ~np.isnan(_policy_fedor).any(axis=0)]
     value_expected = _value_fedor[
@@ -184,9 +192,9 @@ def test_fast_upper_envelope_against_fedor(period, setup_model):
         policy=policy_egm[1, 1:],
         value=value_egm[1, 1:],
         expected_value_zero_savings=value_egm[1, 0],
-        choice=choice,
-        params=params_dict,
-        compute_value=compute_value,
+        state_choice_vec=state_choice_vec,
+        params=params,
+        compute_utility=compute_utility,
     )
     wealth_max_to_test = np.max(endog_grid_calc[~np.isnan(endog_grid_calc)]) + 100
     wealth_grid_to_test = np.linspace(endog_grid_calc[1], wealth_max_to_test, 1000)

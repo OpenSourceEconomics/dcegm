@@ -1,4 +1,4 @@
-from dcegm.integration import quadrature_hermite
+from dcegm.numerical_integration import quadrature_hermite
 from numpy.testing import assert_allclose
 
 

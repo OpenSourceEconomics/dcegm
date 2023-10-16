@@ -8,7 +8,7 @@ import pytest
 import yaml
 from jax import config
 
-# Obtain the test directory of the package.
+# Obtain the test directory of the package
 TEST_DIR = Path(__file__).parent
 
 # Directory with additional resources for the testing harness

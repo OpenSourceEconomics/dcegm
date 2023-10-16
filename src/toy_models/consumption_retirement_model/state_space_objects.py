@@ -1,62 +1,31 @@
 """User-defined functions for creating state space objects."""
 from typing import Dict
-from typing import Tuple
 
 import numpy as np
 
 
-def create_state_space(options: Dict[str, int]) -> Tuple[np.ndarray, np.ndarray]:
-    """Create state space object and indexer.
-
-    We need to add the convention for the state space objects.
+def update_state(period, choice, options):
+    """Get endogenous state by state and choice.
 
     Args:
-        options (dict): Options dictionary.
+        state (np.ndarray): 1d array of shape (n_state_vars,) containing the
+            current state.
+        choice (int): Choice to be made at the end of the period.
 
     Returns:
-        tuple:
-
-        - state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
-            which serves as a collection of all possible states. By convention,
-            the first column must contain the period and the last column the
-            exogenous processes. Any other state variables are in between.
-            E.g. if the two state variables are period and lagged choice and all choices
-            are admissible in each period, the shape of the state space array is
-            (n_periods * n_choices, 3).
-        - map_state_to_index (np.ndarray): Indexer array that maps states to indexes.
-            The shape of this object is quite complicated. For each state variable it
-            has the number of possible states as rows, i.e.
-            (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
+        np.ndarray: 1d array of shape (n_state_vars,) containing the state of the
+            next period, where the endogenous part of the state is updated.
 
     """
-    n_periods = options["n_periods"]
-    n_choices = options["n_discrete_choices"]  # lagged_choice is a state variable
-    n_exog_states = options["n_exog_states"]
 
-    shape = (n_periods, n_choices, n_exog_states)
+    state_next = {"period": period + 1, "lagged_choice": choice}
 
-    map_state_to_index = np.full(shape, -9999, dtype=np.int64)
-    _state_space = []
-
-    i = 0
-    for period in range(n_periods):
-        for choice in range(n_choices):
-            for exog_process in range(n_exog_states):
-                map_state_to_index[period, choice, exog_process] = i
-
-                row = [period, choice, exog_process]
-                _state_space.append(row)
-
-                i += 1
-
-    state_space = np.array(_state_space, dtype=np.int64)
-
-    return state_space, map_state_to_index
+    return state_next
 
 
 def get_state_specific_feasible_choice_set(
-    state: np.ndarray,
-    map_state_to_state_space_index: np.ndarray,
+    lagged_choice: int,
+    options: Dict,
 ) -> np.ndarray:
     """Select state-specific feasible choice set.
 
@@ -82,34 +51,15 @@ def get_state_specific_feasible_choice_set(
 
     """
     # lagged_choice is a state variable
-    n_choices = map_state_to_state_space_index.shape[1]
+    n_choices = options["n_choices"]
+
+    # n_choices = len(options["state_space"]["choices"])
 
     # Once the agent choses retirement, she can only choose retirement thereafter.
     # Hence, retirement is an absorbing state.
-    if state[1] == 1:
+    if lagged_choice == 1:
         feasible_choice_set = np.array([1])
     else:
         feasible_choice_set = np.arange(n_choices)
 
     return feasible_choice_set
-
-
-def update_state(state, choice):
-    """Get endogenous state by state and choice.
-
-    Args:
-        state (np.ndarray): 1d array of shape (n_state_vars,) containing the
-            current state.
-        choice (int): Choice to be made at the end of the period.
-
-    Returns:
-        np.ndarray: 1d array of shape (n_state_vars,) containing the state of the
-            next period, where the endogenous part of the state is updated.
-
-    """
-    state_next = state.copy()
-
-    state_next[0] += 1
-    state_next[1] = choice
-
-    return state_next
