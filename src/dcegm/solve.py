@@ -19,7 +19,7 @@ from dcegm.egm.solve_euler_equation import (
 from dcegm.final_period import solve_final_period
 from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.model_functions import process_model_functions
-from dcegm.pre_processing.model_functions import process_params
+from dcegm.pre_processing.params import process_params
 from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
 from jax import jit
 from jax import vmap

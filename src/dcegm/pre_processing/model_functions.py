@@ -1,14 +1,10 @@
 from typing import Callable
 from typing import Dict
-from typing import Union
 
 import jax.numpy as jnp
-import pandas as pd
 from dcegm.pre_processing.exog_processes import create_exog_transition_function
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope_wrapper
-from pybaum import get_registry
-from pybaum import tree_flatten
 
 
 def process_model_functions(
@@ -120,55 +116,6 @@ def process_model_functions(
         get_state_specific_choice_set,
         update_endog_state_by_state_and_choice,
     )
-
-
-def process_params(params: Union[dict, pd.Series, pd.DataFrame]) -> Dict[str, float]:
-    """Transforms params DataFrame into a dictionary.
-
-    Checks if given params contains beta, taste shock scale, interest rate
-    and discount factor.
-
-    Args:
-        params (dict or tuple or pandas.Series or pandas.DataFrame): Model parameters
-            Support tuple and list as well?
-
-    Returns:
-        dict: Dictionary of model parameters.
-
-    """
-
-    if isinstance(params, (pd.Series, pd.DataFrame)):
-        params = _convert_params_to_dict(params)
-
-    if "interest_rate" not in params:
-        params["interest_rate"] = 0
-    if "lambda" not in params:
-        params["lambda"] = 0
-    if "sigma" not in params:
-        params["sigma"] = 0
-    if "beta" not in params:
-        raise ValueError("beta must be provided in params.")
-
-    return params
-
-
-def _convert_params_to_dict(params: Union[pd.Series, pd.DataFrame]):
-    """Converts params to dictionary."""
-    _registry = get_registry(
-        types=[
-            "dict",
-            "pandas.Series",
-            "pandas.DataFrame",
-        ],
-        include_defaults=False,
-    )
-    # {level: df.xs(level).to_dict('index') for level in df.index.levels[0]}
-    _params, _treedef = tree_flatten(params, registry=_registry)
-    values = [i for i in _params if isinstance(i, (int, float))]
-    keys = _treedef.index.get_level_values(_treedef.index.names[-1]).tolist()
-    params_dict = dict(zip(keys, values))
-
-    return params_dict
 
 
 def _return_policy_and_value(
