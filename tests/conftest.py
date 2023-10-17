@@ -12,7 +12,7 @@ from jax import config
 TEST_DIR = Path(__file__).parent
 
 # Directory with additional resources for the testing harness
-TEST_RESOURCES_DIR = TEST_DIR / "resources"
+REPLICATION_TEST_RESOURCES_DIR = TEST_DIR / "resources" / "replication_tests"
 
 # Add the utils directory to the path so that we can import helper functions.
 sys.path.append(os.path.join(os.path.dirname(__file__), "utils"))
@@ -23,9 +23,12 @@ def load_example_model():
     def load_options_and_params(model):
         """Return parameters and options of an example model."""
         params = pd.read_csv(
-            TEST_RESOURCES_DIR / f"{model}.csv", index_col=["category", "name"]
+            REPLICATION_TEST_RESOURCES_DIR / f"{model}.csv",
+            index_col=["category", "name"],
         )
-        options = yaml.safe_load((TEST_RESOURCES_DIR / f"{model}.yaml").read_text())
+        options = yaml.safe_load(
+            (REPLICATION_TEST_RESOURCES_DIR / f"{model}.yaml").read_text()
+        )
         return params, options
 
     return load_options_and_params

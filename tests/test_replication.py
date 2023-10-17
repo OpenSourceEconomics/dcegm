@@ -34,7 +34,7 @@ from toy_models.consumption_retirement_model.utility_functions import utility_fu
 TEST_DIR = Path(__file__).parent
 
 # Directory with additional resources for the testing harness
-TEST_RESOURCES_DIR = TEST_DIR / "resources"
+REPLICATION_TEST_RESOURCES_DIR = TEST_DIR / "resources" / "replication_tests"
 
 
 @pytest.fixture()
@@ -122,9 +122,11 @@ def test_benchmark_models(
     )
 
     policy_expected = pickle.load(
-        (TEST_RESOURCES_DIR / f"policy_{model}.pkl").open("rb")
+        (REPLICATION_TEST_RESOURCES_DIR / f"policy_{model}.pkl").open("rb")
     )
-    value_expected = pickle.load((TEST_RESOURCES_DIR / f"value_{model}.pkl").open("rb"))
+    value_expected = pickle.load(
+        (REPLICATION_TEST_RESOURCES_DIR / f"value_{model}.pkl").open("rb")
+    )
 
     for period in range(23, -1, -1):
         period_state_choice_dict = period_specific_state_objects[period][
