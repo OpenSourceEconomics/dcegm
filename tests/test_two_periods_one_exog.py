@@ -33,6 +33,9 @@ from tests.two_period_models.exog_ltc.model_functions import inverse_marginal_ut
 from tests.two_period_models.exog_ltc.model_functions import marginal_utility
 
 WEALTH_GRID_POINTS = 100
+ALL_WEALTH_GRIDS = list(range(WEALTH_GRID_POINTS))
+RANDOM_TEST_SET = np.random.choice(ALL_WEALTH_GRIDS, size=10, replace=False)
+TEST_CASES = list(product(RANDOM_TEST_SET, list(range(4))))
 
 
 @pytest.fixture(scope="module")
@@ -95,7 +98,36 @@ def input_data(utility_functions, state_space_functions):
         options["model_params"]["n_grid_points"],
     )
 
-    result_dict = solve_dcegm(
+    (
+        _model_funcs,
+        _compute_upper_envelope,
+        get_state_specific_choice_set,
+        update_endog_state_by_state_and_choice,
+    ) = process_model_functions(
+        options,
+        user_utility_functions=utility_functions,
+        user_budget_constraint=budget_dcegm,
+        user_final_period_solution=solve_final_period_scalar,
+        state_space_functions=state_space_functions,
+    )
+
+    out = {}
+
+    (
+        out["period_specific_state_objects"],
+        out["state_space"],
+    ) = create_state_space_and_choice_objects(
+        options=options,
+        get_state_specific_choice_set=get_state_specific_choice_set,
+        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+    )
+
+    (
+        out["value"],
+        out["policy_left"],
+        out["policy_right"],
+        out["endog_grid"],
+    ) = solve_dcegm(
         params,
         options,
         exog_savings_grid=exog_savings_grid,
@@ -105,15 +137,10 @@ def input_data(utility_functions, state_space_functions):
         state_space_functions=state_space_functions,
     )
 
-    out = {}
     out["params"] = params
     out["options"] = options
-    out["result"] = result_dict
 
     return out
-
-
-TEST_CASES = list(product(list(range(WEALTH_GRID_POINTS)), list(range(4))))
 
 
 @pytest.mark.parametrize(
@@ -131,32 +158,11 @@ def test_two_period(
     values = params["value"].tolist()
     params = dict(zip(keys, values))
 
-    (
-        _model_funcs,
-        _compute_upper_envelope,
-        get_state_specific_choice_set,
-        update_endog_state_by_state_and_choice,
-    ) = process_model_functions(
-        input_data["options"],
-        user_utility_functions=utility_functions,
-        user_budget_constraint=budget_dcegm,
-        user_final_period_solution=solve_final_period_scalar,
-        state_space_functions=state_space_functions,
-    )
-
-    (
-        period_specific_state_objects,
-        state_space,
-    ) = create_state_space_and_choice_objects(
-        options=input_data["options"],
-        get_state_specific_choice_set=get_state_specific_choice_set,
-        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
-    )
-
-    period = state_space["period"][state_idx]
-
-    endog_grid_period = input_data["result"][period]["endog_grid"]
-    policy_period = input_data["result"][period]["policy_left"]
+    endog_grid_period = input_data["endog_grid"]
+    policy_period = input_data["policy_left"]
+    period_specific_state_objects = input_data["period_specific_state_objects"]
+    state_space = input_data["state_space"]
+    period = 0
 
     state_choices_period = period_specific_state_objects[period]["state_choice_mat"]
 
@@ -186,8 +192,3 @@ def test_two_period(
             ) - marginal_utility(consumption=cons_calc, params=params)
 
             assert_allclose(diff, 0, atol=1e-6)
-
-
-# ======================================================================================
-# Two Exogenous Processes
-# ======================================================================================

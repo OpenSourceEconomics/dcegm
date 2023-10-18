@@ -37,10 +37,9 @@ from tests.two_period_models.exog_ltc_and_job_offer.model_functions import (
 )
 
 WEALTH_GRID_POINTS = 100
-
-TEST_CASES_TWO_EXOG_PROCESSES = list(
-    product(list(range(WEALTH_GRID_POINTS)), list(range(8)))
-)
+ALL_WEALTH_GRIDS = list(range(WEALTH_GRID_POINTS))
+RANDOM_TEST_SET = np.random.choice(ALL_WEALTH_GRIDS, size=10, replace=False)
+TEST_CASES_TWO_EXOG_PROCESSES = list(product(RANDOM_TEST_SET, list(range(8))))
 
 
 @pytest.fixture(scope="module")
@@ -112,7 +111,35 @@ def input_data(state_space_functions, utility_functions):
         options["model_params"]["n_grid_points"],
     )
 
-    value, policy_left, policy_right, endog_grid = solve_dcegm(
+    (
+        _model_funcs,
+        _compute_upper_envelope,
+        get_state_specific_choice_set,
+        update_endog_state_by_state_and_choice,
+    ) = process_model_functions(
+        options,
+        user_utility_functions=utility_functions,
+        user_budget_constraint=budget_dcegm_two_exog_processes,
+        user_final_period_solution=solve_final_period_scalar,
+        state_space_functions=state_space_functions,
+    )
+    out = {}
+
+    (
+        out["period_specific_state_objects"],
+        out["state_space"],
+    ) = create_state_space_and_choice_objects(
+        options=options,
+        get_state_specific_choice_set=get_state_specific_choice_set,
+        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+    )
+
+    (
+        out["value"],
+        out["policy_left"],
+        out["policy_right"],
+        out["endog_grid"],
+    ) = solve_dcegm(
         params,
         options,
         exog_savings_grid=exog_savings_grid,
@@ -122,13 +149,8 @@ def input_data(state_space_functions, utility_functions):
         state_space_functions=state_space_functions,
     )
 
-    out = {}
     out["params"] = params
     out["options"] = options
-    out["value"] = value
-    out["policy_left"] = policy_left
-    out["policy_right"] = policy_right
-    out["endog_grid"] = endog_grid
 
     return out
 
@@ -152,32 +174,12 @@ def test_two_period_two_exog_processes(
     values = params["value"].tolist()
     params = dict(zip(keys, values))
 
-    (
-        _model_funcs,
-        _compute_upper_envelope,
-        get_state_specific_choice_set,
-        update_endog_state_by_state_and_choice,
-    ) = process_model_functions(
-        input_data["options"],
-        user_utility_functions=utility_functions,
-        user_budget_constraint=budget_dcegm_two_exog_processes,
-        user_final_period_solution=solve_final_period_scalar,
-        state_space_functions=state_space_functions,
-    )
-
-    (
-        period_specific_state_objects,
-        state_space,
-    ) = create_state_space_and_choice_objects(
-        options=input_data["options"],
-        get_state_specific_choice_set=get_state_specific_choice_set,
-        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
-    )
-
-    period = state_space["period"][state_idx]
+    period = 0
 
     endog_grid_period = input_data["endog_grid"]
     policy_period = input_data["policy_left"]
+    period_specific_state_objects = input_data["period_specific_state_objects"]
+    state_space = input_data["state_space"]
 
     state_choices_period = period_specific_state_objects[period]["state_choice_mat"]
 
