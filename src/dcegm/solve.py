@@ -260,11 +260,6 @@ def backward_induction(
     results = {}
     results[n_periods - 1] = final_period_results
 
-    endog_grid_state_choice = final_period_results["endog_grid"]
-    value_state_choice = final_period_results["value"]
-    policy_left_state_choice = final_period_results["policy_left"]
-    policy_right_state_choice = final_period_results["policy_right"]
-
     for period in range(n_periods - 2, -1, -1):
         state_objects = period_specific_state_objects[period]
 
