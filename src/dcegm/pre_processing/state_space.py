@@ -416,7 +416,7 @@ def create_state_choice_space(
     reshape_state_choice_vec_to_mat = np.zeros((n_states, n_choices), dtype=int)
     map_state_choice_to_index = np.full(
         shape=(map_state_to_state_space_index.shape + (n_choices,)),
-        fill_value=-9999,
+        fill_value=-n_states * n_choices,
         dtype=int,
     )
 
