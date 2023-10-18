@@ -2,6 +2,7 @@ from typing import Callable
 from typing import Dict
 from typing import Tuple
 
+import numpy as np
 from dcegm.interpolation import get_index_high_and_low
 from dcegm.interpolation import interpolate_policy_and_value
 from jax import numpy as jnp
@@ -11,7 +12,7 @@ from jax import vmap
 def interpolate_value_and_calc_marginal_utility(
     compute_marginal_utility: Callable,
     compute_utility: Callable,
-    state_choice_vec: jnp.ndarray,
+    state_choice_vec: np.ndarray,
     wealth_beginning_of_period: jnp.ndarray,
     endog_grid_child_state_choice: jnp.ndarray,
     policy_left_child_state_choice: jnp.ndarray,

@@ -10,10 +10,10 @@ from jax import vmap
 
 def calculate_candidate_solutions_from_euler_equation(
     exogenous_savings_grid: np.ndarray,
-    marg_util: np.ndarray,
-    emax: np.ndarray,
+    marg_util: jnp.ndarray,
+    emax: jnp.ndarray,
     state_choice_vec: np.ndarray,
-    idx_post_decision_child_states: jnp.ndarray,
+    idx_post_decision_child_states: np.ndarray,
     compute_utility: Callable,
     compute_inverse_marginal_utility: Callable,
     compute_exog_transition_vec: Callable,

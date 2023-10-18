@@ -105,13 +105,14 @@ def test_benchmark_models(
     (
         period_specific_state_objects,
         _state_space,
+        map_state_choice_to_index,
     ) = create_state_space_and_choice_objects(
         options=options,
         get_state_specific_choice_set=get_state_specific_choice_set,
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
-    result_dict = solve_dcegm(
+    value, policy_left, policy_right, endog_grid = solve_dcegm(
         params,
         options,
         exog_savings_grid=exog_savings_grid,
@@ -133,12 +134,9 @@ def test_benchmark_models(
             "state_choice_mat"
         ]
 
-        endog_grid_got = result_dict[period]["endog_grid"]
-        policy_left_got = result_dict[period]["policy_left"]
-        policy_right_got = result_dict[period]["policy_right"]
-        value_got = result_dict[period]["value"]
-
-        for state_choice_idx, choice in enumerate(period_state_choice_dict["choice"]):
+        for state_choice_idx_period, choice in enumerate(
+            period_state_choice_dict["choice"]
+        ):
             if model == "deaton":
                 policy_expec = policy_expected[period, choice]
                 value_expec = value_expected[period, choice]
@@ -157,15 +155,22 @@ def test_benchmark_models(
                 x_new=wealth_grid_to_test, x=policy_expec[0], y=policy_expec[1]
             )
 
+            state_choice_tuple = (
+                period_state_choice_dict["period"][state_choice_idx_period],
+                period_state_choice_dict["lagged_choice"][state_choice_idx_period],
+                period_state_choice_dict["dummy_exog"][state_choice_idx_period],
+                choice,
+            )
+            state_choice_idx = map_state_choice_to_index[state_choice_tuple]
             (
                 policy_calc_interp,
                 value_calc_interp,
             ) = interpolate_policy_and_value_on_wealth_grid(
                 wealth_beginning_of_period=wealth_grid_to_test,
-                endog_wealth_grid=endog_grid_got[state_choice_idx],
-                policy_left_grid=policy_left_got[state_choice_idx],
-                policy_right_grid=policy_right_got[state_choice_idx],
-                value_grid=value_got[state_choice_idx],
+                endog_wealth_grid=endog_grid[state_choice_idx],
+                policy_left_grid=policy_left[state_choice_idx],
+                policy_right_grid=policy_right[state_choice_idx],
+                value_grid=value[state_choice_idx],
             )
 
             aaae(policy_expec_interp, policy_calc_interp)

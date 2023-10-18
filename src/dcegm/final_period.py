@@ -3,13 +3,14 @@ from typing import Dict
 from typing import Tuple
 
 import jax.numpy as jnp
+import numpy as np
 from jax import vmap
 
 """Wrapper function to solve the final period of the model."""
 
 
 def solve_final_period(
-    state_objects_final_period: Dict[str, jnp.ndarray],
+    state_objects_final_period: Dict[str, np.ndarray],
     compute_final_period: Callable,
     resources_beginning_of_period: jnp.ndarray,
     params: Dict[str, float],

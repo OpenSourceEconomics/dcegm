@@ -122,8 +122,9 @@ def _return_policy_and_value(
     endog_grid, policy, value, expected_value_zero_savings, *args
 ):
     """This is a dummy function for the case of only one discrete choice."""
-    endog_grid = jnp.append(0, endog_grid)
-    policy = jnp.append(0, policy)
-    value = jnp.append(expected_value_zero_savings, value)
+    nans_to_append = jnp.full(int(0.2 * endog_grid.shape[0]) - 1, jnp.nan)
+    endog_grid = jnp.append(jnp.append(0, endog_grid), nans_to_append)
+    policy = jnp.append(jnp.append(0, policy), nans_to_append)
+    value = jnp.append(jnp.append(expected_value_zero_savings, value), nans_to_append)
 
     return endog_grid, policy, policy, value
