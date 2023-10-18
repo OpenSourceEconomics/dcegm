@@ -2,6 +2,7 @@
 from functools import partial
 from typing import Callable
 from typing import Dict
+from typing import Tuple
 
 import jax.numpy as jnp
 import numpy as np
@@ -27,7 +28,7 @@ from jax import vmap
 
 def solve_dcegm(
     params: pd.DataFrame,
-    options: Dict[str, int],
+    options: Dict,
     exog_savings_grid: jnp.ndarray,
     utility_functions: Dict[str, Callable],
     budget_constraint: Callable,
@@ -162,15 +163,15 @@ def get_solve_function(
 
 def backward_induction(
     params: Dict[str, float],
-    period_specific_state_objects: Dict[int, np.ndarray],
+    period_specific_state_objects: Dict[int, Dict[str, jnp.ndarray]],
     exog_savings_grid: np.ndarray,
     state_space: np.ndarray,
     income_shock_draws_unscaled: np.ndarray,
-    income_shock_weights: np.ndarray,
+    income_shock_weights: jnp.ndarray,
     n_periods: int,
     model_funcs: Dict[str, Callable],
     compute_upper_envelope: Callable,
-) -> Dict[int, np.ndarray]:
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Do backward induction and solve for optimal policy and value function.
 
     Args:
@@ -247,7 +248,10 @@ def backward_induction(
     )
 
     (
-        final_period_results,
+        value,
+        policy_left,
+        policy_right,
+        endog_grid,
         marg_util_interpolated,
         value_interpolated,
     ) = solve_final_period(
@@ -256,9 +260,6 @@ def backward_induction(
         resources_beginning_of_period=resources_beginning_of_period,
         params=params,
     )
-
-    results = {}
-    results[n_periods - 1] = final_period_results
 
     for period in range(n_periods - 2, -1, -1):
         state_objects = period_specific_state_objects[period]
@@ -335,12 +336,9 @@ def backward_induction(
             params,
         )
 
-        period_results = {}
-        period_results["policy_left"] = policy_left_state_choice
-        period_results["policy_right"] = policy_right_state_choice
-        period_results["endog_grid"] = endog_grid_state_choice
-        period_results["value"] = value_state_choice
+        value = jnp.append(value_state_choice, value, axis=0)
+        policy_left = jnp.append(policy_left_state_choice, policy_left, axis=0)
+        policy_right = jnp.append(policy_right_state_choice, policy_right, axis=0)
+        endog_grid = jnp.append(endog_grid_state_choice, endog_grid, axis=0)
 
-        results[period] = period_results
-
-    return results
+    return (value, policy_left, policy_right, endog_grid)

@@ -112,7 +112,7 @@ def input_data(state_space_functions, utility_functions):
         options["model_params"]["n_grid_points"],
     )
 
-    result_dict = solve_dcegm(
+    value, policy_left, policy_right, endog_grid = solve_dcegm(
         params,
         options,
         exog_savings_grid=exog_savings_grid,
@@ -125,7 +125,10 @@ def input_data(state_space_functions, utility_functions):
     out = {}
     out["params"] = params
     out["options"] = options
-    out["result"] = result_dict
+    out["value"] = value
+    out["policy_left"] = policy_left
+    out["policy_right"] = policy_right
+    out["endog_grid"] = endog_grid
 
     return out
 
@@ -173,8 +176,8 @@ def test_two_period_two_exog_processes(
 
     period = state_space["period"][state_idx]
 
-    endog_grid_period = input_data["result"][period]["endog_grid"]
-    policy_period = input_data["result"][period]["policy_left"]
+    endog_grid_period = input_data["endog_grid"]
+    policy_period = input_data["policy_left"]
 
     state_choices_period = period_specific_state_objects[period]["state_choice_mat"]
 

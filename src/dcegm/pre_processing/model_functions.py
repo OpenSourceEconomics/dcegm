@@ -8,7 +8,7 @@ from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope_wrapper
 
 
 def process_model_functions(
-    options: Dict[str, float],
+    options: Dict,
     user_utility_functions: Dict[str, Callable],
     user_budget_constraint: Callable,
     user_final_period_solution: Callable,
