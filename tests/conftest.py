@@ -23,11 +23,11 @@ def load_example_model():
     def load_options_and_params(model):
         """Return parameters and options of an example model."""
         params = pd.read_csv(
-            REPLICATION_TEST_RESOURCES_DIR / f"{model}.csv",
+            REPLICATION_TEST_RESOURCES_DIR / f"{model}" / "params.csv",
             index_col=["category", "name"],
         )
         options = yaml.safe_load(
-            (REPLICATION_TEST_RESOURCES_DIR / f"{model}.yaml").read_text()
+            (REPLICATION_TEST_RESOURCES_DIR / f"{model}" / "options.yaml").read_text()
         )
         return params, options
 

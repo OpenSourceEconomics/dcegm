@@ -122,10 +122,10 @@ def test_benchmark_models(
     )
 
     policy_expected = pickle.load(
-        (REPLICATION_TEST_RESOURCES_DIR / f"policy_{model}.pkl").open("rb")
+        (REPLICATION_TEST_RESOURCES_DIR / f"{model}" / "policy.pkl").open("rb")
     )
     value_expected = pickle.load(
-        (REPLICATION_TEST_RESOURCES_DIR / f"value_{model}.pkl").open("rb")
+        (REPLICATION_TEST_RESOURCES_DIR / f"{model}" / "value.pkl").open("rb")
     )
 
     for period in range(23, -1, -1):

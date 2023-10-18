@@ -454,7 +454,7 @@ def create_map_from_state_to_child_nodes(
     n_exog_states: int,
     exog_state_space: np.ndarray,
     options: Dict[str, int],
-    period_specific_state_objects: np.ndarray,
+    period_specific_state_objects: Dict,
     map_state_to_index: np.ndarray,
     states_names_without_exog: list,
     update_endog_state_by_state_and_choice: Callable,
