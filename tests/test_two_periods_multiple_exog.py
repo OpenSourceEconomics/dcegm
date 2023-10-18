@@ -2,7 +2,6 @@ from itertools import product
 
 import jax.numpy as jnp
 import numpy as np
-import pandas as pd
 import pytest
 from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
@@ -64,32 +63,28 @@ def utility_functions():
 @pytest.fixture(scope="module")
 def input_data(state_space_functions, utility_functions):
     # ToDo: Write this as dictionary such that it has a much nicer overview
-    index = pd.MultiIndex.from_tuples(
-        [("utility_function", "rho"), ("utility_function", "delta")],
-        names=["category", "name"],
-    )
-    params = pd.DataFrame(data=[0.5, 0.5], columns=["value"], index=index)
-    params.loc[("assets", "interest_rate"), "value"] = 0.02
-    params.loc[("assets", "ltc_cost"), "value"] = 5
-    params.loc[("wage", "wage_avg"), "value"] = 8
-    params.loc[("shocks", "sigma"), "value"] = 1
-    params.loc[("shocks", "lambda"), "value"] = 1
-    params.loc[("transition", "ltc_prob"), "value"] = 0.3
-    params.loc[("beta", "beta"), "value"] = 0.95
+    params = {}
+    params["rho"] = 0.5
+    params["delta"] = 0.5
+    params["interest_rate"] = 0.02
+    params["ltc_cost"] = 5
+    params["wage_avg"] = 8
+    params["sigma"] = 1
+    params["lambda"] = 1
+    params["ltc_prob"] = 0.3
+    params["beta"] = 0.95
 
     # exog params
-    params.loc[("ltc_prob_constant", "ltc_prob_constant"), "value"] = 0.3
-    params.loc[("ltc_prob_age", "ltc_prob_age"), "value"] = 0.1
-    params.loc[("job_offer_constant", "job_offer_constant"), "value"] = 0.5
-    params.loc[("job_offer_age", "job_offer_age"), "value"] = 0
-    params.loc[("job_offer_educ", "job_offer_educ"), "value"] = 0
-    params.loc[("job_offer_type_two", "job_offer_type_two"), "value"] = 0.4
+    params["ltc_prob_constant"] = 0.3
+    params["ltc_prob_age"] = 0.1
+    params["job_offer_constant"] = 0.5
+    params["job_offer_age"] = 0
+    params["job_offer_educ"] = 0
+    params["job_offer_type_two"] = 0.4
 
     options = {
         "model_params": {
-            "n_grid_points": WEALTH_GRID_POINTS,
             "n_choices": 2,
-            "max_wealth": 50,
             "quadrature_points_stochastic": 5,
         },
         "state_space": {
@@ -107,8 +102,8 @@ def input_data(state_space_functions, utility_functions):
 
     exog_savings_grid = jnp.linspace(
         0,
-        options["model_params"]["max_wealth"],
-        options["model_params"]["n_grid_points"],
+        50,
+        WEALTH_GRID_POINTS,
     )
 
     (
@@ -171,9 +166,6 @@ def test_two_period_two_exog_processes(
     quad_draws = norm.ppf(quad_points) * 1
 
     params = input_data["params"]
-    keys = params.index.droplevel("category").tolist()
-    values = params["value"].tolist()
-    params = dict(zip(keys, values))
 
     period = 0
 
