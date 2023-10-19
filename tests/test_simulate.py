@@ -1,9 +1,9 @@
 import jax.numpy as jnp
 import numpy as np
-import pandas as pd
 import pytest
 from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
+from dcegm.simulate import simulate_single_period
 from dcegm.solve import solve_dcegm
 from jax import config
 from toy_models.consumption_retirement_model.final_period_solution import (
@@ -62,32 +62,27 @@ def test_simulate(
 ):
     num_agents = 100
 
-    index = pd.MultiIndex.from_tuples(
-        [("utility_function", "rho"), ("utility_function", "delta")],
-        names=["category", "name"],
-    )
-    params = pd.DataFrame(data=[0.5, 0.5], columns=["value"], index=index)
-    params.loc[("assets", "interest_rate"), "value"] = 0.02
-    params.loc[("assets", "ltc_cost"), "value"] = 5
-    params.loc[("wage", "wage_avg"), "value"] = 8
-    params.loc[("shocks", "sigma"), "value"] = 1
-    params.loc[("shocks", "lambda"), "value"] = 1
-    params.loc[("transition", "ltc_prob"), "value"] = 0.3
-    params.loc[("beta", "beta"), "value"] = 0.95
+    params = {}
+    params["rho"] = 0.5
+    params["delta"] = 0.5
+    params["interest_rate"] = 0.02
+    params["ltc_cost"] = 5
+    params["wage_avg"] = 8
+    params["sigma"] = 1
+    params["lambda"] = 1
+    params["beta"] = 0.95
 
     # exog params
-    params.loc[("ltc_prob_constant", "ltc_prob_constant"), "value"] = 0.3
-    params.loc[("ltc_prob_age", "ltc_prob_age"), "value"] = 0.1
-    params.loc[("job_offer_constant", "job_offer_constant"), "value"] = 0.5
-    params.loc[("job_offer_age", "job_offer_age"), "value"] = 0
-    params.loc[("job_offer_educ", "job_offer_educ"), "value"] = 0
-    params.loc[("job_offer_type_two", "job_offer_type_two"), "value"] = 0.4
+    params["ltc_prob_constant"] = 0.3
+    params["ltc_prob_age"] = 0.1
+    params["job_offer_constant"] = 0.5
+    params["job_offer_age"] = 0
+    params["job_offer_educ"] = 0
+    params["job_offer_type_two"] = 0.4
 
     options = {
         "model_params": {
-            "n_grid_points": WEALTH_GRID_POINTS,
             "n_choices": 2,
-            "max_wealth": 50,
             "quadrature_points_stochastic": 5,
         },
         "state_space": {
@@ -105,8 +100,8 @@ def test_simulate(
 
     exog_savings_grid = jnp.linspace(
         0,
-        options["model_params"]["max_wealth"],
-        options["model_params"]["n_grid_points"],
+        50,
+        WEALTH_GRID_POINTS,
     )
 
     (
@@ -149,13 +144,36 @@ def test_simulate(
 
     initial_states = {
         "period": np.zeros(num_agents, dtype=np.int16),
-        "lagged_choice": np.zeros(num_agents, dtype=np.int16),
+        "lagged_choice": np.zeros(num_agents, dtype=np.int16) + 1,
         "married": np.zeros(num_agents, dtype=np.int16),
         "ltc": np.zeros(num_agents, dtype=np.int16),
         "job_offer": np.zeros(num_agents, dtype=np.int16),
     }
+    wealth_initial = np.ones(num_agents) * 10
 
-    map_state_choice_to_index[
-        tuple((initial_states[key],) for key in initial_states.keys())
-    ]
-    # breakpoint()
+    simulate_single_period(
+        states_and_wealth_beginning_of_period=(
+            initial_states,
+            wealth_initial,
+        ),
+        period=0,
+        params=params,
+        basic_seed=111,
+        endog_grid_solved=endog_grid,
+        value_solved=value,
+        policy_left_solved=policy_left,
+        policy_right_solved=policy_right,
+        map_state_choice_to_index=jnp.array(map_state_choice_to_index),
+        choice_range=jnp.arange(map_state_choice_to_index.shape[-1]),
+        compute_exog_transition_vec=_model_funcs["compute_exog_transition_vec"],
+        compute_utility=_model_funcs["compute_utility"],
+        compute_beginning_of_period_wealth=_model_funcs[
+            "compute_beginning_of_period_wealth"
+        ],
+    )
+
+    # vmap(get_trans_mat, in_axes=(None, 0, None))(
+    #     _model_funcs["compute_exog_transition_vec"],
+    #     {**initial_states, "choice": np.ones(num_agents, dtype=np.int16)},
+    #     params,
+    # )

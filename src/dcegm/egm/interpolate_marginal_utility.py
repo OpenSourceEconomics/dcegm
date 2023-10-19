@@ -112,9 +112,6 @@ def _interpolate_value_and_marg_util(
         wealth_low (float): Endogenous wealth grid value at the lower end of the
             interpolation interval.
         new_wealth (float): New endogenous wealth grid value.
-        compute_value (callable): Function for calculating the value from consumption
-            level, discrete choice and expected value. The inputs ```discount_rate```
-            and ```compute_utility``` are already partialled in.
         compute_marginal_utility (callable): Function for calculating the marginal
             utility from consumption level. The input ```params``` is already
             partialled in.
@@ -130,7 +127,70 @@ def _interpolate_value_and_marg_util(
         - value_interp (float): Interpolated value function.
 
     """
+    policy_interp, value_interp = interpolate_policy_and_check_value(
+        policy_high=policy_high,
+        value_high=value_high,
+        wealth_high=wealth_high,
+        policy_low=policy_low,
+        value_low=value_low,
+        wealth_low=wealth_low,
+        new_wealth=new_wealth,
+        compute_utility=compute_utility,
+        endog_grid_min=endog_grid_min,
+        value_min=value_min,
+        state_choice_vec=state_choice_vec,
+        params=params,
+    )
 
+    marg_utility_interp = compute_marginal_utility(
+        consumption=policy_interp, params=params, **state_choice_vec
+    )
+
+    return marg_utility_interp, value_interp
+
+
+def interpolate_policy_and_check_value(
+    policy_high: float,
+    value_high: float,
+    wealth_high: float,
+    policy_low: float,
+    value_low: float,
+    wealth_low: float,
+    new_wealth: float,
+    compute_utility: Callable,
+    endog_grid_min: float,
+    value_min: float,
+    state_choice_vec: Dict[str, int],
+    params: Dict[str, float],
+) -> Tuple[float, float]:
+    """Calculate interpolated marginal utility and value function.
+
+    Args:
+        policy_high (float): Policy function value at the higher end of the
+            interpolation interval.
+        value_high (float): Value function value at the higher end of the
+            interpolation interval.
+        wealth_high (float): Endogenous wealth grid value at the higher end of the
+            interpolation interval.
+        policy_low (float): Policy function value at the lower end of the
+            interpolation interval.
+        value_low (float): Value function value at the lower end of the
+            interpolation interval.
+        wealth_low (float): Endogenous wealth grid value at the lower end of the
+            interpolation interval.
+        new_wealth (float): New endogenous wealth grid value.
+        endog_grid_min (float): Minimum endogenous wealth grid value.
+        value_min (float): Minimum value function value.
+        state_choice_vec (Dict): Dictionary containing a single state and choice.
+        params (dict): Dictionary containing the model parameters.
+
+    Returns:
+        tuple:
+
+        - marg_util_interp (float): Interpolated marginal utility function.
+        - value_interp (float): Interpolated value function.
+
+    """
     policy_interp, value_interp_on_grid = interpolate_policy_and_value(
         policy_high=policy_high,
         value_high=value_high,
@@ -153,9 +213,4 @@ def _interpolate_value_and_marg_util(
         credit_constraint * value_interp_closed_form
         + (1 - credit_constraint) * value_interp_on_grid
     )
-
-    marg_utility_interp = compute_marginal_utility(
-        consumption=policy_interp, params=params, **state_choice_vec
-    )
-
-    return marg_utility_interp, value_interp
+    return policy_interp, value_interp
