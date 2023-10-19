@@ -89,6 +89,10 @@ def simulate_single_period(
         params,
         compute_exog_transition_vec,
     )
+    # ToDo: Get state dict with realization of exog proc. Create therefore automatic
+    #  function in pre processing
+    # ToDo: Call update endog for endogenous part. Update state dict. Draw random income
+    # shocks and calculate budget for next period. Done.
 
     breakpoint()
     return choice_period, consumption_period, utility_period, value_agent, exog_proc
