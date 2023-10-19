@@ -53,24 +53,73 @@ def simulate_single_period(
         params,
         compute_utility,
     )
+    num_choices = len(choice_range)
+    num_agents = value_agent.shape[0]
     basic_seed + period
-    jax.random.PRNGKey(basic_seed + period)
+    key = jax.random.PRNGKey(basic_seed + period)
 
-    policy_agent + value_agent
+    sim_specific_keys = jax.random.split(key, num=num_agents)
+
+    taste_shocks = draw_taste_shocks(
+        num_agents=num_agents,
+        num_choices=num_choices,
+        taste_shock_scale=params["sigma"],
+        key=key,
+    )
+    value_agent = value_agent + taste_shocks
+    choice_index_period = jnp.argmax(value_agent, axis=1)
+
+    choice_period = jnp.take(choice_range, choice_index_period)
+    consumption_period = jnp.take(policy_agent, choice_index_period, axis=1)
+
+    utility_func_vectorized = vmap(vectorized_utility, in_axes=(0, 0, 0, None, None))
+    utility_period = utility_func_vectorized(
+        consumption_period,
+        states_beginning_of_period,
+        choice_period,
+        params,
+        compute_utility,
+    )
+
+    # Compute transitioning to next period.
+    exog_proc = vmap(realize_exog_process, in_axes=(0, 0, 0, None, None))(
+        states_beginning_of_period,
+        choice_period,
+        sim_specific_keys,
+        params,
+        compute_exog_transition_vec,
+    )
 
     breakpoint()
+    return choice_period, consumption_period, utility_period, value_agent, exog_proc
 
 
-def get_trans_mat(exog_func, state_choice_vec, params):
-    transition_vec = exog_func(params=params, **state_choice_vec)
-    return transition_vec
+def draw_taste_shocks(num_agents, num_choices, taste_shock_scale, key, mean=0):
+    taste_shocks = jax.random.gumbel(key=key, shape=(num_agents, num_choices))
+    taste_shocks = -jnp.euler_gamma + mean + taste_shock_scale * taste_shocks
+    return taste_shocks
+
+
+def vectorized_utility(consumption_period, state, choice, params, compute_utility):
+    utility = compute_utility(
+        consumption=consumption_period, params=params, choice=choice, **state
+    )
+    return utility
+
+
+def realize_exog_process(state, choice, key, params, exog_func):
+    transition_vec = exog_func(params=params, **state, choice=choice)
+    exog_next_period = jax.random.choice(
+        key=key, a=transition_vec.shape[0], p=transition_vec
+    )
+    return exog_next_period
 
 
 def get_state_choice_index_per_state(map_state_choice_to_index, states):
-    indexes = map_state_choice_to_index[tuple((states[key],) for key in states.keys())][
-        0
-    ]
-    return indexes
+    # select indexes by states
+    indexes = map_state_choice_to_index[tuple((states[key],) for key in states.keys())]
+    # As the code above generates a dummy dimension in the first we eliminate that
+    return indexes[0]
 
 
 def interpolate_policy_and_value_function_for_agents(
