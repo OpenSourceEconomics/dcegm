@@ -124,6 +124,7 @@ def input_data(state_space_functions, utility_functions):
         out["period_specific_state_objects"],
         out["state_space"],
         _,
+        _,
     ) = create_state_space_and_choice_objects(
         options=options,
         get_state_specific_choice_set=get_state_specific_choice_set,

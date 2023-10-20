@@ -121,6 +121,7 @@ def test_simulate(
         period_specific_state_objects,
         state_space,
         map_state_choice_to_index,
+        exog_state_mapping,
     ) = create_state_space_and_choice_objects(
         options=options,
         get_state_specific_choice_set=get_state_specific_choice_set,

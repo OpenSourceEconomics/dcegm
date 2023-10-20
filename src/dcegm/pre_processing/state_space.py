@@ -5,6 +5,7 @@ from typing import Dict
 import jax.numpy as jnp
 import numpy as np
 import pandas as pd
+from dcegm.pre_processing.exog_processes import create_exog_mapping
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 
 
@@ -99,6 +100,8 @@ def create_state_space_and_choice_objects(
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
+    exog_mapping = create_exog_mapping(exog_state_space, exog_state_names)
+
     for period in range(n_periods):
         out[period]["state_choice_mat"] = {
             key: out[period]["state_choice_mat"][:, i]
@@ -107,7 +110,7 @@ def create_state_space_and_choice_objects(
 
     state_space = {key: state_space[:, i] for i, key in enumerate(state_space_names)}
 
-    return out, state_space, map_state_choice_to_index
+    return out, state_space, map_state_choice_to_index, exog_mapping
 
 
 def create_state_space(options):

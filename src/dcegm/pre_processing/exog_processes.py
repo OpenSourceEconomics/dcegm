@@ -59,3 +59,12 @@ def get_exog_transition_vec(exog_funcs, params, **state_choice_vars):
 
 def return_dummy_exog_transition(*args, **kwargs):
     return jnp.array([1])
+
+
+def create_exog_mapping(exog_state_space, exog_names):
+    def exog_mapping(exog_state):
+        exog_state = exog_state_space[exog_state]
+        exog_state_dict = {key: exog_state[i] for i, key in enumerate(exog_names)}
+        return exog_state_dict
+
+    return exog_mapping

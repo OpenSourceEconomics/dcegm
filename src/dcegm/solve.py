@@ -133,6 +133,7 @@ def get_solve_function(
         period_specific_state_objects,
         state_space,
         _,
+        _,
     ) = create_state_space_and_choice_objects(
         options=options,
         get_state_specific_choice_set=get_state_specific_choice_set,
