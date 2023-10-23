@@ -171,6 +171,8 @@ def test_simulate(
         compute_beginning_of_period_wealth=_model_funcs[
             "compute_beginning_of_period_wealth"
         ],
+        exog_state_mapping=exog_state_mapping,
+        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
     # vmap(get_trans_mat, in_axes=(None, 0, None))(

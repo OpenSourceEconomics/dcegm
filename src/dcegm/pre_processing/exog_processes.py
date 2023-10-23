@@ -62,9 +62,9 @@ def return_dummy_exog_transition(*args, **kwargs):
 
 
 def create_exog_mapping(exog_state_space, exog_names):
-    def exog_mapping(exog_state):
-        exog_state = exog_state_space[exog_state]
-        exog_state_dict = {key: exog_state[i] for i, key in enumerate(exog_names)}
+    def exog_mapping(exog_proc_state):
+        exog_state = exog_state_space[exog_proc_state]
+        exog_state_dict = {key: exog_state[:, i] for i, key in enumerate(exog_names)}
         return exog_state_dict
 
     return exog_mapping

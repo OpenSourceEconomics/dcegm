@@ -2,13 +2,12 @@ from jax import vmap
 
 
 def calculate_resources(
-    state_space,
-    exog_savings_grid,
-    income_shock_draws_unscaled,
+    states_beginning_of_period,
+    savings_end_of_last_period,
+    income_shocks_of_period,
     params,
     compute_beginning_of_period_wealth,
 ):
-    income_shock_draws = income_shock_draws_unscaled * params["sigma"]
     resources_beginning_of_period = vmap(
         vmap(
             vmap(
@@ -19,9 +18,9 @@ def calculate_resources(
         ),
         in_axes=(0, None, None, None, None),
     )(
-        state_space,
-        exog_savings_grid,
-        income_shock_draws,
+        states_beginning_of_period,
+        savings_end_of_last_period,
+        income_shocks_of_period,
         params,
         compute_beginning_of_period_wealth,
     )

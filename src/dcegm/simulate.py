@@ -1,5 +1,6 @@
 import jax
 import jax.numpy as jnp
+from dcegm.budget import calculate_resources
 from dcegm.egm.interpolate_marginal_utility import interpolate_policy_and_check_value
 from dcegm.interpolation import get_index_high_and_low
 from jax import vmap
@@ -19,6 +20,8 @@ def simulate_single_period(
     compute_exog_transition_vec,
     compute_utility,
     compute_beginning_of_period_wealth,
+    exog_state_mapping,
+    update_endog_state_by_state_and_choice,
 ):
     (
         states_beginning_of_period,
@@ -63,7 +66,7 @@ def simulate_single_period(
     taste_shocks = draw_taste_shocks(
         num_agents=num_agents,
         num_choices=num_choices,
-        taste_shock_scale=params["sigma"],
+        taste_shock_scale=params["lambda"],
         key=key,
     )
     value_agent = value_agent + taste_shocks
@@ -82,20 +85,45 @@ def simulate_single_period(
     )
 
     # Compute transitioning to next period.
-    exog_proc = vmap(realize_exog_process, in_axes=(0, 0, 0, None, None))(
+    exog_proc_next_period = vmap(realize_exog_process, in_axes=(0, 0, 0, None, None))(
         states_beginning_of_period,
         choice_period,
         sim_specific_keys,
         params,
         compute_exog_transition_vec,
     )
-    # ToDo: Get state dict with realization of exog proc. Create therefore automatic
-    #  function in pre processing
-    # ToDo: Call update endog for endogenous part. Update state dict. Draw random income
-    # shocks and calculate budget for next period. Done.
+    exog_states_next_period = exog_state_mapping(exog_proc_next_period)
+    endog_states_next_period = vmap(
+        update_endog_for_one_agent, in_axes=(None, 0, 0, None)
+    )(
+        update_endog_state_by_state_and_choice,
+        states_beginning_of_period,
+        choice_period,
+        params,
+    )
+    states_next_period = {**endog_states_next_period, **exog_states_next_period}
+    savings_this_period = wealth_beginning_of_period - consumption_period
+    income_shocks_next_period = draw_normal_shocks(
+        key=key, num_agents=num_agents, mean=0, std=params["sigma"]
+    )
 
-    breakpoint()
-    return choice_period, consumption_period, utility_period, value_agent, exog_proc
+    calculate_resources(
+        states_beginning_of_period=states_next_period,
+        savings_end_of_last_period=savings_this_period,
+        income_shocks_of_period=income_shocks_next_period,
+        params=params,
+        compute_beginning_of_period_wealth=compute_beginning_of_period_wealth,
+    )
+
+    return choice_period, consumption_period, utility_period, value_agent
+
+
+def draw_normal_shocks(key, num_agents, mean=0, std=1):
+    return jax.random.normal(key=key, shape=(num_agents,)) * std + mean
+
+
+def update_endog_for_one_agent(update_func, state, choice, params):
+    return update_func(params=params, **state, choice=choice)
 
 
 def draw_taste_shocks(num_agents, num_choices, taste_shock_scale, key, mean=0):

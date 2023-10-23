@@ -232,11 +232,13 @@ def backward_induction(
     taste_shock_scale = params["lambda"]
 
     resources_beginning_of_period = calculate_resources(
-        state_space,
-        exog_savings_grid,
-        income_shock_draws_unscaled,
-        params,
-        model_funcs["compute_beginning_of_period_wealth"],
+        states_beginning_of_period=state_space,
+        savings_end_of_last_period=exog_savings_grid,
+        income_shocks_of_period=income_shock_draws_unscaled * params["sigma"],
+        params=params,
+        compute_beginning_of_period_wealth=model_funcs[
+            "compute_beginning_of_period_wealth"
+        ],
     )
 
     (
