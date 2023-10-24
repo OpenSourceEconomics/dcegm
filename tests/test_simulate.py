@@ -152,11 +152,10 @@ def test_simulate(
     }
     wealth_initial = np.ones(num_agents) * 10
 
+    initial_carry = (initial_states, wealth_initial)
+
     simulate_single_period(
-        states_and_wealth_beginning_of_period=(
-            initial_states,
-            wealth_initial,
-        ),
+        states_and_wealth_beginning_of_period=initial_carry,
         period=0,
         params=params,
         basic_seed=111,
@@ -174,9 +173,3 @@ def test_simulate(
         exog_state_mapping=exog_state_mapping,
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
-
-    # vmap(get_trans_mat, in_axes=(None, 0, None))(
-    #     _model_funcs["compute_exog_transition_vec"],
-    #     {**initial_states, "choice": np.ones(num_agents, dtype=np.int16)},
-    #     params,
-    # )

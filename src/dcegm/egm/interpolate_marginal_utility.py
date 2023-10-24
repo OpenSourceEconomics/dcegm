@@ -52,7 +52,7 @@ def interpolate_value_and_calc_marginal_utility(
             containing the interpolated value function.
 
     """
-
+    # For all choices, the wealth is the same in the solution
     ind_high, ind_low = get_index_high_and_low(
         x=endog_grid_child_state_choice, x_new=wealth_beginning_of_period
     )
@@ -92,7 +92,7 @@ def _interpolate_value_and_marg_util(
     compute_utility: Callable,
     compute_marginal_utility: Callable,
     endog_grid_min: float,
-    value_min: float,
+    value_at_zero_wealth: float,
     state_choice_vec: jnp.ndarray,
     params: Dict[str, float],
 ) -> Tuple[float, float]:
@@ -137,7 +137,7 @@ def _interpolate_value_and_marg_util(
         new_wealth=new_wealth,
         compute_utility=compute_utility,
         endog_grid_min=endog_grid_min,
-        value_min=value_min,
+        value_at_zero_wealth=value_at_zero_wealth,
         state_choice_vec=state_choice_vec,
         params=params,
     )
@@ -159,7 +159,7 @@ def interpolate_policy_and_check_value(
     new_wealth: float,
     compute_utility: Callable,
     endog_grid_min: float,
-    value_min: float,
+    value_at_zero_wealth: float,
     state_choice_vec: Dict[str, int],
     params: Dict[str, float],
 ) -> Tuple[float, float]:
@@ -201,16 +201,46 @@ def interpolate_policy_and_check_value(
         wealth_new=new_wealth,
     )
 
+    value_interp = check_value_if_credit_constrained(
+        value_interp_on_grid=value_interp_on_grid,
+        value_at_zero_wealth=value_at_zero_wealth,
+        new_wealth=new_wealth,
+        endog_grid_min=endog_grid_min,
+        params=params,
+        state_choice_vec=state_choice_vec,
+        compute_utility=compute_utility,
+    )
+    return policy_interp, value_interp
+
+
+def check_value_if_credit_constrained(
+    value_interp_on_grid,
+    value_at_zero_wealth,
+    new_wealth,
+    endog_grid_min,
+    params,
+    state_choice_vec,
+    compute_utility,
+):
+    """This function takes the value interpolated on the solution and checks if it is in
+    the region, where consume all your wealth is the optimal solution.
+
+    This is by construction endog_grid_min. If so, it returns the closed form solution
+    for the value function, by calculating the utility of consuming all the wealth and
+    adding the discounted expected value of zero wealth. Otherwise, it returns the
+    interpolated value function.
+
+    """
     utility = compute_utility(
         consumption=new_wealth,
         params=params,
         **state_choice_vec,
     )
-    value_interp_closed_form = utility + params["beta"] * value_min
+    value_interp_closed_form = utility + params["beta"] * value_at_zero_wealth
 
     credit_constraint = new_wealth < endog_grid_min
     value_interp = (
         credit_constraint * value_interp_closed_form
         + (1 - credit_constraint) * value_interp_on_grid
     )
-    return policy_interp, value_interp
+    return value_interp
