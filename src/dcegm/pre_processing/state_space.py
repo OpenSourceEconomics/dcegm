@@ -100,7 +100,9 @@ def create_state_space_and_choice_objects(
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
-    exog_mapping = create_exog_mapping(exog_state_space, exog_state_names)
+    exog_mapping = create_exog_mapping(
+        jnp.array(exog_state_space, dtype=np.int16), exog_state_names
+    )
 
     for period in range(n_periods):
         out[period]["state_choice_mat"] = {

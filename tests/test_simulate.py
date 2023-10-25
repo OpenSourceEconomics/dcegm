@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
+from dcegm.simulate import simulate_all_periods
 from dcegm.simulate import simulate_single_period
 from dcegm.solve import solve_dcegm
 from jax import config
@@ -152,10 +153,10 @@ def test_simulate(
     }
     wealth_initial = np.ones(num_agents) * 10
 
-    initial_carry = (initial_states, wealth_initial)
+    states_and_wealth_beginning_of_period_zero = (initial_states, wealth_initial)
 
     simulate_single_period(
-        states_and_wealth_beginning_of_period=initial_carry,
+        states_and_wealth_beginning_of_period=states_and_wealth_beginning_of_period_zero,
         period=0,
         params=params,
         basic_seed=111,
@@ -165,6 +166,27 @@ def test_simulate(
         policy_right_solved=policy_right,
         map_state_choice_to_index=jnp.array(map_state_choice_to_index),
         choice_range=jnp.arange(map_state_choice_to_index.shape[-1]),
+        compute_exog_transition_vec=_model_funcs["compute_exog_transition_vec"],
+        compute_utility=_model_funcs["compute_utility"],
+        compute_beginning_of_period_wealth=_model_funcs[
+            "compute_beginning_of_period_wealth"
+        ],
+        exog_state_mapping=exog_state_mapping,
+        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+    )
+
+    simulate_all_periods(
+        states_period_0=initial_states,
+        wealth_period_0=wealth_initial,
+        num_periods=options["state_space"]["n_periods"],
+        params=params,
+        seed=111,
+        endog_grid_solved=endog_grid,
+        value_solved=value,
+        policy_left_solved=policy_left,
+        policy_right_solved=policy_right,
+        map_state_choice_to_index=jnp.array(map_state_choice_to_index),
+        choice_range=jnp.arange(map_state_choice_to_index.shape[-1], dtype=jnp.int16),
         compute_exog_transition_vec=_model_funcs["compute_exog_transition_vec"],
         compute_utility=_model_funcs["compute_utility"],
         compute_beginning_of_period_wealth=_model_funcs[
