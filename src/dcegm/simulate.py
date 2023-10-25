@@ -47,7 +47,6 @@ def simulate_all_periods(
     states_and_wealth_last_period, sim_data = jax.lax.scan(
         f=simulate_body, init=states_and_wealth_period_0, xs=jnp.arange(num_periods - 1)
     )
-    breakpoint()
     return states_and_wealth_last_period, sim_data
 
 
