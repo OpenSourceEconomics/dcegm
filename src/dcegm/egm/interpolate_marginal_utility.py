@@ -93,7 +93,7 @@ def _interpolate_value_and_marg_util(
     compute_marginal_utility: Callable,
     endog_grid_min: float,
     value_at_zero_wealth: float,
-    state_choice_vec: jnp.ndarray,
+    state_choice_vec: Dict[str, int],
     params: Dict[str, float],
 ) -> Tuple[float, float]:
     """Calculate interpolated marginal utility and value function.
