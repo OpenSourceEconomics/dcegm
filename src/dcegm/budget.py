@@ -41,3 +41,23 @@ def calculate_resources_for_each_grid_point(
         params=params,
     )
     return out
+
+
+def calculate_resources_for_all_agents(
+    states_beginning_of_period,
+    savings_end_of_last_period,
+    income_shocks_of_period,
+    params,
+    compute_beginning_of_period_wealth,
+):
+    resources_beginning_of_next_period = vmap(
+        calculate_resources_for_each_grid_point,
+        in_axes=(0, 0, 0, None, None),
+    )(
+        states_beginning_of_period,
+        savings_end_of_last_period,
+        income_shocks_of_period,
+        params,
+        compute_beginning_of_period_wealth,
+    )
+    return resources_beginning_of_next_period
