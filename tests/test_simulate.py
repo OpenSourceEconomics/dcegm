@@ -195,3 +195,5 @@ def test_simulate(
         exog_state_mapping=exog_state_mapping,
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
+    # utility_0(states_0, wealth_0) + beta * utility_1(state_agent_1, wealth_agent_1)
+    # = value_0(states_0, wealth_0)
