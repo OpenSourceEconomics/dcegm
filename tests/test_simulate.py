@@ -184,7 +184,7 @@ def test_simulate(
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
-    states_and_wealth_last_period, sim_data = simulate_all_periods(
+    simulate_all_periods(
         states_period_0=initial_states,
         wealth_period_0=wealth_initial,
         num_periods=options["state_space"]["n_periods"],
@@ -212,8 +212,8 @@ def test_simulate(
 
 def compute_utility_consume_everything(begin_of_period_resources, params):
     consumption = begin_of_period_resources
-    bequest = np.zeros_like(consumption)
+    # bequest = np.zeros_like(consumption)
 
     utility = consumption ** (1 - params["rho"]) / (1 - params["rho"])
 
-    return consumption, bequest, utility
+    return consumption, utility

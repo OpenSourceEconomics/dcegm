@@ -2,6 +2,8 @@ from functools import partial
 
 import jax
 import jax.numpy as jnp
+import numpy as np
+import pandas as pd
 from dcegm.budget import calculate_resources_for_all_agents
 from dcegm.egm.interpolate_marginal_utility import interpolate_policy_and_check_value
 from dcegm.interpolation import get_index_high_and_low
@@ -27,6 +29,8 @@ def simulate_all_periods(
     update_endog_state_by_state_and_choice,
     compute_bequest_utility,
 ):
+    num_agents = len(wealth_period_0)
+
     simulate_body = partial(
         simulate_single_period,
         params=params,
@@ -51,19 +55,47 @@ def simulate_all_periods(
         xs=jnp.arange(num_periods - 1),
     )
 
-    # ToDo: Last period.
     (
         states_beginning_of_period,
         wealth_beginning_of_period,
     ) = states_and_wealth_beginning_of_last_period
 
-    consumption, bequest, utility = compute_bequest_utility(
+    consumption, utility = compute_bequest_utility(
         **states_beginning_of_period,
         begin_of_period_resources=wealth_beginning_of_period,
         params=params,
     )
 
-    return states_and_wealth_beginning_of_last_period, sim_data
+    final_period_data = {
+        "choice": np.full(num_agents, np.nan),
+        "consumption": consumption,
+        "utility": utility,
+        "value": utility,
+        # "taste_shocks": np.full(num_agents, np.nan),
+        "savings": wealth_beginning_of_period - consumption,  # bequest
+        "income_shock": np.full(num_agents, np.nan),
+        **states_beginning_of_period,
+    }
+
+    sim_data.pop("taste_shocks")
+    dict_all = {
+        key: np.row_stack([sim_data[key], final_period_data[key]])
+        for key in sim_data.keys()
+    }
+
+    keys_to_drop = ["taste_shocks", "period"]
+    dict_to_df = {key: dict_all[key] for key in dict_all if key not in keys_to_drop}
+
+    df = pd.DataFrame(
+        {key: val.ravel() for key, val in dict_to_df.items()},
+        index=pd.MultiIndex.from_product(
+            [np.arange(num_periods), np.arange(num_agents)],
+            names=["period", "agent"],
+        ),
+    )
+    # TODO: Reorder columns
+
+    return df
 
 
 def simulate_single_period(
