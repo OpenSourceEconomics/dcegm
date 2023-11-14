@@ -2,7 +2,6 @@
 from typing import Callable
 from typing import Dict
 
-import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
@@ -32,10 +31,10 @@ def create_state_space_and_choice_objects(
         n_periods (int): Number of periods.
 
     Returns:
-        dict of jnp.ndarray: Dictionary containing period-specific
+        dict of np.ndarray: Dictionary containing period-specific
             state and state-choice objects, with the following keys:
-            - "state_choice_mat" (jnp.ndarray)
-            - "idx_state_of_state_choice" (jnp.ndarray)
+            - "state_choice_mat" (np.ndarray)
+            - "idx_state_of_state_choice" (np.ndarray)
             - "reshape_state_choice_vec_to_mat" (callable)
             - "transform_between_state_and_state_choice_vec" (callable)
 
@@ -69,20 +68,20 @@ def create_state_space_and_choice_objects(
 
     for period in range(n_periods):
         period_dict = {}
-        idxs_states = jnp.where(state_space[:, 0] == period)[0]
+        idxs_states = np.where(state_space[:, 0] == period)[0]
 
-        idxs_state_choices_period = jnp.where(state_choice_space[:, 0] == period)[0]
-        state_choice_mat = jnp.take(
+        idxs_state_choices_period = np.where(state_choice_space[:, 0] == period)[0]
+        state_choice_mat = np.take(
             state_choice_space, idxs_state_choices_period, axis=0
         )
 
         period_dict["state_choice_mat"] = state_choice_mat
 
-        period_dict["idx_parent_states"] = jnp.take(
+        period_dict["idx_parent_states"] = np.take(
             map_state_choice_vec_to_parent_state, idxs_state_choices_period, axis=0
         )
 
-        period_dict["reshape_state_choice_vec_to_mat"] = jnp.take(
+        period_dict["reshape_state_choice_vec_to_mat"] = np.take(
             reshape_state_choice_vec_to_mat, idxs_states, axis=0
         )
 
@@ -392,7 +391,7 @@ def create_state_choice_space(
             used to reshape the vector of feasible state-choice combinations
             to a matrix of lagged and current choice combinations of
             shape (n_choices, n_choices).
-        - transform_between_state_and_state_choice_space (jnp.ndarray): 2d boolean
+        - transform_between_state_and_state_choice_space (np.ndarray): 2d boolean
             array of shape (n_states, n_states * n_feasible_choices) indicating which
             state belongs to which state-choice combination in the entire state and
             state choice space. The array is used to
@@ -470,8 +469,8 @@ def create_map_from_state_to_child_nodes(
         options (dict): Options dictionary.
         period_specific_state_objects (np.ndarray): Dictionary containing
             period-specific state and state-choice objects, with the following keys:
-            - "state_choice_mat" (jnp.ndarray)
-            - "idx_state_of_state_choice" (jnp.ndarray)
+            - "state_choice_mat" (np.ndarray)
+            - "idx_state_of_state_choice" (np.ndarray)
             - "reshape_state_choice_vec_to_mat" (callable)
             - "transform_between_state_and_state_choice_vec" (callable)
         map_state_to_index (np.ndarray): Indexer array that maps states to indexes.
@@ -547,7 +546,7 @@ def create_map_from_state_to_child_nodes(
 
             period_specific_state_objects[period][
                 "idx_feasible_child_nodes"
-            ] = jnp.array(map_state_to_feasible_child_nodes_period, dtype=int)
+            ] = np.array(map_state_to_feasible_child_nodes_period, dtype=int)
 
     return period_specific_state_objects
 
