@@ -164,7 +164,7 @@ def test_simulate(
 
     states_and_wealth_beginning_of_period_zero = (initial_states, wealth_initial)
 
-    carry, result = simulate_single_period(
+    _carry, _result = simulate_single_period(
         states_and_wealth_beginning_of_period=states_and_wealth_beginning_of_period_zero,
         period=0,
         params=params,
@@ -184,7 +184,7 @@ def test_simulate(
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
-    simulate_all_periods(
+    df = simulate_all_periods(
         states_period_0=initial_states,
         wealth_period_0=wealth_initial,
         num_periods=options["state_space"]["n_periods"],
@@ -206,13 +206,28 @@ def test_simulate(
         compute_bequest_utility=compute_bequest_utility,
     )
 
+    # agent = 0
+    # period = 0
+
+    # (
+    #     df.loc[agent, period]["utility"]
+    #     + params["beta"] * df.loc[agent, period + 1]["utility"]
+    # )
+    # df.loc[agent, period]["utility"] + params["beta"] * model_funcs["compute_utility"](
+    #     consumption=df.loc[agent, period + 1]["consumption"],
+    #     choice=df.loc[agent, period + 1]["lagged_choice"],
+    #     params=params,
+    # )
+
+    # df.loc[agent, period]["value"]
+
     # utility_0(states_0, wealth_0) + beta * utility_1(state_agent_1, wealth_agent_1)
     # = value_0(states_0, wealth_0)
 
 
 def compute_utility_consume_everything(begin_of_period_resources, params):
     consumption = begin_of_period_resources
-    # bequest = np.zeros_like(consumption)
+    # bequest = np.zeros_like(begin_of_period_resources)
 
     utility = consumption ** (1 - params["rho"]) / (1 - params["rho"])
 
