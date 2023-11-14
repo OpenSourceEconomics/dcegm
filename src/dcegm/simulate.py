@@ -25,6 +25,7 @@ def simulate_all_periods(
     compute_beginning_of_period_wealth,
     exog_state_mapping,
     update_endog_state_by_state_and_choice,
+    compute_bequest_utility,
 ):
     simulate_body = partial(
         simulate_single_period,
@@ -43,13 +44,26 @@ def simulate_all_periods(
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
-    states_and_wealth_period_0 = states_period_0, wealth_period_0
-    states_and_wealth_last_period, sim_data = jax.lax.scan(
-        f=simulate_body, init=states_and_wealth_period_0, xs=jnp.arange(num_periods - 1)
+    states_and_wealth_beginning_of_first_period = states_period_0, wealth_period_0
+    states_and_wealth_beginning_of_last_period, sim_data = jax.lax.scan(
+        f=simulate_body,
+        init=states_and_wealth_beginning_of_first_period,
+        xs=jnp.arange(num_periods - 1),
     )
-    # ToDo: Last period.
 
-    return states_and_wealth_last_period, sim_data
+    # ToDo: Last period.
+    (
+        states_beginning_of_period,
+        wealth_beginning_of_period,
+    ) = states_and_wealth_beginning_of_last_period
+
+    consumption, bequest, utility = compute_bequest_utility(
+        **states_beginning_of_period,
+        begin_of_period_resources=wealth_beginning_of_period,
+        params=params,
+    )
+
+    return states_and_wealth_beginning_of_last_period, sim_data
 
 
 def simulate_single_period(
@@ -128,7 +142,7 @@ def simulate_single_period(
 
     # Transition to next period.
     (
-        wealth_at_beginning_of_next_period,
+        wealth_beginning_of_next_period,
         states_next_period,
         income_shocks_next_period,
     ) = transition_to_next_period(
@@ -142,7 +156,7 @@ def simulate_single_period(
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
         key=key,
     )
-    carry = states_next_period, wealth_at_beginning_of_next_period
+    carry = states_next_period, wealth_beginning_of_next_period
 
     result_data = {
         "choice": choice_period,
@@ -188,7 +202,7 @@ def interpolate_policy_and_value_for_all_agents(
 
     vectorized_interp = vmap(
         vmap(
-            interpolate_policy_and_value_function_for_agents,
+            interpolate_policy_and_value_function,
             in_axes=(None, None, 0, 0, 0, 0, 0, None, None),
         ),
         in_axes=(0, 0, 0, 0, 0, 0, None, None, None),
@@ -254,7 +268,7 @@ def transition_to_next_period(
     income_shocks_next_period = draw_normal_shocks(
         key=key, num_agents=num_agents, mean=0, std=params["sigma"]
     )
-    wealth_at_beginning_of_next_period = calculate_resources_for_all_agents(
+    wealth_beginning_of_next_period = calculate_resources_for_all_agents(
         states_beginning_of_period=states_next_period,
         savings_end_of_last_period=savings_this_period,
         income_shocks_of_period=income_shocks_next_period,
@@ -262,7 +276,7 @@ def transition_to_next_period(
         compute_beginning_of_period_wealth=compute_beginning_of_period_wealth,
     )
     return (
-        wealth_at_beginning_of_next_period,
+        wealth_beginning_of_next_period,
         states_next_period,
         income_shocks_next_period,
     )
@@ -305,7 +319,7 @@ def get_state_choice_index_per_state(map_state_choice_to_index, states):
     return indexes[0]
 
 
-def interpolate_policy_and_value_function_for_agents(
+def interpolate_policy_and_value_function(
     wealth_beginning_of_period,
     state,
     endog_grid_agent,

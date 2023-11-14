@@ -2,6 +2,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 from dcegm.pre_processing.model_functions import process_model_functions
+from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
 from dcegm.simulate import simulate_all_periods
 from dcegm.simulate import simulate_single_period
@@ -106,7 +107,7 @@ def test_simulate(
     )
 
     (
-        _model_funcs,
+        model_funcs,
         _compute_upper_envelope,
         get_state_specific_choice_set,
         update_endog_state_by_state_and_choice,
@@ -117,6 +118,8 @@ def test_simulate(
         user_final_period_solution=solve_final_period_scalar,
         state_space_functions=state_space_functions,
     )
+
+    # === Solve ===
 
     (
         period_specific_state_objects,
@@ -144,6 +147,12 @@ def test_simulate(
         state_space_functions=state_space_functions,
     )
 
+    # === Simulate ===
+
+    compute_bequest_utility = determine_function_arguments_and_partial_options(
+        compute_utility_consume_everything, options=options
+    )
+
     initial_states = {
         "period": np.zeros(num_agents, dtype=np.int16),
         "lagged_choice": np.zeros(num_agents, dtype=np.int16) + 1,
@@ -155,7 +164,7 @@ def test_simulate(
 
     states_and_wealth_beginning_of_period_zero = (initial_states, wealth_initial)
 
-    simulate_single_period(
+    carry, result = simulate_single_period(
         states_and_wealth_beginning_of_period=states_and_wealth_beginning_of_period_zero,
         period=0,
         params=params,
@@ -166,16 +175,16 @@ def test_simulate(
         policy_right_solved=policy_right,
         map_state_choice_to_index=jnp.array(map_state_choice_to_index),
         choice_range=jnp.arange(map_state_choice_to_index.shape[-1]),
-        compute_exog_transition_vec=_model_funcs["compute_exog_transition_vec"],
-        compute_utility=_model_funcs["compute_utility"],
-        compute_beginning_of_period_wealth=_model_funcs[
+        compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
+        compute_utility=model_funcs["compute_utility"],
+        compute_beginning_of_period_wealth=model_funcs[
             "compute_beginning_of_period_wealth"
         ],
         exog_state_mapping=exog_state_mapping,
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
-    simulate_all_periods(
+    states_and_wealth_last_period, sim_data = simulate_all_periods(
         states_period_0=initial_states,
         wealth_period_0=wealth_initial,
         num_periods=options["state_space"]["n_periods"],
@@ -187,13 +196,24 @@ def test_simulate(
         policy_right_solved=policy_right,
         map_state_choice_to_index=jnp.array(map_state_choice_to_index),
         choice_range=jnp.arange(map_state_choice_to_index.shape[-1], dtype=jnp.int16),
-        compute_exog_transition_vec=_model_funcs["compute_exog_transition_vec"],
-        compute_utility=_model_funcs["compute_utility"],
-        compute_beginning_of_period_wealth=_model_funcs[
+        compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
+        compute_utility=model_funcs["compute_utility"],
+        compute_beginning_of_period_wealth=model_funcs[
             "compute_beginning_of_period_wealth"
         ],
         exog_state_mapping=exog_state_mapping,
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+        compute_bequest_utility=compute_bequest_utility,
     )
+
     # utility_0(states_0, wealth_0) + beta * utility_1(state_agent_1, wealth_agent_1)
     # = value_0(states_0, wealth_0)
+
+
+def compute_utility_consume_everything(begin_of_period_resources, params):
+    consumption = begin_of_period_resources
+    bequest = np.zeros_like(consumption)
+
+    utility = consumption ** (1 - params["rho"]) / (1 - params["rho"])
+
+    return consumption, bequest, utility

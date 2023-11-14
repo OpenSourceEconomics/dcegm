@@ -1,3 +1,4 @@
+"""Wrapper to solve the final period of the model."""
 from typing import Callable
 from typing import Dict
 from typing import Tuple
@@ -5,8 +6,6 @@ from typing import Tuple
 import jax.numpy as jnp
 import numpy as np
 from jax import vmap
-
-"""Wrapper function to solve the final period of the model."""
 
 
 def solve_final_period(
@@ -42,7 +41,7 @@ def solve_final_period(
         state_objects_final_period["idx_parent_states"]
     ]
 
-    # Calculate the final period solution for each gridpoint
+    # Calculate the final period solution for each wealth gridpoint
     marg_util_interpolated, value_interpolated = vmap(
         vmap(
             vmap(
@@ -77,6 +76,7 @@ def solve_final_period(
     )
     value_final = jnp.append(value_calc, nans_to_add, axis=1)
 
+    # breakpoint()
     return (
         value_final,
         policy_left,

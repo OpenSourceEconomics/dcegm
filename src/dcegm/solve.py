@@ -366,6 +366,7 @@ def solve_single_period(
         value_state_choice,
         params,
     )
+
     return (
         endog_grid_state_choice,
         policy_left_state_choice,
