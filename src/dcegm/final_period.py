@@ -76,7 +76,6 @@ def solve_final_period(
     )
     value_final = jnp.append(value_calc, nans_to_add, axis=1)
 
-    # breakpoint()
     return (
         value_final,
         policy_left,

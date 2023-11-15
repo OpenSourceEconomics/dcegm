@@ -3,7 +3,6 @@ from functools import partial
 import jax
 import jax.numpy as jnp
 import numpy as np
-import pandas as pd
 from dcegm.budget import calculate_resources_for_all_agents
 from dcegm.egm.interpolate_marginal_utility import interpolate_policy_and_check_value
 from dcegm.interpolation import get_index_high_and_low
@@ -56,46 +55,34 @@ def simulate_all_periods(
     )
 
     (
-        states_beginning_of_period,
-        wealth_beginning_of_period,
+        states_beginning_of_last_period,
+        wealth_beginning_of_last_period,
     ) = states_and_wealth_beginning_of_last_period
 
-    consumption, utility = compute_bequest_utility(
-        **states_beginning_of_period,
-        begin_of_period_resources=wealth_beginning_of_period,
+    utility = compute_bequest_utility(
+        **states_beginning_of_last_period,
+        final_period_resources=wealth_beginning_of_last_period,
         params=params,
     )
 
     final_period_data = {
-        "choice": np.full(num_agents, np.nan),
-        "consumption": consumption,
+        "choice": np.full(num_agents, -1),
+        "consumption": wealth_beginning_of_last_period,
         "utility": utility,
         "value": utility,
-        # "taste_shocks": np.full(num_agents, np.nan),
-        "savings": wealth_beginning_of_period - consumption,  # bequest
-        "income_shock": np.full(num_agents, np.nan),
-        **states_beginning_of_period,
+        "taste_shocks": np.zeros((1, num_agents, sim_data["taste_shocks"].shape[2])),
+        "savings": np.zeros_like(utility),
+        "income_shock": np.zeros(num_agents),
+        **states_beginning_of_last_period,
     }
 
-    sim_data.pop("taste_shocks")
+    # sim_data.pop("taste_shocks")
     dict_all = {
         key: np.row_stack([sim_data[key], final_period_data[key]])
         for key in sim_data.keys()
     }
 
-    keys_to_drop = ["taste_shocks", "period"]
-    dict_to_df = {key: dict_all[key] for key in dict_all if key not in keys_to_drop}
-
-    df = pd.DataFrame(
-        {key: val.ravel() for key, val in dict_to_df.items()},
-        index=pd.MultiIndex.from_product(
-            [np.arange(num_periods), np.arange(num_agents)],
-            names=["period", "agent"],
-        ),
-    )
-    # TODO: Reorder columns
-
-    return df
+    return dict_all
 
 
 def simulate_single_period(

@@ -1,5 +1,6 @@
 import jax.numpy as jnp
 import numpy as np
+import pandas as pd
 import pytest
 from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
@@ -8,6 +9,7 @@ from dcegm.simulate import simulate_all_periods
 from dcegm.simulate import simulate_single_period
 from dcegm.solve import solve_dcegm
 from jax import config
+from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.final_period_solution import (
     solve_final_period_scalar,
 )
@@ -30,7 +32,6 @@ from tests.two_period_models.exog_ltc_and_job_offer.model_functions import (
 from tests.two_period_models.exog_ltc_and_job_offer.model_functions import (
     marginal_utility,
 )
-
 
 config.update("jax_enable_x64", True)
 
@@ -184,7 +185,7 @@ def test_simulate(
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
-    df = simulate_all_periods(
+    sim_dict = simulate_all_periods(
         states_period_0=initial_states,
         wealth_period_0=wealth_initial,
         num_periods=options["state_space"]["n_periods"],
@@ -206,29 +207,78 @@ def test_simulate(
         compute_bequest_utility=compute_bequest_utility,
     )
 
-    # agent = 0
-    # period = 0
+    df = create_data_frame(sim_dict)
 
-    # (
-    #     df.loc[agent, period]["utility"]
-    #     + params["beta"] * df.loc[agent, period + 1]["utility"]
-    # )
-    # df.loc[agent, period]["utility"] + params["beta"] * model_funcs["compute_utility"](
-    #     consumption=df.loc[agent, period + 1]["consumption"],
-    #     choice=df.loc[agent, period + 1]["lagged_choice"],
-    #     params=params,
-    # )
+    period = 0
+    choice = 1  # everyone chooses 1 (i.e. retires in the next period)
 
-    # df.loc[agent, period]["value"]
+    # check = (
+    #     # df.loc[:, period]["utility"]
+    #     # + df.loc[agent, period][f"taste_shock_{choice}"]
+    #     +params["beta"]
+    #     * (df.loc[:, period + 1]["utility"])
+    #     # + df.loc[agent, period + 1][f"taste_shock_{choice}"]
+    # )
+    # - df.loc[:, period + 1][f"taste_shock_{choice}"]
+
+    # expec = df.loc[:, period]["value"] - df.loc[:, period][f"taste_shock_{choice}"]
+    value_period_one = df.xs(period, level=0)["utility"] + params["beta"] * (
+        df.xs(period + 1, level=0)["utility"]
+    )
+    expected = (
+        df.xs(period, level=0)["value"]
+        - df.xs(period, level=0)[f"taste_shock_{choice}"]
+    )
 
     # utility_0(states_0, wealth_0) + beta * utility_1(state_agent_1, wealth_agent_1)
     # = value_0(states_0, wealth_0)
+    aaae(value_period_one.mean(), expected.mean(), decimal=2)
+    # not exactly the same because of income shocks?
 
 
-def compute_utility_consume_everything(begin_of_period_resources, params):
-    consumption = begin_of_period_resources
+def create_data_frame(sim_dict, include_taste_shocks=False):
+    n_periods, n_agents, n_choices = sim_dict["taste_shocks"].shape
+
+    keys_to_drop = ["taste_shocks", "period"]
+    dict_to_df = {key: sim_dict[key] for key in sim_dict if key not in keys_to_drop}
+
+    df_without_taste_shocks = pd.DataFrame(
+        {key: val.ravel() for key, val in dict_to_df.items()},
+        index=pd.MultiIndex.from_product(
+            [np.arange(n_periods), np.arange(n_agents)],
+            names=["period", "agent"],
+        ),
+    )
+
+    taste_shocks = sim_dict["taste_shocks"]
+    df_taste_shocks = pd.DataFrame(
+        {
+            f"taste_shock_{choice}": taste_shocks[..., choice].flatten()
+            for choice in range(n_choices)
+        },
+        index=pd.MultiIndex.from_product(
+            [np.arange(n_periods), np.arange(n_agents)],
+            names=["period", "agent"],
+        ),
+    )
+
+    df_combined = pd.concat([df_without_taste_shocks, df_taste_shocks], axis=1)
+    _df_combined = df_without_taste_shocks.join(df_taste_shocks)
+
+    return df_combined
+
+
+def compute_utility_consume_everything(final_period_resources, params):
+    # turn into one function for solve and simulate
+    #
+    consumption = final_period_resources
     # bequest = np.zeros_like(begin_of_period_resources)
 
     utility = consumption ** (1 - params["rho"]) / (1 - params["rho"])
 
-    return consumption, utility
+    return utility
+
+
+# def final_period_marg_util
+
+# final period functions dict util and marg util
