@@ -3,20 +3,22 @@ import numpy as np
 import pandas as pd
 import pytest
 from dcegm.pre_processing.model_functions import process_model_functions
-from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
 from dcegm.simulate import simulate_all_periods
 from dcegm.simulate import simulate_single_period
 from dcegm.solve import solve_dcegm
 from jax import config
 from numpy.testing import assert_array_almost_equal as aaae
-from toy_models.consumption_retirement_model.final_period_solution import (
-    solve_final_period_scalar,
-)
 from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_feasible_choice_set,
 )
 from toy_models.consumption_retirement_model.state_space_objects import update_state
+from toy_models.consumption_retirement_model.utility_functions import (
+    marginal_utility_final_consume_all,
+)
+from toy_models.consumption_retirement_model.utility_functions import (
+    utility_final_consume_all,
+)
 
 from tests.two_period_models.exog_ltc_and_job_offer.model_functions import (
     budget_dcegm_two_exog_processes,
@@ -52,16 +54,23 @@ def state_space_functions():
 def utility_functions():
     out = {
         "utility": flow_util,
-        "inverse_marginal_utility": inverse_marginal_utility,
         "marginal_utility": marginal_utility,
+        "inverse_marginal_utility": inverse_marginal_utility,
     }
     return out
 
 
+@pytest.fixture(scope="module")
+def utility_functions_final_period():
+    """Return dict with utility functions for final period."""
+    return {
+        "utility": utility_final_consume_all,
+        "marginal_utility": marginal_utility_final_consume_all,
+    }
+
+
 def test_simulate(
-    utility_functions,
-    state_space_functions,
-    load_example_model,
+    state_space_functions, utility_functions, utility_functions_final_period
 ):
     num_agents = 100
 
@@ -114,10 +123,10 @@ def test_simulate(
         update_endog_state_by_state_and_choice,
     ) = process_model_functions(
         options,
-        user_utility_functions=utility_functions,
-        user_budget_constraint=budget_dcegm_two_exog_processes,
-        user_final_period_solution=solve_final_period_scalar,
         state_space_functions=state_space_functions,
+        utility_functions=utility_functions,
+        utility_final_period=utility_functions_final_period,
+        budget_constraint=budget_dcegm_two_exog_processes,
     )
 
     # === Solve ===
@@ -142,17 +151,17 @@ def test_simulate(
         params,
         options,
         exog_savings_grid=exog_savings_grid,
-        utility_functions=utility_functions,
-        budget_constraint=budget_dcegm_two_exog_processes,
-        final_period_solution=solve_final_period_scalar,
         state_space_functions=state_space_functions,
+        utility_functions=utility_functions,
+        utility_final_period=utility_functions_final_period,
+        budget_constraint=budget_dcegm_two_exog_processes,
     )
 
     # === Simulate ===
 
-    compute_bequest_utility = determine_function_arguments_and_partial_options(
-        compute_utility_consume_everything, options=options
-    )
+    # compute_utility_final_period = determine_function_arguments_and_partial_options(
+    #     compute_utility_consume_everything, options=options
+    # )
 
     initial_states = {
         "period": np.zeros(num_agents, dtype=np.int16),
@@ -186,8 +195,8 @@ def test_simulate(
     )
 
     sim_dict = simulate_all_periods(
-        states_period_0=initial_states,
-        wealth_period_0=wealth_initial,
+        states_period_zero=initial_states,
+        wealth_period_zero=wealth_initial,
         num_periods=options["state_space"]["n_periods"],
         params=params,
         seed=111,
@@ -204,25 +213,15 @@ def test_simulate(
         ],
         exog_state_mapping=exog_state_mapping,
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
-        compute_bequest_utility=compute_bequest_utility,
+        compute_utility_final_period=model_funcs["compute_utility_final"],
     )
 
     df = create_data_frame(sim_dict)
 
     period = 0
-    choice = 1  # everyone chooses 1 (i.e. retires in the next period)
+    choice = 1  # everyone chooses 1 (i.e. retires in the final period)
 
-    # check = (
-    #     # df.loc[:, period]["utility"]
-    #     # + df.loc[agent, period][f"taste_shock_{choice}"]
-    #     +params["beta"]
-    #     * (df.loc[:, period + 1]["utility"])
-    #     # + df.loc[agent, period + 1][f"taste_shock_{choice}"]
-    # )
-    # - df.loc[:, period + 1][f"taste_shock_{choice}"]
-
-    # expec = df.loc[:, period]["value"] - df.loc[:, period][f"taste_shock_{choice}"]
-    value_period_one = df.xs(period, level=0)["utility"] + params["beta"] * (
+    value_period_zero = df.xs(period, level=0)["utility"] + params["beta"] * (
         df.xs(period + 1, level=0)["utility"]
     )
     expected = (
@@ -232,11 +231,11 @@ def test_simulate(
 
     # utility_0(states_0, wealth_0) + beta * utility_1(state_agent_1, wealth_agent_1)
     # = value_0(states_0, wealth_0)
-    aaae(value_period_one.mean(), expected.mean(), decimal=2)
+    aaae(value_period_zero.mean(), expected.mean(), decimal=2)
     # not exactly the same because of income shocks?
 
 
-def create_data_frame(sim_dict, include_taste_shocks=False):
+def create_data_frame(sim_dict):
     n_periods, n_agents, n_choices = sim_dict["taste_shocks"].shape
 
     keys_to_drop = ["taste_shocks", "period"]
@@ -266,19 +265,3 @@ def create_data_frame(sim_dict, include_taste_shocks=False):
     _df_combined = df_without_taste_shocks.join(df_taste_shocks)
 
     return df_combined
-
-
-def compute_utility_consume_everything(final_period_resources, params):
-    # turn into one function for solve and simulate
-    #
-    consumption = final_period_resources
-    # bequest = np.zeros_like(begin_of_period_resources)
-
-    utility = consumption ** (1 - params["rho"]) / (1 - params["rho"])
-
-    return utility
-
-
-# def final_period_marg_util
-
-# final period functions dict util and marg util

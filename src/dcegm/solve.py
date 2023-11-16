@@ -30,10 +30,10 @@ def solve_dcegm(
     params: pd.DataFrame,
     options: Dict,
     exog_savings_grid: jnp.ndarray,
-    utility_functions: Dict[str, Callable],
-    budget_constraint: Callable,
     state_space_functions: Dict[str, Callable],
-    final_period_solution: Callable,
+    utility_functions: Dict[str, Callable],
+    utility_final_period: Dict[str, Callable],
+    budget_constraint: Callable,
 ) -> Dict[int, np.ndarray]:
     """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
@@ -68,7 +68,7 @@ def solve_dcegm(
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         budget_constraint=budget_constraint,
-        final_period_solution=final_period_solution,
+        final_period_functions=utility_final_period,
     )
 
     results = backward_jit(params=params)
@@ -82,7 +82,7 @@ def get_solve_function(
     state_space_functions: Dict[str, Callable],
     utility_functions: Dict[str, Callable],
     budget_constraint: Callable,
-    final_period_solution: Callable,
+    final_period_functions: Callable,
 ) -> Callable:
     """Create a solve function, which only takes params as input.
 
@@ -123,17 +123,16 @@ def get_solve_function(
         update_endog_state_by_state_and_choice,
     ) = process_model_functions(
         options,
-        user_utility_functions=utility_functions,
-        user_budget_constraint=budget_constraint,
-        user_final_period_solution=final_period_solution,
         state_space_functions=state_space_functions,
+        utility_functions=utility_functions,
+        utility_final_period=final_period_functions,
+        budget_constraint=budget_constraint,
     )
 
     (
         period_specific_state_objects,
         state_space,
-        _,
-        _,
+        *_,
     ) = create_state_space_and_choice_objects(
         options=options,
         get_state_specific_choice_set=get_state_specific_choice_set,
@@ -246,13 +245,14 @@ def backward_induction(
         policy_left,
         policy_right,
         endog_grid,
-        marg_util_interpolated_next_period,
         value_interpolated_next_period,
+        marg_util_interpolated_next_period,
     ) = solve_final_period(
-        state_objects_final_period=period_specific_state_objects[n_periods - 1],
-        compute_final_period=model_funcs["compute_final_period"],
+        state_objects=period_specific_state_objects[n_periods - 1],
         resources_beginning_of_period=resources_beginning_of_period,
         params=params,
+        compute_utility=model_funcs["compute_utility_final"],
+        compute_marginal_utility=model_funcs["compute_marginal_utility_final"],
     )
 
     for period in range(n_periods - 2, -1, -1):

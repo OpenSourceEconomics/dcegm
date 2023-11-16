@@ -10,8 +10,8 @@ from jax import vmap
 
 
 def simulate_all_periods(
-    states_period_0,
-    wealth_period_0,
+    states_period_zero,
+    wealth_period_zero,
     num_periods,
     params,
     seed,
@@ -26,9 +26,9 @@ def simulate_all_periods(
     compute_beginning_of_period_wealth,
     exog_state_mapping,
     update_endog_state_by_state_and_choice,
-    compute_bequest_utility,
+    compute_utility_final_period,
 ):
-    num_agents = len(wealth_period_0)
+    num_agents = len(wealth_period_zero)
 
     simulate_body = partial(
         simulate_single_period,
@@ -47,7 +47,7 @@ def simulate_all_periods(
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
-    states_and_wealth_beginning_of_first_period = states_period_0, wealth_period_0
+    states_and_wealth_beginning_of_first_period = states_period_zero, wealth_period_zero
     states_and_wealth_beginning_of_last_period, sim_data = jax.lax.scan(
         f=simulate_body,
         init=states_and_wealth_beginning_of_first_period,
@@ -59,9 +59,10 @@ def simulate_all_periods(
         wealth_beginning_of_last_period,
     ) = states_and_wealth_beginning_of_last_period
 
-    utility = compute_bequest_utility(
+    utility = compute_utility_final_period(
         **states_beginning_of_last_period,
-        final_period_resources=wealth_beginning_of_last_period,
+        choice=sim_data["choice"][num_periods - 1],
+        resources=wealth_beginning_of_last_period,
         params=params,
     )
 
@@ -76,7 +77,6 @@ def simulate_all_periods(
         **states_beginning_of_last_period,
     }
 
-    # sim_data.pop("taste_shocks")
     dict_all = {
         key: np.row_stack([sim_data[key], final_period_data[key]])
         for key in sim_data.keys()

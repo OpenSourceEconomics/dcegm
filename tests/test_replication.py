@@ -10,9 +10,6 @@ from dcegm.pre_processing.state_space import create_state_space_and_choice_objec
 from dcegm.solve import solve_dcegm
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
-from toy_models.consumption_retirement_model.final_period_solution import (
-    solve_final_period_scalar,
-)
 from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_feasible_choice_set,
 )
@@ -26,9 +23,18 @@ from toy_models.consumption_retirement_model.utility_functions import (
     marginal_utility_crra,
 )
 from toy_models.consumption_retirement_model.utility_functions import (
-    utiility_func_log_crra,
+    marginal_utility_final_consume_all,
 )
-from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
+from toy_models.consumption_retirement_model.utility_functions import (
+    utiility_log_crra,
+)
+from toy_models.consumption_retirement_model.utility_functions import (
+    utiility_log_crra_final_consume_all,
+)
+from toy_models.consumption_retirement_model.utility_functions import utility_crra
+from toy_models.consumption_retirement_model.utility_functions import (
+    utility_final_consume_all,
+)
 
 # Obtain the test directory of the package
 TEST_DIR = Path(__file__).parent
@@ -41,15 +47,24 @@ REPLICATION_TEST_RESOURCES_DIR = TEST_DIR / "resources" / "replication_tests"
 def utility_functions():
     """Return dict with utility functions."""
     return {
-        "utility": utility_func_crra,
-        "inverse_marginal_utility": inverse_marginal_utility_crra,
+        "utility": utility_crra,
         "marginal_utility": marginal_utility_crra,
+        "inverse_marginal_utility": inverse_marginal_utility_crra,
+    }
+
+
+@pytest.fixture()
+def utility_functions_final_period():
+    """Return dict with utility functions for final period."""
+    return {
+        "utility": utility_final_consume_all,
+        "marginal_utility": marginal_utility_final_consume_all,
     }
 
 
 @pytest.fixture()
 def state_space_functions():
-    """Return dict with utility functions."""
+    """Return dict with state space functions."""
     return {
         "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
         "update_endog_state_by_state_and_choice": update_state,
@@ -66,9 +81,10 @@ def state_space_functions():
 )
 def test_benchmark_models(
     model,
-    utility_functions,
-    state_space_functions,
     load_example_model,
+    state_space_functions,
+    utility_functions,
+    utility_functions_final_period,
 ):
     options = {}
     params, _raw_options = load_example_model(f"{model}")
@@ -86,8 +102,9 @@ def test_benchmark_models(
         options["model_params"]["n_grid_points"],
     )
 
-    if params.loc[("utility_function", "theta"), "value"] == 1:
-        utility_functions["utility"] = utiility_func_log_crra
+    if params.loc[("utility_function", "rho"), "value"] == 1:
+        utility_functions["utility"] = utiility_log_crra
+        utility_functions_final_period["utility"] = utiility_log_crra_final_consume_all
 
     (
         _model_funcs,
@@ -96,10 +113,10 @@ def test_benchmark_models(
         update_endog_state_by_state_and_choice,
     ) = process_model_functions(
         options,
-        user_utility_functions=utility_functions,
-        user_budget_constraint=budget_constraint,
-        user_final_period_solution=solve_final_period_scalar,
         state_space_functions=state_space_functions,
+        utility_functions=utility_functions,
+        utility_final_period=utility_functions_final_period,
+        budget_constraint=budget_constraint,
     )
 
     (
@@ -117,10 +134,10 @@ def test_benchmark_models(
         params,
         options,
         exog_savings_grid=exog_savings_grid,
-        utility_functions=utility_functions,
-        budget_constraint=budget_constraint,
-        final_period_solution=solve_final_period_scalar,
         state_space_functions=state_space_functions,
+        utility_functions=utility_functions,
+        utility_final_period=utility_functions_final_period,
+        budget_constraint=budget_constraint,
     )
 
     policy_expected = pickle.load(

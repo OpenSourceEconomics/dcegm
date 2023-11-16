@@ -9,10 +9,10 @@ from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope_wrapper
 
 def process_model_functions(
     options: Dict,
-    user_utility_functions: Dict[str, Callable],
-    user_budget_constraint: Callable,
-    user_final_period_solution: Callable,
     state_space_functions: Dict[str, Callable],
+    utility_functions: Dict[str, Callable],
+    utility_final_period: Dict[str, Callable],
+    budget_constraint: Callable,
 ):
     """Create wrapped functions from user supplied functions.
 
@@ -59,29 +59,29 @@ def process_model_functions(
     model_params_options = options["model_params"]
 
     compute_utility = determine_function_arguments_and_partial_options(
-        func=user_utility_functions["utility"], options=model_params_options
+        func=utility_functions["utility"], options=model_params_options
     )
     compute_marginal_utility = determine_function_arguments_and_partial_options(
-        func=user_utility_functions["marginal_utility"], options=model_params_options
+        func=utility_functions["marginal_utility"], options=model_params_options
     )
     compute_inverse_marginal_utility = determine_function_arguments_and_partial_options(
-        func=user_utility_functions["inverse_marginal_utility"],
+        func=utility_functions["inverse_marginal_utility"],
+        options=model_params_options,
+    )
+
+    compute_utility_final = determine_function_arguments_and_partial_options(
+        func=utility_final_period["utility"],
+        options=model_params_options,
+    )
+    compute_marginal_utility_final = determine_function_arguments_and_partial_options(
+        func=utility_final_period["marginal_utility"],
         options=model_params_options,
     )
 
     compute_beginning_of_period_wealth = (
         determine_function_arguments_and_partial_options(
-            func=user_budget_constraint, options=model_params_options
+            func=budget_constraint, options=model_params_options
         )
-    )
-
-    compute_final_period = determine_function_arguments_and_partial_options(
-        func=user_final_period_solution,
-        options=model_params_options,
-        additional_partial={
-            "compute_utility": compute_utility,
-            "compute_marginal_utility": compute_marginal_utility,
-        },
     )
 
     get_state_specific_choice_set = determine_function_arguments_and_partial_options(
@@ -105,8 +105,9 @@ def process_model_functions(
         "compute_utility": compute_utility,
         "compute_marginal_utility": compute_marginal_utility,
         "compute_inverse_marginal_utility": compute_inverse_marginal_utility,
+        "compute_utility_final": compute_utility_final,
+        "compute_marginal_utility_final": compute_marginal_utility_final,
         "compute_beginning_of_period_wealth": compute_beginning_of_period_wealth,
-        "compute_final_period": compute_final_period,
         "compute_exog_transition_vec": compute_exog_transition_vec,
     }
 
