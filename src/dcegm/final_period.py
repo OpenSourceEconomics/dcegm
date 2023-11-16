@@ -38,14 +38,13 @@ def solve_final_period(
             income shocks.
     """
 
-    resources_final_period = resources_beginning_of_period[
-        state_objects["idx_parent_states"]
-    ]
+    resources = resources_beginning_of_period[state_objects["idx_parent_states"]]
+    # breakpoint()
 
     value, marg_util = vmap(
         vmap(
             vmap(
-                calculate_final_period_solution_for_each_gridpoint,
+                calculate_value_and_marg_util_for_each_gridpoint,
                 in_axes=(None, 0, None, None, None),
             ),
             in_axes=(None, 0, None, None, None),
@@ -53,7 +52,7 @@ def solve_final_period(
         in_axes=(0, 0, None, None, None),
     )(
         state_objects["state_choice_mat"],
-        resources_final_period,
+        resources,
         params,
         compute_utility,
         compute_marginal_utility,
@@ -66,7 +65,7 @@ def solve_final_period(
     value_calc = value[:, :, middle_of_draws]
     # The policy in the last period is eat it all. Either as bequest or by consuming.
     # The user defines this by the bequest functions.
-    resources_to_save = resources_final_period[:, :, middle_of_draws]
+    resources_to_save = resources[:, :, middle_of_draws]
     nans_to_add = jnp.full(
         (resources_to_save.shape[0], int(resources_to_save.shape[1] * 0.2)), jnp.nan
     )
@@ -87,7 +86,7 @@ def solve_final_period(
     )
 
 
-def calculate_final_period_solution_for_each_gridpoint(
+def calculate_value_and_marg_util_for_each_gridpoint(
     state_choice_vec, resources, params, compute_utility, compute_marginal_utility
 ):
     value = compute_utility(

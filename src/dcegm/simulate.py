@@ -28,7 +28,8 @@ def simulate_all_periods(
     update_endog_state_by_state_and_choice,
     compute_utility_final_period,
 ):
-    n_agents = len(resources_initial)
+    len(resources_initial)
+    len(choice_range)
 
     simulate_body = partial(
         simulate_single_period,
@@ -54,32 +55,83 @@ def simulate_all_periods(
         xs=jnp.arange(n_periods - 1),
     )
 
-    (
-        states_beginning_of_final_period,
-        resources_beginning_of_final_period,
-    ) = states_and_resources_beginning_of_final_period
-
-    utility = compute_utility_final_period(
-        **states_beginning_of_final_period,
-        choice=sim_dict["choice"][n_periods - 1],
-        resources=resources_beginning_of_final_period,
+    final_period_dict = simulate_final_period(
+        states_and_resources_beginning_of_final_period,
+        period=n_periods,
         params=params,
+        basic_seed=seed,
+        choice_range=choice_range,
+        compute_utility_final_period=compute_utility_final_period,
     )
-
-    final_period_dict = {
-        "choice": np.full(n_agents, -1),
-        "consumption": resources_beginning_of_final_period,
-        "utility": utility,
-        "value": utility,
-        "taste_shocks": np.zeros((1, n_agents, sim_dict["taste_shocks"].shape[2])),
-        "savings": np.zeros_like(utility),
-        "income_shock": np.zeros(n_agents),
-        **states_beginning_of_final_period,
-    }
 
     result = {
         key: np.row_stack([sim_dict[key], final_period_dict[key]])
         for key in sim_dict.keys()
+    }
+
+    return result
+
+
+def simulate_final_period(
+    states_and_resources_beginning_of_period,
+    period,
+    params,
+    basic_seed,
+    choice_range,
+    compute_utility_final_period,
+):
+    (
+        states_beginning_of_final_period,
+        resources_beginning_of_final_period,
+    ) = states_and_resources_beginning_of_period
+
+    n_choices = len(choice_range)
+    n_agents = len(resources_beginning_of_final_period)
+
+    # _utility = compute_utility_final_period(
+    #     **states_beginning_of_final_period,
+    #     choice=sim_dict["choice"][period - 1],
+    #     resources=resources_beginning_of_final_period,
+    #     params=params,
+    # )
+
+    utilities_pre_taste_shock = vmap(
+        vmap(
+            compute_final_utility_for_each_choice,
+            in_axes=(None, 0, None, None, None),
+        ),
+        in_axes=(0, None, 0, None, None),
+    )(
+        states_beginning_of_final_period,
+        choice_range,
+        resources_beginning_of_final_period,
+        params,
+        compute_utility_final_period,
+    )
+
+    # Draw taste shocks and calculate final value.
+    key = jax.random.PRNGKey(basic_seed + period)
+    taste_shocks = draw_taste_shocks(
+        num_agents=n_agents,
+        num_choices=n_choices,
+        taste_shock_scale=params["lambda"],
+        key=key,
+    )
+    utilities_across_choices = utilities_pre_taste_shock + taste_shocks
+
+    choice_index = jnp.nanargmax(utilities_across_choices, axis=1)
+    choice = choice_range[choice_index]
+    utility_period = jnp.max(utilities_across_choices, axis=1)
+
+    result = {
+        "choice": choice,
+        "consumption": resources_beginning_of_final_period,
+        "utility": utility_period,
+        "value": utility_period,
+        "taste_shocks": taste_shocks[np.newaxis, :, :],
+        "savings": np.zeros_like(utility_period),
+        "income_shock": np.zeros(n_agents),
+        **states_beginning_of_final_period,
     }
 
     return result
@@ -294,6 +346,19 @@ def transition_to_next_period(
         states_next_period,
         income_shocks_next_period,
     )
+
+
+def compute_final_utility_for_each_choice(
+    state_vec, choice, resources, params, compute_utility_final_period
+):
+    util = compute_utility_final_period(
+        **state_vec,
+        choice=choice,
+        resources=resources,
+        params=params,
+    )
+
+    return util
 
 
 def draw_normal_shocks(key, num_agents, mean=0, std=1):
