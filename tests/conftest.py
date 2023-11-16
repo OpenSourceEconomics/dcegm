@@ -18,6 +18,10 @@ REPLICATION_TEST_RESOURCES_DIR = TEST_DIR / "resources" / "replication_tests"
 sys.path.append(os.path.join(os.path.dirname(__file__), "utils"))
 
 
+def pytest_sessionstart(session):  # noqa: ARG001
+    config.update("jax_enable_x64", val=True)
+
+
 @pytest.fixture()
 def load_example_model():
     def load_options_and_params(model):
@@ -32,10 +36,6 @@ def load_example_model():
         return params, options
 
     return load_options_and_params
-
-
-def pytest_sessionstart(session):  # noqa: ARG001
-    config.update("jax_enable_x64", val=True)
 
 
 @pytest.hookimpl(tryfirst=True)

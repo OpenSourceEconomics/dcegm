@@ -32,7 +32,7 @@ def solve_dcegm(
     exog_savings_grid: jnp.ndarray,
     state_space_functions: Dict[str, Callable],
     utility_functions: Dict[str, Callable],
-    utility_final_period: Dict[str, Callable],
+    utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
 ) -> Dict[int, np.ndarray]:
     """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
@@ -68,7 +68,7 @@ def solve_dcegm(
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         budget_constraint=budget_constraint,
-        final_period_functions=utility_final_period,
+        final_period_functions=utility_functions_final_period,
     )
 
     results = backward_jit(params=params)
@@ -125,7 +125,7 @@ def get_solve_function(
         options,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
-        utility_final_period=final_period_functions,
+        utility_functions_final_period=final_period_functions,
         budget_constraint=budget_constraint,
     )
 
@@ -235,8 +235,8 @@ def backward_induction(
         savings_end_of_last_period=exog_savings_grid,
         income_shocks_of_period=income_shock_draws_unscaled * params["sigma"],
         params=params,
-        compute_beginning_of_period_wealth=model_funcs[
-            "compute_beginning_of_period_wealth"
+        compute_beginning_of_period_resources=model_funcs[
+            "compute_beginning_of_period_resources"
         ],
     )
 

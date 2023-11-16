@@ -44,6 +44,7 @@ TEST_CASES = list(product(RANDOM_TEST_SET, list(range(4))))
 
 @pytest.fixture(scope="module")
 def state_space_functions():
+    """Return dict with state space functions."""
     out = {
         "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
         "update_endog_state_by_state_and_choice": update_state,
@@ -53,6 +54,7 @@ def state_space_functions():
 
 @pytest.fixture(scope="module")
 def utility_functions():
+    """Return dict with utility functions."""
     out = {
         "utility": flow_util,
         "inverse_marginal_utility": inverse_marginal_utility,
@@ -122,7 +124,7 @@ def input_data(
         options,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
-        utility_final_period=utility_functions_final_period,
+        utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_dcegm,
     )
 
@@ -150,7 +152,7 @@ def input_data(
         exog_savings_grid=exog_savings_grid,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
-        utility_final_period=utility_functions_final_period,
+        utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_dcegm,
     )
 

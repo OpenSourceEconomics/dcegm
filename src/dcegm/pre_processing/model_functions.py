@@ -11,7 +11,7 @@ def process_model_functions(
     options: Dict,
     state_space_functions: Dict[str, Callable],
     utility_functions: Dict[str, Callable],
-    utility_final_period: Dict[str, Callable],
+    utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
 ):
     """Create wrapped functions from user supplied functions.
@@ -70,15 +70,15 @@ def process_model_functions(
     )
 
     compute_utility_final = determine_function_arguments_and_partial_options(
-        func=utility_final_period["utility"],
+        func=utility_functions_final_period["utility"],
         options=model_params_options,
     )
     compute_marginal_utility_final = determine_function_arguments_and_partial_options(
-        func=utility_final_period["marginal_utility"],
+        func=utility_functions_final_period["marginal_utility"],
         options=model_params_options,
     )
 
-    compute_beginning_of_period_wealth = (
+    compute_beginning_of_period_resources = (
         determine_function_arguments_and_partial_options(
             func=budget_constraint, options=model_params_options
         )
@@ -107,7 +107,7 @@ def process_model_functions(
         "compute_inverse_marginal_utility": compute_inverse_marginal_utility,
         "compute_utility_final": compute_utility_final,
         "compute_marginal_utility_final": compute_marginal_utility_final,
-        "compute_beginning_of_period_wealth": compute_beginning_of_period_wealth,
+        "compute_beginning_of_period_resources": compute_beginning_of_period_resources,
         "compute_exog_transition_vec": compute_exog_transition_vec,
     }
 

@@ -64,7 +64,6 @@ def utility_functions_final_period():
 
 @pytest.fixture()
 def state_space_functions():
-    """Return dict with state space functions."""
     return {
         "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
         "update_endog_state_by_state_and_choice": update_state,
@@ -115,7 +114,7 @@ def test_benchmark_models(
         options,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
-        utility_final_period=utility_functions_final_period,
+        utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
     )
 
@@ -136,7 +135,7 @@ def test_benchmark_models(
         exog_savings_grid=exog_savings_grid,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
-        utility_final_period=utility_functions_final_period,
+        utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
     )
 

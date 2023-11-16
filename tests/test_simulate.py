@@ -7,7 +7,6 @@ from dcegm.pre_processing.state_space import create_state_space_and_choice_objec
 from dcegm.simulate import simulate_all_periods
 from dcegm.simulate import simulate_single_period
 from dcegm.solve import solve_dcegm
-from jax import config
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_feasible_choice_set,
@@ -35,14 +34,12 @@ from tests.two_period_models.exog_ltc_and_job_offer.model_functions import (
     marginal_utility,
 )
 
-config.update("jax_enable_x64", True)
-
-
 WEALTH_GRID_POINTS = 100
 
 
 @pytest.fixture(scope="module")
 def state_space_functions():
+    """Return dict with state space functions."""
     out = {
         "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
         "update_endog_state_by_state_and_choice": update_state,
@@ -52,6 +49,7 @@ def state_space_functions():
 
 @pytest.fixture(scope="module")
 def utility_functions():
+    """Return dict with utility functions."""
     out = {
         "utility": flow_util,
         "marginal_utility": marginal_utility,
@@ -72,7 +70,7 @@ def utility_functions_final_period():
 def test_simulate(
     state_space_functions, utility_functions, utility_functions_final_period
 ):
-    num_agents = 100
+    n_agents = 100
 
     params = {}
     params["rho"] = 0.5
@@ -125,15 +123,15 @@ def test_simulate(
         options,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
-        utility_final_period=utility_functions_final_period,
+        utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_dcegm_two_exog_processes,
     )
 
     # === Solve ===
 
     (
-        period_specific_state_objects,
-        state_space,
+        _period_specific_state_objects,
+        _state_space,
         map_state_choice_to_index,
         exog_state_mapping,
     ) = create_state_space_and_choice_objects(
@@ -153,29 +151,25 @@ def test_simulate(
         exog_savings_grid=exog_savings_grid,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
-        utility_final_period=utility_functions_final_period,
+        utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_dcegm_two_exog_processes,
     )
 
     # === Simulate ===
 
-    # compute_utility_final_period = determine_function_arguments_and_partial_options(
-    #     compute_utility_consume_everything, options=options
-    # )
-
     initial_states = {
-        "period": np.zeros(num_agents, dtype=np.int16),
-        "lagged_choice": np.zeros(num_agents, dtype=np.int16) + 1,
-        "married": np.zeros(num_agents, dtype=np.int16),
-        "ltc": np.zeros(num_agents, dtype=np.int16),
-        "job_offer": np.zeros(num_agents, dtype=np.int16),
+        "period": np.zeros(n_agents, dtype=np.int16),
+        "lagged_choice": np.zeros(n_agents, dtype=np.int16) + 1,
+        "married": np.zeros(n_agents, dtype=np.int16),
+        "ltc": np.zeros(n_agents, dtype=np.int16),
+        "job_offer": np.zeros(n_agents, dtype=np.int16),
     }
-    wealth_initial = np.ones(num_agents) * 10
 
-    states_and_wealth_beginning_of_period_zero = (initial_states, wealth_initial)
+    resources_initial = np.ones(n_agents) * 10
+    states_and_wealth_beginning_of_period_zero = (initial_states, resources_initial)
 
     _carry, _result = simulate_single_period(
-        states_and_wealth_beginning_of_period=states_and_wealth_beginning_of_period_zero,
+        states_and_resources_beginning_of_period=states_and_wealth_beginning_of_period_zero,
         period=0,
         params=params,
         basic_seed=111,
@@ -187,17 +181,17 @@ def test_simulate(
         choice_range=jnp.arange(map_state_choice_to_index.shape[-1]),
         compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
         compute_utility=model_funcs["compute_utility"],
-        compute_beginning_of_period_wealth=model_funcs[
-            "compute_beginning_of_period_wealth"
+        compute_beginning_of_period_resources=model_funcs[
+            "compute_beginning_of_period_resources"
         ],
         exog_state_mapping=exog_state_mapping,
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
     sim_dict = simulate_all_periods(
-        states_period_zero=initial_states,
-        wealth_period_zero=wealth_initial,
-        num_periods=options["state_space"]["n_periods"],
+        states_initial=initial_states,
+        resources_initial=resources_initial,
+        n_periods=options["state_space"]["n_periods"],
         params=params,
         seed=111,
         endog_grid_solved=endog_grid,
@@ -208,8 +202,8 @@ def test_simulate(
         choice_range=jnp.arange(map_state_choice_to_index.shape[-1], dtype=jnp.int16),
         compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
         compute_utility=model_funcs["compute_utility"],
-        compute_beginning_of_period_wealth=model_funcs[
-            "compute_beginning_of_period_wealth"
+        compute_beginning_of_period_resources=model_funcs[
+            "compute_beginning_of_period_resources"
         ],
         exog_state_mapping=exog_state_mapping,
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
@@ -261,7 +255,7 @@ def create_data_frame(sim_dict):
         ),
     )
 
-    df_combined = pd.concat([df_without_taste_shocks, df_taste_shocks], axis=1)
-    _df_combined = df_without_taste_shocks.join(df_taste_shocks)
+    # df_combined = pd.concat([df_without_taste_shocks, df_taste_shocks], axis=1)
+    df_combined = df_without_taste_shocks.join(df_taste_shocks)
 
     return df_combined
