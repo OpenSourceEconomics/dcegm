@@ -4,8 +4,8 @@ import pandas as pd
 import pytest
 from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
-from dcegm.simulate import simulate_all_periods
-from dcegm.simulate import simulate_single_period
+from dcegm.simulation.simulate import simulate_all_periods
+from dcegm.simulation.simulate import simulate_single_period
 from dcegm.solve import solve_dcegm
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.state_space_objects import (
@@ -67,11 +67,11 @@ def utility_functions_final_period():
     }
 
 
-@pytest.mark.xfail
+# @pytest.mark.xfail
 def test_simulate(
     state_space_functions, utility_functions, utility_functions_final_period
 ):
-    n_agents = 100
+    n_agents = 100000
 
     params = {}
     params["rho"] = 0.5
@@ -80,7 +80,7 @@ def test_simulate(
     params["ltc_cost"] = 5
     params["wage_avg"] = 8
     params["sigma"] = 1
-    params["lambda"] = 1
+    params["lambda"] = 1e-16
     params["beta"] = 0.95
 
     # exog params
@@ -221,13 +221,14 @@ def test_simulate(
 
     # taste_shocks_final = df.xs(period + 1, level=0).filter(like="taste_shock_")
 
-    value_period_zero = df.xs(period, level=0)["utility"] + params["beta"] * (
-        df.xs(period + 1, level=0)["utility"]
-        # + df.xs(period + 1, level=0)[f"taste_shock_selected_choice"]
+    value_period_zero = (
+        df.xs(period, level=0)["utility"].mean()
+        + params["beta"] * df.xs(period + 1, level=0)["value"].mean()
     )
     expected = (
-        df.xs(period, level=0)["value"] + df.xs(period, level=0)[f"taste_shock_{1}"]
-    )
+        df.xs(period, level=0)["value"]
+        - df.xs(period, level=0)["taste_shock_selected_choice"]
+    ).mean()
 
     aaae(value_period_zero.mean(), expected.mean(), decimal=2)
 

@@ -2,6 +2,7 @@
 from typing import Callable
 from typing import Dict
 
+import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 from dcegm.pre_processing.exog_processes import create_exog_mapping
