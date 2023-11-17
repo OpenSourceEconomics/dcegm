@@ -1,3 +1,4 @@
+"""Wrapper to solve the final period of the model."""
 from typing import Callable
 from typing import Dict
 from typing import Tuple
@@ -6,14 +7,13 @@ import jax.numpy as jnp
 import numpy as np
 from jax import vmap
 
-"""Wrapper function to solve the final period of the model."""
-
 
 def solve_final_period(
-    state_objects_final_period: Dict[str, np.ndarray],
-    compute_final_period: Callable,
+    state_objects: Dict[str, np.ndarray],
     resources_beginning_of_period: jnp.ndarray,
     params: Dict[str, float],
+    compute_utility: Callable,
+    compute_marginal_utility: Callable,
 ) -> Tuple[
     jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray
 ]:
@@ -38,35 +38,34 @@ def solve_final_period(
             income shocks.
     """
 
-    resources_final_period = resources_beginning_of_period[
-        state_objects_final_period["idx_parent_states"]
-    ]
+    resources = resources_beginning_of_period[state_objects["idx_parent_states"]]
+    # breakpoint()
 
-    # Calculate the final period solution for each gridpoint
-    marg_util_interpolated, value_interpolated = vmap(
+    value, marg_util = vmap(
         vmap(
             vmap(
-                calculate_final_period_solution_for_each_gridpoint,
-                in_axes=(None, 0, None, None),
+                calculate_value_and_marg_util_for_each_gridpoint,
+                in_axes=(None, 0, None, None, None),
             ),
-            in_axes=(None, 0, None, None),
+            in_axes=(None, 0, None, None, None),
         ),
-        in_axes=(0, 0, None, None),
+        in_axes=(0, 0, None, None, None),
     )(
-        state_objects_final_period["state_choice_mat"],
-        resources_final_period,
+        state_objects["state_choice_mat"],
+        resources,
         params,
-        compute_final_period,
+        compute_utility,
+        compute_marginal_utility,
     )
 
     # Choose which draw we take for policy and value function as those are not
     # saved with respect to the draws
-    middle_of_draws = int(value_interpolated.shape[2] + 1 / 2)
+    middle_of_draws = int(value.shape[2] + 1 / 2)
 
-    value_calc = value_interpolated[:, :, middle_of_draws]
+    value_calc = value[:, :, middle_of_draws]
     # The policy in the last period is eat it all. Either as bequest or by consuming.
     # The user defines this by the bequest functions.
-    resources_to_save = resources_final_period[:, :, middle_of_draws]
+    resources_to_save = resources[:, :, middle_of_draws]
     nans_to_add = jnp.full(
         (resources_to_save.shape[0], int(resources_to_save.shape[1] * 0.2)), jnp.nan
     )
@@ -82,17 +81,24 @@ def solve_final_period(
         policy_left,
         policy_right,
         endog_grid,
-        marg_util_interpolated,
-        value_interpolated,
+        value,
+        marg_util,
     )
 
 
-def calculate_final_period_solution_for_each_gridpoint(
-    state_choice_vec, resources, params, compute_final_period
+def calculate_value_and_marg_util_for_each_gridpoint(
+    state_choice_vec, resources, params, compute_utility, compute_marginal_utility
 ):
-    marg_util_interpolated, value_interpolated, _ = compute_final_period(
+    value = compute_utility(
         **state_choice_vec,
-        begin_of_period_resources=resources,
+        resources=resources,
         params=params,
     )
-    return marg_util_interpolated, value_interpolated
+
+    marg_util = compute_marginal_utility(
+        **state_choice_vec,
+        resources=resources,
+        params=params,
+    )
+
+    return value, marg_util

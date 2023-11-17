@@ -6,7 +6,7 @@ def calculate_resources(
     savings_end_of_last_period,
     income_shocks_of_period,
     params,
-    compute_beginning_of_period_wealth,
+    compute_beginning_of_period_resources,
 ):
     resources_beginning_of_period = vmap(
         vmap(
@@ -22,7 +22,7 @@ def calculate_resources(
         savings_end_of_last_period,
         income_shocks_of_period,
         params,
-        compute_beginning_of_period_wealth,
+        compute_beginning_of_period_resources,
     )
     return resources_beginning_of_period
 
@@ -32,9 +32,9 @@ def calculate_resources_for_each_grid_point(
     exog_savings_grid_point,
     income_shock_draw,
     params,
-    compute_beginning_of_period_wealth,
+    compute_beginning_of_period_resources,
 ):
-    out = compute_beginning_of_period_wealth(
+    out = compute_beginning_of_period_resources(
         **state_vec,
         savings_end_of_previous_period=exog_savings_grid_point,
         income_shock_previous_period=income_shock_draw,
@@ -45,19 +45,19 @@ def calculate_resources_for_each_grid_point(
 
 def calculate_resources_for_all_agents(
     states_beginning_of_period,
-    savings_end_of_last_period,
+    savings_end_of_previous_period,
     income_shocks_of_period,
     params,
-    compute_beginning_of_period_wealth,
+    compute_beginning_of_period_resources,
 ):
     resources_beginning_of_next_period = vmap(
         calculate_resources_for_each_grid_point,
         in_axes=(0, 0, 0, None, None),
     )(
         states_beginning_of_period,
-        savings_end_of_last_period,
+        savings_end_of_previous_period,
         income_shocks_of_period,
         params,
-        compute_beginning_of_period_wealth,
+        compute_beginning_of_period_resources,
     )
     return resources_beginning_of_next_period

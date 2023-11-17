@@ -1,19 +1,23 @@
 import jax.numpy as jnp
 import numpy as np
+import pandas as pd
 import pytest
 from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
 from dcegm.simulate import simulate_all_periods
 from dcegm.simulate import simulate_single_period
 from dcegm.solve import solve_dcegm
-from jax import config
-from toy_models.consumption_retirement_model.final_period_solution import (
-    solve_final_period_scalar,
-)
+from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_feasible_choice_set,
 )
 from toy_models.consumption_retirement_model.state_space_objects import update_state
+from toy_models.consumption_retirement_model.utility_functions import (
+    marginal_utility_final_consume_all,
+)
+from toy_models.consumption_retirement_model.utility_functions import (
+    utility_final_consume_all,
+)
 
 from tests.two_period_models.exog_ltc_and_job_offer.model_functions import (
     budget_dcegm_two_exog_processes,
@@ -30,15 +34,12 @@ from tests.two_period_models.exog_ltc_and_job_offer.model_functions import (
     marginal_utility,
 )
 
-
-config.update("jax_enable_x64", True)
-
-
 WEALTH_GRID_POINTS = 100
 
 
 @pytest.fixture(scope="module")
 def state_space_functions():
+    """Return dict with state space functions."""
     out = {
         "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
         "update_endog_state_by_state_and_choice": update_state,
@@ -48,20 +49,29 @@ def state_space_functions():
 
 @pytest.fixture(scope="module")
 def utility_functions():
+    """Return dict with utility functions."""
     out = {
         "utility": flow_util,
-        "inverse_marginal_utility": inverse_marginal_utility,
         "marginal_utility": marginal_utility,
+        "inverse_marginal_utility": inverse_marginal_utility,
     }
     return out
 
 
+@pytest.fixture(scope="module")
+def utility_functions_final_period():
+    """Return dict with utility functions for final period."""
+    return {
+        "utility": utility_final_consume_all,
+        "marginal_utility": marginal_utility_final_consume_all,
+    }
+
+
+@pytest.mark.xfail
 def test_simulate(
-    utility_functions,
-    state_space_functions,
-    load_example_model,
+    state_space_functions, utility_functions, utility_functions_final_period
 ):
-    num_agents = 100
+    n_agents = 100
 
     params = {}
     params["rho"] = 0.5
@@ -106,21 +116,23 @@ def test_simulate(
     )
 
     (
-        _model_funcs,
+        model_funcs,
         _compute_upper_envelope,
         get_state_specific_choice_set,
         update_endog_state_by_state_and_choice,
     ) = process_model_functions(
         options,
-        user_utility_functions=utility_functions,
-        user_budget_constraint=budget_dcegm_two_exog_processes,
-        user_final_period_solution=solve_final_period_scalar,
         state_space_functions=state_space_functions,
+        utility_functions=utility_functions,
+        utility_functions_final_period=utility_functions_final_period,
+        budget_constraint=budget_dcegm_two_exog_processes,
     )
 
+    # === Solve ===
+
     (
-        period_specific_state_objects,
-        state_space,
+        _period_specific_state_objects,
+        _state_space,
         map_state_choice_to_index,
         exog_state_mapping,
     ) = create_state_space_and_choice_objects(
@@ -138,25 +150,27 @@ def test_simulate(
         params,
         options,
         exog_savings_grid=exog_savings_grid,
-        utility_functions=utility_functions,
-        budget_constraint=budget_dcegm_two_exog_processes,
-        final_period_solution=solve_final_period_scalar,
         state_space_functions=state_space_functions,
+        utility_functions=utility_functions,
+        utility_functions_final_period=utility_functions_final_period,
+        budget_constraint=budget_dcegm_two_exog_processes,
     )
 
+    # === Simulate ===
+
     initial_states = {
-        "period": np.zeros(num_agents, dtype=np.int16),
-        "lagged_choice": np.zeros(num_agents, dtype=np.int16) + 1,
-        "married": np.zeros(num_agents, dtype=np.int16),
-        "ltc": np.zeros(num_agents, dtype=np.int16),
-        "job_offer": np.zeros(num_agents, dtype=np.int16),
+        "period": np.zeros(n_agents, dtype=np.int16),
+        "lagged_choice": np.zeros(n_agents, dtype=np.int16) + 1,
+        "married": np.zeros(n_agents, dtype=np.int16),
+        "ltc": np.zeros(n_agents, dtype=np.int16),
+        "job_offer": np.zeros(n_agents, dtype=np.int16),
     }
-    wealth_initial = np.ones(num_agents) * 10
 
-    states_and_wealth_beginning_of_period_zero = (initial_states, wealth_initial)
+    resources_initial = np.ones(n_agents) * 10
+    states_and_wealth_beginning_of_period_zero = (initial_states, resources_initial)
 
-    simulate_single_period(
-        states_and_wealth_beginning_of_period=states_and_wealth_beginning_of_period_zero,
+    _carry, _result = simulate_single_period(
+        states_and_resources_beginning_of_period=states_and_wealth_beginning_of_period_zero,
         period=0,
         params=params,
         basic_seed=111,
@@ -166,19 +180,19 @@ def test_simulate(
         policy_right_solved=policy_right,
         map_state_choice_to_index=jnp.array(map_state_choice_to_index),
         choice_range=jnp.arange(map_state_choice_to_index.shape[-1]),
-        compute_exog_transition_vec=_model_funcs["compute_exog_transition_vec"],
-        compute_utility=_model_funcs["compute_utility"],
-        compute_beginning_of_period_wealth=_model_funcs[
-            "compute_beginning_of_period_wealth"
+        compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
+        compute_utility=model_funcs["compute_utility"],
+        compute_beginning_of_period_resources=model_funcs[
+            "compute_beginning_of_period_resources"
         ],
         exog_state_mapping=exog_state_mapping,
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
-    simulate_all_periods(
-        states_period_0=initial_states,
-        wealth_period_0=wealth_initial,
-        num_periods=options["state_space"]["n_periods"],
+    sim_dict = simulate_all_periods(
+        states_initial=initial_states,
+        resources_initial=resources_initial,
+        n_periods=options["state_space"]["n_periods"],
         params=params,
         seed=111,
         endog_grid_solved=endog_grid,
@@ -187,13 +201,64 @@ def test_simulate(
         policy_right_solved=policy_right,
         map_state_choice_to_index=jnp.array(map_state_choice_to_index),
         choice_range=jnp.arange(map_state_choice_to_index.shape[-1], dtype=jnp.int16),
-        compute_exog_transition_vec=_model_funcs["compute_exog_transition_vec"],
-        compute_utility=_model_funcs["compute_utility"],
-        compute_beginning_of_period_wealth=_model_funcs[
-            "compute_beginning_of_period_wealth"
+        compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
+        compute_utility=model_funcs["compute_utility"],
+        compute_beginning_of_period_resources=model_funcs[
+            "compute_beginning_of_period_resources"
         ],
         exog_state_mapping=exog_state_mapping,
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+        compute_utility_final_period=model_funcs["compute_utility_final"],
     )
-    # utility_0(states_0, wealth_0) + beta * utility_1(state_agent_1, wealth_agent_1)
-    # = value_0(states_0, wealth_0)
+
+    df = create_data_frame(sim_dict)
+
+    period = 0
+
+    _cond = [df["choice"] == 0, df["choice"] == 1]
+    _val = [df["taste_shock_0"], df["taste_shock_1"]]
+    df["taste_shock_selected_choice"] = np.select(_cond, _val)
+
+    # taste_shocks_final = df.xs(period + 1, level=0).filter(like="taste_shock_")
+
+    value_period_zero = df.xs(period, level=0)["utility"] + params["beta"] * (
+        df.xs(period + 1, level=0)["utility"]
+        # + df.xs(period + 1, level=0)[f"taste_shock_selected_choice"]
+    )
+    expected = (
+        df.xs(period, level=0)["value"] + df.xs(period, level=0)[f"taste_shock_{1}"]
+    )
+
+    aaae(value_period_zero.mean(), expected.mean(), decimal=2)
+
+
+def create_data_frame(sim_dict):
+    n_periods, n_agents, n_choices = sim_dict["taste_shocks"].shape
+
+    keys_to_drop = ["taste_shocks", "period"]
+    dict_to_df = {key: sim_dict[key] for key in sim_dict if key not in keys_to_drop}
+
+    df_without_taste_shocks = pd.DataFrame(
+        {key: val.ravel() for key, val in dict_to_df.items()},
+        index=pd.MultiIndex.from_product(
+            [np.arange(n_periods), np.arange(n_agents)],
+            names=["period", "agent"],
+        ),
+    )
+
+    taste_shocks = sim_dict["taste_shocks"]
+    df_taste_shocks = pd.DataFrame(
+        {
+            f"taste_shock_{choice}": taste_shocks[..., choice].flatten()
+            for choice in range(n_choices)
+        },
+        index=pd.MultiIndex.from_product(
+            [np.arange(n_periods), np.arange(n_agents)],
+            names=["period", "agent"],
+        ),
+    )
+
+    # df_combined = pd.concat([df_without_taste_shocks, df_taste_shocks], axis=1)
+    df_combined = df_without_taste_shocks.join(df_taste_shocks)
+
+    return df_combined

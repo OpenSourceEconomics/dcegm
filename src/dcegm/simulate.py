@@ -2,6 +2,7 @@ from functools import partial
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 from dcegm.budget import calculate_resources_for_all_agents
 from dcegm.egm.interpolate_marginal_utility import interpolate_policy_and_check_value
 from dcegm.interpolation import get_index_high_and_low
@@ -9,9 +10,9 @@ from jax import vmap
 
 
 def simulate_all_periods(
-    states_period_0,
-    wealth_period_0,
-    num_periods,
+    states_initial,
+    resources_initial,
+    n_periods,
     params,
     seed,
     endog_grid_solved,
@@ -22,10 +23,14 @@ def simulate_all_periods(
     choice_range,
     compute_exog_transition_vec,
     compute_utility,
-    compute_beginning_of_period_wealth,
+    compute_beginning_of_period_resources,
     exog_state_mapping,
     update_endog_state_by_state_and_choice,
+    compute_utility_final_period,
 ):
+    len(resources_initial)
+    len(choice_range)
+
     simulate_body = partial(
         simulate_single_period,
         params=params,
@@ -38,22 +43,102 @@ def simulate_all_periods(
         choice_range=choice_range,
         compute_exog_transition_vec=compute_exog_transition_vec,
         compute_utility=compute_utility,
-        compute_beginning_of_period_wealth=compute_beginning_of_period_wealth,
+        compute_beginning_of_period_resources=compute_beginning_of_period_resources,
         exog_state_mapping=exog_state_mapping,
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
-    states_and_wealth_period_0 = states_period_0, wealth_period_0
-    states_and_wealth_last_period, sim_data = jax.lax.scan(
-        f=simulate_body, init=states_and_wealth_period_0, xs=jnp.arange(num_periods - 1)
+    states_and_resources_beginning_of_first_period = states_initial, resources_initial
+    states_and_resources_beginning_of_final_period, sim_dict = jax.lax.scan(
+        f=simulate_body,
+        init=states_and_resources_beginning_of_first_period,
+        xs=jnp.arange(n_periods - 1),
     )
-    # ToDo: Last period.
 
-    return states_and_wealth_last_period, sim_data
+    final_period_dict = simulate_final_period(
+        states_and_resources_beginning_of_final_period,
+        period=n_periods,
+        params=params,
+        basic_seed=seed,
+        choice_range=choice_range,
+        compute_utility_final_period=compute_utility_final_period,
+    )
+
+    result = {
+        key: np.row_stack([sim_dict[key], final_period_dict[key]])
+        for key in sim_dict.keys()
+    }
+
+    return result
+
+
+def simulate_final_period(
+    states_and_resources_beginning_of_period,
+    period,
+    params,
+    basic_seed,
+    choice_range,
+    compute_utility_final_period,
+):
+    (
+        states_beginning_of_final_period,
+        resources_beginning_of_final_period,
+    ) = states_and_resources_beginning_of_period
+
+    n_choices = len(choice_range)
+    n_agents = len(resources_beginning_of_final_period)
+
+    # _utility = compute_utility_final_period(
+    #     **states_beginning_of_final_period,
+    #     choice=sim_dict["choice"][period - 1],
+    #     resources=resources_beginning_of_final_period,
+    #     params=params,
+    # )
+
+    utilities_pre_taste_shock = vmap(
+        vmap(
+            compute_final_utility_for_each_choice,
+            in_axes=(None, 0, None, None, None),
+        ),
+        in_axes=(0, None, 0, None, None),
+    )(
+        states_beginning_of_final_period,
+        choice_range,
+        resources_beginning_of_final_period,
+        params,
+        compute_utility_final_period,
+    )
+
+    # Draw taste shocks and calculate final value.
+    key = jax.random.PRNGKey(basic_seed + period)
+    taste_shocks = draw_taste_shocks(
+        num_agents=n_agents,
+        num_choices=n_choices,
+        taste_shock_scale=params["lambda"],
+        key=key,
+    )
+    utilities_across_choices = utilities_pre_taste_shock + taste_shocks
+
+    choice_index = jnp.nanargmax(utilities_across_choices, axis=1)
+    choice = choice_range[choice_index]
+    utility_period = jnp.max(utilities_across_choices, axis=1)
+
+    result = {
+        "choice": choice,
+        "consumption": resources_beginning_of_final_period,
+        "utility": utility_period,
+        "value": utility_period,
+        "taste_shocks": taste_shocks[np.newaxis, :, :],
+        "savings": np.zeros_like(utility_period),
+        "income_shock": np.zeros(n_agents),
+        **states_beginning_of_final_period,
+    }
+
+    return result
 
 
 def simulate_single_period(
-    states_and_wealth_beginning_of_period,
+    states_and_resources_beginning_of_period,
     period,
     params,
     basic_seed,
@@ -65,25 +150,25 @@ def simulate_single_period(
     choice_range,
     compute_exog_transition_vec,
     compute_utility,
-    compute_beginning_of_period_wealth,
+    compute_beginning_of_period_resources,
     exog_state_mapping,
     update_endog_state_by_state_and_choice,
 ):
     (
         states_beginning_of_period,
-        wealth_beginning_of_period,
-    ) = states_and_wealth_beginning_of_period
+        resources_beginning_of_period,
+    ) = states_and_resources_beginning_of_period
 
-    # Read key variables of the simulation.
-    num_choices = len(choice_range)
+    n_choices = len(choice_range)
+    n_agents = len(resources_beginning_of_period)
 
     # Prepare random seeds for the simulation.
     key = jax.random.PRNGKey(basic_seed + period)
 
     # Interpolate policy and value function for all agents.
-    policy_agent, value_agent_pre_shock = interpolate_policy_and_value_for_all_agents(
+    policy, values_pre_taste_shock = interpolate_policy_and_value_for_all_agents(
         states_beginning_of_period=states_beginning_of_period,
-        wealth_beginning_of_period=wealth_beginning_of_period,
+        resources_beginning_of_period=resources_beginning_of_period,
         value_solved=value_solved,
         policy_left_solved=policy_left_solved,
         policy_right_solved=policy_right_solved,
@@ -95,72 +180,67 @@ def simulate_single_period(
     )
 
     # Draw taste shocks and calculate final value.
-    num_agents = wealth_beginning_of_period.shape[0]
     taste_shocks = draw_taste_shocks(
-        num_agents=num_agents,
-        num_choices=num_choices,
+        num_agents=n_agents,
+        num_choices=n_choices,
         taste_shock_scale=params["lambda"],
         key=key,
     )
-    value_agent = value_agent_pre_shock + taste_shocks
+    values_across_choices = values_pre_taste_shock + taste_shocks
 
     # Determine choice index of period by max value and select corresponding choice,
     # consumption and value.
-    choice_index_period = jnp.nanargmax(value_agent, axis=1)
-    choice_period = choice_range[choice_index_period]
-    consumption_period = jnp.take_along_axis(
-        policy_agent, choice_index_period[:, None], axis=1
-    )[:, 0]
-    value_period = jnp.take_along_axis(
-        value_agent, choice_index_period[:, None], axis=1
+    choice_index = jnp.nanargmax(values_across_choices, axis=1)
+    choice = choice_range[choice_index]
+
+    value_max = jnp.take_along_axis(
+        values_across_choices, choice_index[:, None], axis=1
     )[:, 0]
 
-    # Calculate utility of period.
+    consumption = jnp.take_along_axis(policy, choice_index[:, None], axis=1)[:, 0]
     utility_period = vmap(vectorized_utility, in_axes=(0, 0, 0, None, None))(
-        consumption_period,
+        consumption,
         states_beginning_of_period,
-        choice_period,
+        choice,
         params,
         compute_utility,
     )
-    # Calculate the savings.
-    savings_this_period = wealth_beginning_of_period - consumption_period
+    savings_current_period = resources_beginning_of_period - consumption
 
-    # Transition to next period.
     (
-        wealth_at_beginning_of_next_period,
+        resources_beginning_of_next_period,
         states_next_period,
         income_shocks_next_period,
     ) = transition_to_next_period(
         states_beginning_of_period=states_beginning_of_period,
-        savings_this_period=savings_this_period,
-        choice_period=choice_period,
+        savings_current_period=savings_current_period,
+        choice=choice,
         params=params,
         compute_exog_transition_vec=compute_exog_transition_vec,
         exog_state_mapping=exog_state_mapping,
-        compute_beginning_of_period_wealth=compute_beginning_of_period_wealth,
+        compute_beginning_of_period_resources=compute_beginning_of_period_resources,
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
         key=key,
     )
-    carry = states_next_period, wealth_at_beginning_of_next_period
+    carry = states_next_period, resources_beginning_of_next_period
 
-    result_data = {
-        "choice": choice_period,
-        "consumption": consumption_period,
+    result = {
+        "choice": choice,
+        "consumption": consumption,
         "utility": utility_period,
         "taste_shocks": taste_shocks,
-        "value": value_period,
-        "savings": savings_this_period,
+        "value": value_max,
+        "savings": savings_current_period,
         "income_shock": income_shocks_next_period,
         **states_beginning_of_period,
     }
 
-    return carry, result_data
+    return carry, result
 
 
 def interpolate_policy_and_value_for_all_agents(
     states_beginning_of_period,
-    wealth_beginning_of_period,
+    resources_beginning_of_period,
     value_solved,
     policy_left_solved,
     policy_right_solved,
@@ -188,14 +268,14 @@ def interpolate_policy_and_value_for_all_agents(
 
     vectorized_interp = vmap(
         vmap(
-            interpolate_policy_and_value_function_for_agents,
+            interpolate_policy_and_value_function,
             in_axes=(None, None, 0, 0, 0, 0, 0, None, None),
         ),
         in_axes=(0, 0, 0, 0, 0, 0, None, None, None),
     )
 
     policy_agent, value_per_agent_interp = vectorized_interp(
-        wealth_beginning_of_period,
+        resources_beginning_of_period,
         states_beginning_of_period,
         endog_grid_agent,
         value_grid_agent,
@@ -210,24 +290,24 @@ def interpolate_policy_and_value_for_all_agents(
 
 def transition_to_next_period(
     states_beginning_of_period,
-    savings_this_period,
-    choice_period,
+    savings_current_period,
+    choice,
     params,
     compute_exog_transition_vec,
     exog_state_mapping,
-    compute_beginning_of_period_wealth,
+    compute_beginning_of_period_resources,
     update_endog_state_by_state_and_choice,
     key,
 ):
     # Compute transitioning to next period. We need to do that separately for each
     # agent, therefore we need to split the random key.
-    num_agents = savings_this_period.shape[0]
-    sim_specific_keys = jax.random.split(key, num=num_agents)
+    n_agents = savings_current_period.shape[0]
+    sim_specific_keys = jax.random.split(key, num=n_agents)
     exog_states_next_period = vmap(
         realize_exog_process, in_axes=(0, 0, 0, None, None, None)
     )(
         states_beginning_of_period,
-        choice_period,
+        choice,
         sim_specific_keys,
         params,
         compute_exog_transition_vec,
@@ -239,7 +319,7 @@ def transition_to_next_period(
     )(
         update_endog_state_by_state_and_choice,
         states_beginning_of_period,
-        choice_period,
+        choice,
         params,
     )
     # Generate states next period and apply budged constraint for wealth at the
@@ -252,20 +332,33 @@ def transition_to_next_period(
 
     # Draw income shocks.
     income_shocks_next_period = draw_normal_shocks(
-        key=key, num_agents=num_agents, mean=0, std=params["sigma"]
+        key=key, num_agents=n_agents, mean=0, std=params["sigma"]
     )
-    wealth_at_beginning_of_next_period = calculate_resources_for_all_agents(
+    resources_beginning_of_next_period = calculate_resources_for_all_agents(
         states_beginning_of_period=states_next_period,
-        savings_end_of_last_period=savings_this_period,
+        savings_end_of_previous_period=savings_current_period,
         income_shocks_of_period=income_shocks_next_period,
         params=params,
-        compute_beginning_of_period_wealth=compute_beginning_of_period_wealth,
+        compute_beginning_of_period_resources=compute_beginning_of_period_resources,
     )
     return (
-        wealth_at_beginning_of_next_period,
+        resources_beginning_of_next_period,
         states_next_period,
         income_shocks_next_period,
     )
+
+
+def compute_final_utility_for_each_choice(
+    state_vec, choice, resources, params, compute_utility_final_period
+):
+    util = compute_utility_final_period(
+        **state_vec,
+        choice=choice,
+        resources=resources,
+        params=params,
+    )
+
+    return util
 
 
 def draw_normal_shocks(key, num_agents, mean=0, std=1):
@@ -305,8 +398,8 @@ def get_state_choice_index_per_state(map_state_choice_to_index, states):
     return indexes[0]
 
 
-def interpolate_policy_and_value_function_for_agents(
-    wealth_beginning_of_period,
+def interpolate_policy_and_value_function(
+    resources_beginning_of_period,
     state,
     endog_grid_agent,
     value_agent,
@@ -317,7 +410,7 @@ def interpolate_policy_and_value_function_for_agents(
     compute_utility,
 ):
     ind_high, ind_low = get_index_high_and_low(
-        x=endog_grid_agent, x_new=wealth_beginning_of_period
+        x=endog_grid_agent, x_new=resources_beginning_of_period
     )
     state_choice_vec = {**state, "choice": choice}
     policy_interp, value_interp = interpolate_policy_and_check_value(
@@ -327,7 +420,7 @@ def interpolate_policy_and_value_function_for_agents(
         policy_low=policy_right_agent[ind_low],
         value_low=value_agent[ind_low],
         wealth_low=endog_grid_agent[ind_low],
-        new_wealth=wealth_beginning_of_period,
+        new_wealth=resources_beginning_of_period,
         compute_utility=compute_utility,
         endog_grid_min=endog_grid_agent[1],
         value_at_zero_wealth=value_agent[0],
