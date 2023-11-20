@@ -67,7 +67,6 @@ def utility_functions_final_period():
     }
 
 
-# @pytest.mark.xfail
 def test_simulate(
     state_space_functions, utility_functions, utility_functions_final_period
 ):
