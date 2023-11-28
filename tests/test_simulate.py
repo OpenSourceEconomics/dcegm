@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
-from dcegm.simulation.sim_utils import create_data_frame
+from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
 from dcegm.simulation.simulate import simulate_single_period
 from dcegm.solve import solve_dcegm
@@ -210,7 +210,7 @@ def test_simulate(
         compute_utility_final_period=model_funcs["compute_utility_final"],
     )
 
-    df = create_data_frame(sim_dict)
+    df = create_simulation_df(sim_dict)
 
     period = 0
 

@@ -197,7 +197,7 @@ def interpolate_policy_and_value_function(
     return policy_interp, value_interp
 
 
-def create_data_frame(sim_dict):
+def create_simulation_df(sim_dict):
     n_periods, n_agents, n_choices = sim_dict["taste_shocks"].shape
 
     keys_to_drop = ["taste_shocks", "period"]
