@@ -1,4 +1,6 @@
 import jax
+import numpy as np
+import pandas as pd
 from dcegm.budget import calculate_resources_for_all_agents
 from dcegm.egm.interpolate_marginal_utility import interpolate_policy_and_check_value
 from dcegm.interpolation import get_index_high_and_low
@@ -193,3 +195,34 @@ def interpolate_policy_and_value_function(
         params=params,
     )
     return policy_interp, value_interp
+
+
+def create_data_frame(sim_dict):
+    n_periods, n_agents, n_choices = sim_dict["taste_shocks"].shape
+
+    keys_to_drop = ["taste_shocks", "period"]
+    dict_to_df = {key: sim_dict[key] for key in sim_dict if key not in keys_to_drop}
+
+    df_without_taste_shocks = pd.DataFrame(
+        {key: val.ravel() for key, val in dict_to_df.items()},
+        index=pd.MultiIndex.from_product(
+            [np.arange(n_periods), np.arange(n_agents)],
+            names=["period", "agent"],
+        ),
+    )
+
+    taste_shocks = sim_dict["taste_shocks"]
+    df_taste_shocks = pd.DataFrame(
+        {
+            f"taste_shock_{choice}": taste_shocks[..., choice].flatten()
+            for choice in range(n_choices)
+        },
+        index=pd.MultiIndex.from_product(
+            [np.arange(n_periods), np.arange(n_agents)],
+            names=["period", "agent"],
+        ),
+    )
+
+    df_combined = df_without_taste_shocks.join(df_taste_shocks)
+
+    return df_combined

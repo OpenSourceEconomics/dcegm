@@ -1,9 +1,9 @@
 import jax.numpy as jnp
 import numpy as np
-import pandas as pd
 import pytest
 from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
+from dcegm.simulation.sim_utils import create_data_frame
 from dcegm.simulation.simulate import simulate_all_periods
 from dcegm.simulation.simulate import simulate_single_period
 from dcegm.solve import solve_dcegm
@@ -230,35 +230,3 @@ def test_simulate(
     ).mean()
 
     aaae(value_period_zero.mean(), expected.mean(), decimal=2)
-
-
-def create_data_frame(sim_dict):
-    n_periods, n_agents, n_choices = sim_dict["taste_shocks"].shape
-
-    keys_to_drop = ["taste_shocks", "period"]
-    dict_to_df = {key: sim_dict[key] for key in sim_dict if key not in keys_to_drop}
-
-    df_without_taste_shocks = pd.DataFrame(
-        {key: val.ravel() for key, val in dict_to_df.items()},
-        index=pd.MultiIndex.from_product(
-            [np.arange(n_periods), np.arange(n_agents)],
-            names=["period", "agent"],
-        ),
-    )
-
-    taste_shocks = sim_dict["taste_shocks"]
-    df_taste_shocks = pd.DataFrame(
-        {
-            f"taste_shock_{choice}": taste_shocks[..., choice].flatten()
-            for choice in range(n_choices)
-        },
-        index=pd.MultiIndex.from_product(
-            [np.arange(n_periods), np.arange(n_agents)],
-            names=["period", "agent"],
-        ),
-    )
-
-    # df_combined = pd.concat([df_without_taste_shocks, df_taste_shocks], axis=1)
-    df_combined = df_without_taste_shocks.join(df_taste_shocks)
-
-    return df_combined
