@@ -27,7 +27,7 @@ def get_state_specific_feasible_choice_set(
     lagged_choice: int,
     options: Dict,
 ) -> np.ndarray:
-    """Select state-specific feasible choice set.
+    """Select state-specific feasible choice set such that retirement is absorbing.
 
     Will be a user defined function later.
 

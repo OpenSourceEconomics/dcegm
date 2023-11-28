@@ -19,13 +19,8 @@ from toy_models.consumption_retirement_model.utility_functions import (
     utility_final_consume_all,
 )
 
-from tests.two_period_models.exog_ltc_and_job_offer.model_functions import (
-    budget_dcegm_two_exog_processes,
-)
+from tests.two_period_models.exog_ltc.model_functions import budget_dcegm
 from tests.two_period_models.exog_ltc_and_job_offer.model_functions import flow_util
-from tests.two_period_models.exog_ltc_and_job_offer.model_functions import (
-    func_exog_job_offer,
-)
 from tests.two_period_models.exog_ltc_and_job_offer.model_functions import func_exog_ltc
 from tests.two_period_models.exog_ltc_and_job_offer.model_functions import (
     inverse_marginal_utility,
@@ -33,6 +28,13 @@ from tests.two_period_models.exog_ltc_and_job_offer.model_functions import (
 from tests.two_period_models.exog_ltc_and_job_offer.model_functions import (
     marginal_utility,
 )
+
+# from tests.two_period_models.exog_ltc_and_job_offer.model_functions import (
+#     budget_dcegm_two_exog_processes,
+# )
+# from tests.two_period_models.exog_ltc_and_job_offer.model_functions import (
+#     func_exog_job_offer,
+# )
 
 WEALTH_GRID_POINTS = 100
 
@@ -70,16 +72,17 @@ def utility_functions_final_period():
 def test_simulate(
     state_space_functions, utility_functions, utility_functions_final_period
 ):
-    n_agents = 100000
+    n_agents = 100_000
 
     params = {}
     params["rho"] = 0.5
-    params["delta"] = 0.5
+    params["delta"] = 0.5 * 10
     params["interest_rate"] = 0.02
     params["ltc_cost"] = 5
     params["wage_avg"] = 8
     params["sigma"] = 1
     params["lambda"] = 1e-16
+    params["lambda"] = 10
     params["beta"] = 0.95
 
     # exog params
@@ -103,7 +106,7 @@ def test_simulate(
             },
             "exogenous_processes": {
                 "ltc": {"transition": func_exog_ltc, "states": [0, 1]},
-                "job_offer": {"transition": func_exog_job_offer, "states": [0, 1]},
+                # "job_offer": {"transition": func_exog_job_offer, "states": [0, 1]},
             },
         },
     }
@@ -124,11 +127,10 @@ def test_simulate(
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
-        budget_constraint=budget_dcegm_two_exog_processes,
+        budget_constraint=budget_dcegm,
     )
 
     # === Solve ===
-
     (
         _period_specific_state_objects,
         _state_space,
@@ -152,17 +154,20 @@ def test_simulate(
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
-        budget_constraint=budget_dcegm_two_exog_processes,
+        budget_constraint=budget_dcegm,
     )
 
     # === Simulate ===
 
     initial_states = {
         "period": np.zeros(n_agents, dtype=np.int16),
-        "lagged_choice": np.zeros(n_agents, dtype=np.int16) + 1,
+        "lagged_choice": np.zeros(
+            n_agents, dtype=np.int16
+        ),  # all agents start as workers
         "married": np.zeros(n_agents, dtype=np.int16),
         "ltc": np.zeros(n_agents, dtype=np.int16),
-        "job_offer": np.zeros(n_agents, dtype=np.int16),
+        # "job_offer": np.ones(n_agents, dtype=np.int16),
+        # "job_offer": np.zeros(n_agents, dtype=np.int16),
     }
 
     resources_initial = np.ones(n_agents) * 10
@@ -214,6 +219,12 @@ def test_simulate(
 
     period = 0
 
+    # absrobing retirement state
+    # this should contain nobody
+    sim_dict["choice"][
+        :, (sim_dict["choice"][period] == 0) & (sim_dict["choice"][period + 1] == 1)
+    ]
+
     _cond = [df["choice"] == 0, df["choice"] == 1]
     _val = [df["taste_shock_0"], df["taste_shock_1"]]
     df["taste_shock_selected_choice"] = np.select(_cond, _val)
@@ -229,4 +240,11 @@ def test_simulate(
         - df.xs(period, level=0)["taste_shock_selected_choice"]
     ).mean()
 
+    _value_period_zero = df.xs(period, level=0)["utility"] + params["beta"] * (
+        df.xs(period + 1, level=0)["value"]
+    )
+    _expected = df.xs(period, level=0)["value"]
+
     aaae(value_period_zero.mean(), expected.mean(), decimal=2)
+    # aaae(_value_period_zero, _expected)
+    # aaae(_value_period_zero.mean(), _expected.mean(), decimal=2)

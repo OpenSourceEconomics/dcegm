@@ -30,9 +30,6 @@ def simulate_all_periods(
     update_endog_state_by_state_and_choice,
     compute_utility_final_period,
 ):
-    len(resources_initial)
-    len(choice_range)
-
     simulate_body = partial(
         simulate_single_period,
         params=params,
