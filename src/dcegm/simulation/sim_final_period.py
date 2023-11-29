@@ -2,6 +2,7 @@ import jax
 import numpy as np
 from dcegm.simulation.sim_utils import compute_final_utility_for_each_choice
 from dcegm.simulation.sim_utils import draw_taste_shocks
+from dcegm.simulation.sim_utils import get_state_choice_index_per_state
 from jax import numpy as jnp
 from jax import vmap
 
@@ -12,6 +13,7 @@ def simulate_final_period(
     params,
     basic_seed,
     choice_range,
+    map_state_choice_to_index,
     compute_utility_final_period,
 ):
     (
@@ -21,13 +23,6 @@ def simulate_final_period(
 
     n_choices = len(choice_range)
     n_agents = len(resources_beginning_of_final_period)
-
-    # _utility = compute_utility_final_period(
-    #     **states_beginning_of_final_period,
-    #     choice=sim_dict["choice"][period - 1],
-    #     resources=resources_beginning_of_final_period,
-    #     params=params,
-    # )
 
     utilities_pre_taste_shock = vmap(
         vmap(
@@ -41,6 +36,12 @@ def simulate_final_period(
         resources_beginning_of_final_period,
         params,
         compute_utility_final_period,
+    )
+    state_choice_indexes = get_state_choice_index_per_state(
+        map_state_choice_to_index, states_beginning_of_final_period
+    )
+    utilities_pre_taste_shock = jnp.where(
+        state_choice_indexes < 0, np.nan, utilities_pre_taste_shock
     )
 
     # Draw taste shocks and calculate final value.

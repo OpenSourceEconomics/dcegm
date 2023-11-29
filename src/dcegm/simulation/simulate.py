@@ -60,6 +60,7 @@ def simulate_all_periods(
         params=params,
         basic_seed=seed,
         choice_range=choice_range,
+        map_state_choice_to_index=map_state_choice_to_index,
         compute_utility_final_period=compute_utility_final_period,
     )
 

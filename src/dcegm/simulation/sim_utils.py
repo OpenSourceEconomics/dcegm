@@ -29,7 +29,10 @@ def interpolate_policy_and_value_for_all_agents(
     state_choice_indexes = get_state_choice_index_per_state(
         map_state_choice_to_index, states_beginning_of_period
     )
-    value_grid_agent = jnp.take(value_solved, state_choice_indexes, axis=0)
+
+    value_grid_agent = jnp.take(
+        value_solved, state_choice_indexes, axis=0, mode="fill", fill_value=jnp.nan
+    )
     policy_left_grid_agent = jnp.take(policy_left_solved, state_choice_indexes, axis=0)
     policy_right_grid_agent = jnp.take(
         policy_right_solved, state_choice_indexes, axis=0
@@ -55,6 +58,7 @@ def interpolate_policy_and_value_for_all_agents(
         params,
         compute_utility,
     )
+
     return policy_agent, value_per_agent_interp
 
 
