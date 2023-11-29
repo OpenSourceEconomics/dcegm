@@ -140,8 +140,8 @@ def update_endog_for_one_agent(update_func, state, choice, params):
     return update_func(params=params, **state, choice=choice)
 
 
-def draw_taste_shocks(num_agents, num_choices, taste_shock_scale, key):
-    taste_shocks = jax.random.gumbel(key=key, shape=(num_agents, num_choices))
+def draw_taste_shocks(n_agents, n_choices, taste_shock_scale, key):
+    taste_shocks = jax.random.gumbel(key=key, shape=(n_agents, n_choices))
     taste_shocks = taste_shock_scale * (taste_shocks - jnp.euler_gamma)
     return taste_shocks
 
@@ -228,7 +228,5 @@ def create_simulation_df(sim_dict):
     )
 
     df_combined = df_without_taste_shocks.join(df_taste_shocks)
-
-    # breakpoint()
 
     return df_combined

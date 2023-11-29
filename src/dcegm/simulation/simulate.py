@@ -32,10 +32,16 @@ def simulate_all_periods(
     update_endog_state_by_state_and_choice,
     compute_utility_final_period,
 ):
+    # Prepare random seeds for the simulation.
+    sim_specific_keys = []
+    for period in range(n_periods):
+        key = jax.random.PRNGKey(seed + period)
+        sim_specific_keys += [jax.random.split(key, num=len(resources_initial) + 2)]
+    sim_specific_keys = jnp.array(sim_specific_keys)
+
     simulate_body = partial(
         simulate_single_period,
         params=params,
-        basic_seed=seed,
         endog_grid_solved=endog_grid_solved,
         value_solved=value_solved,
         policy_left_solved=policy_left_solved,
@@ -53,36 +59,14 @@ def simulate_all_periods(
     states_and_resources_beginning_of_final_period, sim_dict = jax.lax.scan(
         f=simulate_body,
         init=states_and_resources_beginning_of_first_period,
-        xs=jnp.arange(n_periods - 1),
+        # xs=jnp.arange(n_periods - 1),
+        xs=sim_specific_keys[:-1],
     )
-
-    # (
-    #     states_and_resources_beginning_of_final_period,
-    #     sim_dict,
-    # ) = simulate_single_period(
-    #     states_and_resources_beginning_of_period=
-    # states_and_resources_beginning_of_first_period,
-    #     period=0,
-    #     params=params,
-    #     basic_seed=seed,
-    #     endog_grid_solved=endog_grid_solved,
-    #     value_solved=value_solved,
-    #     policy_left_solved=policy_left_solved,
-    #     policy_right_solved=policy_right_solved,
-    #     map_state_choice_to_index=map_state_choice_to_index,
-    #     choice_range=choice_range,
-    #     compute_exog_transition_vec=compute_exog_transition_vec,
-    #     compute_utility=compute_utility,
-    #     compute_beginning_of_period_resources=compute_beginning_of_period_resources,
-    #     exog_state_mapping=exog_state_mapping,
-    #     update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
-    # )
 
     final_period_dict = simulate_final_period(
         states_and_resources_beginning_of_final_period,
-        period=n_periods - 1,
+        sim_specific_keys=sim_specific_keys[-1],
         params=params,
-        basic_seed=seed,
         choice_range=choice_range,
         map_state_choice_to_index=map_state_choice_to_index,
         compute_utility_final_period=compute_utility_final_period,
@@ -92,22 +76,14 @@ def simulate_all_periods(
         key: np.row_stack([sim_dict[key], final_period_dict[key]])
         for key in sim_dict.keys()
     }
-    # simulate_single_period
-    # final_period_dict["choice"].mean()
-    # Array(0.652543, dtype=float32)
-
-    # jax.lax.scan
-    # final_period_dict["choice"].mean()
-    # Array(0.659395, dtype=float32)
 
     return result
 
 
 def simulate_single_period(
     states_and_resources_beginning_of_period,
-    period,
+    sim_specific_keys,
     params,
-    basic_seed,
     endog_grid_solved,
     value_solved,
     policy_left_solved,
@@ -125,13 +101,6 @@ def simulate_single_period(
         resources_beginning_of_period,
     ) = states_and_resources_beginning_of_period
 
-    n_choices = len(choice_range)
-    n_agents = len(resources_beginning_of_period)
-
-    # Prepare random seeds for the simulation.
-    key = jax.random.PRNGKey(basic_seed + period)
-    sim_specific_keys = jax.random.split(key, num=n_agents + 2)
-
     # Interpolate policy and value function for all agents.
     policy, values_pre_taste_shock = interpolate_policy_and_value_for_all_agents(
         states_beginning_of_period=states_beginning_of_period,
@@ -148,8 +117,8 @@ def simulate_single_period(
 
     # Draw taste shocks and calculate final value.
     taste_shocks = draw_taste_shocks(
-        num_agents=n_agents,
-        num_choices=n_choices,
+        n_agents=len(resources_beginning_of_period),
+        n_choices=len(choice_range),
         taste_shock_scale=params["lambda"],
         key=sim_specific_keys[0, :],
     )
@@ -207,9 +176,8 @@ def simulate_single_period(
 
 def simulate_final_period(
     states_and_resources_beginning_of_period,
-    period,
+    sim_specific_keys,
     params,
-    basic_seed,
     choice_range,
     map_state_choice_to_index,
     compute_utility_final_period,
@@ -243,12 +211,12 @@ def simulate_final_period(
     )
 
     # Draw taste shocks and calculate final value.
-    key = jax.random.PRNGKey(basic_seed + period)
+    # key = jax.random.PRNGKey(basic_seed + period)
     taste_shocks = draw_taste_shocks(
-        num_agents=n_agents,
-        num_choices=n_choices,
+        n_agents=n_agents,
+        n_choices=n_choices,
         taste_shock_scale=params["lambda"],
-        key=key,
+        key=sim_specific_keys[0, :],
     )
     values_across_choices = utilities_pre_taste_shock + taste_shocks
 

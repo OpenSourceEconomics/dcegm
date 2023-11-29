@@ -1,4 +1,6 @@
 """Tests for simulation of consumption-retirement model with exogenous processes."""
+import jax
+from functools import partial
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -170,14 +172,22 @@ def test_simulate(
     initial_resources = np.ones(n_agents) * 10
     initial_states_and_resources = initial_states, initial_resources
 
+    seed = 111
+    n_periods = 2
+    sim_specific_keys = []
+    for period in range(n_periods):
+        key = jax.random.PRNGKey(seed + period)
+        sim_specific_keys += [jax.random.split(key, num=len(initial_resources) + 2)]
+
+    sim_specific_keys = jnp.array(sim_specific_keys)
+
     (
-        states_and_resources_beginning_of_final_period,
-        sim_dict_zero,
+        _states_and_resources_beginning_of_final_period,
+        _sim_dict_zero,
     ) = simulate_single_period(
         states_and_resources_beginning_of_period=initial_states_and_resources,
-        period=0,
         params=params,
-        basic_seed=111,
+        sim_specific_keys=sim_specific_keys[0],
         endog_grid_solved=endog_grid,
         value_solved=value,
         policy_left_solved=policy_left,
@@ -193,10 +203,35 @@ def test_simulate(
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
-    # simulate_body = partial(
-    #     simulate_single_period,
+    simulate_body = partial(
+        simulate_single_period,
+        params=params,
+        endog_grid_solved=endog_grid,
+        value_solved=value,
+        policy_left_solved=policy_left,
+        policy_right_solved=policy_right,
+        map_state_choice_to_index=jnp.array(map_state_choice_to_index),
+        choice_range=jnp.arange(map_state_choice_to_index.shape[-1], dtype=jnp.int16),
+        compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
+        compute_utility=model_funcs["compute_utility"],
+        compute_beginning_of_period_resources=model_funcs[
+            "compute_beginning_of_period_resources"
+        ],
+        exog_state_mapping=exog_state_mapping,
+        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+    )
+    states_and_resources_beginning_of_final_period, sim_dict_zero = jax.lax.scan(
+        f=simulate_body,
+        init=initial_states_and_resources,
+        xs=sim_specific_keys[:-1],
+    )
+    # (
+    #     states_and_resources_beginning_of_final_period,
+    #     sim_dict_zero,
+    # ) = simulate_single_period(
+    #     initial_states_and_resources,
+    #     sim_specific_keys[0],
     #     params=params,
-    #     basic_seed=111,
     #     endog_grid_solved=endog_grid,
     #     value_solved=value,
     #     policy_left_solved=policy_left,
@@ -211,18 +246,11 @@ def test_simulate(
     #     exog_state_mapping=exog_state_mapping,
     #     update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     # )
-    # states_and_resources_beginning_of_final_period, sim_dict_zero = jax.lax.scan(
-    #     f=simulate_body,
-    #     init=initial_states_and_resources,
-    #     # xs=jnp.arange(n_periods - 1),
-    #     xs=jnp.array([0]),
-    # )
 
     final_period_dict = simulate_final_period(
         states_and_resources_beginning_of_final_period,
-        period=1,
+        sim_specific_keys=sim_specific_keys[-1],
         params=params,
-        basic_seed=111,
         choice_range=choice_range,
         map_state_choice_to_index=jnp.array(map_state_choice_to_index),
         compute_utility_final_period=model_funcs["compute_utility_final"],
@@ -277,7 +305,10 @@ def test_simulate(
     taste_shock_selected_choice_final = np.select(_cond, _val)
 
     _cond = [sim_dict_zero["choice"] == 0, sim_dict_zero["choice"] == 1]
-    _val = [sim_dict_zero["taste_shocks"][:, 0], sim_dict_zero["taste_shocks"][:, 1]]
+    _val = [
+        sim_dict_zero["taste_shocks"][0, :, 0],
+        sim_dict_zero["taste_shocks"][0, :, 1],
+    ]
     taste_shock_selected_zero = np.select(_cond, _val)
 
     _value_period_zero = (
@@ -294,7 +325,7 @@ def test_simulate(
 
     aaae(expected, _expected)
     aaae(sim_dict_zero["utility"].mean(), df.xs(0, level=0)["utility"].mean())
-    aaae(df.xs(1, level=0)["utility"], final_period_dict["utility"])
+    aaae(df.xs(1, level=0)["utility"].mean(), final_period_dict["utility"].mean())
     aaae(
         df.xs(1, level=0)["taste_shock_selected_choice"],
         taste_shock_selected_choice_final,
