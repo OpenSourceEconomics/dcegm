@@ -1,3 +1,4 @@
+"""The simulation function."""
 from functools import partial
 
 import jax
@@ -57,7 +58,7 @@ def simulate_all_periods(
 
     final_period_dict = simulate_final_period(
         states_and_resources_beginning_of_final_period,
-        period=n_periods,
+        period=n_periods - 1,
         params=params,
         basic_seed=seed,
         choice_range=choice_range,
