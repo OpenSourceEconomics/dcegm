@@ -3,9 +3,9 @@ import numpy as np
 import pytest
 from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
-from dcegm.simulation.sim_final_period import simulate_final_period
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
+from dcegm.simulation.simulate import simulate_final_period
 from dcegm.simulation.simulate import simulate_single_period
 from dcegm.solve import solve_dcegm
 from numpy.testing import assert_array_almost_equal as aaae
@@ -166,7 +166,7 @@ def test_simulate(
     resources_initial = np.ones(n_agents) * 10
     states_and_wealth_beginning_of_period_zero = (initial_states, resources_initial)
 
-    carry_final, sim_dict_0 = simulate_single_period(
+    carry, sim_dict_zero = simulate_single_period(
         states_and_resources_beginning_of_period=states_and_wealth_beginning_of_period_zero,
         period=0,
         params=params,
@@ -187,7 +187,7 @@ def test_simulate(
     )
 
     final_period_dict = simulate_final_period(
-        carry_final,
+        carry,
         period=1,
         params=params,
         basic_seed=111,
@@ -244,15 +244,24 @@ def test_simulate(
     ]
     taste_shock_selected_choice_final = np.select(_cond, _val)
 
-    _cond = [sim_dict_0["choice"] == 0, sim_dict_0["choice"] == 1]
-    _val = [sim_dict_0["taste_shocks"][:, 0], sim_dict_0["taste_shocks"][:, 1]]
+    _cond = [sim_dict_zero["choice"] == 0, sim_dict_zero["choice"] == 1]
+    _val = [sim_dict_zero["taste_shocks"][:, 0], sim_dict_zero["taste_shocks"][:, 1]]
     taste_shock_selected_0 = np.select(_cond, _val)
 
     _value_period_zero = (
-        sim_dict_0["utility"].mean()
+        sim_dict_zero["utility"].mean()
         + params["beta"]
         * (final_period_dict["utility"] + taste_shock_selected_choice_final).mean()
     )
-    _expected = sim_dict_0["value"].mean() - taste_shock_selected_0.mean()
+    _expected = sim_dict_zero["value"].mean() - taste_shock_selected_0.mean()
 
+    ids_violating_absorbing_retirement = df.query(
+        "(period == 0 and choice == 1) and (period == 1 and choice == 0)"
+    )
+    assert len(ids_violating_absorbing_retirement) == 0
+
+    aaae(expected, _expected)
+    aaae(sim_dict_zero["utility"].mean(), df.xs(0, level=0)["utility"].mean())
+    aaae(value_period_zero.mean(), _value_period_zero.mean())
     aaae(value_period_zero.mean(), expected.mean(), decimal=2)
+    aaae(_value_period_zero.mean(), expected.mean(), decimal=2)
