@@ -56,6 +56,28 @@ def simulate_all_periods(
         xs=jnp.arange(n_periods - 1),
     )
 
+    # (
+    #     states_and_resources_beginning_of_final_period,
+    #     sim_dict,
+    # ) = simulate_single_period(
+    #     states_and_resources_beginning_of_period=
+    # states_and_resources_beginning_of_first_period,
+    #     period=0,
+    #     params=params,
+    #     basic_seed=seed,
+    #     endog_grid_solved=endog_grid_solved,
+    #     value_solved=value_solved,
+    #     policy_left_solved=policy_left_solved,
+    #     policy_right_solved=policy_right_solved,
+    #     map_state_choice_to_index=map_state_choice_to_index,
+    #     choice_range=choice_range,
+    #     compute_exog_transition_vec=compute_exog_transition_vec,
+    #     compute_utility=compute_utility,
+    #     compute_beginning_of_period_resources=compute_beginning_of_period_resources,
+    #     exog_state_mapping=exog_state_mapping,
+    #     update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+    # )
+
     final_period_dict = simulate_final_period(
         states_and_resources_beginning_of_final_period,
         period=n_periods - 1,
@@ -70,6 +92,13 @@ def simulate_all_periods(
         key: np.row_stack([sim_dict[key], final_period_dict[key]])
         for key in sim_dict.keys()
     }
+    # simulate_single_period
+    # final_period_dict["choice"].mean()
+    # Array(0.652543, dtype=float32)
+
+    # jax.lax.scan
+    # final_period_dict["choice"].mean()
+    # Array(0.659395, dtype=float32)
 
     return result
 

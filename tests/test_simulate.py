@@ -1,7 +1,4 @@
 """Tests for simulation of consumption-retirement model with exogenous processes."""
-from functools import partial
-
-import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -108,7 +105,7 @@ def test_simulate(
         },
     }
 
-    n_periods = options["state_space"]["n_periods"]
+    options["state_space"]["n_periods"]
     choice_range = jnp.arange(options["model_params"]["n_choices"])
 
     exog_savings_grid = jnp.linspace(
@@ -171,33 +168,14 @@ def test_simulate(
     }
 
     initial_resources = np.ones(n_agents) * 10
-    states_and_resources_beginning_of_first_period = initial_states, initial_resources
+    initial_states_and_resources = initial_states, initial_resources
 
-    # (
-    #     states_and_resources_beginning_of_final_period,
-    #     sim_dict_zero,
-    # ) = simulate_single_period(
-    #     states_and_resources_beginning_of_period=states_and_wealth_beginning_of_period_zero,
-    #     period=0,
-    #     params=params,
-    #     basic_seed=111,
-    #     endog_grid_solved=endog_grid,
-    #     value_solved=value,
-    #     policy_left_solved=policy_left,
-    #     policy_right_solved=policy_right,
-    #     map_state_choice_to_index=jnp.array(map_state_choice_to_index),
-    #     choice_range=jnp.arange(map_state_choice_to_index.shape[-1]),
-    #     compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
-    #     compute_utility=model_funcs["compute_utility"],
-    #     compute_beginning_of_period_resources=model_funcs[
-    #         "compute_beginning_of_period_resources"
-    #     ],
-    #     exog_state_mapping=exog_state_mapping,
-    #     update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
-    # )
-
-    simulate_body = partial(
-        simulate_single_period,
+    (
+        states_and_resources_beginning_of_final_period,
+        sim_dict_zero,
+    ) = simulate_single_period(
+        states_and_resources_beginning_of_period=initial_states_and_resources,
+        period=0,
         params=params,
         basic_seed=111,
         endog_grid_solved=endog_grid,
@@ -214,12 +192,31 @@ def test_simulate(
         exog_state_mapping=exog_state_mapping,
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
-    # states_and_resources_beginning_of_first_period = states_initial, resources_initial
-    states_and_resources_beginning_of_final_period, sim_dict_zero = jax.lax.scan(
-        f=simulate_body,
-        init=states_and_resources_beginning_of_first_period,
-        xs=jnp.arange(n_periods - 1),
-    )
+
+    # simulate_body = partial(
+    #     simulate_single_period,
+    #     params=params,
+    #     basic_seed=111,
+    #     endog_grid_solved=endog_grid,
+    #     value_solved=value,
+    #     policy_left_solved=policy_left,
+    #     policy_right_solved=policy_right,
+    #     map_state_choice_to_index=jnp.array(map_state_choice_to_index),
+    #     choice_range=jnp.arange(map_state_choice_to_index.shape[-1], dtype=jnp.int16),
+    #     compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
+    #     compute_utility=model_funcs["compute_utility"],
+    #     compute_beginning_of_period_resources=model_funcs[
+    #         "compute_beginning_of_period_resources"
+    #     ],
+    #     exog_state_mapping=exog_state_mapping,
+    #     update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+    # )
+    # states_and_resources_beginning_of_final_period, sim_dict_zero = jax.lax.scan(
+    #     f=simulate_body,
+    #     init=initial_states_and_resources,
+    #     # xs=jnp.arange(n_periods - 1),
+    #     xs=jnp.array([0]),
+    # )
 
     final_period_dict = simulate_final_period(
         states_and_resources_beginning_of_final_period,
@@ -254,7 +251,6 @@ def test_simulate(
     )
 
     df = create_simulation_df(result)
-    breakpoint()
 
     _cond = [df["choice"] == 0, df["choice"] == 1]
     _val = [df["taste_shock_0"], df["taste_shock_1"]]
