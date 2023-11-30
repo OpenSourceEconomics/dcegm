@@ -33,11 +33,13 @@ def simulate_all_periods(
     compute_utility_final_period,
 ):
     # Prepare random seeds for the simulation.
-    sim_specific_keys = []
-    for period in range(n_periods):
-        key = jax.random.PRNGKey(seed + period)
-        sim_specific_keys += [jax.random.split(key, num=len(resources_initial) + 2)]
-    sim_specific_keys = jnp.array(sim_specific_keys)
+    num_keys = len(resources_initial) + 2
+    sim_specific_keys = jnp.array(
+        [
+            jax.random.split(jax.random.PRNGKey(seed + period), num=num_keys)
+            for period in range(n_periods)
+        ]
+    )
 
     simulate_body = partial(
         simulate_single_period,
@@ -59,7 +61,6 @@ def simulate_all_periods(
     states_and_resources_beginning_of_final_period, sim_dict = jax.lax.scan(
         f=simulate_body,
         init=states_and_resources_beginning_of_first_period,
-        # xs=jnp.arange(n_periods - 1),
         xs=sim_specific_keys[:-1],
     )
 
@@ -242,3 +243,8 @@ def simulate_final_period(
     }
 
     return result
+
+
+def generate_keys(period):
+    """Generate random keys for a given period."""
+    return jax.random.split(jax.random.PRNGKey(seed + period), num=num_keys)
