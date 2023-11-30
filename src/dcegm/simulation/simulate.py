@@ -19,6 +19,7 @@ def simulate_all_periods(
     n_periods,
     params,
     seed,
+    state_space_names,
     endog_grid_solved,
     value_solved,
     policy_left_solved,
@@ -44,6 +45,7 @@ def simulate_all_periods(
     simulate_body = partial(
         simulate_single_period,
         params=params,
+        state_space_names=state_space_names,
         endog_grid_solved=endog_grid_solved,
         value_solved=value_solved,
         policy_left_solved=policy_left_solved,
@@ -62,12 +64,14 @@ def simulate_all_periods(
         f=simulate_body,
         init=states_and_resources_beginning_of_first_period,
         xs=sim_specific_keys[:-1],
+        unroll=1,
     )
 
     final_period_dict = simulate_final_period(
         states_and_resources_beginning_of_final_period,
         sim_specific_keys=sim_specific_keys[-1],
         params=params,
+        state_space_names=state_space_names,
         choice_range=choice_range,
         map_state_choice_to_index=map_state_choice_to_index,
         compute_utility_final_period=compute_utility_final_period,
@@ -85,6 +89,7 @@ def simulate_single_period(
     states_and_resources_beginning_of_period,
     sim_specific_keys,
     params,
+    state_space_names,
     endog_grid_solved,
     value_solved,
     policy_left_solved,
@@ -113,6 +118,7 @@ def simulate_single_period(
         map_state_choice_to_index=map_state_choice_to_index,
         choice_range=choice_range,
         params=params,
+        state_space_names=state_space_names,
         compute_utility=compute_utility,
     )
 
@@ -179,6 +185,7 @@ def simulate_final_period(
     states_and_resources_beginning_of_period,
     sim_specific_keys,
     params,
+    state_space_names,
     choice_range,
     map_state_choice_to_index,
     compute_utility_final_period,
@@ -205,7 +212,9 @@ def simulate_final_period(
         compute_utility_final_period,
     )
     state_choice_indexes = get_state_choice_index_per_state(
-        map_state_choice_to_index, states_beginning_of_final_period
+        map_state_choice_to_index=map_state_choice_to_index,
+        states=states_beginning_of_final_period,
+        state_space_names=state_space_names,
     )
     utilities_pre_taste_shock = jnp.where(
         state_choice_indexes < 0, np.nan, utilities_pre_taste_shock
@@ -231,6 +240,10 @@ def simulate_final_period(
     )[:, 0]
 
     result = {
+        "map_state_choice_to_index": map_state_choice_to_index,
+        # "states_beginning_of_final_period": states_beginning_of_final_period,
+        "utility_pre_taste_shock": utilities_pre_taste_shock,
+        "state_choice_indexes": state_choice_indexes,
         "choice": choice,
         "consumption": resources_beginning_of_final_period,
         "utility": utility_period,

@@ -112,7 +112,7 @@ def create_state_space_and_choice_objects(
 
     state_space = {key: state_space[:, i] for i, key in enumerate(state_space_names)}
 
-    return out, state_space, map_state_choice_to_index, exog_mapping
+    return out, state_space, state_space_names, map_state_choice_to_index, exog_mapping
 
 
 def create_state_space(options):

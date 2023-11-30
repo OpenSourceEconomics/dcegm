@@ -18,6 +18,7 @@ def interpolate_policy_and_value_for_all_agents(
     map_state_choice_to_index,
     choice_range,
     params,
+    state_space_names,
     compute_utility,
 ):
     """This function interpolates the policy and value function for all agents.
@@ -27,7 +28,9 @@ def interpolate_policy_and_value_for_all_agents(
 
     """
     state_choice_indexes = get_state_choice_index_per_state(
-        map_state_choice_to_index, states_beginning_of_period
+        map_state_choice_to_index=map_state_choice_to_index,
+        states=states_beginning_of_period,
+        state_space_names=state_space_names,
     )
 
     value_grid_agent = jnp.take(
@@ -162,9 +165,12 @@ def realize_exog_process(state, choice, key, params, exog_func, exog_state_mappi
     return exog_states_next_period
 
 
-def get_state_choice_index_per_state(map_state_choice_to_index, states):
-    # select indexes by states
-    indexes = map_state_choice_to_index[tuple((states[key],) for key in states.keys())]
+def get_state_choice_index_per_state(
+    map_state_choice_to_index, states, state_space_names
+):
+    indexes = map_state_choice_to_index[
+        tuple((states[key],) for key in state_space_names)
+    ]
     # As the code above generates a dummy dimension in the first we eliminate that
     return indexes[0]
 

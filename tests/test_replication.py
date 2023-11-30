@@ -121,6 +121,7 @@ def test_benchmark_models(
     (
         period_specific_state_objects,
         _state_space,
+        _state_space_names,
         map_state_choice_to_index,
         _,
     ) = create_state_space_and_choice_objects(

@@ -1,12 +1,14 @@
 """Tests for simulation of consumption-retirement model with exogenous processes."""
-import jax
 from functools import partial
+
+import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
 from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
 from dcegm.simulation.sim_utils import create_simulation_df
+from dcegm.simulation.sim_utils import get_state_choice_index_per_state
 from dcegm.simulation.simulate import simulate_all_periods
 from dcegm.simulation.simulate import simulate_final_period
 from dcegm.simulation.simulate import simulate_single_period
@@ -33,7 +35,12 @@ from tests.two_period_models.exog_ltc_and_job_offer.model_functions import (
     marginal_utility,
 )
 
+
 WEALTH_GRID_POINTS = 100
+
+from jax import config
+
+config.update("jax_enable_x64", val=True)
 
 
 @pytest.fixture(scope="module")
@@ -78,6 +85,7 @@ def test_simulate(
     params["ltc_cost"] = 5
     params["wage_avg"] = 8
     params["sigma"] = 1
+    params["sigma"] = 0
     params["lambda"] = 10
     params["beta"] = 0.95
 
@@ -133,6 +141,7 @@ def test_simulate(
     (
         _period_specific_state_objects,
         _state_space,
+        state_space_names,
         map_state_choice_to_index,
         exog_state_mapping,
     ) = create_state_space_and_choice_objects(
@@ -188,6 +197,7 @@ def test_simulate(
     ) = simulate_single_period(
         states_and_resources_beginning_of_period=initial_states_and_resources,
         params=params,
+        state_space_names=state_space_names,
         sim_specific_keys=sim_specific_keys[0],
         endog_grid_solved=endog_grid,
         value_solved=value,
@@ -204,9 +214,11 @@ def test_simulate(
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
+    # lax
     simulate_body = partial(
         simulate_single_period,
         params=params,
+        state_space_names=state_space_names,
         endog_grid_solved=endog_grid,
         value_solved=value,
         policy_left_solved=policy_left,
@@ -221,37 +233,96 @@ def test_simulate(
         exog_state_mapping=exog_state_mapping,
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
-    # states_and_resources_beginning_of_final_period, sim_dict_zero = jax.lax.scan(
-    #     f=simulate_body,
-    #     init=initial_states_and_resources,
-    #     xs=sim_specific_keys[:-1],
+    (
+        lax_states_and_resources_beginning_of_final_period,
+        lax_sim_dict_zero,
+    ) = jax.lax.scan(
+        f=simulate_body,
+        init=initial_states_and_resources,
+        xs=sim_specific_keys[:-1],
+    )
+
+    # single period
+    # (
+    #     states_and_resources_beginning_of_final_period,
+    #     sim_dict_zero,
+    # ) = simulate_single_period(
+    #     initial_states_and_resources,
+    #     sim_specific_keys[0],
+    #     params=params,
+    #     endog_grid_solved=endog_grid,
+    #     value_solved=value,
+    #     policy_left_solved=policy_left,
+    #     policy_right_solved=policy_right,
+    #     map_state_choice_to_index=jnp.array(map_state_choice_to_index),
+    #     choice_range=jnp.arange(map_state_choice_to_index.shape[-1], dtype=jnp.int16),
+    #     compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
+    #     compute_utility=model_funcs["compute_utility"],
+    #     compute_beginning_of_period_resources=model_funcs[
+    #         "compute_beginning_of_period_resources"
+    #     ],
+    #     exog_state_mapping=exog_state_mapping,
+    #     update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     # )
+
     (
         states_and_resources_beginning_of_final_period,
         sim_dict_zero,
-    ) = simulate_single_period(
-        initial_states_and_resources,
-        sim_specific_keys[0],
-        params=params,
-        endog_grid_solved=endog_grid,
-        value_solved=value,
-        policy_left_solved=policy_left,
-        policy_right_solved=policy_right,
-        map_state_choice_to_index=jnp.array(map_state_choice_to_index),
-        choice_range=jnp.arange(map_state_choice_to_index.shape[-1], dtype=jnp.int16),
-        compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
-        compute_utility=model_funcs["compute_utility"],
-        compute_beginning_of_period_resources=model_funcs[
-            "compute_beginning_of_period_resources"
-        ],
-        exog_state_mapping=exog_state_mapping,
-        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+    ) = simulate_body(
+        initial_states_and_resources, sim_specific_keys=sim_specific_keys[0]
     )
 
+    # aaae(
+    #     lax_states_and_resources_beginning_of_final_period[1],
+    #     states_and_resources_beginning_of_final_period[1],
+    #     decimal=32 * 2,
+    # )
+
+    # # aaae(
+    # #     _states_and_resources_beginning_of_final_period[1],
+    # #     states_and_resources_beginning_of_final_period[1],
+    # #     decimal=32 * 2,
+    # # )
+
+    # for key in lax_states_and_resources_beginning_of_final_period[0].keys():
+    #     aaae(
+    #         lax_states_and_resources_beginning_of_final_period[0][key],
+    #         states_and_resources_beginning_of_final_period[0][key],
+    #         decimal=32 * 2,
+    #     )
+    #     assert (
+    #         lax_states_and_resources_beginning_of_final_period[0][key].dtype
+    #         == states_and_resources_beginning_of_final_period[0][key].dtype
+    #     )
+
+    #     assert (
+    #         lax_states_and_resources_beginning_of_final_period[0][key].shape
+    #         == states_and_resources_beginning_of_final_period[0][key].shape
+    #     )
+    #     # aaae(
+    #     #     _states_and_resources_beginning_of_final_period[0][key],
+    #     #     states_and_resources_beginning_of_final_period[0][key],
+    #     #     decimal=32 * 2,
+    #     # )
+
+    # # for key in sim_dict_zero.keys():
+    # #     aaae(np.squeeze(lax_sim_dict_zero[key]), sim_dict_zero[key])
+    # #     # aaae(np.squeeze(_sim_dict_zero[key]), sim_dict_zero[key)
+
+    lax_final_period_dict = simulate_final_period(
+        lax_states_and_resources_beginning_of_final_period,
+        sim_specific_keys=sim_specific_keys[-1],
+        params=params,
+        state_space_names=state_space_names,
+        choice_range=choice_range,
+        map_state_choice_to_index=jnp.array(map_state_choice_to_index),
+        compute_utility_final_period=model_funcs["compute_utility_final"],
+    )
     final_period_dict = simulate_final_period(
         states_and_resources_beginning_of_final_period,
         sim_specific_keys=sim_specific_keys[-1],
         params=params,
+        state_space_names=state_space_names,
         choice_range=choice_range,
         map_state_choice_to_index=jnp.array(map_state_choice_to_index),
         compute_utility_final_period=model_funcs["compute_utility_final"],
@@ -262,7 +333,8 @@ def test_simulate(
         resources_initial=initial_resources,
         n_periods=options["state_space"]["n_periods"],
         params=params,
-        seed=111,
+        state_space_names=state_space_names,
+        seed=seed,
         endog_grid_solved=endog_grid,
         value_solved=value,
         policy_left_solved=policy_left,
@@ -279,8 +351,50 @@ def test_simulate(
         compute_utility_final_period=model_funcs["compute_utility_final"],
     )
 
-    aaae(sim_specific_keys_result, sim_specific_keys, decimal=32)
+    aaae(
+        lax_states_and_resources_beginning_of_final_period[1],
+        states_and_resources_beginning_of_final_period[1],
+        decimal=32 * 2,
+    )
 
+    for key in lax_states_and_resources_beginning_of_final_period[0].keys():
+        aaae(
+            lax_states_and_resources_beginning_of_final_period[0][key],
+            states_and_resources_beginning_of_final_period[0][key],
+            decimal=32 * 2,
+        )
+
+    true_state_choice_indexes = get_state_choice_index_per_state(
+        jnp.array(map_state_choice_to_index),
+        states_and_resources_beginning_of_final_period[0],
+        state_space_names=state_space_names,
+    )
+    lax_state_choice_indexes = get_state_choice_index_per_state(
+        jnp.array(map_state_choice_to_index),
+        lax_states_and_resources_beginning_of_final_period[0],
+        state_space_names=state_space_names,
+    )
+    aaae(true_state_choice_indexes, lax_state_choice_indexes)
+
+    for key in final_period_dict.keys():
+        aaae(
+            lax_final_period_dict["taste_shocks"],
+            final_period_dict["taste_shocks"],
+            decimal=32,
+        )
+        # aaae(lax_final_period_dict[key], final_period_dict[key], decimal=32)
+        # if key == "states_beginning_of_final_period":
+        #     for key2 in lax_final_period_dict[key].keys():
+        #         aaae(
+        #             lax_final_period_dict[key][key2],
+        #             final_period_dict[key][key2],
+        #             decimal=32,
+        #         )
+        # else:
+        aaae(lax_final_period_dict[key], final_period_dict[key], decimal=32)
+
+    aaae(sim_specific_keys_result, sim_specific_keys, decimal=32)
+    aaae(np.squeeze(lax_sim_dict_zero["taste_shocks"]), sim_dict_zero["taste_shocks"])
     df = create_simulation_df(result)
 
     _cond = [df["choice"] == 0, df["choice"] == 1]
@@ -302,24 +416,24 @@ def test_simulate(
 
     _cond = [final_period_dict["choice"] == 0, final_period_dict["choice"] == 1]
     _val = [
-        final_period_dict["taste_shocks"][0, :, 0],
-        final_period_dict["taste_shocks"][0, :, 1],
+        np.squeeze(final_period_dict["taste_shocks"])[:, 0],
+        np.squeeze(final_period_dict["taste_shocks"])[:, 1],
     ]
-    taste_shock_selected_choice_final = np.select(_cond, _val)
+    taste_shock_selected_final = np.select(_cond, _val)
 
     _cond = [sim_dict_zero["choice"] == 0, sim_dict_zero["choice"] == 1]
     _val = [
         sim_dict_zero["taste_shocks"][:, 0],  # np.squeeze
         sim_dict_zero["taste_shocks"][:, 1],  # np.squeeze
     ]
-    taste_shock_selected_zero = np.select(_cond, _val)
+    taste_shock_selected_period_zero = np.select(_cond, _val)
 
     _value_period_zero = (
         sim_dict_zero["utility"].mean()
         + params["beta"]
-        * (final_period_dict["utility"] + taste_shock_selected_choice_final).mean()
+        * (final_period_dict["utility"] + taste_shock_selected_final).mean()
     )
-    _expected = sim_dict_zero["value"].mean() - taste_shock_selected_zero.mean()
+    _expected = sim_dict_zero["value"].mean() - taste_shock_selected_period_zero.mean()
 
     ids_violating_absorbing_retirement = df.query(
         "(period == 0 and choice == 1) and (period == 1 and choice == 0)"
@@ -333,7 +447,7 @@ def test_simulate(
     aaae(df.xs(1, level=0)["utility"].mean(), final_period_dict["utility"].mean())
     aaae(
         df.xs(1, level=0)["taste_shock_selected_choice"],
-        taste_shock_selected_choice_final,
+        taste_shock_selected_final,
     )
     aaae(value_period_zero.mean(), _value_period_zero.mean())
     aaae(_value_period_zero.mean(), expected.mean(), decimal=2)
