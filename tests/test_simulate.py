@@ -173,12 +173,14 @@ def test_simulate(
 
     seed = 111
     n_periods = 2
-    sim_specific_keys = []
-    for period in range(n_periods):
-        key = jax.random.PRNGKey(seed + period)
-        sim_specific_keys += [jax.random.split(key, num=len(initial_resources) + 2)]
-
-    sim_specific_keys = jnp.array(sim_specific_keys)
+    #
+    num_keys = len(initial_resources) + 2
+    sim_specific_keys = jnp.array(
+        [
+            jax.random.split(jax.random.PRNGKey(seed + period), num=num_keys)
+            for period in range(n_periods)
+        ]
+    )
 
     (
         _states_and_resources_beginning_of_final_period,
@@ -255,7 +257,7 @@ def test_simulate(
         compute_utility_final_period=model_funcs["compute_utility_final"],
     )
 
-    result = simulate_all_periods(
+    result, sim_specific_keys_result = simulate_all_periods(
         states_initial=initial_states,
         resources_initial=initial_resources,
         n_periods=options["state_space"]["n_periods"],
@@ -276,6 +278,8 @@ def test_simulate(
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
         compute_utility_final_period=model_funcs["compute_utility_final"],
     )
+
+    aaae(sim_specific_keys_result, sim_specific_keys, decimal=32)
 
     df = create_simulation_df(result)
 

@@ -32,7 +32,7 @@ def simulate_all_periods(
     update_endog_state_by_state_and_choice,
     compute_utility_final_period,
 ):
-    # Prepare random seeds for the simulation.
+    # Prepare random seeds for taste shocks
     num_keys = len(resources_initial) + 2
     sim_specific_keys = jnp.array(
         [
@@ -78,7 +78,7 @@ def simulate_all_periods(
         for key in sim_dict.keys()
     }
 
-    return result
+    return result, sim_specific_keys
 
 
 def simulate_single_period(
@@ -212,7 +212,6 @@ def simulate_final_period(
     )
 
     # Draw taste shocks and calculate final value.
-    # key = jax.random.PRNGKey(basic_seed + period)
     taste_shocks = draw_taste_shocks(
         n_agents=n_agents,
         n_choices=n_choices,
@@ -243,8 +242,3 @@ def simulate_final_period(
     }
 
     return result
-
-
-def generate_keys(period):
-    """Generate random keys for a given period."""
-    return jax.random.split(jax.random.PRNGKey(seed + period), num=num_keys)
