@@ -240,10 +240,6 @@ def simulate_final_period(
     )[:, 0]
 
     result = {
-        "map_state_choice_to_index": map_state_choice_to_index,
-        # "states_beginning_of_final_period": states_beginning_of_final_period,
-        "utility_pre_taste_shock": utilities_pre_taste_shock,
-        "state_choice_indexes": state_choice_indexes,
         "choice": choice,
         "consumption": resources_beginning_of_final_period,
         "utility": utility_period,
