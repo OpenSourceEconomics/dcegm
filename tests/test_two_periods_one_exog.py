@@ -16,12 +16,12 @@ from numpy.testing import assert_allclose
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 
-from tests.two_period_models.exog_ltc.euler_equation import euler_rhs
-from tests.two_period_models.exog_ltc.model_functions import budget_dcegm_exog_ltc
-from tests.two_period_models.exog_ltc.model_functions import flow_utility
-from tests.two_period_models.exog_ltc.model_functions import inverse_marginal_utility
-from tests.two_period_models.exog_ltc.model_functions import marginal_utility
-from tests.two_period_models.exog_ltc.model_functions import prob_exog_ltc
+from tests.two_period_models.euler_equation import euler_rhs
+from tests.two_period_models.model_functions import budget_dcegm_exog_ltc
+from tests.two_period_models.model_functions import flow_utility
+from tests.two_period_models.model_functions import inverse_marginal_utility
+from tests.two_period_models.model_functions import marginal_utility
+from tests.two_period_models.model_functions import prob_exog_ltc
 
 
 WEALTH_GRID_POINTS = 100

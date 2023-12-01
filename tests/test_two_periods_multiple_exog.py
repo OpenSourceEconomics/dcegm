@@ -10,45 +10,24 @@ from numpy.testing import assert_allclose
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 
-from tests.two_period_models.exog_ltc.model_functions import (
-    budget_dcegm_exog_ltc_and_job_offer,
-)
-from tests.two_period_models.exog_ltc.model_functions import (
-    marginal_utility,
-)
-from tests.two_period_models.exog_ltc.model_functions import (
-    prob_exog_job_offer,
-)
-from tests.two_period_models.exog_ltc.model_functions import prob_exog_ltc
-from tests.two_period_models.exog_ltc_and_job_offer.euler_equation import (
+from tests.two_period_models.euler_equation import (
     euler_rhs_two_exog_processes,
 )
+from tests.two_period_models.model_functions import (
+    budget_dcegm_exog_ltc_and_job_offer,
+)
+from tests.two_period_models.model_functions import (
+    marginal_utility,
+)
+from tests.two_period_models.model_functions import (
+    prob_exog_job_offer,
+)
+from tests.two_period_models.model_functions import prob_exog_ltc
 
 WEALTH_GRID_POINTS = 100
 ALL_WEALTH_GRIDS = list(range(WEALTH_GRID_POINTS))
 RANDOM_TEST_SET = np.random.choice(ALL_WEALTH_GRIDS, size=10, replace=False)
 TEST_CASES_TWO_EXOG_PROCESSES = list(product(RANDOM_TEST_SET, list(range(8))))
-
-
-# @pytest.fixture(scope="module")
-# def state_space_functions():
-#     """Return dict with state space functions."""
-#     out = {
-#         "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
-#         "update_endog_state_by_state_and_choice": update_state,
-#     }
-#     return out
-
-
-# @pytest.fixture(scope="module")
-# def utility_functions():
-#     """Return dict with utility functions."""
-#     out = {
-#         "utility": flow_util,
-#         "inverse_marginal_utility": inverse_marginal_utility,
-#         "marginal_utility": marginal_utility,
-#     }
-#     return out
 
 
 @pytest.fixture(scope="module")

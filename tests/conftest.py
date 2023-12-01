@@ -23,17 +23,17 @@ from toy_models.consumption_retirement_model.utility_functions import (
     utility_final_consume_all,
 )
 
-from tests.two_period_models.exog_ltc.model_functions import budget_dcegm_exog_ltc
-from tests.two_period_models.exog_ltc.model_functions import (
+from tests.two_period_models.model_functions import budget_dcegm_exog_ltc
+from tests.two_period_models.model_functions import (
     flow_utility,
 )
-from tests.two_period_models.exog_ltc.model_functions import (
+from tests.two_period_models.model_functions import (
     inverse_marginal_utility,
 )
-from tests.two_period_models.exog_ltc.model_functions import (
+from tests.two_period_models.model_functions import (
     marginal_utility,
 )
-from tests.two_period_models.exog_ltc.model_functions import prob_exog_ltc
+from tests.two_period_models.model_functions import prob_exog_ltc
 
 
 # Obtain the test directory of the package
@@ -114,26 +114,7 @@ def utility_functions_final_period():
 
 
 @pytest.fixture(scope="session")
-def solve_toy_model_exog_ltc(
-    state_space_functions, utility_functions, utility_functions_final_period
-):
-    # index = pd.MultiIndex.from_tuples(
-    #     [("utility_function", "rho"), ("utility_function", "delta")],
-    #     names=["category", "name"],
-    # )
-    # params = pd.DataFrame(data=[0.5, 0.5], columns=["value"], index=index)
-    # params.loc[("assets", "interest_rate"), "value"] = 0.02
-    # params.loc[("assets", "ltc_cost"), "value"] = 5
-    # params.loc[("wage", "wage_avg"), "value"] = 8
-    # params.loc[("shocks", "sigma"), "value"] = 1
-    # params.loc[("shocks", "lambda"), "value"] = 1
-    # params.loc[("transition", "ltc_prob"), "value"] = 0.3
-    # params.loc[("beta", "beta"), "value"] = 0.95
-
-    # # exog params
-    # params.loc[("ltc_prob_constant", "ltc_prob_constant"), "value"] = 0.3
-    # params.loc[("ltc_prob_age", "ltc_prob_age"), "value"] = 0.1
-
+def params_and_options():
     params = {}
     params["rho"] = 0.5
     params["delta"] = 0.5
@@ -171,6 +152,71 @@ def solve_toy_model_exog_ltc(
         },
     }
 
+    return params, options
+
+
+@pytest.fixture(scope="session")
+def solve_toy_model_exog_ltc(
+    state_space_functions,
+    utility_functions,
+    utility_functions_final_period,
+    params_and_options,
+):
+    # index = pd.MultiIndex.from_tuples(
+    #     [("utility_function", "rho"), ("utility_function", "delta")],
+    #     names=["category", "name"],
+    # )
+    # params = pd.DataFrame(data=[0.5, 0.5], columns=["value"], index=index)
+    # params.loc[("assets", "interest_rate"), "value"] = 0.02
+    # params.loc[("assets", "ltc_cost"), "value"] = 5
+    # params.loc[("wage", "wage_avg"), "value"] = 8
+    # params.loc[("shocks", "sigma"), "value"] = 1
+    # params.loc[("shocks", "lambda"), "value"] = 1
+    # params.loc[("transition", "ltc_prob"), "value"] = 0.3
+    # params.loc[("beta", "beta"), "value"] = 0.95
+
+    # # exog params
+    # params.loc[("ltc_prob_constant", "ltc_prob_constant"), "value"] = 0.3
+    # params.loc[("ltc_prob_age", "ltc_prob_age"), "value"] = 0.1
+
+    # params = {}
+    # params["rho"] = 0.5
+    # params["delta"] = 0.5
+    # params["interest_rate"] = 0.02
+    # params["ltc_cost"] = 5
+    # params["wage_avg"] = 8
+    # params["sigma"] = 1
+    # params["lambda"] = 10
+    # params["beta"] = 0.95
+
+    # # exog params
+    # params["ltc_prob_constant"] = 0.3
+    # params["ltc_prob_age"] = 0.1
+    # params["job_offer_constant"] = 0.5
+    # params["job_offer_age"] = 0
+    # params["job_offer_educ"] = 0
+    # params["job_offer_type_two"] = 0.4
+
+    # options = {
+    #     "model_params": {
+    #         "n_grid_points": WEALTH_GRID_POINTS,
+    #         "max_wealth": 50,
+    #         "quadrature_points_stochastic": 5,
+    #         "n_choices": 2,
+    #     },
+    #     "state_space": {
+    #         "n_periods": 2,
+    #         "choices": np.arange(2),
+    #         "endogenous_states": {
+    #             "married": [0, 1],
+    #         },
+    #         "exogenous_processes": {
+    #             "ltc": {"transition": prob_exog_ltc, "states": [0, 1]},
+    #         },
+    #     },
+    # }
+
+    params, options = params_and_options
     exog_savings_grid = jnp.linspace(
         0,
         options["model_params"]["max_wealth"],
@@ -190,8 +236,6 @@ def solve_toy_model_exog_ltc(
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_dcegm_exog_ltc,
     )
-
-    # === Solve ===
 
     (
         out["period_specific_state_objects"],

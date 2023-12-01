@@ -71,7 +71,7 @@ def prob_exog_job_offer(
     return jnp.array([prob_no_job_offer, prob_job_offer])
 
 
-def budget_dcegm_two_exog_processes(
+def budget_dcegm_exog_ltc_and_job_offer(
     lagged_choice,
     ltc,
     savings_end_of_previous_period,
