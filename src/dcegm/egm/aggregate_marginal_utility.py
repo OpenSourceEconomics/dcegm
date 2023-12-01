@@ -1,12 +1,13 @@
 from typing import Tuple
 
 import jax.numpy as jnp
+import numpy as np
 
 
 def aggregate_marg_utils_and_exp_values(
     value_state_choice_specific: jnp.ndarray,
     marg_util_state_choice_specific: jnp.ndarray,
-    reshape_state_choice_vec_to_mat: jnp.ndarray,
+    reshape_state_choice_vec_to_mat: np.ndarray,
     taste_shock_scale: float,
     income_shock_weights: jnp.ndarray,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
@@ -45,20 +46,21 @@ def aggregate_marg_utils_and_exp_values(
         mode="fill",
         fill_value=jnp.nan,
     )
-    max_value_per_state = jnp.nanmax(choice_values_per_state, axis=1, keepdims=True)
 
-    rescale_values_per_state = choice_values_per_state - max_value_per_state
-
-    rescaled_exponential = jnp.exp(rescale_values_per_state / taste_shock_scale)
-
-    sum_exp = jnp.nansum(rescaled_exponential, axis=1, keepdims=True)
+    (
+        choice_probs,
+        max_value_per_state,
+        sum_exp,
+    ) = calculate_choice_probs_and_unsqueezed_logsum(
+        choice_values_per_state=choice_values_per_state,
+        taste_shock_scale=taste_shock_scale,
+    )
 
     log_sum_unsqueezed = max_value_per_state + taste_shock_scale * jnp.log(sum_exp)
     # Because we kept the dimensions in the maximum and sum over choice specific objects
     # to perform subtraction and division, we now need to squeeze the log_sum again
     # to remove the redundant axis.
     log_sum = jnp.squeeze(log_sum_unsqueezed, axis=1)
-    choice_probs = rescaled_exponential / sum_exp
 
     choice_marg_util_per_state = jnp.take(
         marg_util_state_choice_specific,
@@ -75,3 +77,17 @@ def aggregate_marg_utils_and_exp_values(
     shock_integrated_log_sum = log_sum @ income_shock_weights
 
     return shock_integrated_marg_util, shock_integrated_log_sum
+
+
+def calculate_choice_probs_and_unsqueezed_logsum(
+    choice_values_per_state: jnp.ndarray, taste_shock_scale: float
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+    max_value_per_state = jnp.nanmax(choice_values_per_state, axis=1, keepdims=True)
+
+    rescale_values_per_state = choice_values_per_state - max_value_per_state
+
+    rescaled_exponential = jnp.exp(rescale_values_per_state / taste_shock_scale)
+
+    sum_exp = jnp.nansum(rescaled_exponential, axis=1, keepdims=True)
+    choice_probs = rescaled_exponential / sum_exp
+    return choice_probs, max_value_per_state, sum_exp

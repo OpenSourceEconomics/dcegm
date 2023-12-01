@@ -1,12 +1,12 @@
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from dcegm.pre_processing.model_functions import _convert_params_to_dict
-from dcegm.pre_processing.model_functions import process_params
+from dcegm.pre_processing.params import _convert_params_to_dict
+from dcegm.pre_processing.params import process_params
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from jax import vmap
 from toy_models.consumption_retirement_model.utility_functions import (
-    utiility_func_log_crra,
+    utiility_log_crra,
 )
 
 
@@ -45,7 +45,7 @@ def test_wrap_function(load_example_model):
     )
 
     util_processed = determine_function_arguments_and_partial_options(
-        utiility_func_log_crra,
+        utiility_log_crra,
         options,
     )
 

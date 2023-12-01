@@ -8,7 +8,7 @@ from dcegm.pre_processing.shared import determine_function_arguments_and_partial
 from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope
 from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope_wrapper
 from numpy.testing import assert_array_almost_equal as aaae
-from toy_models.consumption_retirement_model.utility_functions import utility_func_crra
+from toy_models.consumption_retirement_model.utility_functions import utility_crra
 
 from tests.utils.fast_upper_envelope_org import fast_upper_envelope_wrapper_org
 from tests.utils.upper_envelope_fedor import upper_envelope
@@ -28,7 +28,7 @@ def setup_model():
 
     params = {}
     params["beta"] = 0.95  # discount_factor
-    params["theta"] = 1.95
+    params["rho"] = 1.95
     params["delta"] = 0.35
 
     options = {
@@ -46,7 +46,7 @@ def setup_model():
 
     options["state_space"]["exogenous_states"] = {"exog_state": [0]}
     compute_utility = determine_function_arguments_and_partial_options(
-        utility_func_crra, options=options
+        utility_crra, options=options
     )
 
     return params, exog_savings_grid, state_choice_vars, compute_utility
@@ -55,16 +55,20 @@ def setup_model():
 @pytest.mark.parametrize("period", [2, 4, 9, 10, 18])
 def test_fast_upper_envelope_wrapper(period, setup_model):
     value_egm = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"period_tests/val{period}.csv", delimiter=","
+        TEST_RESOURCES_DIR / f"upper_envelope_period_tests/val{period}.csv",
+        delimiter=",",
     )
     policy_egm = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"period_tests/pol{period}.csv", delimiter=","
+        TEST_RESOURCES_DIR / f"upper_envelope_period_tests/pol{period}.csv",
+        delimiter=",",
     )
     value_refined_fedor = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"period_tests/expec_val{period}.csv", delimiter=","
+        TEST_RESOURCES_DIR / f"upper_envelope_period_tests/expec_val{period}.csv",
+        delimiter=",",
     )
     policy_refined_fedor = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"period_tests/expec_pol{period}.csv", delimiter=","
+        TEST_RESOURCES_DIR / f"upper_envelope_period_tests/expec_pol{period}.csv",
+        delimiter=",",
     )
     policy_expected = policy_refined_fedor[
         :, ~np.isnan(policy_refined_fedor).any(axis=0)
@@ -119,10 +123,10 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
 
 def test_fast_upper_envelope_against_org_fues(setup_model):
     policy_egm = np.genfromtxt(
-        TEST_RESOURCES_DIR / "period_tests/pol10.csv", delimiter=","
+        TEST_RESOURCES_DIR / "upper_envelope_period_tests/pol10.csv", delimiter=","
     )
     value_egm = np.genfromtxt(
-        TEST_RESOURCES_DIR / "period_tests/val10.csv", delimiter=","
+        TEST_RESOURCES_DIR / "upper_envelope_period_tests/val10.csv", delimiter=","
     )
     _params, exog_savings_grid, state_choice_vars, compute_utility = setup_model
 
@@ -160,10 +164,12 @@ def test_fast_upper_envelope_against_org_fues(setup_model):
 @pytest.mark.parametrize("period", [2, 4, 10, 9, 18])
 def test_fast_upper_envelope_against_fedor(period, setup_model):
     value_egm = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"period_tests/val{period}.csv", delimiter=","
+        TEST_RESOURCES_DIR / f"upper_envelope_period_tests/val{period}.csv",
+        delimiter=",",
     )
     policy_egm = np.genfromtxt(
-        TEST_RESOURCES_DIR / f"period_tests/pol{period}.csv", delimiter=","
+        TEST_RESOURCES_DIR / f"upper_envelope_period_tests/pol{period}.csv",
+        delimiter=",",
     )
 
     params, exog_savings_grid, state_choice_vec, compute_utility = setup_model

@@ -1,22 +1,18 @@
 from typing import Callable
 from typing import Dict
-from typing import Union
 
 import jax.numpy as jnp
-import pandas as pd
 from dcegm.pre_processing.exog_processes import create_exog_transition_function
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope_wrapper
-from pybaum import get_registry
-from pybaum import tree_flatten
 
 
 def process_model_functions(
-    options: Dict[str, float],
-    user_utility_functions: Dict[str, Callable],
-    user_budget_constraint: Callable,
-    user_final_period_solution: Callable,
+    options: Dict,
     state_space_functions: Dict[str, Callable],
+    utility_functions: Dict[str, Callable],
+    utility_functions_final_period: Dict[str, Callable],
+    budget_constraint: Callable,
 ):
     """Create wrapped functions from user supplied functions.
 
@@ -63,29 +59,29 @@ def process_model_functions(
     model_params_options = options["model_params"]
 
     compute_utility = determine_function_arguments_and_partial_options(
-        func=user_utility_functions["utility"], options=model_params_options
+        func=utility_functions["utility"], options=model_params_options
     )
     compute_marginal_utility = determine_function_arguments_and_partial_options(
-        func=user_utility_functions["marginal_utility"], options=model_params_options
+        func=utility_functions["marginal_utility"], options=model_params_options
     )
     compute_inverse_marginal_utility = determine_function_arguments_and_partial_options(
-        func=user_utility_functions["inverse_marginal_utility"],
+        func=utility_functions["inverse_marginal_utility"],
         options=model_params_options,
     )
 
-    compute_beginning_of_period_wealth = (
+    compute_utility_final = determine_function_arguments_and_partial_options(
+        func=utility_functions_final_period["utility"],
+        options=model_params_options,
+    )
+    compute_marginal_utility_final = determine_function_arguments_and_partial_options(
+        func=utility_functions_final_period["marginal_utility"],
+        options=model_params_options,
+    )
+
+    compute_beginning_of_period_resources = (
         determine_function_arguments_and_partial_options(
-            func=user_budget_constraint, options=model_params_options
+            func=budget_constraint, options=model_params_options
         )
-    )
-
-    compute_final_period = determine_function_arguments_and_partial_options(
-        func=user_final_period_solution,
-        options=model_params_options,
-        additional_partial={
-            "compute_utility": compute_utility,
-            "compute_marginal_utility": compute_marginal_utility,
-        },
     )
 
     get_state_specific_choice_set = determine_function_arguments_and_partial_options(
@@ -109,8 +105,9 @@ def process_model_functions(
         "compute_utility": compute_utility,
         "compute_marginal_utility": compute_marginal_utility,
         "compute_inverse_marginal_utility": compute_inverse_marginal_utility,
-        "compute_beginning_of_period_wealth": compute_beginning_of_period_wealth,
-        "compute_final_period": compute_final_period,
+        "compute_utility_final": compute_utility_final,
+        "compute_marginal_utility_final": compute_marginal_utility_final,
+        "compute_beginning_of_period_resources": compute_beginning_of_period_resources,
         "compute_exog_transition_vec": compute_exog_transition_vec,
     }
 
@@ -122,61 +119,13 @@ def process_model_functions(
     )
 
 
-def process_params(params: Union[dict, pd.Series, pd.DataFrame]) -> Dict[str, float]:
-    """Transforms params DataFrame into a dictionary.
-
-    Checks if given params contains beta, taste shock scale, interest rate
-    and discount factor.
-
-    Args:
-        params (dict or tuple or pandas.Series or pandas.DataFrame): Model parameters
-            Support tuple and list as well?
-
-    Returns:
-        dict: Dictionary of model parameters.
-
-    """
-
-    if isinstance(params, (pd.Series, pd.DataFrame)):
-        params = _convert_params_to_dict(params)
-
-    if "interest_rate" not in params:
-        params["interest_rate"] = 0
-    if "lambda" not in params:
-        params["lambda"] = 0
-    if "sigma" not in params:
-        params["sigma"] = 0
-    if "beta" not in params:
-        raise ValueError("beta must be provided in params.")
-
-    return params
-
-
-def _convert_params_to_dict(params: Union[pd.Series, pd.DataFrame]):
-    """Converts params to dictionary."""
-    _registry = get_registry(
-        types=[
-            "dict",
-            "pandas.Series",
-            "pandas.DataFrame",
-        ],
-        include_defaults=False,
-    )
-    # {level: df.xs(level).to_dict('index') for level in df.index.levels[0]}
-    _params, _treedef = tree_flatten(params, registry=_registry)
-    values = [i for i in _params if isinstance(i, (int, float))]
-    keys = _treedef.index.get_level_values(_treedef.index.names[-1]).tolist()
-    params_dict = dict(zip(keys, values))
-
-    return params_dict
-
-
 def _return_policy_and_value(
     endog_grid, policy, value, expected_value_zero_savings, *args
 ):
     """This is a dummy function for the case of only one discrete choice."""
-    endog_grid = jnp.append(0, endog_grid)
-    policy = jnp.append(0, policy)
-    value = jnp.append(expected_value_zero_savings, value)
+    nans_to_append = jnp.full(int(0.2 * endog_grid.shape[0]) - 1, jnp.nan)
+    endog_grid = jnp.append(jnp.append(0, endog_grid), nans_to_append)
+    policy = jnp.append(jnp.append(0, policy), nans_to_append)
+    value = jnp.append(jnp.append(expected_value_zero_savings, value), nans_to_append)
 
     return endog_grid, policy, policy, value

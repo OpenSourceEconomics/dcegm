@@ -2,8 +2,10 @@
 from typing import Callable
 from typing import Dict
 
+import jax.numpy as jnp
 import numpy as np
 import pandas as pd
+from dcegm.pre_processing.exog_processes import create_exog_mapping
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 
 
@@ -54,6 +56,7 @@ def create_state_space_and_choice_objects(
         state_choice_space,
         map_state_choice_vec_to_parent_state,
         reshape_state_choice_vec_to_mat,
+        map_state_choice_to_index,
     ) = create_state_choice_space(
         state_space_options=state_space_options,
         state_space=state_space,
@@ -97,6 +100,10 @@ def create_state_space_and_choice_objects(
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
+    exog_mapping = create_exog_mapping(
+        jnp.array(exog_state_space, dtype=np.int16), exog_state_names
+    )
+
     for period in range(n_periods):
         out[period]["state_choice_mat"] = {
             key: out[period]["state_choice_mat"][:, i]
@@ -105,7 +112,7 @@ def create_state_space_and_choice_objects(
 
     state_space = {key: state_space[:, i] for i, key in enumerate(state_space_names)}
 
-    return out, state_space
+    return out, state_space, state_space_names, map_state_choice_to_index, exog_mapping
 
 
 def create_state_space(options):
@@ -412,6 +419,11 @@ def create_state_choice_space(
 
     map_state_choice_vec_to_parent_state = np.zeros((n_states * n_choices), dtype=int)
     reshape_state_choice_vec_to_mat = np.zeros((n_states, n_choices), dtype=int)
+    map_state_choice_to_index = np.full(
+        shape=(map_state_to_state_space_index.shape + (n_choices,)),
+        fill_value=-n_states * n_choices,
+        dtype=int,
+    )
 
     idx = 0
     for period in range(n_periods):
@@ -434,6 +446,7 @@ def create_state_choice_space(
 
                     map_state_choice_vec_to_parent_state[idx] = state_idx
                     reshape_state_choice_vec_to_mat[state_idx, choice] = period_idx
+                    map_state_choice_to_index[tuple(state_vec) + (choice,)] = idx
 
                     period_idx += 1
                     idx += 1
@@ -446,6 +459,7 @@ def create_state_choice_space(
         state_choice_space[:idx],
         map_state_choice_vec_to_parent_state[:idx],
         reshape_state_choice_vec_to_mat,
+        map_state_choice_to_index,
     )
 
 
@@ -453,7 +467,7 @@ def create_map_from_state_to_child_nodes(
     n_exog_states: int,
     exog_state_space: np.ndarray,
     options: Dict[str, int],
-    period_specific_state_objects: np.ndarray,
+    period_specific_state_objects: Dict,
     map_state_to_index: np.ndarray,
     states_names_without_exog: list,
     update_endog_state_by_state_and_choice: Callable,
