@@ -12,23 +12,21 @@ from numpy.testing import assert_array_almost_equal as aaae
 
 
 def test_simulate_lax_scan(toy_model_exog_ltc):
-    out = toy_model_exog_ltc
-
-    params = out["params"]
-    options = out["options"]
+    params = toy_model_exog_ltc["params"]
+    options = toy_model_exog_ltc["options"]
     choice_range = jnp.arange(options["model_params"]["n_choices"])
-    state_space_names = out["state_space_names"]
-    value = out["value"]
-    policy_left = out["policy_left"]
-    policy_right = out["policy_right"]
-    endog_grid = out["endog_grid"]
-    exog_state_mapping = out["exog_state_mapping"]
-    update_endog_state_by_state_and_choice = out[
+    state_space_names = toy_model_exog_ltc["state_space_names"]
+    value = toy_model_exog_ltc["value"]
+    policy_left = toy_model_exog_ltc["policy_left"]
+    policy_right = toy_model_exog_ltc["policy_right"]
+    endog_grid = toy_model_exog_ltc["endog_grid"]
+    exog_state_mapping = toy_model_exog_ltc["exog_state_mapping"]
+    update_endog_state_by_state_and_choice = toy_model_exog_ltc[
         "update_endog_state_by_state_and_choice"
     ]
 
-    model_funcs = out["model_funcs"]
-    map_state_choice_to_index = out["map_state_choice_to_index"]
+    model_funcs = toy_model_exog_ltc["model_funcs"]
+    map_state_choice_to_index = toy_model_exog_ltc["map_state_choice_to_index"]
 
     seed = 111
     n_agents = 1_000_000
@@ -122,23 +120,21 @@ def test_simulate_lax_scan(toy_model_exog_ltc):
 
 
 def test_simulate(toy_model_exog_ltc):
-    out = toy_model_exog_ltc
-
-    params = out["params"]
-    options = out["options"]
+    params = toy_model_exog_ltc["params"]
+    options = toy_model_exog_ltc["options"]
     jnp.arange(options["model_params"]["n_choices"])
-    state_space_names = out["state_space_names"]
-    value = out["value"]
-    policy_left = out["policy_left"]
-    policy_right = out["policy_right"]
-    endog_grid = out["endog_grid"]
-    exog_state_mapping = out["exog_state_mapping"]
-    update_endog_state_by_state_and_choice = out[
+    state_space_names = toy_model_exog_ltc["state_space_names"]
+    value = toy_model_exog_ltc["value"]
+    policy_left = toy_model_exog_ltc["policy_left"]
+    policy_right = toy_model_exog_ltc["policy_right"]
+    endog_grid = toy_model_exog_ltc["endog_grid"]
+    exog_state_mapping = toy_model_exog_ltc["exog_state_mapping"]
+    update_endog_state_by_state_and_choice = toy_model_exog_ltc[
         "update_endog_state_by_state_and_choice"
     ]
 
-    model_funcs = out["model_funcs"]
-    map_state_choice_to_index = out["map_state_choice_to_index"]
+    model_funcs = toy_model_exog_ltc["model_funcs"]
+    map_state_choice_to_index = toy_model_exog_ltc["map_state_choice_to_index"]
 
     seed = 111
     n_agents = 1_000_000
