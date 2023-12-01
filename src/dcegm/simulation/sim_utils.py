@@ -100,7 +100,6 @@ def transition_to_next_period(
     # beginning of next period.
     # Initialize states by copying
     states_next_period = states_beginning_of_period.copy()
-    # Then update
     states_to_update = {**endog_states_next_period, **exog_states_next_period}
     states_next_period.update(states_to_update)
 

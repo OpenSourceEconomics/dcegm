@@ -11,8 +11,8 @@ from dcegm.simulation.simulate import simulate_single_period
 from numpy.testing import assert_array_almost_equal as aaae
 
 
-def test_simulate_lax_scan(solve_toy_model_exog_ltc):
-    out = solve_toy_model_exog_ltc
+def test_simulate_lax_scan(toy_model_exog_ltc):
+    out = toy_model_exog_ltc
 
     params = out["params"]
     options = out["options"]
@@ -121,8 +121,8 @@ def test_simulate_lax_scan(solve_toy_model_exog_ltc):
         aaae(lax_final_period_dict[key], final_period_dict[key])
 
 
-def test_simulate(solve_toy_model_exog_ltc):
-    out = solve_toy_model_exog_ltc
+def test_simulate(toy_model_exog_ltc):
+    out = toy_model_exog_ltc
 
     params = out["params"]
     options = out["options"]

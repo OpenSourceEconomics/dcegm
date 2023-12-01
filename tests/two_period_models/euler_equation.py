@@ -5,13 +5,12 @@ from tests.two_period_models.model_functions import marginal_utility
 
 
 def prob_long_term_care_patient(params, lagged_bad_health, bad_health):
-    p = params["ltc_prob"]
-    # jnp.array([[0.7, 0.3], [0, 1]])
+    p = params["ltc_prob_constant"]
 
     if lagged_bad_health == bad_health == 0:
-        prob = 1 - p
+        prob = 1 - p  # 0.7
     elif (lagged_bad_health == 0) and (bad_health == 1):
-        prob = p
+        prob = p  # 0.3
     elif lagged_bad_health == 1 and bad_health == 0:
         prob = 0
     elif lagged_bad_health == bad_health == 1:
@@ -38,7 +37,7 @@ def choice_prob_retirement(consumption, choice, params):
 # =====================================================================================
 
 
-def budget(
+def budget_exog_ltc(
     lagged_resources,
     lagged_consumption,
     lagged_retirement_choice,
@@ -56,7 +55,9 @@ def budget(
     return resources
 
 
-def marginal_utility_weighted(init_cond, params, retirement_choice_1, nu, consumption):
+def marginal_utility_weighted_exog_ltc(
+    init_cond, params, retirement_choice_1, nu, consumption
+):
     """Return the expected marginal utility for one realization of the wage shock."""
     budget_1 = init_cond["wealth"]
     ltc_state_1 = init_cond["bad_health"]
@@ -64,7 +65,7 @@ def marginal_utility_weighted(init_cond, params, retirement_choice_1, nu, consum
     weighted_marginal = 0
     for ltc_state_2 in (0, 1):
         for retirement_choice_2 in (0, 1):
-            budget_2 = budget(
+            budget_2 = budget_exog_ltc(
                 budget_1,
                 consumption,
                 retirement_choice_1,
@@ -85,13 +86,15 @@ def marginal_utility_weighted(init_cond, params, retirement_choice_1, nu, consum
     return weighted_marginal
 
 
-def euler_rhs(init_cond, params, draws, weights, retirement_choice_1, consumption):
+def euler_rhs_exog_ltc(
+    init_cond, params, draws, weights, retirement_choice_1, consumption
+):
     beta = params["beta"]
     interest_factor = 1 + params["interest_rate"]
 
     rhs = 0
     for index_draw, draw in enumerate(draws):
-        marg_util_draw = marginal_utility_weighted(
+        marg_util_draw = marginal_utility_weighted_exog_ltc(
             init_cond, params, retirement_choice_1, draw, consumption
         )
         rhs += weights[index_draw] * marg_util_draw
@@ -118,7 +121,7 @@ def prob_job_offer(params, lagged_job_offer, job_offer):
     return prob
 
 
-def budget_two_exog_processes(
+def budget_exog_ltc_and_job_offer(
     lagged_resources,
     lagged_consumption,
     lagged_retirement_choice,
@@ -137,7 +140,7 @@ def budget_two_exog_processes(
     return resources
 
 
-def marginal_utility_weighted_two_exog_processes(
+def marginal_utility_weighted_exog_ltc_and_job_offer(
     init_cond, params, retirement_choice_1, nu, consumption
 ):
     """Return the expected marginal utility for one realization of the wage shock."""
@@ -149,7 +152,7 @@ def marginal_utility_weighted_two_exog_processes(
     for ltc_state_2 in (0, 1):
         for job_state_2 in (0, 1):
             for retirement_choice_2 in (0, 1):
-                budget_2 = budget_two_exog_processes(
+                budget_2 = budget_exog_ltc_and_job_offer(
                     budget_1,
                     consumption,
                     retirement_choice_1,
@@ -174,7 +177,7 @@ def marginal_utility_weighted_two_exog_processes(
     return weighted_marginal
 
 
-def euler_rhs_two_exog_processes(
+def euler_rhs_exog_ltc_and_job_offer(
     init_cond, params, draws, weights, retirement_choice_1, consumption
 ):
     beta = params["beta"]
@@ -182,7 +185,7 @@ def euler_rhs_two_exog_processes(
 
     rhs = 0
     for index_draw, draw in enumerate(draws):
-        marg_util_draw = marginal_utility_weighted_two_exog_processes(
+        marg_util_draw = marginal_utility_weighted_exog_ltc_and_job_offer(
             init_cond, params, retirement_choice_1, draw, consumption
         )
         rhs += weights[index_draw] * marg_util_draw

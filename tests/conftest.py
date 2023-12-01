@@ -24,6 +24,7 @@ from toy_models.consumption_retirement_model.utility_functions import (
 )
 
 from tests.two_period_models.model_functions import budget_dcegm_exog_ltc
+from tests.two_period_models.model_functions import budget_dcegm_exog_ltc_and_job_offer
 from tests.two_period_models.model_functions import (
     flow_utility,
 )
@@ -33,6 +34,7 @@ from tests.two_period_models.model_functions import (
 from tests.two_period_models.model_functions import (
     marginal_utility,
 )
+from tests.two_period_models.model_functions import prob_exog_job_offer
 from tests.two_period_models.model_functions import prob_exog_ltc
 
 
@@ -114,7 +116,7 @@ def utility_functions_final_period():
 
 
 @pytest.fixture(scope="session")
-def params_and_options():
+def params_and_options_exog_ltc():
     params = {}
     params["rho"] = 0.5
     params["delta"] = 0.5
@@ -156,67 +158,58 @@ def params_and_options():
 
 
 @pytest.fixture(scope="session")
-def solve_toy_model_exog_ltc(
+def params_and_options_exog_ltc_and_job_offer():
+    # ToDo: Write this as dictionary such that it has a much nicer overview
+    params = {}
+    params["rho"] = 0.5
+    params["delta"] = 0.5
+    params["interest_rate"] = 0.02
+    params["ltc_cost"] = 5
+    params["wage_avg"] = 8
+    params["sigma"] = 1
+    params["lambda"] = 1
+    params["ltc_prob"] = 0.3
+    params["beta"] = 0.95
+
+    # exog params
+    params["ltc_prob_constant"] = 0.3
+    params["ltc_prob_age"] = 0.1
+    params["job_offer_constant"] = 0.5
+    params["job_offer_age"] = 0
+    params["job_offer_educ"] = 0
+    params["job_offer_type_two"] = 0.4
+
+    options = {
+        "model_params": {
+            "n_grid_points": WEALTH_GRID_POINTS,
+            "max_wealth": 50,
+            "quadrature_points_stochastic": 5,
+            "n_choices": 2,
+        },
+        "state_space": {
+            "n_periods": 2,
+            "choices": np.arange(2),
+            "endogenous_states": {
+                "married": [0, 1],
+            },
+            "exogenous_processes": {
+                "ltc": {"transition": prob_exog_ltc, "states": [0, 1]},
+                "job_offer": {"transition": prob_exog_job_offer, "states": [0, 1]},
+            },
+        },
+    }
+
+    return params, options
+
+
+@pytest.fixture(scope="session")
+def toy_model_exog_ltc(
     state_space_functions,
     utility_functions,
     utility_functions_final_period,
-    params_and_options,
+    params_and_options_exog_ltc,
 ):
-    # index = pd.MultiIndex.from_tuples(
-    #     [("utility_function", "rho"), ("utility_function", "delta")],
-    #     names=["category", "name"],
-    # )
-    # params = pd.DataFrame(data=[0.5, 0.5], columns=["value"], index=index)
-    # params.loc[("assets", "interest_rate"), "value"] = 0.02
-    # params.loc[("assets", "ltc_cost"), "value"] = 5
-    # params.loc[("wage", "wage_avg"), "value"] = 8
-    # params.loc[("shocks", "sigma"), "value"] = 1
-    # params.loc[("shocks", "lambda"), "value"] = 1
-    # params.loc[("transition", "ltc_prob"), "value"] = 0.3
-    # params.loc[("beta", "beta"), "value"] = 0.95
-
-    # # exog params
-    # params.loc[("ltc_prob_constant", "ltc_prob_constant"), "value"] = 0.3
-    # params.loc[("ltc_prob_age", "ltc_prob_age"), "value"] = 0.1
-
-    # params = {}
-    # params["rho"] = 0.5
-    # params["delta"] = 0.5
-    # params["interest_rate"] = 0.02
-    # params["ltc_cost"] = 5
-    # params["wage_avg"] = 8
-    # params["sigma"] = 1
-    # params["lambda"] = 10
-    # params["beta"] = 0.95
-
-    # # exog params
-    # params["ltc_prob_constant"] = 0.3
-    # params["ltc_prob_age"] = 0.1
-    # params["job_offer_constant"] = 0.5
-    # params["job_offer_age"] = 0
-    # params["job_offer_educ"] = 0
-    # params["job_offer_type_two"] = 0.4
-
-    # options = {
-    #     "model_params": {
-    #         "n_grid_points": WEALTH_GRID_POINTS,
-    #         "max_wealth": 50,
-    #         "quadrature_points_stochastic": 5,
-    #         "n_choices": 2,
-    #     },
-    #     "state_space": {
-    #         "n_periods": 2,
-    #         "choices": np.arange(2),
-    #         "endogenous_states": {
-    #             "married": [0, 1],
-    #         },
-    #         "exogenous_processes": {
-    #             "ltc": {"transition": prob_exog_ltc, "states": [0, 1]},
-    #         },
-    #     },
-    # }
-
-    params, options = params_and_options
+    params, options = params_and_options_exog_ltc
     exog_savings_grid = jnp.linspace(
         0,
         options["model_params"]["max_wealth"],
@@ -273,16 +266,67 @@ def solve_toy_model_exog_ltc(
 
     return out
 
-    # return (
-    #     params,
-    #     options,
-    #     model_funcs,
-    #     value,
-    #     policy_left,
-    #     policy_right,
-    #     endog_grid,
-    #     state_space_names,
-    #     map_state_choice_to_index,
-    #     exog_state_mapping,
-    #     update_endog_state_by_state_and_choice,
-    # )
+
+@pytest.fixture(scope="session")
+def toy_model_exog_ltc_and_job_offer(
+    state_space_functions,
+    utility_functions,
+    utility_functions_final_period,
+    params_and_options_exog_ltc_and_job_offer,
+):
+    params, options = params_and_options_exog_ltc_and_job_offer
+    exog_savings_grid = jnp.linspace(
+        0,
+        options["model_params"]["max_wealth"],
+        options["model_params"]["n_grid_points"],
+    )
+
+    out = {}
+    (
+        model_funcs,
+        _compute_upper_envelope,
+        get_state_specific_choice_set,
+        update_endog_state_by_state_and_choice,
+    ) = process_model_functions(
+        options,
+        state_space_functions=state_space_functions,
+        utility_functions=utility_functions,
+        utility_functions_final_period=utility_functions_final_period,
+        budget_constraint=budget_dcegm_exog_ltc_and_job_offer,
+    )
+
+    (
+        out["period_specific_state_objects"],
+        out["state_space"],
+        out["state_space_names"],
+        out["map_state_choice_to_index"],
+        out["exog_state_mapping"],
+    ) = create_state_space_and_choice_objects(
+        options=options,
+        get_state_specific_choice_set=get_state_specific_choice_set,
+        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+    )
+
+    (
+        out["value"],
+        out["policy_left"],
+        out["policy_right"],
+        out["endog_grid"],
+    ) = solve_dcegm(
+        params,
+        options,
+        exog_savings_grid=exog_savings_grid,
+        state_space_functions=state_space_functions,
+        utility_functions=utility_functions,
+        utility_functions_final_period=utility_functions_final_period,
+        budget_constraint=budget_dcegm_exog_ltc_and_job_offer,
+    )
+
+    out["params"] = params
+    out["options"] = options
+    out["model_funcs"] = model_funcs
+    out[
+        "update_endog_state_by_state_and_choice"
+    ] = update_endog_state_by_state_and_choice
+
+    return out
