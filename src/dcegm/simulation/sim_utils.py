@@ -82,7 +82,7 @@ def transition_to_next_period(
     )(
         states_beginning_of_period,
         choice,
-        sim_specific_keys[1:, :],
+        sim_specific_keys[2:, :],
         params,
         compute_exog_transition_vec,
         exog_state_mapping,
@@ -106,7 +106,7 @@ def transition_to_next_period(
 
     # Draw income shocks.
     income_shocks_next_period = draw_normal_shocks(
-        key=sim_specific_keys[0, :], num_agents=n_agents, mean=0, std=params["sigma"]
+        key=sim_specific_keys[1, :], num_agents=n_agents, mean=0, std=params["sigma"]
     )
     resources_beginning_of_next_period = calculate_resources_for_all_agents(
         states_beginning_of_period=states_next_period,

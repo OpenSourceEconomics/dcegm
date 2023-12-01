@@ -3,16 +3,47 @@ import os
 import sys
 from pathlib import Path
 
+import jax.numpy as jnp
+import numpy as np
 import pandas as pd
 import pytest
 import yaml
+from dcegm.pre_processing.model_functions import process_model_functions
+from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
+from dcegm.solve import solve_dcegm
 from jax import config
+from toy_models.consumption_retirement_model.state_space_objects import (
+    get_state_specific_feasible_choice_set,
+)
+from toy_models.consumption_retirement_model.state_space_objects import update_state
+from toy_models.consumption_retirement_model.utility_functions import (
+    marginal_utility_final_consume_all,
+)
+from toy_models.consumption_retirement_model.utility_functions import (
+    utility_final_consume_all,
+)
+
+from tests.two_period_models.exog_ltc.model_functions import budget_dcegm_exog_ltc
+from tests.two_period_models.exog_ltc.model_functions import (
+    flow_utility,
+)
+from tests.two_period_models.exog_ltc.model_functions import (
+    inverse_marginal_utility,
+)
+from tests.two_period_models.exog_ltc.model_functions import (
+    marginal_utility,
+)
+from tests.two_period_models.exog_ltc.model_functions import prob_exog_ltc
+
 
 # Obtain the test directory of the package
 TEST_DIR = Path(__file__).parent
 
 # Directory with additional resources for the testing harness
 REPLICATION_TEST_RESOURCES_DIR = TEST_DIR / "resources" / "replication_tests"
+
+WEALTH_GRID_POINTS = 100
+
 
 # Add the utils directory to the path so that we can import helper functions.
 sys.path.append(os.path.join(os.path.dirname(__file__), "utils"))
@@ -22,7 +53,21 @@ def pytest_sessionstart(session):  # noqa: ARG001
     config.update("jax_enable_x64", val=True)
 
 
-@pytest.fixture()
+@pytest.hookimpl(tryfirst=True)
+def pytest_sessionfinish(session, exitstatus):  # noqa: ARG001
+    # Get the current working directory
+    cwd = os.getcwd()
+
+    # Search for .npy files that match the naming pattern
+    pattern = os.path.join(cwd, "[endog_grid_, policy_, value_]*.npy")
+    npy_files = glob.glob(pattern)
+
+    # Delete the matching .npy files
+    for file in npy_files:
+        os.remove(file)
+
+
+@pytest.fixture(scope="session")
 def load_example_model():
     def load_options_and_params(model):
         """Return parameters and options of an example model."""
@@ -38,15 +83,162 @@ def load_example_model():
     return load_options_and_params
 
 
-@pytest.hookimpl(tryfirst=True)
-def pytest_sessionfinish(session, exitstatus):  # noqa: ARG001
-    # Get the current working directory
-    cwd = os.getcwd()
+@pytest.fixture(scope="session")
+def state_space_functions():
+    """Return dict with state space functions."""
+    out = {
+        "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
+        "update_endog_state_by_state_and_choice": update_state,
+    }
+    return out
 
-    # Search for .npy files that match the naming pattern
-    pattern = os.path.join(cwd, "[endog_grid_, policy_, value_]*.npy")
-    npy_files = glob.glob(pattern)
 
-    # Delete the matching .npy files
-    for file in npy_files:
-        os.remove(file)
+@pytest.fixture(scope="session")
+def utility_functions():
+    """Return dict with utility functions."""
+    out = {
+        "utility": flow_utility,
+        "marginal_utility": marginal_utility,
+        "inverse_marginal_utility": inverse_marginal_utility,
+    }
+    return out
+
+
+@pytest.fixture(scope="session")
+def utility_functions_final_period():
+    """Return dict with utility functions for final period."""
+    return {
+        "utility": utility_final_consume_all,
+        "marginal_utility": marginal_utility_final_consume_all,
+    }
+
+
+@pytest.fixture(scope="session")
+def solve_toy_model_exog_ltc(
+    state_space_functions, utility_functions, utility_functions_final_period
+):
+    # index = pd.MultiIndex.from_tuples(
+    #     [("utility_function", "rho"), ("utility_function", "delta")],
+    #     names=["category", "name"],
+    # )
+    # params = pd.DataFrame(data=[0.5, 0.5], columns=["value"], index=index)
+    # params.loc[("assets", "interest_rate"), "value"] = 0.02
+    # params.loc[("assets", "ltc_cost"), "value"] = 5
+    # params.loc[("wage", "wage_avg"), "value"] = 8
+    # params.loc[("shocks", "sigma"), "value"] = 1
+    # params.loc[("shocks", "lambda"), "value"] = 1
+    # params.loc[("transition", "ltc_prob"), "value"] = 0.3
+    # params.loc[("beta", "beta"), "value"] = 0.95
+
+    # # exog params
+    # params.loc[("ltc_prob_constant", "ltc_prob_constant"), "value"] = 0.3
+    # params.loc[("ltc_prob_age", "ltc_prob_age"), "value"] = 0.1
+
+    params = {}
+    params["rho"] = 0.5
+    params["delta"] = 0.5
+    params["interest_rate"] = 0.02
+    params["ltc_cost"] = 5
+    params["wage_avg"] = 8
+    params["sigma"] = 1
+    params["lambda"] = 10
+    params["beta"] = 0.95
+
+    # exog params
+    params["ltc_prob_constant"] = 0.3
+    params["ltc_prob_age"] = 0.1
+    params["job_offer_constant"] = 0.5
+    params["job_offer_age"] = 0
+    params["job_offer_educ"] = 0
+    params["job_offer_type_two"] = 0.4
+
+    options = {
+        "model_params": {
+            "n_grid_points": WEALTH_GRID_POINTS,
+            "max_wealth": 50,
+            "quadrature_points_stochastic": 5,
+            "n_choices": 2,
+        },
+        "state_space": {
+            "n_periods": 2,
+            "choices": np.arange(2),
+            "endogenous_states": {
+                "married": [0, 1],
+            },
+            "exogenous_processes": {
+                "ltc": {"transition": prob_exog_ltc, "states": [0, 1]},
+            },
+        },
+    }
+
+    exog_savings_grid = jnp.linspace(
+        0,
+        options["model_params"]["max_wealth"],
+        options["model_params"]["n_grid_points"],
+    )
+
+    out = {}
+    (
+        model_funcs,
+        _compute_upper_envelope,
+        get_state_specific_choice_set,
+        update_endog_state_by_state_and_choice,
+    ) = process_model_functions(
+        options,
+        state_space_functions=state_space_functions,
+        utility_functions=utility_functions,
+        utility_functions_final_period=utility_functions_final_period,
+        budget_constraint=budget_dcegm_exog_ltc,
+    )
+
+    # === Solve ===
+
+    (
+        out["period_specific_state_objects"],
+        out["state_space"],
+        out["state_space_names"],
+        out["map_state_choice_to_index"],
+        out["exog_state_mapping"],
+    ) = create_state_space_and_choice_objects(
+        options=options,
+        get_state_specific_choice_set=get_state_specific_choice_set,
+        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+    )
+
+    (
+        out["value"],
+        out["policy_left"],
+        out["policy_right"],
+        out["endog_grid"],
+    ) = solve_dcegm(
+        params,
+        options,
+        exog_savings_grid=exog_savings_grid,
+        state_space_functions=state_space_functions,
+        utility_functions=utility_functions,
+        utility_functions_final_period=utility_functions_final_period,
+        budget_constraint=budget_dcegm_exog_ltc,
+    )
+
+    out["params"] = params
+    out["options"] = options
+    out["model_funcs"] = model_funcs
+    out[
+        "update_endog_state_by_state_and_choice"
+    ] = update_endog_state_by_state_and_choice
+
+    return out
+
+    # return (
+    #     params,
+    #     options,
+    #     model_funcs,
+    #     value,
+    #     policy_left,
+    #     policy_right,
+    #     endog_grid,
+    #     state_space_names,
+    #     map_state_choice_to_index,
+    #     exog_state_mapping,
+    #     update_endog_state_by_state_and_choice,
+    # )

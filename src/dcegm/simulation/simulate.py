@@ -34,10 +34,10 @@ def simulate_all_periods(
     compute_utility_final_period,
 ):
     # Prepare random seeds for taste shocks
-    num_keys = len(resources_initial) + 2
+    n_keys = len(resources_initial) + 2
     sim_specific_keys = jnp.array(
         [
-            jax.random.split(jax.random.PRNGKey(seed + period), num=num_keys)
+            jax.random.split(jax.random.PRNGKey(seed + period), num=n_keys)
             for period in range(n_periods)
         ]
     )
@@ -82,7 +82,7 @@ def simulate_all_periods(
         for key in sim_dict.keys()
     }
 
-    return result, sim_specific_keys
+    return result
 
 
 def simulate_single_period(
@@ -163,7 +163,7 @@ def simulate_single_period(
         exog_state_mapping=exog_state_mapping,
         compute_beginning_of_period_resources=compute_beginning_of_period_resources,
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
-        sim_specific_keys=sim_specific_keys[1:, :],
+        sim_specific_keys=sim_specific_keys,
     )
     carry = states_next_period, resources_beginning_of_next_period
 

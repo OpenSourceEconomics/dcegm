@@ -1,7 +1,7 @@
 import numpy as np
 
-from tests.two_period_models.exog_ltc_and_job_offer.model_functions import flow_util
-from tests.two_period_models.exog_ltc_and_job_offer.model_functions import (
+from tests.two_period_models.exog_ltc.model_functions import flow_util
+from tests.two_period_models.exog_ltc.model_functions import (
     marginal_utility,
 )
 

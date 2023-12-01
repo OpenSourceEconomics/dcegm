@@ -15,25 +15,13 @@ from dcegm.solve import solve_dcegm
 from numpy.testing import assert_allclose
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
-from toy_models.consumption_retirement_model.state_space_objects import (
-    get_state_specific_feasible_choice_set,
-)
-from toy_models.consumption_retirement_model.state_space_objects import (
-    update_state,
-)
-from toy_models.consumption_retirement_model.utility_functions import (
-    marginal_utility_final_consume_all,
-)
-from toy_models.consumption_retirement_model.utility_functions import (
-    utility_final_consume_all,
-)
 
 from tests.two_period_models.exog_ltc.euler_equation import euler_rhs
-from tests.two_period_models.exog_ltc.model_functions import budget_dcegm
-from tests.two_period_models.exog_ltc.model_functions import flow_util
-from tests.two_period_models.exog_ltc.model_functions import func_exog_ltc
+from tests.two_period_models.exog_ltc.model_functions import budget_dcegm_exog_ltc
+from tests.two_period_models.exog_ltc.model_functions import flow_utility
 from tests.two_period_models.exog_ltc.model_functions import inverse_marginal_utility
 from tests.two_period_models.exog_ltc.model_functions import marginal_utility
+from tests.two_period_models.exog_ltc.model_functions import prob_exog_ltc
 
 
 WEALTH_GRID_POINTS = 100
@@ -42,36 +30,37 @@ RANDOM_TEST_SET = np.random.choice(ALL_WEALTH_GRIDS, size=10, replace=False)
 TEST_CASES = list(product(RANDOM_TEST_SET, list(range(4))))
 
 
-@pytest.fixture(scope="module")
-def state_space_functions():
-    """Return dict with state space functions."""
-    out = {
-        "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
-        "update_endog_state_by_state_and_choice": update_state,
-    }
-    return out
+# @pytest.fixture(scope="module")
+# def state_space_functions():
+#     """Return dict with state space functions."""
+#     out = {
+#         "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
+#         "update_endog_state_by_state_and_choice": update_state,
+#     }
+#     return out
 
 
 @pytest.fixture(scope="module")
 def utility_functions():
     """Return dict with utility functions."""
     out = {
-        "utility": flow_util,
+        "utility": flow_utility,
         "inverse_marginal_utility": inverse_marginal_utility,
         "marginal_utility": marginal_utility,
     }
     return out
 
 
-@pytest.fixture(scope="module")
-def utility_functions_final_period():
-    """Return dict with utility functions for final period."""
-    return {
-        "utility": utility_final_consume_all,
-        "marginal_utility": marginal_utility_final_consume_all,
-    }
+# @pytest.fixture(scope="module")
+# def utility_functions_final_period():
+#     """Return dict with utility functions for final period."""
+#     return {
+#         "utility": utility_final_consume_all,
+#         "marginal_utility": marginal_utility_final_consume_all,
+#     }
 
 
+#
 @pytest.fixture(scope="module")
 def input_data(
     state_space_functions, utility_functions, utility_functions_final_period
@@ -104,7 +93,7 @@ def input_data(
             "n_periods": 2,
             "choices": [0, 1],
             "exogenous_processes": {
-                "ltc": {"transition": func_exog_ltc, "states": [0, 1]},
+                "ltc": {"transition": prob_exog_ltc, "states": [0, 1]},
             },
         },
     }
@@ -125,7 +114,7 @@ def input_data(
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
-        budget_constraint=budget_dcegm,
+        budget_constraint=budget_dcegm_exog_ltc,
     )
 
     out = {}
@@ -133,8 +122,7 @@ def input_data(
     (
         out["period_specific_state_objects"],
         out["state_space"],
-        _,
-        _,
+        *_,
     ) = create_state_space_and_choice_objects(
         options=options,
         get_state_specific_choice_set=get_state_specific_choice_set,
@@ -153,7 +141,7 @@ def input_data(
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
-        budget_constraint=budget_dcegm,
+        budget_constraint=budget_dcegm_exog_ltc,
     )
 
     out["params"] = params

@@ -15,7 +15,7 @@ def inverse_marginal_utility(marginal_utility, params):
     return marginal_utility ** (-1 / params["rho"])
 
 
-def budget_dcegm_two_exog_processes(
+def budget_dcegm_exog_ltc_and_job_offer(
     lagged_choice,
     ltc,
     savings_end_of_previous_period,
@@ -35,7 +35,7 @@ def budget_dcegm_two_exog_processes(
     return jnp.maximum(resource, 0.5)
 
 
-def func_exog_ltc(
+def prob_exog_ltc(
     period,
     ltc,
     params,
@@ -48,7 +48,7 @@ def func_exog_ltc(
     return jnp.array([prob_no_ltc, prob_ltc])
 
 
-def func_exog_job_offer(
+def prob_exog_job_offer(
     job_offer,
     params,
 ):
