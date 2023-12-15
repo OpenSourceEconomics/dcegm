@@ -68,6 +68,6 @@ def create_exog_mapping(exog_state_space, exog_names):
         # If the index is out of bounds, the last element of the array is returned.
         exog_state = exog_state_space[exog_proc_state]
 
-        return {key: float(exog_state[i]) for i, key in enumerate(exog_names)}
+        return {key: exog_state[i] for i, key in enumerate(exog_names)}
 
     return exog_mapping

@@ -49,7 +49,6 @@ def test_exog_processes(
         update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
     mother_bad_health = np.where(exog_state_space[:, 2] == 2)[0]
-    # breakpoint()
 
     for exog_state in mother_bad_health:
         assert exog_state_mapping(exog_proc_state=exog_state)["health_mother"] == 2
