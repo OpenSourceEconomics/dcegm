@@ -11,8 +11,9 @@ from tests.two_period_models.model import prob_exog_health
 def test_exog_processes(
     state_space_functions, params_and_options_exog_ltc_and_job_offer
 ):
-    _params, options = params_and_options_exog_ltc_and_job_offer
+    _params, _options = params_and_options_exog_ltc_and_job_offer
 
+    options = _options.copy
     options["state_space"]["exogenous_processes"]["health_mother"] = {
         "transition": prob_exog_health,
         "states": [0, 1, 2],
