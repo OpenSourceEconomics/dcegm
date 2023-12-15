@@ -63,8 +63,10 @@ def return_dummy_exog_transition(*args, **kwargs):
 
 def create_exog_mapping(exog_state_space, exog_names):
     def exog_mapping(exog_proc_state):
+        # Caution: JAX does not throw an error if the exog_proc_state is out of bounds
+        # If the index is out of bounds, the last element of the array is returned.
         exog_state = exog_state_space[exog_proc_state]
-        exog_state_dict = {key: exog_state[i] for i, key in enumerate(exog_names)}
-        return exog_state_dict
+
+        return {key: float(exog_state[i]) for i, key in enumerate(exog_names)}
 
     return exog_mapping

@@ -89,3 +89,28 @@ def budget_dcegm_exog_ltc_and_job_offer(
         - ltc_patient * params["ltc_cost"]
     )
     return jnp.maximum(resource, 0.5)
+
+
+# =====================================================================================
+# Exogenous healht processes
+# =====================================================================================
+
+
+def prob_exog_health(lagged_health, params):
+    prob_good_health = (
+        (lagged_health == 0) * 0.7
+        + (lagged_health == 1) * 0.3
+        + (lagged_health == 2) * 0.2
+    )
+    prob_medium_health = (
+        (lagged_health == 0) * 0.2
+        + (lagged_health == 1) * 0.5
+        + (lagged_health == 2) * 0.2
+    )
+    prob_bad_health = (
+        (lagged_health == 0) * 0.1
+        + (lagged_health == 1) * 0.2
+        + (lagged_health == 2) * 0.6
+    )
+
+    return jnp.array([prob_good_health, prob_medium_health, prob_bad_health])

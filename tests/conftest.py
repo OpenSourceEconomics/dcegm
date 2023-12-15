@@ -216,7 +216,6 @@ def toy_model_exog_ltc(
         options["model_params"]["n_grid_points"],
     )
 
-    out = {}
     (
         model_funcs,
         _compute_upper_envelope,
@@ -230,6 +229,7 @@ def toy_model_exog_ltc(
         budget_constraint=budget_dcegm_exog_ltc,
     )
 
+    out = {}
     (
         out["period_specific_state_objects"],
         out["state_space"],
@@ -281,7 +281,6 @@ def toy_model_exog_ltc_and_job_offer(
         options["model_params"]["n_grid_points"],
     )
 
-    out = {}
     (
         model_funcs,
         _compute_upper_envelope,
@@ -295,6 +294,7 @@ def toy_model_exog_ltc_and_job_offer(
         budget_constraint=budget_dcegm_exog_ltc_and_job_offer,
     )
 
+    out = {}
     (
         out["period_specific_state_objects"],
         out["state_space"],
