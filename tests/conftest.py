@@ -23,19 +23,19 @@ from toy_models.consumption_retirement_model.utility_functions import (
     utility_final_consume_all,
 )
 
-from tests.two_period_models.model_functions import budget_dcegm_exog_ltc
-from tests.two_period_models.model_functions import budget_dcegm_exog_ltc_and_job_offer
-from tests.two_period_models.model_functions import (
+from tests.two_period_models.model import budget_dcegm_exog_ltc
+from tests.two_period_models.model import budget_dcegm_exog_ltc_and_job_offer
+from tests.two_period_models.model import (
     flow_utility,
 )
-from tests.two_period_models.model_functions import (
+from tests.two_period_models.model import (
     inverse_marginal_utility,
 )
-from tests.two_period_models.model_functions import (
+from tests.two_period_models.model import (
     marginal_utility,
 )
-from tests.two_period_models.model_functions import prob_exog_job_offer
-from tests.two_period_models.model_functions import prob_exog_ltc
+from tests.two_period_models.model import prob_exog_job_offer
+from tests.two_period_models.model import prob_exog_ltc
 
 
 # Obtain the test directory of the package

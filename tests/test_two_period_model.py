@@ -13,7 +13,7 @@ from scipy.stats import norm
 
 from tests.two_period_models.euler_equation import euler_rhs_exog_ltc
 from tests.two_period_models.euler_equation import euler_rhs_exog_ltc_and_job_offer
-from tests.two_period_models.model_functions import marginal_utility
+from tests.two_period_models.model import marginal_utility
 
 
 WEALTH_GRID_POINTS = 100
