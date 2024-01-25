@@ -5,14 +5,14 @@ import numpy as np
 
 
 def interpolate_policy_and_value(
-    policy_high: float,
-    value_high: float,
-    wealth_high: float,
-    policy_low: float,
-    value_low: float,
-    wealth_low: float,
-    wealth_new: float,
-) -> Tuple[float, float]:
+    policy_high: float | jnp.ndarray,
+    value_high: float | jnp.ndarray,
+    wealth_high: float | jnp.ndarray,
+    policy_low: float | jnp.ndarray,
+    value_low: float | jnp.ndarray,
+    wealth_low: float | jnp.ndarray,
+    wealth_new: float | jnp.ndarray,
+) -> Tuple[float | jnp.ndarray, float | jnp.ndarray]:
     """Interpolate policy and value functions.
 
     Args:

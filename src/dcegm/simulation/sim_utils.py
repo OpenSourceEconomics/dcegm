@@ -61,6 +61,7 @@ def interpolate_policy_and_value_for_all_agents(
         params,
         compute_utility,
     )
+    breakpoint()
 
     return policy_agent, value_per_agent_interp
 
