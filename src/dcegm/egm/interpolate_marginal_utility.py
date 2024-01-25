@@ -4,7 +4,7 @@ from typing import Tuple
 
 import numpy as np
 from dcegm.interpolation import get_index_high_and_low
-from dcegm.interpolation import interpolate_policy_and_value
+from dcegm.interpolation import linear_interpolation_formula
 from jax import numpy as jnp
 from jax import vmap
 
@@ -127,11 +127,17 @@ def _interpolate_value_and_marg_util(
         - value_interp (float): Interpolated value function.
 
     """
-    policy_interp, value_interp = interpolate_policy_and_check_value(
-        policy_high=policy_high,
+    policy_interp = linear_interpolation_formula(
+        y_high=policy_high,
+        y_low=policy_low,
+        x_high=wealth_high,
+        x_low=wealth_low,
+        x_new=new_wealth,
+    )
+
+    value_interp = interp_value_and_check_creditconstraint(
         value_high=value_high,
         wealth_high=wealth_high,
-        policy_low=policy_low,
         value_low=value_low,
         wealth_low=wealth_low,
         new_wealth=new_wealth,
@@ -149,20 +155,18 @@ def _interpolate_value_and_marg_util(
     return marg_utility_interp, value_interp
 
 
-def interpolate_policy_and_check_value(
-    policy_high: float,
-    value_high: float,
-    wealth_high: float,
-    policy_low: float,
-    value_low: float,
-    wealth_low: float,
-    new_wealth: float,
+def interp_value_and_check_creditconstraint(
+    value_high: float | jnp.ndarray,
+    wealth_high: float | jnp.ndarray,
+    value_low: float | jnp.ndarray,
+    wealth_low: float | jnp.ndarray,
+    new_wealth: float | jnp.ndarray,
     compute_utility: Callable,
     endog_grid_min: float,
     value_at_zero_wealth: float,
     state_choice_vec: Dict[str, int],
     params: Dict[str, float],
-) -> Tuple[float, float]:
+) -> float | jnp.ndarray:
     """Calculate interpolated marginal utility and value function.
 
     Args:
@@ -191,14 +195,13 @@ def interpolate_policy_and_check_value(
         - value_interp (float): Interpolated value function.
 
     """
-    policy_interp, value_interp_on_grid = interpolate_policy_and_value(
-        policy_high=policy_high,
-        value_high=value_high,
-        wealth_high=wealth_high,
-        policy_low=policy_low,
-        value_low=value_low,
-        wealth_low=wealth_low,
-        wealth_new=new_wealth,
+
+    value_interp_on_grid = linear_interpolation_formula(
+        y_high=value_high,
+        y_low=value_low,
+        x_high=wealth_high,
+        x_low=wealth_low,
+        x_new=new_wealth,
     )
 
     value_interp = check_value_if_credit_constrained(
@@ -210,7 +213,7 @@ def interpolate_policy_and_check_value(
         state_choice_vec=state_choice_vec,
         compute_utility=compute_utility,
     )
-    return policy_interp, value_interp
+    return value_interp
 
 
 def check_value_if_credit_constrained(

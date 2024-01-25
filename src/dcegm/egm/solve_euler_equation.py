@@ -61,7 +61,7 @@ def compute_optimal_policy_and_value(
     marg_utils: np.ndarray,
     emax: np.ndarray,
     exogenous_savings_grid: np.ndarray,
-    state_choice_vec: np.ndarray,
+    state_choice_vec: Dict,
     compute_inverse_marginal_utility: Callable,
     compute_utility: Callable,
     compute_exog_transition_vec: Callable,
@@ -84,11 +84,8 @@ def compute_optimal_policy_and_value(
             containing the exogenous savings grid.
         trans_vec_state (np.ndarray): 1d array of shape (n_exog_processes,) containing
             for each exogenous process state the corresponding transition probability.
-        state_choice_mat (np.ndarray): 2d array of shape
-            (n_state_choice_combs, n_state_vars + 1) containing the matrix of
-            period-specific state-choice combinations. One row corresponds to one
-            specific state-choice vector. The last column contains the discrete
-            choice.
+        state_choice_vec (np.ndarray): A dictionary containing the states and a
+        corresponding admissible choice of a particular state choice vector.
         compute_inverse_marginal_utility (Callable): Function for calculating the
             inverse marginal utility, which takes the marginal utility as only input.
         compute_value (callable): Function for calculating the value from consumption
@@ -127,7 +124,7 @@ def compute_optimal_policy_and_value(
 
 
 def solve_euler_equation(
-    state_choice_vec: np.ndarray,
+    state_choice_vec: dict,
     marg_utils: np.ndarray,
     emax: np.ndarray,
     compute_inverse_marginal_utility: Callable,

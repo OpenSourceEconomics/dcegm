@@ -6,6 +6,12 @@ from jax import numpy as jnp
 
 
 def create_exog_transition_function(options):
+    """Create the exogenous process transition function.
+
+    The output function takes a state vector(also choice?), params and options as input.
+    It creates a transition vector over cartesian product of exogenous states.
+
+    """
     if "exogenous_processes" not in options["state_space"]:
         options["state_space"]["exogenous_states"] = {"exog_state": [0]}
         compute_exog_transition_vec = return_dummy_exog_transition

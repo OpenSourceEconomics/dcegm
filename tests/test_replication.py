@@ -4,7 +4,6 @@ from pathlib import Path
 import jax.numpy as jnp
 import pytest
 from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
-from dcegm.interpolation import linear_interpolation_with_extrapolation
 from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
 from dcegm.solve import solve_dcegm
@@ -23,6 +22,8 @@ from toy_models.consumption_retirement_model.utility_functions import (
     utiility_log_crra_final_consume_all,
 )
 from toy_models.consumption_retirement_model.utility_functions import utility_crra
+
+from tests.utils.interpolations import linear_interpolation_with_extrapolation
 
 # Obtain the test directory of the package
 TEST_DIR = Path(__file__).parent
