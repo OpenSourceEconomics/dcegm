@@ -94,7 +94,7 @@ def create_individual_likelihood_function(
             compute_utility=model["model_funcs"]["utility"],
         )
 
-    def individual_lilelihood(params):
+    def individual_likelihood(params):
         params_initial = update_params(params)
         (
             value_solved,
@@ -108,6 +108,8 @@ def create_individual_likelihood_function(
             params_in=params_initial,
         )
         return choice_probs
+
+    return jax.jit(individual_likelihood)
 
 
 def calc_observed_choice_probabilities(
