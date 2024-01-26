@@ -1,5 +1,9 @@
+from typing import Callable
+from typing import Dict
+
 import jax
 import jax.numpy as jnp
+import pandas as pd
 from dcegm.egm.aggregate_marginal_utility import (
     calculate_choice_probs_and_unsqueezed_logsum,
 )
@@ -7,7 +11,53 @@ from dcegm.egm.interpolate_marginal_utility import (
     interp_value_and_check_creditconstraint,
 )
 from dcegm.interpolation import get_index_high_and_low
+from dcegm.numerical_integration import quadrature_legendre
+from dcegm.pre_processing.model_functions import process_model_functions
+from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
 from dcegm.simulation.sim_utils import get_state_choice_index_per_state
+
+
+def create_likelihood_informations(
+    observed_data: pd.DataFrame,
+    options: Dict[str, int],
+    exog_savings_grid: jnp.ndarray,
+    state_space_functions: Dict[str, Callable],
+    utility_functions: Dict[str, Callable],
+    budget_constraint: Callable,
+    utility_functions_final_period: Dict[str, Callable],
+):
+    options["state_space"]["n_periods"]
+
+    # ToDo: Make interface with several draw possibilities.
+    # ToDo: Some day make user supplied draw function.
+    income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
+        options["model_params"]["quadrature_points_stochastic"]
+    )
+
+    (
+        model_funcs,
+        compute_upper_envelope,
+        get_state_specific_choice_set,
+        update_endog_state_by_state_and_choice,
+    ) = process_model_functions(
+        options,
+        state_space_functions=state_space_functions,
+        utility_functions=utility_functions,
+        utility_functions_final_period=utility_functions_final_period,
+        budget_constraint=budget_constraint,
+    )
+
+    (
+        period_specific_state_objects,
+        state_space,
+        state_space_names,
+        map_state_choice_to_index,
+        exog_mapping,
+    ) = create_state_space_and_choice_objects(
+        options=options,
+        get_state_specific_choice_set=get_state_specific_choice_set,
+        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+    )
 
 
 def interp_value(

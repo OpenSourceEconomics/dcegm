@@ -19,9 +19,8 @@ from dcegm.egm.solve_euler_equation import (
 )
 from dcegm.final_period import solve_final_period
 from dcegm.numerical_integration import quadrature_legendre
-from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.params import process_params
-from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
+from dcegm.pre_processing.setup_model import setup_model
 from jax import jit
 from jax import vmap
 
@@ -68,7 +67,7 @@ def solve_dcegm(
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         budget_constraint=budget_constraint,
-        final_period_functions=utility_functions_final_period,
+        utility_functions_final_period=utility_functions_final_period,
     )
 
     results = backward_jit(params=params)
@@ -82,7 +81,7 @@ def get_solve_function(
     state_space_functions: Dict[str, Callable],
     utility_functions: Dict[str, Callable],
     budget_constraint: Callable,
-    final_period_functions: Callable,
+    utility_functions_final_period: Dict[str, Callable],
 ) -> Callable:
     """Create a solve function, which only takes params as input.
 
@@ -101,9 +100,10 @@ def get_solve_function(
             (i) create the state space
             (ii) get the state specific feasible choice set
             (iii) update the endogenous part of the state by the choice
-        final_period_solution (callable): User-supplied function for solving the agent's
-            last period.
-
+        utility_functions_final_period (Dict[str, callable]): Dictionary of two
+            user-supplied utility functions for the last period:
+            (i) utility
+            (ii) marginal utility
     Returns:
         callable: The partial solve function that only takes ```params``` as input.
 
@@ -115,41 +115,25 @@ def get_solve_function(
     income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
         options["model_params"]["quadrature_points_stochastic"]
     )
-
-    (
-        model_funcs,
-        compute_upper_envelope,
-        get_state_specific_choice_set,
-        update_endog_state_by_state_and_choice,
-    ) = process_model_functions(
-        options,
+    model = setup_model(
+        options=options,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
-        utility_functions_final_period=final_period_functions,
+        utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
-    )
-
-    (
-        period_specific_state_objects,
-        state_space,
-        *_,
-    ) = create_state_space_and_choice_objects(
-        options=options,
-        get_state_specific_choice_set=get_state_specific_choice_set,
-        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
     )
 
     backward_jit = jit(
         partial(
             backward_induction,
-            period_specific_state_objects=period_specific_state_objects,
+            period_specific_state_objects=model["period_specific_state_objects"],
             exog_savings_grid=exog_savings_grid,
-            state_space=state_space,
+            state_space=model["state_space"],
             income_shock_draws_unscaled=income_shock_draws_unscaled,
             income_shock_weights=income_shock_weights,
             n_periods=n_periods,
-            model_funcs=model_funcs,
-            compute_upper_envelope=compute_upper_envelope,
+            model_funcs=model["model_funcs"],
+            compute_upper_envelope=model["compute_upper_envelope"],
         )
     )
 
