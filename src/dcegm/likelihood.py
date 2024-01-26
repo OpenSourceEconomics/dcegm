@@ -1,9 +1,10 @@
+from typing import Any
 from typing import Callable
 from typing import Dict
 
 import jax
 import jax.numpy as jnp
-import pandas as pd
+import numpy as np
 from dcegm.egm.aggregate_marginal_utility import (
     calculate_choice_probs_and_unsqueezed_logsum,
 )
@@ -12,64 +13,112 @@ from dcegm.egm.interpolate_marginal_utility import (
 )
 from dcegm.interpolation import get_index_high_and_low
 from dcegm.numerical_integration import quadrature_legendre
-from dcegm.pre_processing.model_functions import process_model_functions
-from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
+from dcegm.pre_processing.params import process_params
+from dcegm.pre_processing.setup_model import setup_model
 from dcegm.simulation.sim_utils import get_state_choice_index_per_state
+from dcegm.solve import backward_induction
 
 
-def create_likelihood_informations(
-    observed_data: pd.DataFrame,
-    options: Dict[str, int],
-    exog_savings_grid: jnp.ndarray,
+def create_individual_likelihood_function(
+    observed_states: Dict[str, int],
+    observed_wealth: np.array,
+    observed_choices: np.array,
+    options: Dict[str, Any],
+    exog_savings_grid: np.ndarray,
     state_space_functions: Dict[str, Callable],
     utility_functions: Dict[str, Callable],
     budget_constraint: Callable,
     utility_functions_final_period: Dict[str, Callable],
+    params_all=None,
 ):
-    options["state_space"]["n_periods"]
-
-    # ToDo: Make interface with several draw possibilities.
-    # ToDo: Some day make user supplied draw function.
-    income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
-        options["model_params"]["quadrature_points_stochastic"]
-    )
-
-    (
-        model_funcs,
-        compute_upper_envelope,
-        get_state_specific_choice_set,
-        update_endog_state_by_state_and_choice,
-    ) = process_model_functions(
-        options,
+    model = setup_model(
+        options=options,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
     )
 
-    (
-        period_specific_state_objects,
-        state_space,
-        state_space_names,
-        map_state_choice_to_index,
-        exog_mapping,
-    ) = create_state_space_and_choice_objects(
-        options=options,
-        get_state_specific_choice_set=get_state_specific_choice_set,
-        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+    income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
+        options["model_params"]["quadrature_points_stochastic"]
     )
 
+    if params_all is None:
+        # If params_all is not supplied, all elements of params will be estimated and
+        # we use the params supplied at each iteration for the solution of the model.
+        def update_params(params):
+            params_initial = process_params(params)
+            return params_initial
 
-def interp_value(
-    observed_states,
-    state_choice_indexes,
-    oberseved_wealth,
+    else:
+        # If params_all is supplied, we use the params supplied at each iteration for
+        # updating params_all and then used the updated params_all for the solution of
+        # the model.
+        def update_params(params):
+            params_update = params_all.copy()
+            params_update.update(params)
+            params_initial = process_params(params_update)
+            return params_initial
+
+    # Create a solution function, which only takes the parameters as input.
+    def partial_backwards_induction(params_in):
+        return backward_induction(
+            params=params_in,
+            period_specific_state_objects=model["period_specific_state_objects"],
+            exog_savings_grid=exog_savings_grid,
+            state_space=model["state_space"],
+            income_shock_draws_unscaled=income_shock_draws_unscaled,
+            income_shock_weights=income_shock_weights,
+            n_periods=options["state_space"]["n_periods"],
+            model_funcs=model["model_funcs"],
+            compute_upper_envelope=model["compute_upper_envelope"],
+        )
+
+    observed_state_choice_indexes = create_observed_choice_indexes(
+        observed_states_dict=observed_states,
+        model=model,
+    )
+
+    # Create the calculation of the choice probabilities, which takes parameters as
+    # input as well as the solved endogenous wealth grid and the values.
+    def partial_choice_prob_calculation(value_in, endog_grid_in, params_in):
+        return calc_observed_choice_probabilities(
+            value_solved=value_in,
+            endog_grid_solved=endog_grid_in,
+            params=params_in,
+            observed_states=observed_states,
+            observed_choices=observed_choices,
+            state_choice_indexes=observed_state_choice_indexes,
+            oberseved_wealth=observed_wealth,
+            choice_range=options["model_params"]["choice_range"],
+            compute_utility=model["model_funcs"]["utility"],
+        )
+
+    def individual_lilelihood(params):
+        params_initial = update_params(params)
+        (
+            value_solved,
+            policy_left_solved,
+            policy_right_solved,
+            endog_grid_solved,
+        ) = partial_backwards_induction(params_initial)
+        choice_probs = partial_choice_prob_calculation(
+            value_in=value_solved,
+            endog_grid_in=endog_grid_solved,
+            params_in=params_initial,
+        )
+        return choice_probs
+
+
+def calc_observed_choice_probabilities(
     value_solved,
     endog_grid_solved,
-    map_state_choice_to_index,
-    choice_range,
     params,
-    state_space_names,
+    observed_states,
+    observed_choices,
+    state_choice_indexes,
+    oberseved_wealth,
+    choice_range,
     compute_utility,
 ):
     """This function interpolates the policy and value function for all agents.
@@ -78,11 +127,6 @@ def interp_value(
     and then interpolates the wealth at the beginning of period on them.
 
     """
-    state_choice_indexes = get_state_choice_index_per_state(
-        map_state_choice_to_index=map_state_choice_to_index,
-        states=observed_states,
-        state_space_names=state_space_names,
-    )
 
     value_grid_agent = jnp.take(
         value_solved, state_choice_indexes, axis=0, mode="fill", fill_value=jnp.nan
@@ -105,10 +149,13 @@ def interp_value(
         params,
         compute_utility,
     )
-    choice_probs, _, _ = calculate_choice_probs_and_unsqueezed_logsum(
+    choice_prob_across_choices, _, _ = calculate_choice_probs_and_unsqueezed_logsum(
         choice_values_per_state=value_per_agent_interp,
         taste_shock_scale=params["lambda"],
     )
+    choice_probs = jnp.take_along_axis(
+        choice_prob_across_choices, observed_choices[:, None], axis=1
+    )[:, 0]
     return choice_probs
 
 
@@ -139,3 +186,15 @@ def interpolate_value_and_calc_choice_probabilities(
     )
 
     return value_interp
+
+
+def create_observed_choice_indexes(
+    observed_states_dict: Dict[str, int],
+    model: [Dict, Any],
+):
+    observed_state_choice_indexes = get_state_choice_index_per_state(
+        map_state_choice_to_index=model["map_state_choice_to_index"],
+        states=observed_states_dict,
+        state_space_names=model["state_space_names"],
+    )
+    return observed_state_choice_indexes

@@ -1,5 +1,6 @@
 """Interface for the DC-EGM algorithm."""
 from functools import partial
+from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Tuple
@@ -76,7 +77,7 @@ def solve_dcegm(
 
 
 def get_solve_function(
-    options: Dict[str, int],
+    options: Dict[str, Any],
     exog_savings_grid: jnp.ndarray,
     state_space_functions: Dict[str, Callable],
     utility_functions: Dict[str, Callable],
@@ -150,7 +151,7 @@ def backward_induction(
     exog_savings_grid: np.ndarray,
     state_space: np.ndarray,
     income_shock_draws_unscaled: np.ndarray,
-    income_shock_weights: jnp.ndarray,
+    income_shock_weights: np.ndarray,
     n_periods: int,
     model_funcs: Dict[str, Callable],
     compute_upper_envelope: Callable,
