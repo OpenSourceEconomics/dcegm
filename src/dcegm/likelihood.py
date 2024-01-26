@@ -38,7 +38,26 @@ def create_individual_likelihood_function(
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
     )
+    return create_individual_likelihood_function_for_model(
+        model=model,
+        options=options,
+        observed_states=observed_states,
+        observed_wealth=observed_wealth,
+        observed_choices=observed_choices,
+        exog_savings_grid=exog_savings_grid,
+        params_all=params_all,
+    )
 
+
+def create_individual_likelihood_function_for_model(
+    model: Dict[str, Any],
+    options: Dict[str, Any],
+    observed_states: Dict[str, int],
+    observed_wealth: np.array,
+    observed_choices: np.array,
+    exog_savings_grid: np.ndarray,
+    params_all=None,
+):
     income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
         options["model_params"]["quadrature_points_stochastic"]
     )
