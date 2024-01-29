@@ -54,7 +54,6 @@ def get_exog_transition_vec(exog_funcs, params, **state_choice_vars):
             trans_vector, exog_func(**state_choice_vars, params=params)
         )
 
-    # breakpoint()
     return trans_vector
 
 

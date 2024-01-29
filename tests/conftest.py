@@ -3,6 +3,7 @@ import os
 import sys
 from pathlib import Path
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 import pandas as pd
@@ -11,7 +12,6 @@ import yaml
 from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
 from dcegm.solve import solve_dcegm
-from jax import config
 from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_feasible_choice_set,
 )
@@ -52,7 +52,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "utils"))
 
 
 def pytest_sessionstart(session):  # noqa: ARG001
-    config.update("jax_enable_x64", val=True)
+    jax.config.update("jax_enable_x64", val=True)
 
 
 @pytest.hookimpl(tryfirst=True)
