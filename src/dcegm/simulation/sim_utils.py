@@ -76,7 +76,7 @@ def transition_to_next_period(
     compute_exog_transition_vec,
     exog_state_mapping,
     compute_beginning_of_period_resources,
-    update_endog_state_by_state_and_choice,
+    get_next_period_state,
     sim_specific_keys,
 ):
     n_agents = savings_current_period.shape[0]
@@ -94,7 +94,7 @@ def transition_to_next_period(
     endog_states_next_period = vmap(
         update_endog_for_one_agent, in_axes=(None, 0, 0, None)
     )(
-        update_endog_state_by_state_and_choice,
+        get_next_period_state,
         states_beginning_of_period,
         choice,
         params,

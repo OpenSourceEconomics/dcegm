@@ -89,11 +89,9 @@ def process_model_functions(
         options=model_params_options,
     )
 
-    update_endog_state_by_state_and_choice = (
-        determine_function_arguments_and_partial_options(
-            func=state_space_functions["update_endog_state_by_state_and_choice"],
-            options=model_params_options,
-        )
+    get_next_period_state = determine_function_arguments_and_partial_options(
+        func=state_space_functions["get_next_period_state"],
+        options=model_params_options,
     )
 
     if len(options["state_space"]["choices"]) < 2:
@@ -115,7 +113,7 @@ def process_model_functions(
         model_funcs,
         compute_upper_envelope,
         get_state_specific_choice_set,
-        update_endog_state_by_state_and_choice,
+        get_next_period_state,
     )
 
 

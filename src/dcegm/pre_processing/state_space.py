@@ -2,17 +2,15 @@
 from typing import Callable
 from typing import Dict
 
-import jax.numpy as jnp
 import numpy as np
 import pandas as pd
-from dcegm.pre_processing.exog_processes import create_exog_mapping
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 
 
 def create_state_space_and_choice_objects(
     options,
     get_state_specific_choice_set,
-    update_endog_state_by_state_and_choice,
+    get_next_period_state,
 ):
     """Create dictionary of state and state-choice objects for each period.
 
@@ -97,11 +95,7 @@ def create_state_space_and_choice_objects(
         period_specific_state_objects=out,
         map_state_to_index=map_state_to_state_space_index,
         states_names_without_exog=states_names_without_exog,
-        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
-    )
-
-    exog_mapping = create_exog_mapping(
-        jnp.array(exog_state_space, dtype=np.int16), exog_state_names
+        get_next_period_state=get_next_period_state,
     )
 
     for period in range(n_periods):
@@ -112,7 +106,14 @@ def create_state_space_and_choice_objects(
 
     state_space = {key: state_space[:, i] for i, key in enumerate(state_space_names)}
 
-    return out, state_space, state_space_names, map_state_choice_to_index, exog_mapping
+    return (
+        out,
+        state_space,
+        state_space_names,
+        map_state_choice_to_index,
+        exog_state_space,
+        exog_state_names,
+    )
 
 
 def create_state_space(options):
@@ -238,7 +239,7 @@ def process_exog_model_specifications(state_space_options):
         num_states_of_all_exog_states = [1]
         n_exog_states = 1
 
-        exog_state_space = np.array([[0]])
+        exog_state_space = np.array([[0]], dtype=np.int16)
 
     exog_states_add_func = create_exog_state_add_function(exog_state_space)
 
@@ -470,7 +471,7 @@ def create_map_from_state_to_child_nodes(
     period_specific_state_objects: Dict,
     map_state_to_index: np.ndarray,
     states_names_without_exog: list,
-    update_endog_state_by_state_and_choice: Callable,
+    get_next_period_state: Callable,
 ):
     """Create indexer array that maps states to state-specific child nodes.
 
@@ -491,7 +492,7 @@ def create_map_from_state_to_child_nodes(
             The shape of this object is quite complicated. For each state variable it
             has the number of potential states as rows, i.e.
             (n_potential_states_state_var_1, n_potential_states_state_var_2, ....).
-        update_endog_state_by_state_and_choice (Callable): User-supplied function that
+        get_next_period_state (Callable): User-supplied function that
             updates the endogenous state variables conditional on the current state and
             choice.
 
@@ -536,7 +537,7 @@ def create_map_from_state_to_child_nodes(
                 for i, key in enumerate(states_names_without_exog)
             }
 
-            endog_state_update = update_endog_state_by_state_and_choice(
+            endog_state_update = get_next_period_state(
                 **state_dict_without_exog, choice=state_choice_vec[-1]
             )
 

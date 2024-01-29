@@ -101,7 +101,7 @@ def create_individual_likelihood_function_for_model(
     # Create the calculation of the choice probabilities, which takes parameters as
     # input as well as the solved endogenous wealth grid and the values.
     def partial_choice_prob_calculation(value_in, endog_grid_in, params_in):
-        return calc_observed_choice_probabilities(
+        return calc_choice_prob_for_observed_choices(
             value_solved=value_in,
             endog_grid_solved=endog_grid_in,
             params=params_in,
@@ -109,8 +109,8 @@ def create_individual_likelihood_function_for_model(
             observed_choices=observed_choices,
             state_choice_indexes=observed_state_choice_indexes,
             oberseved_wealth=observed_wealth,
-            choice_range=options["model_params"]["choice_range"],
-            compute_utility=model["model_funcs"]["utility"],
+            choice_range=np.arange(options["model_params"]["n_choices"], dtype=int),
+            compute_utility=model["model_funcs"]["compute_utility"],
         )
 
     def individual_likelihood(params):
@@ -131,7 +131,7 @@ def create_individual_likelihood_function_for_model(
     return jax.jit(individual_likelihood)
 
 
-def calc_observed_choice_probabilities(
+def calc_choice_prob_for_observed_choices(
     value_solved,
     endog_grid_solved,
     params,
