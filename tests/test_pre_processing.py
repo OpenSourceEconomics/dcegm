@@ -1,3 +1,5 @@
+import inspect
+
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -8,6 +10,20 @@ from jax import vmap
 from toy_models.consumption_retirement_model.utility_functions import (
     utiility_log_crra,
 )
+
+
+def util_wrap(state_dict, params, util_func):
+    return util_func(**state_dict, params=params)
+
+
+def func_with_partial_options_and_additional_args(
+    consumption, choice, params, options, additional_args
+):
+    return (
+        consumption ** (1 - params["rho"]) / (1 - params["rho"])
+        - params["delta"] * (1 - choice)
+        + additional_args["windfall"]
+    )
 
 
 def test_wrap_function(load_example_model):
@@ -86,5 +102,33 @@ def test_missing_parameter(
         process_params(params_missing)
 
 
-def util_wrap(state_dict, params, util_func):
-    return util_func(**state_dict, params=params)
+def test_partial_options(load_example_model):
+    params, _raw_options = load_example_model("deaton")
+    options = {}
+
+    options["model_params"] = _raw_options  # | {"windfall": 1}
+    options.update(
+        {
+            "state_space": {
+                "n_periods": 25,
+                "choices": np.arange(2),
+                "endogenous_states": {
+                    "thus": np.arange(25),
+                    "that": [0, 1],
+                },
+                "exogenous_processes": {
+                    "ltc": {"states": np.array([0]), "transition": jnp.array([0])}
+                },
+            },
+        }
+    )
+
+    func = determine_function_arguments_and_partial_options(
+        func_with_partial_options_and_additional_args,
+        options,
+        additional_partial={"windfall": 1},
+    )
+    signature = set(inspect.signature(func).parameters)
+
+    keys = ("consumption", "additional_args", "choice", "params", "options")
+    assert set(keys) == set(signature)
