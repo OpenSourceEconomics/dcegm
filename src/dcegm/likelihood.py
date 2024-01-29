@@ -156,9 +156,9 @@ def calc_choice_prob_for_observed_choices(
     vectorized_interp = jax.vmap(
         jax.vmap(
             interpolate_value_and_calc_choice_probabilities,
-            in_axes=(None, None, 0, 0, 0, 0, 0, None, None),
+            in_axes=(None, None, 0, 0, 0, None, None),
         ),
-        in_axes=(0, 0, 0, 0, 0, 0, None, None, None),
+        in_axes=(0, 0, 0, 0, None, None, None),
     )
 
     value_per_agent_interp = vectorized_interp(
@@ -181,8 +181,8 @@ def calc_choice_prob_for_observed_choices(
 
 
 def interpolate_value_and_calc_choice_probabilities(
-    resources_beginning_of_period,
     state,
+    resources_beginning_of_period,
     endog_grid_agent,
     value_agent,
     choice,
@@ -193,7 +193,7 @@ def interpolate_value_and_calc_choice_probabilities(
         x=endog_grid_agent, x_new=resources_beginning_of_period
     )
     state_choice_vec = {**state, "choice": choice}
-    policy_interp, value_interp = interp_value_and_check_creditconstraint(
+    value_interp = interp_value_and_check_creditconstraint(
         value_high=value_agent[ind_high],
         wealth_high=endog_grid_agent[ind_high],
         value_low=value_agent[ind_low],
