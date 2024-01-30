@@ -547,14 +547,14 @@ def create_map_from_state_to_child_nodes(
             )
 
             for exog_process in range(n_exog_states):
-                state_vec_next = np.empty_like(current_state)
+                _state_vec_next = np.empty_like(current_state)
                 # Fill up the next state with the endogenous part.
-                state_vec_next[:-n_exog_vars] = state_next_without_exog
+                _state_vec_next[:-n_exog_vars] = state_next_without_exog
                 # Then with the endogenous part.
-                state_vec_next[-n_exog_vars:] = exog_state_space[exog_process]
+                _state_vec_next[-n_exog_vars:] = exog_state_space[exog_process]
                 # We want the index every period to start at 0.
                 map_state_to_feasible_child_nodes_period[idx, exog_process] = (
-                    map_state_to_index[tuple(state_vec_next)]
+                    map_state_to_index[tuple(_state_vec_next)]
                     - idx_min_state_space_next_period
                 )
 
