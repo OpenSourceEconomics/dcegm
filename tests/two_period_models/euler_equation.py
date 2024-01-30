@@ -1,7 +1,7 @@
 import numpy as np
 
-from tests.two_period_models.model_functions import flow_utility
-from tests.two_period_models.model_functions import marginal_utility
+from tests.two_period_models.model import flow_utility
+from tests.two_period_models.model import marginal_utility
 
 
 def prob_long_term_care_patient(params, lagged_bad_health, bad_health):

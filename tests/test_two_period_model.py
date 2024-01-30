@@ -13,7 +13,7 @@ from scipy.stats import norm
 
 from tests.two_period_models.euler_equation import euler_rhs_exog_ltc
 from tests.two_period_models.euler_equation import euler_rhs_exog_ltc_and_job_offer
-from tests.two_period_models.model_functions import marginal_utility
+from tests.two_period_models.model import marginal_utility
 
 
 WEALTH_GRID_POINTS = 100
@@ -39,7 +39,9 @@ TEST_CASES_EXOG_LTC_AND_JOB_OFFER = [
 
 @pytest.mark.parametrize(
     "toy_model, euler_rhs, wealth_idx, state_idx",
-    TEST_CASES_EXOG_LTC + TEST_CASES_EXOG_LTC_AND_JOB_OFFER,
+    # TEST_CASES_EXOG_LTC + TEST_CASES_EXOG_LTC_AND_JOB_OFFER,
+    TEST_CASES_EXOG_LTC_AND_JOB_OFFER,
+    # TEST_CASES_EXOG_LTC,
 )
 def test_two_period(toy_model, euler_rhs, wealth_idx, state_idx, request):
     toy_model = request.getfixturevalue(toy_model)

@@ -3,9 +3,7 @@ import inspect
 from functools import partial
 
 
-def determine_function_arguments_and_partial_options(
-    func, options, additional_partial=None
-):
+def determine_function_arguments_and_partial_options(func, options):
     signature = set(inspect.signature(func).parameters)
     (
         partialed_func,
@@ -14,7 +12,6 @@ def determine_function_arguments_and_partial_options(
         func=func,
         signature=signature,
         options=options,
-        additional_partial=additional_partial,
     )
 
     @functools.wraps(func)
@@ -27,14 +24,11 @@ def determine_function_arguments_and_partial_options(
 
 
 def partial_options_and_addtional_arguments_and_update_signature(
-    func, signature, options, additional_partial
+    func, signature, options
 ):
-    """Partial in options and additional arguments and update signature."""
+    """Partial in options and update signature."""
     if "options" in signature:
         func = partial(func, options=options)
         signature = signature - {"options"}
-    if additional_partial is not None:
-        func = partial(func, **additional_partial)
-        signature = signature - set(additional_partial.keys())
 
     return func, signature
