@@ -126,7 +126,7 @@ def create_individual_likelihood_function_for_model(
             endog_grid_in=endog_grid_solved,
             params_in=params_initial,
         )
-        return choice_probs
+        return choice_probs, value_solved, endog_grid_solved
 
     return jax.jit(individual_likelihood)
 

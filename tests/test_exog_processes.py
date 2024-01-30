@@ -1,11 +1,11 @@
 """Test module for exogenous processes."""
 import jax.numpy as jnp
 import numpy as np
+from dcegm.pre_processing.exog_processes import create_exog_mapping
 from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
 from dcegm.pre_processing.state_space import (
     determine_function_arguments_and_partial_options,
 )
-from dcegm.pre_processing.state_space import process_exog_model_specifications
 from numpy.testing import assert_almost_equal as aaae
 
 from tests.two_period_models.model import prob_exog_health
@@ -68,29 +68,36 @@ def test_exog_processes(state_space_functions):
     }
     model_params_options = options["model_params"]
 
-    *_, exog_state_space = process_exog_model_specifications(options["state_space"])
-
     get_state_specific_choice_set = determine_function_arguments_and_partial_options(
         func=state_space_functions["get_state_specific_choice_set"],
         options=model_params_options,
     )
 
-    update_endog_state_by_state_and_choice = (
-        determine_function_arguments_and_partial_options(
-            func=state_space_functions["update_endog_state_by_state_and_choice"],
-            options=model_params_options,
-        )
+    get_next_period_state = determine_function_arguments_and_partial_options(
+        func=state_space_functions["get_next_period_state"],
+        options=model_params_options,
     )
 
-    *_, exog_state_mapping = create_state_space_and_choice_objects(
+    (
+        period_specific_state_objects,
+        state_space,
+        state_space_names,
+        map_state_choice_to_index,
+        exog_state_space,
+        exog_state_names,
+    ) = create_state_space_and_choice_objects(
         options=options,
         get_state_specific_choice_set=get_state_specific_choice_set,
-        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+        get_next_period_state=get_next_period_state,
+    )
+
+    exog_mapping = create_exog_mapping(
+        exog_state_space.astype(np.int16), exog_state_names
     )
     mother_bad_health = np.where(exog_state_space[:, 0] == 2)[0]
 
     for exog_state in mother_bad_health:
-        assert exog_state_mapping(exog_proc_state=exog_state)["health_mother"] == 2
+        assert exog_mapping(exog_proc_state=exog_state)["health_mother"] == 2
 
 
 def test_nested_exog_process():

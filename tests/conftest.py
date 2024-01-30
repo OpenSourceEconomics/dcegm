@@ -76,6 +76,9 @@ def load_example_model():
             REPLICATION_TEST_RESOURCES_DIR / f"{model}" / "params.csv",
             index_col=["category", "name"],
         )
+        params = (
+            params.reset_index()[["name", "value"]].set_index("name")["value"].to_dict()
+        )
         options = yaml.safe_load(
             (REPLICATION_TEST_RESOURCES_DIR / f"{model}" / "options.yaml").read_text()
         )
@@ -265,16 +268,15 @@ def toy_model_exog_ltc_and_job_offer(
         options["model_params"]["n_grid_points"],
     )
 
-
     out = {}
     model = setup_model(
         options=options,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
-        budget_constraint=budget_dcegm_exog_ltc_and_job_offer)
-    
-    
+        budget_constraint=budget_dcegm_exog_ltc_and_job_offer,
+    )
+
     out["period_specific_state_objects"] = model["period_specific_state_objects"]
     out["state_space"] = model["state_space"]
     out["state_space_names"] = model["state_space_names"]

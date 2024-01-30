@@ -1,7 +1,6 @@
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from dcegm.pre_processing.params import _convert_params_to_dict
 from dcegm.pre_processing.params import process_params
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from jax import vmap
@@ -34,8 +33,6 @@ def test_wrap_function(load_example_model):
             },
         }
     )
-
-    params = _convert_params_to_dict(params)
 
     state_dict = {
         "consumption": jnp.arange(1, 7),
@@ -73,18 +70,15 @@ def test_missing_parameter(
 ):
     params, _ = load_example_model(f"{model}")
 
-    indices_to_drop = [
-        ("assets", "interest_rate"),
-        ("shocks", "sigma"),
-        ("shocks", "lambda"),
-    ]
-    params_missing = params.drop(index=indices_to_drop)
+    params.pop("interest_rate")
+    params.pop("sigma")
+    params.pop("lambda")
 
-    params_dict = process_params(params_missing)
+    params_dict = process_params(params)
 
     for param in ["interest_rate", "sigma", "lambda"]:
         assert param in params_dict.keys()
 
-    params_missing = params_missing.drop(index=("beta", "beta"))
+    params.pop("beta")
     with pytest.raises(ValueError, match="beta must be provided in params."):
-        process_params(params_missing)
+        process_params(params)

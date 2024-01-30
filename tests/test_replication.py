@@ -72,7 +72,7 @@ def test_benchmark_models(
         options["model_params"]["n_grid_points"],
     )
 
-    if params.loc[("utility_function", "rho"), "value"] == 1:
+    if params["rho"] == 1:
         utility_functions["utility"] = utiility_log_crra
         utility_functions_final_period["utility"] = utiility_log_crra_final_consume_all
 
