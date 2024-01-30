@@ -10,6 +10,10 @@ from toy_models.consumption_retirement_model.utility_functions import (
 )
 
 
+def util_wrap(state_dict, params, util_func):
+    return util_func(**state_dict, params=params)
+
+
 def test_wrap_function(load_example_model):
     params, _raw_options = load_example_model("deaton")
     options = {}
@@ -84,7 +88,3 @@ def test_missing_parameter(
     params_missing = params_missing.drop(index=("beta", "beta"))
     with pytest.raises(ValueError, match="beta must be provided in params."):
         process_params(params_missing)
-
-
-def util_wrap(state_dict, params, util_func):
-    return util_func(**state_dict, params=params)
