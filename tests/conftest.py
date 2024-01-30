@@ -3,6 +3,7 @@ import os
 import sys
 from pathlib import Path
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 import pandas as pd
@@ -11,7 +12,6 @@ import yaml
 from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
 from dcegm.solve import solve_dcegm
-from jax import config
 from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_feasible_choice_set,
 )
@@ -23,19 +23,19 @@ from toy_models.consumption_retirement_model.utility_functions import (
     utility_final_consume_all,
 )
 
-from tests.two_period_models.model_functions import budget_dcegm_exog_ltc
-from tests.two_period_models.model_functions import budget_dcegm_exog_ltc_and_job_offer
-from tests.two_period_models.model_functions import (
+from tests.two_period_models.model import budget_dcegm_exog_ltc
+from tests.two_period_models.model import budget_dcegm_exog_ltc_and_job_offer
+from tests.two_period_models.model import (
     flow_utility,
 )
-from tests.two_period_models.model_functions import (
+from tests.two_period_models.model import (
     inverse_marginal_utility,
 )
-from tests.two_period_models.model_functions import (
+from tests.two_period_models.model import (
     marginal_utility,
 )
-from tests.two_period_models.model_functions import prob_exog_job_offer
-from tests.two_period_models.model_functions import prob_exog_ltc
+from tests.two_period_models.model import prob_exog_job_offer
+from tests.two_period_models.model import prob_exog_ltc
 
 
 # Obtain the test directory of the package
@@ -52,7 +52,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "utils"))
 
 
 def pytest_sessionstart(session):  # noqa: ARG001
-    config.update("jax_enable_x64", val=True)
+    jax.config.update("jax_enable_x64", val=True)
 
 
 @pytest.hookimpl(tryfirst=True)
@@ -216,7 +216,6 @@ def toy_model_exog_ltc(
         options["model_params"]["n_grid_points"],
     )
 
-    out = {}
     (
         model_funcs,
         _compute_upper_envelope,
@@ -230,6 +229,7 @@ def toy_model_exog_ltc(
         budget_constraint=budget_dcegm_exog_ltc,
     )
 
+    out = {}
     (
         out["period_specific_state_objects"],
         out["state_space"],
@@ -281,7 +281,6 @@ def toy_model_exog_ltc_and_job_offer(
         options["model_params"]["n_grid_points"],
     )
 
-    out = {}
     (
         model_funcs,
         _compute_upper_envelope,
@@ -295,6 +294,7 @@ def toy_model_exog_ltc_and_job_offer(
         budget_constraint=budget_dcegm_exog_ltc_and_job_offer,
     )
 
+    out = {}
     (
         out["period_specific_state_objects"],
         out["state_space"],
