@@ -1,4 +1,5 @@
 """Tests for simulation of consumption-retirement model with exogenous processes."""
+import time
 from functools import partial
 
 import jax
@@ -28,7 +29,7 @@ def test_simulate_lax_scan(toy_model_exog_ltc):
     model_funcs = toy_model_exog_ltc["model_funcs"]
     map_state_choice_to_index = toy_model_exog_ltc["map_state_choice_to_index"]
 
-    seed = 111
+    seed = int(time.time())
     n_agents = 1_000_000
     n_periods = options["state_space"]["n_periods"]
 
@@ -136,7 +137,7 @@ def test_simulate(toy_model_exog_ltc):
     model_funcs = toy_model_exog_ltc["model_funcs"]
     map_state_choice_to_index = toy_model_exog_ltc["map_state_choice_to_index"]
 
-    seed = 111
+    seed = int(time.time())
     n_agents = 1_000_000
 
     # === Simulate ===

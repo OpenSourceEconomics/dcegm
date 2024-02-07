@@ -18,7 +18,6 @@ def simulate_all_periods(
     resources_initial,
     n_periods,
     params,
-    seed,
     state_space_names,
     endog_grid_solved,
     value_solved,
@@ -32,6 +31,7 @@ def simulate_all_periods(
     exog_state_mapping,
     update_endog_state_by_state_and_choice,
     compute_utility_final_period,
+    seed,
 ):
     # Prepare random seeds for taste shocks
     n_keys = len(resources_initial) + 2
