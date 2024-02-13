@@ -94,8 +94,7 @@ def create_individual_likelihood_function_for_model(
         )
 
     observed_state_choice_indexes = create_observed_choice_indexes(
-        observed_states_dict=observed_states,
-        model=model,
+        observed_states_dict=observed_states, model=model
     )
 
     # Create the calculation of the choice probabilities, which takes parameters as
@@ -121,14 +120,14 @@ def create_individual_likelihood_function_for_model(
             policy_right_solved,
             endog_grid_solved,
         ) = partial_backwards_induction(params_initial)
-        choice_probs = partial_choice_prob_calculation(
+        choice_probs, choice_prob_across_choices = partial_choice_prob_calculation(
             value_in=value_solved,
             endog_grid_in=endog_grid_solved,
             params_in=params_initial,
         )
-        return choice_probs, value_solved, endog_grid_solved
+        return choice_probs, choice_prob_across_choices, value_solved, endog_grid_solved
 
-    return jax.jit(individual_likelihood)
+    return individual_likelihood
 
 
 def calc_choice_prob_for_observed_choices(
@@ -177,7 +176,7 @@ def calc_choice_prob_for_observed_choices(
     choice_probs = jnp.take_along_axis(
         choice_prob_across_choices, observed_choices[:, None], axis=1
     )[:, 0]
-    return choice_probs
+    return choice_probs, choice_prob_across_choices
 
 
 def interpolate_value_and_calc_choice_probabilities(
