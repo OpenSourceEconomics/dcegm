@@ -120,14 +120,15 @@ def create_individual_likelihood_function_for_model(
             policy_right_solved,
             endog_grid_solved,
         ) = partial_backwards_induction(params_initial)
-        choice_probs, choice_prob_across_choices = partial_choice_prob_calculation(
+        choice_probs = partial_choice_prob_calculation(
             value_in=value_solved,
             endog_grid_in=endog_grid_solved,
             params_in=params_initial,
-        )
-        return choice_probs, choice_prob_across_choices, value_solved, endog_grid_solved
+        ).clip(min=1e-10)
+        log_value = jnp.sum(-jnp.log(choice_probs))
+        return log_value
 
-    return individual_likelihood
+    return jax.jit(individual_likelihood)
 
 
 def calc_choice_prob_for_observed_choices(
@@ -176,7 +177,7 @@ def calc_choice_prob_for_observed_choices(
     choice_probs = jnp.take_along_axis(
         choice_prob_across_choices, observed_choices[:, None], axis=1
     )[:, 0]
-    return choice_probs, choice_prob_across_choices
+    return choice_probs
 
 
 def interpolate_value_and_calc_choice_probabilities(
