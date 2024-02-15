@@ -163,8 +163,8 @@ def solve_euler_equation(
     transition_vec = compute_exog_transition_vec(params=params, **state_choice_vec)
 
     # Integrate out uncertainty over exogenous processes
-    marginal_utility = transition_vec @ marg_utils
-    expected_value = transition_vec @ emax
+    marginal_utility = jnp.nansum(transition_vec * marg_utils)
+    expected_value = jnp.nansum(transition_vec * emax)
 
     # RHS of Euler Eq., p. 337 IJRS (2017) by multiplying with marginal wealth
     rhs_euler = marginal_utility * (1 + params["interest_rate"]) * params["beta"]
