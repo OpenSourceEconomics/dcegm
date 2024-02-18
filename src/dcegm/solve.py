@@ -290,7 +290,7 @@ def solve_single_period(
     marg_util_interpolated_previous_period: jnp.ndarray,
     params: Dict[str, float],
     state_objects: Dict[str, np.ndarray],
-    reshape_state_choice_vec_to_mat_prev_period,
+    reshape_state_choice_vec_to_mat_prev_period: np.ndarray,
     exog_savings_grid: np.ndarray,
     resources_period: jnp.ndarray,
     income_shock_weights: jnp.ndarray,
