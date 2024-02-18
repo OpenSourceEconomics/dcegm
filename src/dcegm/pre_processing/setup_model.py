@@ -15,7 +15,7 @@ def setup_model(
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
 ):
-    """This function sets up the model used by the dcegm software.
+    """Set up the model for dcegm.
 
     It consists of two steps. First it processes the user supplied functions to make
     them compatible with the interface the dcegm software expects. Second it creates
@@ -95,8 +95,13 @@ def setup_and_save_model(
     budget_constraint: Callable,
     path: str,
 ):
-    """This function sets up the model, but also saves the time consuming model creation
-    to file."""
+    """Set up the model and save.
+
+    Model creation is time-consuming. This function creates the model and saves it to
+    file. This way the model can be loaded from file in the future, which is much faster
+    than recreating the model from scratch.
+
+    """
     model = setup_model(
         options=options,
         state_space_functions=state_space_functions,
@@ -114,6 +119,7 @@ def setup_and_save_model(
     ]
     dict_to_save = {key: value for key, value in model.items() if key in array_names}
     pickle.dump(dict_to_save, open(path, "wb"))
+
     return model
 
 
@@ -125,7 +131,8 @@ def load_and_setup_model(
     budget_constraint: Callable,
     path: str,
 ):
-    """This function loads the model from file."""
+    """Load the model from file."""
+
     model = pickle.load(open(path, "rb"))
     (
         model["model_funcs"],
