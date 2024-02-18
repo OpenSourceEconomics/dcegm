@@ -2,8 +2,12 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 from dcegm.pre_processing.params import process_params
+from dcegm.pre_processing.setup_model import load_and_setup_model
+from dcegm.pre_processing.setup_model import setup_and_save_model
+from dcegm.pre_processing.setup_model import setup_model
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from jax import vmap
+from toy_models.consumption_retirement_model.budget_functions import budget_constraint
 from toy_models.consumption_retirement_model.utility_functions import (
     utiility_log_crra,
 )
@@ -57,7 +61,7 @@ def test_wrap_function(load_example_model):
 
 
 @pytest.mark.parametrize(
-    "model",
+    "model_name",
     [
         ("retirement_no_taste_shocks"),
         ("retirement_taste_shocks"),
@@ -65,10 +69,10 @@ def test_wrap_function(load_example_model):
     ],
 )
 def test_missing_parameter(
-    model,
+    model_name,
     load_example_model,
 ):
-    params, _ = load_example_model(f"{model}")
+    params, _ = load_example_model(f"{model_name}")
 
     params.pop("interest_rate")
     params.pop("sigma")
@@ -82,3 +86,77 @@ def test_missing_parameter(
     params.pop("beta")
     with pytest.raises(ValueError, match="beta must be provided in params."):
         process_params(params)
+
+
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        ("retirement_no_taste_shocks"),
+        ("retirement_taste_shocks"),
+        ("deaton"),
+    ],
+)
+def test_load_and_save_model(
+    model_name,
+    load_example_model,
+    state_space_functions,
+    utility_functions,
+    utility_functions_final_period,
+):
+    options = {}
+    params, _raw_options = load_example_model(f"{model_name}")
+
+    options["model_params"] = _raw_options
+    options["model_params"]["n_choices"] = _raw_options["n_discrete_choices"]
+    options["state_space"] = {
+        "n_periods": 25,
+        "choices": [i for i in range(_raw_options["n_discrete_choices"])],
+    }
+
+    model_setup = setup_model(
+        options=options,
+        state_space_functions=state_space_functions,
+        utility_functions=utility_functions,
+        utility_functions_final_period=utility_functions_final_period,
+        budget_constraint=budget_constraint,
+    )
+
+    model_after_saving = setup_and_save_model(
+        options=options,
+        state_space_functions=state_space_functions,
+        utility_functions=utility_functions,
+        utility_functions_final_period=utility_functions_final_period,
+        budget_constraint=budget_constraint,
+        path="model.pkl",
+    )
+
+    model_after_loading = load_and_setup_model(
+        options=options,
+        state_space_functions=state_space_functions,
+        utility_functions=utility_functions,
+        utility_functions_final_period=utility_functions_final_period,
+        budget_constraint=budget_constraint,
+        path="model.pkl",
+    )
+
+    for key in model_setup.keys():
+        if isinstance(model_setup[key], np.ndarray):
+            np.testing.assert_allclose(model_setup[key], model_after_loading[key])
+            np.testing.assert_allclose(model_setup[key], model_after_saving[key])
+        elif isinstance(model_setup[key], dict):
+            for k in model_setup[key].keys():
+                if isinstance(model_setup[key][k], np.ndarray):
+                    np.testing.assert_allclose(
+                        model_setup[key][k], model_after_loading[key][k]
+                    )
+                    np.testing.assert_allclose(
+                        model_setup[key][k], model_after_saving[key][k]
+                    )
+                else:
+                    pass
+        else:
+            pass
+
+    import os
+
+    os.remove("model.pkl")
