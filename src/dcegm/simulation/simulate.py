@@ -30,7 +30,7 @@ def simulate_all_periods(
     compute_utility,
     compute_beginning_of_period_resources,
     exog_state_mapping,
-    update_endog_state_by_state_and_choice,
+    get_next_period_state,
     compute_utility_final_period,
 ):
     # Prepare random seeds for taste shocks
@@ -56,7 +56,7 @@ def simulate_all_periods(
         compute_utility=compute_utility,
         compute_beginning_of_period_resources=compute_beginning_of_period_resources,
         exog_state_mapping=exog_state_mapping,
-        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+        get_next_period_state=get_next_period_state,
     )
 
     states_and_resources_beginning_of_first_period = states_initial, resources_initial
@@ -100,7 +100,7 @@ def simulate_single_period(
     compute_utility,
     compute_beginning_of_period_resources,
     exog_state_mapping,
-    update_endog_state_by_state_and_choice,
+    get_next_period_state,
 ):
     (
         states_beginning_of_period,
@@ -162,7 +162,7 @@ def simulate_single_period(
         compute_exog_transition_vec=compute_exog_transition_vec,
         exog_state_mapping=exog_state_mapping,
         compute_beginning_of_period_resources=compute_beginning_of_period_resources,
-        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+        get_next_period_state=get_next_period_state,
         sim_specific_keys=sim_specific_keys,
     )
     carry = states_next_period, resources_beginning_of_next_period

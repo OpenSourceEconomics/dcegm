@@ -21,9 +21,7 @@ def test_simulate_lax_scan(toy_model_exog_ltc):
     policy_right = toy_model_exog_ltc["policy_right"]
     endog_grid = toy_model_exog_ltc["endog_grid"]
     exog_state_mapping = toy_model_exog_ltc["exog_state_mapping"]
-    update_endog_state_by_state_and_choice = toy_model_exog_ltc[
-        "update_endog_state_by_state_and_choice"
-    ]
+    get_next_period_state = toy_model_exog_ltc["get_next_period_state"]
 
     model_funcs = toy_model_exog_ltc["model_funcs"]
     map_state_choice_to_index = toy_model_exog_ltc["map_state_choice_to_index"]
@@ -69,7 +67,7 @@ def test_simulate_lax_scan(toy_model_exog_ltc):
             "compute_beginning_of_period_resources"
         ],
         exog_state_mapping=exog_state_mapping,
-        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+        get_next_period_state=get_next_period_state,
     )
 
     # lax.scan
@@ -129,9 +127,7 @@ def test_simulate(toy_model_exog_ltc):
     policy_right = toy_model_exog_ltc["policy_right"]
     endog_grid = toy_model_exog_ltc["endog_grid"]
     exog_state_mapping = toy_model_exog_ltc["exog_state_mapping"]
-    update_endog_state_by_state_and_choice = toy_model_exog_ltc[
-        "update_endog_state_by_state_and_choice"
-    ]
+    get_next_period_state = toy_model_exog_ltc["get_next_period_state"]
 
     model_funcs = toy_model_exog_ltc["model_funcs"]
     map_state_choice_to_index = toy_model_exog_ltc["map_state_choice_to_index"]
@@ -170,7 +166,7 @@ def test_simulate(toy_model_exog_ltc):
             "compute_beginning_of_period_resources"
         ],
         exog_state_mapping=exog_state_mapping,
-        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
+        get_next_period_state=get_next_period_state,
         compute_utility_final_period=model_funcs["compute_utility_final"],
     )
 

@@ -18,3 +18,4 @@ ignore:
   - tests/*
   - tests/**/*
   - .tox/**/*
+  - src/dcegm/likelihood.py

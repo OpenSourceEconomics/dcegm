@@ -555,7 +555,7 @@ def _forward_scan(
         - idx_on_same_value (int): Index of next point on the value function.
 
     """
-    indexes_to_scan = idx_to_inspect + np.arange(1, n_points_to_scan + 1, dtype=int)
+    indexes_to_scan = idx_to_inspect + np.arange(1, n_points_to_scan + 1, dtype=np.int64)
     (
         grad_next_on_same_value,
         idx_on_same_value,
@@ -614,7 +614,7 @@ def _backward_scan(
             previous point on the same value function.
 
     """
-    indexes_to_scan = idx_to_inspect - np.arange(1, n_points_to_scan + 1, dtype=int)
+    indexes_to_scan = idx_to_inspect - np.arange(1, n_points_to_scan + 1, dtype=np.int64)
     (
         grad_before_on_same_value,
         idx_point_before_on_same_value,

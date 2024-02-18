@@ -9,8 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import yaml
-from dcegm.pre_processing.model_functions import process_model_functions
-from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
+from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import solve_dcegm
 from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_feasible_choice_set,
@@ -77,6 +76,9 @@ def load_example_model():
             REPLICATION_TEST_RESOURCES_DIR / f"{model}" / "params.csv",
             index_col=["category", "name"],
         )
+        params = (
+            params.reset_index()[["name", "value"]].set_index("name")["value"].to_dict()
+        )
         options = yaml.safe_load(
             (REPLICATION_TEST_RESOURCES_DIR / f"{model}" / "options.yaml").read_text()
         )
@@ -90,7 +92,7 @@ def state_space_functions():
     """Return dict with state space functions."""
     out = {
         "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
-        "update_endog_state_by_state_and_choice": update_state,
+        "get_next_period_state": update_state,
     }
     return out
 
@@ -216,31 +218,21 @@ def toy_model_exog_ltc(
         options["model_params"]["n_grid_points"],
     )
 
-    (
-        model_funcs,
-        _compute_upper_envelope,
-        get_state_specific_choice_set,
-        update_endog_state_by_state_and_choice,
-    ) = process_model_functions(
-        options,
+    out = {}
+    model = setup_model(
+        options=options,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_dcegm_exog_ltc,
     )
-
-    out = {}
-    (
-        out["period_specific_state_objects"],
-        out["state_space"],
-        out["state_space_names"],
-        out["map_state_choice_to_index"],
-        out["exog_state_mapping"],
-    ) = create_state_space_and_choice_objects(
-        options=options,
-        get_state_specific_choice_set=get_state_specific_choice_set,
-        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
-    )
+    out["period_specific_state_objects"] = model["period_specific_state_objects"]
+    out["state_space"] = model["state_space"]
+    out["state_space_names"] = model["state_space_names"]
+    out["map_state_choice_to_index"] = model["map_state_choice_to_index"]
+    out["exog_state_mapping"] = model["exog_mapping"]
+    out["model_funcs"] = model["model_funcs"]
+    out["get_next_period_state"] = model["get_next_period_state"]
 
     (
         out["value"],
@@ -259,11 +251,6 @@ def toy_model_exog_ltc(
 
     out["params"] = params
     out["options"] = options
-    out["model_funcs"] = model_funcs
-    out[
-        "update_endog_state_by_state_and_choice"
-    ] = update_endog_state_by_state_and_choice
-
     return out
 
 
@@ -281,31 +268,22 @@ def toy_model_exog_ltc_and_job_offer(
         options["model_params"]["n_grid_points"],
     )
 
-    (
-        model_funcs,
-        _compute_upper_envelope,
-        get_state_specific_choice_set,
-        update_endog_state_by_state_and_choice,
-    ) = process_model_functions(
-        options,
+    out = {}
+    model = setup_model(
+        options=options,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_dcegm_exog_ltc_and_job_offer,
     )
 
-    out = {}
-    (
-        out["period_specific_state_objects"],
-        out["state_space"],
-        out["state_space_names"],
-        out["map_state_choice_to_index"],
-        out["exog_state_mapping"],
-    ) = create_state_space_and_choice_objects(
-        options=options,
-        get_state_specific_choice_set=get_state_specific_choice_set,
-        update_endog_state_by_state_and_choice=update_endog_state_by_state_and_choice,
-    )
+    out["period_specific_state_objects"] = model["period_specific_state_objects"]
+    out["state_space"] = model["state_space"]
+    out["state_space_names"] = model["state_space_names"]
+    out["map_state_choice_to_index"] = model["map_state_choice_to_index"]
+    out["exog_state_mapping"] = model["exog_mapping"]
+    out["model_funcs"] = model["model_funcs"]
+    out["get_next_period_state"] = model["get_next_period_state"]
 
     (
         out["value"],
@@ -319,14 +297,9 @@ def toy_model_exog_ltc_and_job_offer(
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
-        budget_constraint=budget_dcegm_exog_ltc_and_job_offer,
+        budget_constraint=budget_dcegm_exog_ltc,
     )
 
     out["params"] = params
     out["options"] = options
-    out["model_funcs"] = model_funcs
-    out[
-        "update_endog_state_by_state_and_choice"
-    ] = update_endog_state_by_state_and_choice
-
     return out

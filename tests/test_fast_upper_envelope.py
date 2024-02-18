@@ -1,9 +1,9 @@
 from pathlib import Path
 
+import jax.numpy as jnp
 import numpy as np
 import pytest
 from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
-from dcegm.interpolation import linear_interpolation_with_extrapolation
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope
 from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope_wrapper
@@ -11,6 +11,7 @@ from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.utility_functions import utility_crra
 
 from tests.utils.fast_upper_envelope_org import fast_upper_envelope_wrapper_org
+from tests.utils.interpolations import linear_interpolation_with_extrapolation
 from tests.utils.upper_envelope_fedor import upper_envelope
 
 # Obtain the test directory of the package.
@@ -96,7 +97,9 @@ def test_fast_upper_envelope_wrapper(period, setup_model):
     )
 
     wealth_max_to_test = np.max(endog_grid_refined[~np.isnan(endog_grid_refined)]) + 100
-    wealth_grid_to_test = np.linspace(endog_grid_refined[1], wealth_max_to_test, 1000)
+    wealth_grid_to_test = jnp.linspace(
+        endog_grid_refined[1], wealth_max_to_test, 1000, dtype=float
+    )
 
     value_expec_interp = linear_interpolation_with_extrapolation(
         x_new=wealth_grid_to_test, x=value_expected[0], y=value_expected[1]

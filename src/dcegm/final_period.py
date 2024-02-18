@@ -39,7 +39,6 @@ def solve_final_period(
     """
 
     resources = resources_beginning_of_period[state_objects["idx_parent_states"]]
-    # breakpoint()
 
     value, marg_util = vmap(
         vmap(
