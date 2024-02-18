@@ -260,6 +260,9 @@ def backward_induction(
         resources_period = resources_beginning_of_period[
             state_objects_period["idx_parent_states"]
         ]
+        reshape_state_choice_vec_to_mat_prev_period = period_specific_state_objects[
+            period + 1
+        ]["reshape_state_choice_vec_to_mat"]
         (
             endog_grid_period,
             policy_left_period,
@@ -272,6 +275,7 @@ def backward_induction(
             marg_util_interpolated_previous_period=marg_util_interpolated_next_period,
             params=params,
             state_objects=state_objects_period,
+            reshape_state_choice_vec_to_mat_prev_period=reshape_state_choice_vec_to_mat_prev_period,
             exog_savings_grid=exog_savings_grid,
             resources_period=resources_period,
             income_shock_weights=income_shock_weights,
@@ -292,6 +296,7 @@ def solve_single_period(
     marg_util_interpolated_previous_period: jnp.ndarray,
     params: Dict[str, float],
     state_objects: Dict[str, np.ndarray],
+    reshape_state_choice_vec_to_mat_prev_period: np.ndarray,
     exog_savings_grid: np.ndarray,
     resources_period: jnp.ndarray,
     income_shock_weights: jnp.ndarray,
@@ -305,9 +310,7 @@ def solve_single_period(
     marg_util, emax = aggregate_marg_utils_and_exp_values(
         value_state_choice_specific=value_interpolated_previous_period,
         marg_util_state_choice_specific=marg_util_interpolated_previous_period,
-        reshape_state_choice_vec_to_mat=state_objects[
-            "reshape_state_choice_vec_to_mat"
-        ],
+        reshape_state_choice_vec_to_mat=reshape_state_choice_vec_to_mat_prev_period,
         taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,
     )
