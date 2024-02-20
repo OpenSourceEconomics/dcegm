@@ -13,6 +13,43 @@ from dcegm.simulation.sim_utils import vectorized_utility
 from jax import vmap
 
 
+def simulate_all_periods_for_model(
+    states_initial,
+    resources_initial,
+    n_periods,
+    params,
+    seed,
+    endog_grid_solved,
+    value_solved,
+    policy_left_solved,
+    policy_right_solved,
+    choice_range,
+    model,
+):
+    return simulate_all_periods(
+        states_initial=states_initial,
+        resources_initial=resources_initial,
+        n_periods=n_periods,
+        params=params,
+        seed=seed,
+        state_space_names=model["state_space_names"],
+        endog_grid_solved=endog_grid_solved,
+        value_solved=value_solved,
+        policy_left_solved=policy_left_solved,
+        policy_right_solved=policy_right_solved,
+        map_state_choice_to_index=jnp.array(model["map_state_choice_to_index"]),
+        choice_range=choice_range,
+        compute_exog_transition_vec=model["model_funcs"]["compute_exog_transition_vec"],
+        compute_utility=model["model_funcs"]["compute_utility"],
+        compute_beginning_of_period_resources=model["model_funcs"][
+            "compute_beginning_of_period_resources"
+        ],
+        exog_state_mapping=model["exog_mapping"],
+        get_next_period_state=model["get_next_period_state"],
+        compute_utility_final_period=model["model_funcs"]["compute_utility_final"],
+    )
+
+
 def simulate_all_periods(
     states_initial,
     resources_initial,

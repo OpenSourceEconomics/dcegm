@@ -147,7 +147,7 @@ def load_and_setup_model(
         budget_constraint=budget_constraint,
     )
 
-    create_exog_mapping(
+    model["exog_mapping"] = create_exog_mapping(
         np.array(model["exog_state_space"], dtype=np.int16), model["exog_state_names"]
     )
 
