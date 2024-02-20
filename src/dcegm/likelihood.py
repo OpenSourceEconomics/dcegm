@@ -153,7 +153,32 @@ def calc_choice_prob_for_observed_choices(
     and then interpolates the wealth at the beginning of period on them.
 
     """
+    choice_prob_across_choices = calc_choice_probs_for_observed_states(
+        value_solved=value_solved,
+        endog_grid_solved=endog_grid_solved,
+        params=params,
+        observed_states=observed_states,
+        state_choice_indexes=state_choice_indexes,
+        oberseved_wealth=oberseved_wealth,
+        choice_range=choice_range,
+        compute_utility=compute_utility,
+    )
+    choice_probs = jnp.take_along_axis(
+        choice_prob_across_choices, observed_choices[:, None], axis=1
+    )[:, 0]
+    return choice_probs
 
+
+def calc_choice_probs_for_observed_states(
+    value_solved,
+    endog_grid_solved,
+    params,
+    observed_states,
+    state_choice_indexes,
+    oberseved_wealth,
+    choice_range,
+    compute_utility,
+):
     value_grid_agent = jnp.take(
         value_solved, state_choice_indexes, axis=0, mode="fill", fill_value=jnp.nan
     )
@@ -179,10 +204,7 @@ def calc_choice_prob_for_observed_choices(
         choice_values_per_state=value_per_agent_interp,
         taste_shock_scale=params["lambda"],
     )
-    choice_probs = jnp.take_along_axis(
-        choice_prob_across_choices, observed_choices[:, None], axis=1
-    )[:, 0]
-    return choice_probs
+    return choice_prob_across_choices
 
 
 def interpolate_value_and_calc_choice_probabilities(
