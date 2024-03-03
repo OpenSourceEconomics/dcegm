@@ -130,8 +130,9 @@ def create_individual_likelihood_function_for_model(
             endog_grid_in=endog_grid_solved,
             params_in=params_initial,
         ).clip(min=1e-10)
-        log_value = jnp.sum(-jnp.log(choice_probs))
-        return log_value
+        likelihood_contributions = jnp.log(choice_probs)
+        log_value = jnp.sum(-likelihood_contributions)
+        return log_value, likelihood_contributions
 
     return jax.jit(individual_likelihood)
 
