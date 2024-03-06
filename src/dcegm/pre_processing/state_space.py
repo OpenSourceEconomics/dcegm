@@ -522,6 +522,7 @@ def create_map_from_state_to_child_nodes(
         (state_choice_space.shape[0], n_exog_states), fill_value=-9999, dtype=int
     )
 
+    exog_states_tuple = tuple(exog_state_space[:, i] for i in range(n_exog_vars))
     current_state_choice_idx = -1
     for period in range(n_periods - 1):
         end_of_prev_period_index = current_state_choice_idx + 1
@@ -556,24 +557,23 @@ def create_map_from_state_to_child_nodes(
 
             state_dict_without_exog.update(endog_state_update)
 
-            state_next_without_exog = np.array(
-                [state_dict_without_exog[key] for key in states_names_without_exog]
+            states_next_tuple = (
+                tuple(
+                    np.full(
+                        n_exog_states,
+                        fill_value=state_dict_without_exog[key],
+                        dtype=int,
+                    )
+                    for key in states_names_without_exog
+                )
+                + exog_states_tuple
             )
 
-            for exog_process in range(n_exog_states):
-                _state_vec_next = np.empty_like(current_state)
-                # Fill up the next state with the endogenous part.
-                _state_vec_next[:-n_exog_vars] = state_next_without_exog
-                # Then with the endogenous part.
-                _state_vec_next[-n_exog_vars:] = exog_state_space[exog_process]
-                # We want the index every period to start at 0.
-                child_index = map_state_to_index[tuple(_state_vec_next)]
-                map_state_to_feasible_child_nodes_period[idx, exog_process] = (
-                    child_index - idx_min_state_space_next_period
-                )
-                map_state_to_feasible_child_states[
-                    current_state_choice_idx, exog_process
-                ] = child_index
+            child_ixs = map_state_to_index[states_next_tuple]
+            map_state_to_feasible_child_nodes_period[idx, :] = (
+                child_ixs - idx_min_state_space_next_period
+            )
+            map_state_to_feasible_child_states[current_state_choice_idx, :] = child_ixs
 
             period_specific_state_objects[period][
                 "idx_feasible_child_nodes"
