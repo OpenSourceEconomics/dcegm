@@ -161,7 +161,6 @@ def create_state_space(options):
     )
 
     (
-        add_exog_state_func,
         exog_states_names,
         num_states_of_all_exog_states,
         n_exog_states,
@@ -169,7 +168,7 @@ def create_state_space(options):
     ) = process_exog_model_specifications(state_space_options=state_space_options)
     states_names_without_exog = ["period", "lagged_choice"] + endog_states_names
 
-    state_space_list = []
+    state_space_wo_exog_list = []
 
     for period in range(n_periods):
         for lagged_choice in range(n_choices):
@@ -191,13 +190,14 @@ def create_state_space(options):
                 if not is_state_valid:
                     continue
                 else:
-                    # If is valid, we continue to add all exogenous processes
-                    for exog_state_id in range(n_exog_states):
-                        exog_states = add_exog_state_func(exog_state_id)
-                        state = state_without_exog + exog_states
-                        state_space_list += [state]
+                    state_space_wo_exog_list += [state_without_exog]
 
-    state_space = np.array(state_space_list)
+    state_space_wo_exog = np.array(state_space_wo_exog_list)
+    state_space_wo_exog_full = np.repeat(state_space_wo_exog, n_exog_states, axis=0)
+    exog_state_space_full = np.tile(exog_state_space, (state_space_wo_exog.shape[0], 1))
+    state_space = np.concatenate(
+        (state_space_wo_exog_full, exog_state_space_full), axis=1
+    )
 
     # Create indexer array that maps states to indexes
     max_states = np.max(state_space, axis=0)
@@ -239,22 +239,12 @@ def process_exog_model_specifications(state_space_options):
 
         exog_state_space = np.array([[0]], dtype=np.int16)
 
-    exog_states_add_func = create_exog_state_add_function(exog_state_space)
-
     return (
-        exog_states_add_func,
         exog_state_names,
         num_states_of_all_exog_states,
         n_exog_states,
         exog_state_space,
     )
-
-
-def create_exog_state_add_function(exog_state_space):
-    def add_exog_states(id_exog_state):
-        return list(exog_state_space[id_exog_state])
-
-    return add_exog_states
 
 
 def span_subspace_and_read_information(subdict_of_space, states_names):
@@ -648,18 +638,17 @@ def inspect_state_space(
     )
 
     (
-        add_exog_state_func,
         exog_states_names,
         _,
         n_exog_states,
-        _,
+        exog_state_space,
     ) = process_exog_model_specifications(state_space_options=state_space_options)
 
     states_names_without_exog = ["period", "lagged_choice"] + endog_states_names
 
-    state_space_list = []
+    state_space_wo_exog_list = []
+    is_feasible_list = []
 
-    idx = 0
     for period in range(n_periods):
         for lagged_choice in range(n_choices):
             for endog_state_id in range(num_endog_states):
@@ -668,6 +657,7 @@ def inspect_state_space(
 
                 # Create the state vector without the exogenous processes
                 state_without_exog = [period, lagged_choice] + endog_states
+                state_space_wo_exog_list += [state_without_exog]
 
                 # Transform to dictionary to call sparsity function from user
                 state_dict_without_exog = {
@@ -675,17 +665,21 @@ def inspect_state_space(
                     for i, state_value in enumerate(state_without_exog)
                 }
 
-                is_state_valid = sparsity_func(**state_dict_without_exog)
-                for exog_state_id in range(n_exog_states):
-                    exog_states = add_exog_state_func(exog_state_id)
-                    state = state_without_exog + exog_states
+                is_state_feasible = sparsity_func(**state_dict_without_exog)
+                is_feasible_list += [is_state_feasible]
 
-                    state_space_list += [state + [is_state_valid]]
-                    idx += 1
+    state_space_wo_exog = np.array(state_space_wo_exog_list)
+    state_space_wo_exog_full = np.repeat(state_space_wo_exog, n_exog_states, axis=0)
+    exog_state_space_full = np.tile(exog_state_space, (state_space_wo_exog.shape[0], 1))
+
+    state_space = np.concatenate(
+        (state_space_wo_exog_full, exog_state_space_full), axis=1
+    )
 
     state_space_df = pd.DataFrame(
-        state_space_list,
-        columns=states_names_without_exog + exog_states_names + ["is_feasible"],
+        state_space, columns=states_names_without_exog + exog_states_names
     )
+
+    state_space_df["is_feasible"] = is_feasible_list
 
     return state_space_df
