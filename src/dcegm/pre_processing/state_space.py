@@ -167,19 +167,10 @@ def create_state_space(options):
         n_exog_states,
         exog_state_space,
     ) = process_exog_model_specifications(state_space_options=state_space_options)
-
     states_names_without_exog = ["period", "lagged_choice"] + endog_states_names
 
-    shape = (
-        [n_periods, n_choices]
-        + num_states_of_all_endog_states
-        + num_states_of_all_exog_states
-    )
-
-    map_state_to_index = np.full(shape, -9999, dtype=np.int64)
     state_space_list = []
 
-    index = 0
     for period in range(n_periods):
         for lagged_choice in range(n_choices):
             for endog_state_id in range(num_endog_states):
@@ -205,10 +196,14 @@ def create_state_space(options):
                         exog_states = add_exog_state_func(exog_state_id)
                         state = state_without_exog + exog_states
                         state_space_list += [state]
-                        map_state_to_index[tuple(state)] = index
-                        index += 1
 
     state_space = np.array(state_space_list)
+
+    # Create indexer array that maps states to indexes
+    max_states = np.max(state_space, axis=0)
+    map_state_to_index = np.full(max_states + 1, fill_value=-9999, dtype=int)
+    state_space_tuple = tuple(state_space[:, i] for i in range(state_space.shape[1]))
+    map_state_to_index[state_space_tuple] = np.arange(state_space.shape[0], dtype=int)
 
     return (
         state_space,
