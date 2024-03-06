@@ -93,6 +93,9 @@ def create_state_space_and_choice_objects(
         exog_state_space=exog_state_space,
         options=state_space_options,
         period_specific_state_objects=out,
+        state_choice_space=state_choice_space,
+        map_state_choice_to_index=map_state_choice_to_index,
+        state_space=state_space,
         map_state_to_index=map_state_to_state_space_index,
         states_names_without_exog=states_names_without_exog,
         get_next_period_state=get_next_period_state,
@@ -469,7 +472,10 @@ def create_map_from_state_to_child_nodes(
     exog_state_space: np.ndarray,
     options: Dict[str, int],
     period_specific_state_objects: Dict,
+    state_choice_space: np.ndarray,
     map_state_to_index: np.ndarray,
+    state_space,
+    map_state_choice_to_index: np.ndarray,
     states_names_without_exog: list,
     get_next_period_state: Callable,
 ):
@@ -512,7 +518,13 @@ def create_map_from_state_to_child_nodes(
 
     n_exog_vars = exog_state_space.shape[1]
 
+    map_state_to_feasible_child_states = np.full(
+        (state_choice_space.shape[0], n_exog_states), fill_value=-9999, dtype=int
+    )
+
+    current_state_choice_idx = -1
     for period in range(n_periods - 1):
+        end_of_prev_period_index = current_state_choice_idx + 1
         period_dict = period_specific_state_objects[period]
         idx_min_state_space_next_period = map_state_to_index[
             tuple(period_specific_state_objects[period + 1]["state_choice_mat"][0, :-1])
@@ -527,6 +539,7 @@ def create_map_from_state_to_child_nodes(
 
         # Loop over all state-choice combinations in period.
         for idx, state_choice_vec in enumerate(state_choice_space_period):
+            current_state_choice_idx = end_of_prev_period_index + idx
             current_state = state_choice_vec[:-1]
             current_state_without_exog = current_state[:-n_exog_vars]
 
@@ -554,14 +567,50 @@ def create_map_from_state_to_child_nodes(
                 # Then with the endogenous part.
                 _state_vec_next[-n_exog_vars:] = exog_state_space[exog_process]
                 # We want the index every period to start at 0.
+                child_index = map_state_to_index[tuple(_state_vec_next)]
                 map_state_to_feasible_child_nodes_period[idx, exog_process] = (
-                    map_state_to_index[tuple(_state_vec_next)]
-                    - idx_min_state_space_next_period
+                    child_index - idx_min_state_space_next_period
                 )
+                map_state_to_feasible_child_states[
+                    current_state_choice_idx, exog_process
+                ] = child_index
 
             period_specific_state_objects[period][
                 "idx_feasible_child_nodes"
             ] = np.array(map_state_to_feasible_child_nodes_period, dtype=int)
+
+    # state_choice_space_wo_last = state_choice_space[state_choice_space[:, 0] < n_periods - 1]
+    # state_choice_index_back = np.arange(state_choice_space_wo_last.shape[0], dtype=int)
+    #
+    # # Filter out last period state_choice_ids
+    # child_states_idx_backward = map_state_to_feasible_child_states[
+    #     state_choice_space[:, 0] < n_periods - 1
+    # ]
+    # child_states = np.take(state_space, child_states_idx_backward, axis=0)
+    # n_state_vars = state_space.shape[1]
+    #
+    # smallest_state_choice_per_period = np.unique(state_choice_space_wo_last[:, 0], return_counts=True)[1].min()
+    # # Split numpy array in segments of size 5, where the first array is the array
+    # # which does not have to be five long
+    # index_to_spilt = np.arange(
+    #         smallest_state_choice_per_period,
+    #         state_choice_index_back.shape[0],
+    #         smallest_state_choice_per_period,
+    #     )
+    #
+    # batches_to_check = np.split(
+    #     np.flip(state_choice_index_back),
+    #     index_to_spilt,
+    # )
+    #
+    # for batch in batches_to_check:
+    #     child_states_batch = np.take(child_states, batch, axis=0).reshape(-1, n_state_vars)
+    #     # Make tuple out of columns of child states
+    #     child_states_tuple = tuple(child_states_batch[:, i] for i in range(n_state_vars))
+    #     state_choice_idxs_childs = map_state_choice_to_index[child_states_tuple]
+    #     # Get minimun of the positive numbers in state_choice_idxs_childs
+    #     min_state_choice_idx = np.min(state_choice_idxs_childs[state_choice_idxs_childs > 0])
+    #     batch_admissible = batch.max() < min_state_choice_idx
 
     return period_specific_state_objects
 
