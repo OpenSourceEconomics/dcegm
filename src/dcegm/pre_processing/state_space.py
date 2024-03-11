@@ -645,7 +645,6 @@ def determine_optimal_batch_size(
             batch_not_found = False
 
         print("The batch size of the backwards induction is ", current_batch_size)
-    breakpoint()
     return batches_to_check
 
 
