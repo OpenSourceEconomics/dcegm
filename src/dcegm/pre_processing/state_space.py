@@ -88,7 +88,7 @@ def create_state_space_and_choice_objects(
 
         out[period] = period_dict
 
-    out = create_map_from_state_to_child_nodes(
+    out, batch_info = create_map_from_state_to_child_nodes(
         n_exog_states=n_exog_states,
         exog_state_space=exog_state_space,
         options=state_space_options,
@@ -108,6 +108,18 @@ def create_state_space_and_choice_objects(
         }
 
     state_space = {key: state_space[:, i] for i, key in enumerate(state_space_names)}
+    idx_state_choice_last_period = np.where(state_choice_space[:, 0] == n_periods - 1)[
+        0
+    ]
+
+    batch_info["idx_state_choice_last_period"] = idx_state_choice_last_period
+    batch_info["state_idx_of_state_choice"] = map_state_choice_vec_to_parent_state[
+        batch_info["batches"]
+    ]
+    batch_info["state_choice_mat_badge"] = {
+        key: state_choice_space[:, i][batch_info["batches"]]
+        for i, key in enumerate(state_space_names + ["choice"])
+    }
 
     return (
         out,
@@ -116,6 +128,7 @@ def create_state_space_and_choice_objects(
         map_state_choice_to_index,
         exog_state_space,
         exog_state_names,
+        batch_info,
     )
 
 
@@ -171,8 +184,8 @@ def create_state_space(options):
     state_space_wo_exog_list = []
 
     for period in range(n_periods):
-        for lagged_choice in range(n_choices):
-            for endog_state_id in range(num_endog_states):
+        for endog_state_id in range(num_endog_states):
+            for lagged_choice in range(n_choices):
                 # Select the endogenous state combination
                 endog_states = add_endog_state_func(endog_state_id)
 
@@ -503,7 +516,7 @@ def create_map_from_state_to_child_nodes(
 
     n_exog_vars = exog_state_space.shape[1]
 
-    map_state_to_feasible_child_states = np.full(
+    map_state_choice_to_feasible_child_states = np.full(
         (state_choice_space.shape[0], n_exog_states), fill_value=-9999, dtype=int
     )
 
@@ -558,28 +571,46 @@ def create_map_from_state_to_child_nodes(
             map_state_to_feasible_child_nodes_period[idx, :] = (
                 child_ixs - idx_min_state_space_next_period
             )
-            map_state_to_feasible_child_states[current_state_choice_idx, :] = child_ixs
+            map_state_choice_to_feasible_child_states[
+                current_state_choice_idx, :
+            ] = child_ixs
 
             period_specific_state_objects[period][
                 "idx_feasible_child_nodes"
             ] = np.array(map_state_to_feasible_child_nodes_period, dtype=int)
 
-    determine_optimal_batch_size(
+    (
+        batches,
+        unique_child_state_choice_idxs,
+        child_state_to_state_choice_times_exog,
+    ) = determine_optimal_batch_size(
         state_choice_space,
         n_periods,
-        map_state_to_feasible_child_states,
+        map_state_choice_to_feasible_child_states,
         map_state_choice_to_index,
         state_space,
     )
-    breakpoint()
 
-    return period_specific_state_objects
+    batch_array = np.array(batches)
+    unique_child_state_choice_idxs = np.array(unique_child_state_choice_idxs)
+    child_state_to_state_choice_times_exog = np.array(
+        child_state_to_state_choice_times_exog
+    )
+
+    batches_information = {
+        "batches": batch_array,
+        "unique_child_state_choice_idxs": unique_child_state_choice_idxs,
+        "child_state_to_state_choice_exog": child_state_to_state_choice_times_exog,
+        "n_state_choices": state_choice_space.shape[0],
+    }
+
+    return period_specific_state_objects, batches_information
 
 
 def determine_optimal_batch_size(
     state_choice_space,
     n_periods,
-    map_state_to_feasible_child_states,
+    map_state_choice_to_feasible_child_states,
     map_state_choice_to_index,
     state_space,
 ):
@@ -589,14 +620,14 @@ def determine_optimal_batch_size(
     state_choice_index_back = np.arange(state_choice_space_wo_last.shape[0], dtype=int)
 
     # Filter out last period state_choice_ids
-    child_states_idx_backward = map_state_to_feasible_child_states[
+    child_states_idx_backward = map_state_choice_to_feasible_child_states[
         state_choice_space[:, 0] < n_periods - 1
     ]
     child_states = np.take(state_space, child_states_idx_backward, axis=0)
     n_state_vars = state_space.shape[1]
 
     size_last_batch = state_choice_space[
-        state_choice_space[:, 0] == n_periods - 2
+        state_choice_space[:, 0] == state_choice_space_wo_last[-1, 0]
     ].shape[0]
 
     batch_not_found = True
@@ -604,7 +635,7 @@ def determine_optimal_batch_size(
     need_to_reduce_batchsize = False
     while batch_not_found:
         if need_to_reduce_batchsize:
-            current_batch_size = int(current_batch_size * 0.9)
+            current_batch_size = int(current_batch_size * 0.95)
             need_to_reduce_batchsize = False
         # Split state choice indexes in
         index_to_spilt = np.arange(
@@ -617,18 +648,34 @@ def determine_optimal_batch_size(
             np.flip(state_choice_index_back),
             index_to_spilt,
         )
+        child_state_to_state_choice_times_exog = []
+        unique_child_state_choice_idxs = []
 
-        for batch in batches_to_check:
+        for i, batch in enumerate(batches_to_check):
+            child_states_idxs = map_state_choice_to_feasible_child_states[batch]
+            unique_child_states, unique_ids, inverse_ids = np.unique(
+                child_states_idxs, return_index=True, return_inverse=True
+            )
+
+            child_state_to_state_choice_times_exog += [
+                inverse_ids.reshape(child_states_idxs.shape)
+            ]
+
             # Get child states for current batch of state choices
             child_states_batch = np.take(child_states, batch, axis=0).reshape(
                 -1, n_state_vars
             )
+
             # Make tuple out of columns of child states
             child_states_tuple = tuple(
                 child_states_batch[:, i] for i in range(n_state_vars)
             )
+
             # Get ids of state choices for each child state
             state_choice_idxs_childs = map_state_choice_to_index[child_states_tuple]
+            # Save the unique child states
+            unique_child_state_choice_idxs += [state_choice_idxs_childs[unique_ids]]
+
             # Get minimum of the positive numbers in state_choice_idxs_childs
             min_state_choice_idx = np.min(
                 state_choice_idxs_childs[state_choice_idxs_childs > 0]
@@ -645,8 +692,13 @@ def determine_optimal_batch_size(
             batch_not_found = False
 
         print("The batch size of the backwards induction is ", current_batch_size)
-    breakpoint()
-    return batches_to_check
+        print("It failed in batch ", i)
+
+    return (
+        batches_to_check,
+        unique_child_state_choice_idxs,
+        child_state_to_state_choice_times_exog,
+    )
 
 
 def inspect_state_space(

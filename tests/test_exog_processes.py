@@ -85,6 +85,7 @@ def test_exog_processes(state_space_functions):
         map_state_choice_to_index,
         exog_state_space,
         exog_state_names,
+        batch_info,
     ) = create_state_space_and_choice_objects(
         options=options,
         get_state_specific_choice_set=get_state_specific_choice_set,

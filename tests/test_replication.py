@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import pytest
 from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
 from dcegm.pre_processing.setup_model import setup_model
-from dcegm.solve import solve_dcegm
+from dcegm.solve_with_badges import solve_dcegm
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
 from toy_models.consumption_retirement_model.utility_functions import (
@@ -134,6 +134,7 @@ def test_benchmark_models(
                 choice,
             )
             state_choice_idx = model["map_state_choice_to_index"][state_choice_tuple]
+
             (
                 policy_calc_interp,
                 value_calc_interp,

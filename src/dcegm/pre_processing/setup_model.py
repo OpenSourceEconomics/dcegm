@@ -61,6 +61,7 @@ def setup_model(
         map_state_choice_to_index,
         exog_state_space,
         exog_state_names,
+        batch_info,
     ) = create_state_space_and_choice_objects(
         options=options,
         get_state_specific_choice_set=get_state_specific_choice_set,
@@ -75,6 +76,7 @@ def setup_model(
         "model_funcs": model_funcs,
         "compute_upper_envelope": compute_upper_envelope,
         "get_state_specific_choice_set": get_state_specific_choice_set,
+        "batch_info": batch_info,
         "period_specific_state_objects": period_specific_state_objects,
         "state_space": state_space,
         "state_space_names": state_space_names,
@@ -116,6 +118,7 @@ def setup_and_save_model(
         "map_state_choice_to_index",
         "exog_state_space",
         "exog_state_names",
+        "batch_info",
     ]
     dict_to_save = {key: value for key, value in model.items() if key in array_names}
     pickle.dump(dict_to_save, open(path, "wb"))
