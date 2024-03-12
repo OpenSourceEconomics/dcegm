@@ -734,8 +734,8 @@ def inspect_state_space(
     is_feasible_list = []
 
     for period in range(n_periods):
-        for lagged_choice in range(n_choices):
-            for endog_state_id in range(num_endog_states):
+        for endog_state_id in range(num_endog_states):
+            for lagged_choice in range(n_choices):
                 # Select the endogenous state combination
                 endog_states = add_endog_state_func(endog_state_id)
 
@@ -763,7 +763,8 @@ def inspect_state_space(
     state_space_df = pd.DataFrame(
         state_space, columns=states_names_without_exog + exog_states_names
     )
+    is_feasible_array = np.array(is_feasible_list, dtype=bool)
 
-    state_space_df["is_feasible"] = is_feasible_list
+    state_space_df["is_feasible"] = np.repeat(is_feasible_array, n_exog_states, axis=0)
 
     return state_space_df
