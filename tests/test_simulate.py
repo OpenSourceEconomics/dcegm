@@ -4,6 +4,7 @@ from functools import partial
 import jax
 import jax.numpy as jnp
 import numpy as np
+import pytest
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
 from dcegm.simulation.simulate import simulate_final_period
@@ -11,10 +12,11 @@ from dcegm.simulation.simulate import simulate_single_period
 from numpy.testing import assert_array_almost_equal as aaae
 
 
-def test_simulate_lax_scan(toy_model_exog_ltc):
+@pytest.fixture()
+def model_setup(toy_model_exog_ltc):
     params = toy_model_exog_ltc["params"]
     options = toy_model_exog_ltc["options"]
-    choice_range = jnp.arange(options["model_params"]["n_choices"])
+
     state_space_names = toy_model_exog_ltc["state_space_names"]
     value = toy_model_exog_ltc["value"]
     policy_left = toy_model_exog_ltc["policy_left"]
@@ -29,8 +31,6 @@ def test_simulate_lax_scan(toy_model_exog_ltc):
     seed = 111
     n_agents = 1_000_000
     n_periods = options["state_space"]["n_periods"]
-
-    # === Simulate ===
 
     initial_states = {
         "period": np.zeros(n_agents, dtype=np.int16),
@@ -50,6 +50,41 @@ def test_simulate_lax_scan(toy_model_exog_ltc):
             for period in range(n_periods)
         ]
     )
+
+    return {
+        "params": params,
+        "options": options,
+        "state_space_names": state_space_names,
+        "value": value,
+        "policy_left": policy_left,
+        "policy_right": policy_right,
+        "endog_grid": endog_grid,
+        "exog_state_mapping": exog_state_mapping,
+        "model_funcs": model_funcs,
+        "map_state_choice_to_index": map_state_choice_to_index,
+        "get_next_period_state": get_next_period_state,
+        "initial_states_and_resources": initial_states_and_resources,
+        "sim_specific_keys": sim_specific_keys,
+        "seed": seed,
+    }
+
+
+def test_simulate_lax_scan(model_setup):
+    params = model_setup["params"]
+    options = model_setup["options"]
+    choice_range = jnp.arange(options["model_params"]["n_choices"])
+    state_space_names = model_setup["state_space_names"]
+    value = model_setup["value"]
+    policy_left = model_setup["policy_left"]
+    policy_right = model_setup["policy_right"]
+    endog_grid = model_setup["endog_grid"]
+    exog_state_mapping = model_setup["exog_state_mapping"]
+    get_next_period_state = model_setup["get_next_period_state"]
+    model_funcs = model_setup["model_funcs"]
+    map_state_choice_to_index = model_setup["map_state_choice_to_index"]
+
+    initial_states_and_resources = model_setup["initial_states_and_resources"]
+    sim_specific_keys = model_setup["sim_specific_keys"]
 
     simulate_body = partial(
         simulate_single_period,
@@ -117,35 +152,27 @@ def test_simulate_lax_scan(toy_model_exog_ltc):
         aaae(lax_final_period_dict[key], final_period_dict[key])
 
 
-def test_simulate(toy_model_exog_ltc):
-    params = toy_model_exog_ltc["params"]
-    options = toy_model_exog_ltc["options"]
+def test_simulate(model_setup):
+    params = model_setup["params"]
+    options = model_setup["options"]
     jnp.arange(options["model_params"]["n_choices"])
-    state_space_names = toy_model_exog_ltc["state_space_names"]
-    value = toy_model_exog_ltc["value"]
-    policy_left = toy_model_exog_ltc["policy_left"]
-    policy_right = toy_model_exog_ltc["policy_right"]
-    endog_grid = toy_model_exog_ltc["endog_grid"]
-    exog_state_mapping = toy_model_exog_ltc["exog_state_mapping"]
-    get_next_period_state = toy_model_exog_ltc["get_next_period_state"]
+    state_space_names = model_setup["state_space_names"]
+    value = model_setup["value"]
+    policy_left = model_setup["policy_left"]
+    policy_right = model_setup["policy_right"]
+    endog_grid = model_setup["endog_grid"]
+    exog_state_mapping = model_setup["exog_state_mapping"]
+    get_next_period_state = model_setup["get_next_period_state"]
+    model_funcs = model_setup["model_funcs"]
+    map_state_choice_to_index = model_setup["map_state_choice_to_index"]
 
-    model_funcs = toy_model_exog_ltc["model_funcs"]
-    map_state_choice_to_index = toy_model_exog_ltc["map_state_choice_to_index"]
+    initial_states_and_resources = model_setup["initial_states_and_resources"]
+    initial_states, initial_resources = (
+        initial_states_and_resources[0],
+        initial_states_and_resources[1],
+    )
 
-    seed = 111
-    n_agents = 1_000_000
-
-    # === Simulate ===
-
-    initial_states = {
-        "period": np.zeros(n_agents, dtype=np.int16),
-        "lagged_choice": np.zeros(
-            n_agents, dtype=np.int16
-        ),  # all agents start as workers
-        "married": np.zeros(n_agents, dtype=np.int16),
-        "ltc": np.zeros(n_agents, dtype=np.int16),
-    }
-    initial_resources = np.ones(n_agents) * 10
+    seed = model_setup["seed"]
 
     result = simulate_all_periods(
         states_initial=initial_states,
@@ -195,3 +222,6 @@ def test_simulate(toy_model_exog_ltc):
     assert len(ids_violating_absorbing_retirement) == 0
 
     aaae(value_period_zero.mean(), expected.mean(), decimal=2)
+
+
+# def test_simulate_all_periods_for_model():
