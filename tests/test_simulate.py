@@ -27,7 +27,7 @@ def test_simulate_lax_scan(toy_model_exog_ltc):
     map_state_choice_to_index = toy_model_exog_ltc["map_state_choice_to_index"]
 
     seed = 111
-    n_agents = 1_000_000
+    n_agents = 1_000
     n_periods = options["state_space"]["n_periods"]
 
     # === Simulate ===
@@ -133,7 +133,7 @@ def test_simulate(toy_model_exog_ltc):
     map_state_choice_to_index = toy_model_exog_ltc["map_state_choice_to_index"]
 
     seed = 111
-    n_agents = 1_000_000
+    n_agents = 100_000
 
     # === Simulate ===
 

@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 import yaml
 from dcegm.pre_processing.setup_model import setup_model
-from dcegm.solve_with_badges import solve_dcegm
+from dcegm.solve import solve_dcegm
 from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_feasible_choice_set,
 )

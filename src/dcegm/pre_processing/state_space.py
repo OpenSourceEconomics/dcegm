@@ -65,34 +65,10 @@ def create_state_space_and_choice_objects(
 
     n_periods = state_space_options["n_periods"]
 
-    out = {}
-
-    for period in range(n_periods):
-        period_dict = {}
-        idxs_states = np.where(state_space[:, 0] == period)[0]
-
-        idxs_state_choices_period = np.where(state_choice_space[:, 0] == period)[0]
-        state_choice_mat = np.take(
-            state_choice_space, idxs_state_choices_period, axis=0
-        )
-
-        period_dict["state_choice_mat"] = state_choice_mat
-
-        period_dict["idx_parent_states"] = np.take(
-            map_state_choice_vec_to_parent_state, idxs_state_choices_period, axis=0
-        )
-
-        period_dict["reshape_state_choice_vec_to_mat"] = np.take(
-            reshape_state_choice_vec_to_mat, idxs_states, axis=0
-        )
-
-        out[period] = period_dict
-
     out, batch_info = create_map_from_state_to_child_nodes(
         n_exog_states=n_exog_states,
         exog_state_space=exog_state_space,
         options=state_space_options,
-        period_specific_state_objects=out,
         state_choice_space=state_choice_space,
         map_state_choice_to_index=map_state_choice_to_index,
         state_space=state_space,
@@ -101,13 +77,6 @@ def create_state_space_and_choice_objects(
         get_next_period_state=get_next_period_state,
     )
 
-    for period in range(n_periods):
-        out[period]["state_choice_mat"] = {
-            key: out[period]["state_choice_mat"][:, i]
-            for i, key in enumerate(state_space_names + ["choice"])
-        }
-
-    state_space = {key: state_space[:, i] for i, key in enumerate(state_space_names)}
     idx_state_choice_last_period = np.where(state_choice_space[:, 0] == n_periods - 1)[
         0
     ]
@@ -130,7 +99,6 @@ def create_state_space_and_choice_objects(
         )[batch_info["last_batch"]]
 
     return (
-        out,
         state_space,
         state_space_names,
         map_state_choice_to_index,
@@ -598,13 +566,22 @@ def create_map_from_state_to_child_nodes(
         map_state_choice_to_index,
         state_space,
     )
-    if len(batches_list[-1]) != len(batches_list[-2]):
+    if len(batches_list) == 1:
+        # This is the case of a two period model. Then by construction there is only one
+        # batch which covers the first period.
+        batches_cover_all = True
+    else:
+        # In the case of more periods we determine if the last two batches have equal
+        # size
+        batches_cover_all = len(batches_list[-1]) != len(batches_list[-2])
+
+    if not batches_cover_all:
         batch_array = np.array(batches_list[:-1])
         state_choice_times_exog_child_state_idxs = np.array(
             state_choice_times_exog_child_state_idxs_list[:-1]
         )
 
-        # There can be still be uneven number of child states across batches. The
+        # There can be also be an uneven number of child states across batches. The
         # indexes recorded in state_choice_times_exog_child_state_idxs only contain
         # the indexes up the length. So we can just fill up without of bounds indexes.
         # We also test this here
@@ -638,7 +615,6 @@ def create_map_from_state_to_child_nodes(
             ] = unique_child_state_choice_idxs_list[id_batch]
 
         additional_information = {
-            "batches_cover_all": False,
             "last_batch": batches_list[-1],
             "last_unique_child_state_choice_idxs": unique_child_state_choice_idxs_list[
                 -1
@@ -653,10 +629,11 @@ def create_map_from_state_to_child_nodes(
         state_choice_times_exog_child_state_idxs = np.array(
             state_choice_times_exog_child_state_idxs_list
         )
-        additional_information = {"batches_cover_all": True}
+        additional_information = {}
 
     batches_information = {
         **additional_information,
+        "batches_cover_all": batches_cover_all,
         "batches": batch_array,
         "unique_child_state_choice_idxs": unique_child_state_choice_idxs,
         "child_state_to_state_choice_exog": state_choice_times_exog_child_state_idxs,

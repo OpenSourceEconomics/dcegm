@@ -5,6 +5,7 @@ from typing import Callable
 from typing import Dict
 from typing import Tuple
 
+import jax.lax
 import jax.numpy as jnp
 import numpy as np
 import pandas as pd
@@ -139,6 +140,7 @@ def get_solve_func_for_model(model, exog_savings_grid, options):
             period_specific_state_objects=model["period_specific_state_objects"],
             exog_savings_grid=exog_savings_grid,
             state_space=model["state_space"],
+            batch_info=model["batch_info"],
             income_shock_draws_unscaled=income_shock_draws_unscaled,
             income_shock_weights=income_shock_weights,
             n_periods=n_periods,
@@ -159,6 +161,7 @@ def backward_induction(
     period_specific_state_objects: Dict[int, Dict[str, np.ndarray]],
     exog_savings_grid: np.ndarray,
     state_space: np.ndarray,
+    batch_info: Dict[str, np.ndarray],
     income_shock_draws_unscaled: np.ndarray,
     income_shock_weights: np.ndarray,
     n_periods: int,
@@ -233,14 +236,24 @@ def backward_induction(
             "compute_beginning_of_period_resources"
         ],
     )
+    n_wealth = exog_savings_grid.shape[0]
+    n_state_choices = batch_info["n_state_choices"]
+    n_income_shocks = income_shock_draws_unscaled.shape[0]
+
+    value_interpolated = jnp.zeros(
+        (n_state_choices, n_wealth, n_income_shocks), dtype=jnp.float64
+    )
+    marginal_utility_interpolated = jnp.zeros(
+        (n_state_choices, n_wealth, n_income_shocks), dtype=jnp.float64
+    )
 
     (
-        value,
-        policy_left,
-        policy_right,
-        endog_grid,
-        value_interpolated_next_period,
-        marg_util_interpolated_next_period,
+        value_final_period,
+        policy_left_final_period,
+        policy_right_final_period,
+        endog_grid_final_period,
+        value_interp_final_period,
+        marginal_utility_final_last_period,
     ) = solve_final_period(
         state_objects=period_specific_state_objects[n_periods - 1],
         resources_beginning_of_period=resources_beginning_of_period,
@@ -249,62 +262,149 @@ def backward_induction(
         compute_marginal_utility=model_funcs["compute_marginal_utility_final"],
     )
 
-    for period in range(n_periods - 2, -1, -1):
-        state_objects_period = period_specific_state_objects[period]
-        resources_period = resources_beginning_of_period[
-            state_objects_period["idx_parent_states"]
-        ]
-        reshape_state_choice_vec_to_mat_prev_period = period_specific_state_objects[
-            period + 1
-        ]["reshape_state_choice_vec_to_mat"]
-        (
-            endog_grid_period,
-            policy_left_period,
-            policy_right_period,
-            value_period,
-            marg_util_interpolated_next_period,
-            value_interpolated_next_period,
-        ) = solve_single_period(
-            value_interpolated_previous_period=value_interpolated_next_period,
-            marg_util_interpolated_previous_period=marg_util_interpolated_next_period,
+    def partial_single_period(carry, xs):
+        return solve_single_period(
+            carry=carry,
+            xs=xs,
             params=params,
-            state_objects=state_objects_period,
-            reshape_state_choice_vec_to_mat_prev_period=reshape_state_choice_vec_to_mat_prev_period,
             exog_savings_grid=exog_savings_grid,
-            resources_period=resources_period,
             income_shock_weights=income_shock_weights,
             model_funcs=model_funcs,
             compute_upper_envelope=compute_upper_envelope,
             taste_shock_scale=taste_shock_scale,
         )
-        value = jnp.append(value_period, value, axis=0)
-        policy_left = jnp.append(policy_left_period, policy_left, axis=0)
-        policy_right = jnp.append(policy_right_period, policy_right, axis=0)
-        endog_grid = jnp.append(endog_grid_period, endog_grid, axis=0)
 
-    return value, policy_left, policy_right, endog_grid
+    idx_state_choice_last_period = batch_info["idx_state_choice_last_period"]
+
+    value_interpolated = value_interpolated.at[idx_state_choice_last_period, :, :].set(
+        value_interp_final_period
+    )
+    marginal_utility_interpolated = marginal_utility_interpolated.at[
+        idx_state_choice_last_period, :, :
+    ].set(marginal_utility_final_last_period)
+    resources_per_state_choice = resources_beginning_of_period[
+        batch_info["state_idx_of_state_choice"]
+    ]
+
+    carry_start = (value_interpolated, marginal_utility_interpolated)
+
+    final_carry, arrays_solved = jax.lax.scan(
+        f=partial_single_period,
+        init=carry_start,
+        xs=(
+            batch_info["batches"],
+            batch_info["unique_child_state_choice_idxs"],
+            batch_info["child_state_to_state_choice_exog"],
+            resources_per_state_choice,
+            batch_info["state_choice_mat_badge"],
+        ),
+    )
+    (
+        endog_grid_solved,
+        policy_left_solved,
+        policy_right_solved,
+        value_solved,
+    ) = arrays_solved
+
+    n_total_wealth = value_solved.shape[-1]
+
+    value_reorderd = jnp.flip(value_solved, axis=(0, 1))
+    policy_left_reorderd = jnp.flip(policy_left_solved, axis=(0, 1))
+    policy_right_reorderd = jnp.flip(policy_right_solved, axis=(0, 1))
+    endog_grid_reorderd = jnp.flip(endog_grid_solved, axis=(0, 1))
+
+    value_solved = jnp.append(
+        value_reorderd.reshape((-1, n_total_wealth)),
+        value_final_period,
+        axis=0,
+    )
+    policy_left_solved = jnp.append(
+        policy_left_reorderd.reshape((-1, n_total_wealth)),
+        policy_left_final_period,
+        axis=0,
+    )
+    policy_right_solved = jnp.append(
+        policy_right_reorderd.reshape((-1, n_total_wealth)),
+        policy_right_final_period,
+        axis=0,
+    )
+    endog_grid_solved = jnp.append(
+        endog_grid_reorderd.reshape((-1, n_total_wealth)),
+        endog_grid_final_period,
+        axis=0,
+    )
+    if not batch_info["batches_cover_all"]:
+        extra_carray, last_batch_arrays = partial_single_period(
+            carry=final_carry,
+            xs=(
+                batch_info["last_batch"],
+                batch_info["last_unique_child_state_choice_idxs"],
+                batch_info["last_state_choice_times_exog_child_state_idxs"],
+                resources_beginning_of_period[
+                    batch_info["last_state_idx_of_state_choice"]
+                ],
+                batch_info["state_choice_mat_last_badge"],
+            ),
+        )
+
+        (
+            endog_grid_last_batch,
+            policy_left_last_batch,
+            policy_right_last_batch,
+            value_last_batch,
+        ) = last_batch_arrays
+
+        value_solved = jnp.append(
+            jnp.flip(value_last_batch, axis=0),
+            value_solved,
+            axis=0,
+        )
+        policy_left_solved = jnp.append(
+            jnp.flip(policy_left_last_batch, axis=0),
+            policy_left_solved,
+            axis=0,
+        )
+        policy_right_solved = jnp.append(
+            jnp.flip(policy_right_last_batch, axis=0),
+            policy_right_solved,
+            axis=0,
+        )
+        endog_grid_solved = jnp.append(
+            jnp.flip(endog_grid_last_batch, axis=0),
+            endog_grid_solved,
+            axis=0,
+        )
+
+    return value_solved, policy_left_solved, policy_right_solved, endog_grid_solved
 
 
 def solve_single_period(
-    value_interpolated_previous_period: jnp.ndarray,
-    marg_util_interpolated_previous_period: jnp.ndarray,
-    params: Dict[str, float],
-    state_objects: Dict[str, np.ndarray],
-    reshape_state_choice_vec_to_mat_prev_period: np.ndarray,
-    exog_savings_grid: np.ndarray,
-    resources_period: jnp.ndarray,
-    income_shock_weights: jnp.ndarray,
-    model_funcs: Dict[str, Callable],
-    compute_upper_envelope: Callable,
-    taste_shock_scale: float,
+    carry,
+    xs,
+    params,
+    exog_savings_grid,
+    income_shock_weights,
+    model_funcs,
+    compute_upper_envelope,
+    taste_shock_scale,
 ):
+    value_interpolated, marginal_utility_interpolated = carry
+
+    (
+        state_choice_idxs_batch,
+        child_state_choice_idxs,
+        child_state_ids_per_batch,
+        resources_batch,
+        state_choice_mat_badge,
+    ) = xs
+
     # EGM step 2)
     # Aggregate the marginal utilities and expected values over all choices and
     # income shock draws
     marg_util, emax = aggregate_marg_utils_and_exp_values(
-        value_state_choice_specific=value_interpolated_previous_period,
-        marg_util_state_choice_specific=marg_util_interpolated_previous_period,
-        reshape_state_choice_vec_to_mat=reshape_state_choice_vec_to_mat_prev_period,
+        value_state_choice_specific=value_interpolated,
+        marg_util_state_choice_specific=marginal_utility_interpolated,
+        reshape_state_choice_vec_to_mat=child_state_choice_idxs,
         taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,
     )
@@ -319,8 +419,8 @@ def solve_single_period(
         exogenous_savings_grid=exog_savings_grid,
         marg_util=marg_util,
         emax=emax,
-        state_choice_vec=state_objects["state_choice_mat"],
-        idx_post_decision_child_states=state_objects["idx_feasible_child_nodes"],
+        state_choice_vec=state_choice_mat_badge,
+        idx_post_decision_child_states=child_state_ids_per_batch,
         compute_inverse_marginal_utility=model_funcs[
             "compute_inverse_marginal_utility"
         ],
@@ -343,20 +443,27 @@ def solve_single_period(
         policy_candidate,
         value_candidate,
         expected_values[:, 0],
-        state_objects["state_choice_mat"],
+        state_choice_mat_badge,
         params,
         model_funcs["compute_utility"],
     )
 
+    solved_arrays = (
+        endog_grid_state_choice,
+        policy_left_state_choice,
+        policy_right_state_choice,
+        value_state_choice,
+    )
+
     # EGM step 1)
-    marg_util_interpolated, value_interpolated = vmap(
+    marg_util_interpolated_badge, value_interpolated_badge = vmap(
         interpolate_value_and_calc_marginal_utility,
         in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),
     )(
         model_funcs["compute_marginal_utility"],
         model_funcs["compute_utility"],
-        state_objects["state_choice_mat"],
-        resources_period,
+        state_choice_mat_badge,
+        resources_batch,
         endog_grid_state_choice,
         policy_left_state_choice,
         policy_right_state_choice,
@@ -364,11 +471,13 @@ def solve_single_period(
         params,
     )
 
-    return (
-        endog_grid_state_choice,
-        policy_left_state_choice,
-        policy_right_state_choice,
-        value_state_choice,
-        marg_util_interpolated,
-        value_interpolated,
+    value_interpolated = value_interpolated.at[state_choice_idxs_batch, :, :].set(
+        value_interpolated_badge
     )
+    marginal_utility_interpolated = marginal_utility_interpolated.at[
+        state_choice_idxs_batch, :, :
+    ].set(marg_util_interpolated_badge)
+
+    carry = (value_interpolated, marginal_utility_interpolated)
+
+    return carry, solved_arrays
