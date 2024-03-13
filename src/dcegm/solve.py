@@ -294,6 +294,7 @@ def backward_induction(
             batch_info["state_choice_mat_badge"],
         ),
     )
+
     (
         endog_grid_solved,
         policy_left_solved,
