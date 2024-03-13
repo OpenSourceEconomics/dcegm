@@ -21,7 +21,7 @@ from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.params import process_params
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.simulation.sim_utils import get_state_choice_index_per_state
-from dcegm.solve_with_badges import backward_induction
+from dcegm.solve import backward_induction
 
 
 def create_individual_likelihood_function(
@@ -91,7 +91,7 @@ def create_individual_likelihood_function_for_model(
             period_specific_state_objects=model["period_specific_state_objects"],
             exog_savings_grid=exog_savings_grid,
             state_space=model["state_space"],
-            batch_info=model["batch_info"],
+            # batch_info=model["batch_info"],
             income_shock_draws_unscaled=income_shock_draws_unscaled,
             income_shock_weights=income_shock_weights,
             n_periods=options["state_space"]["n_periods"],

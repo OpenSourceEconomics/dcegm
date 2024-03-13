@@ -346,35 +346,32 @@ def backward_induction(
                 batch_info["state_choice_mat_last_badge"],
             ),
         )
+
         (
             endog_grid_last_batch,
             policy_left_last_batch,
             policy_right_last_batch,
             value_last_batch,
         ) = last_batch_arrays
-        value_reorderd = jnp.flip(value_last_batch, axis=0)
-        policy_left_reorderd = jnp.flip(policy_left_last_batch, axis=0)
-        policy_right_reorderd = jnp.flip(policy_right_last_batch, axis=0)
-        endog_grid_reorderd = jnp.flip(endog_grid_last_batch, axis=0)
 
         value_solved = jnp.append(
+            jnp.flip(value_last_batch, axis=0),
             value_solved,
-            value_reorderd,
             axis=0,
         )
         policy_left_solved = jnp.append(
+            jnp.flip(policy_left_last_batch, axis=0),
             policy_left_solved,
-            policy_left_reorderd,
             axis=0,
         )
         policy_right_solved = jnp.append(
+            jnp.flip(policy_right_last_batch, axis=0),
             policy_right_solved,
-            policy_right_reorderd,
             axis=0,
         )
         endog_grid_solved = jnp.append(
+            jnp.flip(endog_grid_last_batch, axis=0),
             endog_grid_solved,
-            endog_grid_reorderd,
             axis=0,
         )
 
