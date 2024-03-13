@@ -227,6 +227,7 @@ def toy_model_exog_ltc(
         budget_constraint=budget_dcegm_exog_ltc,
     )
     out["state_choice_space"] = model["state_choice_space"]
+    out["map_state_choice_to_parent_state"] = model["map_state_choice_to_parent_state"]
     out["state_space_dict"] = model["state_space_dict"]
     out["state_space_names"] = model["state_space_names"]
     out["map_state_choice_to_index"] = model["map_state_choice_to_index"]
@@ -278,6 +279,7 @@ def toy_model_exog_ltc_and_job_offer(
     )
     out["state_choice_space"] = model["state_choice_space"]
     out["state_space_dict"] = model["state_space_dict"]
+    out["map_state_choice_to_parent_state"] = model["map_state_choice_to_parent_state"]
     out["state_space_names"] = model["state_space_names"]
     out["map_state_choice_to_index"] = model["map_state_choice_to_index"]
     out["exog_state_mapping"] = model["exog_mapping"]

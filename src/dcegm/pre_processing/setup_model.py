@@ -64,7 +64,7 @@ def setup_model(
         exog_states_names,
         state_choice_space,
         map_state_choice_to_index,
-        map_state_choice_vec_to_parent_state,
+        map_state_choice_to_parent_state,
         map_state_choice_to_child_states,
     ) = create_state_space_and_choice_objects(
         options=options,
@@ -81,7 +81,7 @@ def setup_model(
         n_periods=options["state_space"]["n_periods"],
         map_state_choice_to_child_states=map_state_choice_to_child_states,
         map_state_choice_to_index=map_state_choice_to_index,
-        map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
+        map_state_choice_vec_to_parent_state=map_state_choice_to_parent_state,
         state_space=state_space,
         state_space_names=states_names_without_exog + exog_states_names,
     )
@@ -93,6 +93,7 @@ def setup_model(
         "batch_info": batch_info,
         "state_space": state_space,
         "state_choice_space": state_choice_space,
+        "map_state_choice_to_parent_state": map_state_choice_to_parent_state,
         "state_space_dict": state_space_dict,
         "state_space_names": states_names_without_exog + exog_states_names,
         "map_state_choice_to_index": map_state_choice_to_index,
@@ -130,6 +131,7 @@ def setup_and_save_model(
         "batch_info",
         "state_space",
         "state_choice_space",
+        "map_state_choice_to_parent_state",
         "state_space_dict",
         "state_space_names",
         "map_state_choice_to_index",

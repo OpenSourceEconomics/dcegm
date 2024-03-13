@@ -59,7 +59,10 @@ def test_two_period(toy_model, euler_rhs, wealth_idx, state_idx, request):
     state_space_dict = toy_model["state_space_dict"]
 
     state_choice_space = toy_model["state_choice_space"]
-    state_choices_0 = state_choice_space[state_choice_space[:, 0] == 0]
+    state_choice_space_0 = state_choice_space[state_choice_space[:, 0] == 0]
+    parent_states_of_state = np.where(
+        toy_model["map_state_choice_to_parent_state"] == state_idx
+    )[0]
 
     if len(options["state_space"]["exogenous_processes"]) == 2:
         initial_conditions = {}
@@ -69,10 +72,10 @@ def test_two_period(toy_model, euler_rhs, wealth_idx, state_idx, request):
         initial_conditions = {}
         initial_conditions["bad_health"] = state_space_dict["ltc"][state_idx]
 
-    for state_choice_idx in range(state_choices_0.shape[0]):
+    for state_choice_idx in parent_states_of_state:
         endog_grid = endog_grid_period[state_choice_idx, wealth_idx + 1]
         policy = policy_period[state_choice_idx]
-        choice = state_choices_0[state_choice_idx, -1]
+        choice = state_choice_space_0[state_choice_idx, -1]
 
         if ~np.isnan(endog_grid) and endog_grid > 0:
             initial_conditions["wealth"] = endog_grid

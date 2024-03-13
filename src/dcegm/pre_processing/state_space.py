@@ -47,7 +47,7 @@ def create_state_space_and_choice_objects(
     (
         state_choice_space,
         map_state_choice_to_index,
-        map_state_choice_vec_to_parent_state,
+        map_state_choice_to_parent_state,
         map_state_choice_to_child_states,
     ) = create_state_choice_space(
         state_space_options=options["state_space"],
@@ -69,7 +69,7 @@ def create_state_space_and_choice_objects(
         exog_states_names,
         state_choice_space,
         map_state_choice_to_index,
-        map_state_choice_vec_to_parent_state,
+        map_state_choice_to_parent_state,
         map_state_choice_to_child_states,
     )
 
@@ -239,7 +239,7 @@ def create_state_choice_space(
         (n_states * n_choices, n_state_and_exog_variables + 1),
         dtype=int,
     )
-    map_state_choice_vec_to_parent_state = np.zeros((n_states * n_choices), dtype=int)
+    map_state_choice_to_parent_state = np.zeros((n_states * n_choices), dtype=int)
     map_state_choice_to_child_states = np.full(
         (n_states * n_choices, n_exog_states), fill_value=-9999, dtype=int
     )
@@ -261,7 +261,7 @@ def create_state_choice_space(
             state_choice_space[idx, :-1] = state_vec
             state_choice_space[idx, -1] = choice
 
-            map_state_choice_vec_to_parent_state[idx] = state_idx
+            map_state_choice_to_parent_state[idx] = state_idx
 
             if state_vec[0] < n_periods - 1:
                 # Current state without exog
@@ -300,7 +300,7 @@ def create_state_choice_space(
     return (
         state_choice_space_final,
         map_state_choice_to_index,
-        map_state_choice_vec_to_parent_state[:idx],
+        map_state_choice_to_parent_state[:idx],
         map_state_choice_to_child_states[:idx, :],
     )
 
