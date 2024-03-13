@@ -226,8 +226,8 @@ def toy_model_exog_ltc(
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_dcegm_exog_ltc,
     )
-    out["period_specific_state_objects"] = model["period_specific_state_objects"]
-    out["state_space"] = model["state_space"]
+    out["state_choice_space"] = model["state_choice_space"]
+    out["state_space_dict"] = model["state_space_dict"]
     out["state_space_names"] = model["state_space_names"]
     out["map_state_choice_to_index"] = model["map_state_choice_to_index"]
     out["exog_state_mapping"] = model["exog_mapping"]
@@ -276,9 +276,8 @@ def toy_model_exog_ltc_and_job_offer(
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_dcegm_exog_ltc_and_job_offer,
     )
-
-    out["period_specific_state_objects"] = model["period_specific_state_objects"]
-    out["state_space"] = model["state_space"]
+    out["state_choice_space"] = model["state_choice_space"]
+    out["state_space_dict"] = model["state_space_dict"]
     out["state_space_names"] = model["state_space_names"]
     out["map_state_choice_to_index"] = model["map_state_choice_to_index"]
     out["exog_state_mapping"] = model["exog_mapping"]

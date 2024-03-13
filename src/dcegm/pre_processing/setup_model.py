@@ -61,7 +61,7 @@ def setup_model(
         map_state_to_index,
         exog_state_space,
         states_names_without_exog,
-        exog_state_names,
+        exog_states_names,
         state_choice_space,
         map_state_choice_to_index,
         map_state_choice_vec_to_parent_state,
@@ -73,7 +73,7 @@ def setup_model(
     )
 
     exog_mapping = create_exog_mapping(
-        exog_state_space.astype(np.int16), exog_state_names
+        exog_state_space.astype(np.int16), exog_states_names
     )
 
     batch_info = create_batches_and_information(
@@ -83,7 +83,7 @@ def setup_model(
         map_state_choice_to_index=map_state_choice_to_index,
         map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
         state_space=state_space,
-        state_space_names=states_names_without_exog + exog_state_names,
+        state_space_names=states_names_without_exog + exog_states_names,
     )
 
     model = {
@@ -94,10 +94,10 @@ def setup_model(
         "state_space": state_space,
         "state_choice_space": state_choice_space,
         "state_space_dict": state_space_dict,
-        "state_space_names": states_names_without_exog + exog_state_names,
+        "state_space_names": states_names_without_exog + exog_states_names,
         "map_state_choice_to_index": map_state_choice_to_index,
         "exog_state_space": exog_state_space,
-        "exog_state_names": exog_state_names,
+        "exog_state_names": exog_states_names,
         "exog_mapping": exog_mapping,
         "get_next_period_state": get_next_period_state,
     }
@@ -127,13 +127,14 @@ def setup_and_save_model(
         budget_constraint=budget_constraint,
     )
     array_names = [
-        "period_specific_state_objects",
+        "batch_info",
         "state_space",
+        "state_choice_space",
+        "state_space_dict",
         "state_space_names",
         "map_state_choice_to_index",
         "exog_state_space",
         "exog_state_names",
-        "batch_info",
     ]
     dict_to_save = {key: value for key, value in model.items() if key in array_names}
     pickle.dump(dict_to_save, open(path, "wb"))

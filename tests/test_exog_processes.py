@@ -79,13 +79,16 @@ def test_exog_processes(state_space_functions):
     )
 
     (
-        period_specific_state_objects,
         state_space,
-        state_space_names,
-        map_state_choice_to_index,
+        state_space_dict,
+        map_state_to_index,
         exog_state_space,
-        exog_state_names,
-        batch_info,
+        states_names_without_exog,
+        exog_states_names,
+        state_choice_space,
+        map_state_choice_to_index,
+        map_state_choice_vec_to_parent_state,
+        map_state_choice_to_child_states,
     ) = create_state_space_and_choice_objects(
         options=options,
         get_state_specific_choice_set=get_state_specific_choice_set,
@@ -93,7 +96,7 @@ def test_exog_processes(state_space_functions):
     )
 
     exog_mapping = create_exog_mapping(
-        exog_state_space.astype(np.int16), exog_state_names
+        exog_state_space.astype(np.int16), exog_states_names
     )
     mother_bad_health = np.where(exog_state_space[:, 0] == 2)[0]
 
