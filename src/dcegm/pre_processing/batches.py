@@ -28,7 +28,7 @@ def create_batches_and_information(
     else:
         # In the case of more periods we determine if the last two batches have equal
         # size
-        batches_cover_all = len(batches_list[-1]) != len(batches_list[-2])
+        batches_cover_all = len(batches_list[-1]) == len(batches_list[-2])
 
     if not batches_cover_all:
         batch_array = np.array(batches_list[:-1])
