@@ -4,12 +4,12 @@ from typing import Dict
 from typing import Tuple
 
 import jax.numpy as jnp
-import numpy as np
 from jax import vmap
 
 
 def solve_final_period(
-    state_objects: Dict[str, np.ndarray],
+    idx_parent_states,
+    state_choice_mat,
     resources_beginning_of_period: jnp.ndarray,
     params: Dict[str, float],
     compute_utility: Callable,
@@ -38,7 +38,7 @@ def solve_final_period(
             income shocks.
     """
 
-    resources = resources_beginning_of_period[state_objects["idx_parent_states"]]
+    resources = resources_beginning_of_period[idx_parent_states]
 
     value, marg_util = vmap(
         vmap(
@@ -50,7 +50,7 @@ def solve_final_period(
         ),
         in_axes=(0, 0, None, None, None),
     )(
-        state_objects["state_choice_mat"],
+        state_choice_mat,
         resources,
         params,
         compute_utility,

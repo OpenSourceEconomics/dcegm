@@ -3,8 +3,8 @@ from itertools import product
 import jax.numpy as jnp
 import numpy as np
 import pytest
+from dcegm.pre_processing.debugging import inspect_state_space
 from dcegm.pre_processing.state_space import create_state_space
-from dcegm.pre_processing.state_space import inspect_state_space
 from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_feasible_choice_set,
 )

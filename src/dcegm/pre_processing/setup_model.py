@@ -3,6 +3,7 @@ from typing import Callable
 from typing import Dict
 
 import numpy as np
+from dcegm.pre_processing.batches import create_batches_and_information
 from dcegm.pre_processing.exog_processes import create_exog_mapping
 from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
@@ -55,13 +56,16 @@ def setup_model(
     )
 
     (
-        period_specific_state_objects,
         state_space,
-        state_space_names,
-        map_state_choice_to_index,
+        state_space_dict,
+        map_state_to_index,
         exog_state_space,
+        states_names_without_exog,
         exog_state_names,
-        batch_info,
+        state_choice_space,
+        map_state_choice_to_index,
+        map_state_choice_vec_to_parent_state,
+        map_state_choice_to_child_states,
     ) = create_state_space_and_choice_objects(
         options=options,
         get_state_specific_choice_set=get_state_specific_choice_set,
@@ -72,14 +76,25 @@ def setup_model(
         exog_state_space.astype(np.int16), exog_state_names
     )
 
+    batch_info = create_batches_and_information(
+        state_choice_space=state_choice_space,
+        n_periods=options["state_space"]["n_periods"],
+        map_state_choice_to_child_states=map_state_choice_to_child_states,
+        map_state_choice_to_index=map_state_choice_to_index,
+        map_state_choice_vec_to_parent_state=map_state_choice_vec_to_parent_state,
+        state_space=state_space,
+        state_space_names=states_names_without_exog + exog_state_names,
+    )
+
     model = {
         "model_funcs": model_funcs,
         "compute_upper_envelope": compute_upper_envelope,
         "get_state_specific_choice_set": get_state_specific_choice_set,
         "batch_info": batch_info,
-        "period_specific_state_objects": period_specific_state_objects,
         "state_space": state_space,
-        "state_space_names": state_space_names,
+        "state_choice_space": state_choice_space,
+        "state_space_dict": state_space_dict,
+        "state_space_names": states_names_without_exog + exog_state_names,
         "map_state_choice_to_index": map_state_choice_to_index,
         "exog_state_space": exog_state_space,
         "exog_state_names": exog_state_names,

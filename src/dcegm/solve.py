@@ -126,8 +126,6 @@ def get_solve_function(
 
 
 def get_solve_func_for_model(model, exog_savings_grid, options):
-    n_periods = options["state_space"]["n_periods"]
-
     # ToDo: Make interface with several draw possibilities.
     # ToDo: Some day make user supplied draw function.
     income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
@@ -137,13 +135,11 @@ def get_solve_func_for_model(model, exog_savings_grid, options):
     backward_jit = jit(
         partial(
             backward_induction,
-            period_specific_state_objects=model["period_specific_state_objects"],
             exog_savings_grid=exog_savings_grid,
-            state_space=model["state_space"],
+            state_space_dict=model["state_space_dict"],
             batch_info=model["batch_info"],
             income_shock_draws_unscaled=income_shock_draws_unscaled,
             income_shock_weights=income_shock_weights,
-            n_periods=n_periods,
             model_funcs=model["model_funcs"],
             compute_upper_envelope=model["compute_upper_envelope"],
         )
@@ -158,13 +154,11 @@ def get_solve_func_for_model(model, exog_savings_grid, options):
 
 def backward_induction(
     params: Dict[str, float],
-    period_specific_state_objects: Dict[int, Dict[str, np.ndarray]],
     exog_savings_grid: np.ndarray,
-    state_space: np.ndarray,
+    state_space_dict: np.ndarray,
     batch_info: Dict[str, np.ndarray],
     income_shock_draws_unscaled: np.ndarray,
     income_shock_weights: np.ndarray,
-    n_periods: int,
     model_funcs: Dict[str, Callable],
     compute_upper_envelope: Callable,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
@@ -228,7 +222,7 @@ def backward_induction(
     taste_shock_scale = params["lambda"]
 
     resources_beginning_of_period = calculate_resources(
-        states_beginning_of_period=state_space,
+        states_beginning_of_period=state_space_dict,
         savings_end_of_last_period=exog_savings_grid,
         income_shocks_of_period=income_shock_draws_unscaled * params["sigma"],
         params=params,
@@ -255,7 +249,8 @@ def backward_induction(
         value_interp_final_period,
         marginal_utility_final_last_period,
     ) = solve_final_period(
-        state_objects=period_specific_state_objects[n_periods - 1],
+        idx_parent_states=batch_info["idx_parent_states_final_period"],
+        state_choice_mat=batch_info["state_choice_mat_final_period"],
         resources_beginning_of_period=resources_beginning_of_period,
         params=params,
         compute_utility=model_funcs["compute_utility_final"],
@@ -274,13 +269,13 @@ def backward_induction(
             taste_shock_scale=taste_shock_scale,
         )
 
-    idx_state_choice_last_period = batch_info["idx_state_choice_last_period"]
+    idx_state_choice_final_period = batch_info["idx_state_choice_final_period"]
 
-    value_interpolated = value_interpolated.at[idx_state_choice_last_period, :, :].set(
+    value_interpolated = value_interpolated.at[idx_state_choice_final_period, :, :].set(
         value_interp_final_period
     )
     marginal_utility_interpolated = marginal_utility_interpolated.at[
-        idx_state_choice_last_period, :, :
+        idx_state_choice_final_period, :, :
     ].set(marginal_utility_final_last_period)
     resources_per_state_choice = resources_beginning_of_period[
         batch_info["state_idx_of_state_choice"]

@@ -100,51 +100,40 @@ def test_benchmark_models(
     value_expected = pickle.load(
         (REPLICATION_TEST_RESOURCES_DIR / f"{model_name}" / "value.pkl").open("rb")
     )
+    state_choice_space = model["state_choice_space"]
+    state_choice_space_to_test = state_choice_space[state_choice_space[:, 0] < 24]
 
-    for period in range(23, -1, -1):
-        period_state_choice_dict = model["period_specific_state_objects"][period][
-            "state_choice_mat"
-        ]
+    for state_choice_idx in range(state_choice_space_to_test.shape[0] - 1, -1, -1):
+        choice = state_choice_space_to_test[state_choice_idx, -1]
+        period = state_choice_space_to_test[state_choice_idx, 0]
+        if model_name == "deaton":
+            policy_expec = policy_expected[period, choice]
+            value_expec = value_expected[period, choice]
+        else:
+            policy_expec = policy_expected[period][1 - choice].T
+            value_expec = value_expected[period][1 - choice].T
 
-        for state_choice_idx_period, choice in enumerate(
-            period_state_choice_dict["choice"]
-        ):
-            if model_name == "deaton":
-                policy_expec = policy_expected[period, choice]
-                value_expec = value_expected[period, choice]
-            else:
-                policy_expec = policy_expected[period][1 - choice].T
-                value_expec = value_expected[period][1 - choice].T
+        wealth_grid_to_test = jnp.linspace(
+            policy_expec[0][1], policy_expec[0][-1] + 10, 1000
+        )
 
-            wealth_grid_to_test = jnp.linspace(
-                policy_expec[0][1], policy_expec[0][-1] + 10, 1000
-            )
+        value_expec_interp = linear_interpolation_with_extrapolation(
+            x_new=wealth_grid_to_test, x=value_expec[0], y=value_expec[1]
+        )
+        policy_expec_interp = linear_interpolation_with_extrapolation(
+            x_new=wealth_grid_to_test, x=policy_expec[0], y=policy_expec[1]
+        )
 
-            value_expec_interp = linear_interpolation_with_extrapolation(
-                x_new=wealth_grid_to_test, x=value_expec[0], y=value_expec[1]
-            )
-            policy_expec_interp = linear_interpolation_with_extrapolation(
-                x_new=wealth_grid_to_test, x=policy_expec[0], y=policy_expec[1]
-            )
+        (
+            policy_calc_interp,
+            value_calc_interp,
+        ) = interpolate_policy_and_value_on_wealth_grid(
+            wealth_beginning_of_period=wealth_grid_to_test,
+            endog_wealth_grid=endog_grid[state_choice_idx],
+            policy_left_grid=policy_left[state_choice_idx],
+            policy_right_grid=policy_right[state_choice_idx],
+            value_grid=value[state_choice_idx],
+        )
 
-            state_choice_tuple = (
-                period_state_choice_dict["period"][state_choice_idx_period],
-                period_state_choice_dict["lagged_choice"][state_choice_idx_period],
-                period_state_choice_dict["dummy_exog"][state_choice_idx_period],
-                choice,
-            )
-            state_choice_idx = model["map_state_choice_to_index"][state_choice_tuple]
-
-            (
-                policy_calc_interp,
-                value_calc_interp,
-            ) = interpolate_policy_and_value_on_wealth_grid(
-                wealth_beginning_of_period=wealth_grid_to_test,
-                endog_wealth_grid=endog_grid[state_choice_idx],
-                policy_left_grid=policy_left[state_choice_idx],
-                policy_right_grid=policy_right[state_choice_idx],
-                value_grid=value[state_choice_idx],
-            )
-
-            aaae(policy_expec_interp, policy_calc_interp)
-            aaae(value_expec_interp, value_calc_interp)
+        aaae(policy_expec_interp, policy_calc_interp)
+        aaae(value_expec_interp, value_calc_interp)
