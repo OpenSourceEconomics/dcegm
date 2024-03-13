@@ -567,56 +567,6 @@ def create_map_from_state_to_child_nodes(
     return period_specific_state_objects
 
 
-def determine_optimal_batch_size(
-    state_choice_space,
-    n_periods,
-    map_state_to_feasible_child_states,
-    map_state_choice_to_index,
-    state_space,
-):
-    state_choice_space_wo_last = state_choice_space[
-        state_choice_space[:, 0] < n_periods - 1
-    ]
-    state_choice_index_back = np.arange(state_choice_space_wo_last.shape[0], dtype=int)
-
-    # Filter out last period state_choice_ids
-    child_states_idx_backward = map_state_to_feasible_child_states[
-        state_choice_space[:, 0] < n_periods - 1
-    ]
-    child_states = np.take(state_space, child_states_idx_backward, axis=0)
-    n_state_vars = state_space.shape[1]
-
-    smallest_state_choice_per_period = np.unique(
-        state_choice_space_wo_last[:, 0], return_counts=True
-    )[1].min()
-    # Split state choice indexes in
-    index_to_spilt = np.arange(
-        smallest_state_choice_per_period,
-        state_choice_index_back.shape[0],
-        smallest_state_choice_per_period,
-    )
-
-    batches_to_check = np.split(
-        np.flip(state_choice_index_back),
-        index_to_spilt,
-    )
-
-    for batch in batches_to_check:
-        child_states_batch = np.take(child_states, batch, axis=0).reshape(
-            -1, n_state_vars
-        )
-        # Make tuple out of columns of child states
-        child_states_tuple = tuple(
-            child_states_batch[:, i] for i in range(n_state_vars)
-        )
-        state_choice_idxs_childs = map_state_choice_to_index[child_states_tuple]
-        # Get minimum of the positive numbers in state_choice_idxs_childs
-        min_state_choice_idx = np.min(
-            state_choice_idxs_childs[state_choice_idxs_childs > 0]
-        )
-        batch.max() < min_state_choice_idx
-
-
 def inspect_state_space(
     options: Dict[str, float],
 ):
