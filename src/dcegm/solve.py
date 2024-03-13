@@ -394,6 +394,72 @@ def solve_single_period(
         state_choice_mat_badge,
     ) = xs
 
+    (
+        endog_grid_state_choice,
+        policy_left_state_choice,
+        policy_right_state_choice,
+        value_state_choice,
+    ) = solve_for_interpolated_values(
+        value_interpolated=value_interpolated,
+        marginal_utility_interpolated=marginal_utility_interpolated,
+        state_choice_mat_badge=state_choice_mat_badge,
+        child_state_ids_per_batch=child_state_ids_per_batch,
+        child_state_choice_idxs=child_state_choice_idxs,
+        params=params,
+        taste_shock_scale=taste_shock_scale,
+        income_shock_weights=income_shock_weights,
+        exog_savings_grid=exog_savings_grid,
+        model_funcs=model_funcs,
+        compute_upper_envelope=compute_upper_envelope,
+    )
+    solved_arrays = (
+        endog_grid_state_choice,
+        policy_left_state_choice,
+        policy_right_state_choice,
+        value_state_choice,
+    )
+
+    # EGM step 1)
+    marg_util_interpolated_badge, value_interpolated_badge = vmap(
+        interpolate_value_and_calc_marginal_utility,
+        in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),
+    )(
+        model_funcs["compute_marginal_utility"],
+        model_funcs["compute_utility"],
+        state_choice_mat_badge,
+        resources_batch,
+        endog_grid_state_choice,
+        policy_left_state_choice,
+        policy_right_state_choice,
+        value_state_choice,
+        params,
+    )
+
+    value_interpolated = value_interpolated.at[state_choice_idxs_batch, :, :].set(
+        value_interpolated_badge
+    )
+    marginal_utility_interpolated = marginal_utility_interpolated.at[
+        state_choice_idxs_batch, :, :
+    ].set(marg_util_interpolated_badge)
+
+    carry = (value_interpolated, marginal_utility_interpolated)
+
+    return carry, solved_arrays
+
+
+def solve_for_interpolated_values(
+    value_interpolated,
+    marginal_utility_interpolated,
+    state_choice_mat_badge,
+    child_state_ids_per_batch,
+    child_state_choice_idxs,
+    params,
+    taste_shock_scale,
+    income_shock_weights,
+    exog_savings_grid,
+    model_funcs,
+    compute_upper_envelope,
+):
     # EGM step 2)
     # Aggregate the marginal utilities and expected values over all choices and
     # income shock draws
@@ -444,36 +510,9 @@ def solve_single_period(
         model_funcs["compute_utility"],
     )
 
-    solved_arrays = (
+    return (
         endog_grid_state_choice,
         policy_left_state_choice,
         policy_right_state_choice,
         value_state_choice,
     )
-
-    # EGM step 1)
-    marg_util_interpolated_badge, value_interpolated_badge = vmap(
-        interpolate_value_and_calc_marginal_utility,
-        in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),
-    )(
-        model_funcs["compute_marginal_utility"],
-        model_funcs["compute_utility"],
-        state_choice_mat_badge,
-        resources_batch,
-        endog_grid_state_choice,
-        policy_left_state_choice,
-        policy_right_state_choice,
-        value_state_choice,
-        params,
-    )
-
-    value_interpolated = value_interpolated.at[state_choice_idxs_batch, :, :].set(
-        value_interpolated_badge
-    )
-    marginal_utility_interpolated = marginal_utility_interpolated.at[
-        state_choice_idxs_batch, :, :
-    ].set(marg_util_interpolated_badge)
-
-    carry = (value_interpolated, marginal_utility_interpolated)
-
-    return carry, solved_arrays
