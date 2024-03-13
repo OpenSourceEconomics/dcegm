@@ -575,13 +575,13 @@ def create_map_from_state_to_child_nodes(
                 + exog_states_tuple
             )
 
-            child_ixs = map_state_to_index[states_next_tuple]
+            child_idxs = map_state_to_index[states_next_tuple]
             map_state_to_feasible_child_nodes_period[idx, :] = (
-                child_ixs - idx_min_state_space_next_period
+                child_idxs - idx_min_state_space_next_period
             )
             map_state_choice_to_feasible_child_states[
                 current_state_choice_idx, :
-            ] = child_ixs
+            ] = child_idxs
 
             period_specific_state_objects[period][
                 "idx_feasible_child_nodes"
