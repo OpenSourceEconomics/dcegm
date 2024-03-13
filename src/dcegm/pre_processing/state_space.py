@@ -120,6 +120,14 @@ def create_state_space_and_choice_objects(
         key: state_choice_space[:, i][batch_info["batches"]]
         for i, key in enumerate(state_space_names + ["choice"])
     }
+    if not batch_info["batches_cover_all"]:
+        batch_info["state_choice_mat_last_badge"] = {
+            key: state_choice_space[:, i][batch_info["last_batch"]]
+            for i, key in enumerate(state_space_names + ["choice"])
+        }
+        batch_info["last_state_idx_of_state_choice"] = (
+            map_state_choice_vec_to_parent_state
+        )[batch_info["last_batch"]]
 
     return (
         out,
@@ -580,9 +588,9 @@ def create_map_from_state_to_child_nodes(
             ] = np.array(map_state_to_feasible_child_nodes_period, dtype=int)
 
     (
-        batches,
-        unique_child_state_choice_idxs,
-        child_state_to_state_choice_times_exog,
+        batches_list,
+        unique_child_state_choice_idxs_list,
+        state_choice_times_exog_child_state_idxs_list,
     ) = determine_optimal_batch_size(
         state_choice_space,
         n_periods,
@@ -590,17 +598,68 @@ def create_map_from_state_to_child_nodes(
         map_state_choice_to_index,
         state_space,
     )
+    if len(batches_list[-1]) != len(batches_list[-2]):
+        batch_array = np.array(batches_list[:-1])
+        state_choice_times_exog_child_state_idxs = np.array(
+            state_choice_times_exog_child_state_idxs_list[:-1]
+        )
 
-    batch_array = np.array(batches)
-    unique_child_state_choice_idxs = np.array(unique_child_state_choice_idxs)
-    child_state_to_state_choice_times_exog = np.array(
-        child_state_to_state_choice_times_exog
-    )
+        # There can be still be uneven number of child states across batches. The
+        # indexes recorded in state_choice_times_exog_child_state_idxs only contain
+        # the indexes up the length. So we can just fill up without of bounds indexes.
+        # We also test this here
+        max_n_state_unique_in_batches = list(
+            map(lambda x: x.shape[0], unique_child_state_choice_idxs_list[:-1])
+        )
+
+        if not np.all(
+            np.equal(
+                np.array(max_n_state_unique_in_batches) - 1,
+                np.max(state_choice_times_exog_child_state_idxs, axis=(1, 2)),
+            )
+        ):
+            raise ValueError(
+                "\n\nInternal error in the batch creation \n\n. "
+                "Please contact developer."
+            )
+
+        n_batches = batch_array.shape[0]
+        n_choices = unique_child_state_choice_idxs_list[0].shape[1]
+        max_n_state_accross_batches = np.max(max_n_state_unique_in_batches)
+        unique_child_state_choice_idxs = np.full(
+            (n_batches, max_n_state_accross_batches, n_choices),
+            fill_value=-9999,
+            dtype=int,
+        )
+
+        for id_batch in range(n_batches):
+            unique_child_state_choice_idxs[
+                id_batch, : max_n_state_unique_in_batches[id_batch], :
+            ] = unique_child_state_choice_idxs_list[id_batch]
+
+        additional_information = {
+            "batches_cover_all": False,
+            "last_batch": batches_list[-1],
+            "last_unique_child_state_choice_idxs": unique_child_state_choice_idxs_list[
+                -1
+            ],
+            "last_state_choice_times_exog_child_state_idxs": state_choice_times_exog_child_state_idxs_list[
+                -1
+            ],
+        }
+    else:
+        batch_array = np.array(batches_list)
+        unique_child_state_choice_idxs = np.array(unique_child_state_choice_idxs_list)
+        state_choice_times_exog_child_state_idxs = np.array(
+            state_choice_times_exog_child_state_idxs_list
+        )
+        additional_information = {"batches_cover_all": True}
 
     batches_information = {
+        **additional_information,
         "batches": batch_array,
         "unique_child_state_choice_idxs": unique_child_state_choice_idxs,
-        "child_state_to_state_choice_exog": child_state_to_state_choice_times_exog,
+        "child_state_to_state_choice_exog": state_choice_times_exog_child_state_idxs,
         "n_state_choices": state_choice_space.shape[0],
     }
 

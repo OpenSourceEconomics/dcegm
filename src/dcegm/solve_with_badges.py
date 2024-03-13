@@ -262,7 +262,7 @@ def backward_induction(
         compute_marginal_utility=model_funcs["compute_marginal_utility_final"],
     )
 
-    def partial_backwards(carry, xs):
+    def partial_single_period(carry, xs):
         return solve_single_period(
             carry=carry,
             xs=xs,
@@ -289,7 +289,7 @@ def backward_induction(
     carry_start = (value_interpolated, marginal_utility_interpolated)
 
     final_carry, arrays_solved = jax.lax.scan(
-        f=partial_backwards,
+        f=partial_single_period,
         init=carry_start,
         xs=(
             batch_info["batches"],
@@ -307,34 +307,76 @@ def backward_induction(
     ) = arrays_solved
 
     n_total_wealth = value_solved.shape[-1]
-    n_state_choices_wo_last = (
-        batch_info["n_state_choices"] - value_final_period.shape[0]
-    )
+
     value_reorderd = jnp.flip(value_solved, axis=(0, 1))
     policy_left_reorderd = jnp.flip(policy_left_solved, axis=(0, 1))
     policy_right_reorderd = jnp.flip(policy_right_solved, axis=(0, 1))
     endog_grid_reorderd = jnp.flip(endog_grid_solved, axis=(0, 1))
 
     value_solved = jnp.append(
-        value_reorderd.reshape((n_state_choices_wo_last, n_total_wealth)),
+        value_reorderd.reshape((-1, n_total_wealth)),
         value_final_period,
         axis=0,
     )
     policy_left_solved = jnp.append(
-        policy_left_reorderd.reshape((n_state_choices_wo_last, n_total_wealth)),
+        policy_left_reorderd.reshape((-1, n_total_wealth)),
         policy_left_final_period,
         axis=0,
     )
     policy_right_solved = jnp.append(
-        policy_right_reorderd.reshape((n_state_choices_wo_last, n_total_wealth)),
+        policy_right_reorderd.reshape((-1, n_total_wealth)),
         policy_right_final_period,
         axis=0,
     )
     endog_grid_solved = jnp.append(
-        endog_grid_reorderd.reshape((n_state_choices_wo_last, n_total_wealth)),
+        endog_grid_reorderd.reshape((-1, n_total_wealth)),
         endog_grid_final_period,
         axis=0,
     )
+    if not batch_info["batches_cover_all"]:
+        extra_carray, last_batch_arrays = partial_single_period(
+            carry=final_carry,
+            xs=(
+                batch_info["last_batch"],
+                batch_info["last_unique_child_state_choice_idxs"],
+                batch_info["last_state_choice_times_exog_child_state_idxs"],
+                resources_beginning_of_period[
+                    batch_info["last_state_idx_of_state_choice"]
+                ],
+                batch_info["state_choice_mat_last_badge"],
+            ),
+        )
+        (
+            endog_grid_last_batch,
+            policy_left_last_batch,
+            policy_right_last_batch,
+            value_last_batch,
+        ) = last_batch_arrays
+        value_reorderd = jnp.flip(value_last_batch, axis=0)
+        policy_left_reorderd = jnp.flip(policy_left_last_batch, axis=0)
+        policy_right_reorderd = jnp.flip(policy_right_last_batch, axis=0)
+        endog_grid_reorderd = jnp.flip(endog_grid_last_batch, axis=0)
+
+        value_solved = jnp.append(
+            value_solved,
+            value_reorderd,
+            axis=0,
+        )
+        policy_left_solved = jnp.append(
+            policy_left_solved,
+            policy_left_reorderd,
+            axis=0,
+        )
+        policy_right_solved = jnp.append(
+            policy_right_solved,
+            policy_right_reorderd,
+            axis=0,
+        )
+        endog_grid_solved = jnp.append(
+            endog_grid_solved,
+            endog_grid_reorderd,
+            axis=0,
+        )
 
     return value_solved, policy_left_solved, policy_right_solved, endog_grid_solved
 
