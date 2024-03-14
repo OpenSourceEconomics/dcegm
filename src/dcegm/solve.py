@@ -287,9 +287,9 @@ def backward_induction(
             batch_info["batches_state_choice_idx"],
             batch_info["child_state_choices_to_aggr_choice"],
             batch_info["child_states_to_integrate_exog"],
-            batch_info["child_state_choice_idxs_to_interpolate"],
+            batch_info["child_state_choice_idxs_to_interp"],
             resources_per_state_choice,
-            batch_info["state_choices_batches"],
+            batch_info["state_choices"],
             batch_info["state_choices_childs"],
         ),
     )
@@ -302,16 +302,20 @@ def backward_induction(
     ) = final_carry
 
     if not batch_info["batches_cover_all"]:
-        extra_carray, last_batch_arrays = partial_single_period(
+        last_batch_info = batch_info["last_batch_info"]
+        last_resources_per_state_choice = resources_beginning_of_period[
+            last_batch_info["child_states_idxs"]
+        ]
+        extra_final_carry, () = partial_single_period(
             carry=final_carry,
             xs=(
-                batch_info["last_batch"],
-                batch_info["last_unique_child_state_choice_idxs"],
-                batch_info["last_state_choice_times_exog_child_state_idxs"],
-                resources_beginning_of_period[
-                    batch_info["parent_states_idx_state_choice_last_batch"]
-                ],
-                batch_info["state_choices_last_badge"],
+                last_batch_info["state_choice_idx"],
+                last_batch_info["child_state_choices_to_aggr_choice"],
+                last_batch_info["child_states_to_integrate_exog"],
+                last_batch_info["child_state_choice_idxs_to_interp"],
+                last_resources_per_state_choice,
+                last_batch_info["state_choices"],
+                last_batch_info["state_choices_childs"],
             ),
         )
 
@@ -320,7 +324,7 @@ def backward_induction(
             policy_left_solved,
             policy_right_solved,
             endog_grid_solved,
-        ) = final_carry
+        ) = extra_final_carry
 
     return value_solved, policy_left_solved, policy_right_solved, endog_grid_solved
 

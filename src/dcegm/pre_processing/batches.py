@@ -62,32 +62,46 @@ def create_batches_and_information(
 
     if not batches_cover_all:
         # In the case batches don't cover everything, we have to solve the last batch
-        # separately
-        batch_array = np.array(batches_list[:-1])
-        child_states_to_integrate_exog = np.array(
-            child_states_to_integrate_exog_list[:-1]
-        )
-
-        # Now create information for the last batch. We do not need to care what
-        # shapes these are.
+        # separately. Delete the last element from the relevant lists and save it in
+        # an extra dictionary
         last_batch = batches_list[-1]
-        state_choices_last_badge = {
+        last_child_states_to_integrate_exog = child_states_to_integrate_exog_list[-1]
+        last_idx_to_aggregate_choice = child_state_choices_to_aggr_choice_list[-1]
+        last_child_state_idx_interp = child_state_choice_idxs_to_interp_list[-1]
+        last_state_choices = {
             key: state_choice_space[:, i][last_batch]
             for i, key in enumerate(state_space_names + ["choice"])
         }
-        idx_to_aggregate_choice = child_state_choices_to_aggr_choice_list[-1]
-        child_state_idx_interp = child_state_choice_idxs_to_interp_list[-1]
+        last_state_choices_childs = {
+            key: state_choice_space[:, i][last_child_state_idx_interp]
+            for i, key in enumerate(state_space_names + ["choice"])
+        }
+        last_parent_state_idx_of_state_choice = map_state_choice_to_parent_state[
+            last_child_state_idx_interp
+        ]
 
         last_batch_info = {
-            "state_choice_idx": batches_list[-1],
-            "child_state_choices_to_aggr_choice": idx_to_aggregate_choice,
-            "child_states_to_integrate_exog": child_states_to_integrate_exog_list[-1],
-            "child_state_choice_idxs_to_interp": child_state_idx_interp,
-            "state_choices_last_badge": state_choices_last_badge,
+            "state_choice_idx": last_batch,
+            "state_choices": last_state_choices,
+            "child_states_to_integrate_exog": last_child_states_to_integrate_exog,
+            # Child state infos.
+            "child_state_choices_to_aggr_choice": last_idx_to_aggregate_choice,
+            "child_state_choice_idxs_to_interp": last_child_state_idx_interp,
+            "child_states_idxs": last_parent_state_idx_of_state_choice,
+            "state_choices_childs": last_state_choices_childs,
         }
-    else:
-        batch_array = np.array(batches_list)
-        child_states_to_integrate_exog = np.array(child_states_to_integrate_exog_list)
+        batches_list = batches_list[:-1]
+        child_states_to_integrate_exog_list = child_states_to_integrate_exog_list[:-1]
+        child_state_choices_to_aggr_choice_list = (
+            child_state_choices_to_aggr_choice_list[:-1]
+        )
+        child_state_choice_idxs_to_interp_list = child_state_choice_idxs_to_interp_list[
+            :-1
+        ]
+
+    # First convert batch information
+    batch_array = np.array(batches_list)
+    child_states_to_integrate_exog = np.array(child_states_to_integrate_exog_list)
 
     state_choices_batches = {
         key: state_choice_space[:, i][batch_array]
@@ -119,7 +133,7 @@ def create_batches_and_information(
         "batches_cover_all": batches_cover_all,
         # Now the batch array information. First the batch itself
         "batches_state_choice_idx": batch_array,
-        "state_choices_batches": state_choices_batches,
+        "state_choices": state_choices_batches,
         "child_states_to_integrate_exog": child_states_to_integrate_exog,
         # Then the child states
         "child_state_choices_to_aggr_choice": child_state_choices_to_aggr_choice,
@@ -128,7 +142,7 @@ def create_batches_and_information(
         "state_choices_childs": state_choices_childs,
     }
     if not batches_cover_all:
-        batch_info["last_batch"] = last_batch_info
+        batch_info["last_batch_info"] = last_batch_info
     batch_info = add_last_two_period_information(
         n_periods=n_periods,
         state_choice_space=state_choice_space,
@@ -177,10 +191,10 @@ def extend_child_state_choices_to_aggregate_choices(
     # all batches and the number of choices. Fill with invalid(negative) numbers
     # otherwise
     n_batches = len(idx_to_aggregate_choice)
-    max_n_state_accross_batches = np.max(max_n_state_unique_in_batches)
+    max_n_child_states = np.max(max_n_state_unique_in_batches)
     n_choices = idx_to_aggregate_choice[0].shape[1]
     child_state_choices_to_aggr_choice = np.full(
-        (n_batches, max_n_state_accross_batches, n_choices),
+        (n_batches, max_n_child_states, n_choices),
         fill_value=-9999,
         dtype=int,
     )
@@ -193,6 +207,18 @@ def extend_child_state_choices_to_aggregate_choices(
     # The second array are the state choice indexes in the child states. As child
     # states can have different admissible state choices this can be different in
     # each batch. We fill up with invalid numbers.
+    max_child_state_choices = np.max(list(map(len, idx_to_interpolate)))
+    child_state_choice_idxs_to_interp = np.full(
+        (n_batches, max_child_state_choices),
+        fill_value=-9999,
+        dtype=int,
+    )
+    for id_batch in range(n_batches):
+        child_state_choice_idxs_to_interp[
+            id_batch, : len(idx_to_interpolate[id_batch])
+        ] = idx_to_interpolate[id_batch]
+
+    return child_state_choice_idxs_to_interp, child_state_choices_to_aggr_choice
 
 
 def add_last_two_period_information(
