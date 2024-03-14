@@ -100,7 +100,7 @@ def test_benchmark_models(
     value_expected = pickle.load(
         (REPLICATION_TEST_RESOURCES_DIR / f"{model_name}" / "value.pkl").open("rb")
     )
-    state_choice_space = model["state_choice_space"]
+    state_choice_space = model["model_structure"]["state_choice_space"]
     state_choice_space_to_test = state_choice_space[state_choice_space[:, 0] < 24]
 
     for state_choice_idx in range(state_choice_space_to_test.shape[0] - 1, -1, -1):

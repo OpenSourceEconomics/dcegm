@@ -15,20 +15,37 @@ def solve_single_period(
     exog_savings_grid,
     income_shock_weights,
     model_funcs,
-    compute_upper_envelope,
     taste_shock_scale,
 ):
-    """This function solves a single period of the model using the discrete continous
+    """This function solves a single period of the model using the discrete continuous
     endogenous grid method (DCEGM)."""
-    value_interpolated, marginal_utility_interpolated = carry
+    (value_solved, policy_left_solved, policy_right_solved, endog_grid_solved) = carry
 
     (
-        state_choice_idxs_batch,
-        child_state_choice_idxs,
-        child_state_ids_per_batch,
-        resources_batch,
-        state_choice_mat_badge,
+        state_choices_idxs,
+        child_state_choices_to_aggr_choice,
+        child_states_to_integrate_exog,
+        child_state_choice_idxs_to_interpolate,
+        child_state_resources,
+        state_choice_mat,
+        state_choice_mat_child,
     ) = xs
+
+    # EGM step 1)
+    marginal_utility_interpolated, value_interpolated = vmap(
+        interpolate_value_and_calc_marginal_utility,
+        in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),
+    )(
+        model_funcs["compute_marginal_utility"],
+        model_funcs["compute_utility"],
+        state_choice_mat_child,
+        child_state_resources,
+        endog_grid_solved[child_state_choice_idxs_to_interpolate, :],
+        policy_left_solved[child_state_choice_idxs_to_interpolate, :],
+        policy_right_solved[child_state_choice_idxs_to_interpolate, :],
+        value_solved[child_state_choice_idxs_to_interpolate, :],
+        params,
+    )
 
     (
         endog_grid_state_choice,
@@ -36,51 +53,32 @@ def solve_single_period(
         policy_right_state_choice,
         value_state_choice,
     ) = solve_for_interpolated_values(
-        value_interpolated=value_interpolated,
-        marginal_utility_interpolated=marginal_utility_interpolated,
-        state_choice_mat_badge=state_choice_mat_badge,
-        child_state_ids_per_batch=child_state_ids_per_batch,
-        child_state_choice_idxs=child_state_choice_idxs,
-        params=params,
-        taste_shock_scale=taste_shock_scale,
-        income_shock_weights=income_shock_weights,
-        exog_savings_grid=exog_savings_grid,
-        model_funcs=model_funcs,
-        compute_upper_envelope=compute_upper_envelope,
-    )
-    solved_arrays = (
-        endog_grid_state_choice,
-        policy_left_state_choice,
-        policy_right_state_choice,
-        value_state_choice,
-    )
-
-    # EGM step 1)
-    marg_util_interpolated_badge, value_interpolated_badge = vmap(
-        interpolate_value_and_calc_marginal_utility,
-        in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),
-    )(
-        model_funcs["compute_marginal_utility"],
-        model_funcs["compute_utility"],
-        state_choice_mat_badge,
-        resources_batch,
-        endog_grid_state_choice,
-        policy_left_state_choice,
-        policy_right_state_choice,
-        value_state_choice,
+        value_interpolated,
+        marginal_utility_interpolated,
+        state_choice_mat,
+        child_states_to_integrate_exog,
+        child_state_choices_to_aggr_choice,
         params,
+        taste_shock_scale,
+        income_shock_weights,
+        exog_savings_grid,
+        model_funcs,
     )
 
-    value_interpolated = value_interpolated.at[state_choice_idxs_batch, :, :].set(
-        value_interpolated_badge
+    value_solved = value_solved.at[state_choices_idxs, :].set(value_state_choice)
+    policy_left_solved = policy_left_solved.at[state_choices_idxs, :].set(
+        policy_left_state_choice
     )
-    marginal_utility_interpolated = marginal_utility_interpolated.at[
-        state_choice_idxs_batch, :, :
-    ].set(marg_util_interpolated_badgechild_state_idxs_second_last_period)
+    policy_right_solved = policy_right_solved.at[state_choices_idxs, :].set(
+        policy_right_state_choice
+    )
+    endog_grid_solved = endog_grid_solved.at[state_choices_idxs, :].set(
+        endog_grid_state_choice
+    )
 
-    carry = (value_interpolated, marginal_utility_interpolated)
+    carry = (value_solved, policy_left_solved, policy_right_solved, endog_grid_solved)
 
-    return carry, solved_arrays
+    return carry, ()
 
 
 def solve_for_interpolated_values(

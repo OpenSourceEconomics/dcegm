@@ -40,8 +40,9 @@ def create_batches_and_information(
 
     (
         batches_list,
-        unique_child_state_choice_idxs_list,
-        state_choice_times_exog_child_state_idxs_list,
+        child_state_choice_idxs_to_interp_list,
+        child_state_choices_to_aggr_choice_list,
+        child_states_to_integrate_exog_list,
     ) = determine_optimal_batch_size(
         state_choice_space,
         n_periods,
@@ -60,96 +61,138 @@ def create_batches_and_information(
         batches_cover_all = len(batches_list[-1]) == len(batches_list[-2])
 
     if not batches_cover_all:
+        # In the case batches don't cover everything, we have to solve the last batch
+        # separately
         batch_array = np.array(batches_list[:-1])
-        state_choice_times_exog_child_state_idxs = np.array(
-            state_choice_times_exog_child_state_idxs_list[:-1]
+        child_states_to_integrate_exog = np.array(
+            child_states_to_integrate_exog_list[:-1]
         )
 
-        # There can be also be an uneven number of child states across batches. The
-        # indexes recorded in state_choice_times_exog_child_state_idxs only contain
-        # the indexes up the length. So we can just fill up without of bounds indexes.
-        # We also test this here
-        max_n_state_unique_in_batches = list(
-            map(lambda x: x.shape[0], unique_child_state_choice_idxs_list[:-1])
-        )
-
-        if not np.all(
-            np.equal(
-                np.array(max_n_state_unique_in_batches) - 1,
-                np.max(state_choice_times_exog_child_state_idxs, axis=(1, 2)),
-            )
-        ):
-            raise ValueError(
-                "\n\nInternal error in the batch creation \n\n. "
-                "Please contact developer."
-            )
-
-        n_batches = batch_array.shape[0]
-        n_choices = unique_child_state_choice_idxs_list[0].shape[1]
-        max_n_state_accross_batches = np.max(max_n_state_unique_in_batches)
-        unique_child_state_choice_idxs = np.full(
-            (n_batches, max_n_state_accross_batches, n_choices),
-            fill_value=-9999,
-            dtype=int,
-        )
-
-        for id_batch in range(n_batches):
-            unique_child_state_choice_idxs[
-                id_batch, : max_n_state_unique_in_batches[id_batch], :
-            ] = unique_child_state_choice_idxs_list[id_batch]
-
+        # Now create information for the last batch. We do not need to care what
+        # shapes these are.
+        last_batch = batches_list[-1]
         state_choices_last_badge = {
-            key: state_choice_space[:, i][batch_array]
+            key: state_choice_space[:, i][last_batch]
             for i, key in enumerate(state_space_names + ["choice"])
         }
-        parent_states_idx_state_choice_last_batch = (map_state_choice_to_parent_state)[
-            batch_array
-        ]
+        idx_to_aggregate_choice = child_state_choices_to_aggr_choice_list[-1]
+        child_state_idx_interp = child_state_choice_idxs_to_interp_list[-1]
 
-        additional_information = {
-            "last_batch": batches_list[-1],
-            "last_unique_child_state_choice_idxs": unique_child_state_choice_idxs_list[
-                -1
-            ],
-            "last_state_choice_times_exog_child_state_idxs": state_choice_times_exog_child_state_idxs_list[
-                -1
-            ],
+        last_batch_info = {
+            "state_choice_idx": batches_list[-1],
+            "child_state_choices_to_aggr_choice": idx_to_aggregate_choice,
+            "child_states_to_integrate_exog": child_states_to_integrate_exog_list[-1],
+            "child_state_choice_idxs_to_interp": child_state_idx_interp,
             "state_choices_last_badge": state_choices_last_badge,
-            "parent_states_idx_state_choice_last_batch": parent_states_idx_state_choice_last_batch,
         }
     else:
         batch_array = np.array(batches_list)
-        unique_child_state_choice_idxs = np.array(unique_child_state_choice_idxs_list)
-        state_choice_times_exog_child_state_idxs = np.array(
-            state_choice_times_exog_child_state_idxs_list
-        )
-        additional_information = {}
+        child_states_to_integrate_exog = np.array(child_states_to_integrate_exog_list)
 
-    parent_state_idx_of_state_choice = map_state_choice_to_parent_state[batch_array]
     state_choices_batches = {
         key: state_choice_space[:, i][batch_array]
         for i, key in enumerate(state_space_names + ["choice"])
     }
 
-    batch_info = {
-        **additional_information,
-        "batches_cover_all": batches_cover_all,
-        "batches": batch_array,
-        "unique_child_state_choice_idxs": unique_child_state_choice_idxs,
-        "child_state_to_state_choice_exog": state_choice_times_exog_child_state_idxs,
-        "n_state_choices": state_choice_space.shape[0],
-        "parent_states_idx_state_choice": parent_state_idx_of_state_choice,
-        "state_choices_batches": state_choices_batches,
+    # Now create the child state arrays. As these can have different shapes than the
+    # batches, we have to extend them:
+    max_child_state_index_batch = np.max(child_states_to_integrate_exog, axis=(1, 2))
+    (
+        child_state_choice_idxs_to_interp,
+        child_state_choices_to_aggr_choice,
+    ) = extend_child_state_choices_to_aggregate_choices(
+        idx_to_aggregate_choice=child_state_choices_to_aggr_choice_list,
+        max_child_state_index_batch=max_child_state_index_batch,
+        idx_to_interpolate=child_state_choice_idxs_to_interp_list,
+    )
+    parent_state_idx_of_state_choice = map_state_choice_to_parent_state[
+        child_state_choice_idxs_to_interp
+    ]
+    state_choices_childs = {
+        key: state_choice_space[:, i][child_state_choice_idxs_to_interp]
+        for i, key in enumerate(state_space_names + ["choice"])
     }
+
+    batch_info = {
+        # First two bools determining the structure of solution functions we call
+        "two_period_model": False,
+        "batches_cover_all": batches_cover_all,
+        # Now the batch array information. First the batch itself
+        "batches_state_choice_idx": batch_array,
+        "state_choices_batches": state_choices_batches,
+        "child_states_to_integrate_exog": child_states_to_integrate_exog,
+        # Then the child states
+        "child_state_choices_to_aggr_choice": child_state_choices_to_aggr_choice,
+        "child_state_choice_idxs_to_interp": child_state_choice_idxs_to_interp,
+        "child_states_idxs": parent_state_idx_of_state_choice,
+        "state_choices_childs": state_choices_childs,
+    }
+    if not batches_cover_all:
+        batch_info["last_batch"] = last_batch_info
     batch_info = add_last_two_period_information(
-        n_periods,
-        state_choice_space,
-        map_state_choice_to_parent_state,
-        state_space_names,
-        batch_info,
+        n_periods=n_periods,
+        state_choice_space=state_choice_space,
+        map_state_choice_to_parent_state=map_state_choice_to_parent_state,
+        map_state_choice_to_child_states=map_state_choice_to_child_states,
+        map_state_choice_to_index=map_state_choice_to_index,
+        state_space_names=state_space_names,
+        state_space=state_space,
+        batch_info=batch_info,
     )
 
     return batch_info
+
+
+def extend_child_state_choices_to_aggregate_choices(
+    idx_to_aggregate_choice, max_child_state_index_batch, idx_to_interpolate
+):
+    """In case of uneven batches, we need to extend the child state objects to cover the
+    same number of state choices in each batch.
+
+    As this object has in each batch the shape of n_state_choices x n_
+
+    """
+    # There can be also be an uneven number of child states across batches. The
+    # indexes recorded in state_choice_times_exog_child_state_idxs only contain
+    # the indexes up the length. So we can just fill up without of bounds indexes.
+    # We also test this here
+    max_n_state_unique_in_batches = list(
+        map(lambda x: x.shape[0], idx_to_aggregate_choice)
+    )
+
+    # We check for internal constincy. The size (i.e. the number of states) of the
+    # state_choice idx to aggregate choices in each state has to correspond to the
+    # maximum state index in child indexes we integrate over.
+    if not np.all(
+        np.equal(
+            np.array(max_n_state_unique_in_batches) - 1, max_child_state_index_batch
+        )
+    ):
+        raise ValueError(
+            "\n\nInternal error in the batch creation \n\n. "
+            "Please contact developer."
+        )
+
+    # Now span an array with n_states time the maximum number of child states across
+    # all batches and the number of choices. Fill with invalid(negative) numbers
+    # otherwise
+    n_batches = len(idx_to_aggregate_choice)
+    max_n_state_accross_batches = np.max(max_n_state_unique_in_batches)
+    n_choices = idx_to_aggregate_choice[0].shape[1]
+    child_state_choices_to_aggr_choice = np.full(
+        (n_batches, max_n_state_accross_batches, n_choices),
+        fill_value=-9999,
+        dtype=int,
+    )
+
+    for id_batch in range(n_batches):
+        child_state_choices_to_aggr_choice[
+            id_batch, : max_n_state_unique_in_batches[id_batch], :
+        ] = idx_to_aggregate_choice[id_batch]
+
+    # The second array are the state choice indexes in the child states. As child
+    # states can have different admissible state choices this can be different in
+    # each batch. We fill up with invalid numbers.
 
 
 def add_last_two_period_information(
@@ -260,8 +303,9 @@ def determine_optimal_batch_size(
             np.flip(state_choice_index_back),
             index_to_spilt,
         )
-        child_state_to_state_choice_times_exog = []
-        unique_child_state_choice_idxs = []
+        child_states_to_integrate_exog = []
+        child_state_choices_to_aggr_choice = []
+        child_state_choice_idxs_to_interpolate = []
 
         for i, batch in enumerate(batches_to_check):
             child_states_idxs = map_state_choice_to_child_states[batch]
@@ -269,7 +313,7 @@ def determine_optimal_batch_size(
                 child_states_idxs, return_index=True, return_inverse=True
             )
 
-            child_state_to_state_choice_times_exog += [
+            child_states_to_integrate_exog += [
                 inverse_ids.reshape(child_states_idxs.shape)
             ]
 
@@ -284,14 +328,24 @@ def determine_optimal_batch_size(
             )
 
             # Get ids of state choices for each child state
-            state_choice_idxs_childs = map_state_choice_to_index[child_states_tuple]
-            # Save the unique child states
-            unique_child_state_choice_idxs += [state_choice_idxs_childs[unique_ids]]
+            unique_state_choice_idxs_childs = map_state_choice_to_index[
+                child_states_tuple
+            ][unique_ids]
 
             # Get minimum of the positive numbers in state_choice_idxs_childs
             min_state_choice_idx = np.min(
-                state_choice_idxs_childs[state_choice_idxs_childs > 0]
+                unique_state_choice_idxs_childs[unique_state_choice_idxs_childs > 0]
             )
+            # Save the unique normalized child states
+            child_state_choices_to_aggr_choice += [
+                unique_state_choice_idxs_childs - min_state_choice_idx
+            ]
+            # Unique child state choices
+            child_state_choice_idxs_to_interpolate += [
+                np.unique(
+                    unique_state_choice_idxs_childs[unique_state_choice_idxs_childs > 0]
+                )
+            ]
             # Now check if the smallest index of the child state choices is larger than
             # the maximum index of the batch, i.e. if all state choice relevant to
             # solve the current state choices of the batch are in previous batches
@@ -308,6 +362,7 @@ def determine_optimal_batch_size(
 
     return (
         batches_to_check,
-        unique_child_state_choice_idxs,
-        child_state_to_state_choice_times_exog,
+        child_state_choice_idxs_to_interpolate,
+        child_state_choices_to_aggr_choice,
+        child_states_to_integrate_exog,
     )

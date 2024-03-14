@@ -77,28 +77,20 @@ def test_exog_processes(state_space_functions):
         func=state_space_functions["get_next_period_state"],
         options=model_params_options,
     )
-
-    (
-        state_space,
-        state_space_dict,
-        map_state_to_index,
-        exog_state_space,
-        states_names_without_exog,
-        exog_states_names,
-        state_choice_space,
-        map_state_choice_to_index,
-        map_state_choice_vec_to_parent_state,
-        map_state_choice_to_child_states,
-    ) = create_state_space_and_choice_objects(
+    model_funcs = {
+        "get_state_specific_choice_set": get_state_specific_choice_set,
+        "get_next_period_state": get_next_period_state,
+    }
+    model_structure = create_state_space_and_choice_objects(
         options=options,
-        get_state_specific_choice_set=get_state_specific_choice_set,
-        get_next_period_state=get_next_period_state,
+        model_funcs=model_funcs,
     )
 
     exog_mapping = create_exog_mapping(
-        exog_state_space.astype(np.int16), exog_states_names
+        model_structure["exog_state_space"].astype(np.int16),
+        model_structure["exog_states_names"],
     )
-    mother_bad_health = np.where(exog_state_space[:, 0] == 2)[0]
+    mother_bad_health = np.where(model_structure["exog_state_space"][:, 0] == 2)[0]
 
     for exog_state in mother_bad_health:
         assert exog_mapping(exog_proc_state=exog_state)["health_mother"] == 2

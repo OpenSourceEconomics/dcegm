@@ -50,7 +50,7 @@ def setup_model(
         budget_constraint=budget_constraint,
     )
 
-    (model_structure) = create_state_space_and_choice_objects(
+    model_structure = create_state_space_and_choice_objects(
         options=options,
         model_funcs=model_funcs,
     )
@@ -127,9 +127,9 @@ def load_and_setup_model(
     )
 
     exog_state_space = model["model_structure"]["exog_state_space"]
-    model["exog_mapping"] = create_exog_mapping(
+    model["model_funcs"]["exog_mapping"] = create_exog_mapping(
         exog_state_space=np.array(exog_state_space, dtype=np.int16),
-        exog_names=model["model_structure"]["exog_state_names"],
+        exog_names=model["model_structure"]["exog_states_names"],
     )
 
     return model
