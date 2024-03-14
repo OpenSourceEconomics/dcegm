@@ -264,14 +264,11 @@ def backward_induction(
             xs=xs,
             params=params,
             exog_savings_grid=exog_savings_grid,
+            resources_beginning_of_period=resources_beginning_of_period,
             income_shock_weights=income_shock_weights,
             model_funcs=model_funcs,
             taste_shock_scale=taste_shock_scale,
         )
-
-    resources_per_state_choice = resources_beginning_of_period[
-        batch_info["child_states_idxs"]
-    ]
 
     carry_start = (
         value_solved,
@@ -288,7 +285,7 @@ def backward_induction(
             batch_info["child_state_choices_to_aggr_choice"],
             batch_info["child_states_to_integrate_exog"],
             batch_info["child_state_choice_idxs_to_interp"],
-            resources_per_state_choice,
+            batch_info["child_states_idxs"],
             batch_info["state_choices"],
             batch_info["state_choices_childs"],
         ),
@@ -296,9 +293,6 @@ def backward_induction(
 
     if not batch_info["batches_cover_all"]:
         last_batch_info = batch_info["last_batch_info"]
-        last_resources_per_state_choice = resources_beginning_of_period[
-            last_batch_info["child_states_idxs"]
-        ]
         extra_final_carry, () = partial_single_period(
             carry=final_carry,
             xs=(
@@ -306,7 +300,7 @@ def backward_induction(
                 last_batch_info["child_state_choices_to_aggr_choice"],
                 last_batch_info["child_states_to_integrate_exog"],
                 last_batch_info["child_state_choice_idxs_to_interp"],
-                last_resources_per_state_choice,
+                last_batch_info["child_states_idxs"],
                 last_batch_info["state_choices"],
                 last_batch_info["state_choices_childs"],
             ),

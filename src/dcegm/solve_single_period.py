@@ -14,6 +14,7 @@ def solve_single_period(
     params,
     exog_savings_grid,
     income_shock_weights,
+    resources_beginning_of_period,
     model_funcs,
     taste_shock_scale,
 ):
@@ -26,7 +27,7 @@ def solve_single_period(
         child_state_choices_to_aggr_choice,
         child_states_to_integrate_exog,
         child_state_choice_idxs_to_interpolate,
-        child_state_resources,
+        child_state_idxs,
         state_choice_mat,
         state_choice_mat_child,
     ) = xs
@@ -39,7 +40,7 @@ def solve_single_period(
         model_funcs["compute_marginal_utility"],
         model_funcs["compute_utility"],
         state_choice_mat_child,
-        child_state_resources,
+        resources_beginning_of_period[child_state_idxs, :, :],
         endog_grid_solved[child_state_choice_idxs_to_interpolate, :],
         policy_left_solved[child_state_choice_idxs_to_interpolate, :],
         policy_right_solved[child_state_choice_idxs_to_interpolate, :],
