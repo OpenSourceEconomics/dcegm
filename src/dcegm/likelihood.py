@@ -88,19 +88,17 @@ def create_individual_likelihood_function_for_model(
     def partial_backwards_induction(params_in):
         return backward_induction(
             params=params_in,
-            period_specific_state_objects=model["period_specific_state_objects"],
             exog_savings_grid=exog_savings_grid,
-            state_space=model["state_space"],
-            # batch_info=model["batch_info"],
+            state_space_dict=model["model_structure"]["state_space_dict"],
+            n_state_choices=model["model_structure"]["state_choice_space"].shape[0],
+            batch_info=model["batch_info"],
             income_shock_draws_unscaled=income_shock_draws_unscaled,
             income_shock_weights=income_shock_weights,
-            n_periods=options["state_space"]["n_periods"],
             model_funcs=model["model_funcs"],
-            compute_upper_envelope=model["compute_upper_envelope"],
         )
 
     observed_state_choice_indexes = create_observed_choice_indexes(
-        observed_states_dict=observed_states, model=model
+        observed_states_dict=observed_states, model_structure=model["model_structure"]
     )
 
     # Create the calculation of the choice probabilities, which takes parameters as
@@ -240,11 +238,11 @@ def interpolate_value_and_calc_choice_probabilities(
 
 def create_observed_choice_indexes(
     observed_states_dict: Dict[str, int],
-    model: [Dict, Any],
+    model_structure: [Dict, Any],
 ):
     observed_state_choice_indexes = get_state_choice_index_per_state(
-        map_state_choice_to_index=model["map_state_choice_to_index"],
+        map_state_choice_to_index=model_structure["map_state_choice_to_index"],
         states=observed_states_dict,
-        state_space_names=model["state_space_names"],
+        state_space_names=model_structure["state_space_names"],
     )
     return observed_state_choice_indexes

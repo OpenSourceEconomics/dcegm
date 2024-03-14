@@ -294,13 +294,6 @@ def backward_induction(
         ),
     )
 
-    (
-        value_solved,
-        policy_left_solved,
-        policy_right_solved,
-        endog_grid_solved,
-    ) = final_carry
-
     if not batch_info["batches_cover_all"]:
         last_batch_info = batch_info["last_batch_info"]
         last_resources_per_state_choice = resources_beginning_of_period[
@@ -325,6 +318,13 @@ def backward_induction(
             policy_right_solved,
             endog_grid_solved,
         ) = extra_final_carry
+    else:
+        (
+            value_solved,
+            policy_left_solved,
+            policy_right_solved,
+            endog_grid_solved,
+        ) = final_carry
 
     return value_solved, policy_left_solved, policy_right_solved, endog_grid_solved
 
