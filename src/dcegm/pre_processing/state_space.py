@@ -5,8 +5,7 @@ from dcegm.pre_processing.shared import determine_function_arguments_and_partial
 
 def create_state_space_and_choice_objects(
     options,
-    get_state_specific_choice_set,
-    get_next_period_state,
+    model_funcs,
 ):
     """Create dictionary of state and state-choice objects for each period.
 
@@ -56,22 +55,25 @@ def create_state_space_and_choice_objects(
         exog_state_names=exog_states_names,
         exog_state_space=exog_state_space,
         map_state_to_index=map_state_to_index,
-        get_state_specific_choice_set=get_state_specific_choice_set,
-        get_next_period_state=get_next_period_state,
+        get_state_specific_choice_set=model_funcs["get_state_specific_choice_set"],
+        get_next_period_state=model_funcs["get_next_period_state"],
     )
 
-    return (
-        state_space,
-        state_space_dict,
-        map_state_to_index,
-        exog_state_space,
-        states_names_without_exog,
-        exog_states_names,
-        state_choice_space,
-        map_state_choice_to_index,
-        map_state_choice_to_parent_state,
-        map_state_choice_to_child_states,
-    )
+    model_structure = {
+        "state_space": state_space,
+        "state_space_dict": state_space_dict,
+        "map_state_to_index": map_state_to_index,
+        "exog_state_space": exog_state_space,
+        "states_names_without_exog": states_names_without_exog,
+        "exog_states_names": exog_states_names,
+        "state_space_names": states_names_without_exog + exog_states_names,
+        "state_choice_space": state_choice_space,
+        "map_state_choice_to_index": map_state_choice_to_index,
+        "map_state_choice_to_parent_state": map_state_choice_to_parent_state,
+        "map_state_choice_to_child_states": map_state_choice_to_child_states,
+    }
+
+    return model_structure
 
 
 def create_state_space(options):

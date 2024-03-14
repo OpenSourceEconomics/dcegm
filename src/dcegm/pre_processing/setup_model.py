@@ -42,12 +42,7 @@ def setup_model(
 
     """
 
-    (
-        model_funcs,
-        compute_upper_envelope,
-        get_state_specific_choice_set,
-        get_next_period_state,
-    ) = process_model_functions(
+    model_funcs = process_model_functions(
         options,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
@@ -55,52 +50,26 @@ def setup_model(
         budget_constraint=budget_constraint,
     )
 
-    (
-        state_space,
-        state_space_dict,
-        map_state_to_index,
-        exog_state_space,
-        states_names_without_exog,
-        exog_states_names,
-        state_choice_space,
-        map_state_choice_to_index,
-        map_state_choice_to_parent_state,
-        map_state_choice_to_child_states,
-    ) = create_state_space_and_choice_objects(
+    (model_structure) = create_state_space_and_choice_objects(
         options=options,
-        get_state_specific_choice_set=get_state_specific_choice_set,
-        get_next_period_state=get_next_period_state,
+        model_funcs=model_funcs,
     )
 
-    exog_mapping = create_exog_mapping(
-        exog_state_space.astype(np.int16), exog_states_names
+    model_funcs["exog_mapping"] = create_exog_mapping(
+        model_structure["exog_state_space"].astype(np.int16),
+        model_structure["exog_states_names"],
     )
 
     batch_info = create_batches_and_information(
-        state_choice_space=state_choice_space,
-        n_periods=options["state_space"]["n_periods"],
-        map_state_choice_to_child_states=map_state_choice_to_child_states,
-        map_state_choice_to_index=map_state_choice_to_index,
-        map_state_choice_vec_to_parent_state=map_state_choice_to_parent_state,
-        state_space=state_space,
-        state_space_names=states_names_without_exog + exog_states_names,
+        model_structure=model_structure,
+        model_funcs=model_funcs,
+        options=options,
     )
 
     model = {
         "model_funcs": model_funcs,
-        "compute_upper_envelope": compute_upper_envelope,
-        "get_state_specific_choice_set": get_state_specific_choice_set,
+        "model_structure": model_structure,
         "batch_info": batch_info,
-        "state_space": state_space,
-        "state_choice_space": state_choice_space,
-        "map_state_choice_to_parent_state": map_state_choice_to_parent_state,
-        "state_space_dict": state_space_dict,
-        "state_space_names": states_names_without_exog + exog_states_names,
-        "map_state_choice_to_index": map_state_choice_to_index,
-        "exog_state_space": exog_state_space,
-        "exog_state_names": exog_states_names,
-        "exog_mapping": exog_mapping,
-        "get_next_period_state": get_next_period_state,
     }
     return model
 
@@ -127,18 +96,11 @@ def setup_and_save_model(
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
     )
-    array_names = [
-        "batch_info",
-        "state_space",
-        "state_choice_space",
-        "map_state_choice_to_parent_state",
-        "state_space_dict",
-        "state_space_names",
-        "map_state_choice_to_index",
-        "exog_state_space",
-        "exog_state_names",
-    ]
-    dict_to_save = {key: value for key, value in model.items() if key in array_names}
+
+    dict_to_save = {
+        "model_structure": model["model_structure"],
+        "batch_info": model["batch_info"],
+    }
     pickle.dump(dict_to_save, open(path, "wb"))
 
     return model
@@ -155,12 +117,8 @@ def load_and_setup_model(
     """Load the model from file."""
 
     model = pickle.load(open(path, "rb"))
-    (
-        model["model_funcs"],
-        model["compute_upper_envelope"],
-        model["get_state_specific_choice_set"],
-        model["get_next_period_state"],
-    ) = process_model_functions(
+
+    model["model_funcs"] = process_model_functions(
         options,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
@@ -168,8 +126,10 @@ def load_and_setup_model(
         budget_constraint=budget_constraint,
     )
 
+    exog_state_space = model["model_structure"]["exog_state_space"]
     model["exog_mapping"] = create_exog_mapping(
-        np.array(model["exog_state_space"], dtype=np.int16), model["exog_state_names"]
+        exog_state_space=np.array(exog_state_space, dtype=np.int16),
+        exog_names=model["model_structure"]["exog_state_names"],
     )
 
     return model

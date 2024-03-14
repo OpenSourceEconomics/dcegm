@@ -10,21 +10,13 @@ import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 from dcegm.budget import calculate_resources
-from dcegm.egm.aggregate_marginal_utility import (
-    aggregate_marg_utils_and_exp_values,
-)
-from dcegm.egm.interpolate_marginal_utility import (
-    interpolate_value_and_calc_marginal_utility,
-)
-from dcegm.egm.solve_euler_equation import (
-    calculate_candidate_solutions_from_euler_equation,
-)
-from dcegm.final_period import solve_final_period
+from dcegm.final_periods import solve_last_two_periods
 from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.params import process_params
 from dcegm.pre_processing.setup_model import setup_model
+from dcegm.solve_single_period import solve_single_period
 from jax import jit
-from jax import vmap
+from jax import numpy as jnp
 
 
 def solve_dcegm(
@@ -136,12 +128,11 @@ def get_solve_func_for_model(model, exog_savings_grid, options):
         partial(
             backward_induction,
             exog_savings_grid=exog_savings_grid,
-            state_space_dict=model["state_space_dict"],
+            state_space_dict=model["model_structure"]["state_space_dict"],
             batch_info=model["batch_info"],
             income_shock_draws_unscaled=income_shock_draws_unscaled,
             income_shock_weights=income_shock_weights,
             model_funcs=model["model_funcs"],
-            compute_upper_envelope=model["compute_upper_envelope"],
         )
     )
 
@@ -160,7 +151,6 @@ def backward_induction(
     income_shock_draws_unscaled: np.ndarray,
     income_shock_weights: np.ndarray,
     model_funcs: Dict[str, Callable],
-    compute_upper_envelope: Callable,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Do backward induction and solve for optimal policy and value function.
 
@@ -218,7 +208,6 @@ def backward_induction(
             policy_right, and value from the backward induction.
 
     """
-
     taste_shock_scale = params["lambda"]
 
     resources_beginning_of_period = calculate_resources(
@@ -230,32 +219,43 @@ def backward_induction(
             "compute_beginning_of_period_resources"
         ],
     )
-    n_wealth = exog_savings_grid.shape[0]
-    n_state_choices = batch_info["n_state_choices"]
-    n_income_shocks = income_shock_draws_unscaled.shape[0]
-
-    value_interpolated = jnp.zeros(
-        (n_state_choices, n_wealth, n_income_shocks), dtype=jnp.float64
-    )
-    marginal_utility_interpolated = jnp.zeros(
-        (n_state_choices, n_wealth, n_income_shocks), dtype=jnp.float64
-    )
-
+    # Create solution containers. The 20 percent extra in wealth grid needs to go
+    # into tuning parameters
     (
-        value_final_period,
-        policy_left_final_period,
-        policy_right_final_period,
-        endog_grid_final_period,
-        value_interp_final_period,
-        marginal_utility_final_last_period,
-    ) = solve_final_period(
-        idx_parent_states=batch_info["idx_parent_states_final_period"],
-        state_choice_mat=batch_info["state_choice_mat_final_period"],
+        value_solved,
+        policy_left_solved,
+        policy_right_solved,
+        endog_grid_solved,
+    ) = create_solution_container(
+        n_state_choices=batch_info["n_state_choices"],
+        n_total_wealth_grid=int(exog_savings_grid.shape[0] * 1.2),
+    )
+
+    # Solve the last two periods. We do this separately as the marginal utility of
+    # the child states in the last period is calculated with the marginal utility
+    # function of the bequest function, which might differ.
+    (
+        value_solved,
+        policy_left_solved,
+        policy_right_solved,
+        endog_grid_solved,
+    ) = solve_last_two_periods(
         resources_beginning_of_period=resources_beginning_of_period,
         params=params,
-        compute_utility=model_funcs["compute_utility_final"],
-        compute_marginal_utility=model_funcs["compute_marginal_utility_final"],
+        taste_shock_scale=taste_shock_scale,
+        income_shock_weights=income_shock_weights,
+        exog_savings_grid=exog_savings_grid,
+        model_funcs=model_funcs,
+        batch_info=batch_info,
+        value_solved=value_solved,
+        policy_left_solved=policy_left_solved,
+        policy_right_solved=policy_right_solved,
+        endog_grid_solved=endog_grid_solved,
     )
+
+    # If it is a two period model we are done.
+    if batch_info["two_period_model"]:
+        return value_solved, policy_left_solved, policy_right_solved, endog_grid_solved
 
     def partial_single_period(carry, xs):
         return solve_single_period(
@@ -269,16 +269,8 @@ def backward_induction(
             taste_shock_scale=taste_shock_scale,
         )
 
-    idx_state_choice_final_period = batch_info["idx_state_choice_final_period"]
-
-    value_interpolated = value_interpolated.at[idx_state_choice_final_period, :, :].set(
-        value_interp_final_period
-    )
-    marginal_utility_interpolated = marginal_utility_interpolated.at[
-        idx_state_choice_final_period, :, :
-    ].set(marginal_utility_final_last_period)
     resources_per_state_choice = resources_beginning_of_period[
-        batch_info["state_idx_of_state_choice"]
+        batch_info["parent_states_idx_state_choice"]
     ]
 
     carry_start = (value_interpolated, marginal_utility_interpolated)
@@ -291,7 +283,7 @@ def backward_induction(
             batch_info["unique_child_state_choice_idxs"],
             batch_info["child_state_to_state_choice_exog"],
             resources_per_state_choice,
-            batch_info["state_choice_mat_badge"],
+            batch_info["state_choices_batches"],
         ),
     )
 
@@ -337,9 +329,9 @@ def backward_induction(
                 batch_info["last_unique_child_state_choice_idxs"],
                 batch_info["last_state_choice_times_exog_child_state_idxs"],
                 resources_beginning_of_period[
-                    batch_info["last_state_idx_of_state_choice"]
+                    batch_info["parent_states_idx_state_choice_last_batch"]
                 ],
-                batch_info["state_choice_mat_last_badge"],
+                batch_info["state_choices_last_badge"],
             ),
         )
 
@@ -374,145 +366,15 @@ def backward_induction(
     return value_solved, policy_left_solved, policy_right_solved, endog_grid_solved
 
 
-def solve_single_period(
-    carry,
-    xs,
-    params,
-    exog_savings_grid,
-    income_shock_weights,
-    model_funcs,
-    compute_upper_envelope,
-    taste_shock_scale,
-):
-    value_interpolated, marginal_utility_interpolated = carry
-
-    (
-        state_choice_idxs_batch,
-        child_state_choice_idxs,
-        child_state_ids_per_batch,
-        resources_batch,
-        state_choice_mat_badge,
-    ) = xs
-
-    (
-        endog_grid_state_choice,
-        policy_left_state_choice,
-        policy_right_state_choice,
-        value_state_choice,
-    ) = solve_for_interpolated_values(
-        value_interpolated=value_interpolated,
-        marginal_utility_interpolated=marginal_utility_interpolated,
-        state_choice_mat_badge=state_choice_mat_badge,
-        child_state_ids_per_batch=child_state_ids_per_batch,
-        child_state_choice_idxs=child_state_choice_idxs,
-        params=params,
-        taste_shock_scale=taste_shock_scale,
-        income_shock_weights=income_shock_weights,
-        exog_savings_grid=exog_savings_grid,
-        model_funcs=model_funcs,
-        compute_upper_envelope=compute_upper_envelope,
+def create_solution_container(n_state_choices, n_total_wealth_grid):
+    value_solved = jnp.zeros((n_state_choices, n_total_wealth_grid), dtype=jnp.float64)
+    policy_left_solved = jnp.zeros(
+        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64
     )
-    solved_arrays = (
-        endog_grid_state_choice,
-        policy_left_state_choice,
-        policy_right_state_choice,
-        value_state_choice,
+    policy_right_solved = jnp.zeros(
+        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64
     )
-
-    # EGM step 1)
-    marg_util_interpolated_badge, value_interpolated_badge = vmap(
-        interpolate_value_and_calc_marginal_utility,
-        in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),
-    )(
-        model_funcs["compute_marginal_utility"],
-        model_funcs["compute_utility"],
-        state_choice_mat_badge,
-        resources_batch,
-        endog_grid_state_choice,
-        policy_left_state_choice,
-        policy_right_state_choice,
-        value_state_choice,
-        params,
+    endog_grid_solved = jnp.zeros(
+        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64
     )
-
-    value_interpolated = value_interpolated.at[state_choice_idxs_batch, :, :].set(
-        value_interpolated_badge
-    )
-    marginal_utility_interpolated = marginal_utility_interpolated.at[
-        state_choice_idxs_batch, :, :
-    ].set(marg_util_interpolated_badge)
-
-    carry = (value_interpolated, marginal_utility_interpolated)
-
-    return carry, solved_arrays
-
-
-def solve_for_interpolated_values(
-    value_interpolated,
-    marginal_utility_interpolated,
-    state_choice_mat_badge,
-    child_state_ids_per_batch,
-    child_state_choice_idxs,
-    params,
-    taste_shock_scale,
-    income_shock_weights,
-    exog_savings_grid,
-    model_funcs,
-    compute_upper_envelope,
-):
-    # EGM step 2)
-    # Aggregate the marginal utilities and expected values over all choices and
-    # income shock draws
-    marg_util, emax = aggregate_marg_utils_and_exp_values(
-        value_state_choice_specific=value_interpolated,
-        marg_util_state_choice_specific=marginal_utility_interpolated,
-        reshape_state_choice_vec_to_mat=child_state_choice_idxs,
-        taste_shock_scale=taste_shock_scale,
-        income_shock_weights=income_shock_weights,
-    )
-
-    # EGM step 3)
-    (
-        endog_grid_candidate,
-        value_candidate,
-        policy_candidate,
-        expected_values,
-    ) = calculate_candidate_solutions_from_euler_equation(
-        exogenous_savings_grid=exog_savings_grid,
-        marg_util=marg_util,
-        emax=emax,
-        state_choice_vec=state_choice_mat_badge,
-        idx_post_decision_child_states=child_state_ids_per_batch,
-        compute_inverse_marginal_utility=model_funcs[
-            "compute_inverse_marginal_utility"
-        ],
-        compute_utility=model_funcs["compute_utility"],
-        compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
-        params=params,
-    )
-
-    # Run upper envelope to remove suboptimal candidates
-    (
-        endog_grid_state_choice,
-        policy_left_state_choice,
-        policy_right_state_choice,
-        value_state_choice,
-    ) = vmap(
-        compute_upper_envelope,
-        in_axes=(0, 0, 0, 0, 0, None, None),  # vmap over state-choice combs
-    )(
-        endog_grid_candidate,
-        policy_candidate,
-        value_candidate,
-        expected_values[:, 0],
-        state_choice_mat_badge,
-        params,
-        model_funcs["compute_utility"],
-    )
-
-    return (
-        endog_grid_state_choice,
-        policy_left_state_choice,
-        policy_right_state_choice,
-        value_state_choice,
-    )
+    return value_solved, policy_left_solved, policy_right_solved, endog_grid_solved

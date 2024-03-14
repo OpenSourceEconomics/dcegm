@@ -2,14 +2,42 @@ import numpy as np
 
 
 def create_batches_and_information(
-    state_choice_space,
-    n_periods,
-    map_state_choice_to_child_states,
-    map_state_choice_to_index,
-    map_state_choice_vec_to_parent_state,
-    state_space,
-    state_space_names,
+    model_structure,
+    model_funcs,
+    options,
 ):
+    n_periods = options["state_space"]["n_periods"]
+    state_choice_space = model_structure["state_choice_space"]
+    state_space = model_structure["state_space"]
+    state_space_names = model_structure["state_space_names"]
+    map_state_choice_to_parent_state = model_structure[
+        "map_state_choice_to_parent_state"
+    ]
+    map_state_choice_to_child_states = model_structure[
+        "map_state_choice_to_child_states"
+    ]
+    map_state_choice_to_index = model_structure["map_state_choice_to_index"]
+
+    if n_periods == 2:
+        # In the case of a two period model, we just need the information of the last
+        # two periods
+        batch_info = {
+            "two_period_model": True,
+            "n_state_choices": state_choice_space.shape[0],
+        }
+        batch_info = add_last_two_period_information(
+            n_periods=n_periods,
+            state_choice_space=state_choice_space,
+            map_state_choice_to_parent_state=map_state_choice_to_parent_state,
+            map_state_choice_to_child_states=map_state_choice_to_child_states,
+            map_state_choice_to_index=map_state_choice_to_index,
+            state_space_names=state_space_names,
+            state_space=state_space,
+            batch_info=batch_info,
+        )
+
+        return batch_info
+
     (
         batches_list,
         unique_child_state_choice_idxs_list,
@@ -21,6 +49,7 @@ def create_batches_and_information(
         map_state_choice_to_index,
         state_space,
     )
+
     if len(batches_list) == 1:
         # This is the case of a two period model. Then by construction there is only one
         # batch which covers the first period.
@@ -69,6 +98,14 @@ def create_batches_and_information(
                 id_batch, : max_n_state_unique_in_batches[id_batch], :
             ] = unique_child_state_choice_idxs_list[id_batch]
 
+        state_choices_last_badge = {
+            key: state_choice_space[:, i][batch_array]
+            for i, key in enumerate(state_space_names + ["choice"])
+        }
+        parent_states_idx_state_choice_last_batch = (map_state_choice_to_parent_state)[
+            batch_array
+        ]
+
         additional_information = {
             "last_batch": batches_list[-1],
             "last_unique_child_state_choice_idxs": unique_child_state_choice_idxs_list[
@@ -77,6 +114,8 @@ def create_batches_and_information(
             "last_state_choice_times_exog_child_state_idxs": state_choice_times_exog_child_state_idxs_list[
                 -1
             ],
+            "state_choices_last_badge": state_choices_last_badge,
+            "parent_states_idx_state_choice_last_batch": parent_states_idx_state_choice_last_batch,
         }
     else:
         batch_array = np.array(batches_list)
@@ -86,6 +125,12 @@ def create_batches_and_information(
         )
         additional_information = {}
 
+    parent_state_idx_of_state_choice = map_state_choice_to_parent_state[batch_array]
+    state_choices_batches = {
+        key: state_choice_space[:, i][batch_array]
+        for i, key in enumerate(state_space_names + ["choice"])
+    }
+
     batch_info = {
         **additional_information,
         "batches_cover_all": batches_cover_all,
@@ -93,36 +138,82 @@ def create_batches_and_information(
         "unique_child_state_choice_idxs": unique_child_state_choice_idxs,
         "child_state_to_state_choice_exog": state_choice_times_exog_child_state_idxs,
         "n_state_choices": state_choice_space.shape[0],
+        "parent_states_idx_state_choice": parent_state_idx_of_state_choice,
+        "state_choices_batches": state_choices_batches,
     }
+    batch_info = add_last_two_period_information(
+        n_periods,
+        state_choice_space,
+        map_state_choice_to_parent_state,
+        state_space_names,
+        batch_info,
+    )
 
-    idx_state_choice_last_period = np.where(state_choice_space[:, 0] == n_periods - 1)[
+    return batch_info
+
+
+def add_last_two_period_information(
+    n_periods,
+    state_choice_space,
+    map_state_choice_to_parent_state,
+    map_state_choice_to_child_states,
+    map_state_choice_to_index,
+    state_space_names,
+    state_space,
+    batch_info,
+):
+    # Select state_choice idxs in final period
+    idx_state_choice_final_period = np.where(state_choice_space[:, 0] == n_periods - 1)[
         0
     ]
+    # To solve the second last period, we need the child states in the last period
+    # and the corresponding matrix, where each row is a state with the state choice
+    # ids as entry in each choice
+    states_final_period = state_space[state_space[:, 0] == n_periods - 1]
+    # Now construct a tuple for indexing
+    n_state_vars = states_final_period.shape[1]
+    states_tuple = tuple(states_final_period[:, i] for i in range(n_state_vars))
 
-    batch_info["idx_state_choice_final_period"] = idx_state_choice_last_period
-    batch_info["idx_parent_states_final_period"] = (
-        map_state_choice_vec_to_parent_state
-    )[idx_state_choice_last_period]
-    batch_info["state_choice_mat_final_period"] = {
-        key: state_choice_space[:, i][idx_state_choice_last_period]
-        for i, key in enumerate(state_space_names + ["choice"])
-    }
+    # Now get the matrix we use for choice aggregation
+    state_to_choices_final_period = map_state_choice_to_index[states_tuple]
+    # Normalize to be able to index in the interpolated values
+    min_val = np.min(state_to_choices_final_period[state_to_choices_final_period > 0])
+    state_to_choices_final_period -= min_val
 
-    batch_info["state_idx_of_state_choice"] = map_state_choice_vec_to_parent_state[
-        batch_info["batches"]
+    idx_state_choice_second_last_period = np.where(
+        state_choice_space[:, 0] == n_periods - 2
+    )[0]
+    # Also normalize the state choice idxs
+    child_states_second_last_period = map_state_choice_to_child_states[
+        idx_state_choice_second_last_period
     ]
-    batch_info["state_choice_mat_badge"] = {
-        key: state_choice_space[:, i][batch_info["batches"]]
-        for i, key in enumerate(state_space_names + ["choice"])
+    min_val = np.min(
+        child_states_second_last_period[child_states_second_last_period > 0]
+    )
+    child_states_second_last_period -= min_val
+
+    # Also add parent states in last period
+    parent_states_final_period = map_state_choice_to_parent_state[
+        idx_state_choice_final_period
+    ]
+    batch_info = {
+        **batch_info,
+        "idx_state_choices_final_period": idx_state_choice_final_period,
+        "idx_state_choices_second_last_period": idx_state_choice_second_last_period,
+        "idxs_parent_states_final_period": parent_states_final_period,
+        "state_to_choices_final_period": state_to_choices_final_period,
+        "child_states_second_last_period": child_states_second_last_period,
     }
-    if not batch_info["batches_cover_all"]:
-        batch_info["state_choice_mat_last_badge"] = {
-            key: state_choice_space[:, i][batch_info["last_batch"]]
+
+    # Also add state choice mat as dictionary for each of the two periods
+    for idx, period_name in [
+        (idx_state_choice_final_period, "final"),
+        (idx_state_choice_second_last_period, "second_last"),
+    ]:
+        batch_info[f"state_choice_mat_{period_name}_period"] = {
+            key: state_choice_space[:, i][idx]
             for i, key in enumerate(state_space_names + ["choice"])
         }
-        batch_info["last_state_idx_of_state_choice"] = (
-            map_state_choice_vec_to_parent_state
-        )[batch_info["last_batch"]]
     return batch_info
 
 
@@ -133,20 +224,22 @@ def determine_optimal_batch_size(
     map_state_choice_to_index,
     state_space,
 ):
-    state_choice_space_wo_last = state_choice_space[
-        state_choice_space[:, 0] < n_periods - 1
+    state_choice_space_wo_last_two = state_choice_space[
+        state_choice_space[:, 0] < n_periods - 2
     ]
-    state_choice_index_back = np.arange(state_choice_space_wo_last.shape[0], dtype=int)
+    state_choice_index_back = np.arange(
+        state_choice_space_wo_last_two.shape[0], dtype=int
+    )
 
     # Filter out last period state_choice_ids
     child_states_idx_backward = map_state_choice_to_child_states[
-        state_choice_space[:, 0] < n_periods - 1
+        state_choice_space[:, 0] < n_periods - 2
     ]
     child_states = np.take(state_space, child_states_idx_backward, axis=0)
     n_state_vars = state_space.shape[1]
 
     size_last_batch = state_choice_space[
-        state_choice_space[:, 0] == state_choice_space_wo_last[-1, 0]
+        state_choice_space[:, 0] == state_choice_space_wo_last_two[-1, 0]
     ].shape[0]
 
     batch_not_found = True
