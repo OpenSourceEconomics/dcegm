@@ -296,24 +296,31 @@ def determine_optimal_batch_size(
     state_choice_space_wo_last_two = state_choice_space[
         state_choice_space[:, 0] < n_periods - 2
     ]
-    state_choice_index_back = np.arange(
-        state_choice_space_wo_last_two.shape[0], dtype=int
-    )
 
     # Filter out last period state_choice_ids
-    child_states_idx_backward = map_state_choice_to_child_states[
+    child_states_idx_raw = map_state_choice_to_child_states[
         state_choice_space[:, 0] < n_periods - 2
     ]
-    breakpoint()
+    # Order by child index to solve state choices in the same child states together
+    sort_index_by_child_states = np.argsort(child_states_idx_raw[:, 0])
+    child_states_idx_backward = np.take(
+        child_states_idx_raw, sort_index_by_child_states, axis=0
+    )
+
+    state_choice_raw = np.arange(state_choice_space_wo_last_two.shape[0], dtype=int)
+    state_choice_index_back = np.take(
+        state_choice_raw, sort_index_by_child_states, axis=0
+    )
+
     child_states = np.take(state_space, child_states_idx_backward, axis=0)
     n_state_vars = state_space.shape[1]
 
-    size_last_batch = state_choice_space[
+    size_last_period = state_choice_space[
         state_choice_space[:, 0] == state_choice_space_wo_last_two[-1, 0]
     ].shape[0]
 
     batch_not_found = True
-    current_batch_size = size_last_batch
+    current_batch_size = size_last_period
     need_to_reduce_batchsize = False
     while batch_not_found:
         if need_to_reduce_batchsize:
@@ -336,6 +343,7 @@ def determine_optimal_batch_size(
 
         for i, batch in enumerate(batches_to_check):
             child_states_idxs = map_state_choice_to_child_states[batch]
+
             unique_child_states, unique_ids, inverse_ids = np.unique(
                 child_states_idxs, return_index=True, return_inverse=True
             )
