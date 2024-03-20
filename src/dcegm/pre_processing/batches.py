@@ -304,6 +304,7 @@ def determine_optimal_batch_size(
     child_states_idx_backward = map_state_choice_to_child_states[
         state_choice_space[:, 0] < n_periods - 2
     ]
+    breakpoint()
     child_states = np.take(state_space, child_states_idx_backward, axis=0)
     n_state_vars = state_space.shape[1]
 

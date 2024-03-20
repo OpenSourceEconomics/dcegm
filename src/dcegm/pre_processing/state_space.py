@@ -59,6 +59,13 @@ def create_state_space_and_choice_objects(
         get_next_period_state=model_funcs["get_next_period_state"],
     )
 
+    test_state_space_objects(
+        state_space_options=options["state_space"],
+        state_choice_space=state_choice_space,
+        map_state_choice_to_child_states=map_state_choice_to_child_states,
+        state_space_names=states_names_without_exog + exog_states_names,
+    )
+
     model_structure = {
         "state_space": state_space,
         "state_space_dict": state_space_dict,
@@ -74,6 +81,36 @@ def create_state_space_and_choice_objects(
     }
 
     return model_structure
+
+
+def test_state_space_objects(
+    state_space_options,
+    state_choice_space,
+    map_state_choice_to_child_states,
+    state_space_names,
+):
+    """Test state space objects for consistency."""
+    n_periods = state_space_options["n_periods"]
+    state_choices_idxs_wo_last = np.where(state_choice_space[:, 0] < n_periods - 1)[0]
+
+    # Check if all feasible state choice combinations have a valid child state
+    child_states = map_state_choice_to_child_states[state_choices_idxs_wo_last, :]
+    if not np.all(child_states >= 0):
+        # Get row axis of child states that are invalid
+        invalid_child_states = np.unique(np.where(child_states < 0)[0])
+        invalid_state_choices_example = state_choice_space[invalid_child_states[0]]
+        example_dict = {
+            key: invalid_state_choices_example[i]
+            for i, key in enumerate(state_space_names)
+        }
+        example_dict["choice"] = invalid_state_choices_example[-1]
+        raise ValueError(
+            "\n \n \n\nSome state-choice combinations have invalid child "
+            "states. "
+            "\n \n An example of a combination of state and choice with "
+            "invalid child states is: \n \n"
+            "{}".format(example_dict)
+        )
 
 
 def create_state_space(options):
