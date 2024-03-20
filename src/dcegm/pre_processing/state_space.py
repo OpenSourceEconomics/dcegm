@@ -105,11 +105,11 @@ def test_state_space_objects(
         }
         example_dict["choice"] = invalid_state_choices_example[-1]
         raise ValueError(
-            "\n \n \n\nSome state-choice combinations have invalid child "
-            "states. "
-            "\n \n An example of a combination of state and choice with "
-            "invalid child states is: \n \n"
-            "{}".format(example_dict)
+            f"\n\n\n\n Some state-choice combinations have invalid child "
+            f"states. "
+            f"\n \n An example of a combination of state and choice with "
+            f"invalid child states is: \n \n"
+            f"{example_dict} \n \n"
         )
 
 
