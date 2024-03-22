@@ -11,13 +11,11 @@ dependencies:
   - pytest-xdist
 
   # Package dependencies
-  - estimagic
   - numpy
   - scipy
   - numba
   - pandas
   - jax
-  - networkx
 
   # Misc
   - black
@@ -39,3 +37,6 @@ dependencies:
       - blackcellmagic
       - furo
       - -e .  # Install dcegm locally
+
+      # Development dependencies
+      - git+https://github.com/OpenSourceEconomics/upper-envelope.git

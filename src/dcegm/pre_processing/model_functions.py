@@ -107,14 +107,12 @@ def process_model_functions(
         "compute_marginal_utility_final": compute_marginal_utility_final,
         "compute_beginning_of_period_resources": compute_beginning_of_period_resources,
         "compute_exog_transition_vec": compute_exog_transition_vec,
+        "get_state_specific_choice_set": get_state_specific_choice_set,
+        "get_next_period_state": get_next_period_state,
+        "compute_upper_envelope": compute_upper_envelope,
     }
 
-    return (
-        model_funcs,
-        compute_upper_envelope,
-        get_state_specific_choice_set,
-        get_next_period_state,
-    )
+    return model_funcs
 
 
 def _return_policy_and_value(
