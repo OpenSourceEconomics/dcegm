@@ -51,8 +51,7 @@ def create_batches_and_information(
     )
 
     if len(batches_list) == 1:
-        # This is the case of a two period model. Then by construction there is only one
-        # batch which covers the first period.
+        # This is the case for a three period model.
         batches_cover_all = True
     else:
         # In the case of more periods we determine if the last two batches have equal
