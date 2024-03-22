@@ -277,7 +277,7 @@ def backward_induction(
         endog_grid_solved,
     )
 
-    final_carry, arrays_solved = jax.lax.scan(
+    final_carry, _ = jax.lax.scan(
         f=partial_single_period,
         init=carry_start,
         xs=(
