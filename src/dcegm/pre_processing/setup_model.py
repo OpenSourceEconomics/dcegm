@@ -62,7 +62,6 @@ def setup_model(
 
     batch_info = create_batches_and_information(
         model_structure=model_structure,
-        model_funcs=model_funcs,
         options=options,
     )
 

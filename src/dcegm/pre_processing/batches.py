@@ -3,7 +3,6 @@ import numpy as np
 
 def create_batches_and_information(
     model_structure,
-    model_funcs,
     options,
 ):
     n_periods = options["state_space"]["n_periods"]
