@@ -173,6 +173,7 @@ def create_state_space(options):
                     state_space_wo_exog_list += [state_without_exog]
 
     n_exog_states = exog_state_space.shape[0]
+
     state_space_wo_exog = np.array(state_space_wo_exog_list)
     state_space_wo_exog_full = np.repeat(state_space_wo_exog, n_exog_states, axis=0)
     exog_state_space_full = np.tile(exog_state_space, (state_space_wo_exog.shape[0], 1))
@@ -460,4 +461,5 @@ def create_indexer_for_space(space):
     map_vars_to_index = np.full(max_var_values + 1, fill_value=-9999, dtype=int)
     index_tuple = tuple(space[:, i] for i in range(space.shape[1]))
     map_vars_to_index[index_tuple] = np.arange(space.shape[0], dtype=int)
+    
     return map_vars_to_index
