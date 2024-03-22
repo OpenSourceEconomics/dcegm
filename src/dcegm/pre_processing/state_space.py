@@ -10,20 +10,7 @@ def create_state_space_and_choice_objects(
     """Create dictionary of state and state-choice objects for each period.
 
     Args:
-        state_space (np.ndarray): 2d array of shape (n_states, n_state_variables)
-            containing the state space.
-        state_choice_space (np.ndarray): 2d array of shape
-            (n_feasible_state_choice_combs, n_states + 1) containing the space of all
-            feasible state-choice combinations.
-        map_state_choice_vec_to_parent_state (np.ndarray): 1d array of shape
-            (n_states * n_feasible_choices,) that maps from any vector of state-choice
-            combinations to the respective parent state.
-        reshape_state_choice_vec_to_mat (np.ndarray): 2d array of shape
-            (n_states, n_feasible_choices). For each parent state, this array can be
-            used to reshape the vector of feasible state-choice combinations
-            to a matrix of lagged and current choice combinations of
-            shape (n_choices, n_choices).
-        n_periods (int): Number of periods.
+        options (Dict[str, int]): Options dictionary.
 
     Returns:
         dict of np.ndarray: Dictionary containing period-specific
