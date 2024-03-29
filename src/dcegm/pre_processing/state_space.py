@@ -1,4 +1,5 @@
 """Functions for creating internal state space objects."""
+
 from typing import Callable
 from typing import Dict
 
@@ -201,9 +202,11 @@ def create_state_space(options):
 
     # Create indexer array that maps states to indexes
     max_states = np.max(state_space, axis=0)
-    map_state_to_index = np.full(max_states + 1, fill_value=-9999, dtype=int)
+    map_state_to_index = np.full(max_states + 1, fill_value=-9999, dtype=np.int64)
     state_space_tuple = tuple(state_space[:, i] for i in range(state_space.shape[1]))
-    map_state_to_index[state_space_tuple] = np.arange(state_space.shape[0], dtype=int)
+    map_state_to_index[state_space_tuple] = np.arange(
+        state_space.shape[0], dtype=np.int64
+    )
 
     return (
         state_space,
@@ -237,7 +240,7 @@ def process_exog_model_specifications(state_space_options):
         num_states_of_all_exog_states = [1]
         n_exog_states = 1
 
-        exog_state_space = np.array([[0]], dtype=np.int16)
+        exog_state_space = np.array([[0]], dtype=np.uint8)
 
     return (
         exog_state_names,
@@ -403,15 +406,17 @@ def create_state_choice_space(
 
     state_choice_space = np.zeros(
         (n_states * n_choices, n_state_and_exog_variables + 1),
-        dtype=int,
+        dtype=np.uint16,
     )
 
-    map_state_choice_vec_to_parent_state = np.zeros((n_states * n_choices), dtype=int)
-    reshape_state_choice_vec_to_mat = np.zeros((n_states, n_choices), dtype=int)
+    map_state_choice_vec_to_parent_state = np.zeros(
+        (n_states * n_choices), dtype=np.uint32
+    )
+    reshape_state_choice_vec_to_mat = np.zeros((n_states, n_choices), dtype=np.uint32)
     map_state_choice_to_index = np.full(
         shape=(map_state_to_state_space_index.shape + (n_choices,)),
         fill_value=-n_states * n_choices,
-        dtype=int,
+        dtype=np.int64,
     )
 
     idx = 0
@@ -440,9 +445,9 @@ def create_state_choice_space(
                     period_idx += 1
                     idx += 1
                 else:
-                    reshape_state_choice_vec_to_mat[
-                        state_idx, choice
-                    ] = out_of_bounds_index
+                    reshape_state_choice_vec_to_mat[state_idx, choice] = (
+                        out_of_bounds_index
+                    )
 
     return (
         state_choice_space[:idx],
@@ -504,7 +509,7 @@ def create_map_from_state_to_child_nodes(
     n_exog_vars = exog_state_space.shape[1]
 
     map_state_to_feasible_child_states = np.full(
-        (state_choice_space.shape[0], n_exog_states), fill_value=-9999, dtype=int
+        (state_choice_space.shape[0], n_exog_states), fill_value=-9999, dtype=np.int64
     )
 
     exog_states_tuple = tuple(exog_state_space[:, i] for i in range(n_exog_vars))
@@ -520,7 +525,7 @@ def create_map_from_state_to_child_nodes(
 
         map_state_to_feasible_child_nodes_period = np.empty(
             (state_choice_space_period.shape[0], n_exog_states),
-            dtype=int,
+            dtype=np.uint32,
         )
 
         # Loop over all state-choice combinations in period.
@@ -547,7 +552,7 @@ def create_map_from_state_to_child_nodes(
                     np.full(
                         n_exog_states,
                         fill_value=state_dict_without_exog[key],
-                        dtype=int,
+                        dtype=np.uint8,
                     )
                     for key in states_names_without_exog
                 )
@@ -560,9 +565,9 @@ def create_map_from_state_to_child_nodes(
             )
             map_state_to_feasible_child_states[current_state_choice_idx, :] = child_ixs
 
-            period_specific_state_objects[period][
-                "idx_feasible_child_nodes"
-            ] = np.array(map_state_to_feasible_child_nodes_period, dtype=int)
+            period_specific_state_objects[period]["idx_feasible_child_nodes"] = (
+                np.array(map_state_to_feasible_child_nodes_period, dtype=int)
+            )
 
     return period_specific_state_objects
 
