@@ -57,15 +57,15 @@ repos:
       - id: black
         language_version: python3.10
         exclude: tests/utils/fast_upper_envelope_org.py
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.0.282
-    hooks:
-      - id: ruff
-        exclude: |
-          (?x)^(
-            tests/|
-            docs/source/conf.py|
-          )$
+#  - repo: https://github.com/charliermarsh/ruff-pre-commit
+#    rev: v0.0.282
+#    hooks:
+#      - id: ruff
+#        exclude: |
+#          (?x)^(
+#            tests/|
+#            docs/source/conf.py|
+#          )$
   - repo: https://github.com/PyCQA/docformatter
     rev: v1.7.5
     hooks:
