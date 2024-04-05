@@ -9,6 +9,7 @@
 # NOTE: wage is deterministic, depends on experience and health
 # state: period, lagged_choice, experience, health, partner
 import pickle
+from pathlib import Path
 
 import jax.numpy as jnp
 import numpy as np
@@ -25,6 +26,9 @@ from toy_models.consumption_retirement_model.utility_functions import (
     marginal_utility_final_consume_all,
 )
 from toy_models.consumption_retirement_model.utility_functions import utility_crra
+
+# Obtain the test directory of the package
+TEST_DIR = Path(__file__).parent
 
 
 def prob_health(health, params):
@@ -210,7 +214,9 @@ def test_extended_choice_set_model(
     )
     sol = solve_func(params)
     value, policy_left, policy_right, endog_grid = sol
-    exp_sol = pickle.load(open("resources/extended_choice_set/sol.pkl", "rb"))
+    exp_sol = pickle.load(
+        open(TEST_DIR / "resources" / "extended_choice_set" / "sol.pkl", "rb")
+    )
     value_expec, policy_left_expec, policy_right_expec, endog_grid_expec = exp_sol
     model = setup_model(
         options=options,
@@ -220,7 +226,13 @@ def test_extended_choice_set_model(
         budget_constraint=budget,
     )
     indexer = pickle.load(
-        open("resources/extended_choice_set/map_state_choice_to_index.pkl", "rb")
+        open(
+            TEST_DIR
+            / "resources"
+            / "extended_choice_set"
+            / "map_state_choice_to_index.pkl",
+            "rb",
+        )
     )
     state_choice_space = model["model_structure"]["state_choice_space"]
     tuple_state_choice = tuple(
