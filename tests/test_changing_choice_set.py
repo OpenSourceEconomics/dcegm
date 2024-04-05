@@ -227,6 +227,4 @@ def test_extended_choice_set_model(
         state_choice_space[:, i] for i in range(state_choice_space.shape[1])
     )
     reindex = indexer[tuple_state_choice]
-    value_diff = sol[0] - value_expec[reindex]
-
-    breakpoint()
+    np.testing.assert_allclose(value, value_expec[reindex])
