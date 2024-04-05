@@ -5,6 +5,40 @@ def create_batches_and_information(
     model_structure,
     options,
 ):
+    """Batches are used instead of periods to have chunks of equal sized state choices.
+    The batch information dictionary contains the following arrays reflecting the.
+
+    steps in the backward induction:
+        - batches_state_choice_idx: The state choice indexes in each batch to be solved.
+    To solve the state choices in the egm step, we have to look at the child states
+    and the corresponding state choice indexes in the child states. For that we save
+    the following:
+        - child_state_choice_idxs_to_interp: The state choice indexes in we need to
+            interpolate the wealth on.
+        - child_states_idxs: The parent state indexes of the child states, i.e. the
+            child states themself. We calculate the resources at the beginning of
+            period before the backwards induction with the budget equation for each
+            saving and income shock grid point.
+
+        Note: These two index arrays containing indexes on the whole
+        state/state-choice space.
+
+    Once we have the interpolated in all possible child state-choice states,
+    we rearange them to an array with row as states and columns as choices to
+    aggregate over the choices. This is saved in:
+
+        - child_state_choices_to_aggr_choice: The state choice indexes in the child
+            states to aggregate over. Note these are relative indexes indexing to the
+            batch arrays from the step before.
+    Now we have for each child state a value/marginal utility with the index arrays
+    above and what is missing is the mapping for the exogenous/stochastic processes.
+    This is saved via:
+        - child_states_to_integrate_exog: The state choice indexes in the child states
+            to integrate over the exogenous processes. This is a relative index to the
+            batch arrays from the step before.
+
+    """
+
     n_periods = options["state_space"]["n_periods"]
     state_choice_space = model_structure["state_choice_space"]
     state_space = model_structure["state_space"]
@@ -296,21 +330,24 @@ def determine_optimal_batch_size(
     ]
 
     # Filter out last period state_choice_ids
-    child_states_idx_raw = map_state_choice_to_child_states[
+    child_states_idx_backward = map_state_choice_to_child_states[
         state_choice_space[:, 0] < n_periods - 2
     ]
-    # Order by child index to solve state choices in the same child states together
-    sort_index_by_child_states = np.argsort(child_states_idx_raw[:, 0])
-    child_states_idx_backward = np.take(
-        child_states_idx_raw, sort_index_by_child_states, axis=0
-    )
+    # # Order by child index to solve state choices in the same child states together
+    # sort_index_by_child_states = np.argsort(child_states_idx_raw[:, 0])
+    # child_states_idx_backward = np.take(
+    #     child_states_idx_raw, sort_index_by_child_states, axis=0
+    # )
 
-    state_choice_raw = np.arange(state_choice_space_wo_last_two.shape[0], dtype=int)
-    state_choice_index_back = np.take(
-        state_choice_raw, sort_index_by_child_states, axis=0
+    state_choice_index_back = np.arange(
+        state_choice_space_wo_last_two.shape[0], dtype=int
     )
+    # state_choice_index_back = np.take(
+    #     state_choice_raw, sort_index_by_child_states, axis=0
+    # )
 
     child_states = np.take(state_space, child_states_idx_backward, axis=0)
+
     n_state_vars = state_space.shape[1]
 
     size_last_period = state_choice_space[
@@ -340,48 +377,58 @@ def determine_optimal_batch_size(
         child_state_choice_idxs_to_interpolate = []
 
         for i, batch in enumerate(batches_to_check):
+            # First get all child states and a mapping from the state-choice to the
+            # different child states due to exogenous change of states.
             child_states_idxs = map_state_choice_to_child_states[batch]
-
             unique_child_states, unique_ids, inverse_ids = np.unique(
                 child_states_idxs, return_index=True, return_inverse=True
             )
-
             child_states_to_integrate_exog += [
                 inverse_ids.reshape(child_states_idxs.shape)
             ]
 
-            # Get child states for current batch of state choices
-            child_states_batch = np.take(child_states, batch, axis=0).reshape(
-                -1, n_state_vars
-            )
-
-            # Make tuple out of columns of child states
+            # Next we use the child state indexes to get all unique child states and
+            # their corresponding state-choices.
+            child_states_batch = np.take(state_space, unique_child_states, axis=0)
             child_states_tuple = tuple(
                 child_states_batch[:, i] for i in range(n_state_vars)
             )
-
-            # Get ids of state choices for each child state
             unique_state_choice_idxs_childs = map_state_choice_to_index[
                 child_states_tuple
-            ][unique_ids]
-
-            # Get minimum of the positive numbers in state_choice_idxs_childs
-            min_state_choice_idx = np.min(
-                unique_state_choice_idxs_childs[unique_state_choice_idxs_childs > 0]
-            )
-            # Save the unique normalized child states
-            child_state_choices_to_aggr_choice += [
-                unique_state_choice_idxs_childs - min_state_choice_idx
             ]
-            # Unique child state choices
-            child_state_choice_idxs_to_interpolate += [
-                np.unique(
-                    unique_state_choice_idxs_childs[unique_state_choice_idxs_childs > 0]
+
+            # Now we create a mapping from the child-state choices back to the states
+            # with state-choices in columns for the choices
+            (
+                unique_child_state_choice_idxs,
+                unique_child_state_choice_ids,
+                inverse_child_state_choice_ids,
+            ) = np.unique(
+                unique_state_choice_idxs_childs, return_index=True, return_inverse=True
+            )
+
+            # Treat invalid choices:
+            if unique_child_state_choice_idxs[0] < 0:
+                unique_child_state_choice_idxs = unique_child_state_choice_idxs[1:]
+                inverse_child_state_choice_ids = inverse_child_state_choice_ids - 1
+                max_ind = unique_child_state_choice_idxs.shape[0]
+                inverse_child_state_choice_ids[inverse_child_state_choice_ids < 0] = -(
+                    max_ind + 1
+                )
+
+            # Save the mapping from child-state-choices to child-states
+            child_state_choices_to_aggr_choice += [
+                inverse_child_state_choice_ids.reshape(
+                    unique_state_choice_idxs_childs.shape
                 )
             ]
+            # And the list of the unique child states.
+            child_state_choice_idxs_to_interpolate += [unique_child_state_choice_idxs]
+
             # Now check if the smallest index of the child state choices is larger than
             # the maximum index of the batch, i.e. if all state choice relevant to
             # solve the current state choices of the batch are in previous batches
+            min_state_choice_idx = np.min(unique_child_state_choice_idxs)
             if batch.max() > min_state_choice_idx:
                 batch_not_found = True
                 need_to_reduce_batchsize = True

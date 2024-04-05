@@ -324,14 +324,16 @@ def backward_induction(
 
 
 def create_solution_container(n_state_choices, n_total_wealth_grid):
-    value_solved = jnp.zeros((n_state_choices, n_total_wealth_grid), dtype=jnp.float64)
-    policy_left_solved = jnp.zeros(
-        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64
+    value_solved = jnp.full(
+        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
     )
-    policy_right_solved = jnp.zeros(
-        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64
+    policy_left_solved = jnp.full(
+        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
     )
-    endog_grid_solved = jnp.zeros(
-        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64
+    policy_right_solved = jnp.full(
+        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
+    )
+    endog_grid_solved = jnp.full(
+        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
     )
     return value_solved, policy_left_solved, policy_right_solved, endog_grid_solved
