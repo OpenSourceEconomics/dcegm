@@ -90,17 +90,17 @@ def test_model():
             "max_wealth": 500,
             "quadrature_points_stochastic": 5,
             "min_age": 0,
-            "n_periods": 4,
+            "n_periods": 5,
             "n_choices": 3,
             "n_health_states": 2,
             "n_partner_states": 2,
-            "max_experience": 3,
+            "max_experience": 4,
         },
         "state_space": {
-            "n_periods": 4,
+            "n_periods": 5,
             "choices": np.arange(3),
             "endogenous_states": {
-                "experience": [0, 1, 2, 3],
+                "experience": np.arange(5),
                 "sparsity_condition": sparsity_condition,
             },
             "exogenous_processes": {

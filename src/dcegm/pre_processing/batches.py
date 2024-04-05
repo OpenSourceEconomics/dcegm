@@ -41,6 +41,7 @@ def create_batches_and_information(
 
     n_periods = options["state_space"]["n_periods"]
     state_choice_space = model_structure["state_choice_space"]
+    out_of_bounds_state_choice_idx = -(state_choice_space.shape[0] + 1)
     state_space = model_structure["state_space"]
     state_space_names = model_structure["state_space_names"]
     map_state_choice_to_parent_state = model_structure[
@@ -82,6 +83,7 @@ def create_batches_and_information(
         map_state_choice_to_child_states,
         map_state_choice_to_index,
         state_space,
+        out_of_bounds_state_choice_idx,
     )
 
     if len(batches_list) == 1:
@@ -150,6 +152,7 @@ def create_batches_and_information(
         idx_to_aggregate_choice=child_state_choices_to_aggr_choice_list,
         max_child_state_index_batch=max_child_state_index_batch,
         idx_to_interpolate=child_state_choice_idxs_to_interp_list,
+        out_of_bounds_state_choice_idx=out_of_bounds_state_choice_idx,
     )
     parent_state_idx_of_state_choice = map_state_choice_to_parent_state[
         child_state_choice_idxs_to_interp
@@ -190,7 +193,10 @@ def create_batches_and_information(
 
 
 def extend_child_state_choices_to_aggregate_choices(
-    idx_to_aggregate_choice, max_child_state_index_batch, idx_to_interpolate
+    idx_to_aggregate_choice,
+    max_child_state_index_batch,
+    idx_to_interpolate,
+    out_of_bounds_state_choice_idx,
 ):
     """In case of uneven batches, we need to extend the child state objects to cover the
     same number of state choices in each batch.
@@ -220,14 +226,13 @@ def extend_child_state_choices_to_aggregate_choices(
         )
 
     # Now span an array with n_states time the maximum number of child states across
-    # all batches and the number of choices. Fill with invalid(negative) numbers
-    # otherwise
+    # all batches and the number of choices. Fill with invalid state choice index
     n_batches = len(idx_to_aggregate_choice)
     max_n_child_states = np.max(max_n_state_unique_in_batches)
     n_choices = idx_to_aggregate_choice[0].shape[1]
     child_state_choices_to_aggr_choice = np.full(
         (n_batches, max_n_child_states, n_choices),
-        fill_value=-9999,
+        fill_value=out_of_bounds_state_choice_idx,
         dtype=int,
     )
 
@@ -240,16 +245,16 @@ def extend_child_state_choices_to_aggregate_choices(
     # states can have different admissible state choices this can be different in
     # each batch. We fill up with invalid numbers.
     max_child_state_choices = np.max(list(map(len, idx_to_interpolate)))
+    dummy_state = idx_to_interpolate[0][0]
     child_state_choice_idxs_to_interp = np.full(
         (n_batches, max_child_state_choices),
-        fill_value=-9999,
+        fill_value=dummy_state,
         dtype=int,
     )
     for id_batch in range(n_batches):
         child_state_choice_idxs_to_interp[
             id_batch, : len(idx_to_interpolate[id_batch])
         ] = idx_to_interpolate[id_batch]
-
     return child_state_choice_idxs_to_interp, child_state_choices_to_aggr_choice
 
 
@@ -324,6 +329,7 @@ def determine_optimal_batch_size(
     map_state_choice_to_child_states,
     map_state_choice_to_index,
     state_space,
+    out_of_bounds_state_choice_idx,
 ):
     state_choice_space_wo_last_two = state_choice_space[
         state_choice_space[:, 0] < n_periods - 2
@@ -411,10 +417,9 @@ def determine_optimal_batch_size(
             if unique_child_state_choice_idxs[0] < 0:
                 unique_child_state_choice_idxs = unique_child_state_choice_idxs[1:]
                 inverse_child_state_choice_ids = inverse_child_state_choice_ids - 1
-                max_ind = unique_child_state_choice_idxs.shape[0]
-                inverse_child_state_choice_ids[inverse_child_state_choice_ids < 0] = -(
-                    max_ind + 1
-                )
+                inverse_child_state_choice_ids[
+                    inverse_child_state_choice_ids < 0
+                ] = out_of_bounds_state_choice_idx
 
             # Save the mapping from child-state-choices to child-states
             child_state_choices_to_aggr_choice += [
