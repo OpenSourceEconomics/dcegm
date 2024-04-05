@@ -78,12 +78,13 @@ def create_batches_and_information(
         child_state_choices_to_aggr_choice_list,
         child_states_to_integrate_exog_list,
     ) = determine_optimal_batch_size(
-        state_choice_space,
-        n_periods,
-        map_state_choice_to_child_states,
-        map_state_choice_to_index,
-        state_space,
-        out_of_bounds_state_choice_idx,
+        state_choice_space=state_choice_space,
+        n_periods=n_periods,
+        n_exog_states=model_structure["exog_state_space"].shape[0],
+        map_state_choice_to_child_states=map_state_choice_to_child_states,
+        map_state_choice_to_index=map_state_choice_to_index,
+        state_space=state_space,
+        out_of_bounds_state_choice_idx=out_of_bounds_state_choice_idx,
     )
 
     if len(batches_list) == 1:
@@ -326,6 +327,7 @@ def add_last_two_period_information(
 def determine_optimal_batch_size(
     state_choice_space,
     n_periods,
+    n_exog_states,
     map_state_choice_to_child_states,
     map_state_choice_to_index,
     state_space,
@@ -339,20 +341,15 @@ def determine_optimal_batch_size(
     child_states_idx_backward = map_state_choice_to_child_states[
         state_choice_space[:, 0] < n_periods - 2
     ]
-    # # Order by child index to solve state choices in the same child states together
-    # sort_index_by_child_states = np.argsort(child_states_idx_raw[:, 0])
-    # child_states_idx_backward = np.take(
-    #     child_states_idx_raw, sort_index_by_child_states, axis=0
-    # )
+    # Order by child index to solve state choices in the same child states together
+    sort_index_by_child_states = np.argsort(child_states_idx_backward[:, 0])
 
     state_choice_index_back = np.arange(
         state_choice_space_wo_last_two.shape[0], dtype=int
     )
     # state_choice_index_back = np.take(
-    #     state_choice_raw, sort_index_by_child_states, axis=0
+    #     state_choice_index_raw, sort_index_by_child_states, axis=0
     # )
-
-    child_states = np.take(state_space, child_states_idx_backward, axis=0)
 
     n_state_vars = state_space.shape[1]
 
@@ -360,24 +357,41 @@ def determine_optimal_batch_size(
         state_choice_space[:, 0] == state_choice_space_wo_last_two[-1, 0]
     ].shape[0]
 
+    size_first_two = state_choice_space[state_choice_space[:, 0] <= 1].shape[0]
+
     batch_not_found = True
     current_batch_size = size_last_period
     need_to_reduce_batchsize = False
+    batches_already_defined = False
     while batch_not_found:
+        if batches_already_defined:
+            if batches_to_check[-1].shape[0] + current_batch_size < size_first_two:
+                need_to_reduce_batchsize = False
+                batches_to_check[-2] = np.concatenate(
+                    (batches_to_check[-2], batches_to_check[-1])
+                )
+                batches_to_check = batches_to_check[:-1]
+                batches_already_defined = True
+
         if need_to_reduce_batchsize:
+            batches_already_defined = False
             current_batch_size = int(current_batch_size * 0.95)
             need_to_reduce_batchsize = False
-        # Split state choice indexes in
-        index_to_spilt = np.arange(
-            current_batch_size,
-            state_choice_index_back.shape[0],
-            current_batch_size,
-        )
 
-        batches_to_check = np.split(
-            np.flip(state_choice_index_back),
-            index_to_spilt,
-        )
+        if not batches_already_defined:
+            # Split state choice indexes in
+            index_to_spilt = np.arange(
+                current_batch_size,
+                state_choice_index_back.shape[0],
+                current_batch_size,
+            )
+
+            batches_to_check = np.split(
+                np.flip(state_choice_index_back),
+                index_to_spilt,
+            )
+            batches_already_defined = True
+
         child_states_to_integrate_exog = []
         child_state_choices_to_aggr_choice = []
         child_state_choice_idxs_to_interpolate = []
