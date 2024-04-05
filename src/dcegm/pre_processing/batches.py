@@ -344,12 +344,12 @@ def determine_optimal_batch_size(
     # Order by child index to solve state choices in the same child states together
     sort_index_by_child_states = np.argsort(child_states_idx_backward[:, 0])
 
-    state_choice_index_back = np.arange(
+    state_choice_index_raw = np.arange(
         state_choice_space_wo_last_two.shape[0], dtype=int
     )
-    # state_choice_index_back = np.take(
-    #     state_choice_index_raw, sort_index_by_child_states, axis=0
-    # )
+    state_choice_index_back = np.take(
+        state_choice_index_raw, sort_index_by_child_states, axis=0
+    )
 
     n_state_vars = state_space.shape[1]
 
