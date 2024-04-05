@@ -357,40 +357,26 @@ def determine_optimal_batch_size(
         state_choice_space[:, 0] == state_choice_space_wo_last_two[-1, 0]
     ].shape[0]
 
-    size_first_two = state_choice_space[state_choice_space[:, 0] <= 1].shape[0]
-
     batch_not_found = True
     current_batch_size = size_last_period
     need_to_reduce_batchsize = False
-    batches_already_defined = False
+    reduction_factor = 0.95
     while batch_not_found:
-        if batches_already_defined:
-            if batches_to_check[-1].shape[0] + current_batch_size < size_first_two:
-                need_to_reduce_batchsize = False
-                batches_to_check[-2] = np.concatenate(
-                    (batches_to_check[-2], batches_to_check[-1])
-                )
-                batches_to_check = batches_to_check[:-1]
-                batches_already_defined = True
-
         if need_to_reduce_batchsize:
-            batches_already_defined = False
-            current_batch_size = int(current_batch_size * 0.95)
+            current_batch_size = int(current_batch_size * reduction_factor)
             need_to_reduce_batchsize = False
 
-        if not batches_already_defined:
-            # Split state choice indexes in
-            index_to_spilt = np.arange(
-                current_batch_size,
-                state_choice_index_back.shape[0],
-                current_batch_size,
-            )
+        # Split state choice indexes in
+        index_to_spilt = np.arange(
+            current_batch_size,
+            state_choice_index_back.shape[0],
+            current_batch_size,
+        )
 
-            batches_to_check = np.split(
-                np.flip(state_choice_index_back),
-                index_to_spilt,
-            )
-            batches_already_defined = True
+        batches_to_check = np.split(
+            np.flip(state_choice_index_back),
+            index_to_spilt,
+        )
 
         child_states_to_integrate_exog = []
         child_state_choices_to_aggr_choice = []
@@ -453,11 +439,14 @@ def determine_optimal_batch_size(
                 need_to_reduce_batchsize = True
                 break
 
-        if not need_to_reduce_batchsize:
-            batch_not_found = False
-
         print("The batch size of the backwards induction is ", current_batch_size)
-        print("It failed in batch ", i)
+
+        if not need_to_reduce_batchsize:
+            if reduction_factor > 0.99:
+                print("Batch size found.")
+                batch_not_found = False
+            current_batch_size = int(current_batch_size / reduction_factor)
+            reduction_factor = (1 + reduction_factor) / 2
 
     return (
         batches_to_check,
