@@ -241,7 +241,7 @@ def check_value_if_credit_constrained(
     )
     value_interp_closed_form = utility + params["beta"] * value_at_zero_wealth
 
-    credit_constraint = new_wealth < endog_grid_min
+    credit_constraint = new_wealth <= endog_grid_min
     value_interp = (
         credit_constraint * value_interp_closed_form
         + (1 - credit_constraint) * value_interp_on_grid
