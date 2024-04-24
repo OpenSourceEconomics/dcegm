@@ -213,7 +213,7 @@ def test_extended_choice_set_model(
         utility_functions_final_period=utility_functions_final_period,
     )
     sol = solve_func(params)
-    value, policy_left, policy_right, endog_grid = sol
+    value, policy, endog_grid = sol
     value_expec = pickle.load(
         open(TEST_DIR / "resources" / "extended_choice_set" / "value.pkl", "rb")
     )
@@ -238,5 +238,4 @@ def test_extended_choice_set_model(
         state_choice_space[:, i] for i in range(state_choice_space.shape[1])
     )
     reindex = indexer[tuple_state_choice]
-    np.unique(state_choice_space, return_counts=True)
     np.testing.assert_allclose(value, value_expec[reindex])

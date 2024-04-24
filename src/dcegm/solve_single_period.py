@@ -20,7 +20,7 @@ def solve_single_period(
 ):
     """This function solves a single period of the model using the discrete continuous
     endogenous grid method (DCEGM)."""
-    (value_solved, policy_left_solved, policy_right_solved, endog_grid_solved) = carry
+    (value_solved, policy_solved, endog_grid_solved) = carry
 
     (
         state_choices_idxs,
@@ -35,23 +35,21 @@ def solve_single_period(
     # EGM step 1)
     marginal_utility_interpolated, value_interpolated = vmap(
         interpolate_value_and_calc_marginal_utility,
-        in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),
+        in_axes=(None, None, 0, 0, 0, 0, 0, None),
     )(
         model_funcs["compute_marginal_utility"],
         model_funcs["compute_utility"],
         state_choice_mat_child,
         resources_beginning_of_period[child_state_idxs, :, :],
         endog_grid_solved[child_state_choice_idxs_to_interpolate, :],
-        policy_left_solved[child_state_choice_idxs_to_interpolate, :],
-        policy_right_solved[child_state_choice_idxs_to_interpolate, :],
+        policy_solved[child_state_choice_idxs_to_interpolate, :],
         value_solved[child_state_choice_idxs_to_interpolate, :],
         params,
     )
 
     (
         endog_grid_state_choice,
-        policy_left_state_choice,
-        policy_right_state_choice,
+        policy_state_choice,
         value_state_choice,
     ) = solve_for_interpolated_values(
         value_interpolated,
@@ -67,17 +65,12 @@ def solve_single_period(
     )
 
     value_solved = value_solved.at[state_choices_idxs, :].set(value_state_choice)
-    policy_left_solved = policy_left_solved.at[state_choices_idxs, :].set(
-        policy_left_state_choice
-    )
-    policy_right_solved = policy_right_solved.at[state_choices_idxs, :].set(
-        policy_right_state_choice
-    )
+    policy_solved = policy_solved.at[state_choices_idxs, :].set(policy_state_choice)
     endog_grid_solved = endog_grid_solved.at[state_choices_idxs, :].set(
         endog_grid_state_choice
     )
 
-    carry = (value_solved, policy_left_solved, policy_right_solved, endog_grid_solved)
+    carry = (value_solved, policy_solved, endog_grid_solved)
 
     return carry, ()
 
@@ -128,8 +121,7 @@ def solve_for_interpolated_values(
     # Run upper envelope to remove suboptimal candidates
     (
         endog_grid_state_choice,
-        policy_left_state_choice,
-        policy_right_state_choice,
+        policy_state_choice,
         value_state_choice,
     ) = vmap(
         model_funcs["compute_upper_envelope"],
@@ -146,7 +138,6 @@ def solve_for_interpolated_values(
 
     return (
         endog_grid_state_choice,
-        policy_left_state_choice,
-        policy_right_state_choice,
+        policy_state_choice,
         value_state_choice,
     )

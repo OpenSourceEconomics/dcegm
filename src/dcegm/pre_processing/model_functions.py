@@ -152,4 +152,4 @@ def _return_policy_and_value(
     policy = jnp.append(jnp.append(0, policy), nans_to_append)
     value = jnp.append(jnp.append(expected_value_zero_savings, value), nans_to_append)
 
-    return endog_grid, policy, policy, value
+    return endog_grid, policy, value

@@ -55,7 +55,7 @@ def test_two_period(toy_model, euler_rhs, wealth_idx, state_idx, request):
     quad_draws = norm.ppf(quad_points) * 1
 
     endog_grid_period = toy_model["endog_grid"]
-    policy_period = toy_model["policy_left"]
+    policy_period = toy_model["policy"]
     state_space_dict = toy_model["state_space_dict"]
 
     state_choice_space = toy_model["state_choice_space"]

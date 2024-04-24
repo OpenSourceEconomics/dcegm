@@ -15,8 +15,7 @@ def interpolate_policy_and_value_for_all_agents(
     states_beginning_of_period,
     resources_beginning_of_period,
     value_solved,
-    policy_left_solved,
-    policy_right_solved,
+    policy_solved,
     endog_grid_solved,
     map_state_choice_to_index,
     choice_range,
@@ -39,18 +38,15 @@ def interpolate_policy_and_value_for_all_agents(
     value_grid_agent = jnp.take(
         value_solved, state_choice_indexes, axis=0, mode="fill", fill_value=jnp.nan
     )
-    policy_left_grid_agent = jnp.take(policy_left_solved, state_choice_indexes, axis=0)
-    policy_right_grid_agent = jnp.take(
-        policy_right_solved, state_choice_indexes, axis=0
-    )
+    policy_grid_agent = jnp.take(policy_solved, state_choice_indexes, axis=0)
     endog_grid_agent = jnp.take(endog_grid_solved, state_choice_indexes, axis=0)
 
     vectorized_interp = vmap(
         vmap(
             interpolate_policy_and_value_function,
-            in_axes=(None, None, 0, 0, 0, 0, 0, None, None),
+            in_axes=(None, None, 0, 0, 0, 0, None, None),
         ),
-        in_axes=(0, 0, 0, 0, 0, 0, None, None, None),
+        in_axes=(0, 0, 0, 0, 0, None, None, None),
     )
 
     policy_agent, value_per_agent_interp = vectorized_interp(
@@ -58,8 +54,7 @@ def interpolate_policy_and_value_for_all_agents(
         states_beginning_of_period,
         endog_grid_agent,
         value_grid_agent,
-        policy_left_grid_agent,
-        policy_right_grid_agent,
+        policy_grid_agent,
         choice_range,
         params,
         compute_utility,
@@ -182,8 +177,7 @@ def interpolate_policy_and_value_function(
     state,
     endog_grid_agent,
     value_agent,
-    policy_left_agent,
-    policy_right_agent,
+    policy_agent,
     choice,
     params,
     compute_utility,
@@ -200,8 +194,8 @@ def interpolate_policy_and_value_function(
         x_new=resources_beginning_of_period,
         x_low=wealth_low_agent,
         x_high=wealth_high_agent,
-        y_low=policy_right_agent[ind_low],
-        y_high=policy_left_agent[ind_high],
+        y_low=policy_agent[ind_low],
+        y_high=policy_agent[ind_high],
     )
 
     value_interp = interp_value_and_check_creditconstraint(
