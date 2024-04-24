@@ -4,7 +4,7 @@ from typing import Dict
 import jax.numpy as jnp
 from dcegm.pre_processing.exog_processes import create_exog_transition_function
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
-from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope_wrapper
+from upper_envelope.fues_jax.fues_jax import fast_upper_envelope_wrapper
 
 
 def process_model_functions(
@@ -94,10 +94,7 @@ def process_model_functions(
         options=model_params_options,
     )
 
-    if len(options["state_space"]["choices"]) < 2:
-        compute_upper_envelope = _return_policy_and_value
-    else:
-        compute_upper_envelope = fast_upper_envelope_wrapper
+    compute_upper_envelope = create_upper_envelope_function(options)
 
     model_funcs = {
         "compute_utility": compute_utility,
@@ -113,6 +110,37 @@ def process_model_functions(
     }
 
     return model_funcs
+
+
+def create_upper_envelope_function(options):
+    if len(options["state_space"]["choices"]) < 2:
+        compute_upper_envelope = _return_policy_and_value
+    else:
+
+        def compute_upper_envelope(
+            endog_grid,
+            policy,
+            value,
+            expected_value_zero_savings,
+            state_choice_dict,
+            utility_function,
+            params,
+        ):
+            utility_kwargs = {
+                **state_choice_dict,
+                "params": params,
+            }
+            return fast_upper_envelope_wrapper(
+                endog_grid=endog_grid,
+                policy=policy,
+                value=value,
+                expected_value_zero_savings=expected_value_zero_savings,
+                utility_function=utility_function,
+                utility_kwargs=utility_kwargs,
+                disc_factor=params["beta"],
+            )
+
+    return compute_upper_envelope
 
 
 def _return_policy_and_value(

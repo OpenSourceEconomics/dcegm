@@ -140,8 +140,8 @@ def solve_for_interpolated_values(
         value_candidate,
         expected_values[:, 0],
         state_choice_mat,
-        params,
         model_funcs["compute_utility"],
+        params,
     )
 
     return (
