@@ -33,10 +33,8 @@ def interpolate_policy_and_value_on_wealth_grid(
             begin of period wealth.
         endog_wealth_grid (jnp.array): 1d array of shape (n,) containing the endogenous
             wealth grid.
-        policy_left_grid (jnp.ndarray): 1d array of shape (n,) containing the
-            left policy function corresponding to the endogenous wealth grid.
-        policy_right_grid (jnp.ndarray): 1d array of shape (n,) containing the
-            left policy function corresponding to the endogenous wealth grid.
+        policy_grid (jnp.ndarray): 1d array of shape (n,) containing the
+            policy function corresponding to the endogenous wealth grid.
         value_grid (jnp.ndarray): 1d array of shape (n,) containing the value function
             values corresponding to the endogenous wealth grid.
 

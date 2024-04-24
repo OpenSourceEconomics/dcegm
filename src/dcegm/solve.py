@@ -50,8 +50,8 @@ def solve_dcegm(
             state a transition matrix vector.
 
     Returns:
-        dict: Dictionary containing the period-specific endog_grid, policy_left,
-            policy_right, and value from the backward induction.
+        dict: Dictionary containing the period-specific endog_grid, policy, and value
+            from the backward induction.
 
     """
     backward_jit = get_solve_function(
@@ -205,8 +205,8 @@ def backward_induction(
                 scan.
 
     Returns:
-        dict: Dictionary containing the period-specific endog_grid, policy_left,
-            policy_right, and value from the backward induction.
+        dict: Dictionary containing the period-specific endog_grid, policy, and value
+            from the backward induction.
 
     """
     taste_shock_scale = params["lambda"]

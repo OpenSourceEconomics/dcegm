@@ -120,8 +120,7 @@ def create_individual_likelihood_function_for_model(
         params_initial = update_params(params)
         (
             value_solved,
-            policy_left_solved,
-            policy_right_solved,
+            policy_solved,
             endog_grid_solved,
         ) = partial_backwards_induction(params_initial)
         choice_probs = partial_choice_prob_calculation(

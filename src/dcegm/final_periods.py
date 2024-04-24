@@ -21,6 +21,7 @@ def solve_last_two_periods(
     endog_grid_solved,
 ):
     """Solves the last two periods of the model.
+
     The last two periods are solved using the EGM algorithm. The last period is
     solved using the user-specified utility function and the second to last period
     is solved using the user-specified utility function and the user-specified
@@ -41,16 +42,7 @@ def solve_last_two_periods(
         endog_grid_solved (np.ndarray): 3d array of shape
             (n_states, n_grid_wealth, n_income_shocks) of the endogenous grid
             for all states, end of period assets, and income shocks.
-    Returns:
-        tuple:
-        - value_solved (np.ndarray): 3d array of shape
-            (n_states, n_grid_wealth, n_income_shocks) of the value function for
-            all states, end of period assets, and income shocks.
-        - policy_left_solved (np.ndarray): 3d array of shape
-            (n_states, n_grid_wealth, n_income_shocks) of the policy for all
-            states, end of period assets, and income shocks.
-        - policy_right_solved (np.ndarray): 3d array of shape
-            (n_states, n_grid_
+
     """
     (
         value_solved,
