@@ -240,8 +240,7 @@ def toy_model_exog_ltc(
 
     (
         out["value"],
-        out["policy_left"],
-        out["policy_right"],
+        out["policy"],
         out["endog_grid"],
     ) = solve_dcegm(
         params,
@@ -294,8 +293,7 @@ def toy_model_exog_ltc_and_job_offer(
 
     (
         out["value"],
-        out["policy_left"],
-        out["policy_right"],
+        out["policy"],
         out["endog_grid"],
     ) = solve_dcegm(
         params,

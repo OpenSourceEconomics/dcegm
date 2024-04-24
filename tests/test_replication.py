@@ -84,7 +84,7 @@ def test_benchmark_models(
         budget_constraint=budget_constraint,
     )
 
-    value, policy_left, policy_right, endog_grid = solve_dcegm(
+    value, policy, endog_grid = solve_dcegm(
         params,
         options,
         exog_savings_grid=exog_savings_grid,
@@ -130,8 +130,7 @@ def test_benchmark_models(
         ) = interpolate_policy_and_value_on_wealth_grid(
             wealth_beginning_of_period=wealth_grid_to_test,
             endog_wealth_grid=endog_grid[state_choice_idx],
-            policy_left_grid=policy_left[state_choice_idx],
-            policy_right_grid=policy_right[state_choice_idx],
+            policy=policy[state_choice_idx],
             value_grid=value[state_choice_idx],
         )
 

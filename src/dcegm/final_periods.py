@@ -17,8 +17,7 @@ def solve_last_two_periods(
     model_funcs: Dict[str, Callable],
     batch_info,
     value_solved,
-    policy_left_solved,
-    policy_right_solved,
+    policy_solved,
     endog_grid_solved,
 ):
     """Solves the last two periods of the model.
@@ -39,12 +38,6 @@ def solve_last_two_periods(
         value_solved (np.ndarray): 3d array of shape
             (n_states, n_grid_wealth, n_income_shocks) of the value function for
             all states, end of period assets, and income shocks.
-        policy_left_solved (np.ndarray): 3d array of shape
-            (n_states, n_grid_wealth, n_income_shocks) of the policy for all
-            states, end of period assets, and income shocks.
-        policy_right_solved (np.ndarray): 3d array of shape
-            (n_states, n_grid_wealth, n_income_shocks) of the policy for all
-            states, end of period assets, and income shocks.
         endog_grid_solved (np.ndarray): 3d array of shape
             (n_states, n_grid_wealth, n_income_shocks) of the endogenous grid
             for all states, end of period assets, and income shocks.
@@ -61,8 +54,7 @@ def solve_last_two_periods(
     """
     (
         value_solved,
-        policy_left_solved,
-        policy_right_solved,
+        policy_solved,
         endog_grid_solved,
         value_interp_final_period,
         marginal_utility_final_last_period,
@@ -75,12 +67,11 @@ def solve_last_two_periods(
         compute_utility=model_funcs["compute_utility_final"],
         compute_marginal_utility=model_funcs["compute_marginal_utility_final"],
         value_solved=value_solved,
-        policy_left_solved=policy_left_solved,
-        policy_right_solved=policy_right_solved,
+        policy_solved=policy_solved,
         endog_grid_solved=endog_grid_solved,
     )
 
-    (endog_grid, policy_left, policy_right, value) = solve_for_interpolated_values(
+    (endog_grid, policy, value) = solve_for_interpolated_values(
         value_interpolated=value_interp_final_period,
         marginal_utility_interpolated=marginal_utility_final_last_period,
         state_choice_mat=batch_info["state_choice_mat_second_last_period"],
@@ -94,10 +85,9 @@ def solve_last_two_periods(
     )
     idx_second_last = batch_info["idx_state_choices_second_last_period"]
     value_solved = value_solved.at[idx_second_last, :].set(value)
-    policy_left_solved = policy_left_solved.at[idx_second_last, :].set(policy_left)
-    policy_right_solved = policy_right_solved.at[idx_second_last, :].set(policy_right)
+    policy_solved = policy_solved.at[idx_second_last, :].set(policy)
     endog_grid_solved = endog_grid_solved.at[idx_second_last, :].set(endog_grid)
-    return value_solved, policy_left_solved, policy_right_solved, endog_grid_solved
+    return value_solved, policy_solved, endog_grid_solved
 
 
 def solve_final_period(
@@ -109,12 +99,9 @@ def solve_final_period(
     compute_utility: Callable,
     compute_marginal_utility: Callable,
     value_solved,
-    policy_left_solved,
-    policy_right_solved,
+    policy_solved,
     endog_grid_solved,
-) -> Tuple[
-    jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray
-]:
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Computes solution to final period for policy and value function.
     In the last period, everything is consumed, i.e. consumption = savings.
     Args:
@@ -167,20 +154,16 @@ def solve_final_period(
     value_solved = value_solved.at[idx_state_choices_final_period, :n_wealth].set(
         value_final
     )
-    policy_left_solved = policy_left_solved.at[
-        idx_state_choices_final_period, :n_wealth
-    ].set(resources_to_save)
-    policy_right_solved = policy_right_solved.at[
-        idx_state_choices_final_period, :n_wealth
-    ].set(resources_to_save)
+    policy_solved = policy_solved.at[idx_state_choices_final_period, :n_wealth].set(
+        resources_to_save
+    )
     endog_grid_solved = endog_grid_solved.at[
         idx_state_choices_final_period, :n_wealth
     ].set(resources_to_save)
 
     return (
         value_solved,
-        policy_left_solved,
-        policy_right_solved,
+        policy_solved,
         endog_grid_solved,
         value,
         marg_util,

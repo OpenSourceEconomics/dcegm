@@ -19,8 +19,7 @@ def linear_interpolation_formula(
 def interpolate_policy_and_value_on_wealth_grid(
     wealth_beginning_of_period: jnp.ndarray,
     endog_wealth_grid: jnp.ndarray,
-    policy_left_grid: jnp.ndarray,
-    policy_right_grid: jnp.ndarray,
+    policy: jnp.ndarray,
     value_grid: jnp.ndarray,
 ):
     """Interpolate policy and value functions on the wealth grid.
@@ -58,8 +57,8 @@ def interpolate_policy_and_value_on_wealth_grid(
     wealth_high = jnp.take(endog_wealth_grid, ind_high)
 
     policy_new = linear_interpolation_formula(
-        y_high=jnp.take(policy_left_grid, ind_high),
-        y_low=jnp.take(policy_right_grid, ind_low),
+        y_high=jnp.take(policy, ind_high),
+        y_low=jnp.take(policy, ind_low),
         x_high=wealth_high,
         x_low=wealth_low,
         x_new=wealth_beginning_of_period,

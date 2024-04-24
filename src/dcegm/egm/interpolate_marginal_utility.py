@@ -12,11 +12,10 @@ from jax import vmap
 def interpolate_value_and_calc_marginal_utility(
     compute_marginal_utility: Callable,
     compute_utility: Callable,
-    state_choice_vec: np.ndarray,
+    state_choice_vec: Dict[str, int],
     wealth_beginning_of_period: jnp.ndarray,
     endog_grid_child_state_choice: jnp.ndarray,
-    policy_left_child_state_choice: jnp.ndarray,
-    policy_right_child_state_choice: jnp.ndarray,
+    policy_child_state_choice: jnp.ndarray,
     value_child_state_choice: jnp.ndarray,
     params: Dict[str, float],
 ) -> Tuple[float, float]:
@@ -63,10 +62,10 @@ def interpolate_value_and_calc_marginal_utility(
         ),
         in_axes=(0, 0, 0, 0, 0, 0, 0, None, None, None, None, None, None),
     )(
-        jnp.take(policy_left_child_state_choice, ind_high),
+        jnp.take(policy_child_state_choice, ind_high),
         value_child_state_choice[ind_high],
         endog_grid_child_state_choice[ind_high],
-        jnp.take(policy_right_child_state_choice, ind_low),
+        jnp.take(policy_child_state_choice, ind_low),
         value_child_state_choice[ind_low],
         endog_grid_child_state_choice[ind_low],
         wealth_beginning_of_period,
@@ -82,17 +81,17 @@ def interpolate_value_and_calc_marginal_utility(
 
 
 def _interpolate_value_and_marg_util(
-    policy_high: float,
-    value_high: float,
-    wealth_high: float,
-    policy_low: float,
-    value_low: float,
-    wealth_low: float,
-    new_wealth: float,
+    policy_high: float | jnp.ndarray,
+    value_high: float | jnp.ndarray,
+    wealth_high: float | jnp.ndarray,
+    policy_low: float | jnp.ndarray,
+    value_low: float | jnp.ndarray,
+    wealth_low: float | jnp.ndarray,
+    new_wealth: float | jnp.ndarray,
     compute_utility: Callable,
     compute_marginal_utility: Callable,
-    endog_grid_min: float,
-    value_at_zero_wealth: float,
+    endog_grid_min: float | jnp.ndarray,
+    value_at_zero_wealth: float | jnp.ndarray,
     state_choice_vec: Dict[str, int],
     params: Dict[str, float],
 ) -> Tuple[float, float]:

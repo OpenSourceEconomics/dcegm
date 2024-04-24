@@ -152,7 +152,7 @@ def backward_induction(
     income_shock_draws_unscaled: np.ndarray,
     income_shock_weights: np.ndarray,
     model_funcs: Dict[str, Callable],
-) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Do backward induction and solve for optimal policy and value function.
 
     Args:
@@ -224,8 +224,7 @@ def backward_induction(
     # into tuning parameters
     (
         value_solved,
-        policy_left_solved,
-        policy_right_solved,
+        policy_solved,
         endog_grid_solved,
     ) = create_solution_container(
         n_state_choices=n_state_choices,
@@ -237,8 +236,7 @@ def backward_induction(
     # function of the bequest function, which might differ.
     (
         value_solved,
-        policy_left_solved,
-        policy_right_solved,
+        policy_solved,
         endog_grid_solved,
     ) = solve_last_two_periods(
         resources_beginning_of_period=resources_beginning_of_period,
@@ -249,14 +247,13 @@ def backward_induction(
         model_funcs=model_funcs,
         batch_info=batch_info,
         value_solved=value_solved,
-        policy_left_solved=policy_left_solved,
-        policy_right_solved=policy_right_solved,
+        policy_solved=policy_solved,
         endog_grid_solved=endog_grid_solved,
     )
 
     # If it is a two period model we are done.
     if batch_info["two_period_model"]:
-        return value_solved, policy_left_solved, policy_right_solved, endog_grid_solved
+        return value_solved, policy_solved, endog_grid_solved
 
     def partial_single_period(carry, xs):
         return solve_single_period(
@@ -272,8 +269,7 @@ def backward_induction(
 
     carry_start = (
         value_solved,
-        policy_left_solved,
-        policy_right_solved,
+        policy_solved,
         endog_grid_solved,
     )
 
@@ -308,32 +304,27 @@ def backward_induction(
 
         (
             value_solved,
-            policy_left_solved,
-            policy_right_solved,
+            policy_solved,
             endog_grid_solved,
         ) = extra_final_carry
     else:
         (
             value_solved,
-            policy_left_solved,
-            policy_right_solved,
+            policy_solved,
             endog_grid_solved,
         ) = final_carry
 
-    return value_solved, policy_left_solved, policy_right_solved, endog_grid_solved
+    return value_solved, policy_solved, endog_grid_solved
 
 
 def create_solution_container(n_state_choices, n_total_wealth_grid):
     value_solved = jnp.full(
         (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
     )
-    policy_left_solved = jnp.full(
-        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
-    )
-    policy_right_solved = jnp.full(
+    policy_solved = jnp.full(
         (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
     )
     endog_grid_solved = jnp.full(
         (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
     )
-    return value_solved, policy_left_solved, policy_right_solved, endog_grid_solved
+    return value_solved, policy_solved, endog_grid_solved

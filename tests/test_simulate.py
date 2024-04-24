@@ -41,8 +41,7 @@ def model_setup(toy_model_exog_ltc):
 
     state_space_names = toy_model_exog_ltc["state_space_names"]
     value = toy_model_exog_ltc["value"]
-    policy_left = toy_model_exog_ltc["policy_left"]
-    policy_right = toy_model_exog_ltc["policy_right"]
+    policy = toy_model_exog_ltc["policy"]
     endog_grid = toy_model_exog_ltc["endog_grid"]
     exog_state_mapping = toy_model_exog_ltc["exog_state_mapping"]
     get_next_period_state = toy_model_exog_ltc["get_next_period_state"]
@@ -78,8 +77,7 @@ def model_setup(toy_model_exog_ltc):
         "options": options,
         "state_space_names": state_space_names,
         "value": value,
-        "policy_left": policy_left,
-        "policy_right": policy_right,
+        "policy": policy,
         "endog_grid": endog_grid,
         "exog_state_mapping": exog_state_mapping,
         "model_funcs": model_funcs,
@@ -100,8 +98,7 @@ def test_simulate_lax_scan(model_setup):
 
     state_space_names = model_setup["state_space_names"]
     value = model_setup["value"]
-    policy_left = model_setup["policy_left"]
-    policy_right = model_setup["policy_right"]
+    policy = model_setup["policy"]
     endog_grid = model_setup["endog_grid"]
     exog_state_mapping = model_setup["exog_state_mapping"]
     get_next_period_state = model_setup["get_next_period_state"]
@@ -120,8 +117,7 @@ def test_simulate_lax_scan(model_setup):
         state_space_names=state_space_names,
         endog_grid_solved=endog_grid,
         value_solved=value,
-        policy_left_solved=policy_left,
-        policy_right_solved=policy_right,
+        policy_solved=policy,
         map_state_choice_to_index=jnp.array(map_state_choice_to_index),
         choice_range=jnp.arange(map_state_choice_to_index.shape[-1], dtype=jnp.int16),
         compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
@@ -186,8 +182,7 @@ def test_simulate(model_setup):
 
     state_space_names = model_setup["state_space_names"]
     value = model_setup["value"]
-    policy_left = model_setup["policy_left"]
-    policy_right = model_setup["policy_right"]
+    policy = model_setup["policy"]
     endog_grid = model_setup["endog_grid"]
     exog_state_mapping = model_setup["exog_state_mapping"]
     get_next_period_state = model_setup["get_next_period_state"]
@@ -215,8 +210,7 @@ def test_simulate(model_setup):
         seed=111,
         endog_grid_solved=endog_grid,
         value_solved=value,
-        policy_left_solved=policy_left,
-        policy_right_solved=policy_right,
+        policy_solved=policy,
         map_state_choice_to_index=jnp.array(map_state_choice_to_index),
         choice_range=jnp.arange(map_state_choice_to_index.shape[-1], dtype=jnp.int16),
         compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
@@ -258,8 +252,7 @@ def test_simulate_all_periods_for_model(model_setup):
     seed = model_setup["seed"]
     endog_grid_solved = model_setup["endog_grid"]
     value_solved = model_setup["value"]
-    policy_left_solved = model_setup["policy_left"]
-    policy_right_solved = model_setup["policy_right"]
+    policy_solved = model_setup["policy"]
     choice_range = jnp.arange(
         model_setup["map_state_choice_to_index"].shape[-1], dtype=jnp.int16
     )
@@ -279,8 +272,7 @@ def test_simulate_all_periods_for_model(model_setup):
         seed=seed,
         endog_grid_solved=endog_grid_solved,
         value_solved=value_solved,
-        policy_left_solved=policy_left_solved,
-        policy_right_solved=policy_right_solved,
+        policy_solved=policy_solved,
         choice_range=choice_range,
         model=model,
     )
