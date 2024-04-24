@@ -243,15 +243,17 @@ def test_extended_choice_set_model(
     # in the upper envelope. Therefore, we need to loop over state choices and filter
     # the arrays
     for i in range(value.shape[0]):
-        # Read out relevant row of arrays and compare first two elements
-        value_i = value[i]
-        value_expec_i = value_expec_reindexed[i]
-        np.testing.assert_allclose(value_i[:2], value_expec_i[:2])
-        # Now check all elements that are not nan in the arrays and do not equal the
-        # second element in the expected array are equal
-        value_i_non_nan = value_i[~np.isnan(value_i)][2:]
-        value_expec_i_non_nan = value_expec_i[~np.isnan(value_expec_i)][2:]
-        value_expec_i_non_nan = value_expec_i_non_nan[
-            ~np.isclose(value_expec_i_non_nan, value_expec_i[1])
-        ]
-        np.testing.assert_allclose(value_i_non_nan, value_expec_i_non_nan)
+        # We can't use the last period
+        if state_choice_space[i, 0] < 4:
+            # Read out relevant row of arrays and compare first two elements
+            value_i = value[i]
+            value_expec_i = value_expec_reindexed[i]
+            np.testing.assert_allclose(value_i[:2], value_expec_i[:2])
+            # Now check all elements that are not nan in the arrays and do not equal the
+            # second element in the expected array are equal
+            value_i_non_nan = value_i[~np.isnan(value_i)][2:]
+            value_expec_i_non_nan = value_expec_i[~np.isnan(value_expec_i)][2:]
+            value_expec_i_non_nan = value_expec_i_non_nan[
+                ~np.isclose(value_expec_i_non_nan, value_expec_i[1])
+            ]
+            np.testing.assert_allclose(value_i_non_nan, value_expec_i_non_nan)

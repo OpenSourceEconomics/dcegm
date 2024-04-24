@@ -143,15 +143,20 @@ def solve_final_period(
     # The user defines this by the bequest functions.
     resources_to_save = resources[:, :, middle_of_draws]
     # Store results
-    value_solved = value_solved.at[idx_state_choices_final_period, :n_wealth].set(
-        value_final
+
+    zeros_to_append = jnp.zeros(value_final.shape[0])
+    # Add as first column
+    values_with_zeros = jnp.column_stack((zeros_to_append, value_final))
+    resources_with_zeros = jnp.column_stack((zeros_to_append, resources_to_save))
+    value_solved = value_solved.at[idx_state_choices_final_period, : n_wealth + 1].set(
+        values_with_zeros
     )
-    policy_solved = policy_solved.at[idx_state_choices_final_period, :n_wealth].set(
-        resources_to_save
-    )
+    policy_solved = policy_solved.at[
+        idx_state_choices_final_period, : n_wealth + 1
+    ].set(resources_with_zeros)
     endog_grid_solved = endog_grid_solved.at[
-        idx_state_choices_final_period, :n_wealth
-    ].set(resources_to_save)
+        idx_state_choices_final_period, : n_wealth + 1
+    ].set(resources_with_zeros)
 
     return (
         value_solved,
