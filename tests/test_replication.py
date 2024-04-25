@@ -62,11 +62,13 @@ def test_benchmark_models(
     )
     utility_functions = create_utility_function_dict()
     utility_functions_final_period = create_final_period_utility_function_dict()
-    state_space_functions = create_state_space_function_dict()
 
-    if params["rho"] == 1:
+    if model_name == "deaton":
+        state_space_functions = None
         utility_functions["utility"] = utiility_log_crra
         utility_functions_final_period["utility"] = utiility_log_crra_final_consume_all
+    else:
+        state_space_functions = create_state_space_function_dict()
 
     model = setup_model(
         options=options,

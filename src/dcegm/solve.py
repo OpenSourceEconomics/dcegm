@@ -22,10 +22,10 @@ def solve_dcegm(
     params: pd.DataFrame,
     options: Dict,
     exog_savings_grid: jnp.ndarray,
-    state_space_functions: Dict[str, Callable],
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
+    state_space_functions: Dict[str, Callable] = None,
 ) -> Dict[int, np.ndarray]:
     """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
@@ -54,6 +54,7 @@ def solve_dcegm(
             from the backward induction.
 
     """
+
     backward_jit = get_solve_function(
         options=options,
         exog_savings_grid=exog_savings_grid,
@@ -71,10 +72,10 @@ def solve_dcegm(
 def get_solve_function(
     options: Dict[str, Any],
     exog_savings_grid: jnp.ndarray,
-    state_space_functions: Dict[str, Callable],
     utility_functions: Dict[str, Callable],
     budget_constraint: Callable,
     utility_functions_final_period: Dict[str, Callable],
+    state_space_functions: Dict[str, Callable] = None,
 ) -> Callable:
     """Create a solve function, which only takes params as input.
 
@@ -101,6 +102,7 @@ def get_solve_function(
         callable: The partial solve function that only takes ```params``` as input.
 
     """
+
     model = setup_model(
         options=options,
         state_space_functions=state_space_functions,

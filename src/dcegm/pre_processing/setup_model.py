@@ -11,10 +11,10 @@ from dcegm.pre_processing.state_space import create_state_space_and_choice_objec
 
 def setup_model(
     options: Dict,
-    state_space_functions: Dict[str, Callable],
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
+    state_space_functions: Dict[str, Callable] = None,
 ):
     """Set up the model for dcegm.
 
@@ -41,6 +41,9 @@ def setup_model(
         budget_constraint (Callable): User supplied budget constraint.
 
     """
+    state_space_functions = (
+        {} if state_space_functions is None else state_space_functions
+    )
 
     model_funcs = process_model_functions(
         options,
