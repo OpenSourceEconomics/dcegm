@@ -84,15 +84,37 @@ def process_model_functions(
         )
     )
 
-    get_state_specific_choice_set = determine_function_arguments_and_partial_options(
-        func=state_space_functions["get_state_specific_choice_set"],
-        options=model_params_options,
-    )
+    if "get_state_specific_choice_set" not in state_space_functions:
+        print(
+            "State specific choice set not provided. Assume all choices are "
+            "available in every state."
+        )
 
-    get_next_period_state = determine_function_arguments_and_partial_options(
-        func=state_space_functions["get_next_period_state"],
-        options=model_params_options,
-    )
+        def get_state_specific_choice_set(**kwargs):
+            return jnp.array(options["state_space"]["choices"])
+
+    else:
+        get_state_specific_choice_set = (
+            determine_function_arguments_and_partial_options(
+                func=state_space_functions["get_state_specific_choice_set"],
+                options=model_params_options,
+            )
+        )
+
+    if "get_next_period_state" not in state_space_functions:
+        print(
+            "Update function for state space not given. Assume states only change "
+            "with an increase of the period and lagged choice."
+        )
+
+        def get_next_period_state(**kwargs):
+            return {"period": kwargs["period"] + 1, "lagged_choice": kwargs["choice"]}
+
+    else:
+        get_next_period_state = determine_function_arguments_and_partial_options(
+            func=state_space_functions["get_next_period_state"],
+            options=model_params_options,
+        )
 
     compute_upper_envelope = create_upper_envelope_function(options)
 

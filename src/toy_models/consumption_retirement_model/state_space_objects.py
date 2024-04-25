@@ -4,7 +4,7 @@ from typing import Dict
 import numpy as np
 
 
-def update_state(period, choice, options):
+def update_state(period, choice):
     """Get endogenous state by state and choice.
 
     Args:
