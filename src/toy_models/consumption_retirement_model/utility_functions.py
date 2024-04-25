@@ -125,7 +125,6 @@ def marginal_utility_crra(
 def inverse_marginal_utility_crra(
     marginal_utility: jnp.array,
     params: Dict[str, float],
-    options: Dict[str, Any],
 ) -> jnp.array:
     """Computes the inverse marginal utility of a CRRA utility function.
 
