@@ -4,23 +4,16 @@ from typing import Dict
 import numpy as np
 
 
-def update_state(period, choice):
-    """Get endogenous state by state and choice.
-
-    Args:
-        state (np.ndarray): 1d array of shape (n_state_vars,) containing the
-            current state.
-        choice (int): Choice to be made at the end of the period.
+def create_state_space_function_dict():
+    """Create dictionary with state space functions.
 
     Returns:
-        np.ndarray: 1d array of shape (n_state_vars,) containing the state of the
-            next period, where the endogenous part of the state is updated.
+        state_space_functions (dict): Dictionary with state space functions.
 
     """
-
-    state_next = {"period": period + 1, "lagged_choice": choice}
-
-    return state_next
+    return {
+        "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
+    }
 
 
 def get_state_specific_feasible_choice_set(
