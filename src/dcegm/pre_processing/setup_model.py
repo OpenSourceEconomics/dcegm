@@ -78,11 +78,11 @@ def setup_model(
 
 def setup_and_save_model(
     options: Dict,
-    state_space_functions: Dict[str, Callable],
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
-    path: str,
+    state_space_functions: Dict[str, Callable] = None,
+    path: str = "model.pkl",
 ):
     """Set up the model and save.
 
@@ -110,16 +110,19 @@ def setup_and_save_model(
 
 def load_and_setup_model(
     options: Dict,
-    state_space_functions: Dict[str, Callable],
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
-    path: str,
+    state_space_functions: Dict[str, Callable] = None,
+    path: str = "model.pkl",
 ):
     """Load the model from file."""
 
     model = pickle.load(open(path, "rb"))
 
+    state_space_functions = (
+        {} if state_space_functions is None else state_space_functions
+    )
     model["model_funcs"] = process_model_functions(
         options,
         state_space_functions=state_space_functions,
