@@ -2,11 +2,19 @@
 import jax.numpy as jnp
 import numpy as np
 from dcegm.pre_processing.exog_processes import create_exog_mapping
+from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
-from dcegm.pre_processing.state_space import (
-    determine_function_arguments_and_partial_options,
-)
 from numpy.testing import assert_almost_equal as aaae
+from toy_models.consumption_retirement_model.budget_functions import budget_constraint
+from toy_models.consumption_retirement_model.state_space_objects import (
+    create_state_space_function_dict,
+)
+from toy_models.consumption_retirement_model.utility_functions import (
+    create_final_period_utility_function_dict,
+)
+from toy_models.consumption_retirement_model.utility_functions import (
+    create_utility_function_dict,
+)
 
 from tests.two_period_models.model import prob_exog_health
 
@@ -21,7 +29,7 @@ def trans_prob_care_demand(health_state, params):
     return prob_care_demand
 
 
-def test_exog_processes(state_space_functions):
+def test_exog_processes():
     params = {}
     params["rho"] = 0.5
     params["delta"] = 0.5
@@ -66,21 +74,14 @@ def test_exog_processes(state_space_functions):
             },
         },
     }
-    model_params_options = options["model_params"]
 
-    get_state_specific_choice_set = determine_function_arguments_and_partial_options(
-        func=state_space_functions["get_state_specific_choice_set"],
-        options=model_params_options,
+    model_funcs = process_model_functions(
+        options,
+        state_space_functions=create_state_space_function_dict(),
+        utility_functions=create_utility_function_dict(),
+        utility_functions_final_period=create_final_period_utility_function_dict(),
+        budget_constraint=budget_constraint,
     )
-
-    get_next_period_state = determine_function_arguments_and_partial_options(
-        func=state_space_functions["get_next_period_state"],
-        options=model_params_options,
-    )
-    model_funcs = {
-        "get_state_specific_choice_set": get_state_specific_choice_set,
-        "get_next_period_state": get_next_period_state,
-    }
     model_structure = create_state_space_and_choice_objects(
         options=options,
         model_funcs=model_funcs,
