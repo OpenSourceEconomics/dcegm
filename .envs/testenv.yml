@@ -24,3 +24,6 @@ dependencies:
   # Install dcegm locally
   - pip:
       - -e ../
+
+      # Development dependencies
+      - git+https://github.com/OpenSourceEconomics/upper-envelope.git
