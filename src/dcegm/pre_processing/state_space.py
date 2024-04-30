@@ -352,7 +352,7 @@ def process_exog_model_specifications(state_space_options):
         exog_state_names = ["dummy_exog"]
         num_states_of_all_exog_states = [1]
 
-        exog_state_space = np.array([[0]], dtype=np.int16)
+        exog_state_space = np.array([[0]], dtype=np.uint8)
 
     return (
         exog_state_names,
