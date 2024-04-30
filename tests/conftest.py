@@ -12,27 +12,17 @@ import yaml
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import solve_dcegm
 from toy_models.consumption_retirement_model.state_space_objects import (
-    get_state_specific_feasible_choice_set,
-)
-from toy_models.consumption_retirement_model.state_space_objects import update_state
-from toy_models.consumption_retirement_model.utility_functions import (
-    marginal_utility_final_consume_all,
+    create_state_space_function_dict,
 )
 from toy_models.consumption_retirement_model.utility_functions import (
-    utility_final_consume_all,
+    create_final_period_utility_function_dict,
+)
+from toy_models.consumption_retirement_model.utility_functions import (
+    create_utility_function_dict,
 )
 
 from tests.two_period_models.model import budget_dcegm_exog_ltc
 from tests.two_period_models.model import budget_dcegm_exog_ltc_and_job_offer
-from tests.two_period_models.model import (
-    flow_utility,
-)
-from tests.two_period_models.model import (
-    inverse_marginal_utility,
-)
-from tests.two_period_models.model import (
-    marginal_utility,
-)
 from tests.two_period_models.model import prob_exog_job_offer
 from tests.two_period_models.model import prob_exog_ltc
 
@@ -85,36 +75,6 @@ def load_example_model():
         return params, options
 
     return load_options_and_params
-
-
-@pytest.fixture(scope="session")
-def state_space_functions():
-    """Return dict with state space functions."""
-    out = {
-        "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
-        "get_next_period_state": update_state,
-    }
-    return out
-
-
-@pytest.fixture(scope="session")
-def utility_functions():
-    """Return dict with utility functions."""
-    out = {
-        "utility": flow_utility,
-        "marginal_utility": marginal_utility,
-        "inverse_marginal_utility": inverse_marginal_utility,
-    }
-    return out
-
-
-@pytest.fixture(scope="session")
-def utility_functions_final_period():
-    """Return dict with utility functions for final period."""
-    return {
-        "utility": utility_final_consume_all,
-        "marginal_utility": marginal_utility_final_consume_all,
-    }
 
 
 @pytest.fixture(scope="session")
@@ -206,9 +166,6 @@ def params_and_options_exog_ltc_and_job_offer():
 
 @pytest.fixture(scope="session")
 def toy_model_exog_ltc(
-    state_space_functions,
-    utility_functions,
-    utility_functions_final_period,
     params_and_options_exog_ltc,
 ):
     params, options = params_and_options_exog_ltc
@@ -221,9 +178,9 @@ def toy_model_exog_ltc(
     out = {}
     model = setup_model(
         options=options,
-        state_space_functions=state_space_functions,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
+        state_space_functions=create_state_space_function_dict(),
+        utility_functions=create_utility_function_dict(),
+        utility_functions_final_period=create_final_period_utility_function_dict(),
         budget_constraint=budget_dcegm_exog_ltc,
     )
     model_structure = model["model_structure"]
@@ -246,9 +203,9 @@ def toy_model_exog_ltc(
         params,
         options,
         exog_savings_grid=exog_savings_grid,
-        state_space_functions=state_space_functions,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
+        state_space_functions=create_state_space_function_dict(),
+        utility_functions=create_utility_function_dict(),
+        utility_functions_final_period=create_final_period_utility_function_dict(),
         budget_constraint=budget_dcegm_exog_ltc,
     )
 
@@ -259,9 +216,6 @@ def toy_model_exog_ltc(
 
 @pytest.fixture(scope="session")
 def toy_model_exog_ltc_and_job_offer(
-    state_space_functions,
-    utility_functions,
-    utility_functions_final_period,
     params_and_options_exog_ltc_and_job_offer,
 ):
     params, options = params_and_options_exog_ltc_and_job_offer
@@ -274,9 +228,9 @@ def toy_model_exog_ltc_and_job_offer(
     out = {}
     model = setup_model(
         options=options,
-        state_space_functions=state_space_functions,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
+        state_space_functions=create_state_space_function_dict(),
+        utility_functions=create_utility_function_dict(),
+        utility_functions_final_period=create_final_period_utility_function_dict(),
         budget_constraint=budget_dcegm_exog_ltc_and_job_offer,
     )
     model_structure = model["model_structure"]
@@ -299,9 +253,9 @@ def toy_model_exog_ltc_and_job_offer(
         params,
         options,
         exog_savings_grid=exog_savings_grid,
-        state_space_functions=state_space_functions,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
+        state_space_functions=create_state_space_function_dict(),
+        utility_functions=create_utility_function_dict(),
+        utility_functions_final_period=create_final_period_utility_function_dict(),
         budget_constraint=budget_dcegm_exog_ltc,
     )
 
