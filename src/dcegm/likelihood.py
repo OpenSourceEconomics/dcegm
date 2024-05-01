@@ -13,8 +13,7 @@ import numpy as np
 from dcegm.egm.aggregate_marginal_utility import (
     calculate_choice_probs_and_unsqueezed_logsum,
 )
-from dcegm.interpolation import get_index_high_and_low
-from dcegm.interpolation import interp_value_and_check_creditconstraint
+from dcegm.interpolation import interp_value_on_wealth
 from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.params import process_params
 from dcegm.pre_processing.setup_model import setup_model
@@ -206,7 +205,7 @@ def calc_choice_probs_for_observed_states(
 
 def interpolate_value_for_state_in_each_choice(
     state,
-    resources_beginning_of_period,
+    resource_at_beginning_of_period,
     endog_grid_agent,
     value_agent,
     choice,
@@ -215,19 +214,11 @@ def interpolate_value_for_state_in_each_choice(
 ):
     state_choice_vec = {**state, "choice": choice}
 
-    ind_high, ind_low = get_index_high_and_low(
-        x=endog_grid_agent, x_new=resources_beginning_of_period
-    )
-
-    value_interp = interp_value_and_check_creditconstraint(
-        value_high=value_agent[ind_high],
-        wealth_high=endog_grid_agent[ind_high],
-        value_low=value_agent[ind_low],
-        wealth_low=endog_grid_agent[ind_low],
-        new_wealth=resources_beginning_of_period,
+    value_interp = interp_value_on_wealth(
+        wealth=resource_at_beginning_of_period,
+        endog_grid=endog_grid_agent,
+        value=value_agent,
         compute_utility=compute_utility,
-        endog_grid_min=endog_grid_agent[1],
-        value_at_zero_wealth=value_agent[0],
         state_choice_vec=state_choice_vec,
         params=params,
     )

@@ -2,9 +2,7 @@ import jax
 import numpy as np
 import pandas as pd
 from dcegm.budget import calculate_resources_for_all_agents
-from dcegm.interpolation import get_index_high_and_low
-from dcegm.interpolation import interp_value_and_check_creditconstraint
-from dcegm.interpolation import linear_interpolation_formula
+from dcegm.interpolation import interp_value_and_policy_on_wealth
 from jax import numpy as jnp
 from jax import vmap
 
@@ -180,31 +178,14 @@ def interpolate_policy_and_value_function(
     params,
     compute_utility,
 ):
-    ind_high, ind_low = get_index_high_and_low(
-        x=endog_grid_agent, x_new=resources_beginning_of_period
-    )
     state_choice_vec = {**state, "choice": choice}
 
-    wealth_low_agent = endog_grid_agent[ind_low]
-    wealth_high_agent = endog_grid_agent[ind_high]
-
-    policy_interp = linear_interpolation_formula(
-        x_new=resources_beginning_of_period,
-        x_low=wealth_low_agent,
-        x_high=wealth_high_agent,
-        y_low=policy_agent[ind_low],
-        y_high=policy_agent[ind_high],
-    )
-
-    value_interp = interp_value_and_check_creditconstraint(
-        value_high=value_agent[ind_high],
-        wealth_high=endog_grid_agent[ind_high],
-        value_low=value_agent[ind_low],
-        wealth_low=endog_grid_agent[ind_low],
-        new_wealth=resources_beginning_of_period,
+    policy_interp, value_interp = interp_value_and_policy_on_wealth(
+        wealth=resources_beginning_of_period,
+        endog_grid=endog_grid_agent,
+        policy=policy_agent,
+        value=value_agent,
         compute_utility=compute_utility,
-        endog_grid_min=endog_grid_agent[1],
-        value_at_zero_wealth=value_agent[0],
         state_choice_vec=state_choice_vec,
         params=params,
     )

@@ -55,12 +55,10 @@ def interpolate_value_and_marg_utility_on_next_period_wealth(
     def interp_on_single_wealth(wealth):
         policy_interp, value_interp = interp_value_and_policy_on_wealth(
             wealth=wealth,
+            endog_grid=endog_grid_child_state_choice,
             policy=policy_child_state_choice,
             value=value_child_state_choice,
-            endog_grid=endog_grid_child_state_choice,
             compute_utility=compute_utility,
-            endog_grid_min=endog_grid_child_state_choice[1],
-            value_at_zero_wealth=value_child_state_choice[0],
             state_choice_vec=state_choice_vec,
             params=params,
         )
