@@ -1,5 +1,6 @@
 from typing import Callable
 from typing import Dict
+from typing import Tuple
 
 import jax.numpy as jnp
 from jax import numpy as jnp
@@ -104,3 +105,73 @@ def interp_value_and_check_creditconstraint(
     )
 
     return value_interp
+
+
+def interp_value_and_policy_on_wealth(
+    wealth: float | jnp.ndarray,
+    policy: float | jnp.ndarray,
+    value: float | jnp.ndarray,
+    endog_grid: float | jnp.ndarray,
+    compute_utility: Callable,
+    endog_grid_min: float | jnp.ndarray,
+    value_at_zero_wealth: float | jnp.ndarray,
+    state_choice_vec: Dict[str, int],
+    params: Dict[str, float],
+) -> Tuple[float, float]:
+    """Calculate interpolated marginal utility and value function.
+
+    Args:
+        policy_high (float): Policy function value at the higher end of the
+            interpolation interval.
+        value_high (float): Value function value at the higher end of the
+            interpolation interval.
+        wealth_high (float): Endogenous wealth grid value at the higher end of the
+            interpolation interval.
+        policy_low (float): Policy function value at the lower end of the
+            interpolation interval.
+        value_low (float): Value function value at the lower end of the
+            interpolation interval.
+        wealth_low (float): Endogenous wealth grid value at the lower end of the
+            interpolation interval.
+        wealth (float): New endogenous wealth grid value.
+        compute_marginal_utility (callable): Function for calculating the marginal
+            utility from consumption level. The input ```params``` is already
+            partialled in.
+        endog_grid_min (float): Minimum endogenous wealth grid value.
+        value_min (float): Minimum value function value.
+        choice (int): Discrete choice of an agent.
+        params (dict): Dictionary containing the model parameters.
+
+    Returns:
+        tuple:
+
+        - marg_util_interp (float): Interpolated marginal utility function.
+        - value_interp (float): Interpolated value function.
+
+    """
+
+    # For all choices, the wealth is the same in the solution
+    ind_high, ind_low = get_index_high_and_low(x=endog_grid, x_new=wealth)
+
+    policy_interp = linear_interpolation_formula(
+        y_high=policy[ind_high],
+        y_low=policy[ind_low],
+        x_high=endog_grid[ind_high],
+        x_low=endog_grid[ind_low],
+        x_new=wealth,
+    )
+
+    value_interp = interp_value_and_check_creditconstraint(
+        value_high=value[ind_high],
+        wealth_high=endog_grid[ind_high],
+        value_low=value[ind_low],
+        wealth_low=endog_grid[ind_low],
+        new_wealth=wealth,
+        compute_utility=compute_utility,
+        endog_grid_min=endog_grid_min,
+        value_at_zero_wealth=value_at_zero_wealth,
+        state_choice_vec=state_choice_vec,
+        params=params,
+    )
+
+    return policy_interp, value_interp
