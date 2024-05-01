@@ -314,8 +314,17 @@ def create_state_choice_space(
                     )
                     + exog_states_tuple
                 )
-
-                child_idxs = map_state_to_index[states_next_tuple]
+                try:
+                    child_idxs = map_state_to_index[states_next_tuple]
+                except:
+                    raise IndexError(
+                        f"\n\n The state \n\n{endog_state_update}\n\n is reached as a "
+                        f"child state from an existing state, but does not exist for "
+                        f"some "
+                        f"values of the exogenous processes. Please check if it "
+                        f"should not be reached or should exist by adapting the "
+                        f"sparsity condition and/or the set of possible state values."
+                    )
 
                 map_state_choice_to_child_states[idx, :] = child_idxs
 
@@ -461,5 +470,5 @@ def create_indexer_for_space(space):
     map_vars_to_index = np.full(max_var_values + 1, fill_value=-9999, dtype=int)
     index_tuple = tuple(space[:, i] for i in range(space.shape[1]))
     map_vars_to_index[index_tuple] = np.arange(space.shape[0], dtype=int)
-    
+
     return map_vars_to_index
