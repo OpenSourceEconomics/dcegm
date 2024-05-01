@@ -320,8 +320,7 @@ def create_state_choice_space(
                     raise IndexError(
                         f"\n\n The state \n\n{endog_state_update}\n\n is reached as a "
                         f"child state from an existing state, but does not exist for "
-                        f"some "
-                        f"values of the exogenous processes. Please check if it "
+                        f"some values of the exogenous processes. Please check if it "
                         f"should not be reached or should exist by adapting the "
                         f"sparsity condition and/or the set of possible state values."
                     )
