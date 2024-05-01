@@ -17,7 +17,7 @@ def interpolate_value_and_marg_utility_on_next_period_wealth(
     value_child_state_choice: jnp.ndarray,
     params: Dict[str, float],
 ) -> Tuple[float, float]:
-    """Interpolate marginal utilities.
+    """Interpolate value and policy in the child states and compute the marginal value.
 
     Args:
         compute_marginal_utility (callable): User-defined function to compute the
@@ -50,6 +50,8 @@ def interpolate_value_and_marg_utility_on_next_period_wealth(
 
     """
 
+    # Generate interpolation function for single wealth point where the endogenous grid,
+    # policy and value are fixed.
     def interp_on_single_wealth(wealth):
         policy_interp, value_interp = interp_value_and_policy_on_wealth(
             wealth=wealth,
@@ -67,13 +69,8 @@ def interpolate_value_and_marg_utility_on_next_period_wealth(
         )
         return marg_utility_interp, value_interp
 
-    vector_interp_func = vmap(
-        vmap(
-            interp_on_single_wealth,
-            in_axes=(0,),
-        ),
-        in_axes=(0,),
-    )
+    # Generate vectorized function for savings and income shock dimension
+    vector_interp_func = vmap(vmap(interp_on_single_wealth))
 
     marg_utils, value_interp = vector_interp_func(wealth_beginning_of_period)
 
