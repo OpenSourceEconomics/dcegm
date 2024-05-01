@@ -471,3 +471,33 @@ def create_indexer_for_space(space):
     map_vars_to_index[index_tuple] = np.arange(space.shape[0], dtype=int)
 
     return map_vars_to_index
+
+
+def check_options(options):
+    """Check if options are valid."""
+    if not isinstance(options, dict):
+        raise ValueError("Options must be a dictionary.")
+
+    if "state_space" not in options:
+        raise ValueError("Options must contain a state space dictionary.")
+
+    if not isinstance(options["state_space"], dict):
+        raise ValueError("State space must be a dictionary.")
+
+    if "n_periods" not in options["state_space"]:
+        raise ValueError("State space must contain the number of periods.")
+
+    if not isinstance(options["state_space"]["n_periods"], int):
+        raise ValueError("Number of periods must be an integer.")
+
+    if "choices" not in options["state_space"]:
+        print("Choices not given. Assume only single choice with value 0")
+        options["state_space"]["choices"] = np.array([0], dtype=int)
+
+    if "model_params" not in options:
+        raise ValueError("Options must contain a model parameters dictionary.")
+
+    if not isinstance(options["model_params"], dict):
+        raise ValueError("Model parameters must be a dictionary.")
+
+    return options
