@@ -13,10 +13,8 @@ import numpy as np
 from dcegm.egm.aggregate_marginal_utility import (
     calculate_choice_probs_and_unsqueezed_logsum,
 )
-from dcegm.egm.interpolate_marginal_utility import (
-    interp_value_and_check_creditconstraint,
-)
 from dcegm.interpolation import get_index_high_and_low
+from dcegm.interpolation import interp_value_and_check_creditconstraint
 from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.params import process_params
 from dcegm.pre_processing.setup_model import setup_model
@@ -184,7 +182,7 @@ def calc_choice_probs_for_observed_states(
     endog_grid_agent = jnp.take(endog_grid_solved, state_choice_indexes, axis=0)
     vectorized_interp = jax.vmap(
         jax.vmap(
-            interpolate_value_and_calc_choice_probabilities,
+            interpolate_value_for_state_in_each_choice,
             in_axes=(None, None, 0, 0, 0, None, None),
         ),
         in_axes=(0, 0, 0, 0, None, None, None),
@@ -206,7 +204,7 @@ def calc_choice_probs_for_observed_states(
     return choice_prob_across_choices
 
 
-def interpolate_value_and_calc_choice_probabilities(
+def interpolate_value_for_state_in_each_choice(
     state,
     resources_beginning_of_period,
     endog_grid_agent,
@@ -215,10 +213,12 @@ def interpolate_value_and_calc_choice_probabilities(
     params,
     compute_utility,
 ):
+    state_choice_vec = {**state, "choice": choice}
+
     ind_high, ind_low = get_index_high_and_low(
         x=endog_grid_agent, x_new=resources_beginning_of_period
     )
-    state_choice_vec = {**state, "choice": choice}
+
     value_interp = interp_value_and_check_creditconstraint(
         value_high=value_agent[ind_high],
         wealth_high=endog_grid_agent[ind_high],

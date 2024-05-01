@@ -2,10 +2,8 @@ import jax
 import numpy as np
 import pandas as pd
 from dcegm.budget import calculate_resources_for_all_agents
-from dcegm.egm.interpolate_marginal_utility import (
-    interp_value_and_check_creditconstraint,
-)
 from dcegm.interpolation import get_index_high_and_low
+from dcegm.interpolation import interp_value_and_check_creditconstraint
 from dcegm.interpolation import linear_interpolation_formula
 from jax import numpy as jnp
 from jax import vmap

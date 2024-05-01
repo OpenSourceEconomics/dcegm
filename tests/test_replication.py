@@ -3,7 +3,6 @@ from pathlib import Path
 
 import jax.numpy as jnp
 import pytest
-from dcegm.interpolation import interpolate_policy_and_value_on_wealth_grid
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import solve_dcegm
 from numpy.testing import assert_array_almost_equal as aaae
@@ -24,6 +23,7 @@ from toy_models.consumption_retirement_model.utility_functions import (
     utiility_log_crra_final_consume_all,
 )
 
+from tests.utils.interpolations import interpolate_policy_and_value_on_wealth_grid
 from tests.utils.interpolations import linear_interpolation_with_extrapolation
 
 # Obtain the test directory of the package
