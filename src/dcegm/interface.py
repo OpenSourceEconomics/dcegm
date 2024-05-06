@@ -1,3 +1,4 @@
+import jax.numpy as jnp
 from dcegm.interpolation import interp_policy_on_wealth
 from dcegm.interpolation import interp_value_and_policy_on_wealth
 from dcegm.interpolation import interp_value_on_wealth
@@ -32,9 +33,9 @@ def policy_and_value_for_state_choice_vec(
     state_choice_index = map_state_choice_to_index[state_choice_tuple]
     policy, value = interp_value_and_policy_on_wealth(
         wealth=wealth,
-        endog_grid=endog_grid_solved[state_choice_index],
-        policy=policy_solved[state_choice_index],
-        value=value_solved[state_choice_index],
+        endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
+        policy=jnp.take(policy_solved, state_choice_index, axis=0),
+        value=jnp.take(value_solved, state_choice_index, axis=0),
         compute_utility=compute_utility,
         state_choice_vec=state_choice_vec,
         params=params,
@@ -68,10 +69,11 @@ def value_for_state_choice_vec(
     )
 
     state_choice_index = map_state_choice_to_index[state_choice_tuple]
+
     value = interp_value_on_wealth(
         wealth=wealth,
-        endog_grid=endog_grid_solved[state_choice_index],
-        value=value_solved[state_choice_index],
+        endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
+        value=jnp.take(value_solved, state_choice_index, axis=0),
         compute_utility=compute_utility,
         state_choice_vec=state_choice_vec,
         params=params,
@@ -103,9 +105,11 @@ def policy_for_state_choice_vec(
     )
 
     state_choice_index = map_state_choice_to_index[state_choice_tuple]
-    policy, value = interp_policy_on_wealth(
+
+    policy = interp_policy_on_wealth(
         wealth=wealth,
-        endog_grid=endog_grid_solved[state_choice_index],
-        policy=policy_solved[state_choice_index],
+        endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
+        policy=jnp.take(policy_solved, state_choice_index, axis=0),
     )
+
     return policy

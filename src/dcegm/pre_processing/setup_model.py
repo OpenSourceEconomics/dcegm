@@ -93,6 +93,8 @@ def setup_and_save_model(
     than recreating the model from scratch.
 
     """
+    options = check_options(options)
+
     model = setup_model(
         options=options,
         state_space_functions=state_space_functions,
@@ -119,6 +121,7 @@ def load_and_setup_model(
     path: str = "model.pkl",
 ):
     """Load the model from file."""
+    options = check_options(options)
 
     model = pickle.load(open(path, "rb"))
 
