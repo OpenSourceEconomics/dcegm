@@ -13,10 +13,8 @@ import numpy as np
 from dcegm.egm.aggregate_marginal_utility import (
     calculate_choice_probs_and_unsqueezed_logsum,
 )
+from dcegm.interface import get_state_choice_index_per_state
 from dcegm.interpolation import interp_value_on_wealth
-from dcegm.numerical_integration import quadrature_legendre
-from dcegm.pre_processing.params import process_params
-from dcegm.simulation.sim_utils import get_state_choice_index_per_state
 from dcegm.solve import get_solve_func_for_model
 
 
@@ -33,8 +31,10 @@ def create_individual_likelihood_function_for_model(
         model=model, exog_savings_grid=exog_savings_grid, options=options
     )
 
-    observed_state_choice_indexes = create_observed_choice_indexes(
-        observed_states_dict=observed_states, model_structure=model["model_structure"]
+    observed_state_choice_indexes = get_state_choice_index_per_state(
+        states=observed_states,
+        map_state_choice_to_index=model["model_structure"]["map_state_choice_to_index"],
+        state_space_names=model["model_structure"]["state_space_names"],
     )
 
     # Create the calculation of the choice probabilities, which takes parameters as
@@ -165,15 +165,3 @@ def interpolate_value_for_state_in_each_choice(
     )
 
     return value_interp
-
-
-def create_observed_choice_indexes(
-    observed_states_dict: Dict[str, int],
-    model_structure: [Dict, Any],
-):
-    observed_state_choice_indexes = get_state_choice_index_per_state(
-        map_state_choice_to_index=model_structure["map_state_choice_to_index"],
-        states=observed_states_dict,
-        state_space_names=model_structure["state_space_names"],
-    )
-    return observed_state_choice_indexes

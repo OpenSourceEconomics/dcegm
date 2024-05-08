@@ -113,3 +113,13 @@ def policy_for_state_choice_vec(
     )
 
     return policy
+
+
+def get_state_choice_index_per_state(
+    map_state_choice_to_index, states, state_space_names
+):
+    indexes = map_state_choice_to_index[
+        tuple((states[key],) for key in state_space_names)
+    ]
+    # As the code above generates a dummy dimension in the first we eliminate that
+    return indexes[0]

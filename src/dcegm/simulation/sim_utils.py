@@ -2,6 +2,7 @@ import jax
 import numpy as np
 import pandas as pd
 from dcegm.budget import calculate_resources_for_all_agents
+from dcegm.interface import get_state_choice_index_per_state
 from dcegm.interpolation import interp_value_and_policy_on_wealth
 from jax import numpy as jnp
 from jax import vmap
@@ -156,16 +157,6 @@ def realize_exog_process(state, choice, key, params, exog_func, exog_state_mappi
     )
     exog_states_next_period = exog_state_mapping(exog_proc_next_period)
     return exog_states_next_period
-
-
-def get_state_choice_index_per_state(
-    map_state_choice_to_index, states, state_space_names
-):
-    indexes = map_state_choice_to_index[
-        tuple((states[key],) for key in state_space_names)
-    ]
-    # As the code above generates a dummy dimension in the first we eliminate that
-    return indexes[0]
 
 
 def interpolate_policy_and_value_function(
