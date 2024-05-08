@@ -16,39 +16,8 @@ from dcegm.egm.aggregate_marginal_utility import (
 from dcegm.interpolation import interp_value_on_wealth
 from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.params import process_params
-from dcegm.pre_processing.setup_model import setup_model
 from dcegm.simulation.sim_utils import get_state_choice_index_per_state
-from dcegm.solve import backward_induction
-
-
-def create_individual_likelihood_function(
-    observed_states: Dict[str, int],
-    observed_wealth: np.array,
-    observed_choices: np.array,
-    options: Dict[str, Any],
-    exog_savings_grid: np.ndarray,
-    state_space_functions: Dict[str, Callable],
-    utility_functions: Dict[str, Callable],
-    budget_constraint: Callable,
-    utility_functions_final_period: Dict[str, Callable],
-    params_all=None,
-):
-    model = setup_model(
-        options=options,
-        state_space_functions=state_space_functions,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
-        budget_constraint=budget_constraint,
-    )
-    return create_individual_likelihood_function_for_model(
-        model=model,
-        options=options,
-        observed_states=observed_states,
-        observed_wealth=observed_wealth,
-        observed_choices=observed_choices,
-        exog_savings_grid=exog_savings_grid,
-        params_all=params_all,
-    )
+from dcegm.solve import get_solve_func_for_model
 
 
 def create_individual_likelihood_function_for_model(
@@ -58,41 +27,11 @@ def create_individual_likelihood_function_for_model(
     observed_wealth: np.array,
     observed_choices: np.array,
     exog_savings_grid: np.ndarray,
-    params_all=None,
+    params_all,
 ):
-    income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
-        options["model_params"]["quadrature_points_stochastic"]
+    solve_func = get_solve_func_for_model(
+        model=model, exog_savings_grid=exog_savings_grid, options=options
     )
-
-    if params_all is None:
-        # If params_all is not supplied, all elements of params will be estimated and
-        # we use the params supplied at each iteration for the solution of the model.
-        def update_params(params):
-            params_initial = process_params(params)
-            return params_initial
-
-    else:
-        # If params_all is supplied, we use the params supplied at each iteration for
-        # updating params_all and then used the updated params_all for the solution of
-        # the model.
-        def update_params(params):
-            params_update = params_all.copy()
-            params_update.update(params)
-            params_initial = process_params(params_update)
-            return params_initial
-
-    # Create a solution function, which only takes the parameters as input.
-    def partial_backwards_induction(params_in):
-        return backward_induction(
-            params=params_in,
-            exog_savings_grid=exog_savings_grid,
-            state_space_dict=model["model_structure"]["state_space_dict"],
-            n_state_choices=model["model_structure"]["state_choice_space"].shape[0],
-            batch_info=model["batch_info"],
-            income_shock_draws_unscaled=income_shock_draws_unscaled,
-            income_shock_weights=income_shock_weights,
-            model_funcs=model["model_funcs"],
-        )
 
     observed_state_choice_indexes = create_observed_choice_indexes(
         observed_states_dict=observed_states, model_structure=model["model_structure"]
@@ -101,12 +40,12 @@ def create_individual_likelihood_function_for_model(
     # Create the calculation of the choice probabilities, which takes parameters as
     # input as well as the solved endogenous wealth grid and the values.
     def partial_choice_prob_calculation(value_in, endog_grid_in, params_in):
-        return calc_choice_prob_for_observed_choices(
+        return calc_choice_prob_for_state_choices(
             value_solved=value_in,
             endog_grid_solved=endog_grid_in,
             params=params_in,
-            observed_states=observed_states,
-            observed_choices=observed_choices,
+            states=observed_states,
+            choices=observed_choices,
             state_choice_indexes=observed_state_choice_indexes,
             oberseved_wealth=observed_wealth,
             choice_range=np.arange(options["model_params"]["n_choices"], dtype=int),
@@ -114,16 +53,18 @@ def create_individual_likelihood_function_for_model(
         )
 
     def individual_likelihood(params):
-        params_initial = update_params(params)
+        params_update = params_all.copy()
+        params_update.update(params)
+
         (
             value_solved,
             policy_solved,
             endog_grid_solved,
-        ) = partial_backwards_induction(params_initial)
+        ) = solve_func(params_update)
         choice_probs = partial_choice_prob_calculation(
             value_in=value_solved,
             endog_grid_in=endog_grid_solved,
-            params_in=params_initial,
+            params_in=params_update,
         ).clip(min=1e-10)
         likelihood_contributions = jnp.log(choice_probs)
         log_value = jnp.sum(-likelihood_contributions)
@@ -132,12 +73,12 @@ def create_individual_likelihood_function_for_model(
     return jax.jit(individual_likelihood)
 
 
-def calc_choice_prob_for_observed_choices(
+def calc_choice_prob_for_state_choices(
     value_solved,
     endog_grid_solved,
     params,
-    observed_states,
-    observed_choices,
+    states,
+    choices,
     state_choice_indexes,
     oberseved_wealth,
     choice_range,
@@ -149,23 +90,23 @@ def calc_choice_prob_for_observed_choices(
     and then interpolates the wealth at the beginning of period on them.
 
     """
-    choice_prob_across_choices = calc_choice_probs_for_observed_states(
+    choice_prob_across_choices = calc_choice_probs_for_states(
         value_solved=value_solved,
         endog_grid_solved=endog_grid_solved,
         params=params,
-        observed_states=observed_states,
+        observed_states=states,
         state_choice_indexes=state_choice_indexes,
         oberseved_wealth=oberseved_wealth,
         choice_range=choice_range,
         compute_utility=compute_utility,
     )
     choice_probs = jnp.take_along_axis(
-        choice_prob_across_choices, observed_choices[:, None], axis=1
+        choice_prob_across_choices, choices[:, None], axis=1
     )[:, 0]
     return choice_probs
 
 
-def calc_choice_probs_for_observed_states(
+def calc_choice_probs_for_states(
     value_solved,
     endog_grid_solved,
     params,
