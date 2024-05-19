@@ -7,7 +7,6 @@ import numpy as np
 import pytest
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
-from dcegm.simulation.simulate import simulate_all_periods_for_model
 from dcegm.simulation.simulate import simulate_final_period
 from dcegm.simulation.simulate import simulate_single_period
 from numpy.testing import assert_array_almost_equal as aaae
@@ -36,18 +35,7 @@ def _create_test_objects_from_df(df, params):
 
 @pytest.fixture()
 def model_setup(toy_model_exog_ltc):
-    params = toy_model_exog_ltc["params"]
     options = toy_model_exog_ltc["options"]
-
-    state_space_names = toy_model_exog_ltc["state_space_names"]
-    value = toy_model_exog_ltc["value"]
-    policy = toy_model_exog_ltc["policy"]
-    endog_grid = toy_model_exog_ltc["endog_grid"]
-    exog_state_mapping = toy_model_exog_ltc["exog_state_mapping"]
-    get_next_period_state = toy_model_exog_ltc["get_next_period_state"]
-
-    model_funcs = toy_model_exog_ltc["model_funcs"]
-    map_state_choice_to_index = toy_model_exog_ltc["map_state_choice_to_index"]
 
     seed = 111
     n_agents = 1_000
@@ -73,16 +61,7 @@ def model_setup(toy_model_exog_ltc):
     )
 
     return {
-        "params": params,
-        "options": options,
-        "state_space_names": state_space_names,
-        "value": value,
-        "policy": policy,
-        "endog_grid": endog_grid,
-        "exog_state_mapping": exog_state_mapping,
-        "model_funcs": model_funcs,
-        "map_state_choice_to_index": map_state_choice_to_index,
-        "get_next_period_state": get_next_period_state,
+        **toy_model_exog_ltc,
         "initial_states": initial_states,
         "initial_resources": initial_resources,
         "initial_states_and_resources": initial_states_and_resources,
@@ -94,16 +73,19 @@ def model_setup(toy_model_exog_ltc):
 def test_simulate_lax_scan(model_setup):
     params = model_setup["params"]
     options = model_setup["options"]
-    choice_range = jnp.arange(options["model_params"]["n_choices"])
+    choice_range = options["state_space"]["choices"]
+    model_structure = model_setup["model"]["model_structure"]
+    model_funcs = model_setup["model"]["model_funcs"]
 
-    state_space_names = model_setup["state_space_names"]
+    state_space_names = model_structure["state_space_names"]
+    map_state_choice_to_index = model_structure["map_state_choice_to_index"]
+
+    exog_state_mapping = model_funcs["exog_state_mapping"]
+    get_next_period_state = model_funcs["get_next_period_state"]
+
     value = model_setup["value"]
     policy = model_setup["policy"]
     endog_grid = model_setup["endog_grid"]
-    exog_state_mapping = model_setup["exog_state_mapping"]
-    get_next_period_state = model_setup["get_next_period_state"]
-    model_funcs = model_setup["model_funcs"]
-    map_state_choice_to_index = model_setup["map_state_choice_to_index"]
 
     initial_states_and_resources = (
         model_setup["initial_states"],
@@ -180,14 +162,9 @@ def test_simulate(model_setup):
     params = model_setup["params"]
     options = model_setup["options"]
 
-    state_space_names = model_setup["state_space_names"]
     value = model_setup["value"]
     policy = model_setup["policy"]
     endog_grid = model_setup["endog_grid"]
-    exog_state_mapping = model_setup["exog_state_mapping"]
-    get_next_period_state = model_setup["get_next_period_state"]
-    model_funcs = model_setup["model_funcs"]
-    map_state_choice_to_index = model_setup["map_state_choice_to_index"]
 
     n_agents = 100_000
 
@@ -206,75 +183,11 @@ def test_simulate(model_setup):
         resources_initial=initial_resources,
         n_periods=options["state_space"]["n_periods"],
         params=params,
-        state_space_names=state_space_names,
         seed=111,
         endog_grid_solved=endog_grid,
         value_solved=value,
         policy_solved=policy,
-        map_state_choice_to_index=jnp.array(map_state_choice_to_index),
-        choice_range=jnp.arange(map_state_choice_to_index.shape[-1], dtype=jnp.int16),
-        compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
-        compute_utility=model_funcs["compute_utility"],
-        compute_beginning_of_period_resources=model_funcs[
-            "compute_beginning_of_period_resources"
-        ],
-        exog_state_mapping=exog_state_mapping,
-        get_next_period_state=get_next_period_state,
-        compute_utility_final_period=model_funcs["compute_utility_final"],
-    )
-
-    df = create_simulation_df(result)
-
-    value_period_zero, expected = _create_test_objects_from_df(df, params)
-    ids_violating_absorbing_retirement = df.query(
-        "(period == 0 and choice == 1) and (period == 1 and choice == 0)"
-    )
-
-    assert len(ids_violating_absorbing_retirement) == 0
-    aaae(value_period_zero.mean(), expected.mean(), decimal=2)
-
-
-def test_simulate_all_periods_for_model(model_setup):
-    n_agents = 100_000
-
-    initial_states = {
-        "period": np.zeros(n_agents, dtype=np.int16),
-        "lagged_choice": np.zeros(
-            n_agents, dtype=np.int16
-        ),  # all agents start as workers
-        "married": np.zeros(n_agents, dtype=np.int16),
-        "ltc": np.zeros(n_agents, dtype=np.int16),
-    }
-    initial_resources = np.ones(n_agents) * 10
-
-    n_periods = model_setup["options"]["state_space"]["n_periods"]
-    params = model_setup["params"]
-    seed = model_setup["seed"]
-    endog_grid_solved = model_setup["endog_grid"]
-    value_solved = model_setup["value"]
-    policy_solved = model_setup["policy"]
-    choice_range = jnp.arange(
-        model_setup["map_state_choice_to_index"].shape[-1], dtype=jnp.int16
-    )
-    model = {
-        "state_space_names": model_setup["state_space_names"],
-        "map_state_choice_to_index": model_setup["map_state_choice_to_index"],
-        "model_funcs": model_setup["model_funcs"],
-        "exog_mapping": model_setup["exog_state_mapping"],
-        "get_next_period_state": model_setup["get_next_period_state"],
-    }
-
-    result = simulate_all_periods_for_model(
-        states_initial=initial_states,
-        resources_initial=initial_resources,
-        n_periods=n_periods,
-        params=params,
-        seed=seed,
-        endog_grid_solved=endog_grid_solved,
-        value_solved=value_solved,
-        policy_solved=policy_solved,
-        choice_range=choice_range,
-        model=model,
+        model=model_setup["model"],
     )
 
     df = create_simulation_df(result)

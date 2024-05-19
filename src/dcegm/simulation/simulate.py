@@ -13,59 +13,16 @@ from dcegm.simulation.sim_utils import vectorized_utility
 from jax import vmap
 
 
-def simulate_all_periods_for_model(
-    states_initial,
-    resources_initial,
-    n_periods,
-    params,
-    seed,
-    endog_grid_solved,
-    value_solved,
-    policy_solved,
-    choice_range,
-    model,
-):
-    return simulate_all_periods(
-        states_initial=states_initial,
-        resources_initial=resources_initial,
-        n_periods=n_periods,
-        params=params,
-        seed=seed,
-        state_space_names=model["state_space_names"],
-        endog_grid_solved=endog_grid_solved,
-        value_solved=value_solved,
-        policy_solved=policy_solved,
-        map_state_choice_to_index=jnp.array(model["map_state_choice_to_index"]),
-        choice_range=choice_range,
-        compute_exog_transition_vec=model["model_funcs"]["compute_exog_transition_vec"],
-        compute_utility=model["model_funcs"]["compute_utility"],
-        compute_beginning_of_period_resources=model["model_funcs"][
-            "compute_beginning_of_period_resources"
-        ],
-        exog_state_mapping=model["exog_mapping"],
-        get_next_period_state=model["get_next_period_state"],
-        compute_utility_final_period=model["model_funcs"]["compute_utility_final"],
-    )
-
-
 def simulate_all_periods(
     states_initial,
     resources_initial,
     n_periods,
     params,
     seed,
-    state_space_names,
     endog_grid_solved,
-    value_solved,
     policy_solved,
-    map_state_choice_to_index,
-    choice_range,
-    compute_exog_transition_vec,
-    compute_utility,
-    compute_beginning_of_period_resources,
-    exog_state_mapping,
-    get_next_period_state,
-    compute_utility_final_period,
+    value_solved,
+    model,
 ):
     # Prepare random seeds for taste shocks
     n_keys = len(resources_initial) + 2
@@ -76,20 +33,27 @@ def simulate_all_periods(
         ]
     )
 
+    model_structure = model["model_structure"]
+    model_funcs = model["model_funcs"]
+
     simulate_body = partial(
         simulate_single_period,
         params=params,
-        state_space_names=state_space_names,
+        state_space_names=model_structure["state_space_names"],
         endog_grid_solved=endog_grid_solved,
         value_solved=value_solved,
         policy_solved=policy_solved,
-        map_state_choice_to_index=map_state_choice_to_index,
-        choice_range=choice_range,
-        compute_exog_transition_vec=compute_exog_transition_vec,
-        compute_utility=compute_utility,
-        compute_beginning_of_period_resources=compute_beginning_of_period_resources,
-        exog_state_mapping=exog_state_mapping,
-        get_next_period_state=get_next_period_state,
+        map_state_choice_to_index=jnp.asarray(
+            model_structure["map_state_choice_to_index"]
+        ),
+        choice_range=model_structure["choice_range"],
+        compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
+        compute_utility=model_funcs["compute_utility"],
+        compute_beginning_of_period_resources=model_funcs[
+            "compute_beginning_of_period_resources"
+        ],
+        exog_state_mapping=model_funcs["exog_state_mapping"],
+        get_next_period_state=model_funcs["get_next_period_state"],
     )
 
     states_and_resources_beginning_of_first_period = states_initial, resources_initial
@@ -104,10 +68,10 @@ def simulate_all_periods(
         states_and_resources_beginning_of_final_period,
         sim_specific_keys=sim_specific_keys[-1],
         params=params,
-        state_space_names=state_space_names,
-        choice_range=choice_range,
-        map_state_choice_to_index=map_state_choice_to_index,
-        compute_utility_final_period=compute_utility_final_period,
+        state_space_names=model_structure["state_space_names"],
+        choice_range=model_structure["choice_range"],
+        map_state_choice_to_index=model_structure["map_state_choice_to_index"],
+        compute_utility_final_period=model_funcs["compute_utility_final_period"],
     )
 
     result = {

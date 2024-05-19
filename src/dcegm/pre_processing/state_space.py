@@ -1,4 +1,5 @@
 """Functions for creating internal state space objects."""
+import jax.numpy as jnp
 import numpy as np
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 
@@ -55,6 +56,7 @@ def create_state_space_and_choice_objects(
 
     model_structure = {
         "state_space": state_space,
+        "choice_range": jnp.asarray(options["state_space"]["choices"]),
         "state_space_dict": state_space_dict,
         "map_state_to_index": map_state_to_index,
         "exog_state_space": exog_state_space,
@@ -461,5 +463,5 @@ def create_indexer_for_space(space):
     map_vars_to_index = np.full(max_var_values + 1, fill_value=-9999, dtype=int)
     index_tuple = tuple(space[:, i] for i in range(space.shape[1]))
     map_vars_to_index[index_tuple] = np.arange(space.shape[0], dtype=int)
-    
+
     return map_vars_to_index
