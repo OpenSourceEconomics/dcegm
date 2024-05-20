@@ -71,7 +71,7 @@ def simulate_all_periods(
         state_space_names=model_structure["state_space_names"],
         choice_range=model_structure["choice_range"],
         map_state_choice_to_index=model_structure["map_state_choice_to_index"],
-        compute_utility_final_period=model_funcs["compute_utility_final_period"],
+        compute_utility_final_period=model_funcs["compute_utility_final"],
     )
 
     result = {

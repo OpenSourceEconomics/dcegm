@@ -42,12 +42,12 @@ def model_setup(toy_model_exog_ltc):
     n_periods = options["state_space"]["n_periods"]
 
     initial_states = {
-        "period": np.zeros(n_agents, dtype=np.int16),
+        "period": np.zeros(n_agents, dtype=np.int64),
         "lagged_choice": np.zeros(
-            n_agents, dtype=np.int16
+            n_agents, dtype=np.int64
         ),  # all agents start as workers
-        "married": np.zeros(n_agents, dtype=np.int16),
-        "ltc": np.zeros(n_agents, dtype=np.int16),
+        "married": np.zeros(n_agents, dtype=np.int64),
+        "ltc": np.zeros(n_agents, dtype=np.int64),
     }
     initial_resources = np.ones(n_agents) * 10
     initial_states_and_resources = initial_states, initial_resources
@@ -101,7 +101,7 @@ def test_simulate_lax_scan(model_setup):
         value_solved=value,
         policy_solved=policy,
         map_state_choice_to_index=jnp.array(map_state_choice_to_index),
-        choice_range=jnp.arange(map_state_choice_to_index.shape[-1], dtype=jnp.int16),
+        choice_range=jnp.arange(map_state_choice_to_index.shape[-1], dtype=jnp.int64),
         compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
         compute_utility=model_funcs["compute_utility"],
         compute_beginning_of_period_resources=model_funcs[
@@ -168,13 +168,14 @@ def test_simulate(model_setup):
 
     n_agents = 100_000
 
+    # We need 64 because we do not alter the model array dtypes.
     initial_states = {
-        "period": np.zeros(n_agents, dtype=np.int16),
+        "period": np.zeros(n_agents, dtype=np.int64),
         "lagged_choice": np.zeros(
-            n_agents, dtype=np.int16
+            n_agents, dtype=np.int64
         ),  # all agents start as workers
-        "married": np.zeros(n_agents, dtype=np.int16),
-        "ltc": np.zeros(n_agents, dtype=np.int16),
+        "married": np.zeros(n_agents, dtype=np.int64),
+        "ltc": np.zeros(n_agents, dtype=np.int64),
     }
     initial_resources = np.ones(n_agents) * 10
 
