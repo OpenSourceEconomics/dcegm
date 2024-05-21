@@ -459,9 +459,17 @@ def create_endog_state_add_function(endog_state_space):
 
 
 def create_indexer_for_space(space):
+    """Creates indexer for spaces.
+
+    We need to think about which datatype we want to use and what is our invalid number.
+    Who doesn't like -99999999? Will anybody ever have 10 Billion state choices.
+
+    """
     max_var_values = np.max(space, axis=0)
-    map_vars_to_index = np.full(max_var_values + 1, fill_value=-9999, dtype=int)
+    map_vars_to_index = np.full(
+        max_var_values + 1, fill_value=-99999999, dtype=np.int64
+    )
     index_tuple = tuple(space[:, i] for i in range(space.shape[1]))
-    map_vars_to_index[index_tuple] = np.arange(space.shape[0], dtype=int)
+    map_vars_to_index[index_tuple] = np.arange(space.shape[0], dtype=np.int64)
 
     return map_vars_to_index

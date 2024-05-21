@@ -4,6 +4,7 @@ from functools import partial
 import jax
 import jax.numpy as jnp
 import numpy as np
+import pandas as pd
 from dcegm.simulation.sim_utils import compute_final_utility_for_each_choice
 from dcegm.simulation.sim_utils import draw_taste_shocks
 from dcegm.simulation.sim_utils import get_state_choice_index_per_state
@@ -167,7 +168,8 @@ def simulate_single_period(
         "consumption": consumption,
         "utility": utility_period,
         "taste_shocks": taste_shocks,
-        "value": value_max,
+        "value_max": value_max,
+        "value_choice": values_across_choices,
         "savings": savings_current_period,
         "income_shock": income_shocks_next_period,
         **states_beginning_of_period,
@@ -238,7 +240,8 @@ def simulate_final_period(
         "choice": choice,
         "consumption": resources_beginning_of_final_period,
         "utility": utility_period,
-        "value": value_period,
+        "value_max": value_period,
+        "value_choice": values_across_choices[np.newaxis],
         "taste_shocks": taste_shocks[np.newaxis, :, :],
         "savings": np.zeros_like(utility_period),
         "income_shock": np.zeros(n_agents),
