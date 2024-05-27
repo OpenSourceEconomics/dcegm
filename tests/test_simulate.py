@@ -14,7 +14,7 @@ from numpy.testing import assert_array_almost_equal as aaae
 
 def _create_test_objects_from_df(df, params):
     _cond = [df["choice"] == 0, df["choice"] == 1]
-    _val = [df["taste_shock_0"], df["taste_shock_1"]]
+    _val = [df["taste_shocks_0"], df["taste_shocks_1"]]
     df["taste_shock_selected_choice"] = np.select(_cond, _val)
 
     value_period_zero = (
@@ -26,7 +26,7 @@ def _create_test_objects_from_df(df, params):
         ).mean()
     )
     expected = (
-        df.xs(0, level=0)["value"].mean()
+        df.xs(0, level=0)["value_max"].mean()
         - df.xs(0, level=0)["taste_shock_selected_choice"].mean()
     )
 
