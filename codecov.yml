@@ -18,5 +18,5 @@ ignore:
   - tests/*
   - tests/**/*
   - .tox/**/*
-  # - src/dcegm/likelihood.py
+  - src/dcegm/likelihood.py
   - src/dcegm/interface.py
