@@ -45,4 +45,4 @@ jobs:
         if: runner.os == 'Linux' && matrix.python-version == '3.10'
         uses: codecov/codecov-action@v4
         with:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          token: ${{ secrets.CODECOV_TOKEN }}
