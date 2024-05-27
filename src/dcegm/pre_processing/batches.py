@@ -360,10 +360,9 @@ def determine_optimal_batch_size(
     batch_not_found = True
     current_batch_size = size_last_period
     need_to_reduce_batchsize = False
-    reduction_factor = 0.95
     while batch_not_found:
         if need_to_reduce_batchsize:
-            current_batch_size = int(current_batch_size * reduction_factor)
+            current_batch_size = int(current_batch_size * 0.98)
             need_to_reduce_batchsize = False
 
         # Split state choice indexes in
@@ -442,11 +441,7 @@ def determine_optimal_batch_size(
         print("The batch size of the backwards induction is ", current_batch_size)
 
         if not need_to_reduce_batchsize:
-            if reduction_factor > 0.99:
-                print("Batch size found.")
-                batch_not_found = False
-            current_batch_size = int(current_batch_size / reduction_factor)
-            reduction_factor = (1 + reduction_factor) / 2
+            batch_not_found = False
 
     return (
         batches_to_check,
