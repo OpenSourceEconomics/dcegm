@@ -80,8 +80,7 @@ def aggregate_marg_utils_and_exp_values(
 
 
 def calculate_choice_probs_and_unsqueezed_logsum(
-    choice_values_per_state: jnp.ndarray,
-    taste_shock_scale: float
+    choice_values_per_state: jnp.ndarray, taste_shock_scale: float
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     max_value_per_state = jnp.nanmax(choice_values_per_state, axis=1, keepdims=True)
 
