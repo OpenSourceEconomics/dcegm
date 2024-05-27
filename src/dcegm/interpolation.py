@@ -1,4 +1,9 @@
+from typing import Callable
+from typing import Dict
+from typing import Tuple
+
 import jax.numpy as jnp
+from jax import numpy as jnp
 
 
 def linear_interpolation_formula(
@@ -16,63 +21,6 @@ def linear_interpolation_formula(
     return interpol_res
 
 
-def interpolate_policy_and_value_on_wealth_grid(
-    wealth_beginning_of_period: jnp.ndarray,
-    endog_wealth_grid: jnp.ndarray,
-    policy: jnp.ndarray,
-    value_grid: jnp.ndarray,
-):
-    """Interpolate policy and value functions on the wealth grid.
-
-    This function uses the left and right policy function.
-    For a more detailed description, see calc_intersection_and_extrapolate_policy
-    in fast_upper_envelope.py.
-
-    Args:
-        wealth_beginning_of_period (jnp.ndarray): 1d array of shape (n,) containing the
-            begin of period wealth.
-        endog_wealth_grid (jnp.array): 1d array of shape (n,) containing the endogenous
-            wealth grid.
-        policy_grid (jnp.ndarray): 1d array of shape (n,) containing the
-            policy function corresponding to the endogenous wealth grid.
-        value_grid (jnp.ndarray): 1d array of shape (n,) containing the value function
-            values corresponding to the endogenous wealth grid.
-
-    Returns:
-        tuple:
-
-        - policy_new (jnp.ndarray): 1d array of shape (n,) containing the interpolated
-            policy function values corresponding to the begin of period wealth.
-        - value_new (jnp.ndarray): 1d array of shape (n,) containing the interpolated
-            value function values corresponding to the begin of period wealth.
-
-    """
-    ind_high, ind_low = get_index_high_and_low(
-        x=endog_wealth_grid, x_new=wealth_beginning_of_period
-    )
-
-    wealth_low = jnp.take(endog_wealth_grid, ind_low)
-    wealth_high = jnp.take(endog_wealth_grid, ind_high)
-
-    policy_new = linear_interpolation_formula(
-        y_high=jnp.take(policy, ind_high),
-        y_low=jnp.take(policy, ind_low),
-        x_high=wealth_high,
-        x_low=wealth_low,
-        x_new=wealth_beginning_of_period,
-    )
-
-    value_new = linear_interpolation_formula(
-        y_high=jnp.take(value_grid, ind_high),
-        y_low=jnp.take(value_grid, ind_low),
-        x_high=wealth_high,
-        x_low=wealth_low,
-        x_new=wealth_beginning_of_period,
-    )
-
-    return policy_new, value_new
-
-
 def get_index_high_and_low(x, x_new):
     """Get index of the highest value in x that is smaller than x_new.
 
@@ -88,3 +36,198 @@ def get_index_high_and_low(x, x_new):
     ind_high = jnp.searchsorted(x, x_new).clip(max=(x.shape[0] - 1), min=1)
     ind_high -= jnp.isnan(x[ind_high]).astype(int)
     return ind_high, ind_high - 1
+
+
+def interp_value_and_policy_on_wealth(
+    wealth: float | jnp.ndarray,
+    endog_grid: jnp.ndarray,
+    policy: jnp.ndarray,
+    value: jnp.ndarray,
+    compute_utility: Callable,
+    state_choice_vec: Dict[str, int],
+    params: Dict[str, float],
+) -> Tuple[float, float]:
+    """Interpolate value and policy given a single wealth value.
+
+    Args:
+        wealth (float): Wealth value to interpolate.
+        endog_grid (jnp.ndarray): Solved endogenous wealth grid.
+        policy (jnp.ndarray): Solved policy function.
+        value (jnp.ndarray): Solved value function.
+        state_choice_vec (Dict): Dictionary containing a single state and choice.
+        params (Dict): Dictionary containing the model parameters.
+
+    Returns:
+        tuple:
+
+        - policy_interp (float): Interpolated optimal policy for wealth.
+        - value_interp (float): Interpolated value for wealth.
+
+    """
+
+    # For all choices, the wealth is the same in the solution
+    ind_high, ind_low = get_index_high_and_low(x=endog_grid, x_new=wealth)
+
+    policy_interp = linear_interpolation_formula(
+        y_high=policy[ind_high],
+        y_low=policy[ind_low],
+        x_high=endog_grid[ind_high],
+        x_low=endog_grid[ind_low],
+        x_new=wealth,
+    )
+
+    value_interp = interp_value_and_check_creditconstraint(
+        value_high=value[ind_high],
+        wealth_high=endog_grid[ind_high],
+        value_low=value[ind_low],
+        wealth_low=endog_grid[ind_low],
+        new_wealth=wealth,
+        compute_utility=compute_utility,
+        endog_grid_min=endog_grid[1],
+        value_at_zero_wealth=value[0],
+        state_choice_vec=state_choice_vec,
+        params=params,
+    )
+
+    return policy_interp, value_interp
+
+
+def interp_value_on_wealth(
+    wealth: float | jnp.ndarray,
+    endog_grid: jnp.ndarray,
+    value: jnp.ndarray,
+    compute_utility: Callable,
+    state_choice_vec: Dict[str, int],
+    params: Dict[str, float],
+) -> float:
+    """Interpolate value given a single wealth value.
+
+    Args:
+        wealth (float): Wealth value to interpolate.
+        endog_grid (jnp.ndarray): Solved endogenous wealth grid.
+        value (jnp.ndarray): Solved value function.
+        state_choice_vec (Dict): Dictionary containing a single state and choice.
+        params (Dict): Dictionary containing the model parameters.
+
+    Returns:
+        float: Interpolated value for wealth.
+
+    """
+
+    ind_high, ind_low = get_index_high_and_low(x=endog_grid, x_new=wealth)
+
+    value_interp = interp_value_and_check_creditconstraint(
+        value_high=value[ind_high],
+        wealth_high=endog_grid[ind_high],
+        value_low=value[ind_low],
+        wealth_low=endog_grid[ind_low],
+        new_wealth=wealth,
+        compute_utility=compute_utility,
+        endog_grid_min=endog_grid[1],
+        value_at_zero_wealth=value[0],
+        state_choice_vec=state_choice_vec,
+        params=params,
+    )
+
+    return value_interp
+
+
+def interp_policy_on_wealth(
+    wealth: float | jnp.ndarray,
+    endog_grid: jnp.ndarray,
+    policy: jnp.ndarray,
+) -> float:
+    """Interpolate value given a single wealth value.
+
+    Args:
+        wealth (float): Wealth value to interpolate.
+        endog_grid (jnp.ndarray): Solved endogenous wealth grid.
+        value (jnp.ndarray): Solved value function.
+        state_choice_vec (Dict): Dictionary containing a single state and choice.
+        params (Dict): Dictionary containing the model parameters.
+
+    Returns:
+        float: Interpolated value for wealth.
+
+    """
+
+    ind_high, ind_low = get_index_high_and_low(x=endog_grid, x_new=wealth)
+
+    policy_interp = linear_interpolation_formula(
+        y_high=policy[ind_high],
+        y_low=policy[ind_low],
+        x_high=endog_grid[ind_high],
+        x_low=endog_grid[ind_low],
+        x_new=wealth,
+    )
+
+    return policy_interp
+
+
+def interp_value_and_check_creditconstraint(
+    value_high: float | jnp.ndarray,
+    wealth_high: float | jnp.ndarray,
+    value_low: float | jnp.ndarray,
+    wealth_low: float | jnp.ndarray,
+    new_wealth: float | jnp.ndarray,
+    compute_utility: Callable,
+    endog_grid_min: float | jnp.ndarray,
+    value_at_zero_wealth: float | jnp.ndarray,
+    state_choice_vec: Dict[str, int],
+    params: Dict[str, float],
+) -> float | jnp.ndarray:
+    """Calculate the interpolated value with accounting for a possible credit
+    constrained solution.
+
+    This function first calculates the interpolated value and then checks if we are
+    in the credit constrained region, i.e. below endog_grid_min. If so, it returns
+    the value as the sum of the utility when consumed all wealth and the discounted
+    value at zero savings. Creditconstrained means it is optimal to consume all!
+
+    Args:
+        value_high (float): Value function value at the higher end of the
+            interpolation interval.
+        wealth_high (float): Endogenous wealth grid value at the higher end of the
+            interpolation interval.
+        value_low (float): Value function value at the lower end of the
+            interpolation interval.
+        wealth_low (float): Endogenous wealth grid value at the lower end of the
+            interpolation interval.
+        new_wealth (float): New endogenous wealth grid value.
+        endog_grid_min (float): Minimum endogenous wealth grid value.
+        value_at_zero_wealth (float): The value at zero wealth.
+        state_choice_vec (Dict): Dictionary containing a single state and choice.
+        params (dict): Dictionary containing the model parameters.
+
+    Returns:
+        tuple:
+        - value_interp (float): Interpolated value function.
+
+    """
+
+    value_interp_on_grid = linear_interpolation_formula(
+        y_high=value_high,
+        y_low=value_low,
+        x_high=wealth_high,
+        x_low=wealth_low,
+        x_new=new_wealth,
+    )
+
+    # Now recalculate the value when consumed all wealth
+    utility = compute_utility(
+        consumption=new_wealth,
+        params=params,
+        **state_choice_vec,
+    )
+    value_interp_closed_form = utility + params["beta"] * value_at_zero_wealth
+
+    # Check if we are in the credit constrained region
+    credit_constraint = new_wealth <= endog_grid_min
+
+    # If so we return the value if all is consumed.
+    value_interp = (
+        credit_constraint * value_interp_closed_form
+        + (1 - credit_constraint) * value_interp_on_grid
+    )
+
+    return value_interp
