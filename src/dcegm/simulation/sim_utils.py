@@ -217,10 +217,10 @@ def interpolate_policy_and_value_function(
 def create_simulation_df(sim_dict):
     n_periods, n_agents, n_choices = sim_dict["taste_shocks"].shape
 
-    keys_to_drop = ["taste_shocks", "period"]
+    keys_to_drop = ["taste_shocks", "period", "value_choice"]
     dict_to_df = {key: sim_dict[key] for key in sim_dict if key not in keys_to_drop}
 
-    df_without_taste_shocks = pd.DataFrame(
+    df = pd.DataFrame(
         {key: val.ravel() for key, val in dict_to_df.items()},
         index=pd.MultiIndex.from_product(
             [np.arange(n_periods), np.arange(n_agents)],
@@ -228,18 +228,18 @@ def create_simulation_df(sim_dict):
         ),
     )
 
-    taste_shocks = sim_dict["taste_shocks"]
-    df_taste_shocks = pd.DataFrame(
-        {
-            f"taste_shock_{choice}": taste_shocks[..., choice].flatten()
-            for choice in range(n_choices)
-        },
-        index=pd.MultiIndex.from_product(
-            [np.arange(n_periods), np.arange(n_agents)],
-            names=["period", "agent"],
-        ),
-    )
+    for choice_var in ["taste_shocks", "value_choice"]:
+        df_choice = pd.DataFrame(
+            {
+                f"{choice_var}_{choice}": sim_dict[choice_var][..., choice].flatten()
+                for choice in range(n_choices)
+            },
+            index=pd.MultiIndex.from_product(
+                [np.arange(n_periods), np.arange(n_agents)],
+                names=["period", "agent"],
+            ),
+        )
 
-    df_combined = df_without_taste_shocks.join(df_taste_shocks)
+        df = df.join(df_choice)
 
-    return df_combined
+    return df

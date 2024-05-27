@@ -1,4 +1,5 @@
 """Functions for creating internal state space objects."""
+import jax.numpy as jnp
 import numpy as np
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 
@@ -55,6 +56,7 @@ def create_state_space_and_choice_objects(
 
     model_structure = {
         "state_space": state_space,
+        "choice_range": jnp.asarray(options["state_space"]["choices"]),
         "state_space_dict": state_space_dict,
         "map_state_to_index": map_state_to_index,
         "exog_state_space": exog_state_space,
@@ -457,9 +459,17 @@ def create_endog_state_add_function(endog_state_space):
 
 
 def create_indexer_for_space(space):
+    """Creates indexer for spaces.
+
+    We need to think about which datatype we want to use and what is our invalid number.
+    Who doesn't like -99999999? Will anybody ever have 10 Billion state choices.
+
+    """
     max_var_values = np.max(space, axis=0)
-    map_vars_to_index = np.full(max_var_values + 1, fill_value=-9999, dtype=int)
+    map_vars_to_index = np.full(
+        max_var_values + 1, fill_value=-99999999, dtype=np.int64
+    )
     index_tuple = tuple(space[:, i] for i in range(space.shape[1]))
-    map_vars_to_index[index_tuple] = np.arange(space.shape[0], dtype=int)
-    
+    map_vars_to_index[index_tuple] = np.arange(space.shape[0], dtype=np.int64)
+
     return map_vars_to_index

@@ -67,8 +67,8 @@ def return_dummy_exog_transition(*args, **kwargs):
     return jnp.array([1])
 
 
-def create_exog_mapping(exog_state_space, exog_names):
-    def exog_mapping(exog_proc_state):
+def create_exog_state_mapping(exog_state_space, exog_names):
+    def exog_state_mapping(exog_proc_state):
         # Caution: JAX does not throw an error if the exog_proc_state is out of bounds
         # If the index is out of bounds, the last element of the array is returned.
         exog_state = jnp.take(exog_state_space, exog_proc_state, axis=0)
@@ -77,4 +77,4 @@ def create_exog_mapping(exog_state_space, exog_names):
         }
         return exog_state_dict
 
-    return exog_mapping
+    return exog_state_mapping
