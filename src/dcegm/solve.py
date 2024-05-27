@@ -223,6 +223,7 @@ def backward_induction(
     """
 
     taste_shock_scale = params["lambda"]
+    breakpoint()
 
     resources_beginning_of_period = calculate_resources(
         states_beginning_of_period=state_space,
