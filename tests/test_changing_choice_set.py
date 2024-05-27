@@ -178,17 +178,20 @@ def budget(
     unemployed = lagged_choice == 0
     working = lagged_choice == 1
     retired = lagged_choice == 2
+
     unemployment_income = params["unemployment_benefits"]
     retirement_income = params["pension_per_experience"] * experience
     working_income = params["constant"] * (
         1 + params["exp"] * experience + params["exp_squared"] * experience**2
     )
+
     income = (
         unemployed * unemployment_income
         + working * working_income
         + retired * retirement_income
         - health * params["health_costs"]
     )
+
     return jnp.maximum(
         income + (1 + params["interest_rate"]) * savings_end_of_previous_period,
         params["consumption_floor"],
@@ -213,7 +216,7 @@ def test_extended_choice_set_model(
         utility_functions_final_period=utility_functions_final_period,
     )
     sol = solve_func(params)
-    value, policy, endog_grid = sol
+    value, _policy, _endog_grid = sol
     value_expec = pickle.load(
         open(TEST_DIR / "resources" / "extended_choice_set" / "value.pkl", "rb")
     )
@@ -239,6 +242,7 @@ def test_extended_choice_set_model(
     )
     reindex = indexer[tuple_state_choice]
     value_expec_reindexed = value_expec[reindex]
+
     # In the benchmark version we did not keep track if we need to augment the grid
     # in the upper envelope. Therefore, we need to loop over state choices and filter
     # the arrays
