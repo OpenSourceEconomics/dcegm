@@ -478,7 +478,7 @@ def create_indexer_for_space(space):
         max_var_values + 1, fill_value=-99999999, dtype=np.int64
     )
     index_tuple = tuple(space[:, i] for i in range(space.shape[1]))
-    
+
     map_vars_to_index[index_tuple] = np.arange(space.shape[0], dtype=np.int64)
 
     return map_vars_to_index
