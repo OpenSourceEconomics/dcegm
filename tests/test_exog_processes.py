@@ -1,7 +1,7 @@
 """Test module for exogenous processes."""
 import jax.numpy as jnp
 import numpy as np
-from dcegm.pre_processing.exog_processes import create_exog_mapping
+from dcegm.pre_processing.exog_processes import create_exog_state_mapping
 from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
 from numpy.testing import assert_almost_equal as aaae
@@ -87,14 +87,14 @@ def test_exog_processes():
         model_funcs=model_funcs,
     )
 
-    exog_mapping = create_exog_mapping(
+    exog_state_mapping = create_exog_state_mapping(
         model_structure["exog_state_space"].astype(np.int16),
         model_structure["exog_states_names"],
     )
     mother_bad_health = np.where(model_structure["exog_state_space"][:, 0] == 2)[0]
 
     for exog_state in mother_bad_health:
-        assert exog_mapping(exog_proc_state=exog_state)["health_mother"] == 2
+        assert exog_state_mapping(exog_proc_state=exog_state)["health_mother"] == 2
 
 
 def test_nested_exog_process():

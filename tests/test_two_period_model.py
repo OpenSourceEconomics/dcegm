@@ -56,12 +56,14 @@ def test_two_period(toy_model, euler_rhs, wealth_idx, state_idx, request):
 
     endog_grid_period = toy_model["endog_grid"]
     policy_period = toy_model["policy"]
-    state_space_dict = toy_model["state_space_dict"]
 
-    state_choice_space = toy_model["state_choice_space"]
+    model_structure = toy_model["model"]["model_structure"]
+    state_space_dict = model_structure["state_space_dict"]
+
+    state_choice_space = model_structure["state_choice_space"]
     state_choice_space_0 = state_choice_space[state_choice_space[:, 0] == 0]
     parent_states_of_state = np.where(
-        toy_model["map_state_choice_to_parent_state"] == state_idx
+        model_structure["map_state_choice_to_parent_state"] == state_idx
     )[0]
 
     if len(options["state_space"]["exogenous_processes"]) == 2:
