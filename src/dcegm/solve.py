@@ -257,6 +257,7 @@ def backward_induction(
         reshape_state_choice_vec_to_mat_prev_period = period_specific_state_objects[
             period + 1
         ]["reshape_state_choice_vec_to_mat"]
+
         (
             endog_grid_period,
             policy_left_period,
