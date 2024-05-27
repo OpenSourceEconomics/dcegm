@@ -8,11 +8,14 @@ from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import solve_dcegm
 from numpy.testing import assert_array_almost_equal as aaae
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
-from toy_models.consumption_retirement_model.utility_functions import (
-    inverse_marginal_utility_crra,
+from toy_models.consumption_retirement_model.state_space_objects import (
+    create_state_space_function_dict,
 )
 from toy_models.consumption_retirement_model.utility_functions import (
-    marginal_utility_crra,
+    create_final_period_utility_function_dict,
+)
+from toy_models.consumption_retirement_model.utility_functions import (
+    create_utility_function_dict,
 )
 from toy_models.consumption_retirement_model.utility_functions import (
     utiility_log_crra,
@@ -20,7 +23,6 @@ from toy_models.consumption_retirement_model.utility_functions import (
 from toy_models.consumption_retirement_model.utility_functions import (
     utiility_log_crra_final_consume_all,
 )
-from toy_models.consumption_retirement_model.utility_functions import utility_crra
 
 from tests.utils.interpolations import linear_interpolation_with_extrapolation
 
@@ -29,16 +31,6 @@ TEST_DIR = Path(__file__).parent
 
 # Directory with additional resources for the testing harness
 REPLICATION_TEST_RESOURCES_DIR = TEST_DIR / "resources" / "replication_tests"
-
-
-@pytest.fixture(scope="module")
-def utility_functions():
-    """Return dict with utility functions."""
-    return {
-        "utility": utility_crra,
-        "marginal_utility": marginal_utility_crra,
-        "inverse_marginal_utility": inverse_marginal_utility_crra,
-    }
 
 
 @pytest.mark.parametrize(
@@ -52,9 +44,6 @@ def utility_functions():
 def test_benchmark_models(
     model_name,
     load_example_model,
-    state_space_functions,
-    utility_functions,
-    utility_functions_final_period,
 ):
     options = {}
     params, _raw_options = load_example_model(f"{model_name}")
@@ -71,10 +60,15 @@ def test_benchmark_models(
         options["model_params"]["max_wealth"],
         options["model_params"]["n_grid_points"],
     )
+    utility_functions = create_utility_function_dict()
+    utility_functions_final_period = create_final_period_utility_function_dict()
 
-    if params["rho"] == 1:
+    if model_name == "deaton":
+        state_space_functions = None
         utility_functions["utility"] = utiility_log_crra
         utility_functions_final_period["utility"] = utiility_log_crra_final_consume_all
+    else:
+        state_space_functions = create_state_space_function_dict()
 
     model = setup_model(
         options=options,
@@ -84,7 +78,7 @@ def test_benchmark_models(
         budget_constraint=budget_constraint,
     )
 
-    value, policy_left, policy_right, endog_grid = solve_dcegm(
+    value, policy, endog_grid = solve_dcegm(
         params,
         options,
         exog_savings_grid=exog_savings_grid,
@@ -100,50 +94,39 @@ def test_benchmark_models(
     value_expected = pickle.load(
         (REPLICATION_TEST_RESOURCES_DIR / f"{model_name}" / "value.pkl").open("rb")
     )
+    state_choice_space = model["model_structure"]["state_choice_space"]
+    state_choice_space_to_test = state_choice_space[state_choice_space[:, 0] < 24]
 
-    for period in range(23, -1, -1):
-        period_state_choice_dict = model["period_specific_state_objects"][period][
-            "state_choice_mat"
-        ]
+    for state_choice_idx in range(state_choice_space_to_test.shape[0] - 1, -1, -1):
+        choice = state_choice_space_to_test[state_choice_idx, -1]
+        period = state_choice_space_to_test[state_choice_idx, 0]
+        if model_name == "deaton":
+            policy_expec = policy_expected[period, choice]
+            value_expec = value_expected[period, choice]
+        else:
+            policy_expec = policy_expected[period][1 - choice].T
+            value_expec = value_expected[period][1 - choice].T
 
-        for state_choice_idx_period, choice in enumerate(
-            period_state_choice_dict["choice"]
-        ):
-            if model_name == "deaton":
-                policy_expec = policy_expected[period, choice]
-                value_expec = value_expected[period, choice]
-            else:
-                policy_expec = policy_expected[period][1 - choice].T
-                value_expec = value_expected[period][1 - choice].T
+        wealth_grid_to_test = jnp.linspace(
+            policy_expec[0][1], policy_expec[0][-1] + 10, 1000
+        )
 
-            wealth_grid_to_test = jnp.linspace(
-                policy_expec[0][1], policy_expec[0][-1] + 10, 1000
-            )
+        value_expec_interp = linear_interpolation_with_extrapolation(
+            x_new=wealth_grid_to_test, x=value_expec[0], y=value_expec[1]
+        )
+        policy_expec_interp = linear_interpolation_with_extrapolation(
+            x_new=wealth_grid_to_test, x=policy_expec[0], y=policy_expec[1]
+        )
 
-            value_expec_interp = linear_interpolation_with_extrapolation(
-                x_new=wealth_grid_to_test, x=value_expec[0], y=value_expec[1]
-            )
-            policy_expec_interp = linear_interpolation_with_extrapolation(
-                x_new=wealth_grid_to_test, x=policy_expec[0], y=policy_expec[1]
-            )
+        (
+            policy_calc_interp,
+            value_calc_interp,
+        ) = interpolate_policy_and_value_on_wealth_grid(
+            wealth_beginning_of_period=wealth_grid_to_test,
+            endog_wealth_grid=endog_grid[state_choice_idx],
+            policy=policy[state_choice_idx],
+            value_grid=value[state_choice_idx],
+        )
 
-            state_choice_tuple = (
-                period_state_choice_dict["period"][state_choice_idx_period],
-                period_state_choice_dict["lagged_choice"][state_choice_idx_period],
-                period_state_choice_dict["dummy_exog"][state_choice_idx_period],
-                choice,
-            )
-            state_choice_idx = model["map_state_choice_to_index"][state_choice_tuple]
-            (
-                policy_calc_interp,
-                value_calc_interp,
-            ) = interpolate_policy_and_value_on_wealth_grid(
-                wealth_beginning_of_period=wealth_grid_to_test,
-                endog_wealth_grid=endog_grid[state_choice_idx],
-                policy_left_grid=policy_left[state_choice_idx],
-                policy_right_grid=policy_right[state_choice_idx],
-                value_grid=value[state_choice_idx],
-            )
-
-            aaae(policy_expec_interp, policy_calc_interp)
-            aaae(value_expec_interp, value_calc_interp)
+        aaae(policy_expec_interp, policy_calc_interp)
+        aaae(value_expec_interp, value_calc_interp)

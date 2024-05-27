@@ -55,28 +55,27 @@ def test_two_period(toy_model, euler_rhs, wealth_idx, state_idx, request):
     quad_draws = norm.ppf(quad_points) * 1
 
     endog_grid_period = toy_model["endog_grid"]
-    policy_period = toy_model["policy_left"]
-    period_specific_state_objects = toy_model["period_specific_state_objects"]
-    state_space = toy_model["state_space"]
+    policy_period = toy_model["policy"]
+    state_space_dict = toy_model["state_space_dict"]
 
-    period = 0
-    state_choices_period = period_specific_state_objects[period]["state_choice_mat"]
-    state_choice_idxs_of_state = np.where(
-        period_specific_state_objects[period]["idx_parent_states"] == state_idx
+    state_choice_space = toy_model["state_choice_space"]
+    state_choice_space_0 = state_choice_space[state_choice_space[:, 0] == 0]
+    parent_states_of_state = np.where(
+        toy_model["map_state_choice_to_parent_state"] == state_idx
     )[0]
 
     if len(options["state_space"]["exogenous_processes"]) == 2:
         initial_conditions = {}
-        initial_conditions["bad_health"] = state_space["ltc"][state_idx] == 1
+        initial_conditions["bad_health"] = state_space_dict["ltc"][state_idx] == 1
         initial_conditions["job_offer"] = 1
     else:
         initial_conditions = {}
-        initial_conditions["bad_health"] = state_space["ltc"][state_idx]
+        initial_conditions["bad_health"] = state_space_dict["ltc"][state_idx]
 
-    for state_choice_idx in state_choice_idxs_of_state:
+    for state_choice_idx in parent_states_of_state:
         endog_grid = endog_grid_period[state_choice_idx, wealth_idx + 1]
         policy = policy_period[state_choice_idx]
-        choice = state_choices_period["choice"][state_choice_idx]
+        choice = state_choice_space_0[state_choice_idx, -1]
 
         if ~np.isnan(endog_grid) and endog_grid > 0:
             initial_conditions["wealth"] = endog_grid

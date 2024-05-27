@@ -4,6 +4,20 @@ from typing import Dict
 import jax.numpy as jnp
 
 
+def create_utility_function_dict():
+    """Create dictionary with utility functions.
+
+    Returns:
+        utility_functions (dict): Dictionary with utility functions.
+
+    """
+    return {
+        "utility": utility_crra,
+        "marginal_utility": marginal_utility_crra,
+        "inverse_marginal_utility": inverse_marginal_utility_crra,
+    }
+
+
 def utiility_log_crra(
     consumption: jnp.array,
     choice: int,
@@ -111,7 +125,6 @@ def marginal_utility_crra(
 def inverse_marginal_utility_crra(
     marginal_utility: jnp.array,
     params: Dict[str, float],
-    options: Dict[str, Any],
 ) -> jnp.array:
     """Computes the inverse marginal utility of a CRRA utility function.
 
@@ -130,11 +143,24 @@ def inverse_marginal_utility_crra(
     return inverse_marginal_utility
 
 
+def create_final_period_utility_function_dict():
+    """Create dictionary with utility functions for the final period.
+
+    Returns:
+        utility_functions_final_period (dict): Dictionary with utility functions
+            for the final period.
+
+    """
+    return {
+        "utility": utility_final_consume_all,
+        "marginal_utility": marginal_utility_final_consume_all,
+    }
+
+
 def utility_final_consume_all(
     choice: int,
     resources: jnp.array,
     params: Dict[str, float],
-    options: Dict[str, Any],
 ):
     util_consumption = (resources ** (1 - params["rho"]) - 1) / (1 - params["rho"])
     util = util_consumption - (1 - choice) * params["delta"]

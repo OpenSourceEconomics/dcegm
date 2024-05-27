@@ -4,7 +4,7 @@ from typing import Dict
 import jax.numpy as jnp
 from dcegm.pre_processing.exog_processes import create_exog_transition_function
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
-from dcegm.upper_envelope.fast_upper_envelope import fast_upper_envelope_wrapper
+from upper_envelope.fues_jax.fues_jax import fast_upper_envelope_wrapper
 
 
 def process_model_functions(
@@ -84,20 +84,39 @@ def process_model_functions(
         )
     )
 
-    get_state_specific_choice_set = determine_function_arguments_and_partial_options(
-        func=state_space_functions["get_state_specific_choice_set"],
-        options=model_params_options,
-    )
+    if "get_state_specific_choice_set" not in state_space_functions:
+        print(
+            "State specific choice set not provided. Assume all choices are "
+            "available in every state."
+        )
 
-    get_next_period_state = determine_function_arguments_and_partial_options(
-        func=state_space_functions["get_next_period_state"],
-        options=model_params_options,
-    )
+        def get_state_specific_choice_set(**kwargs):
+            return jnp.array(options["state_space"]["choices"])
 
-    if len(options["state_space"]["choices"]) < 2:
-        compute_upper_envelope = _return_policy_and_value
     else:
-        compute_upper_envelope = fast_upper_envelope_wrapper
+        get_state_specific_choice_set = (
+            determine_function_arguments_and_partial_options(
+                func=state_space_functions["get_state_specific_choice_set"],
+                options=model_params_options,
+            )
+        )
+
+    if "get_next_period_state" not in state_space_functions:
+        print(
+            "Update function for state space not given. Assume states only change "
+            "with an increase of the period and lagged choice."
+        )
+
+        def get_next_period_state(**kwargs):
+            return {"period": kwargs["period"] + 1, "lagged_choice": kwargs["choice"]}
+
+    else:
+        get_next_period_state = determine_function_arguments_and_partial_options(
+            func=state_space_functions["get_next_period_state"],
+            options=model_params_options,
+        )
+
+    compute_upper_envelope = create_upper_envelope_function(options)
 
     model_funcs = {
         "compute_utility": compute_utility,
@@ -107,14 +126,43 @@ def process_model_functions(
         "compute_marginal_utility_final": compute_marginal_utility_final,
         "compute_beginning_of_period_resources": compute_beginning_of_period_resources,
         "compute_exog_transition_vec": compute_exog_transition_vec,
+        "get_state_specific_choice_set": get_state_specific_choice_set,
+        "get_next_period_state": get_next_period_state,
+        "compute_upper_envelope": compute_upper_envelope,
     }
 
-    return (
-        model_funcs,
-        compute_upper_envelope,
-        get_state_specific_choice_set,
-        get_next_period_state,
-    )
+    return model_funcs
+
+
+def create_upper_envelope_function(options):
+    if len(options["state_space"]["choices"]) < 2:
+        compute_upper_envelope = _return_policy_and_value
+    else:
+
+        def compute_upper_envelope(
+            endog_grid,
+            policy,
+            value,
+            expected_value_zero_savings,
+            state_choice_dict,
+            utility_function,
+            params,
+        ):
+            utility_kwargs = {
+                **state_choice_dict,
+                "params": params,
+            }
+            return fast_upper_envelope_wrapper(
+                endog_grid=endog_grid,
+                policy=policy,
+                value=value,
+                expected_value_zero_savings=expected_value_zero_savings,
+                utility_function=utility_function,
+                utility_kwargs=utility_kwargs,
+                disc_factor=params["beta"],
+            )
+
+    return compute_upper_envelope
 
 
 def _return_policy_and_value(
@@ -126,4 +174,4 @@ def _return_policy_and_value(
     policy = jnp.append(jnp.append(0, policy), nans_to_append)
     value = jnp.append(jnp.append(expected_value_zero_savings, value), nans_to_append)
 
-    return endog_grid, policy, policy, value
+    return endog_grid, policy, value

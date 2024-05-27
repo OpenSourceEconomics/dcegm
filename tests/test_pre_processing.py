@@ -8,6 +8,15 @@ from dcegm.pre_processing.setup_model import setup_model
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from jax import vmap
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
+from toy_models.consumption_retirement_model.state_space_objects import (
+    create_state_space_function_dict,
+)
+from toy_models.consumption_retirement_model.utility_functions import (
+    create_final_period_utility_function_dict,
+)
+from toy_models.consumption_retirement_model.utility_functions import (
+    create_utility_function_dict,
+)
 from toy_models.consumption_retirement_model.utility_functions import (
     utiility_log_crra,
 )
@@ -99,9 +108,6 @@ def test_missing_parameter(
 def test_load_and_save_model(
     model_name,
     load_example_model,
-    state_space_functions,
-    utility_functions,
-    utility_functions_final_period,
 ):
     options = {}
     params, _raw_options = load_example_model(f"{model_name}")
@@ -115,26 +121,26 @@ def test_load_and_save_model(
 
     model_setup = setup_model(
         options=options,
-        state_space_functions=state_space_functions,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
+        state_space_functions=create_state_space_function_dict(),
+        utility_functions=create_utility_function_dict(),
+        utility_functions_final_period=create_final_period_utility_function_dict(),
         budget_constraint=budget_constraint,
     )
 
     model_after_saving = setup_and_save_model(
         options=options,
-        state_space_functions=state_space_functions,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
+        state_space_functions=create_state_space_function_dict(),
+        utility_functions=create_utility_function_dict(),
+        utility_functions_final_period=create_final_period_utility_function_dict(),
         budget_constraint=budget_constraint,
         path="model.pkl",
     )
 
     model_after_loading = load_and_setup_model(
         options=options,
-        state_space_functions=state_space_functions,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
+        state_space_functions=create_state_space_function_dict(),
+        utility_functions=create_utility_function_dict(),
+        utility_functions_final_period=create_final_period_utility_function_dict(),
         budget_constraint=budget_constraint,
         path="model.pkl",
     )
