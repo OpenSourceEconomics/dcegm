@@ -270,10 +270,8 @@ def create_state_choice_space(
     state_space_names = states_names_without_exog + exog_state_names
     n_periods = state_space_options["n_periods"]
 
-    dtype_state_choice_space = state_space_options["dtypes"]["state_choice_space"]
-    max_int_state_choice_space = state_space_options["dtypes"][
-        "max_int_state_choice_space"
-    ]
+    dtype_state_choice_space = smallest_uint_type(n_states * n_choices)
+    max_int_state_choice_space = np.iinfo(dtype_state_choice_space).max
 
     state_choice_space = np.zeros(
         (n_states * n_choices, n_state_and_exog_variables + 1),
@@ -350,6 +348,8 @@ def create_state_choice_space(
     map_state_choice_to_index = create_indexer_for_space(
         state_choice_space_final, dtype_state_choice_space, max_int_state_choice_space
     )
+
+    # breakpoint()
 
     return (
         state_choice_space_final,
@@ -490,13 +490,17 @@ def create_indexer_for_space(space, dtype_state_space, max_int_state_space):
     Who doesn't like -99999999? Will anybody ever have 10 Billion state choices.
 
     """
+
+    data_type = smallest_uint_type(space.shape[0])
+    max_value = np.iinfo(data_type).max
+
     max_var_values = np.max(space, axis=0)
     map_vars_to_index = np.full(
-        max_var_values + 1, fill_value=max_int_state_space, dtype=dtype_state_space
+        max_var_values + 1, fill_value=max_value, dtype=data_type
     )
     index_tuple = tuple(space[:, i] for i in range(space.shape[1]))
 
-    map_vars_to_index[index_tuple] = np.arange(space.shape[0], dtype=dtype_state_space)
+    map_vars_to_index[index_tuple] = np.arange(space.shape[0], dtype=data_type)
 
     return map_vars_to_index
 
@@ -538,3 +542,11 @@ def check_options(options):
     }
 
     return options
+
+
+def smallest_uint_type(n_values):
+    uint_types = [np.uint8, np.uint16, np.uint32, np.uint64]
+    for dtype in uint_types:
+        if np.iinfo(dtype).max >= n_values:
+            return dtype
+    raise ValueError("No suitable uint type found for the given max value.")
