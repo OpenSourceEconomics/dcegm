@@ -22,6 +22,7 @@ def create_state_space_and_choice_objects(
             - "transform_between_state_and_state_choice_vec" (callable)
 
     """
+
     (
         state_space,
         state_space_dict,
@@ -127,6 +128,9 @@ def create_state_space(options):
             (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
 
     """
+    dtype_state_space = options["state_space"]["dtypes"]["state_space"]
+    max_int_state_space = options["state_space"]["dtypes"]["max_int_state_space"]
+
     state_space_options = options["state_space"]
     model_params = options["model_params"]
 
@@ -136,7 +140,7 @@ def create_state_space(options):
     (
         add_endog_state_func,
         endog_states_names,
-        num_states_of_all_endog_states,
+        _num_states_of_all_endog_states,
         num_endog_states,
         sparsity_func,
     ) = process_endog_state_specifications(
@@ -145,7 +149,7 @@ def create_state_space(options):
 
     (
         exog_states_names,
-        num_states_of_all_exog_states,
+        _num_states_of_all_exog_states,
         exog_state_space,
     ) = process_exog_model_specifications(state_space_options=state_space_options)
     states_names_without_exog = ["period", "lagged_choice"] + endog_states_names
@@ -184,7 +188,9 @@ def create_state_space(options):
     )
 
     # Create indexer array that maps states to indexes
-    map_state_to_index = create_indexer_for_space(state_space)
+    map_state_to_index = create_indexer_for_space(
+        state_space, dtype_state_space, max_int_state_space
+    )
 
     state_space_dict = {
         key: state_space[:, i]
@@ -264,13 +270,22 @@ def create_state_choice_space(
     state_space_names = states_names_without_exog + exog_state_names
     n_periods = state_space_options["n_periods"]
 
+    dtype_state_choice_space = state_space_options["dtypes"]["state_choice_space"]
+    max_int_state_choice_space = state_space_options["dtypes"][
+        "max_int_state_choice_space"
+    ]
+
     state_choice_space = np.zeros(
         (n_states * n_choices, n_state_and_exog_variables + 1),
-        dtype=int,
+        dtype=dtype_state_choice_space,
     )
-    map_state_choice_to_parent_state = np.zeros((n_states * n_choices), dtype=int)
+    map_state_choice_to_parent_state = np.zeros(
+        (n_states * n_choices), dtype=dtype_state_choice_space
+    )
     map_state_choice_to_child_states = np.full(
-        (n_states * n_choices, n_exog_states), fill_value=-9999, dtype=int
+        (n_states * n_choices, n_exog_states),
+        fill_value=max_int_state_choice_space,
+        dtype=dtype_state_choice_space,
     )
 
     exog_states_tuple = tuple(exog_state_space[:, i] for i in range(n_exog_vars))
@@ -310,7 +325,7 @@ def create_state_choice_space(
                         np.full(
                             n_exog_states,
                             fill_value=state_dict_without_exog[key],
-                            dtype=int,
+                            dtype=np.uint8,
                         )
                         for key in states_names_without_exog
                     )
@@ -332,7 +347,9 @@ def create_state_choice_space(
             idx += 1
 
     state_choice_space_final = state_choice_space[:idx]
-    map_state_choice_to_index = create_indexer_for_space(state_choice_space_final)
+    map_state_choice_to_index = create_indexer_for_space(
+        state_choice_space_final, dtype_state_choice_space, max_int_state_choice_space
+    )
 
     return (
         state_choice_space_final,
@@ -466,7 +483,7 @@ def create_endog_state_add_function(endog_state_space):
     return add_endog_states
 
 
-def create_indexer_for_space(space):
+def create_indexer_for_space(space, dtype_state_space, max_int_state_space):
     """Creates indexer for spaces.
 
     We need to think about which datatype we want to use and what is our invalid number.
@@ -475,11 +492,11 @@ def create_indexer_for_space(space):
     """
     max_var_values = np.max(space, axis=0)
     map_vars_to_index = np.full(
-        max_var_values + 1, fill_value=-99999999, dtype=np.int64
+        max_var_values + 1, fill_value=max_int_state_space, dtype=dtype_state_space
     )
     index_tuple = tuple(space[:, i] for i in range(space.shape[1]))
 
-    map_vars_to_index[index_tuple] = np.arange(space.shape[0], dtype=np.int64)
+    map_vars_to_index[index_tuple] = np.arange(space.shape[0], dtype=dtype_state_space)
 
     return map_vars_to_index
 
@@ -503,12 +520,20 @@ def check_options(options):
 
     if "choices" not in options["state_space"]:
         print("Choices not given. Assume only single choice with value 0")
-        options["state_space"]["choices"] = np.array([0], dtype=int)
+        options["state_space"]["choices"] = np.array([0], dtype=np.uint8)
 
     if "model_params" not in options:
         raise ValueError("Options must contain a model parameters dictionary.")
 
     if not isinstance(options["model_params"], dict):
         raise ValueError("Model parameters must be a dictionary.")
+
+    # Determine dtypes
+    options["state_space"]["dtypes"] = {
+        "state_space": np.uint32,
+        "state_choice_space": np.uint32,
+        "max_int_state_space": np.iinfo(np.uint32).max,
+        "max_int_state_choice_space": np.iinfo(np.uint32).max,
+    }
 
     return options

@@ -103,6 +103,7 @@ def create_batches_and_information(
         last_child_states_to_integrate_exog = child_states_to_integrate_exog_list[-1]
         last_idx_to_aggregate_choice = child_state_choices_to_aggr_choice_list[-1]
         last_child_state_idx_interp = child_state_choice_idxs_to_interp_list[-1]
+
         last_state_choices = {
             key: state_choice_space[:, i][last_batch]
             for i, key in enumerate(state_space_names + ["choice"])
