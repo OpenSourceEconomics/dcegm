@@ -75,6 +75,15 @@ def test_exog_processes():
         },
     }
 
+    # Determine dtypes
+    dtype = np.uint8
+    options["state_space"]["dtypes"] = {
+        "state_space": dtype,
+        "state_choice_space": dtype,
+        "max_int_state_space": np.iinfo(dtype).max,
+        "max_int_state_choice_space": np.iinfo(dtype).max,
+    }
+
     model_funcs = process_model_functions(
         options,
         state_space_functions=create_state_space_function_dict(),

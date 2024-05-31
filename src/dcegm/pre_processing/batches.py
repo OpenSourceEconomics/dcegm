@@ -1,4 +1,119 @@
 import numpy as np
+from numpy.testing import assert_array_almost_equal as aaae
+
+
+GOAL = np.array(
+    [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        -365,
+        -365,
+        12,
+        -365,
+        -365,
+        13,
+        -365,
+        -365,
+        14,
+        -365,
+        -365,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        -365,
+        -365,
+        40,
+        -365,
+        -365,
+        41,
+        -365,
+        -365,
+        42,
+        -365,
+        -365,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        -365,
+        -365,
+        68,
+        -365,
+        -365,
+        69,
+        -365,
+        -365,
+        70,
+        -365,
+        -365,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+    ]
+)
 
 
 def create_batches_and_information(
@@ -41,7 +156,9 @@ def create_batches_and_information(
 
     n_periods = options["state_space"]["n_periods"]
     state_choice_space = model_structure["state_choice_space"]
+
     out_of_bounds_state_choice_idx = -(state_choice_space.shape[0] + 1)
+
     state_space = model_structure["state_space"]
     state_space_names = model_structure["state_space_names"]
     map_state_choice_to_parent_state = model_structure[
@@ -334,6 +451,8 @@ def determine_optimal_batch_size(
     state_space,
     out_of_bounds_state_choice_idx,
 ):
+    invalid_dtype = np.iinfo(state_choice_space.dtype).max
+
     state_choice_space_wo_last_two = state_choice_space[
         state_choice_space[:, 0] < n_periods - 2
     ]
@@ -386,7 +505,7 @@ def determine_optimal_batch_size(
             # First get all child states and a mapping from the state-choice to the
             # different child states due to exogenous change of states.
             child_states_idxs = map_state_choice_to_child_states[batch]
-            unique_child_states, unique_ids, inverse_ids = np.unique(
+            unique_child_states, _unique_ids, inverse_ids = np.unique(
                 child_states_idxs, return_index=True, return_inverse=True
             )
             child_states_to_integrate_exog += [
@@ -414,12 +533,18 @@ def determine_optimal_batch_size(
             )
 
             # Treat invalid choices:
-            if unique_child_state_choice_idxs[0] < 0:
-                unique_child_state_choice_idxs = unique_child_state_choice_idxs[1:]
-                inverse_child_state_choice_ids = inverse_child_state_choice_ids - 1
+            if unique_child_state_choice_idxs[-1] >= invalid_dtype:
+                unique_child_state_choice_idxs = unique_child_state_choice_idxs[:-1]
+                # unique_child_state_choice_idxs = unique_child_state_choice_idxs[1:]
+                # inverse_child_state_choice_ids = inverse_child_state_choice_ids - 1
+                # inverse_child_state_choice_ids[inverse_child_state_choice_ids < 0] = (
+                #     out_of_bounds_state_choice_idx
+                # )
                 inverse_child_state_choice_ids[
-                    inverse_child_state_choice_ids < 0
+                    inverse_child_state_choice_ids
+                    >= np.max(inverse_child_state_choice_ids)
                 ] = out_of_bounds_state_choice_idx
+                # aaae(inverse_child_state_choice_ids, GOAL)
 
             # Save the mapping from child-state-choices to child-states
             child_state_choices_to_aggr_choice += [
@@ -443,6 +568,7 @@ def determine_optimal_batch_size(
 
         if not need_to_reduce_batchsize:
             batch_not_found = False
+    # breakpoint()
 
     return (
         batches_to_check,

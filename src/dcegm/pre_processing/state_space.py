@@ -529,11 +529,12 @@ def check_options(options):
         raise ValueError("Model parameters must be a dictionary.")
 
     # Determine dtypes
+    dtype = np.int64
     options["state_space"]["dtypes"] = {
-        "state_space": np.uint32,
-        "state_choice_space": np.uint32,
-        "max_int_state_space": np.iinfo(np.uint32).max,
-        "max_int_state_choice_space": np.iinfo(np.uint32).max,
+        "state_space": dtype,
+        "state_choice_space": dtype,
+        "max_int_state_space": np.iinfo(dtype).max,
+        "max_int_state_choice_space": np.iinfo(dtype).max,
     }
 
     return options

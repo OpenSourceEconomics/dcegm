@@ -9,6 +9,8 @@ from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_feasible_choice_set,
 )
 
+DATA_TYPE = np.uint8
+
 
 @pytest.fixture()
 def options(load_example_model):
@@ -33,6 +35,15 @@ def options(load_example_model):
             },
         }
     )
+
+    # Determine dtypes
+    options["state_space"]["dtypes"] = {
+        "state_space": DATA_TYPE,
+        "state_choice_space": DATA_TYPE,
+        "max_int_state_space": np.iinfo(DATA_TYPE).max,
+        "max_int_state_choice_space": np.iinfo(DATA_TYPE).max,
+    }
+
     return options
 
 
@@ -202,7 +213,7 @@ def sparsity_condition(
 
 def test_state_space():
     n_periods = 50
-    options_spars = {
+    options_sparse = {
         "state_space": {
             "n_periods": n_periods,  # 25 + 50 = 75
             "choices": np.arange(3, dtype=np.int64),
@@ -222,7 +233,14 @@ def test_state_space():
             "maximum_retirement_age": 72,
         },
     }
-    state_space_test, _ = create_state_space_test(options_spars["model_params"])
+    options_sparse["state_space"]["dtypes"] = {
+        "state_space": DATA_TYPE,
+        "state_choice_space": DATA_TYPE,
+        "max_int_state_space": np.iinfo(DATA_TYPE).max,
+        "max_int_state_choice_space": np.iinfo(DATA_TYPE).max,
+    }
+
+    state_space_test, _ = create_state_space_test(options_sparse["model_params"])
     (
         state_space,
         state_space_dict,
@@ -230,7 +248,7 @@ def test_state_space():
         states_names_without_exog,
         exog_states_names,
         exog_state_space,
-    ) = create_state_space(options=options_spars)
+    ) = create_state_space(options=options_sparse)
 
     # The dcegm package create the state vector in the order of the dictionary keys.
     # How these are ordered is not clear ex ante.
@@ -259,7 +277,7 @@ def test_state_space():
     )
 
     ### Now test the inspection function.
-    state_space_df = inspect_state_space(options=options_spars)
+    state_space_df = inspect_state_space(options=options_sparse)
     admissible_df = state_space_df[state_space_df["is_feasible"]]
 
     for i, column in enumerate(states_names_without_exog + exog_states_names):
