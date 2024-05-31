@@ -36,7 +36,6 @@ def options(load_example_model):
         }
     )
 
-    # Determine dtypes
     options["state_space"]["dtypes"] = {
         "state_space": DATA_TYPE,
         "state_choice_space": DATA_TYPE,

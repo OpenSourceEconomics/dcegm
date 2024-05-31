@@ -168,6 +168,8 @@ def test_simulate(model_setup):
 
     n_agents = 100_000
 
+    # breakpoint()
+
     # We need 64 because we do not alter the model array dtypes.
     initial_states = {
         "period": np.zeros(n_agents, dtype=np.int64),

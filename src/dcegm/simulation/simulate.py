@@ -186,6 +186,8 @@ def simulate_final_period(
     map_state_choice_to_index,
     compute_utility_final_period,
 ):
+    invalid_dtype = np.iinfo(map_state_choice_to_index.dtype).max
+
     (
         states_beginning_of_final_period,
         resources_beginning_of_final_period,
@@ -212,8 +214,11 @@ def simulate_final_period(
         states=states_beginning_of_final_period,
         state_space_names=state_space_names,
     )
+    # utilities_pre_taste_shock = jnp.where(
+    #     state_choice_indexes < 0, np.nan, utilities_pre_taste_shock
+    # )
     utilities_pre_taste_shock = jnp.where(
-        state_choice_indexes < 0, np.nan, utilities_pre_taste_shock
+        state_choice_indexes >= invalid_dtype, np.nan, utilities_pre_taste_shock
     )
 
     # Draw taste shocks and calculate final value.
