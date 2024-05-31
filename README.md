@@ -2,6 +2,7 @@
 
 [![Continuous Integration Workflow](https://github.com/OpenSourceEconomics/dcegm/actions/workflows/main.yml/badge.svg)](https://github.com/OpenSourceEconomics/dcegm/actions/workflows/main.yml)
 [![Codecov](https://codecov.io/gh/OpenSourceEconomics/dcegm/branch/main/graph/badge.svg)](https://app.codecov.io/gh/OpenSourceEconomics/dcegm)
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/OpenSourceEconomics/dcegm/main.svg)](https://results.pre-commit.ci/latest/github/OpenSourceEconomics/dcegm/main)
 [![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 Python implementation of the Discrete-Continuous Endogenous Grid Method (DC-EGM) for
