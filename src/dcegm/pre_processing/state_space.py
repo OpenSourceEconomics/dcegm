@@ -128,8 +128,8 @@ def create_state_space(options):
             (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
 
     """
-    dtype_state_space = options["state_space"]["dtypes"]["state_space"]
-    max_int_state_space = options["state_space"]["dtypes"]["max_int_state_space"]
+    # dtype_state_space = options["state_space"]["dtypes"]["state_space"]
+    # max_int_state_space = options["state_space"]["dtypes"]["max_int_state_space"]
 
     state_space_options = options["state_space"]
     model_params = options["model_params"]
@@ -186,6 +186,9 @@ def create_state_space(options):
     state_space = np.concatenate(
         (state_space_wo_exog_full, exog_state_space_full), axis=1
     )
+
+    dtype_state_space = smallest_uint_type(state_space.shape[0])
+    max_int_state_space = np.iinfo(dtype_state_space).max
 
     # Create indexer array that maps states to indexes
     map_state_to_index = create_indexer_for_space(
@@ -348,8 +351,6 @@ def create_state_choice_space(
     map_state_choice_to_index = create_indexer_for_space(
         state_choice_space_final, dtype_state_choice_space, max_int_state_choice_space
     )
-
-    # breakpoint()
 
     return (
         state_choice_space_final,
@@ -531,15 +532,6 @@ def check_options(options):
 
     if not isinstance(options["model_params"], dict):
         raise ValueError("Model parameters must be a dictionary.")
-
-    # Determine dtypes
-    dtype = np.int64
-    options["state_space"]["dtypes"] = {
-        "state_space": dtype,
-        "state_choice_space": dtype,
-        "max_int_state_space": np.iinfo(dtype).max,
-        "max_int_state_choice_space": np.iinfo(dtype).max,
-    }
 
     return options
 
