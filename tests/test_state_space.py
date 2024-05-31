@@ -9,8 +9,6 @@ from toy_models.consumption_retirement_model.state_space_objects import (
     get_state_specific_feasible_choice_set,
 )
 
-DATA_TYPE = np.uint8
-
 
 @pytest.fixture()
 def options(load_example_model):
@@ -35,13 +33,6 @@ def options(load_example_model):
             },
         }
     )
-
-    options["state_space"]["dtypes"] = {
-        "state_space": DATA_TYPE,
-        "state_choice_space": DATA_TYPE,
-        "max_int_state_space": np.iinfo(DATA_TYPE).max,
-        "max_int_state_choice_space": np.iinfo(DATA_TYPE).max,
-    }
 
     return options
 
@@ -68,9 +59,6 @@ n_periods = [15, 25, 63, 100]
 n_choices = [2, 3, 20, 50]
 n_exog_processes = [2, 3, 5]
 lagged_choices = [0, 1]
-
-TEST_CASES = list(product(n_periods, n_choices, n_exog_processes))
-
 
 TEST_CASES = list(product(lagged_choices, n_periods, n_choices, n_exog_processes))
 
@@ -231,12 +219,6 @@ def test_state_space():
             "minimum_SRA": 67,
             "maximum_retirement_age": 72,
         },
-    }
-    options_sparse["state_space"]["dtypes"] = {
-        "state_space": DATA_TYPE,
-        "state_choice_space": DATA_TYPE,
-        "max_int_state_space": np.iinfo(DATA_TYPE).max,
-        "max_int_state_choice_space": np.iinfo(DATA_TYPE).max,
     }
 
     state_space_test, _ = create_state_space_test(options_sparse["model_params"])

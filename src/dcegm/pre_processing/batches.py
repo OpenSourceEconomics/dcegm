@@ -2,120 +2,6 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal as aaae
 
 
-GOAL = np.array(
-    [
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        -365,
-        -365,
-        12,
-        -365,
-        -365,
-        13,
-        -365,
-        -365,
-        14,
-        -365,
-        -365,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21,
-        22,
-        23,
-        24,
-        25,
-        26,
-        27,
-        28,
-        29,
-        30,
-        31,
-        32,
-        33,
-        34,
-        35,
-        36,
-        37,
-        38,
-        39,
-        -365,
-        -365,
-        40,
-        -365,
-        -365,
-        41,
-        -365,
-        -365,
-        42,
-        -365,
-        -365,
-        43,
-        44,
-        45,
-        46,
-        47,
-        48,
-        49,
-        50,
-        51,
-        52,
-        53,
-        54,
-        55,
-        56,
-        57,
-        58,
-        59,
-        60,
-        61,
-        62,
-        63,
-        64,
-        65,
-        66,
-        67,
-        -365,
-        -365,
-        68,
-        -365,
-        -365,
-        69,
-        -365,
-        -365,
-        70,
-        -365,
-        -365,
-        71,
-        72,
-        73,
-        74,
-        75,
-        76,
-        77,
-        78,
-        79,
-        80,
-        81,
-        82,
-        83,
-    ]
-)
-
-
 def create_batches_and_information(
     model_structure,
     options,
@@ -535,16 +421,10 @@ def determine_optimal_batch_size(
             # Treat invalid choices:
             if unique_child_state_choice_idxs[-1] >= invalid_dtype:
                 unique_child_state_choice_idxs = unique_child_state_choice_idxs[:-1]
-                # unique_child_state_choice_idxs = unique_child_state_choice_idxs[1:]
-                # inverse_child_state_choice_ids = inverse_child_state_choice_ids - 1
-                # inverse_child_state_choice_ids[inverse_child_state_choice_ids < 0] = (
-                #     out_of_bounds_state_choice_idx
-                # )
                 inverse_child_state_choice_ids[
                     inverse_child_state_choice_ids
                     >= np.max(inverse_child_state_choice_ids)
                 ] = out_of_bounds_state_choice_idx
-                # aaae(inverse_child_state_choice_ids, GOAL)
 
             # Save the mapping from child-state-choices to child-states
             child_state_choices_to_aggr_choice += [
