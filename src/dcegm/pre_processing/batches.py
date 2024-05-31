@@ -1,5 +1,4 @@
 import numpy as np
-from numpy.testing import assert_array_almost_equal as aaae
 
 
 def create_batches_and_information(
@@ -448,7 +447,6 @@ def determine_optimal_batch_size(
 
         if not need_to_reduce_batchsize:
             batch_not_found = False
-    # breakpoint()
 
     return (
         batches_to_check,

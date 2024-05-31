@@ -128,8 +128,6 @@ def create_state_space(options):
             (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
 
     """
-    # dtype_state_space = options["state_space"]["dtypes"]["state_space"]
-    # max_int_state_space = options["state_space"]["dtypes"]["max_int_state_space"]
 
     state_space_options = options["state_space"]
     model_params = options["model_params"]
@@ -187,7 +185,7 @@ def create_state_space(options):
         (state_space_wo_exog_full, exog_state_space_full), axis=1
     )
 
-    dtype_state_space = smallest_uint_type(state_space.shape[0])
+    dtype_state_space = get_smallest_uint_type(state_space.shape[0])
     max_int_state_space = np.iinfo(dtype_state_space).max
 
     # Create indexer array that maps states to indexes
@@ -273,7 +271,8 @@ def create_state_choice_space(
     state_space_names = states_names_without_exog + exog_state_names
     n_periods = state_space_options["n_periods"]
 
-    dtype_state_choice_space = smallest_uint_type(n_states * n_choices)
+    dtype_exog_state_space = get_smallest_uint_type(n_exog_states)
+    dtype_state_choice_space = get_smallest_uint_type(n_states * n_choices)
     max_int_state_choice_space = np.iinfo(dtype_state_choice_space).max
 
     state_choice_space = np.zeros(
@@ -326,7 +325,7 @@ def create_state_choice_space(
                         np.full(
                             n_exog_states,
                             fill_value=state_dict_without_exog[key],
-                            dtype=np.uint8,
+                            dtype=dtype_exog_state_space,
                         )
                         for key in states_names_without_exog
                     )
@@ -492,7 +491,7 @@ def create_indexer_for_space(space, dtype_state_space, max_int_state_space):
 
     """
 
-    data_type = smallest_uint_type(space.shape[0])
+    data_type = get_smallest_uint_type(space.shape[0])
     max_value = np.iinfo(data_type).max
 
     max_var_values = np.max(space, axis=0)
@@ -536,9 +535,8 @@ def check_options(options):
     return options
 
 
-def smallest_uint_type(n_values):
+def get_smallest_uint_type(n_values):
     uint_types = [np.uint8, np.uint16, np.uint32, np.uint64]
     for dtype in uint_types:
         if np.iinfo(dtype).max >= n_values:
             return dtype
-    raise ValueError("No suitable uint type found for the given max value.")
