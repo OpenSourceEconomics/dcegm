@@ -47,7 +47,7 @@ def model_setup(toy_model_exog_ltc):
             n_agents, dtype=np.int64
         ),  # all agents start as workers
         "married": np.zeros(n_agents, dtype=np.int64),
-        "ltc": np.zeros(n_agents, dtype=np.int64),
+        "ltc": np.zeros(n_agents, dtype=np.int32),
     }
     initial_resources = np.ones(n_agents) * 10
     initial_states_and_resources = initial_states, initial_resources
@@ -174,7 +174,7 @@ def test_simulate(model_setup):
     initial_states = {
         "period": np.zeros(n_agents, dtype=np.int64),
         "lagged_choice": np.zeros(
-            n_agents, dtype=np.int64
+            n_agents, dtype=np.int32
         ),  # all agents start as workers
         "married": np.zeros(n_agents, dtype=np.int64),
         "ltc": np.zeros(n_agents, dtype=np.int64),
