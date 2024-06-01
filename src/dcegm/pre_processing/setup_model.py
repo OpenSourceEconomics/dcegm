@@ -61,7 +61,7 @@ def setup_model(
     )
 
     model_funcs["exog_state_mapping"] = create_exog_state_mapping(
-        model_structure["exog_state_space"].astype(np.int64),
+        model_structure["exog_state_space"],
         model_structure["exog_states_names"],
     )
 
@@ -136,9 +136,8 @@ def load_and_setup_model(
         budget_constraint=budget_constraint,
     )
 
-    exog_state_space = model["model_structure"]["exog_state_space"]
     model["model_funcs"]["exog_state_mapping"] = create_exog_state_mapping(
-        exog_state_space=np.array(exog_state_space, dtype=np.int64),
+        exog_state_space=model["model_structure"]["exog_state_space"],
         exog_names=model["model_structure"]["exog_states_names"],
     )
 
