@@ -148,7 +148,7 @@ def create_state_space(options):
     (
         exog_states_names,
         _num_states_of_all_exog_states,
-        exog_state_space,
+        exog_state_space_raw,
     ) = process_exog_model_specifications(state_space_options=state_space_options)
     states_names_without_exog = ["period", "lagged_choice"] + endog_states_names
 
@@ -176,26 +176,26 @@ def create_state_space(options):
                 else:
                     state_space_wo_exog_list += [state_without_exog]
 
-    n_exog_states = exog_state_space.shape[0]
+    n_exog_states = exog_state_space_raw.shape[0]
 
     state_space_wo_exog = np.array(state_space_wo_exog_list)
     state_space_wo_exog_full = np.repeat(state_space_wo_exog, n_exog_states, axis=0)
-    exog_state_space_full = np.tile(exog_state_space, (state_space_wo_exog.shape[0], 1))
-    state_space = np.concatenate(
+    exog_state_space_full = np.tile(
+        exog_state_space_raw, (state_space_wo_exog.shape[0], 1)
+    )
+    state_space_raw = np.concatenate(
         (state_space_wo_exog_full, exog_state_space_full), axis=1
     )
 
-    state_space = array_with_smallest_uint_dtype(state_space)
-
-    # Create indexer array that maps states to indexes
+    state_space = create_array_with_smallest_uint_dtype(state_space_raw)
     map_state_to_index = create_indexer_for_space(state_space)
 
     state_space_dict = {
-        key: array_with_smallest_uint_dtype(state_space[:, i])
+        key: create_array_with_smallest_uint_dtype(state_space[:, i])
         for i, key in enumerate(states_names_without_exog + exog_states_names)
     }
 
-    exog_state_space = array_with_smallest_uint_dtype(exog_state_space)
+    exog_state_space = create_array_with_smallest_uint_dtype(exog_state_space_raw)
 
     return (
         state_space,
@@ -532,12 +532,13 @@ def check_options(options):
     return options
 
 
-def array_with_smallest_uint_dtype(array):
+def create_array_with_smallest_uint_dtype(arr):
     """Return array with the smallest unsigned integer dtype."""
-    return array.astype(get_smallest_uint_type(array.max()))
+    return arr.astype(get_smallest_uint_type(arr.max()))
 
 
 def get_smallest_uint_type(n_values):
+    """Return the smallest unsigned integer type that can hold n_values."""
     uint_types = [np.uint8, np.uint16, np.uint32, np.uint64]
     for dtype in uint_types:
         if np.iinfo(dtype).max > n_values:
