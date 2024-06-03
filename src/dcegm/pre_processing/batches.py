@@ -416,9 +416,9 @@ def determine_optimal_batch_size(
             if unique_child_state_choice_idxs[0] < 0:
                 unique_child_state_choice_idxs = unique_child_state_choice_idxs[1:]
                 inverse_child_state_choice_ids = inverse_child_state_choice_ids - 1
-                inverse_child_state_choice_ids[
-                    inverse_child_state_choice_ids < 0
-                ] = out_of_bounds_state_choice_idx
+                inverse_child_state_choice_ids[inverse_child_state_choice_ids < 0] = (
+                    out_of_bounds_state_choice_idx
+                )
 
             # Save the mapping from child-state-choices to child-states
             child_state_choices_to_aggr_choice += [

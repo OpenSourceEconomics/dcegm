@@ -1,4 +1,5 @@
 """The simulation function."""
+
 from functools import partial
 
 import jax

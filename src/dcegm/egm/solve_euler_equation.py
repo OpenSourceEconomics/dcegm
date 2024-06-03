@@ -1,4 +1,5 @@
 """Auxiliary functions for the EGM algorithm."""
+
 from typing import Callable
 from typing import Dict
 from typing import Tuple

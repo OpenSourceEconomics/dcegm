@@ -1,4 +1,5 @@
 """Interface for the DC-EGM algorithm."""
+
 from functools import partial
 from typing import Any
 from typing import Callable

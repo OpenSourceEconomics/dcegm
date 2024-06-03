@@ -1,4 +1,5 @@
 """Test module for exogenous processes."""
+
 import jax.numpy as jnp
 import numpy as np
 from dcegm.pre_processing.exog_processes import create_exog_state_mapping

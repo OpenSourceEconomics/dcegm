@@ -6,6 +6,7 @@ The results are compared to the ones from scipy's linear interpolation
 function interp1d.
 
 """
+
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose

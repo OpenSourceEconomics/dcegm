@@ -1,4 +1,5 @@
 """Tests for simulation of consumption-retirement model with exogenous processes."""
+
 from functools import partial
 
 import jax

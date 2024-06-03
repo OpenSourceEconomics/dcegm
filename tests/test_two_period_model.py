@@ -3,6 +3,7 @@
 We test DC-EGM against the closed form solution of the Euler equation.
 
 """
+
 from itertools import product
 
 import numpy as np

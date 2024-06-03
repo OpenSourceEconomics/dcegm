@@ -1,4 +1,5 @@
 """Wrapper to solve the final period of the model."""
+
 from typing import Callable
 from typing import Dict
 from typing import Tuple
