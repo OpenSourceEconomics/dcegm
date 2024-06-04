@@ -49,7 +49,9 @@ def create_state_space_and_choice_objects(
 
     state_choice_space_dict = {
         key: state_choice_space[:, i]
-        for key in states_names_without_exog + exog_states_names + ["choice"]
+        for i, key in enumerate(
+            states_names_without_exog + exog_states_names + ["choice"]
+        )
     }
 
     test_state_space_objects(
