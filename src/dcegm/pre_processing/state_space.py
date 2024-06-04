@@ -135,6 +135,8 @@ def create_state_space(options):
     n_periods = state_space_options["n_periods"]
     n_choices = len(state_space_options["choices"])
 
+    need_signed_dtype = _contains_negative_value(state_space_options)
+
     (
         add_endog_state_func,
         endog_states_names,
@@ -187,15 +189,21 @@ def create_state_space(options):
         (state_space_wo_exog_full, exog_state_space_full), axis=1
     )
 
-    state_space = create_array_with_smallest_uint_dtype(state_space_raw)
+    state_space = create_array_with_smallest_int_dtype(
+        state_space_raw, signed=need_signed_dtype
+    )
     map_state_to_index = create_indexer_for_space(state_space)
 
     state_space_dict = {
-        key: create_array_with_smallest_uint_dtype(state_space[:, i])
+        key: create_array_with_smallest_int_dtype(
+            state_space[:, i], signed=need_signed_dtype
+        )
         for i, key in enumerate(states_names_without_exog + exog_states_names)
     }
 
-    exog_state_space = create_array_with_smallest_uint_dtype(exog_state_space_raw)
+    exog_state_space = create_array_with_smallest_int_dtype(
+        exog_state_space_raw, signed=need_signed_dtype
+    )
 
     return (
         state_space,
@@ -270,8 +278,14 @@ def create_state_choice_space(
     state_space_names = states_names_without_exog + exog_state_names
     n_periods = state_space_options["n_periods"]
 
-    dtype_exog_state_space = get_smallest_uint_type(n_exog_states)
-    dtype_state_choice_space = get_smallest_uint_type(n_states * n_choices)
+    need_signed_dtype = _contains_negative_value(state_space_options)
+
+    dtype_exog_state_space = get_smallest_int_type(
+        n_exog_states, signed=need_signed_dtype
+    )
+    dtype_state_choice_space = get_smallest_int_type(
+        n_states * n_choices, signed=need_signed_dtype
+    )
     max_int_state_choice_space = np.iinfo(dtype_state_choice_space).max
 
     state_choice_space = np.zeros(
@@ -481,17 +495,20 @@ def create_endog_state_add_function(endog_state_space):
 
 
 def create_indexer_for_space(space):
-    """Creates indexer for spaces.
+    """Create indexer for space.
 
     We need to think about which datatype we want to use and what is our invalid number.
     Who doesn't like -99999999? Will anybody ever have 10 Billion state choices.
 
     """
 
-    data_type = get_smallest_uint_type(space.shape[0])
+    # Indexer has always unsigned data type with integers starting at zero
+    data_type = get_smallest_int_type(space.shape[0], signed=False)
     max_value = np.iinfo(data_type).max
 
-    max_var_values = np.max(space, axis=0)
+    # Account for negative entries
+    max_var_values = np.max(space, axis=0) - np.min(space, axis=0)
+
     map_vars_to_index = np.full(
         max_var_values + 1, fill_value=max_value, dtype=data_type
     )
@@ -532,14 +549,35 @@ def check_options(options):
     return options
 
 
-def create_array_with_smallest_uint_dtype(arr):
+def create_array_with_smallest_int_dtype(arr, signed=False):
     """Return array with the smallest unsigned integer dtype."""
-    return arr.astype(get_smallest_uint_type(arr.max()))
+    return arr.astype(get_smallest_int_type(arr.max(), signed=signed))
 
 
-def get_smallest_uint_type(n_values):
-    """Return the smallest unsigned integer type that can hold n_values."""
-    uint_types = [np.uint8, np.uint16, np.uint32, np.uint64]
-    for dtype in uint_types:
+def get_smallest_int_type(n_values, signed=False):
+    """Return the smallest integer type that can hold n_values."""
+
+    if signed:
+        int_types = [np.int8, np.int16, np.int32, np.int64]
+    else:
+        int_types = [np.uint8, np.uint16, np.uint32, np.uint64]
+
+    for dtype in int_types:
         if np.iinfo(dtype).max > n_values:
             return dtype
+
+
+def _contains_negative_value(d):
+    """Check recursively if (nested) dictionary contains any negative values."""
+
+    if isinstance(d, dict):
+        return any(_contains_negative_value(v) for v in d.values())
+    elif isinstance(d, list):
+        # Convert list to numpy array then check for negatives
+        return _contains_negative_value(np.array(d))
+    elif isinstance(d, np.ndarray):
+        return np.any(d < 0)
+    elif isinstance(d, (int, float)):
+        return d < 0
+
+    return False
