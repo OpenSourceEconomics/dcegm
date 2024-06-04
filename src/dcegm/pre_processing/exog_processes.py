@@ -1,8 +1,9 @@
 from functools import partial
 from typing import Callable
 
-from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from jax import numpy as jnp
+
+from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 
 
 def create_exog_transition_function(options):

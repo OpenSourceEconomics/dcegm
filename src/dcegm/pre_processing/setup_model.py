@@ -1,13 +1,15 @@
 import pickle
-from typing import Callable
-from typing import Dict
+from typing import Callable, Dict
 
 import numpy as np
+
 from dcegm.pre_processing.batches import create_batches_and_information
 from dcegm.pre_processing.exog_processes import create_exog_state_mapping
 from dcegm.pre_processing.model_functions import process_model_functions
-from dcegm.pre_processing.state_space import check_options
-from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
+from dcegm.pre_processing.state_space import (
+    check_options,
+    create_state_space_and_choice_objects,
+)
 
 
 def setup_model(

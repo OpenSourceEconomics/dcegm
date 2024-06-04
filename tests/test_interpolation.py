@@ -12,8 +12,8 @@ import pytest
 from numpy.testing import assert_allclose
 from scipy.interpolate import interp1d
 
-from tests.utils.interpolations import linear_interpolation_with_extrapolation
 from tests.utils.interpolations import (
+    linear_interpolation_with_extrapolation,
     linear_interpolation_with_inserting_missing_values,
 )
 

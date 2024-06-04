@@ -1,22 +1,20 @@
 """Interface for the DC-EGM algorithm."""
 
 from functools import partial
-from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Tuple
+from typing import Any, Callable, Dict, Tuple
 
 import jax.lax
 import jax.numpy as jnp
 import numpy as np
 import pandas as pd
+from jax import jit
+
 from dcegm.budget import calculate_resources
 from dcegm.final_periods import solve_last_two_periods
 from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.params import process_params
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve_single_period import solve_single_period
-from jax import jit
 
 
 def solve_dcegm(

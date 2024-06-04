@@ -1,12 +1,11 @@
 """Wrapper to solve the final period of the model."""
 
-from typing import Callable
-from typing import Dict
-from typing import Tuple
+from typing import Callable, Dict, Tuple
 
 import jax.numpy as jnp
-from dcegm.solve_single_period import solve_for_interpolated_values
 from jax import vmap
+
+from dcegm.solve_single_period import solve_for_interpolated_values
 
 
 def solve_last_two_periods(

@@ -41,12 +41,19 @@ repos:
       - id: python-no-log-warn
       - id: python-use-type-annotations
       - id: text-unicode-replacement-char
-  - repo: https://github.com/asottile/reorder-python-imports
-    rev: v3.13.0
+  # - repo: https://github.com/asottile/reorder-python-imports
+  #   rev: v3.13.0
+  #   hooks:
+  #     - id: reorder-python-imports
+  #       args:
+  #         - --py37-plus
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
     hooks:
-      - id: reorder-python-imports
+      - id: isort
+        name: isort
         args:
-          - --py37-plus
+          - --profile=black
   - repo: https://github.com/asottile/setup-cfg-fmt
     rev: v2.5.0
     hooks:

@@ -6,11 +6,14 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from dcegm.simulation.sim_utils import create_simulation_df
-from dcegm.simulation.simulate import simulate_all_periods
-from dcegm.simulation.simulate import simulate_final_period
-from dcegm.simulation.simulate import simulate_single_period
 from numpy.testing import assert_array_almost_equal as aaae
+
+from dcegm.simulation.sim_utils import create_simulation_df
+from dcegm.simulation.simulate import (
+    simulate_all_periods,
+    simulate_final_period,
+    simulate_single_period,
+)
 
 
 def _create_test_objects_from_df(df, params):

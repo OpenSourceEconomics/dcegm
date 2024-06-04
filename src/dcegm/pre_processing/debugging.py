@@ -2,8 +2,11 @@ from typing import Dict
 
 import numpy as np
 import pandas as pd
-from dcegm.pre_processing.state_space import process_endog_state_specifications
-from dcegm.pre_processing.state_space import process_exog_model_specifications
+
+from dcegm.pre_processing.state_space import (
+    process_endog_state_specifications,
+    process_exog_model_specifications,
+)
 
 
 def inspect_state_space(

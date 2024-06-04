@@ -1,7 +1,10 @@
 import jax.numpy as jnp
-from dcegm.interpolation import interp_policy_on_wealth
-from dcegm.interpolation import interp_value_and_policy_on_wealth
-from dcegm.interpolation import interp_value_on_wealth
+
+from dcegm.interpolation import (
+    interp_policy_on_wealth,
+    interp_value_and_policy_on_wealth,
+    interp_value_on_wealth,
+)
 
 
 def policy_and_value_for_state_choice_vec(
