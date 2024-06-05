@@ -24,6 +24,12 @@ def simulate_all_periods(
     value_solved,
     model,
 ):
+    state_space_dict = model["model_structure"]["state_space_dict"]
+    states_initial = {
+        key: value.astype(state_space_dict[key].dtype)
+        for key, value in states_initial.items()
+    }
+
     # Prepare random seeds for taste shocks
     n_keys = len(resources_initial) + 2
     sim_specific_keys = jnp.array(

@@ -2,11 +2,12 @@ import pickle
 from typing import Callable
 from typing import Dict
 
-import numpy as np
+import jax
 from dcegm.pre_processing.batches import create_batches_and_information
 from dcegm.pre_processing.exog_processes import create_exog_state_mapping
 from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.state_space import check_options
+from dcegm.pre_processing.state_space import create_array_with_smallest_int_dtype
 from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
 
 
@@ -69,6 +70,8 @@ def setup_model(
         model_structure=model_structure,
         options=options,
     )
+
+    batch_info_new = jax.tree.map(create_array_with_smallest_int_dtype, batch_info)
 
     model = {
         "model_funcs": model_funcs,

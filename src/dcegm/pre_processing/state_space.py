@@ -1,4 +1,5 @@
 """Functions for creating internal state space objects."""
+import jax
 import jax.numpy as jnp
 import numpy as np
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
@@ -69,8 +70,8 @@ def create_state_space_and_choice_objects(
         "map_state_choice_to_parent_state": map_state_choice_to_parent_state,
         "map_state_choice_to_child_states": map_state_choice_to_child_states,
     }
-
-    return model_structure
+    # Return model structure with reduced dtypes
+    return jax.tree.map(create_array_with_smallest_int_dtype, model_structure)
 
 
 def test_state_space_objects(
@@ -189,21 +190,15 @@ def create_state_space(options):
         (state_space_wo_exog_full, exog_state_space_full), axis=1
     )
 
-    state_space = create_array_with_smallest_int_dtype(
-        state_space_raw, signed=need_signed_dtype
-    )
+    state_space = create_array_with_smallest_int_dtype(state_space_raw)
     map_state_to_index = create_indexer_for_space(state_space)
 
     state_space_dict = {
-        key: create_array_with_smallest_int_dtype(
-            state_space[:, i], signed=need_signed_dtype
-        )
+        key: create_array_with_smallest_int_dtype(state_space[:, i])
         for i, key in enumerate(states_names_without_exog + exog_states_names)
     }
 
-    exog_state_space = create_array_with_smallest_int_dtype(
-        exog_state_space_raw, signed=need_signed_dtype
-    )
+    exog_state_space = create_array_with_smallest_int_dtype(exog_state_space_raw)
 
     return (
         state_space,
@@ -280,12 +275,9 @@ def create_state_choice_space(
 
     need_signed_dtype = _contains_negative_value(state_space_options)
 
-    dtype_exog_state_space = get_smallest_int_type(
-        n_exog_states, signed=need_signed_dtype
-    )
-    dtype_state_choice_space = get_smallest_int_type(
-        n_states * n_choices, signed=need_signed_dtype
-    )
+    dtype_exog_state_space = get_smallest_int_type(n_exog_states)
+
+    dtype_state_choice_space = get_smallest_int_type(n_states * n_choices)
     max_int_state_choice_space = np.iinfo(dtype_state_choice_space).max
 
     state_choice_space = np.zeros(
@@ -503,7 +495,7 @@ def create_indexer_for_space(space):
     """
 
     # Indexer has always unsigned data type with integers starting at zero
-    data_type = get_smallest_int_type(space.shape[0], signed=False)
+    data_type = get_smallest_int_type(space.shape[0])
     max_value = np.iinfo(data_type).max
 
     # Account for negative entries
@@ -549,18 +541,21 @@ def check_options(options):
     return options
 
 
-def create_array_with_smallest_int_dtype(arr, signed=False):
+def create_array_with_smallest_int_dtype(arr):
     """Return array with the smallest unsigned integer dtype."""
-    return arr.astype(get_smallest_int_type(arr.max(), signed=signed))
+    if isinstance(arr, np.ndarray) | isinstance(arr, jnp.ndarray):
+        # Check here for all int types
+        if np.issubdtype(arr.dtype, np.integer):
+            return arr.astype(get_smallest_int_type(arr.max()))
+        else:
+            return arr
+    return arr
 
 
-def get_smallest_int_type(n_values, signed=False):
+def get_smallest_int_type(n_values):
     """Return the smallest integer type that can hold n_values."""
 
-    if signed:
-        int_types = [np.int8, np.int16, np.int32, np.int64]
-    else:
-        int_types = [np.uint8, np.uint16, np.uint32, np.uint64]
+    int_types = [np.uint8, np.uint16, np.uint32, np.uint64]
 
     for dtype in int_types:
         if np.iinfo(dtype).max > n_values:
