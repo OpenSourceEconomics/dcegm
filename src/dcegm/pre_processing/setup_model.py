@@ -71,12 +71,10 @@ def setup_model(
         options=options,
     )
 
-    batch_info_new = jax.tree.map(create_array_with_smallest_int_dtype, batch_info)
-
     model = {
         "model_funcs": model_funcs,
         "model_structure": model_structure,
-        "batch_info": batch_info,
+        "batch_info": jax.tree.map(create_array_with_smallest_int_dtype, batch_info),
     }
     return model
 
