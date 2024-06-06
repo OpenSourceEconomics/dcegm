@@ -72,7 +72,6 @@ def model_setup(toy_model_exog_ltc):
     }
 
 
-@pytest.mark.skip()
 def test_simulate_lax_scan(model_setup):
     params = model_setup["params"]
     options = model_setup["options"]

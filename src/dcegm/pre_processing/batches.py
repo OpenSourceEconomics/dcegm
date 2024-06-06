@@ -335,7 +335,7 @@ def determine_optimal_batch_size(
     state_space,
     out_of_bounds_state_choice_idx,
 ):
-    invalid_number = np.iinfo(state_choice_space.dtype).max
+    invalid_state_idx = np.iinfo(map_state_choice_to_index.dtype).max
 
     state_choice_space_wo_last_two = state_choice_space[
         state_choice_space[:, 0] < n_periods - 2
@@ -417,7 +417,7 @@ def determine_optimal_batch_size(
             )
 
             # Treat invalid choices:
-            if unique_child_state_choice_idxs[-1] == invalid_number:
+            if unique_child_state_choice_idxs[-1] == invalid_state_idx:
                 unique_child_state_choice_idxs = unique_child_state_choice_idxs[:-1]
                 inverse_child_state_choice_ids[
                     inverse_child_state_choice_ids
