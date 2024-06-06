@@ -22,8 +22,7 @@ def inspect_state_space(
     (
         add_endog_state_func,
         endog_states_names,
-        _,
-        num_endog_states,
+        n_endog_states,
         sparsity_func,
     ) = process_endog_state_specifications(
         state_space_options=state_space_options, model_params=model_params
@@ -31,7 +30,6 @@ def inspect_state_space(
 
     (
         exog_states_names,
-        _,
         exog_state_space,
     ) = process_exog_model_specifications(state_space_options=state_space_options)
 
@@ -41,7 +39,7 @@ def inspect_state_space(
     is_feasible_list = []
 
     for period in range(n_periods):
-        for endog_state_id in range(num_endog_states):
+        for endog_state_id in range(n_endog_states):
             for lagged_choice in range(n_choices):
                 # Select the endogenous state combination
                 endog_states = add_endog_state_func(endog_state_id)

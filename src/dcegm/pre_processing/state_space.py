@@ -147,8 +147,7 @@ def create_state_space(options):
     (
         add_endog_state_func,
         endog_states_names,
-        _num_states_of_all_endog_states,  # Can we remove this output?
-        num_endog_states,
+        n_endog_states,
         sparsity_func,
     ) = process_endog_state_specifications(
         state_space_options=state_space_options, model_params=model_params
@@ -156,7 +155,6 @@ def create_state_space(options):
 
     (
         exog_states_names,
-        _num_states_of_all_exog_states,  # Can we remove this output?
         exog_state_space_raw,
     ) = process_exog_model_specifications(state_space_options=state_space_options)
     states_names_without_exog = ["period", "lagged_choice"] + endog_states_names
@@ -164,7 +162,7 @@ def create_state_space(options):
     state_space_wo_exog_list = []
 
     for period in range(n_periods):
-        for endog_state_id in range(num_endog_states):
+        for endog_state_id in range(n_endog_states):
             for lagged_choice in range(n_choices):
                 # Select the endogenous state combination
                 endog_states = add_endog_state_func(endog_state_id)
@@ -328,6 +326,7 @@ def create_state_choice_space(
             map_state_choice_to_parent_state[idx] = state_idx
 
             if state_vec[0] < n_periods - 1:
+
                 # Current state without exog
                 state_dict_without_exog = {
                     key: state_dict[key]
@@ -385,52 +384,40 @@ def process_exog_model_specifications(state_space_options):
             for key in exog_state_names
         }
 
-        (
-            exog_state_space,
-            num_states_of_all_exog_states,
-        ) = span_subspace_and_read_information(
+        exog_state_space = span_subspace_and_read_information(
             subdict_of_space=dict_of_only_states,
             states_names=exog_state_names,
         )
 
     else:
         exog_state_names = ["dummy_exog"]
-        num_states_of_all_exog_states = [1]
-
         exog_state_space = np.array([[0]], dtype=np.uint8)
 
-    return (
-        exog_state_names,
-        num_states_of_all_exog_states,
-        exog_state_space,
-    )
+    return exog_state_names, exog_state_space
 
 
 def span_subspace_and_read_information(subdict_of_space, states_names):
     all_states_values = []
 
-    num_states_of_all_states = []
     for state_name in states_names:
         state_values = subdict_of_space[state_name]
 
         # Add if size_endog_state is 1, then raise Error
-        num_states = len(state_values)
-        num_states_of_all_states += [num_states]
         all_states_values += [state_values]
 
     sub_state_space = np.array(
         np.meshgrid(*all_states_values, indexing="xy")
     ).T.reshape(-1, len(states_names))
 
-    return sub_state_space, num_states_of_all_states
+    return sub_state_space
 
 
 def process_endog_state_specifications(state_space_options, model_params):
-    """Create endog state space, to loop over in the main create state space
-    function."""
+    """Get number of endog states which we loop over when creating the state space."""
 
     if "endogenous_states" in state_space_options:
         endog_state_keys = state_space_options["endogenous_states"].keys()
+
         if "sparsity_condition" in state_space_options["endogenous_states"].keys():
             endog_states_names = list(set(endog_state_keys) - {"sparsity_condition"})
             sparsity_cond_specified = True
@@ -438,19 +425,15 @@ def process_endog_state_specifications(state_space_options, model_params):
             sparsity_cond_specified = False
             endog_states_names = list(endog_state_keys)
 
-        (
-            endog_state_space,
-            num_states_of_all_endog_states,
-        ) = span_subspace_and_read_information(
+        endog_state_space = span_subspace_and_read_information(
             subdict_of_space=state_space_options["endogenous_states"],
             states_names=endog_states_names,
         )
-        num_endog_states = endog_state_space.shape[0]
+        n_endog_states = endog_state_space.shape[0]
 
     else:
         endog_states_names = []
-        num_states_of_all_endog_states = []
-        num_endog_states = 1
+        n_endog_states = 1
 
         endog_state_space = None
         sparsity_cond_specified = False
@@ -466,8 +449,7 @@ def process_endog_state_specifications(state_space_options, model_params):
     return (
         endog_states_add_func,
         endog_states_names,
-        num_states_of_all_endog_states,
-        num_endog_states,
+        n_endog_states,
         sparsity_func,
     )
 
