@@ -82,7 +82,6 @@ def create_batches_and_information(
     ) = determine_optimal_batch_size(
         state_choice_space=state_choice_space,
         n_periods=n_periods,
-        n_exog_states=model_structure["exog_state_space"].shape[0],
         map_state_choice_to_child_states=map_state_choice_to_child_states,
         map_state_choice_to_index=map_state_choice_to_index,
         state_space=state_space,
@@ -331,7 +330,6 @@ def add_last_two_period_information(
 def determine_optimal_batch_size(
     state_choice_space,
     n_periods,
-    n_exog_states,
     map_state_choice_to_child_states,
     map_state_choice_to_index,
     state_space,
@@ -366,6 +364,7 @@ def determine_optimal_batch_size(
     batch_not_found = True
     current_batch_size = size_last_period
     need_to_reduce_batchsize = False
+
     while batch_not_found:
         if need_to_reduce_batchsize:
             current_batch_size = int(current_batch_size * 0.98)
@@ -391,8 +390,8 @@ def determine_optimal_batch_size(
             # First get all child states and a mapping from the state-choice to the
             # different child states due to exogenous change of states.
             child_states_idxs = map_state_choice_to_child_states[batch]
-            unique_child_states, _unique_ids, inverse_ids = np.unique(
-                child_states_idxs, return_index=True, return_inverse=True
+            unique_child_states, inverse_ids = np.unique(
+                child_states_idxs, return_index=False, return_inverse=True
             )
             child_states_to_integrate_exog += [
                 inverse_ids.reshape(child_states_idxs.shape)
@@ -412,10 +411,9 @@ def determine_optimal_batch_size(
             # with state-choices in columns for the choices
             (
                 unique_child_state_choice_idxs,
-                unique_child_state_choice_ids,
                 inverse_child_state_choice_ids,
             ) = np.unique(
-                unique_state_choice_idxs_childs, return_index=True, return_inverse=True
+                unique_state_choice_idxs_childs, return_index=False, return_inverse=True
             )
 
             # Treat invalid choices:
