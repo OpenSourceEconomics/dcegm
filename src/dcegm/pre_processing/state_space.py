@@ -536,19 +536,16 @@ def check_options(options):
 
 def create_array_with_smallest_int_dtype(arr):
     """Return array with the smallest unsigned integer dtype."""
-    if isinstance(arr, np.ndarray) | isinstance(arr, jnp.ndarray):
-        # Check here for all int types
-        if np.issubdtype(arr.dtype, np.integer):
-            return arr.astype(get_smallest_int_type(arr.max()))
-        else:
-            return arr
-    else:
-        return arr
+    if isinstance(arr, (np.ndarray, jnp.ndarray)) and np.issubdtype(
+        arr.dtype, np.integer
+    ):
+        return arr.astype(get_smallest_int_type(arr.max()))
+
+    return arr
 
 
 def get_smallest_int_type(n_values):
     """Return the smallest unsigned integer type that can hold n_values."""
-
     uint_types = [np.uint8, np.uint16, np.uint32, np.uint64]
 
     for dtype in uint_types:
