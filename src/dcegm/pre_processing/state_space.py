@@ -24,6 +24,7 @@ def create_state_space_and_choice_objects(
             - "transform_between_state_and_state_choice_vec" (callable)
 
     """
+
     (
         state_space,
         state_space_dict,
@@ -58,7 +59,9 @@ def create_state_space_and_choice_objects(
 
     model_structure = {
         "state_space": state_space,
-        "choice_range": jnp.asarray(options["state_space"]["choices"]),
+        "choice_range": create_array_with_smallest_int_dtype(
+            jnp.asarray(options["state_space"]["choices"])
+        ),
         "state_space_dict": state_space_dict,
         "map_state_to_index": map_state_to_index,
         "exog_state_space": exog_state_space,
@@ -72,6 +75,7 @@ def create_state_space_and_choice_objects(
     }
 
     return model_structure
+    # return jax.tree.map(create_array_with_smallest_int_dtype, model_structure_raw)
 
 
 def test_state_space_objects(
@@ -86,6 +90,7 @@ def test_state_space_objects(
 
     # Check if all feasible state choice combinations have a valid child state
     child_states = map_state_choice_to_child_states[state_choices_idxs_wo_last, :]
+
     if not np.all(child_states >= 0):
         # Get row axis of child states that are invalid
         invalid_child_states = np.unique(np.where(child_states < 0)[0])
@@ -129,6 +134,7 @@ def create_state_space(options):
             (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
 
     """
+
     state_space_options = options["state_space"]
     model_params = options["model_params"]
 
@@ -138,7 +144,7 @@ def create_state_space(options):
     (
         add_endog_state_func,
         endog_states_names,
-        num_states_of_all_endog_states,
+        _num_states_of_all_endog_states,  # Can we remove this output?
         num_endog_states,
         sparsity_func,
     ) = process_endog_state_specifications(
@@ -147,8 +153,8 @@ def create_state_space(options):
 
     (
         exog_states_names,
-        num_states_of_all_exog_states,
-        exog_state_space,
+        _num_states_of_all_exog_states,  # Can we remove this output?
+        exog_state_space_raw,
     ) = process_exog_model_specifications(state_space_options=state_space_options)
     states_names_without_exog = ["period", "lagged_choice"] + endog_states_names
 
@@ -176,22 +182,26 @@ def create_state_space(options):
                 else:
                     state_space_wo_exog_list += [state_without_exog]
 
-    n_exog_states = exog_state_space.shape[0]
+    n_exog_states = exog_state_space_raw.shape[0]
 
     state_space_wo_exog = np.array(state_space_wo_exog_list)
     state_space_wo_exog_full = np.repeat(state_space_wo_exog, n_exog_states, axis=0)
-    exog_state_space_full = np.tile(exog_state_space, (state_space_wo_exog.shape[0], 1))
-    state_space = np.concatenate(
+    exog_state_space_full = np.tile(
+        exog_state_space_raw, (state_space_wo_exog.shape[0], 1)
+    )
+    state_space_raw = np.concatenate(
         (state_space_wo_exog_full, exog_state_space_full), axis=1
     )
 
-    # Create indexer array that maps states to indexes
+    state_space = create_array_with_smallest_int_dtype(state_space_raw)
     map_state_to_index = create_indexer_for_space(state_space)
 
     state_space_dict = {
-        key: state_space[:, i]
+        key: create_array_with_smallest_int_dtype(state_space[:, i])
         for i, key in enumerate(states_names_without_exog + exog_states_names)
     }
+
+    exog_state_space = create_array_with_smallest_int_dtype(exog_state_space_raw)
 
     return (
         state_space,
@@ -266,13 +276,21 @@ def create_state_choice_space(
     state_space_names = states_names_without_exog + exog_state_names
     n_periods = state_space_options["n_periods"]
 
-    state_choice_space = np.zeros(
+    dtype_exog_state_space = get_smallest_int_type(n_exog_states)
+    dtype_state_choice_space = get_smallest_int_type(n_states * n_choices)
+    max_int_state_choice_space = np.iinfo(dtype_state_choice_space).max
+
+    state_choice_space_raw = np.zeros(
         (n_states * n_choices, n_state_and_exog_variables + 1),
-        dtype=int,
+        dtype=dtype_state_choice_space,
     )
-    map_state_choice_to_parent_state = np.zeros((n_states * n_choices), dtype=int)
+    map_state_choice_to_parent_state = np.zeros(
+        (n_states * n_choices), dtype=dtype_state_choice_space
+    )
     map_state_choice_to_child_states = np.full(
-        (n_states * n_choices, n_exog_states), fill_value=-9999, dtype=int
+        (n_states * n_choices, n_exog_states),
+        fill_value=max_int_state_choice_space,
+        dtype=dtype_state_choice_space,
     )
 
     exog_states_tuple = tuple(exog_state_space[:, i] for i in range(n_exog_vars))
@@ -289,8 +307,8 @@ def create_state_choice_space(
         )
 
         for choice in feasible_choice_set:
-            state_choice_space[idx, :-1] = state_vec
-            state_choice_space[idx, -1] = choice
+            state_choice_space_raw[idx, :-1] = state_vec
+            state_choice_space_raw[idx, -1] = choice
 
             map_state_choice_to_parent_state[idx] = state_idx
 
@@ -312,7 +330,7 @@ def create_state_choice_space(
                         np.full(
                             n_exog_states,
                             fill_value=state_dict_without_exog[key],
-                            dtype=int,
+                            dtype=dtype_exog_state_space,
                         )
                         for key in states_names_without_exog
                     )
@@ -333,11 +351,11 @@ def create_state_choice_space(
 
             idx += 1
 
-    state_choice_space_final = state_choice_space[:idx]
-    map_state_choice_to_index = create_indexer_for_space(state_choice_space_final)
+    state_choice_space = state_choice_space_raw[:idx]
+    map_state_choice_to_index = create_indexer_for_space(state_choice_space)
 
     return (
-        state_choice_space_final,
+        state_choice_space,
         map_state_choice_to_index,
         map_state_choice_to_parent_state[:idx],
         map_state_choice_to_child_states[:idx, :],
@@ -379,6 +397,7 @@ def span_subspace_and_read_information(subdict_of_space, states_names):
     num_states_of_all_states = []
     for state_name in states_names:
         state_values = subdict_of_space[state_name]
+
         # Add if size_endog_state is 1, then raise Error
         num_states = len(state_values)
         num_states_of_all_states += [num_states]
@@ -469,19 +488,20 @@ def create_endog_state_add_function(endog_state_space):
 
 
 def create_indexer_for_space(space):
-    """Creates indexer for spaces.
+    """Create indexer for space."""
 
-    We need to think about which datatype we want to use and what is our invalid number.
-    Who doesn't like -99999999? Will anybody ever have 10 Billion state choices.
+    # Indexer has always unsigned data type with integers starting at zero
+    data_type = get_smallest_int_type(space.shape[0])
+    max_value = np.iinfo(data_type).max
 
-    """
-    max_var_values = np.max(space, axis=0)
+    max_var_values = np.max(space, axis=0) - np.min(space, axis=0)
+
     map_vars_to_index = np.full(
-        max_var_values + 1, fill_value=-99999999, dtype=np.int64
+        max_var_values + 1, fill_value=max_value, dtype=data_type
     )
     index_tuple = tuple(space[:, i] for i in range(space.shape[1]))
 
-    map_vars_to_index[index_tuple] = np.arange(space.shape[0], dtype=np.int64)
+    map_vars_to_index[index_tuple] = np.arange(space.shape[0], dtype=data_type)
 
     return map_vars_to_index
 
@@ -505,7 +525,7 @@ def check_options(options):
 
     if "choices" not in options["state_space"]:
         print("Choices not given. Assume only single choice with value 0")
-        options["state_space"]["choices"] = np.array([0], dtype=int)
+        options["state_space"]["choices"] = np.array([0], dtype=np.uint8)
 
     if "model_params" not in options:
         raise ValueError("Options must contain a model parameters dictionary.")
@@ -514,3 +534,25 @@ def check_options(options):
         raise ValueError("Model parameters must be a dictionary.")
 
     return options
+
+
+def create_array_with_smallest_int_dtype(arr):
+    """Return array with the smallest unsigned integer dtype."""
+    if isinstance(arr, np.ndarray) | isinstance(arr, jnp.ndarray):
+        # Check here for all int types
+        if np.issubdtype(arr.dtype, np.integer):
+            return arr.astype(get_smallest_int_type(arr.max()))
+        else:
+            return arr
+    else:
+        return arr
+
+
+def get_smallest_int_type(n_values):
+    """Return the smallest unsigned integer type that can hold n_values."""
+
+    uint_types = [np.uint8, np.uint16, np.uint32, np.uint64]
+
+    for dtype in uint_types:
+        if np.iinfo(dtype).max > n_values:
+            return dtype

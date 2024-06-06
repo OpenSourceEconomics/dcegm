@@ -41,7 +41,9 @@ def create_batches_and_information(
 
     n_periods = options["state_space"]["n_periods"]
     state_choice_space = model_structure["state_choice_space"]
-    out_of_bounds_state_choice_idx = -(state_choice_space.shape[0] + 1)
+
+    out_of_bounds_state_choice_idx = state_choice_space.shape[0] + 1
+
     state_space = model_structure["state_space"]
     state_space_names = model_structure["state_space_names"]
     map_state_choice_to_parent_state = model_structure[
@@ -80,7 +82,6 @@ def create_batches_and_information(
     ) = determine_optimal_batch_size(
         state_choice_space=state_choice_space,
         n_periods=n_periods,
-        n_exog_states=model_structure["exog_state_space"].shape[0],
         map_state_choice_to_child_states=map_state_choice_to_child_states,
         map_state_choice_to_index=map_state_choice_to_index,
         state_space=state_space,
@@ -103,6 +104,7 @@ def create_batches_and_information(
         last_child_states_to_integrate_exog = child_states_to_integrate_exog_list[-1]
         last_idx_to_aggregate_choice = child_state_choices_to_aggr_choice_list[-1]
         last_child_state_idx_interp = child_state_choice_idxs_to_interp_list[-1]
+
         last_state_choices = {
             key: state_choice_space[:, i][last_batch]
             for i, key in enumerate(state_space_names + ["choice"])
@@ -234,7 +236,7 @@ def extend_child_state_choices_to_aggregate_choices(
     child_state_choices_to_aggr_choice = np.full(
         (n_batches, max_n_child_states, n_choices),
         fill_value=out_of_bounds_state_choice_idx,
-        dtype=int,
+        dtype=int,  # what about this hard-coded int here?
     )
 
     for id_batch in range(n_batches):
@@ -256,6 +258,7 @@ def extend_child_state_choices_to_aggregate_choices(
         child_state_choice_idxs_to_interp[
             id_batch, : len(idx_to_interpolate[id_batch])
         ] = idx_to_interpolate[id_batch]
+
     return child_state_choice_idxs_to_interp, child_state_choices_to_aggr_choice
 
 
@@ -327,12 +330,13 @@ def add_last_two_period_information(
 def determine_optimal_batch_size(
     state_choice_space,
     n_periods,
-    n_exog_states,
     map_state_choice_to_child_states,
     map_state_choice_to_index,
     state_space,
     out_of_bounds_state_choice_idx,
 ):
+    invalid_number = np.iinfo(state_choice_space.dtype).max
+
     state_choice_space_wo_last_two = state_choice_space[
         state_choice_space[:, 0] < n_periods - 2
     ]
@@ -360,6 +364,7 @@ def determine_optimal_batch_size(
     batch_not_found = True
     current_batch_size = size_last_period
     need_to_reduce_batchsize = False
+
     while batch_not_found:
         if need_to_reduce_batchsize:
             current_batch_size = int(current_batch_size * 0.98)
@@ -385,8 +390,8 @@ def determine_optimal_batch_size(
             # First get all child states and a mapping from the state-choice to the
             # different child states due to exogenous change of states.
             child_states_idxs = map_state_choice_to_child_states[batch]
-            unique_child_states, unique_ids, inverse_ids = np.unique(
-                child_states_idxs, return_index=True, return_inverse=True
+            unique_child_states, inverse_ids = np.unique(
+                child_states_idxs, return_index=False, return_inverse=True
             )
             child_states_to_integrate_exog += [
                 inverse_ids.reshape(child_states_idxs.shape)
@@ -406,19 +411,18 @@ def determine_optimal_batch_size(
             # with state-choices in columns for the choices
             (
                 unique_child_state_choice_idxs,
-                unique_child_state_choice_ids,
                 inverse_child_state_choice_ids,
             ) = np.unique(
-                unique_state_choice_idxs_childs, return_index=True, return_inverse=True
+                unique_state_choice_idxs_childs, return_index=False, return_inverse=True
             )
 
             # Treat invalid choices:
-            if unique_child_state_choice_idxs[0] < 0:
-                unique_child_state_choice_idxs = unique_child_state_choice_idxs[1:]
-                inverse_child_state_choice_ids = inverse_child_state_choice_ids - 1
-                inverse_child_state_choice_ids[inverse_child_state_choice_ids < 0] = (
-                    out_of_bounds_state_choice_idx
-                )
+            if unique_child_state_choice_idxs[-1] == invalid_number:
+                unique_child_state_choice_idxs = unique_child_state_choice_idxs[:-1]
+                inverse_child_state_choice_ids[
+                    inverse_child_state_choice_ids
+                    >= np.max(inverse_child_state_choice_ids)
+                ] = out_of_bounds_state_choice_idx
 
             # Save the mapping from child-state-choices to child-states
             child_state_choices_to_aggr_choice += [

@@ -49,7 +49,7 @@ def sparsity_condition(period, lagged_choice, experience, options):
     # Starting from second we check if choice was in last periods full choice set
     if period > 0 and lagged_choice not in choice_set(period - 1, 1):
         return False
-    # Filter states with two high experience
+    # Filter states with too high experience
     if (experience > period) or (experience > options["max_experience"]):
         return False
     return True
