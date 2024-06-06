@@ -73,10 +73,7 @@ def create_state_space_and_choice_objects(
         "map_state_choice_to_parent_state": map_state_choice_to_parent_state,
         "map_state_choice_to_child_states": map_state_choice_to_child_states,
     }
-    import jax
-
-    return jax.tree.map(create_array_with_smallest_int_dtype, model_structure)
-    # return
+    return model_structure
 
 
 def test_state_space_objects(
@@ -278,20 +275,32 @@ def create_state_choice_space(
     n_periods = state_space_options["n_periods"]
 
     dtype_exog_state_space = get_smallest_int_type(n_exog_states)
-    dtype_state_choice_space = get_smallest_int_type(n_states * n_choices)
-    max_int_state_choice_space = np.iinfo(dtype_state_choice_space).max
+
+    # Get dtype and maxint for choices
+    dtype_choices = get_smallest_int_type(n_choices)
+    invalid_choice_idx = np.iinfo(dtype_choices).max
+
+    # Get dtype and max int for state space
+    state_space_dtype = state_space.dtype
+    invalid_state_space_idx = np.iinfo(state_space_dtype).max
+
+    if invalid_state_space_idx > invalid_choice_idx:
+        state_choice_space_dtype = state_space_dtype
+    else:
+        state_choice_space_dtype = dtype_choices
 
     state_choice_space_raw = np.zeros(
         (n_states * n_choices, n_state_and_exog_variables + 1),
-        dtype=dtype_state_choice_space,
+        dtype=state_choice_space_dtype,
     )
+
     map_state_choice_to_parent_state = np.zeros(
-        (n_states * n_choices), dtype=dtype_state_choice_space
+        (n_states * n_choices), dtype=state_space_dtype
     )
     map_state_choice_to_child_states = np.full(
         (n_states * n_choices, n_exog_states),
-        fill_value=max_int_state_choice_space,
-        dtype=dtype_state_choice_space,
+        fill_value=invalid_state_space_idx,
+        dtype=state_space_dtype,
     )
 
     exog_states_tuple = tuple(exog_state_space[:, i] for i in range(n_exog_vars))
