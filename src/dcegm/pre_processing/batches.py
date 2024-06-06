@@ -42,7 +42,7 @@ def create_batches_and_information(
     n_periods = options["state_space"]["n_periods"]
     state_choice_space = model_structure["state_choice_space"]
 
-    out_of_bounds_state_choice_idx = -(state_choice_space.shape[0] + 1)
+    out_of_bounds_state_choice_idx = state_choice_space.shape[0] + 1
 
     state_space = model_structure["state_space"]
     state_space_names = model_structure["state_space_names"]
@@ -237,7 +237,7 @@ def extend_child_state_choices_to_aggregate_choices(
     child_state_choices_to_aggr_choice = np.full(
         (n_batches, max_n_child_states, n_choices),
         fill_value=out_of_bounds_state_choice_idx,
-        dtype=int,
+        dtype=int,  # what about this hard-coded int here?
     )
 
     for id_batch in range(n_batches):
@@ -259,6 +259,7 @@ def extend_child_state_choices_to_aggregate_choices(
         child_state_choice_idxs_to_interp[
             id_batch, : len(idx_to_interpolate[id_batch])
         ] = idx_to_interpolate[id_batch]
+
     return child_state_choice_idxs_to_interp, child_state_choices_to_aggr_choice
 
 
@@ -336,7 +337,7 @@ def determine_optimal_batch_size(
     state_space,
     out_of_bounds_state_choice_idx,
 ):
-    invalid_dtype = np.iinfo(state_choice_space.dtype).max
+    invalid_number = np.iinfo(state_choice_space.dtype).max
 
     state_choice_space_wo_last_two = state_choice_space[
         state_choice_space[:, 0] < n_periods - 2
@@ -418,7 +419,7 @@ def determine_optimal_batch_size(
             )
 
             # Treat invalid choices:
-            if unique_child_state_choice_idxs[-1] >= invalid_dtype:
+            if unique_child_state_choice_idxs[-1] == invalid_number:
                 unique_child_state_choice_idxs = unique_child_state_choice_idxs[:-1]
                 inverse_child_state_choice_ids[
                     inverse_child_state_choice_ids
