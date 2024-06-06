@@ -24,6 +24,7 @@ def simulate_all_periods(
     value_solved,
     model,
 ):
+    # Set initial states to internal dtype
     state_space_dict = model["model_structure"]["state_space_dict"]
     states_initial = {
         key: value.astype(state_space_dict[key].dtype)
