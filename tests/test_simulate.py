@@ -68,7 +68,6 @@ def model_setup(toy_model_exog_ltc):
     }
 
 
-# @pytest.mark.skip()
 def test_simulate_lax_scan(model_setup):
     params = model_setup["params"]
     options = model_setup["options"]
@@ -116,6 +115,7 @@ def test_simulate_lax_scan(model_setup):
         get_next_period_state=get_next_period_state,
     )
 
+    # a) lax.scan
     (
         lax_states_and_resources_beginning_of_final_period,
         lax_sim_dict_zero,
@@ -125,7 +125,7 @@ def test_simulate_lax_scan(model_setup):
         xs=sim_specific_keys[:-1],
     )
 
-    # single call
+    # b) single call
     (
         states_and_resources_beginning_of_final_period,
         sim_dict_zero,
@@ -172,13 +172,13 @@ def test_simulate(model_setup):
 
     n_agents = 100_000
 
+    model_setup["model"]["model_structure"]["map_state_choice_to_index"]
+
     initial_states = {
-        "period": np.zeros(n_agents, dtype=np.int64),
-        "lagged_choice": np.zeros(
-            n_agents, dtype=np.int64
-        ),  # all agents start as workers
-        "married": np.zeros(n_agents, dtype=np.int64),
-        "ltc": np.zeros(n_agents, dtype=np.int64),
+        "period": np.zeros(n_agents),
+        "lagged_choice": np.zeros(n_agents),  # all agents start as workers
+        "married": np.zeros(n_agents),
+        "ltc": np.zeros(n_agents),
     }
     initial_resources = np.ones(n_agents) * 10
 

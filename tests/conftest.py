@@ -241,4 +241,5 @@ def toy_model_exog_ltc_and_job_offer(
     out["model"] = model
     out["params"] = params
     out["options"] = options
+
     return out

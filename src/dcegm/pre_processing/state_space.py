@@ -56,9 +56,11 @@ def create_state_space_and_choice_objects(
         state_space_names=states_names_without_exog + exog_states_names,
     )
 
-    model_structure_raw = {
+    model_structure = {
         "state_space": state_space,
-        "choice_range": jnp.asarray(options["state_space"]["choices"]),
+        "choice_range": create_array_with_smallest_int_dtype(
+            jnp.asarray(options["state_space"]["choices"])
+        ),
         "state_space_dict": state_space_dict,
         "map_state_to_index": map_state_to_index,
         "exog_state_space": exog_state_space,
@@ -71,7 +73,8 @@ def create_state_space_and_choice_objects(
         "map_state_choice_to_child_states": map_state_choice_to_child_states,
     }
 
-    return jax.tree.map(create_array_with_smallest_int_dtype, model_structure_raw)
+    return model_structure
+    # return jax.tree.map(create_array_with_smallest_int_dtype, model_structure_raw)
 
 
 def test_state_space_objects(
