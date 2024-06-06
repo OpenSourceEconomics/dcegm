@@ -1,11 +1,12 @@
 import jax
 import numpy as np
 import pandas as pd
+from jax import numpy as jnp
+from jax import vmap
+
 from dcegm.budget import calculate_resources_for_all_agents
 from dcegm.interface import get_state_choice_index_per_state
 from dcegm.interpolation import interp_value_and_policy_on_wealth
-from jax import numpy as jnp
-from jax import vmap
 
 
 def interpolate_policy_and_value_for_all_agents(

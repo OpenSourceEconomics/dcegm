@@ -1,23 +1,22 @@
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from dcegm.pre_processing.params import process_params
-from dcegm.pre_processing.setup_model import load_and_setup_model
-from dcegm.pre_processing.setup_model import setup_and_save_model
-from dcegm.pre_processing.setup_model import setup_model
-from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from jax import vmap
+
+from dcegm.pre_processing.params import process_params
+from dcegm.pre_processing.setup_model import (
+    load_and_setup_model,
+    setup_and_save_model,
+    setup_model,
+)
+from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
 from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space_function_dict,
 )
 from toy_models.consumption_retirement_model.utility_functions import (
     create_final_period_utility_function_dict,
-)
-from toy_models.consumption_retirement_model.utility_functions import (
     create_utility_function_dict,
-)
-from toy_models.consumption_retirement_model.utility_functions import (
     utiility_log_crra,
 )
 

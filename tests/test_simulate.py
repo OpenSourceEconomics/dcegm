@@ -1,15 +1,19 @@
 """Tests for simulation of consumption-retirement model with exogenous processes."""
+
 from functools import partial
 
 import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from dcegm.simulation.sim_utils import create_simulation_df
-from dcegm.simulation.simulate import simulate_all_periods
-from dcegm.simulation.simulate import simulate_final_period
-from dcegm.simulation.simulate import simulate_single_period
 from numpy.testing import assert_array_almost_equal as aaae
+
+from dcegm.simulation.sim_utils import create_simulation_df
+from dcegm.simulation.simulate import (
+    simulate_all_periods,
+    simulate_final_period,
+    simulate_single_period,
+)
 
 
 def _create_test_objects_from_df(df, params):
@@ -42,12 +46,10 @@ def model_setup(toy_model_exog_ltc):
     n_periods = options["state_space"]["n_periods"]
 
     initial_states = {
-        "period": np.zeros(n_agents, dtype=np.int64),
-        "lagged_choice": np.zeros(
-            n_agents, dtype=np.int64
-        ),  # all agents start as workers
-        "married": np.zeros(n_agents, dtype=np.int64),
-        "ltc": np.zeros(n_agents, dtype=np.int64),
+        "period": np.zeros(n_agents),
+        "lagged_choice": np.zeros(n_agents),  # all agents start as workers
+        "married": np.zeros(n_agents),
+        "ltc": np.zeros(n_agents),
     }
     initial_resources = np.ones(n_agents) * 10
     initial_states_and_resources = initial_states, initial_resources
@@ -87,11 +89,17 @@ def test_simulate_lax_scan(model_setup):
     policy = model_setup["policy"]
     endog_grid = model_setup["endog_grid"]
 
-    initial_states_and_resources = (
-        model_setup["initial_states"],
-        model_setup["initial_resources"],
-    )
+    states_initial = model_setup["initial_states"]
+    resources_initial = model_setup["initial_resources"]
+
     sim_specific_keys = model_setup["sim_specific_keys"]
+
+    state_space_dict = model_structure["state_space_dict"]
+    states_initial = {
+        key: value.astype(state_space_dict[key].dtype)
+        for key, value in states_initial.items()
+    }
+    initial_states_and_resources = states_initial, resources_initial
 
     simulate_body = partial(
         simulate_single_period,
@@ -101,7 +109,7 @@ def test_simulate_lax_scan(model_setup):
         value_solved=value,
         policy_solved=policy,
         map_state_choice_to_index=jnp.array(map_state_choice_to_index),
-        choice_range=jnp.arange(map_state_choice_to_index.shape[-1], dtype=jnp.int64),
+        choice_range=jnp.arange(map_state_choice_to_index.shape[-1], dtype=np.uint8),
         compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
         compute_utility=model_funcs["compute_utility"],
         compute_beginning_of_period_resources=model_funcs[
@@ -111,7 +119,7 @@ def test_simulate_lax_scan(model_setup):
         get_next_period_state=get_next_period_state,
     )
 
-    # lax.scan
+    # a) lax.scan
     (
         lax_states_and_resources_beginning_of_final_period,
         lax_sim_dict_zero,
@@ -121,7 +129,7 @@ def test_simulate_lax_scan(model_setup):
         xs=sim_specific_keys[:-1],
     )
 
-    # single call
+    # b) single call
     (
         states_and_resources_beginning_of_final_period,
         sim_dict_zero,
@@ -168,14 +176,11 @@ def test_simulate(model_setup):
 
     n_agents = 100_000
 
-    # We need 64 because we do not alter the model array dtypes.
     initial_states = {
-        "period": np.zeros(n_agents, dtype=np.int64),
-        "lagged_choice": np.zeros(
-            n_agents, dtype=np.int64
-        ),  # all agents start as workers
-        "married": np.zeros(n_agents, dtype=np.int64),
-        "ltc": np.zeros(n_agents, dtype=np.int64),
+        "period": np.zeros(n_agents),
+        "lagged_choice": np.zeros(n_agents),  # all agents start as workers
+        "married": np.zeros(n_agents),
+        "ltc": np.zeros(n_agents),
     }
     initial_resources = np.ones(n_agents) * 10
 

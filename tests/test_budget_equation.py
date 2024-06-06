@@ -2,14 +2,15 @@ from itertools import product
 
 import numpy as np
 import pytest
-from dcegm.pre_processing.params import process_params
 from numpy.testing import assert_array_almost_equal as aaae
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
+
+from dcegm.pre_processing.params import process_params
 from toy_models.consumption_retirement_model.budget_functions import (
     _calc_stochastic_income,
+    budget_constraint,
 )
-from toy_models.consumption_retirement_model.budget_functions import budget_constraint
 
 model = ["deaton", "retirement_taste_shocks", "retirement_no_taste_shocks"]
 labor_choice = [0, 1]

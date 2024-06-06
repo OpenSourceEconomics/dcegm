@@ -1,5 +1,6 @@
-from dcegm.numerical_integration import quadrature_hermite
 from numpy.testing import assert_allclose
+
+from dcegm.numerical_integration import quadrature_hermite
 
 
 def test_normal_distribution():

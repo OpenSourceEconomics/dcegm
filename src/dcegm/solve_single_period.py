@@ -1,3 +1,5 @@
+from jax import vmap
+
 from dcegm.egm.aggregate_marginal_utility import aggregate_marg_utils_and_exp_values
 from dcegm.egm.interpolate_marginal_utility import (
     interpolate_value_and_marg_utility_on_next_period_wealth,
@@ -5,7 +7,6 @@ from dcegm.egm.interpolate_marginal_utility import (
 from dcegm.egm.solve_euler_equation import (
     calculate_candidate_solutions_from_euler_equation,
 )
-from jax import vmap
 
 
 def solve_single_period(

@@ -3,6 +3,7 @@ from itertools import product
 import jax.numpy as jnp
 import numpy as np
 import pytest
+
 from dcegm.pre_processing.debugging import inspect_state_space
 from dcegm.pre_processing.state_space import create_state_space
 from toy_models.consumption_retirement_model.state_space_objects import (
@@ -33,6 +34,7 @@ def options(load_example_model):
             },
         }
     )
+
     return options
 
 
@@ -58,9 +60,6 @@ n_periods = [15, 25, 63, 100]
 n_choices = [2, 3, 20, 50]
 n_exog_processes = [2, 3, 5]
 lagged_choices = [0, 1]
-
-TEST_CASES = list(product(n_periods, n_choices, n_exog_processes))
-
 
 TEST_CASES = list(product(lagged_choices, n_periods, n_choices, n_exog_processes))
 
@@ -202,7 +201,7 @@ def sparsity_condition(
 
 def test_state_space():
     n_periods = 50
-    options_spars = {
+    options_sparse = {
         "state_space": {
             "n_periods": n_periods,  # 25 + 50 = 75
             "choices": np.arange(3, dtype=np.int64),
@@ -222,7 +221,8 @@ def test_state_space():
             "maximum_retirement_age": 72,
         },
     }
-    state_space_test, _ = create_state_space_test(options_spars["model_params"])
+
+    state_space_test, _ = create_state_space_test(options_sparse["model_params"])
     (
         state_space,
         state_space_dict,
@@ -230,7 +230,7 @@ def test_state_space():
         states_names_without_exog,
         exog_states_names,
         exog_state_space,
-    ) = create_state_space(options=options_spars)
+    ) = create_state_space(options=options_sparse)
 
     # The dcegm package create the state vector in the order of the dictionary keys.
     # How these are ordered is not clear ex ante.
@@ -259,7 +259,7 @@ def test_state_space():
     )
 
     ### Now test the inspection function.
-    state_space_df = inspect_state_space(options=options_spars)
+    state_space_df = inspect_state_space(options=options_sparse)
     admissible_df = state_space_df[state_space_df["is_feasible"]]
 
     for i, column in enumerate(states_names_without_exog + exog_states_names):
