@@ -1,16 +1,20 @@
 """The simulation function."""
+
 from functools import partial
 
 import jax
 import jax.numpy as jnp
 import numpy as np
-from dcegm.interface import get_state_choice_index_per_state
-from dcegm.simulation.sim_utils import compute_final_utility_for_each_choice
-from dcegm.simulation.sim_utils import draw_taste_shocks
-from dcegm.simulation.sim_utils import interpolate_policy_and_value_for_all_agents
-from dcegm.simulation.sim_utils import transition_to_next_period
-from dcegm.simulation.sim_utils import vectorized_utility
 from jax import vmap
+
+from dcegm.interface import get_state_choice_index_per_state
+from dcegm.simulation.sim_utils import (
+    compute_final_utility_for_each_choice,
+    draw_taste_shocks,
+    interpolate_policy_and_value_for_all_agents,
+    transition_to_next_period,
+    vectorized_utility,
+)
 
 
 def simulate_all_periods(

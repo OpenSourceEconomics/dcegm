@@ -1,8 +1,7 @@
 from typing import Tuple
 
 import numpy as np
-from scipy.special import roots_hermite
-from scipy.special import roots_sh_legendre
+from scipy.special import roots_hermite, roots_sh_legendre
 from scipy.stats import norm
 
 

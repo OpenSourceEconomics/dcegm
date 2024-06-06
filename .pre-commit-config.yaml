@@ -6,15 +6,15 @@ repos:
       - id: check-useless-excludes
     # -   id: identity  # Prints all files passed to pre-commits. Debugging.
   - repo: https://github.com/adrienverge/yamllint.git
-    rev: v1.32.0
+    rev: v1.35.1
     hooks:
       - id: yamllint
   - repo: https://github.com/lyz-code/yamlfix
-    rev: 1.13.0
+    rev: 1.16.0
     hooks:
       - id: yamlfix
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.6.0
     hooks:
       - id: check-added-large-files
         args:
@@ -41,18 +41,25 @@ repos:
       - id: python-no-log-warn
       - id: python-use-type-annotations
       - id: text-unicode-replacement-char
-  - repo: https://github.com/asottile/reorder-python-imports
-    rev: v3.10.0
+  # - repo: https://github.com/asottile/reorder-python-imports
+  #   rev: v3.13.0
+  #   hooks:
+  #     - id: reorder-python-imports
+  #       args:
+  #         - --py37-plus
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
     hooks:
-      - id: reorder-python-imports
+      - id: isort
+        name: isort
         args:
-          - --py37-plus
+          - --profile=black
   - repo: https://github.com/asottile/setup-cfg-fmt
-    rev: v2.4.0
+    rev: v2.5.0
     hooks:
       - id: setup-cfg-fmt
   - repo: https://github.com/psf/black
-    rev: 23.7.0
+    rev: 24.4.2
     hooks:
       - id: black
         language_version: python3.10
@@ -77,13 +84,13 @@ repos:
           - '88'
           - --blank
   - repo: https://github.com/nbQA-dev/nbQA
-    rev: 1.7.0
+    rev: 1.8.5
     hooks:
       - id: nbqa-black
       - id: nbqa-ruff
         exclude: tests/sandbox/
   - repo: https://github.com/executablebooks/mdformat
-    rev: 0.7.16
+    rev: 0.7.17
     hooks:
       - id: mdformat
         additional_dependencies:
@@ -94,7 +101,7 @@ repos:
           - '88'
         files: (README\.md)
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.2.5
+    rev: v2.3.0
     hooks:
       - id: codespell
         additional_dependencies:

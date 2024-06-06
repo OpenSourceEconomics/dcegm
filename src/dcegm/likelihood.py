@@ -3,12 +3,13 @@
 IT IS WORK IN PROGRESS.
 
 """
-from typing import Any
-from typing import Dict
+
+from typing import Any, Dict
 
 import jax
 import jax.numpy as jnp
 import numpy as np
+
 from dcegm.egm.aggregate_marginal_utility import (
     calculate_choice_probs_and_unsqueezed_logsum,
 )

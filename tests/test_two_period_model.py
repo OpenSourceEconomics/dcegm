@@ -3,6 +3,7 @@
 We test DC-EGM against the closed form solution of the Euler equation.
 
 """
+
 from itertools import product
 
 import numpy as np
@@ -11,10 +12,11 @@ from numpy.testing import assert_allclose
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 
-from tests.two_period_models.euler_equation import euler_rhs_exog_ltc
-from tests.two_period_models.euler_equation import euler_rhs_exog_ltc_and_job_offer
+from tests.two_period_models.euler_equation import (
+    euler_rhs_exog_ltc,
+    euler_rhs_exog_ltc_and_job_offer,
+)
 from tests.two_period_models.model import marginal_utility
-
 
 WEALTH_GRID_POINTS = 100
 ALL_WEALTH_GRIDS = list(range(WEALTH_GRID_POINTS))

@@ -1,7 +1,6 @@
 """Auxiliary functions for the EGM algorithm."""
-from typing import Callable
-from typing import Dict
-from typing import Tuple
+
+from typing import Callable, Dict, Tuple
 
 import numpy as np
 from jax import numpy as jnp

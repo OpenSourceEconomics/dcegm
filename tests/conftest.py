@@ -9,23 +9,22 @@ import numpy as np
 import pandas as pd
 import pytest
 import yaml
+
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import solve_dcegm
+from tests.two_period_models.model import (
+    budget_dcegm_exog_ltc,
+    budget_dcegm_exog_ltc_and_job_offer,
+    prob_exog_job_offer,
+    prob_exog_ltc,
+)
 from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space_function_dict,
 )
 from toy_models.consumption_retirement_model.utility_functions import (
     create_final_period_utility_function_dict,
-)
-from toy_models.consumption_retirement_model.utility_functions import (
     create_utility_function_dict,
 )
-
-from tests.two_period_models.model import budget_dcegm_exog_ltc
-from tests.two_period_models.model import budget_dcegm_exog_ltc_and_job_offer
-from tests.two_period_models.model import prob_exog_job_offer
-from tests.two_period_models.model import prob_exog_ltc
-
 
 # Obtain the test directory of the package
 TEST_DIR = Path(__file__).parent
