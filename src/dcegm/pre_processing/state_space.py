@@ -88,9 +88,15 @@ def test_state_space_objects(
     # Check if all feasible state choice combinations have a valid child state
     child_states = map_state_choice_to_child_states[state_choices_idxs_wo_last, :]
 
-    if not np.all(child_states >= 0):
+    # Get dtype and max int for state space
+    state_space_dtype = map_state_choice_to_child_states.dtype
+    invalid_state_space_idx = np.iinfo(state_space_dtype).max
+
+    if np.any(child_states == invalid_state_space_idx):
         # Get row axis of child states that are invalid
-        invalid_child_states = np.unique(np.where(child_states < 0)[0])
+        invalid_child_states = np.unique(
+            np.where(child_states == invalid_state_space_idx)[0]
+        )
         invalid_state_choices_example = state_choice_space[invalid_child_states[0]]
         example_dict = {
             key: invalid_state_choices_example[i]
