@@ -197,7 +197,6 @@ def simulate_final_period(
     map_state_choice_to_index,
     compute_utility_final_period,
 ):
-    # invalid_number = np.max(map_state_choice_to_index)
     invalid_number = np.iinfo(map_state_choice_to_index.dtype).max
 
     (

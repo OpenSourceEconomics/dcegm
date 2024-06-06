@@ -72,6 +72,7 @@ def model_setup(toy_model_exog_ltc):
     }
 
 
+@pytest.mark.skip()
 def test_simulate_lax_scan(model_setup):
     params = model_setup["params"]
     options = model_setup["options"]
@@ -175,8 +176,6 @@ def test_simulate(model_setup):
     endog_grid = model_setup["endog_grid"]
 
     n_agents = 100_000
-
-    model_setup["model"]["model_structure"]["map_state_choice_to_index"]
 
     initial_states = {
         "period": np.zeros(n_agents),

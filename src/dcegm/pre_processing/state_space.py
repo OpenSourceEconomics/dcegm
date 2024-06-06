@@ -73,9 +73,10 @@ def create_state_space_and_choice_objects(
         "map_state_choice_to_parent_state": map_state_choice_to_parent_state,
         "map_state_choice_to_child_states": map_state_choice_to_child_states,
     }
+    import jax
 
-    return model_structure
-    # return jax.tree.map(create_array_with_smallest_int_dtype, model_structure_raw)
+    return jax.tree.map(create_array_with_smallest_int_dtype, model_structure)
+    # return
 
 
 def test_state_space_objects(
@@ -491,10 +492,11 @@ def create_indexer_for_space(space):
     """Create indexer for space."""
 
     # Indexer has always unsigned data type with integers starting at zero
-    data_type = get_smallest_int_type(space.shape[0])
+    # Leave one additional value for the invalid number
+    data_type = get_smallest_int_type(space.shape[0] + 1)
     max_value = np.iinfo(data_type).max
 
-    max_var_values = np.max(space, axis=0) - np.min(space, axis=0)
+    max_var_values = np.max(space, axis=0)
 
     map_vars_to_index = np.full(
         max_var_values + 1, fill_value=max_value, dtype=data_type
@@ -554,5 +556,5 @@ def get_smallest_int_type(n_values):
     uint_types = [np.uint8, np.uint16, np.uint32, np.uint64]
 
     for dtype in uint_types:
-        if np.iinfo(dtype).max > n_values:
+        if np.iinfo(dtype).max >= n_values:
             return dtype
