@@ -88,9 +88,9 @@ def test_state_space_objects(
     # Check if all feasible state choice combinations have a valid child state
     child_states = map_state_choice_to_child_states[state_choices_idxs_wo_last, :]
 
-    # Get dtype and max int for state space
-    state_space_dtype = map_state_choice_to_child_states.dtype
-    invalid_state_space_idx = np.iinfo(state_space_dtype).max
+    # Get dtype and max int for state space indexer
+    state_space_indexer_dtype = map_state_choice_to_child_states.dtype
+    invalid_state_space_idx = np.iinfo(state_space_indexer_dtype).max
 
     if np.any(child_states == invalid_state_space_idx):
         # Get row axis of child states that are invalid
@@ -281,13 +281,10 @@ def create_state_choice_space(
 
     # Get dtype and maxint for choices
     dtype_choices = get_smallest_int_type(n_choices)
-    invalid_choice_idx = np.iinfo(dtype_choices).max
-
     # Get dtype and max int for state space
     state_space_dtype = state_space.dtype
-    invalid_state_space_idx = np.iinfo(state_space_dtype).max
 
-    if invalid_state_space_idx > invalid_choice_idx:
+    if np.iinfo(state_space_dtype).max > np.iinfo(dtype_choices).max:
         state_choice_space_dtype = state_space_dtype
     else:
         state_choice_space_dtype = dtype_choices
@@ -297,13 +294,17 @@ def create_state_choice_space(
         dtype=state_choice_space_dtype,
     )
 
+    state_space_indexer_dtype = map_state_to_index.dtype
+    invalid_indexer_idx = np.iinfo(state_space_indexer_dtype).max
+
     map_state_choice_to_parent_state = np.zeros(
-        (n_states * n_choices), dtype=state_space_dtype
+        (n_states * n_choices), dtype=state_space_indexer_dtype
     )
+
     map_state_choice_to_child_states = np.full(
         (n_states * n_choices, n_exog_states),
-        fill_value=invalid_state_space_idx,
-        dtype=state_space_dtype,
+        fill_value=invalid_indexer_idx,
+        dtype=state_space_indexer_dtype,
     )
 
     exog_states_tuple = tuple(exog_state_space[:, i] for i in range(n_exog_vars))
