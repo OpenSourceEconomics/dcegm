@@ -1,13 +1,16 @@
 import pickle
-from typing import Callable
-from typing import Dict
+from typing import Callable, Dict
 
-import numpy as np
+import jax
+
 from dcegm.pre_processing.batches import create_batches_and_information
 from dcegm.pre_processing.exog_processes import create_exog_state_mapping
 from dcegm.pre_processing.model_functions import process_model_functions
-from dcegm.pre_processing.state_space import check_options
-from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
+from dcegm.pre_processing.state_space import (
+    check_options,
+    create_array_with_smallest_int_dtype,
+    create_state_space_and_choice_objects,
+)
 
 
 def setup_model(
@@ -61,7 +64,7 @@ def setup_model(
     )
 
     model_funcs["exog_state_mapping"] = create_exog_state_mapping(
-        model_structure["exog_state_space"].astype(np.int64),
+        model_structure["exog_state_space"],
         model_structure["exog_states_names"],
     )
 
@@ -73,7 +76,7 @@ def setup_model(
     model = {
         "model_funcs": model_funcs,
         "model_structure": model_structure,
-        "batch_info": batch_info,
+        "batch_info": jax.tree.map(create_array_with_smallest_int_dtype, batch_info),
     }
     return model
 
@@ -136,9 +139,8 @@ def load_and_setup_model(
         budget_constraint=budget_constraint,
     )
 
-    exog_state_space = model["model_structure"]["exog_state_space"]
     model["model_funcs"]["exog_state_mapping"] = create_exog_state_mapping(
-        exog_state_space=np.array(exog_state_space, dtype=np.int64),
+        exog_state_space=model["model_structure"]["exog_state_space"],
         exog_names=model["model_structure"]["exog_states_names"],
     )
 

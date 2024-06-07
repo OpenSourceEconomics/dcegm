@@ -14,18 +14,15 @@ from pathlib import Path
 import jax.numpy as jnp
 import numpy as np
 import pytest
+
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import get_solve_function
 from toy_models.consumption_retirement_model.utility_functions import (
     inverse_marginal_utility_crra,
-)
-from toy_models.consumption_retirement_model.utility_functions import (
     marginal_utility_crra,
-)
-from toy_models.consumption_retirement_model.utility_functions import (
     marginal_utility_final_consume_all,
+    utility_crra,
 )
-from toy_models.consumption_retirement_model.utility_functions import utility_crra
 
 # Obtain the test directory of the package
 TEST_DIR = Path(__file__).parent
@@ -52,7 +49,7 @@ def sparsity_condition(period, lagged_choice, experience, options):
     # Starting from second we check if choice was in last periods full choice set
     if period > 0 and lagged_choice not in choice_set(period - 1, 1):
         return False
-    # Filter states with two high experience
+    # Filter states with too high experience
     if (experience > period) or (experience > options["max_experience"]):
         return False
     return True

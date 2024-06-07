@@ -1,5 +1,4 @@
-from typing import Dict
-from typing import Union
+from typing import Dict, Union
 
 import pandas as pd
 

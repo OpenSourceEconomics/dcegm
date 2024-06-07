@@ -3,28 +3,24 @@ from pathlib import Path
 
 import jax.numpy as jnp
 import pytest
+from numpy.testing import assert_array_almost_equal as aaae
+
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import solve_dcegm
-from numpy.testing import assert_array_almost_equal as aaae
+from tests.utils.interpolations import (
+    interpolate_policy_and_value_on_wealth_grid,
+    linear_interpolation_with_extrapolation,
+)
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
 from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space_function_dict,
 )
 from toy_models.consumption_retirement_model.utility_functions import (
     create_final_period_utility_function_dict,
-)
-from toy_models.consumption_retirement_model.utility_functions import (
     create_utility_function_dict,
-)
-from toy_models.consumption_retirement_model.utility_functions import (
     utiility_log_crra,
-)
-from toy_models.consumption_retirement_model.utility_functions import (
     utiility_log_crra_final_consume_all,
 )
-
-from tests.utils.interpolations import interpolate_policy_and_value_on_wealth_grid
-from tests.utils.interpolations import linear_interpolation_with_extrapolation
 
 # Obtain the test directory of the package
 TEST_DIR = Path(__file__).parent

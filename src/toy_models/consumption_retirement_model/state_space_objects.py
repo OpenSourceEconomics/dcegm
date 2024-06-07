@@ -1,4 +1,5 @@
 """User-defined functions for creating state space objects."""
+
 from typing import Dict
 
 import numpy as np
