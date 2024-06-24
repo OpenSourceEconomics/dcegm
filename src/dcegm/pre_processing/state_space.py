@@ -51,6 +51,13 @@ def create_state_space_and_choice_objects(
         get_next_period_state=model_funcs["get_next_period_state"],
     )
 
+    state_choice_space_dict = {
+        key: state_choice_space[:, i]
+        for i, key in enumerate(
+            states_names_without_exog + exog_states_names + ["choice"]
+        )
+    }
+
     test_state_space_objects(
         state_space_options=options["state_space"],
         state_choice_space=state_choice_space,
@@ -68,6 +75,7 @@ def create_state_space_and_choice_objects(
         "exog_states_names": exog_states_names,
         "state_space_names": states_names_without_exog + exog_states_names,
         "state_choice_space": state_choice_space,
+        "state_choice_space_dict": state_choice_space_dict,
         "map_state_choice_to_index": map_state_choice_to_index,
         "map_state_choice_to_parent_state": map_state_choice_to_parent_state,
         "map_state_choice_to_child_states": map_state_choice_to_child_states,

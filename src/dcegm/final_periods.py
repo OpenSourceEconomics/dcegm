@@ -140,14 +140,19 @@ def solve_final_period(
     # Select solutions to store
     value_final = value[:, :, middle_of_draws]
     # The policy in the last period is eat it all. Either as bequest or by consuming.
-    # The user defines this by the bequest functions.
+    # The user defines this by the bequest functions. So we save the resources also
+    # in the policy container. We also need to sort the resources and value
     resources_to_save = resources[:, :, middle_of_draws]
-    # Store results
+    sort_idx = jnp.argsort(resources_to_save, axis=1)
+    resources_sorted = jnp.take_along_axis(resources_to_save, sort_idx, axis=1)
+    values_sorted = jnp.take_along_axis(value_final, sort_idx, axis=1)
 
+    # Store results and add zero entry for the first column
     zeros_to_append = jnp.zeros(value_final.shape[0])
-    # Add as first column
-    values_with_zeros = jnp.column_stack((zeros_to_append, value_final))
-    resources_with_zeros = jnp.column_stack((zeros_to_append, resources_to_save))
+    # Add as first column to the sorted arrays
+    values_with_zeros = jnp.column_stack((zeros_to_append, values_sorted))
+    resources_with_zeros = jnp.column_stack((zeros_to_append, resources_sorted))
+
     value_solved = value_solved.at[idx_state_choices_final_period, : n_wealth + 1].set(
         values_with_zeros
     )
