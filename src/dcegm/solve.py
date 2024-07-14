@@ -324,6 +324,22 @@ def backward_induction(
 
 def create_solution_container(n_state_choices, exog_savings_grid, options):
 
+    n_total_wealth_grid = _determine_total_grid_size(exog_savings_grid, options)
+
+    value_solved = jnp.full(
+        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
+    )
+    policy_solved = jnp.full(
+        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
+    )
+    endog_grid_solved = jnp.full(
+        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
+    )
+    return value_solved, policy_solved, endog_grid_solved
+
+
+def _determine_total_grid_size(exog_savings_grid, options):
+    """Determine the total size of the endogenous wealth grid."""
     n_grid_points = exog_savings_grid.shape[0]
 
     options["extra_wealth_grid_factor"] = (
@@ -341,21 +357,8 @@ def create_solution_container(n_state_choices, exog_savings_grid, options):
         n_grid_points * (1 + options["extra_wealth_grid_factor"])
         < n_grid_points + options["n_constrained_points_to_add"]
     ):
-        options["extra_wealth_grid_factor"] = int(
+        options["extra_wealth_grid_factor"] = np.ceil(
             options["n_constrained_points_to_add"] / n_grid_points
         )
 
-    n_total_wealth_grid = int(
-        exog_savings_grid.shape[0] * (1 + options["extra_wealth_grid_factor"])
-    )
-
-    value_solved = jnp.full(
-        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
-    )
-    policy_solved = jnp.full(
-        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
-    )
-    endog_grid_solved = jnp.full(
-        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
-    )
-    return value_solved, policy_solved, endog_grid_solved
+    return int(exog_savings_grid.shape[0] * (1 + options["extra_wealth_grid_factor"]))
