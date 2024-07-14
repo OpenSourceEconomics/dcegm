@@ -171,7 +171,7 @@ def create_upper_envelope_function(options):
                 expected_value_zero_savings=expected_value_zero_savings,
                 value_function=value_function,
                 value_function_kwargs=value_kwargs,
-                n_constrained_points_to_add=0,
+                n_constrained_points_to_add=10,
             )
 
     return compute_upper_envelope
