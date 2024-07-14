@@ -2,12 +2,13 @@ import pickle
 from typing import Callable, Dict
 
 import jax
+import jax.numpy as jnp
 
 from dcegm.pre_processing.batches import create_batches_and_information
 from dcegm.pre_processing.exog_processes import create_exog_state_mapping
 from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.state_space import (
-    check_options,
+    check_options_and_set_defaults,
     create_array_with_smallest_int_dtype,
     create_state_space_and_choice_objects,
 )
@@ -15,6 +16,7 @@ from dcegm.pre_processing.state_space import (
 
 def setup_model(
     options: Dict,
+    exog_savings_grid: jnp.ndarray,
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
@@ -48,7 +50,9 @@ def setup_model(
     state_space_functions = (
         {} if state_space_functions is None else state_space_functions
     )
-    options = check_options(options)
+    options = check_options_and_set_defaults(
+        options, exog_savings_grid=exog_savings_grid
+    )
 
     model_funcs = process_model_functions(
         options,
@@ -73,16 +77,18 @@ def setup_model(
         options=options,
     )
 
-    model = {
+    return {
+        "options": options,
+        "exog_savings_grid": exog_savings_grid,
         "model_funcs": model_funcs,
         "model_structure": model_structure,
         "batch_info": jax.tree.map(create_array_with_smallest_int_dtype, batch_info),
     }
-    return model
 
 
 def setup_and_save_model(
     options: Dict,
+    exog_savings_grid: jnp.ndarray,
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
@@ -96,7 +102,9 @@ def setup_and_save_model(
     than recreating the model from scratch.
 
     """
-    options = check_options(options)
+    options = check_options_and_set_defaults(
+        options, exog_savings_grid=exog_savings_grid
+    )
 
     model = setup_model(
         options=options,
@@ -117,6 +125,7 @@ def setup_and_save_model(
 
 def load_and_setup_model(
     options: Dict,
+    exog_savings_grid: jnp.ndarray,
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
@@ -124,7 +133,9 @@ def load_and_setup_model(
     path: str = "model.pkl",
 ):
     """Load the model from file."""
-    options = check_options(options)
+    options = check_options_and_set_defaults(
+        options, exog_savings_grid=exog_savings_grid
+    )
 
     model = pickle.load(open(path, "rb"))
 

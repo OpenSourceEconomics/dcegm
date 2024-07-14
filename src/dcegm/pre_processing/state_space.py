@@ -505,8 +505,10 @@ def create_indexer_for_space(space):
     return map_vars_to_index
 
 
-def check_options(options):
-    """Check if options are valid."""
+def check_options_and_set_defaults(options, exog_savings_grid):
+    """Check if options are valid and set defaults."""
+    n_grid_points = exog_savings_grid.shape[0]
+
     if not isinstance(options, dict):
         raise ValueError("Options must be a dictionary.")
 
@@ -531,6 +533,29 @@ def check_options(options):
 
     if not isinstance(options["model_params"], dict):
         raise ValueError("Model parameters must be a dictionary.")
+
+    options["extra_wealth_grid_factor"] = (
+        options["extra_wealth_grid_factor"]
+        if "extra_wealth_grid_factor" in options
+        else 0.2
+    )
+    options["n_constrained_points_to_add"] = (
+        options["n_constrained_points_to_add"]
+        if "n_constrained_points_to_add" in options
+        else n_grid_points // 10
+    )
+
+    if (
+        n_grid_points * (1 + options["extra_wealth_grid_factor"])
+        < n_grid_points + options["n_constrained_points_to_add"]
+    ):
+        options["extra_wealth_grid_factor"] = np.ceil(
+            options["n_constrained_points_to_add"] / n_grid_points
+        )
+
+    options["n_total_wealth_grid"] = int(
+        n_grid_points * (1 + options["extra_wealth_grid_factor"])
+    )
 
     return options
 

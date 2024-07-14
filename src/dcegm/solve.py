@@ -104,20 +104,22 @@ def get_solve_function(
 
     model = setup_model(
         options=options,
+        exog_savings_grid=exog_savings_grid,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
     )
 
-    return get_solve_func_for_model(
-        model=model,
-        exog_savings_grid=exog_savings_grid,
-        options=options,
-    )
+    return get_solve_func_for_model(model=model)
 
 
-def get_solve_func_for_model(model, exog_savings_grid, options):
+def get_solve_func_for_model(model):
+    """Create a solve function, which only takes params as input."""
+
+    options = model["options"]
+    exog_savings_grid = model["exog_savings_grid"]
+
     # ToDo: Make interface with several draw possibilities.
     # ToDo: Some day make user supplied draw function.
     income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
@@ -232,7 +234,6 @@ def backward_induction(
         endog_grid_solved,
     ) = create_solution_container(
         n_state_choices=n_state_choices,
-        exog_savings_grid=exog_savings_grid,
         options=options,
     )
 
@@ -322,9 +323,10 @@ def backward_induction(
     return value_solved, policy_solved, endog_grid_solved
 
 
-def create_solution_container(n_state_choices, exog_savings_grid, options):
+def create_solution_container(n_state_choices, options):
+    """Create solution containers for value, policy, and endog_grid."""
 
-    n_total_wealth_grid = _determine_total_grid_size(exog_savings_grid, options)
+    n_total_wealth_grid = options["n_total_wealth_grid"]
 
     value_solved = jnp.full(
         (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
@@ -335,30 +337,5 @@ def create_solution_container(n_state_choices, exog_savings_grid, options):
     endog_grid_solved = jnp.full(
         (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
     )
+
     return value_solved, policy_solved, endog_grid_solved
-
-
-def _determine_total_grid_size(exog_savings_grid, options):
-    """Determine the total size of the endogenous wealth grid."""
-    n_grid_points = exog_savings_grid.shape[0]
-
-    options["extra_wealth_grid_factor"] = (
-        options["extra_wealth_grid_factor"]
-        if "extra_wealth_grid_factor" in options
-        else 0.2
-    )
-    options["n_constrained_points_to_add"] = (
-        options["n_constrained_points_to_add"]
-        if "n_constrained_points_to_add" in options
-        else n_grid_points // 10
-    )
-
-    if (
-        n_grid_points * (1 + options["extra_wealth_grid_factor"])
-        < n_grid_points + options["n_constrained_points_to_add"]
-    ):
-        options["extra_wealth_grid_factor"] = np.ceil(
-            options["n_constrained_points_to_add"] / n_grid_points
-        )
-
-    return int(exog_savings_grid.shape[0] * (1 + options["extra_wealth_grid_factor"]))
