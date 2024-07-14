@@ -145,3 +145,21 @@ def load_and_setup_model(
     )
 
     return model
+
+
+def process_tuning_parameters(options):
+    """Process the tuning parameters."""
+    options["extra_wealth_grid_factor"] = (
+        options["extra_wealth_grid_factor"]
+        if "extra_wealth_grid_factor" in options
+        else 0.2
+    )
+
+    if (
+        options["n_grid_points"] * (1 + options["extra_wealth_grid_factor"])
+        < options["n_grid_points"] + options["n_constrained_points_to_add"]
+    ):
+        raise ValueError(
+            "The number of grid points is too large. Please reduce the number of grid points or the extra_wealth_grid_factor."
+        )
+    return options

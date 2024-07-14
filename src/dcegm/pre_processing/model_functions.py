@@ -171,7 +171,9 @@ def create_upper_envelope_function(options):
                 expected_value_zero_savings=expected_value_zero_savings,
                 value_function=value_function,
                 value_function_kwargs=value_kwargs,
-                n_constrained_points_to_add=10,
+                n_constrained_points_to_add=options["n_constrained_points_to_add"],
+                n_final_wealth_grid=endog_grid.shape[0]
+                * (1 + options["extra_wealth_grid_factor"]),
             )
 
     return compute_upper_envelope
@@ -181,7 +183,9 @@ def _return_policy_and_value(
     endog_grid, policy, value, expected_value_zero_savings, *args
 ):
     """This is a dummy function for the case of only one discrete choice."""
-    nans_to_append = jnp.full(int(0.2 * endog_grid.shape[0]) - 1, jnp.nan)
+    n_nans = int(0.2 * endog_grid.shape[0])
+
+    nans_to_append = jnp.full(n_nans - 1, jnp.nan)
     endog_grid = jnp.append(jnp.append(0, endog_grid), nans_to_append)
     policy = jnp.append(jnp.append(0, policy), nans_to_append)
     value = jnp.append(jnp.append(expected_value_zero_savings, value), nans_to_append)

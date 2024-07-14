@@ -127,6 +127,7 @@ def get_solve_func_for_model(model, exog_savings_grid, options):
     backward_jit = jit(
         partial(
             backward_induction,
+            options=options,
             exog_savings_grid=exog_savings_grid,
             state_space_dict=model["model_structure"]["state_space_dict"],
             n_state_choices=model["model_structure"]["state_choice_space"].shape[0],
@@ -146,6 +147,7 @@ def get_solve_func_for_model(model, exog_savings_grid, options):
 
 def backward_induction(
     params: Dict[str, float],
+    options: Dict[str, Any],
     exog_savings_grid: np.ndarray,
     state_space_dict: np.ndarray,
     n_state_choices: int,
@@ -158,6 +160,7 @@ def backward_induction(
 
     Args:
         params (dict): Dictionary containing the model parameters.
+        options (dict): Dictionary containing the model options.
         period_specific_state_objects (np.ndarray): Dictionary containing
             period-specific state and state-choice objects, with the following keys:
             - "state_choice_mat" (jnp.ndarray)
@@ -229,7 +232,8 @@ def backward_induction(
         endog_grid_solved,
     ) = create_solution_container(
         n_state_choices=n_state_choices,
-        n_total_wealth_grid=int(exog_savings_grid.shape[0] * 1.2),
+        exog_savings_grid=exog_savings_grid,
+        options=options,
     )
 
     # Solve the last two periods. We do this separately as the marginal utility of
@@ -318,7 +322,33 @@ def backward_induction(
     return value_solved, policy_solved, endog_grid_solved
 
 
-def create_solution_container(n_state_choices, n_total_wealth_grid):
+def create_solution_container(n_state_choices, exog_savings_grid, options):
+
+    n_grid_points = exog_savings_grid.shape[0]
+
+    options["extra_wealth_grid_factor"] = (
+        options["extra_wealth_grid_factor"]
+        if "extra_wealth_grid_factor" in options
+        else 0.2
+    )
+    options["n_constrained_points_to_add"] = (
+        options["n_constrained_points_to_add"]
+        if "n_constrained_points_to_add" in options
+        else n_grid_points // 10
+    )
+
+    if (
+        n_grid_points * (1 + options["extra_wealth_grid_factor"])
+        < n_grid_points + options["n_constrained_points_to_add"]
+    ):
+        options["extra_wealth_grid_factor"] = int(
+            options["n_constrained_points_to_add"] / n_grid_points
+        )
+
+    n_total_wealth_grid = int(
+        exog_savings_grid.shape[0] * (1 + options["extra_wealth_grid_factor"])
+    )
+
     value_solved = jnp.full(
         (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
     )
