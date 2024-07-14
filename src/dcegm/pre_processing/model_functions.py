@@ -1,7 +1,7 @@
 from typing import Callable, Dict
 
 import jax.numpy as jnp
-from upper_envelope.fues_jax.fues_jax import fast_upper_envelope_wrapper
+from upper_envelope.fues_jax.fues_jax import fues_jax
 
 from dcegm.pre_processing.exog_processes import create_exog_transition_function
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
@@ -148,18 +148,30 @@ def create_upper_envelope_function(options):
             utility_function,
             params,
         ):
-            utility_kwargs = {
-                **state_choice_dict,
+            value_kwargs = {
+                "expected_value_zero_savings": expected_value_zero_savings,
                 "params": params,
+                **state_choice_dict,
             }
-            return fast_upper_envelope_wrapper(
+
+            def value_function(
+                consumption, expected_value_zero_savings, params, **state_choice_dict
+            ):
+                return (
+                    utility_function(
+                        consumption=consumption, params=params, **state_choice_dict
+                    )
+                    + params["beta"] * expected_value_zero_savings
+                )
+
+            return fues_jax(
                 endog_grid=endog_grid,
                 policy=policy,
                 value=value,
                 expected_value_zero_savings=expected_value_zero_savings,
-                utility_function=utility_function,
-                utility_kwargs=utility_kwargs,
-                disc_factor=params["beta"],
+                value_function=value_function,
+                value_function_kwargs=value_kwargs,
+                n_constrained_points_to_add=0,
             )
 
     return compute_upper_envelope

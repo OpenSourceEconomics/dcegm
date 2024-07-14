@@ -21,7 +21,7 @@ def solve_single_period(
 ):
     """This function solves a single period of the model using the discrete continuous
     endogenous grid method (DCEGM)."""
-    (value_solved, policy_solved, endog_grid_solved) = carry
+    value_solved, policy_solved, endog_grid_solved = carry
 
     (
         state_choices_idxs,
