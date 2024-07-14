@@ -171,9 +171,11 @@ def create_upper_envelope_function(options):
                 expected_value_zero_savings=expected_value_zero_savings,
                 value_function=value_function,
                 value_function_kwargs=value_kwargs,
-                n_constrained_points_to_add=options["n_constrained_points_to_add"],
+                n_constrained_points_to_add=options["tuning_params"][
+                    "n_constrained_points_to_add"
+                ],
                 n_final_wealth_grid=endog_grid.shape[0]
-                * (1 + options["extra_wealth_grid_factor"]),
+                * (1 + options["tuning_params"]["extra_wealth_grid_factor"]),
             )
 
     return compute_upper_envelope

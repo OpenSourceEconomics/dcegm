@@ -118,8 +118,15 @@ def test_load_and_save_model(
         "choices": [i for i in range(_raw_options["n_discrete_choices"])],
     }
 
+    exog_savings_grid = jnp.linspace(
+        0,
+        options["model_params"]["max_wealth"],
+        options["model_params"]["n_grid_points"],
+    )
+
     model_setup = setup_model(
         options=options,
+        exog_savings_grid=exog_savings_grid,
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -128,6 +135,7 @@ def test_load_and_save_model(
 
     model_after_saving = setup_and_save_model(
         options=options,
+        exog_savings_grid=exog_savings_grid,
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -165,3 +173,41 @@ def test_load_and_save_model(
     import os
 
     os.remove("model.pkl")
+
+
+def test_grid_parameters():
+    options = {
+        "model_params": {
+            "max_wealth": 10,
+            "n_grid_points": 100,
+        },
+        "state_space": {
+            "n_periods": 25,
+            "choices": [0, 1],
+        },
+        "tuning_params": {
+            "extra_wealth_grid_factor": 0.2,
+            "n_constrained_points_to_add": 100,
+        },
+    }
+
+    exog_savings_grid = jnp.linspace(
+        0,
+        options["model_params"]["max_wealth"],
+        options["model_params"]["n_grid_points"],
+    )
+
+    model = setup_model(
+        options=options,
+        exog_savings_grid=exog_savings_grid,
+        state_space_functions=create_state_space_function_dict(),
+        utility_functions=create_utility_function_dict(),
+        utility_functions_final_period=create_final_period_utility_function_dict(),
+        budget_constraint=budget_constraint,
+    )
+
+    assert (
+        model["options"]["tuning_params"]["n_total_wealth_grid"]
+        == exog_savings_grid.shape[0]
+        + model["options"]["tuning_params"]["n_constrained_points_to_add"]
+    )

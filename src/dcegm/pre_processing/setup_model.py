@@ -50,6 +50,7 @@ def setup_model(
     state_space_functions = (
         {} if state_space_functions is None else state_space_functions
     )
+
     options = check_options_and_set_defaults(
         options, exog_savings_grid=exog_savings_grid
     )
@@ -102,12 +103,10 @@ def setup_and_save_model(
     than recreating the model from scratch.
 
     """
-    options = check_options_and_set_defaults(
-        options, exog_savings_grid=exog_savings_grid
-    )
 
     model = setup_model(
         options=options,
+        exog_savings_grid=exog_savings_grid,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
@@ -115,6 +114,8 @@ def setup_and_save_model(
     )
 
     dict_to_save = {
+        "options": model["options"],
+        "exog_savings_grid": model["exog_savings_grid"],
         "model_structure": model["model_structure"],
         "batch_info": model["batch_info"],
     }
@@ -125,7 +126,6 @@ def setup_and_save_model(
 
 def load_and_setup_model(
     options: Dict,
-    exog_savings_grid: jnp.ndarray,
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
@@ -133,15 +133,18 @@ def load_and_setup_model(
     path: str = "model.pkl",
 ):
     """Load the model from file."""
-    options = check_options_and_set_defaults(
-        options, exog_savings_grid=exog_savings_grid
-    )
 
     model = pickle.load(open(path, "rb"))
 
     state_space_functions = (
         {} if state_space_functions is None else state_space_functions
     )
+
+    exog_savings_grid = model["exog_savings_grid"]
+    options = check_options_and_set_defaults(
+        options, exog_savings_grid=exog_savings_grid
+    )
+
     model["model_funcs"] = process_model_functions(
         options,
         state_space_functions=state_space_functions,
@@ -156,21 +159,3 @@ def load_and_setup_model(
     )
 
     return model
-
-
-def process_tuning_parameters(options):
-    """Process the tuning parameters."""
-    options["extra_wealth_grid_factor"] = (
-        options["extra_wealth_grid_factor"]
-        if "extra_wealth_grid_factor" in options
-        else 0.2
-    )
-
-    if (
-        options["n_grid_points"] * (1 + options["extra_wealth_grid_factor"])
-        < options["n_grid_points"] + options["n_constrained_points_to_add"]
-    ):
-        raise ValueError(
-            "The number of grid points is too large. Please reduce the number of grid points or the extra_wealth_grid_factor."
-        )
-    return options

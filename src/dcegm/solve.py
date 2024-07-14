@@ -326,7 +326,7 @@ def backward_induction(
 def create_solution_container(n_state_choices, options):
     """Create solution containers for value, policy, and endog_grid."""
 
-    n_total_wealth_grid = options["n_total_wealth_grid"]
+    n_total_wealth_grid = options["tuning_params"]["n_total_wealth_grid"]
 
     value_solved = jnp.full(
         (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
