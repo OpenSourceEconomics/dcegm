@@ -197,17 +197,12 @@ def test_grid_parameters():
         options["model_params"]["n_grid_points"],
     )
 
-    model = setup_model(
-        options=options,
-        exog_savings_grid=exog_savings_grid,
-        state_space_functions=create_state_space_function_dict(),
-        utility_functions=create_utility_function_dict(),
-        utility_functions_final_period=create_final_period_utility_function_dict(),
-        budget_constraint=budget_constraint,
-    )
-
-    assert (
-        model["options"]["tuning_params"]["n_total_wealth_grid"]
-        == exog_savings_grid.shape[0]
-        + model["options"]["tuning_params"]["n_constrained_points_to_add"]
-    )
+    with pytest.raises(ValueError) as e:
+        setup_model(
+            options=options,
+            exog_savings_grid=exog_savings_grid,
+            state_space_functions=create_state_space_function_dict(),
+            utility_functions=create_utility_function_dict(),
+            utility_functions_final_period=create_final_period_utility_function_dict(),
+            budget_constraint=budget_constraint,
+        )

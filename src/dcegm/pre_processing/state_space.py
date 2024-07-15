@@ -556,9 +556,8 @@ def check_options_and_set_defaults(options, exog_savings_grid):
         < n_grid_points + options["tuning_params"]["n_constrained_points_to_add"]
     ):
         raise ValueError(
-            f"""\n\n Extra wealth grid factor of {options[
-            "tuning_params"]["extra_wealth_grid_factor"]} is too small to cover the
-            constrained points which are added {options["tuning_params"]["n_constrained_points_to_add"]}. \n\n"""
+            f"""When preparing the tuning parameters for the upper envelope, we found the following contradicting parameters: \n\n
+            The extra wealth grid factor of {options["tuning_params"]["extra_wealth_grid_factor"]} is too small to cover the {options["tuning_params"]["n_constrained_points_to_add"]} wealth points which are added in the credit constrained part of the wealth grid. \n\n"""
         )
     options["tuning_params"]["n_total_wealth_grid"] = int(
         n_grid_points * (1 + options["tuning_params"]["extra_wealth_grid_factor"])
