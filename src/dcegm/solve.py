@@ -104,20 +104,22 @@ def get_solve_function(
 
     model = setup_model(
         options=options,
+        exog_savings_grid=exog_savings_grid,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
     )
 
-    return get_solve_func_for_model(
-        model=model,
-        exog_savings_grid=exog_savings_grid,
-        options=options,
-    )
+    return get_solve_func_for_model(model=model)
 
 
-def get_solve_func_for_model(model, exog_savings_grid, options):
+def get_solve_func_for_model(model):
+    """Create a solve function, which only takes params as input."""
+
+    options = model["options"]
+    exog_savings_grid = model["exog_savings_grid"]
+
     # ToDo: Make interface with several draw possibilities.
     # ToDo: Some day make user supplied draw function.
     income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
@@ -127,6 +129,7 @@ def get_solve_func_for_model(model, exog_savings_grid, options):
     backward_jit = jit(
         partial(
             backward_induction,
+            options=options,
             exog_savings_grid=exog_savings_grid,
             state_space_dict=model["model_structure"]["state_space_dict"],
             n_state_choices=model["model_structure"]["state_choice_space"].shape[0],
@@ -146,6 +149,7 @@ def get_solve_func_for_model(model, exog_savings_grid, options):
 
 def backward_induction(
     params: Dict[str, float],
+    options: Dict[str, Any],
     exog_savings_grid: np.ndarray,
     state_space_dict: np.ndarray,
     n_state_choices: int,
@@ -158,6 +162,7 @@ def backward_induction(
 
     Args:
         params (dict): Dictionary containing the model parameters.
+        options (dict): Dictionary containing the model options.
         period_specific_state_objects (np.ndarray): Dictionary containing
             period-specific state and state-choice objects, with the following keys:
             - "state_choice_mat" (jnp.ndarray)
@@ -229,7 +234,7 @@ def backward_induction(
         endog_grid_solved,
     ) = create_solution_container(
         n_state_choices=n_state_choices,
-        n_total_wealth_grid=int(exog_savings_grid.shape[0] * 1.2),
+        options=options,
     )
 
     # Solve the last two periods. We do this separately as the marginal utility of
@@ -318,7 +323,11 @@ def backward_induction(
     return value_solved, policy_solved, endog_grid_solved
 
 
-def create_solution_container(n_state_choices, n_total_wealth_grid):
+def create_solution_container(n_state_choices, options):
+    """Create solution containers for value, policy, and endog_grid."""
+
+    n_total_wealth_grid = options["tuning_params"]["n_total_wealth_grid"]
+
     value_solved = jnp.full(
         (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
     )
@@ -328,4 +337,5 @@ def create_solution_container(n_state_choices, n_total_wealth_grid):
     endog_grid_solved = jnp.full(
         (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
     )
+
     return value_solved, policy_solved, endog_grid_solved

@@ -513,8 +513,10 @@ def create_indexer_for_space(space):
     return map_vars_to_index
 
 
-def check_options(options):
-    """Check if options are valid."""
+def check_options_and_set_defaults(options, exog_savings_grid):
+    """Check if options are valid and set defaults."""
+    n_grid_points = exog_savings_grid.shape[0]
+
     if not isinstance(options, dict):
         raise ValueError("Options must be a dictionary.")
 
@@ -539,6 +541,39 @@ def check_options(options):
 
     if not isinstance(options["model_params"], dict):
         raise ValueError("Model parameters must be a dictionary.")
+
+    if "n_choices" not in options["model_params"]:
+        options["model_params"]["n_choices"] = len(options["state_space"]["choices"])
+
+    if "tuning_params" not in options:
+        options["tuning_params"] = {}
+
+    options["tuning_params"]["extra_wealth_grid_factor"] = (
+        options["tuning_params"]["extra_wealth_grid_factor"]
+        if "extra_wealth_grid_factor" in options["tuning_params"]
+        else 0.2
+    )
+    options["tuning_params"]["n_constrained_points_to_add"] = (
+        options["tuning_params"]["n_constrained_points_to_add"]
+        if "n_constrained_points_to_add" in options["tuning_params"]
+        else n_grid_points // 10
+    )
+
+    if (
+        n_grid_points * (1 + options["tuning_params"]["extra_wealth_grid_factor"])
+        < n_grid_points + options["tuning_params"]["n_constrained_points_to_add"]
+    ):
+        raise ValueError(
+            f"""\n\n
+            When preparing the tuning parameters for the upper
+            envelope, we found the following contradicting parameters: \n
+            The extra wealth grid factor of {options["tuning_params"]["extra_wealth_grid_factor"]} is too small
+            to cover the {options["tuning_params"]["n_constrained_points_to_add"]} wealth points which are added in
+            the credit constrained part of the wealth grid. \n\n"""
+        )
+    options["tuning_params"]["n_total_wealth_grid"] = int(
+        n_grid_points * (1 + options["tuning_params"]["extra_wealth_grid_factor"])
+    )
 
     return options
 
