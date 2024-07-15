@@ -1,7 +1,7 @@
 from typing import Callable, Dict
 
 import jax.numpy as jnp
-from upper_envelope.fues_jax.fues_jax import fast_upper_envelope_wrapper
+from upper_envelope.fues_jax.fues_jax import fues_jax
 
 from dcegm.pre_processing.exog_processes import create_exog_transition_function
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
@@ -84,6 +84,10 @@ def process_model_functions(
         )
     )
 
+    state_space_functions = (
+        {} if state_space_functions is None else state_space_functions
+    )
+
     if "get_state_specific_choice_set" not in state_space_functions:
         print(
             "State specific choice set not provided. Assume all choices are "
@@ -148,18 +152,34 @@ def create_upper_envelope_function(options):
             utility_function,
             params,
         ):
-            utility_kwargs = {
-                **state_choice_dict,
+            value_kwargs = {
+                "expected_value_zero_savings": expected_value_zero_savings,
                 "params": params,
+                **state_choice_dict,
             }
-            return fast_upper_envelope_wrapper(
+
+            def value_function(
+                consumption, expected_value_zero_savings, params, **state_choice_dict
+            ):
+                return (
+                    utility_function(
+                        consumption=consumption, params=params, **state_choice_dict
+                    )
+                    + params["beta"] * expected_value_zero_savings
+                )
+
+            return fues_jax(
                 endog_grid=endog_grid,
                 policy=policy,
                 value=value,
                 expected_value_zero_savings=expected_value_zero_savings,
-                utility_function=utility_function,
-                utility_kwargs=utility_kwargs,
-                disc_factor=params["beta"],
+                value_function=value_function,
+                value_function_kwargs=value_kwargs,
+                n_constrained_points_to_add=options["tuning_params"][
+                    "n_constrained_points_to_add"
+                ],
+                n_final_wealth_grid=endog_grid.shape[0]
+                * (1 + options["tuning_params"]["extra_wealth_grid_factor"]),
             )
 
     return compute_upper_envelope
@@ -169,7 +189,9 @@ def _return_policy_and_value(
     endog_grid, policy, value, expected_value_zero_savings, *args
 ):
     """This is a dummy function for the case of only one discrete choice."""
-    nans_to_append = jnp.full(int(0.2 * endog_grid.shape[0]) - 1, jnp.nan)
+    n_nans = int(0.2 * endog_grid.shape[0])
+
+    nans_to_append = jnp.full(n_nans - 1, jnp.nan)
     endog_grid = jnp.append(jnp.append(0, endog_grid), nans_to_append)
     policy = jnp.append(jnp.append(0, policy), nans_to_append)
     value = jnp.append(jnp.append(expected_value_zero_savings, value), nans_to_append)

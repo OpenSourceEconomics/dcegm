@@ -86,7 +86,7 @@ def simulate_all_periods(
     )
 
     result = {
-        key: np.row_stack([sim_dict[key], final_period_dict[key]])
+        key: np.vstack([sim_dict[key], final_period_dict[key]])
         for key in sim_dict.keys()
     }
 

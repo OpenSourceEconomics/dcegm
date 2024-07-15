@@ -68,6 +68,7 @@ def test_benchmark_models(
 
     model = setup_model(
         options=options,
+        exog_savings_grid=exog_savings_grid,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
