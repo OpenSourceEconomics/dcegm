@@ -114,7 +114,6 @@ def setup_and_save_model(
     )
 
     dict_to_save = {
-        "options": model["options"],
         "exog_savings_grid": model["exog_savings_grid"],
         "model_structure": model["model_structure"],
         "batch_info": model["batch_info"],
@@ -140,10 +139,11 @@ def load_and_setup_model(
         {} if state_space_functions is None else state_space_functions
     )
 
-    exog_savings_grid = model["exog_savings_grid"]
     options = check_options_and_set_defaults(
-        options, exog_savings_grid=exog_savings_grid
+        options, exog_savings_grid=model["exog_savings_grid"]
     )
+
+    model["options"] = options
 
     model["model_funcs"] = process_model_functions(
         options,
