@@ -555,10 +555,11 @@ def check_options_and_set_defaults(options, exog_savings_grid):
         n_grid_points * (1 + options["tuning_params"]["extra_wealth_grid_factor"])
         < n_grid_points + options["tuning_params"]["n_constrained_points_to_add"]
     ):
-        options["tuning_params"]["extra_wealth_grid_factor"] = np.ceil(
-            options["tuning_params"]["n_constrained_points_to_add"] / n_grid_points
+        raise ValueError(
+            f"""\n\n Extra wealth grid factor of {options[
+            "tuning_params"]["extra_wealth_grid_factor"]} is too small to cover the
+            constrained points which are added {options["tuning_params"]["n_constrained_points_to_add"]}. \n\n"""
         )
-
     options["tuning_params"]["n_total_wealth_grid"] = int(
         n_grid_points * (1 + options["tuning_params"]["extra_wealth_grid_factor"])
     )

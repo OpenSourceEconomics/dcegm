@@ -47,10 +47,6 @@ def setup_model(
         budget_constraint (Callable): User supplied budget constraint.
 
     """
-    state_space_functions = (
-        {} if state_space_functions is None else state_space_functions
-    )
-
     options = check_options_and_set_defaults(
         options, exog_savings_grid=exog_savings_grid
     )
@@ -135,18 +131,12 @@ def load_and_setup_model(
 
     model = pickle.load(open(path, "rb"))
 
-    state_space_functions = (
-        {} if state_space_functions is None else state_space_functions
-    )
-
-    options = check_options_and_set_defaults(
+    model["options"] = check_options_and_set_defaults(
         options, exog_savings_grid=model["exog_savings_grid"]
     )
 
-    model["options"] = options
-
     model["model_funcs"] = process_model_functions(
-        options,
+        options=model["options"],
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,

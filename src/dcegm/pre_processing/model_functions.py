@@ -84,6 +84,10 @@ def process_model_functions(
         )
     )
 
+    state_space_functions = (
+        {} if state_space_functions is None else state_space_functions
+    )
+
     if "get_state_specific_choice_set" not in state_space_functions:
         print(
             "State specific choice set not provided. Assume all choices are "
