@@ -20,15 +20,13 @@ from dcegm.solve import get_solve_func_for_model
 
 def create_individual_likelihood_function_for_model(
     model: Dict[str, Any],
-    options: Dict[str, Any],
     observed_states: Dict[str, int],
     observed_wealth: np.array,
     observed_choices: np.array,
-    exog_savings_grid: np.ndarray,
     params_all,
 ):
     solve_func = get_solve_func_for_model(
-        model=model, exog_savings_grid=exog_savings_grid, options=options
+        model=model,
     )
 
     observed_state_choice_indexes = get_state_choice_index_per_state(
@@ -36,6 +34,8 @@ def create_individual_likelihood_function_for_model(
         map_state_choice_to_index=model["model_structure"]["map_state_choice_to_index"],
         state_space_names=model["model_structure"]["state_space_names"],
     )
+
+    options = model["options"]
 
     # Create the calculation of the choice probabilities, which takes parameters as
     # input as well as the solved endogenous wealth grid and the values.
