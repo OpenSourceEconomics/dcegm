@@ -24,11 +24,79 @@ def create_individual_likelihood_function_for_model(
     observed_wealth: np.array,
     observed_choices: np.array,
     params_all,
+    unobserved_state_specs=None,
 ):
     solve_func = get_solve_func_for_model(
         model=model,
     )
 
+    if unobserved_state_specs is not None:
+        full_mask = unobserved_state_specs["observed_bool"]
+        full_observed_states = {
+            name: observed_states[name][full_mask]
+            for name in model["model_structure"]["state_space_names"]
+        }
+        full_observed_choices = observed_choices[full_mask]
+        full_observed_wealth = observed_wealth[full_mask]
+    else:
+        full_observed_states = observed_states
+        full_observed_choices = observed_choices
+        full_observed_wealth = observed_wealth
+
+    # Create the calculation of the choice probabilities, which takes parameters as
+    # input as well as the solved endogenous wealth grid and the values. We first
+    # create it for the fully observed states.
+    partial_choice_probs_full_observed_states = create_partial_choice_prob_calculation(
+        observed_states=full_observed_states,
+        observed_choices=full_observed_choices,
+        observed_wealth=full_observed_wealth,
+        model=model,
+    )
+
+    if unobserved_state_specs is not None:
+        unobserved_state_values = []
+        for state_name in unobserved_state_specs["states"]:
+            if state_name in model["model_structure"]["exog_states_names"]:
+                state_values = model["options"]["state_space"]["exogenous_processes"][
+                    state_name
+                ]["states"]
+            else:
+                state_values = model["options"]["state_space"]["endogenous_states"][
+                    state_name
+                ]
+
+    else:
+        # If all states are fully observed, the choice probability function
+        # corresponds to the one for the fully observed states.
+        choice_prob_func = partial_choice_probs_full_observed_states
+
+    def individual_likelihood(params):
+        params_update = params_all.copy()
+        params_update.update(params)
+
+        (
+            value_solved,
+            policy_solved,
+            endog_grid_solved,
+        ) = solve_func(params_update)
+        choice_probs = choice_prob_func(
+            value_in=value_solved,
+            endog_grid_in=endog_grid_solved,
+            params_in=params_update,
+        ).clip(min=1e-10)
+        likelihood_contributions = jnp.log(choice_probs)
+        log_value = jnp.sum(-likelihood_contributions)
+        return log_value, likelihood_contributions
+
+    return jax.jit(individual_likelihood)
+
+
+def create_partial_choice_prob_calculation(
+    observed_states,
+    observed_choices,
+    observed_wealth,
+    model,
+):
     observed_state_choice_indexes = get_state_choice_index_per_state(
         states=observed_states,
         map_state_choice_to_index=model["model_structure"]["map_state_choice_to_index"],
@@ -37,9 +105,7 @@ def create_individual_likelihood_function_for_model(
 
     options = model["options"]
 
-    # Create the calculation of the choice probabilities, which takes parameters as
-    # input as well as the solved endogenous wealth grid and the values.
-    def partial_choice_prob_calculation(value_in, endog_grid_in, params_in):
+    def partial_choice_prob_func(value_in, endog_grid_in, params_in):
         return calc_choice_prob_for_state_choices(
             value_solved=value_in,
             endog_grid_solved=endog_grid_in,
@@ -52,25 +118,7 @@ def create_individual_likelihood_function_for_model(
             compute_utility=model["model_funcs"]["compute_utility"],
         )
 
-    def individual_likelihood(params):
-        params_update = params_all.copy()
-        params_update.update(params)
-
-        (
-            value_solved,
-            policy_solved,
-            endog_grid_solved,
-        ) = solve_func(params_update)
-        choice_probs = partial_choice_prob_calculation(
-            value_in=value_solved,
-            endog_grid_in=endog_grid_solved,
-            params_in=params_update,
-        ).clip(min=1e-10)
-        likelihood_contributions = jnp.log(choice_probs)
-        log_value = jnp.sum(-likelihood_contributions)
-        return log_value, likelihood_contributions
-
-    return jax.jit(individual_likelihood)
+    return partial_choice_prob_func
 
 
 def calc_choice_prob_for_state_choices(
