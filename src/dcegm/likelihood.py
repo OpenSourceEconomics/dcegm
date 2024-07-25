@@ -4,6 +4,7 @@ IT IS WORK IN PROGRESS.
 
 """
 
+import copy
 from typing import Any, Dict
 
 import jax
@@ -31,7 +32,7 @@ def create_individual_likelihood_function_for_model(
     )
 
     if unobserved_state_specs is not None:
-        full_mask = unobserved_state_specs["observed_bool"]
+        full_mask = unobserved_state_specs["observed_bool"].values
         full_observed_states = {
             name: observed_states[name][full_mask]
             for name in model["model_structure"]["state_space_names"]
@@ -54,7 +55,8 @@ def create_individual_likelihood_function_for_model(
     )
 
     if unobserved_state_specs is not None:
-        unobserved_state_values = []
+        # Read out possible values for unobserved states
+        unobserved_state_values = {}
         for state_name in unobserved_state_specs["states"]:
             if state_name in model["model_structure"]["exog_states_names"]:
                 state_values = model["options"]["state_space"]["exogenous_processes"][
@@ -64,6 +66,91 @@ def create_individual_likelihood_function_for_model(
                 state_values = model["options"]["state_space"]["endogenous_states"][
                     state_name
                 ]
+            unobserved_state_values[state_name] = state_values
+
+        # Read out the observed states of the unobserved states
+        unobserved_states = {
+            name: observed_states[name][~full_mask]
+            for name in model["model_structure"]["state_space_names"]
+        }
+
+        # Now create a list which contains dictionaries with ach dictionary
+        # containing a unique combination of unobserved states. Note that this is
+        # only tested for one state with two values.
+        possible_unobserved_states = [unobserved_states]
+        for state_name in unobserved_state_specs["states"]:
+            new_possible_unobserved_states = []
+            for state_value in unobserved_state_values[state_name]:
+                for possible_state in possible_unobserved_states:
+                    possible_state[state_name][:] = state_value
+                    new_possible_unobserved_states.append(copy.deepcopy(possible_state))
+
+            possible_unobserved_states = new_possible_unobserved_states
+
+        # Create a list of partial choice probability functions for each unique
+        # combination of unobserved states.
+        partial_choice_probs_unobserved_states = []
+        for unobserved_state in possible_unobserved_states:
+            partial_choice_probs_unobserved_states.append(
+                create_partial_choice_prob_calculation(
+                    observed_states=unobserved_state,
+                    observed_choices=observed_choices[~full_mask],
+                    observed_wealth=observed_wealth[~full_mask],
+                    model=model,
+                )
+            )
+        partial_weight_func = (
+            lambda params_in, states, choices: calculate_weights_for_each_state(
+                params=params_in,
+                state_vec=states,
+                choice=choices,
+                options=model["options"],
+                weight_func=unobserved_state_specs["weight_func"],
+            )
+        )
+
+        unobserved_states_index = jnp.where(~full_mask)[0]
+        observed_states_index = jnp.where(full_mask)[0]
+
+        def choice_prob_func(value_in, endog_grid_in, params_in):
+            choice_probs_final = jnp.empty_like(observed_choices, dtype=jnp.float64)
+            unobserved_probs = jnp.zeros_like(
+                observed_choices[~full_mask], dtype=jnp.float64
+            )
+            for partial_choice_prob, unobserved_state in zip(
+                partial_choice_probs_unobserved_states, possible_unobserved_states
+            ):
+                weights = jax.vmap(
+                    partial_weight_func,
+                    in_axes=(None, 0, 0),
+                )(
+                    params_in,
+                    unobserved_state,
+                    observed_choices[~full_mask],
+                )
+
+                unweighted_choice_probs = partial_choice_prob(
+                    value_in=value_in,
+                    endog_grid_in=endog_grid_in,
+                    params_in=params_in,
+                )
+
+                unobserved_probs += weights * unweighted_choice_probs
+
+            choice_probs_final = choice_probs_final.at[unobserved_states_index].set(
+                unobserved_probs
+            )
+
+            choice_probs_full = partial_choice_probs_full_observed_states(
+                value_in=value_in,
+                endog_grid_in=endog_grid_in,
+                params_in=params_in,
+            )
+            choice_probs_final = choice_probs_final.at[observed_states_index].set(
+                choice_probs_full
+            )
+
+            return choice_probs_final
 
     else:
         # If all states are fully observed, the choice probability function
@@ -73,12 +160,12 @@ def create_individual_likelihood_function_for_model(
     def individual_likelihood(params):
         params_update = params_all.copy()
         params_update.update(params)
-
         (
             value_solved,
             policy_solved,
             endog_grid_solved,
         ) = solve_func(params_update)
+
         choice_probs = choice_prob_func(
             value_in=value_solved,
             endog_grid_in=endog_grid_solved,
@@ -213,3 +300,20 @@ def interpolate_value_for_state_in_each_choice(
     )
 
     return value_interp
+
+
+def calculate_weights_for_each_state(params, state_vec, choice, options, weight_func):
+    """Calculate the weights for each state.
+
+    Args:
+        params (dict): Parameters.
+        state_vec (dict): State vector.
+        choice (int): Choice.
+        options (dict): Options.
+        weight_func (Callable): Weight function.
+
+    Returns:
+        float: Weight.
+
+    """
+    return weight_func(**state_vec, params=params, choice=choice, options=options)
