@@ -34,18 +34,17 @@ def solve_single_period(
     ) = xs
 
     # EGM step 1)
-    marginal_utility_interpolated, value_interpolated = vmap(
-        interpolate_value_and_marg_utility_on_next_period_wealth,
-        in_axes=(None, None, 0, 0, 0, 0, 0, None),
-    )(
-        model_funcs["compute_marginal_utility"],
-        model_funcs["compute_utility"],
-        state_choice_mat_child,
-        resources_beginning_of_period[child_state_idxs, :, :],
-        endog_grid_solved[child_state_choice_idxs_to_interpolate, :],
-        policy_solved[child_state_choice_idxs_to_interpolate, :],
-        value_solved[child_state_choice_idxs_to_interpolate, :],
-        params,
+    marginal_utility_interpolated, value_interpolated = (
+        interpolate_value_and_marg_utility_on_next_period_wealth(
+            model_funcs["compute_marginal_utility"],
+            model_funcs["compute_utility"],
+            state_choice_mat_child,
+            resources_beginning_of_period[child_state_idxs, :, :],
+            endog_grid_solved[child_state_choice_idxs_to_interpolate, :],
+            policy_solved[child_state_choice_idxs_to_interpolate, :],
+            value_solved[child_state_choice_idxs_to_interpolate, :],
+            params,
+        )
     )
 
     (
