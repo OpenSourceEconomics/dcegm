@@ -3,7 +3,7 @@ from typing import Callable, Dict, Tuple
 from jax import numpy as jnp
 from jax import vmap
 
-from dcegm.interpolation import interp_value_and_policy_on_wealth
+from dcegm.interpolation.interp1d import interp_value_and_policy_on_wealth
 
 
 def interpolate_value_and_marg_utility_on_next_period_wealth(

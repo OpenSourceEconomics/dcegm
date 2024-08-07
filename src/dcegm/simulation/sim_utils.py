@@ -6,7 +6,7 @@ from jax import vmap
 
 from dcegm.budget import calculate_resources_for_all_agents
 from dcegm.interface import get_state_choice_index_per_state
-from dcegm.interpolation import interp_value_and_policy_on_wealth
+from dcegm.interpolation.interp1d import interp_value_and_policy_on_wealth
 
 
 def interpolate_policy_and_value_for_all_agents(

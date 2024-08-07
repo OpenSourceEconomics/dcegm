@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 
-from dcegm.interpolation import (
+from dcegm.interpolation.interp1d import (
     interp_policy_on_wealth,
     interp_value_and_policy_on_wealth,
     interp_value_on_wealth,
