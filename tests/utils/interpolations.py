@@ -1,7 +1,10 @@
 import numpy as np
 from jax import numpy as jnp
 
-from dcegm.interpolation import get_index_high_and_low, linear_interpolation_formula
+from dcegm.interpolation.interp1d import (
+    get_index_high_and_low,
+    linear_interpolation_formula,
+)
 
 
 def linear_interpolation_with_extrapolation(x, y, x_new):

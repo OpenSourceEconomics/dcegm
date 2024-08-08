@@ -6,7 +6,7 @@ from jax import vmap
 
 from dcegm.budget import calculate_resources_for_all_agents
 from dcegm.interface import get_state_choice_index_per_state
-from dcegm.interpolation import interp_value_and_policy_on_wealth
+from dcegm.interpolation.interp1d import interpolate_policy_and_value_on_wealth
 
 
 def interpolate_policy_and_value_for_all_agents(
@@ -172,7 +172,7 @@ def interpolate_policy_and_value_function(
 ):
     state_choice_vec = {**state, "choice": choice}
 
-    policy_interp, value_interp = interp_value_and_policy_on_wealth(
+    policy_interp, value_interp = interpolate_policy_and_value_on_wealth(
         wealth=resources_beginning_of_period,
         endog_grid=endog_grid_agent,
         policy=policy_agent,

@@ -36,7 +36,7 @@ def get_index_high_and_low(x, x_new):
     return ind_high, ind_high - 1
 
 
-def interp_value_and_policy_on_wealth(
+def interpolate_policy_and_value_on_wealth(
     wealth: float | jnp.ndarray,
     endog_grid: jnp.ndarray,
     policy: jnp.ndarray,
@@ -45,7 +45,7 @@ def interp_value_and_policy_on_wealth(
     state_choice_vec: Dict[str, int],
     params: Dict[str, float],
 ) -> Tuple[float, float]:
-    """Interpolate value and policy given a single wealth value.
+    """Interpolate policy and value function given a single wealth grid point.
 
     Args:
         wealth (float): Wealth value to interpolate.

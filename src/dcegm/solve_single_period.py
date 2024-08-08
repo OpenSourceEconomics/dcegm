@@ -1,9 +1,7 @@
 from jax import vmap
 
 from dcegm.egm.aggregate_marginal_utility import aggregate_marg_utils_and_exp_values
-from dcegm.egm.interpolate_marginal_utility import (
-    interpolate_value_and_marg_utility_on_next_period_wealth,
-)
+from dcegm.egm.interpolate_marginal_utility import interpolate_value_and_marg_util
 from dcegm.egm.solve_euler_equation import (
     calculate_candidate_solutions_from_euler_equation,
 )
@@ -19,8 +17,7 @@ def solve_single_period(
     model_funcs,
     taste_shock_scale,
 ):
-    """This function solves a single period of the model using the discrete continuous
-    endogenous grid method (DCEGM)."""
+    """Solve a single period of the model using the DCEGM method."""
     (value_solved, policy_solved, endog_grid_solved) = carry
 
     (
@@ -34,10 +31,7 @@ def solve_single_period(
     ) = xs
 
     # EGM step 1)
-    marginal_utility_interpolated, value_interpolated = vmap(
-        interpolate_value_and_marg_utility_on_next_period_wealth,
-        in_axes=(None, None, 0, 0, 0, 0, 0, None),
-    )(
+    value_interpolated, marginal_utility_interpolated = interpolate_value_and_marg_util(
         model_funcs["compute_marginal_utility"],
         model_funcs["compute_utility"],
         state_choice_mat_child,
