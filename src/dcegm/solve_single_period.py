@@ -83,8 +83,8 @@ def solve_for_interpolated_values(
     model_funcs,
 ):
     # EGM step 2)
-    # Aggregate the marginal utilities and expected values over all choices and
-    # income shock draws
+    # Aggregate the marginal utilities and expected values over all state-choice
+    # combinations and income shock draws
     marg_util, emax = aggregate_marg_utils_and_exp_values(
         value_state_choice_specific=value_interpolated,
         marg_util_state_choice_specific=marginal_utility_interpolated,
@@ -113,13 +113,48 @@ def solve_for_interpolated_values(
         params=params,
     )
 
-    # Run upper envelope to remove suboptimal candidates
+    # Run upper envelope over all state-choice combinations to remove suboptimal
+    # candidates
     (
         endog_grid_state_choice,
         policy_state_choice,
         value_state_choice,
-    ) = vmap(
-        model_funcs["compute_upper_envelope"],
+    ) = run_upper_envelope(
+        endog_grid_candidate=endog_grid_candidate,
+        policy_candidate=policy_candidate,
+        value_candidate=value_candidate,
+        expected_values=expected_values,
+        state_choice_mat=state_choice_mat,
+        compute_utility=model_funcs["compute_utility"],
+        params=params,
+        compute_upper_envelope_for_state_choice=model_funcs["compute_upper_envelope"],
+    )
+
+    return (
+        endog_grid_state_choice,
+        policy_state_choice,
+        value_state_choice,
+    )
+
+
+def run_upper_envelope(
+    endog_grid_candidate,
+    policy_candidate,
+    value_candidate,
+    expected_values,
+    state_choice_mat,
+    compute_utility,
+    params,
+    compute_upper_envelope_for_state_choice,
+):
+    """Run upper envelope to remove suboptimal candidates.
+
+    Vectorized over all state-choice combinations.
+
+    """
+
+    return vmap(
+        compute_upper_envelope_for_state_choice,
         in_axes=(0, 0, 0, 0, 0, None, None),  # vmap over state-choice combs
     )(
         endog_grid_candidate,
@@ -127,12 +162,6 @@ def solve_for_interpolated_values(
         value_candidate,
         expected_values[:, 0],
         state_choice_mat,
-        model_funcs["compute_utility"],
+        compute_utility,
         params,
-    )
-
-    return (
-        endog_grid_state_choice,
-        policy_state_choice,
-        value_state_choice,
     )
