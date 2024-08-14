@@ -119,6 +119,7 @@ def get_solve_func_for_model(model):
 
     options = model["options"]
     exog_savings_grid = model["exog_savings_grid"]
+    has_second_continuous_state = options["has_second_continuous_state"]
 
     # ToDo: Make interface with several draw possibilities.
     # ToDo: Some day make user supplied draw function.
@@ -131,6 +132,7 @@ def get_solve_func_for_model(model):
             backward_induction,
             options=options,
             exog_savings_grid=exog_savings_grid,
+            has_second_continuous_state=has_second_continuous_state,
             state_space_dict=model["model_structure"]["state_space_dict"],
             n_state_choices=model["model_structure"]["state_choice_space"].shape[0],
             batch_info=model["batch_info"],
@@ -150,6 +152,7 @@ def get_solve_func_for_model(model):
 def backward_induction(
     params: Dict[str, float],
     options: Dict[str, Any],
+    has_second_continuous_state: bool,
     exog_savings_grid: np.ndarray,
     state_space_dict: np.ndarray,
     n_state_choices: int,
@@ -171,6 +174,9 @@ def backward_induction(
             - "transform_between_state_and_state_choice_vec" (callable)
         exog_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
             containing the exogenous savings grid.
+        has_second_continuous_state (bool): Boolean indicating whether the model
+            features a second continuous state variable. If False, the only
+            continuous state variable is consumption/savings.
         state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
             which serves as a collection of all possible states. By convention,
             the first column must contain the period and the last column the
@@ -233,6 +239,7 @@ def backward_induction(
         policy_solved,
         endog_grid_solved,
     ) = create_solution_container(
+        has_second_continuous_state,
         n_state_choices=n_state_choices,
         options=options,
     )
@@ -323,19 +330,43 @@ def backward_induction(
     return value_solved, policy_solved, endog_grid_solved
 
 
-def create_solution_container(n_state_choices, options):
+def create_solution_container(has_second_continuous_state, n_state_choices, options):
     """Create solution containers for value, policy, and endog_grid."""
 
     n_total_wealth_grid = options["tuning_params"]["n_total_wealth_grid"]
+    n_regular_grid = options["tuning_params"]["n_regular_grid"]
 
-    value_solved = jnp.full(
-        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
-    )
-    policy_solved = jnp.full(
-        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
-    )
-    endog_grid_solved = jnp.full(
-        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
-    )
+    if has_second_continuous_state:
+        value_solved = jnp.full(
+            (n_state_choices, n_regular_grid, n_total_wealth_grid),
+            dtype=jnp.float64,
+            fill_value=jnp.nan,
+        )
+        policy_solved = jnp.full(
+            (n_state_choices, n_regular_grid, n_total_wealth_grid),
+            dtype=jnp.float64,
+            fill_value=jnp.nan,
+        )
+        endog_grid_solved = jnp.full(
+            (n_state_choices, n_regular_grid, n_total_wealth_grid),
+            dtype=jnp.float64,
+            fill_value=jnp.nan,
+        )
+    else:
+        value_solved = jnp.full(
+            (n_state_choices, n_total_wealth_grid),
+            dtype=jnp.float64,
+            fill_value=jnp.nan,
+        )
+        policy_solved = jnp.full(
+            (n_state_choices, n_total_wealth_grid),
+            dtype=jnp.float64,
+            fill_value=jnp.nan,
+        )
+        endog_grid_solved = jnp.full(
+            (n_state_choices, n_total_wealth_grid),
+            dtype=jnp.float64,
+            fill_value=jnp.nan,
+        )
 
     return value_solved, policy_solved, endog_grid_solved

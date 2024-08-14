@@ -6,7 +6,9 @@ from numpy.testing import assert_almost_equal as aaae
 
 from dcegm.pre_processing.exog_processes import create_exog_state_mapping
 from dcegm.pre_processing.model_functions import process_model_functions
-from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
+from dcegm.pre_processing.state_space import (
+    create_discrete_state_space_and_choice_objects,
+)
 from tests.two_period_models.model import prob_exog_health
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
 from toy_models.consumption_retirement_model.state_space_objects import (
@@ -81,7 +83,7 @@ def test_exog_processes():
         utility_functions_final_period=create_final_period_utility_function_dict(),
         budget_constraint=budget_constraint,
     )
-    model_structure = create_state_space_and_choice_objects(
+    model_structure = create_discrete_state_space_and_choice_objects(
         options=options,
         model_funcs=model_funcs,
     )

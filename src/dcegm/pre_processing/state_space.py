@@ -7,11 +7,11 @@ import numpy as np
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 
 
-def create_state_space_and_choice_objects(
+def create_discrete_state_space_and_choice_objects(
     options,
     model_funcs,
 ):
-    """Create dictionary of state and state-choice objects for each period.
+    """Create dictionary of discrete state and state-choice objects for each period.
 
     Args:
         options (Dict[str, int]): Options dictionary.
@@ -574,6 +574,9 @@ def check_options_and_set_defaults(options, exog_savings_grid):
     options["tuning_params"]["n_total_wealth_grid"] = int(
         n_grid_points * (1 + options["tuning_params"]["extra_wealth_grid_factor"])
     )
+
+    options["has_second_continuous_state"] = False
+    options["n_regular_grid"] = 6
 
     return options
 

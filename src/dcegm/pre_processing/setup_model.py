@@ -10,7 +10,7 @@ from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.state_space import (
     check_options_and_set_defaults,
     create_array_with_smallest_int_dtype,
-    create_state_space_and_choice_objects,
+    create_discrete_state_space_and_choice_objects,
 )
 
 
@@ -59,7 +59,7 @@ def setup_model(
         budget_constraint=budget_constraint,
     )
 
-    model_structure = create_state_space_and_choice_objects(
+    model_structure = create_discrete_state_space_and_choice_objects(
         options=options,
         model_funcs=model_funcs,
     )
