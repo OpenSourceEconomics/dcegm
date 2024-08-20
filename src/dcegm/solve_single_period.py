@@ -10,10 +10,12 @@ from dcegm.egm.solve_euler_equation import (
 def solve_single_period(
     carry,
     xs,
+    has_second_continuous_state,
     params,
     exog_savings_grid,
     income_shock_weights,
-    resources_beginning_of_period,
+    wealth_beginning_of_period,
+    # continuous_state_beginning_of_period,
     model_funcs,
     taste_shock_scale,
 ):
@@ -31,17 +33,49 @@ def solve_single_period(
     ) = xs
 
     # EGM step 1)
-    value_interpolated, marginal_utility_interpolated = interpolate_value_and_marg_util(
-        model_funcs["compute_marginal_utility"],
-        model_funcs["compute_utility"],
-        state_choice_mat_child,
-        resources_beginning_of_period[child_state_idxs, :, :],
-        endog_grid_solved[child_state_choice_idxs_to_interpolate, :],
-        policy_solved[child_state_choice_idxs_to_interpolate, :],
-        value_solved[child_state_choice_idxs_to_interpolate, :],
-        params,
-    )
-
+    if has_second_continuous_state:
+        value_interpolated, marginal_utility_interpolated = (
+            interpolate_value_and_marg_util(
+                compute_marginal_utility=model_funcs["compute_marginal_utility"],
+                compute_utility=model_funcs["compute_utility"],
+                state_choice_vec=state_choice_mat_child,
+                # continuous_state_next_period=continuous_state_beginning_of_period[
+                #     child_state_choice_idxs_to_interpolate, :
+                # ],
+                wealth_next_period=wealth_beginning_of_period[child_state_idxs, :],
+                endog_grid_child_state_choice=endog_grid_solved[
+                    child_state_choice_idxs_to_interpolate, :
+                ],
+                policy_child_state_choice=policy_solved[
+                    child_state_choice_idxs_to_interpolate, :
+                ],
+                value_child_state_choice=value_solved[
+                    child_state_choice_idxs_to_interpolate, :
+                ],
+                has_second_continuous_state=has_second_continuous_state,
+                params=params,
+            )
+        )
+    else:
+        value_interpolated, marginal_utility_interpolated = (
+            interpolate_value_and_marg_util(
+                compute_marginal_utility=model_funcs["compute_marginal_utility"],
+                compute_utility=model_funcs["compute_utility"],
+                state_choice_vec=state_choice_mat_child,
+                wealth_next_period=wealth_beginning_of_period[child_state_idxs, :],
+                endog_grid_child_state_choice=endog_grid_solved[
+                    child_state_choice_idxs_to_interpolate, :
+                ],
+                policy_child_state_choice=policy_solved[
+                    child_state_choice_idxs_to_interpolate, :
+                ],
+                value_child_state_choice=value_solved[
+                    child_state_choice_idxs_to_interpolate, :
+                ],
+                has_second_continuous_state=has_second_continuous_state,
+                params=params,
+            )
+        )
     (
         endog_grid_state_choice,
         policy_state_choice,

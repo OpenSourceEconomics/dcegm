@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from jax import jit
 
-from dcegm.budget import calculate_resources
+from dcegm.budget import calculate_continuous_state, calculate_resources
 from dcegm.final_periods import solve_last_two_periods
 from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.params import process_params
@@ -223,8 +223,18 @@ def backward_induction(
     """
     taste_shock_scale = params["lambda"]
 
-    resources_beginning_of_period = calculate_resources(
-        states_beginning_of_period=state_space_dict,
+    # continuous_state_beginning_of_period = calculate_continuous_state(
+    #     states_beginning_of_period=state_space_dict,
+    #     params=params,
+    #     compute_continuous_state=model_funcs[
+    #         "compute_beginning_of_period_continuous_state"
+    #     ],
+    # )
+
+    # extra dimension for continuous state?
+    wealth_beginning_of_period = calculate_resources(
+        discrete_states_beginning_of_period=state_space_dict,
+        # continuous_state_beginning_of_period=continuous_state_beginning_of_period,
         savings_end_of_last_period=exog_savings_grid,
         income_shocks_of_period=income_shock_draws_unscaled * params["sigma"],
         params=params,
@@ -232,6 +242,7 @@ def backward_induction(
             "compute_beginning_of_period_resources"
         ],
     )
+
     # Create solution containers. The 20 percent extra in wealth grid needs to go
     # into tuning parameters
     (
@@ -245,14 +256,14 @@ def backward_induction(
     )
 
     # Solve the last two periods. We do this separately as the marginal utility of
-    # the child states in the last period is calculated with the marginal utility
+    # the child states in the last period is calculated from the marginal utility
     # function of the bequest function, which might differ.
     (
         value_solved,
         policy_solved,
         endog_grid_solved,
     ) = solve_last_two_periods(
-        resources_beginning_of_period=resources_beginning_of_period,
+        resources_beginning_of_period=wealth_beginning_of_period,
         params=params,
         taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,
@@ -272,9 +283,11 @@ def backward_induction(
         return solve_single_period(
             carry=carry,
             xs=xs,
+            has_second_continuous_state=has_second_continuous_state,
             params=params,
             exog_savings_grid=exog_savings_grid,
-            resources_beginning_of_period=resources_beginning_of_period,
+            wealth_beginning_of_period=wealth_beginning_of_period,
+            # continuous_state_beginning_of_period=continuous_state_beginning_of_period,
             income_shock_weights=income_shock_weights,
             model_funcs=model_funcs,
             taste_shock_scale=taste_shock_scale,
@@ -334,9 +347,10 @@ def create_solution_container(has_second_continuous_state, n_state_choices, opti
     """Create solution containers for value, policy, and endog_grid."""
 
     n_total_wealth_grid = options["tuning_params"]["n_total_wealth_grid"]
-    n_regular_grid = options["tuning_params"]["n_regular_grid"]
 
     if has_second_continuous_state:
+        n_regular_grid = options["tuning_params"]["n_regular_grid"]
+
         value_solved = jnp.full(
             (n_state_choices, n_regular_grid, n_total_wealth_grid),
             dtype=jnp.float64,

@@ -15,13 +15,13 @@ TRANSFORMATION_MAT = jnp.array(
 )
 
 
-def interp2d_policy_and_value_jax(
+def interp2d_policy_and_value_on_wealth_and_regular_grid(
     regular_grid: jnp.ndarray,
     wealth_grid: jnp.ndarray,
     policy_grid: jnp.ndarray,
     value_grid: jnp.ndarray,
-    wealth_point_to_interp: jnp.ndarray | float,
     regular_point_to_interp: jnp.ndarray | float,
+    wealth_point_to_interp: jnp.ndarray | float,
     compute_utility: Callable,
     params: dict,
 ):
@@ -39,15 +39,16 @@ def interp2d_policy_and_value_jax(
     Args:
         regular_grid (jnp.ndarray): A 1d array of shape (n_regular_grid_points,) with
             the values of the regular grid.
-        wealth_grid (jnp.ndarray): A 2d array of shape with the values of the irregular
-            wealth grid of shape (n_regular_grid_points, n_wealth_grid_points).
+        wealth_grid (jnp.ndarray): A 2d array of with the values of the irregular
+            wealth grid over the regular grid points of shape
+            (n_regular_grid_points, n_wealth_grid_points).
         policy_grid (jnp.ndarray): A 2d array with the policy values of shape
             (n_regular_grid_points, n_wealth_grid_points).
         value_grid (jnp.ndarray): A 2d array with the value function values of shape.
             (n_regular_grid_points, n_wealth_grid_points).
-        wealth_point_to_interp (jnp.ndarray | float): The wealth point for which to
-            interpolate the policy and value function.
         regular_point_to_interp (jnp.ndarray | float): The regular point for which to
+            interpolate the policy and value function.
+        wealth_point_to_interp (jnp.ndarray | float): The wealth point for which to
             interpolate the policy and value function.
         compute_utility (Callable): User function to compute the utility of consumption.
         params (dict): A dictionary containing the model parameters.
@@ -125,7 +126,7 @@ def interp2d_policy(
 
     policy_known = policy_grid[coords_idxs[:, 0], coords_idxs[:, 1]]
 
-    policy_interp = interp2d_jax(
+    policy_interp = interp2d(
         x_coords=regular_points,
         y_coords=wealth_points,
         z_vals=policy_known,
@@ -214,7 +215,7 @@ def interp2d_value_and_check_creditconstraint(
         ]
     )
 
-    value_interp = interp2d_jax(
+    value_interp = interp2d(
         x_coords=regular_points,
         y_coords=wealth_points,
         z_vals=value_known,
@@ -303,7 +304,7 @@ def find_grid_coords_for_interp(
     return regular_points, wealth_points, coords_idxs
 
 
-def interp2d_jax(x_coords, y_coords, z_vals, x_new, y_new):
+def interp2d(x_coords, y_coords, z_vals, x_new, y_new):
     """Perform linear 2D interpolation on an irregular quadrilateral.
 
     This function maps the vertices of an irregular quadrilateral onto a canonical unit

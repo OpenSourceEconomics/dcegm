@@ -1,9 +1,9 @@
 import jax.numpy as jnp
 
 from dcegm.interpolation.interp1d import (
+    interp1d_policy_and_value_on_wealth,
     interp_policy_on_wealth,
     interp_value_on_wealth,
-    interpolate_policy_and_value_on_wealth,
 )
 
 
@@ -34,7 +34,7 @@ def policy_and_value_for_state_choice_vec(
     )
 
     state_choice_index = map_state_choice_to_index[state_choice_tuple]
-    policy, value = interpolate_policy_and_value_on_wealth(
+    policy, value = interp1d_policy_and_value_on_wealth(
         wealth=wealth,
         endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
         policy=jnp.take(policy_solved, state_choice_index, axis=0),
