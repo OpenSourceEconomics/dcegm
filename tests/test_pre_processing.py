@@ -126,7 +126,7 @@ def test_load_and_save_model(
 
     model_setup = setup_model(
         options=options,
-        exog_savings_grid=exog_savings_grid,
+        exog_grids=(exog_savings_grid,),
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -135,7 +135,7 @@ def test_load_and_save_model(
 
     model_after_saving = setup_and_save_model(
         options=options,
-        exog_savings_grid=exog_savings_grid,
+        exog_savings_grid=(exog_savings_grid,),
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -200,7 +200,7 @@ def test_grid_parameters():
     with pytest.raises(ValueError) as e:
         setup_model(
             options=options,
-            exog_savings_grid=exog_savings_grid,
+            exog_grids=(exog_savings_grid,),
             state_space_functions=create_state_space_function_dict(),
             utility_functions=create_utility_function_dict(),
             utility_functions_final_period=create_final_period_utility_function_dict(),

@@ -177,7 +177,7 @@ def toy_model_exog_ltc(
     out = {}
     model = setup_model(
         options=options,
-        exog_savings_grid=exog_savings_grid,
+        exog_grids=(exog_savings_grid,),
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -191,7 +191,7 @@ def toy_model_exog_ltc(
     ) = solve_dcegm(
         params,
         options,
-        exog_savings_grid=exog_savings_grid,
+        exog_grids=(exog_savings_grid,),
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -218,7 +218,7 @@ def toy_model_exog_ltc_and_job_offer(
     out = {}
     model = setup_model(
         options=options,
-        exog_savings_grid=exog_savings_grid,
+        exog_grids=(exog_savings_grid,),
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -232,7 +232,7 @@ def toy_model_exog_ltc_and_job_offer(
     ) = solve_dcegm(
         params,
         options,
-        exog_savings_grid=exog_savings_grid,
+        exog_grids=(exog_savings_grid,),
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),

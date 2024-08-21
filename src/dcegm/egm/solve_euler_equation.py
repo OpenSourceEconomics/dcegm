@@ -8,7 +8,7 @@ from jax import vmap
 
 
 def calculate_candidate_solutions_from_euler_equation(
-    exogenous_savings_grid: np.ndarray,
+    exog_savings_grid: np.ndarray,
     marg_util: jnp.ndarray,
     emax: jnp.ndarray,
     state_choice_vec: np.ndarray,
@@ -43,7 +43,7 @@ def calculate_candidate_solutions_from_euler_equation(
     )(
         feasible_marg_utils_child,
         feasible_emax_child,
-        exogenous_savings_grid,
+        exog_savings_grid,
         state_choice_vec,
         compute_inverse_marginal_utility,
         compute_utility,

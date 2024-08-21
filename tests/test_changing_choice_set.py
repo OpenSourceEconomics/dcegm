@@ -209,7 +209,7 @@ def test_extended_choice_set_model(
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         budget_constraint=budget,
-        exog_savings_grid=savings_grid,
+        exog_grids=(savings_grid,),
         utility_functions_final_period=utility_functions_final_period,
     )
     sol = solve_func(params)
@@ -219,7 +219,7 @@ def test_extended_choice_set_model(
     )
     model = setup_model(
         options=options,
-        exog_savings_grid=savings_grid,
+        exog_grids=(savings_grid,),
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,

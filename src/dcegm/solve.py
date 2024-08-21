@@ -24,7 +24,7 @@ from dcegm.solve_single_period import solve_single_period
 def solve_dcegm(
     params: pd.DataFrame,
     options: Dict,
-    exog_savings_grid: jnp.ndarray,
+    exog_grids: Tuple[jnp.ndarray, jnp.ndarray],
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
@@ -60,7 +60,7 @@ def solve_dcegm(
 
     backward_jit = get_solve_function(
         options=options,
-        exog_savings_grid=exog_savings_grid,
+        exog_grids=exog_grids,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         budget_constraint=budget_constraint,
@@ -74,7 +74,7 @@ def solve_dcegm(
 
 def get_solve_function(
     options: Dict[str, Any],
-    exog_savings_grid: jnp.ndarray,
+    exog_grids: jnp.ndarray,
     utility_functions: Dict[str, Callable],
     budget_constraint: Callable,
     utility_functions_final_period: Dict[str, Callable],
@@ -108,7 +108,7 @@ def get_solve_function(
 
     model = setup_model(
         options=options,
-        exog_savings_grid=exog_savings_grid,
+        exog_grids=exog_grids,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
@@ -122,8 +122,8 @@ def get_solve_func_for_model(model):
     """Create a solve function, which only takes params as input."""
 
     options = model["options"]
-    exog_savings_grid = model["exog_savings_grid"]
     has_second_continuous_state = options["has_second_continuous_state"]
+    exog_grids = model["exog_savings_grid"]
 
     # ToDo: Make interface with several draw possibilities.
     # ToDo: Some day make user supplied draw function.
@@ -135,7 +135,7 @@ def get_solve_func_for_model(model):
         partial(
             backward_induction,
             options=options,
-            exog_savings_grid=exog_savings_grid,
+            exog_grids=exog_grids,
             has_second_continuous_state=has_second_continuous_state,
             state_space_dict=model["model_structure"]["state_space_dict"],
             n_state_choices=model["model_structure"]["state_choice_space"].shape[0],
@@ -157,7 +157,7 @@ def backward_induction(
     params: Dict[str, float],
     options: Dict[str, Any],
     has_second_continuous_state: bool,
-    exog_savings_grid: np.ndarray,
+    exog_grids: np.ndarray,
     state_space_dict: np.ndarray,
     n_state_choices: int,
     batch_info: Dict[str, np.ndarray],
@@ -243,8 +243,9 @@ def backward_induction(
             calculate_resources_for_second_continuous_state(
                 discrete_states_beginning_of_next_period=state_space_dict,
                 continuous_state_beginning_of_next_period=continuous_state_next_period,
-                savings_end_of_last_period=exog_savings_grid,
-                income_shocks_of_period=income_shock_draws_unscaled * params["sigma"],
+                savings_end_of_previous_period=exog_grids,
+                income_shocks_current_period=income_shock_draws_unscaled
+                * params["sigma"],
                 params=params,
                 compute_beginning_of_period_resources=model_funcs[
                     "compute_beginning_of_period_resources"
@@ -260,8 +261,8 @@ def backward_induction(
     else:
         wealth_and_continuous_state_next_period = calculate_resources(
             discrete_states_beginning_of_period=state_space_dict,
-            savings_end_of_last_period=exog_savings_grid,
-            income_shocks_of_period=income_shock_draws_unscaled * params["sigma"],
+            savings_end_of_previous_period=exog_grids[0],
+            income_shocks_current_period=income_shock_draws_unscaled * params["sigma"],
             params=params,
             compute_beginning_of_period_resources=model_funcs[
                 "compute_beginning_of_period_resources"
@@ -293,7 +294,7 @@ def backward_induction(
         params=params,
         taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,
-        exog_savings_grid=exog_savings_grid,
+        exog_savings_grid=exog_grids[0],
         model_funcs=model_funcs,
         batch_info=batch_info,
         value_solved=value_solved,
@@ -311,7 +312,7 @@ def backward_induction(
             xs=xs,
             has_second_continuous_state=has_second_continuous_state,
             params=params,
-            exog_savings_grid=exog_savings_grid,
+            exog_grids=exog_grids,
             wealth_and_continuous_state_next_period=wealth_and_continuous_state_next_period,
             income_shock_weights=income_shock_weights,
             model_funcs=model_funcs,

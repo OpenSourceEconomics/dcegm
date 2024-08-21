@@ -513,9 +513,9 @@ def create_indexer_for_space(space):
     return map_vars_to_index
 
 
-def check_options_and_set_defaults(options, exog_savings_grid):
+def check_options_and_set_defaults(options, exog_grids):
     """Check if options are valid and set defaults."""
-    n_grid_points = exog_savings_grid.shape[0]
+    n_savings_grid_points = exog_grids[0].shape[0]
 
     if not isinstance(options, dict):
         raise ValueError("Options must be a dictionary.")
@@ -556,12 +556,14 @@ def check_options_and_set_defaults(options, exog_savings_grid):
     options["tuning_params"]["n_constrained_points_to_add"] = (
         options["tuning_params"]["n_constrained_points_to_add"]
         if "n_constrained_points_to_add" in options["tuning_params"]
-        else n_grid_points // 10
+        else n_savings_grid_points // 10
     )
 
     if (
-        n_grid_points * (1 + options["tuning_params"]["extra_wealth_grid_factor"])
-        < n_grid_points + options["tuning_params"]["n_constrained_points_to_add"]
+        n_savings_grid_points
+        * (1 + options["tuning_params"]["extra_wealth_grid_factor"])
+        < n_savings_grid_points
+        + options["tuning_params"]["n_constrained_points_to_add"]
     ):
         raise ValueError(
             f"""\n\n
@@ -572,7 +574,8 @@ def check_options_and_set_defaults(options, exog_savings_grid):
             the credit constrained part of the wealth grid. \n\n"""
         )
     options["tuning_params"]["n_total_wealth_grid"] = int(
-        n_grid_points * (1 + options["tuning_params"]["extra_wealth_grid_factor"])
+        n_savings_grid_points
+        * (1 + options["tuning_params"]["extra_wealth_grid_factor"])
     )
 
     options["has_second_continuous_state"] = False

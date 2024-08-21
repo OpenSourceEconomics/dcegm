@@ -1,4 +1,3 @@
-import jax
 from jax import vmap
 
 from dcegm.egm.aggregate_marginal_utility import aggregate_marg_utils_and_exp_values
@@ -13,7 +12,7 @@ def solve_single_period(
     xs,
     has_second_continuous_state,
     params,
-    exog_savings_grid,
+    exog_grids,
     income_shock_weights,
     wealth_and_continuous_state_next_period,
     model_funcs,
@@ -37,6 +36,7 @@ def solve_single_period(
         compute_marginal_utility=model_funcs["compute_marginal_utility"],
         compute_utility=model_funcs["compute_utility"],
         state_choice_vec=state_choice_mat_child,
+        exog_grids=exog_grids,
         wealth_and_continuous_state_next=wealth_and_continuous_state_next_period[
             child_state_idxs
         ],
@@ -62,7 +62,7 @@ def solve_single_period(
         params,
         taste_shock_scale,
         income_shock_weights,
-        exog_savings_grid,
+        exog_grids[0],
         model_funcs,
     )
 
@@ -109,7 +109,7 @@ def solve_for_interpolated_values(
         policy_candidate,
         expected_values,
     ) = calculate_candidate_solutions_from_euler_equation(
-        exogenous_savings_grid=exog_savings_grid,
+        exog_savings_grid=exog_savings_grid,
         marg_util=marg_util,
         emax=emax,
         state_choice_vec=state_choice_mat,

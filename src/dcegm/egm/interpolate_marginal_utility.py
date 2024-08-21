@@ -2,7 +2,6 @@ from typing import Callable, Dict, Tuple
 
 from jax import numpy as jnp
 from jax import vmap
-from numpy.testing import assert_array_almost_equal as aaae
 
 from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
 from dcegm.interpolation.interp2d import (
@@ -14,6 +13,7 @@ def interpolate_value_and_marg_util(
     compute_marginal_utility: Callable,
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
+    exog_grids: Tuple[jnp.ndarray, jnp.ndarray],
     wealth_and_continuous_state_next: jnp.ndarray,
     endog_grid_child_state_choice: jnp.ndarray,
     policy_child_state_choice: jnp.ndarray,
@@ -57,6 +57,7 @@ def interpolate_value_and_marg_util(
 
     if has_second_continuous_state:
         wealth_next, continuous_state_next = wealth_and_continuous_state_next
+        regular_grid = exog_grids[1]
 
         # interp_for_single_state_choice = vmap(
         #     interp2d_value_and_marg_util_for_state_choice,
@@ -69,15 +70,16 @@ def interpolate_value_and_marg_util(
         interp_for_single_state_choice = vmap(
             vmap(
                 interp2d_value_and_marg_util_for_state_choice,
-                in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),  # state-choice
+                in_axes=(None, None, None, 0, 0, 0, 0, 0, 0, None),  # state-choice
             ),
-            in_axes=(None, None, 0, 1, 1, 0, 0, 0, None),  # continuous state
+            in_axes=(None, None, None, 0, 1, 1, 0, 0, 0, None),  # continuous state
         )
 
         return interp_for_single_state_choice(
             compute_marginal_utility,
             compute_utility,
             state_choice_vec,
+            regular_grid,
             wealth_next,
             continuous_state_next,
             endog_grid_child_state_choice,
@@ -164,8 +166,8 @@ def interp1d_value_and_marg_util_for_state_choice(
 
         return value_interp, marg_util_interp
 
-    interp_over_single_wealth_and_income_shock_draw = vmap(  # income shocks
-        vmap(interp_on_single_wealth_point)  # wealth
+    interp_over_single_wealth_and_income_shock_draw = vmap(  # outer: income shocks
+        vmap(interp_on_single_wealth_point)  # inner: wealth
     )
 
     value_interp, marg_util_interp = interp_over_single_wealth_and_income_shock_draw(

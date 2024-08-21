@@ -77,8 +77,8 @@ def _transform_lagged_choice_to_working_hours(lagged_choice):
 def calculate_resources_for_second_continuous_state(
     discrete_states_beginning_of_next_period,
     continuous_state_beginning_of_next_period,
-    savings_end_of_last_period,
-    income_shocks_of_period,
+    savings_end_of_previous_period,
+    income_shocks_current_period,
     params,
     compute_beginning_of_period_resources,
 ):
@@ -97,8 +97,8 @@ def calculate_resources_for_second_continuous_state(
     )(
         discrete_states_beginning_of_next_period,
         continuous_state_beginning_of_next_period,
-        savings_end_of_last_period,
-        income_shocks_of_period,
+        savings_end_of_previous_period,
+        income_shocks_current_period,
         params,
         compute_beginning_of_period_resources,
     )
@@ -110,8 +110,8 @@ def calculate_resources_for_second_continuous_state(
 
 def calculate_resources(
     discrete_states_beginning_of_period,
-    savings_end_of_last_period,
-    income_shocks_of_period,
+    savings_end_of_previous_period,
+    income_shocks_current_period,
     params,
     compute_beginning_of_period_resources,
 ):
@@ -126,8 +126,8 @@ def calculate_resources(
         in_axes=(0, None, None, None, None),  # discrete states
     )(
         discrete_states_beginning_of_period,
-        savings_end_of_last_period,
-        income_shocks_of_period,
+        savings_end_of_previous_period,
+        income_shocks_current_period,
         params,
         compute_beginning_of_period_resources,
     )
