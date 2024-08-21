@@ -70,9 +70,9 @@ def interpolate_value_and_marg_util(
         interp_for_single_state_choice = vmap(
             vmap(
                 interp2d_value_and_marg_util_for_state_choice,
-                in_axes=(None, None, None, 0, 0, 0, 0, 0, 0, None),  # state-choice
+                in_axes=(None, None, None, 0, 1, 1, 0, 0, 0, None),  # continuous state
             ),
-            in_axes=(None, None, None, 0, 1, 1, 0, 0, 0, None),  # continuous state
+            in_axes=(None, None, None, 0, 0, 0, 0, 0, 0, None),  # discrete state-choice
         )
 
         return interp_for_single_state_choice(
@@ -91,7 +91,7 @@ def interpolate_value_and_marg_util(
     else:
         interp_for_single_state_choice = vmap(
             interp1d_value_and_marg_util_for_state_choice,
-            in_axes=(None, None, 0, 0, 0, 0, 0, None),
+            in_axes=(None, None, 0, 0, 0, 0, 0, None),  # discrete state-choice
         )
 
         return interp_for_single_state_choice(
@@ -181,12 +181,12 @@ def interp2d_value_and_marg_util_for_state_choice(
     compute_marginal_utility: Callable,
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
+    regular_grid: jnp.ndarray,
     wealth_beginning_of_next_period: jnp.ndarray,
-    # regular_grid_child_state_choice: jnp.ndarray,
+    continuous_state_beginning_of_next_period: jnp.ndarray,
     endog_grid_child_state_choice: jnp.ndarray,
     policy_child_state_choice: jnp.ndarray,
     value_child_state_choice: jnp.ndarray,
-    has_second_continuous_state: bool,
     params: Dict[str, float],
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Interpolate value and policy for given child state and compute marginal utility.
@@ -231,7 +231,7 @@ def interp2d_value_and_marg_util_for_state_choice(
 
         policy_interp, value_interp = (
             interp2d_policy_and_value_on_wealth_and_regular_grid(
-                # regular_grid=regular_grid_child_state_choice,
+                regular_grid=regular_grid,
                 wealth_grid=endog_grid_child_state_choice,
                 policy_grid=policy_child_state_choice,
                 value_grid=value_child_state_choice,

@@ -228,10 +228,10 @@ def backward_induction(
     taste_shock_scale = params["lambda"]
 
     if has_second_continuous_state:
-        continuous_grid = jnp.linspace(0, 1, 10)
+        # continuous_grid = jnp.linspace(0, 1, 10)
         continuous_state_next_period = calculate_continuous_state(
             discrete_states_beginning_of_period=state_space_dict,
-            continuous_grid=continuous_grid,
+            continuous_grid=exog_grids[1],
             params=params,
             compute_continuous_state=model_funcs[
                 "compute_beginning_of_period_continuous_state"
@@ -243,7 +243,7 @@ def backward_induction(
             calculate_resources_for_second_continuous_state(
                 discrete_states_beginning_of_next_period=state_space_dict,
                 continuous_state_beginning_of_next_period=continuous_state_next_period,
-                savings_end_of_previous_period=exog_grids,
+                savings_grid=exog_grids[0],
                 income_shocks_current_period=income_shock_draws_unscaled
                 * params["sigma"],
                 params=params,
@@ -261,7 +261,7 @@ def backward_induction(
     else:
         wealth_and_continuous_state_next_period = calculate_resources(
             discrete_states_beginning_of_period=state_space_dict,
-            savings_end_of_previous_period=exog_grids[0],
+            savings_grid=exog_grids[0],
             income_shocks_current_period=income_shock_draws_unscaled * params["sigma"],
             params=params,
             compute_beginning_of_period_resources=model_funcs[
@@ -269,7 +269,6 @@ def backward_induction(
             ],
         )
 
-    # breakpoint()
     # Create solution containers. The 20 percent extra in wealth grid needs to go
     # into tuning parameters
     (

@@ -77,7 +77,7 @@ def custom_interp2d_quad(x_grids, y_grid, values, points):
 
 
 def custom_interp2d_quad_value_function(
-    x_grids, y_grid, values, points, *, float_util, params
+    x_grids, y_grid, values, points, *, flow_util, params
 ):
     """This function is able to interpolate linearly on a two dimensional grid where one
     dimension has irregular spacing between the grid points.
@@ -141,7 +141,7 @@ def custom_interp2d_quad_value_function(
             #     z[i, 0] = transform(values[y_indx][0], theta)
 
             # else:
-            z[i, 0] = float_util(x, params) + params["beta"] * values[y_indx][0]
+            z[i, 0] = flow_util(x, params) + params["beta"] * values[y_indx][0]
 
         if x < x_grids[y_indx + 1][1]:
             x_cords[i, 1] = x
@@ -149,7 +149,7 @@ def custom_interp2d_quad_value_function(
             #     z[i, 1] = transform(values[y_indx + 1][0], params)
 
             # else:
-            z[i, 1] = float_util(x, params) + params["beta"] * values[y_indx + 1][0]
+            z[i, 1] = flow_util(x, params) + params["beta"] * values[y_indx + 1][0]
 
     alpha, beta = (x_cords @ A), (y_cords @ A)
     m, l = calculate_map_params(points[:, 0], points[:, 1], alpha, beta)

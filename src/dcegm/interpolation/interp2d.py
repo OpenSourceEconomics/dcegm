@@ -1,6 +1,6 @@
 """Jax implementation of 2D interpolation."""
 
-from typing import Callable
+from typing import Callable, Dict
 
 import jax.lax
 import jax.numpy as jnp
@@ -23,6 +23,7 @@ def interp2d_policy_and_value_on_wealth_and_regular_grid(
     regular_point_to_interp: jnp.ndarray | float,
     wealth_point_to_interp: jnp.ndarray | float,
     compute_utility: Callable,
+    state_choice_vec: Dict[str, int],
     params: dict,
 ):
     """Linear 2D interpolation on two grids where wealth has irregular spacing.
@@ -85,6 +86,7 @@ def interp2d_policy_and_value_on_wealth_and_regular_grid(
         compute_utility=compute_utility,
         wealth_min_unconstrained=wealth_grid[:, 1],
         value_at_zero_wealth=value_grid[:, 0],
+        state_choice_vec=state_choice_vec,
         params=params,
     )
 
@@ -147,6 +149,7 @@ def interp2d_value_and_check_creditconstraint(
     compute_utility,
     wealth_min_unconstrained,
     value_at_zero_wealth,
+    state_choice_vec,
     params,
 ):
     """Interpolate the value function on a 2D grid and check for credit constraints.
@@ -189,7 +192,9 @@ def interp2d_value_and_check_creditconstraint(
 
     # Now recalculate the closed-form value of consuming all wealth
     value_calc_left = (
-        compute_utility(wealth_point_to_interp, params)
+        compute_utility(
+            consumption=wealth_point_to_interp, params=params, **state_choice_vec
+        )
         + params["beta"] * value_at_zero_wealth[regular_idx_left]
     )
 
@@ -198,7 +203,9 @@ def interp2d_value_and_check_creditconstraint(
         wealth_point_to_interp <= wealth_min_unconstrained[regular_idx_right]
     )
     value_calc_right = (
-        compute_utility(wealth_point_to_interp, params)
+        compute_utility(
+            consumption=wealth_point_to_interp, params=params, **state_choice_vec
+        )
         + params["beta"] * value_at_zero_wealth[regular_idx_right]
     )
 

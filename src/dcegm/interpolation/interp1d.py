@@ -211,7 +211,7 @@ def interp_value_and_check_creditconstraint(
         x_new=new_wealth,
     )
 
-    # Now recalculate the value when consumed all wealth
+    # Now recalculate the closed-form value of consuming all wealth
     utility = compute_utility(
         consumption=new_wealth,
         params=params,
@@ -222,7 +222,6 @@ def interp_value_and_check_creditconstraint(
     # Check if we are in the credit constrained region
     credit_constraint = new_wealth <= endog_grid_min
 
-    # If so we return the value if all is consumed.
     value_interp = (
         credit_constraint * value_interp_closed_form
         + (1 - credit_constraint) * value_interp_on_grid

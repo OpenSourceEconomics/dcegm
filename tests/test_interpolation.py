@@ -17,6 +17,10 @@ from numpy.testing import assert_allclose
 from numpy.testing import assert_array_almost_equal as aaae
 from scipy.interpolate import griddata, interp1d
 
+from dcegm.egm.interpolate_marginal_utility import (
+    interp2d_value_and_marg_util_for_state_choice,
+    interpolate_value_and_marg_util,
+)
 from dcegm.interpolation.interp2d import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
@@ -28,14 +32,12 @@ from tests.utils.interp2d_auxiliary import (
     custom_interp2d_quad,
     custom_interp2d_quad_value_function,
 )
+from toy_models.consumption_retirement_model.utility_functions import (
+    marginal_utility_crra,
+    utility_crra,
+)
 
-PARAMS = {"beta": 0.95, "theta": 0.5}
-
-
-def flow_util(cons, params):
-    """Flow utility in the Epstein Zin case."""
-    theta = params["theta"]
-    return (cons ** (1 - theta)) / (1 - theta)
+PARAMS = {"beta": 0.95, "rho": 0.5, "delta": -1}
 
 
 @pytest.fixture()
@@ -120,7 +122,7 @@ def test_interp2d():
             regular_grid,
             values=value,
             points=test_points,
-            float_util=flow_util,
+            flow_util=utility_crra,
             params=PARAMS,
         )
 
@@ -139,7 +141,8 @@ def test_interp2d():
                 value_grid=value_jax,
                 wealth_point_to_interp=x_in,
                 regular_point_to_interp=y_in,
-                compute_utility=flow_util,
+                compute_utility=utility_crra,
+                state_choice_vec={"choice": 0},
                 params=PARAMS,
             )
         )
@@ -154,3 +157,8 @@ def test_interp2d():
 
         aaae(policy_interp_jax, policy_interp_scipy, decimal=7)
         aaae(value_interp_jax, value_interp_custom, decimal=7)
+
+
+def test_interp2d_value_and_marg_util():
+
+    pass
