@@ -228,7 +228,7 @@ def extend_child_state_choices_to_aggregate_choices(
             "Please contact developer."
         )
 
-    # Now span an array with n_states time the maximum number of child states across
+    # Now span an array with n_states times the maximum number of child states across
     # all batches and the number of choices. Fill with invalid state choice index
     n_batches = len(idx_to_aggregate_choice)
     max_n_child_states = np.max(max_n_state_unique_in_batches)

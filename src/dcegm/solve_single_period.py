@@ -1,3 +1,4 @@
+import jax
 from jax import vmap
 
 from dcegm.egm.aggregate_marginal_utility import aggregate_marg_utils_and_exp_values
@@ -14,12 +15,11 @@ def solve_single_period(
     params,
     exog_savings_grid,
     income_shock_weights,
-    wealth_beginning_of_period,
-    # continuous_state_beginning_of_period,
+    wealth_and_continuous_state_next_period,
     model_funcs,
     taste_shock_scale,
 ):
-    """Solve a single period of the model using the DCEGM method."""
+    """Solve a single period of the model using DCEGM."""
     (value_solved, policy_solved, endog_grid_solved) = carry
 
     (
@@ -33,49 +33,22 @@ def solve_single_period(
     ) = xs
 
     # EGM step 1)
-    if has_second_continuous_state:
-        value_interpolated, marginal_utility_interpolated = (
-            interpolate_value_and_marg_util(
-                compute_marginal_utility=model_funcs["compute_marginal_utility"],
-                compute_utility=model_funcs["compute_utility"],
-                state_choice_vec=state_choice_mat_child,
-                # continuous_state_next_period=continuous_state_beginning_of_period[
-                #     child_state_choice_idxs_to_interpolate, :
-                # ],
-                wealth_next_period=wealth_beginning_of_period[child_state_idxs, :],
-                endog_grid_child_state_choice=endog_grid_solved[
-                    child_state_choice_idxs_to_interpolate, :
-                ],
-                policy_child_state_choice=policy_solved[
-                    child_state_choice_idxs_to_interpolate, :
-                ],
-                value_child_state_choice=value_solved[
-                    child_state_choice_idxs_to_interpolate, :
-                ],
-                has_second_continuous_state=has_second_continuous_state,
-                params=params,
-            )
-        )
-    else:
-        value_interpolated, marginal_utility_interpolated = (
-            interpolate_value_and_marg_util(
-                compute_marginal_utility=model_funcs["compute_marginal_utility"],
-                compute_utility=model_funcs["compute_utility"],
-                state_choice_vec=state_choice_mat_child,
-                wealth_next_period=wealth_beginning_of_period[child_state_idxs, :],
-                endog_grid_child_state_choice=endog_grid_solved[
-                    child_state_choice_idxs_to_interpolate, :
-                ],
-                policy_child_state_choice=policy_solved[
-                    child_state_choice_idxs_to_interpolate, :
-                ],
-                value_child_state_choice=value_solved[
-                    child_state_choice_idxs_to_interpolate, :
-                ],
-                has_second_continuous_state=has_second_continuous_state,
-                params=params,
-            )
-        )
+    value_interpolated, marginal_utility_interpolated = interpolate_value_and_marg_util(
+        compute_marginal_utility=model_funcs["compute_marginal_utility"],
+        compute_utility=model_funcs["compute_utility"],
+        state_choice_vec=state_choice_mat_child,
+        wealth_and_continuous_state_next=wealth_and_continuous_state_next_period[
+            child_state_idxs
+        ],
+        endog_grid_child_state_choice=endog_grid_solved[
+            child_state_choice_idxs_to_interpolate
+        ],
+        policy_child_state_choice=policy_solved[child_state_choice_idxs_to_interpolate],
+        value_child_state_choice=value_solved[child_state_choice_idxs_to_interpolate],
+        has_second_continuous_state=has_second_continuous_state,
+        params=params,
+    )
+
     (
         endog_grid_state_choice,
         policy_state_choice,
@@ -119,6 +92,7 @@ def solve_for_interpolated_values(
     # EGM step 2)
     # Aggregate the marginal utilities and expected values over all state-choice
     # combinations and income shock draws
+    # extra dimension for second continuous state
     marg_util, emax = aggregate_marg_utils_and_exp_values(
         value_state_choice_specific=value_interpolated,
         marg_util_state_choice_specific=marginal_utility_interpolated,
@@ -128,6 +102,7 @@ def solve_for_interpolated_values(
     )
 
     # EGM step 3)
+    # extra dimension for second continuous state
     (
         endog_grid_candidate,
         value_candidate,
@@ -149,6 +124,9 @@ def solve_for_interpolated_values(
 
     # Run upper envelope over all state-choice combinations to remove suboptimal
     # candidates
+    # extra dimension for second continuous state
+
+    # breakpoint()
     (
         endog_grid_state_choice,
         policy_state_choice,
@@ -186,10 +164,11 @@ def run_upper_envelope(
     Vectorized over all state-choice combinations.
 
     """
-
+    # extra vmap for second continuous grid
     return vmap(
         compute_upper_envelope_for_state_choice,
         in_axes=(0, 0, 0, 0, 0, None, None),  # vmap over state-choice combs
+        # in_axes=(1, 1, 1, 1, None, None, None),  # vmap over regular grid
     )(
         endog_grid_candidate,
         policy_candidate,

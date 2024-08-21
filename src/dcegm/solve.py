@@ -9,7 +9,11 @@ import numpy as np
 import pandas as pd
 from jax import jit
 
-from dcegm.budget import calculate_continuous_state, calculate_resources
+from dcegm.budget import (
+    calculate_continuous_state,
+    calculate_resources,
+    calculate_resources_for_second_continuous_state,
+)
 from dcegm.final_periods import solve_last_two_periods
 from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.params import process_params
@@ -223,26 +227,48 @@ def backward_induction(
     """
     taste_shock_scale = params["lambda"]
 
-    # continuous_state_beginning_of_period = calculate_continuous_state(
-    #     states_beginning_of_period=state_space_dict,
-    #     params=params,
-    #     compute_continuous_state=model_funcs[
-    #         "compute_beginning_of_period_continuous_state"
-    #     ],
-    # )
+    if has_second_continuous_state:
+        continuous_grid = jnp.linspace(0, 1, 10)
+        continuous_state_next_period = calculate_continuous_state(
+            discrete_states_beginning_of_period=state_space_dict,
+            continuous_grid=continuous_grid,
+            params=params,
+            compute_continuous_state=model_funcs[
+                "compute_beginning_of_period_continuous_state"
+            ],
+        )
 
-    # extra dimension for continuous state?
-    wealth_beginning_of_period = calculate_resources(
-        discrete_states_beginning_of_period=state_space_dict,
-        # continuous_state_beginning_of_period=continuous_state_beginning_of_period,
-        savings_end_of_last_period=exog_savings_grid,
-        income_shocks_of_period=income_shock_draws_unscaled * params["sigma"],
-        params=params,
-        compute_beginning_of_period_resources=model_funcs[
-            "compute_beginning_of_period_resources"
-        ],
-    )
+        # extra dimension for continuous state
+        wealth_beginning_of_next_period = (
+            calculate_resources_for_second_continuous_state(
+                discrete_states_beginning_of_next_period=state_space_dict,
+                continuous_state_beginning_of_next_period=continuous_state_next_period,
+                savings_end_of_last_period=exog_savings_grid,
+                income_shocks_of_period=income_shock_draws_unscaled * params["sigma"],
+                params=params,
+                compute_beginning_of_period_resources=model_funcs[
+                    "compute_beginning_of_period_resources"
+                ],
+            )
+        )
 
+        wealth_and_continuous_state_next_period = (
+            continuous_state_next_period,
+            wealth_beginning_of_next_period,
+        )
+
+    else:
+        wealth_and_continuous_state_next_period = calculate_resources(
+            discrete_states_beginning_of_period=state_space_dict,
+            savings_end_of_last_period=exog_savings_grid,
+            income_shocks_of_period=income_shock_draws_unscaled * params["sigma"],
+            params=params,
+            compute_beginning_of_period_resources=model_funcs[
+                "compute_beginning_of_period_resources"
+            ],
+        )
+
+    # breakpoint()
     # Create solution containers. The 20 percent extra in wealth grid needs to go
     # into tuning parameters
     (
@@ -263,7 +289,7 @@ def backward_induction(
         policy_solved,
         endog_grid_solved,
     ) = solve_last_two_periods(
-        resources_beginning_of_period=wealth_beginning_of_period,
+        resources_beginning_of_period=wealth_and_continuous_state_next_period,
         params=params,
         taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,
@@ -286,8 +312,7 @@ def backward_induction(
             has_second_continuous_state=has_second_continuous_state,
             params=params,
             exog_savings_grid=exog_savings_grid,
-            wealth_beginning_of_period=wealth_beginning_of_period,
-            # continuous_state_beginning_of_period=continuous_state_beginning_of_period,
+            wealth_and_continuous_state_next_period=wealth_and_continuous_state_next_period,
             income_shock_weights=income_shock_weights,
             model_funcs=model_funcs,
             taste_shock_scale=taste_shock_scale,

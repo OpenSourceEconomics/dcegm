@@ -19,10 +19,12 @@ def calculate_candidate_solutions_from_euler_equation(
     params: Dict[str, float],
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Calculate candidates for the optimal policy and value function."""
-    feasible_marg_utils, feasible_emax = _get_post_decision_marg_utils_and_emax(
-        marg_util_next=marg_util,
-        emax_next=emax,
-        idx_post_decision_child_states=idx_post_decision_child_states,
+    feasible_marg_utils_child, feasible_emax_child = (
+        _get_post_decision_marg_utils_and_emax(
+            marg_util_next=marg_util,
+            emax_next=emax,
+            idx_post_decision_child_states=idx_post_decision_child_states,
+        )
     )
 
     # transform exog_transition_mat to matrix with same shape as state_choice_vec
@@ -39,8 +41,8 @@ def calculate_candidate_solutions_from_euler_equation(
         ),
         in_axes=(0, 0, None, 0, None, None, None, None),  # states and choices
     )(
-        feasible_marg_utils,
-        feasible_emax,
+        feasible_marg_utils_child,
+        feasible_emax_child,
         exogenous_savings_grid,
         state_choice_vec,
         compute_inverse_marginal_utility,
