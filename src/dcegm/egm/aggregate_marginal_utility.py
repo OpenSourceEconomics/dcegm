@@ -90,4 +90,5 @@ def calculate_choice_probs_and_unsqueezed_logsum(
 
     sum_exp = jnp.nansum(rescaled_exponential, axis=1, keepdims=True)
     choice_probs = rescaled_exponential / sum_exp
+
     return choice_probs, max_value_per_state, sum_exp

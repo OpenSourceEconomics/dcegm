@@ -59,12 +59,16 @@ def interpolate_value_and_marg_util(
         wealth_next, continuous_state_next = wealth_and_continuous_state_next
         regular_grid = exog_grids[1]
 
+        # interp_for_single_state_choice = vmap(
+        #     vmap(
+        #         interp2d_value_and_marg_util_for_state_choice,
+        #         in_axes=(None, None, 0, 1, 1, 0, 0, 0, None),  # continuous state
+        #     ),
+        #     in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),  # discrete state-choice
+        # )
         interp_for_single_state_choice = vmap(
-            vmap(
-                interp2d_value_and_marg_util_for_state_choice,
-                in_axes=(None, None, 0, 1, 1, 0, 0, 0, None),  # continuous state
-            ),
-            in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),  # discrete state-choice
+            interp2d_value_and_marg_util_for_state_choice,
+            in_axes=(None, None, 0, None, 0, 0, 0, 0, 0, None),  # discrete state-choice
         )
 
         return interp_for_single_state_choice(

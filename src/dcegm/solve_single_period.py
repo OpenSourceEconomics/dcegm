@@ -92,7 +92,7 @@ def solve_for_interpolated_values(
     # EGM step 2)
     # Aggregate the marginal utilities and expected values over all state-choice
     # combinations and income shock draws
-    # extra dimension for second continuous state
+    # extra dimension for second continuous state?
     marg_util, emax = aggregate_marg_utils_and_exp_values(
         value_state_choice_specific=value_interpolated,
         marg_util_state_choice_specific=marginal_utility_interpolated,
