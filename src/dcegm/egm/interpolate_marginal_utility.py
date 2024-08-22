@@ -70,9 +70,9 @@ def interpolate_value_and_marg_util(
         interp_for_single_state_choice = vmap(
             vmap(
                 interp2d_value_and_marg_util_for_state_choice,
-                in_axes=(None, None, None, 0, 1, 1, 0, 0, 0, None),  # continuous state
+                in_axes=(None, None, 0, 1, 1, 0, 0, 0, None),  # continuous state
             ),
-            in_axes=(None, None, None, 0, 0, 0, 0, 0, 0, None),  # discrete state-choice
+            in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),  # discrete state-choice
         )
 
         return interp_for_single_state_choice(
@@ -89,6 +89,7 @@ def interpolate_value_and_marg_util(
         )
 
     else:
+
         interp_for_single_state_choice = vmap(
             interp1d_value_and_marg_util_for_state_choice,
             in_axes=(None, None, 0, 0, 0, 0, 0, None),  # discrete state-choice
@@ -222,8 +223,9 @@ def interp2d_value_and_marg_util_for_state_choice(
             containing the interpolated value function.
 
     """
+    # breakpoint()
 
-    def interp_on_single_wealth_point(regular_point, wealth_point):
+    def interp_on_single_wealth_point(wealth_point, regular_point):
 
         # regular_grid_child_state_choice = endog_grid_child_state_choice[]
 
@@ -248,15 +250,46 @@ def interp2d_value_and_marg_util_for_state_choice(
 
         return value_interp, marg_util_interp
 
-    interp_over_single_wealth_and_income_shock_draw = vmap(  # income shocks
-        vmap(vmap(interp_on_single_wealth_point))  # wealth, regular grid
+    # Outer vmap applies first
+    interp_over_single_wealth_and_income_shock_draw = vmap(
+        vmap(interp_on_single_wealth_point, in_axes=(0, None)),  # wealth grid
+        in_axes=(0, 0),  # continuous state grid
     )
 
     # To-Do: Interpolate over next period regular and wealth point
     # Old points regular grid and endog grid
     # New points: continuous state next period and wealth next period
     value_interp, marg_util_interp = interp_over_single_wealth_and_income_shock_draw(
-        wealth_beginning_of_next_period
+        wealth_beginning_of_next_period, continuous_state_beginning_of_next_period
     )
 
     return value_interp, marg_util_interp
+
+
+def interp_over_continuous_grid(
+    compute_marginal_utility: Callable,
+    compute_utility: Callable,
+    state_choice_vec: Dict[str, int],
+    regular_grid: jnp.ndarray,
+    wealth_beginning_of_next_period: jnp.ndarray,
+    continuous_state_beginning_of_next_period: jnp.ndarray,
+    endog_grid_child_state_choice: jnp.ndarray,
+    policy_child_state_choice: jnp.ndarray,
+    value_child_state_choice: jnp.ndarray,
+    params: Dict[str, float],
+):
+    return vmap(
+        interp2d_value_and_marg_util_for_state_choice,
+        in_axes=(None, None, None, None, 0, 0, 0, 0, 0, None),
+    )(
+        compute_marginal_utility,
+        compute_utility,
+        state_choice_vec,
+        regular_grid,
+        wealth_beginning_of_next_period,
+        continuous_state_beginning_of_next_period,
+        endog_grid_child_state_choice,
+        policy_child_state_choice,
+        value_child_state_choice,
+        params,
+    )

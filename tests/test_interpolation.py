@@ -9,16 +9,20 @@ function interp1d and griddata.
 
 """
 
+from functools import partial
+
 import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
+from jax import vmap
 from numpy.testing import assert_allclose
 from numpy.testing import assert_array_almost_equal as aaae
 from scipy.interpolate import griddata, interp1d
 
 from dcegm.egm.interpolate_marginal_utility import (
     interp2d_value_and_marg_util_for_state_choice,
+    interp_over_continuous_grid,
     interpolate_value_and_marg_util,
 )
 from dcegm.interpolation.interp2d import (
@@ -37,7 +41,15 @@ from toy_models.consumption_retirement_model.utility_functions import (
     utility_crra,
 )
 
-PARAMS = {"beta": 0.95, "rho": 0.5, "delta": -1}
+PARAMS = {
+    "beta": 0.95,
+    "rho": 0.5,
+    "delta": -1,
+    "interest_rate": 0.05,
+    "consumption_floor": 100,
+    "pension": 1000,
+    "labor_income": 2000,
+}
 
 
 @pytest.fixture()
@@ -100,8 +112,8 @@ def test_interp2d():
         policy = functional_form(irregular_grids, regular_grids)
         value = functional_form(irregular_grids, regular_grids) * 3.5
 
-        test_x = np.random.uniform(30, 40, 100)
-        test_y = np.random.choice(regular_grid, 100)
+        test_x = np.random.uniform(30, 40, 44)
+        test_y = np.random.choice(regular_grid, 44)
         test_points = np.column_stack((test_x, test_y))
 
         # transform input values for scipy griddata interpolation routine
@@ -159,6 +171,126 @@ def test_interp2d():
         aaae(value_interp_jax, value_interp_custom, decimal=7)
 
 
+# =====================================================================================
+
+
+# def budget(lagged_choice, savings_end_of_previous_period, options, params):
+#     retired = lagged_choice == 0
+#     working = lagged_choice == 1
+
+#     retirement_income = params["pension"]
+#     labor_income = params["labor_income"]
+#     income = working * labor_income + retired * retirement_income
+
+#     return jnp.maximum(
+#         income + (1 + params["interest_rate"]) * savings_end_of_previous_period,
+#         params["consumption_floor"],
+#     )
+import pytest
+
+
+# @pytest.mark.skip()
 def test_interp2d_value_and_marg_util():
 
-    pass
+    marginal_utility_crra_partial = partial(marginal_utility_crra, options={})
+
+    savings_grid = np.linspace(0, 10_000, 100)
+    experience_grid = np.linspace(0, 1, 6)
+
+    exog_grids = (savings_grid, experience_grid) = np.meshgrid(
+        np.linspace(0, 1, 10), np.linspace(0, 1, 10)
+    )
+
+    # for _ in range(20):
+    np.random.seed(1234)
+
+    a, b = np.random.uniform(1, 10), np.random.uniform(1, 10)
+
+    def functional_form(x, y):
+        return a + np.log((x + y) * b)
+
+    wealth_grid = np.empty((6, 100))  # 6 experience levels, 100 wealth levels
+    for k in range(6):
+        wealth_grid[k, :] = np.sort(np.exp(np.random.uniform(1, np.log(100), 100)))
+
+    experience_grid = np.linspace(0, 1, 6)
+
+    _experience_grid_aux = np.column_stack([experience_grid for i in range(100)])
+    policy = functional_form(wealth_grid, _experience_grid_aux)
+    value = functional_form(wealth_grid, _experience_grid_aux) * np.log(2)
+
+    wealth_next = np.random.uniform(30, 40, 100)
+    experience_next = np.random.choice(experience_grid, 6)
+
+    wealth_next_state_choice = np.tile(wealth_next, (2, 6, 1))
+    # wealth_next_state_choice = np.tile(
+    #     np.expand_dims(np.tile(wealth_next, (2, 6, 1)), axis=-1), (1, 1, 1, 5)
+    # )
+    experience_next_state_choice = np.tile(experience_next, (2, 1))
+    # experience_next_state_choice = np.tile(
+    #     np.expand_dims(experience_next_state_choice, axis=-1), (1, 1, 100)
+    # )
+    policy_state_choice = np.tile(policy, (2, 1, 1))
+    value_state_choice = np.tile(value, (2, 1, 1))
+    wealth_grid_state_choice = np.tile(wealth_grid, (2, 1, 1))
+    # experience_grid_state_choice = np.tile(experience_grid, (2, 1))
+
+    # wealth_and_continuous_state_next_period = (wealth_next, experience_next)
+    # value_interpolated, marginal_utility_interpolated = interpolate_value_and_marg_util(
+    #     compute_marginal_utility=marginal_utility_crra,
+    #     compute_utility=utility_crra,
+    #     state_choice_vec={"choice": 0},
+    #     exog_grids=exog_grids,
+    #     wealth_and_continuous_state_next=wealth_and_continuous_state_next_period,
+    #     endog_grid_child_state_choice=wealth_grid,
+    #     policy_child_state_choice=policy,
+    #     value_child_state_choice=value,
+    #     has_second_continuous_state=True,
+    #     params=PARAMS,
+    # )
+
+    interp_for_single_state_choice = vmap(
+        # vmap(
+        #     in_axes=(
+        #         None,
+        #         None,
+        #         None,
+        #         0,
+        #         1,
+        #         0,
+        #         1,
+        #         1,
+        #         1,
+        #         None,
+        #     ),  # continuous state
+        # ),
+        # interp_over_continuous_grid,
+        interp2d_value_and_marg_util_for_state_choice,
+        in_axes=(None, None, 0, None, 0, 0, 0, 0, 0, None),  # discrete state-choice
+    )
+
+    marg_util, val = interp_for_single_state_choice(
+        # compute_marginal_utility,
+        # compute_utility,
+        # state_choice_vec,
+        # regular_grid,
+        # wealth_next,
+        # continuous_state_next,
+        # endog_grid_child_state_choice,
+        # policy_child_state_choice,
+        # value_child_state_choice,
+        # params,
+        marginal_utility_crra_partial,
+        utility_crra,
+        {"choice": jnp.array([0, 1])},
+        jnp.array(experience_grid),
+        jnp.array(wealth_next_state_choice),
+        jnp.array(experience_next_state_choice),
+        jnp.array(wealth_grid_state_choice),
+        jnp.array(policy_state_choice),
+        jnp.array(value_state_choice),
+        PARAMS,
+    )
+
+    np.testing.assert_equal(marg_util.shape, (2, 6, 100))
+    np.testing.assert_equal(val.shape, (2, 6, 100))
