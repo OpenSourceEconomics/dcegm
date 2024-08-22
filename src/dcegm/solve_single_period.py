@@ -103,7 +103,6 @@ def solve_for_interpolated_values(
     )
 
     # EGM step 3)
-    # extra dimension for second continuous state?
     (
         endog_grid_candidate,
         value_candidate,
@@ -126,7 +125,6 @@ def solve_for_interpolated_values(
 
     # Run upper envelope over all state-choice combinations to remove suboptimal
     # candidates
-    # extra dimension for second continuous state?
     (
         endog_grid_state_choice,
         policy_state_choice,
@@ -139,6 +137,7 @@ def solve_for_interpolated_values(
         state_choice_mat=state_choice_mat,
         compute_utility=model_funcs["compute_utility"],
         params=params,
+        has_second_continuous_state=has_second_continuous_state,
         compute_upper_envelope_for_state_choice=model_funcs["compute_upper_envelope"],
     )
 
@@ -157,6 +156,7 @@ def run_upper_envelope(
     state_choice_mat,
     compute_utility,
     params,
+    has_second_continuous_state,
     compute_upper_envelope_for_state_choice,
 ):
     """Run upper envelope to remove suboptimal candidates.
@@ -164,17 +164,34 @@ def run_upper_envelope(
     Vectorized over all state-choice combinations.
 
     """
-    # extra vmap for second continuous grid
-    return vmap(
-        compute_upper_envelope_for_state_choice,
-        in_axes=(0, 0, 0, 0, 0, None, None),  # vmap over state-choice combs
-        # in_axes=(1, 1, 1, 1, None, None, None),  # vmap over regular grid
-    )(
-        endog_grid_candidate,
-        policy_candidate,
-        value_candidate,
-        expected_values[:, 0],
-        state_choice_mat,
-        compute_utility,
-        params,
-    )
+
+    if has_second_continuous_state:
+        return vmap(
+            vmap(
+                compute_upper_envelope_for_state_choice,
+                in_axes=(0, 0, 0, 0, None, None, None),  # continuous state
+            ),
+            in_axes=(0, 0, 0, 0, 0, None, None),  # discrete states and choices
+        )(
+            endog_grid_candidate,
+            policy_candidate,
+            value_candidate,
+            expected_values[:, 0],
+            state_choice_mat,
+            compute_utility,
+            params,
+        )
+
+    else:
+        return vmap(
+            compute_upper_envelope_for_state_choice,
+            in_axes=(0, 0, 0, 0, 0, None, None),  # discrete states and choice combs
+        )(
+            endog_grid_candidate,
+            policy_candidate,
+            value_candidate,
+            expected_values[:, 0],
+            state_choice_mat,
+            compute_utility,
+            params,
+        )
