@@ -125,8 +125,6 @@ def solve_for_interpolated_values(
     # Run upper envelope over all state-choice combinations to remove suboptimal
     # candidates
     # extra dimension for second continuous state
-
-    # breakpoint()
     (
         endog_grid_state_choice,
         policy_state_choice,
