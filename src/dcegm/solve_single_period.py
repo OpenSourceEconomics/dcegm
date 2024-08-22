@@ -54,16 +54,17 @@ def solve_single_period(
         policy_state_choice,
         value_state_choice,
     ) = solve_for_interpolated_values(
-        value_interpolated,
-        marginal_utility_interpolated,
-        state_choice_mat,
-        child_states_to_integrate_exog,
-        child_state_choices_to_aggr_choice,
-        params,
-        taste_shock_scale,
-        income_shock_weights,
-        exog_grids[0],
-        model_funcs,
+        value_interpolated=value_interpolated,
+        marginal_utility_interpolated=marginal_utility_interpolated,
+        state_choice_mat=state_choice_mat,
+        child_state_idxs=child_states_to_integrate_exog,
+        states_to_choices_child_states=child_state_choices_to_aggr_choice,
+        params=params,
+        taste_shock_scale=taste_shock_scale,
+        income_shock_weights=income_shock_weights,
+        exog_savings_grid=exog_grids[0],
+        model_funcs=model_funcs,
+        has_second_continuous_state=has_second_continuous_state,
     )
 
     value_solved = value_solved.at[state_choices_idxs, :].set(value_state_choice)
@@ -88,11 +89,11 @@ def solve_for_interpolated_values(
     income_shock_weights,
     exog_savings_grid,
     model_funcs,
+    has_second_continuous_state,
 ):
     # EGM step 2)
     # Aggregate the marginal utilities and expected values over all state-choice
     # combinations and income shock draws
-    # extra dimension for second continuous state?
     marg_util, emax = aggregate_marg_utils_and_exp_values(
         value_state_choice_specific=value_interpolated,
         marg_util_state_choice_specific=marginal_utility_interpolated,
@@ -102,7 +103,7 @@ def solve_for_interpolated_values(
     )
 
     # EGM step 3)
-    # extra dimension for second continuous state
+    # extra dimension for second continuous state?
     (
         endog_grid_candidate,
         value_candidate,
@@ -112,19 +113,20 @@ def solve_for_interpolated_values(
         exog_savings_grid=exog_savings_grid,
         marg_util=marg_util,
         emax=emax,
-        state_choice_vec=state_choice_mat,
+        state_choice_mat=state_choice_mat,
         idx_post_decision_child_states=child_state_idxs,
         compute_inverse_marginal_utility=model_funcs[
             "compute_inverse_marginal_utility"
         ],
         compute_utility=model_funcs["compute_utility"],
         compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
+        has_second_continuous_state=has_second_continuous_state,
         params=params,
     )
 
     # Run upper envelope over all state-choice combinations to remove suboptimal
     # candidates
-    # extra dimension for second continuous state
+    # extra dimension for second continuous state?
     (
         endog_grid_state_choice,
         policy_state_choice,

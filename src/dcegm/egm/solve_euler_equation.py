@@ -11,11 +11,12 @@ def calculate_candidate_solutions_from_euler_equation(
     exog_savings_grid: np.ndarray,
     marg_util: jnp.ndarray,
     emax: jnp.ndarray,
-    state_choice_vec: np.ndarray,
+    state_choice_mat: np.ndarray,
     idx_post_decision_child_states: np.ndarray,
     compute_utility: Callable,
     compute_inverse_marginal_utility: Callable,
     compute_exog_transition_vec: Callable,
+    has_second_continuous_state: bool,
     params: Dict[str, float],
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Calculate candidates for the optimal policy and value function."""
@@ -29,27 +30,54 @@ def calculate_candidate_solutions_from_euler_equation(
 
     # transform exog_transition_mat to matrix with same shape as state_choice_vec
 
-    (
-        endog_grid,
-        policy,
-        value,
-        expected_value,
-    ) = vmap(
-        vmap(
-            compute_optimal_policy_and_value,
-            in_axes=(1, 1, 0, None, None, None, None, None),  # savings grid
-        ),
-        in_axes=(0, 0, None, 0, None, None, None, None),  # states and choices
-    )(
-        feasible_marg_utils_child,
-        feasible_emax_child,
-        exog_savings_grid,
-        state_choice_vec,
-        compute_inverse_marginal_utility,
-        compute_utility,
-        compute_exog_transition_vec,
-        params,
-    )
+    if has_second_continuous_state:
+        (
+            endog_grid,
+            policy,
+            value,
+            expected_value,
+        ) = vmap(
+            vmap(
+                vmap(
+                    compute_optimal_policy_and_value,
+                    in_axes=(1, 1, 0, None, None, None, None, None),  # savings grid
+                ),
+                in_axes=(1, 1, None, None, None, None, None, None),  # continuous state
+            ),
+            in_axes=(0, 0, None, 0, None, None, None, None),  # discrete states choices
+        )(
+            feasible_marg_utils_child,
+            feasible_emax_child,
+            exog_savings_grid,
+            state_choice_mat,
+            compute_inverse_marginal_utility,
+            compute_utility,
+            compute_exog_transition_vec,
+            params,
+        )
+    else:
+        (
+            endog_grid,
+            policy,
+            value,
+            expected_value,
+        ) = vmap(
+            vmap(
+                compute_optimal_policy_and_value,
+                in_axes=(1, 1, 0, None, None, None, None, None),  # savings grid
+            ),
+            in_axes=(0, 0, None, 0, None, None, None, None),  # states and choices
+        )(
+            feasible_marg_utils_child,
+            feasible_emax_child,
+            exog_savings_grid,
+            state_choice_mat,
+            compute_inverse_marginal_utility,
+            compute_utility,
+            compute_exog_transition_vec,
+            params,
+        )
+
     return (
         endog_grid,
         value,
@@ -188,9 +216,11 @@ def _get_post_decision_marg_utils_and_emax(
 
     Args:
         marg_util_next (jnp.ndarray): 2d array of shape (n_choices, n_grid_wealth)
+            or 3d array of shape (n_choices, n_continuous_state, n_grid_wealth)
             containing the choice-specific marginal utilities of the next period,
             i.e. t + 1.
         emax_next (jnp.ndarray): 2d array of shape (n_choices, n_grid_wealth)
+            or 3d array of shape (n_choices, n_continuous_state, n_grid_wealth)
             containing the choice-specific expected maximum values of the next period,
             i.e. t + 1.
         idx_post_decision_child_states (jnp.ndarray): 2d array of shape
@@ -202,13 +232,15 @@ def _get_post_decision_marg_utils_and_emax(
         tuple:
 
         - marg_utils_child (np.ndarray): 3d array of shape
-            (n_child_states, n_exog_processes, n_grid_wealth) containing the
-            state-choice specific marginal utilities of the child states in
-            the current period t.
+            (n_child_states, n_exog_processes, n_grid_wealth) or 4d array of shape
+            (n_child_states, n_exog_processes, n_continuous_state, n_grid_wealth)
+            containing the state-choice specific marginal utilities of the
+            child states in the current period t.
         - emax_child (np.ndarray): 3d array of shape
-            (n_child_states, n_exog_processes, n_grid_wealth) containing the
-            state-choice specific expected maximum values of the child states
-            in the current period t.
+            (n_child_states, n_exog_processes, n_grid_wealth)  or 4d array of shape
+            (n_child_states, n_exog_processes, n_continuous_state, n_grid_wealth)
+            containing the state-choice specific expected maximum values of the
+            child states in the current period t.
 
     """
 

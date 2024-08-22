@@ -1,4 +1,9 @@
-"""Test module for EGM."""
+"""Test module for EGM steps:
+
+- aggregate_marg_utils_and_exp_values
+- calculate_candidate_solutions_from_euler_equation
+
+"""
 
 import jax.numpy as jnp
 import jax.random as random
@@ -6,9 +11,66 @@ import numpy as np
 import pytest
 
 from dcegm.egm.aggregate_marginal_utility import aggregate_marg_utils_and_exp_values
+from dcegm.egm.solve_euler_equation import (
+    calculate_candidate_solutions_from_euler_equation,
+)
+from dcegm.pre_processing.exog_processes import create_exog_transition_function
+from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
+from tests.two_period_models.model import (
+    budget_dcegm_exog_ltc,
+    budget_dcegm_exog_ltc_and_job_offer,
+    prob_exog_job_offer,
+    prob_exog_ltc,
+)
+from toy_models.consumption_retirement_model.state_space_objects import (
+    create_state_space_function_dict,
+)
+from toy_models.consumption_retirement_model.utility_functions import (
+    create_final_period_utility_function_dict,
+    create_utility_function_dict,
+)
+
+WEALTH_GRID_POINTS = 100
+
+PARAMS = {
+    "rho": 0.5,
+    "delta": 0.5,
+    "interest_rate": 0.02,
+    "ltc_cost": 5,
+    "wage_avg": 8,
+    "sigma": 1,
+    "lambda": 10,
+    "beta": 0.95,
+    # Exogenous parameters
+    "ltc_prob_constant": 0.3,
+    "ltc_prob_age": 0.1,
+    "job_offer_constant": 0.5,
+    "job_offer_age": 0,
+    "job_offer_educ": 0,
+    "job_offer_type_two": 0.4,
+}
+
+OPTIONS = {
+    "model_params": {
+        "n_grid_points": WEALTH_GRID_POINTS,
+        "max_wealth": 50,
+        "quadrature_points_stochastic": 5,
+        "n_choices": 2,
+    },
+    "state_space": {
+        "n_periods": 2,
+        "choices": np.arange(2),
+        "endogenous_states": {
+            "married": [0, 1],
+        },
+        "exogenous_processes": {
+            "ltc": {"transition": prob_exog_ltc, "states": [0, 1]},
+        },
+    },
+}
 
 
-@pytest.fixture
+@pytest.fixture()
 def input_for_aggregation():
 
     key = random.PRNGKey(0)
@@ -104,6 +166,61 @@ def input_for_aggregation():
     )
 
 
+@pytest.fixture()
+def test_input_for_euler_equation():
+    model_params_options = OPTIONS["model_params"]
+    compute_exog_transition_vec = create_exog_transition_function(OPTIONS)
+
+    utility_functions = create_utility_function_dict()
+
+    compute_utility = determine_function_arguments_and_partial_options(
+        func=utility_functions["utility"], options=model_params_options
+    )
+    compute_inverse_marginal_utility = determine_function_arguments_and_partial_options(
+        func=utility_functions["inverse_marginal_utility"],
+        options=model_params_options,
+    )
+
+    exog_savings_grid = jnp.linspace(0, 10_000, 100)
+
+    state_choice_mat = {
+        "choice": jnp.array([0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1], dtype=np.uint8),
+        "lagged_choice": jnp.array(
+            [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1], dtype=np.uint8
+        ),
+        "ltc": jnp.array([0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1], dtype=np.uint8),
+        "married": jnp.array([0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1], dtype=np.uint8),
+        "period": jnp.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=np.uint8),
+    }
+
+    child_state_idxs = jnp.array(
+        [
+            [0, 1],
+            [2, 3],
+            [0, 1],
+            [2, 3],
+            [2, 3],
+            [2, 3],
+            [4, 5],
+            [6, 7],
+            [4, 5],
+            [6, 7],
+            [6, 7],
+            [6, 7],
+        ],
+        dtype=np.uint8,
+    )
+
+    return (
+        exog_savings_grid,
+        state_choice_mat,
+        child_state_idxs,
+        compute_utility,
+        compute_inverse_marginal_utility,
+        compute_exog_transition_vec,
+    )
+
+
 def test_aggregation_1d(input_for_aggregation):
 
     (
@@ -156,3 +273,125 @@ def test_aggregation_2d(input_for_aggregation):
 
     np.testing.assert_equal(marg_util_2d.shape, (60, 6, 100))
     np.testing.assert_equal(emax_2d.shape, (60, 6, 100))
+
+
+def test_euler_1d(test_input_for_euler_equation):
+
+    (
+        exog_savings_grid,
+        state_choice_mat,
+        child_state_idxs,
+        compute_utility,
+        compute_inverse_marginal_utility,
+        compute_exog_transition_vec,
+    ) = test_input_for_euler_equation
+
+    key = random.PRNGKey(42)
+
+    key, subkey = random.split(key)
+    marg_util = random.uniform(subkey, shape=(8, 100), minval=0.0, maxval=100.0)
+
+    key, subkey = random.split(key)
+    emax = random.uniform(subkey, shape=(8, 100), minval=0.0, maxval=100.0)
+
+    (
+        endog_grid_candidate,
+        value_candidate,
+        policy_candidate,
+        expected_values,
+    ) = calculate_candidate_solutions_from_euler_equation(
+        exog_savings_grid=exog_savings_grid,
+        marg_util=marg_util,
+        emax=emax,
+        state_choice_mat=state_choice_mat,
+        idx_post_decision_child_states=child_state_idxs,
+        compute_utility=compute_utility,
+        compute_inverse_marginal_utility=compute_inverse_marginal_utility,
+        compute_exog_transition_vec=compute_exog_transition_vec,
+        has_second_continuous_state=False,
+        params=PARAMS,
+    )
+
+    np.testing.assert_equal(
+        endog_grid_candidate.shape,
+        (child_state_idxs.shape[0], exog_savings_grid.shape[0]),
+    )
+    np.testing.assert_equal(
+        value_candidate.shape,
+        (child_state_idxs.shape[0], exog_savings_grid.shape[0]),
+    )
+    np.testing.assert_equal(
+        policy_candidate.shape,
+        (child_state_idxs.shape[0], exog_savings_grid.shape[0]),
+    )
+    np.testing.assert_equal(
+        expected_values.shape,
+        (child_state_idxs.shape[0], exog_savings_grid.shape[0]),
+    )
+
+
+def test_euler_2d(test_input_for_euler_equation):
+
+    n_continuous_state = 7
+
+    (
+        exog_savings_grid,
+        state_choice_mat,
+        child_state_idxs,
+        compute_utility,
+        compute_inverse_marginal_utility,
+        compute_exog_transition_vec,
+    ) = test_input_for_euler_equation
+
+    key = random.PRNGKey(42)
+
+    key, subkey = random.split(key)
+    marg_util = random.uniform(
+        subkey,
+        shape=(8, n_continuous_state, exog_savings_grid.shape[0]),
+        minval=0.0,
+        maxval=100.0,
+    )
+
+    key, subkey = random.split(key)
+    emax = random.uniform(
+        subkey,
+        shape=(8, n_continuous_state, exog_savings_grid.shape[0]),
+        minval=0.0,
+        maxval=100.0,
+    )
+
+    (
+        endog_grid_candidate,
+        value_candidate,
+        policy_candidate,
+        expected_values,
+    ) = calculate_candidate_solutions_from_euler_equation(
+        exog_savings_grid=exog_savings_grid,
+        marg_util=marg_util,
+        emax=emax,
+        state_choice_mat=state_choice_mat,
+        idx_post_decision_child_states=child_state_idxs,
+        compute_utility=compute_utility,
+        compute_inverse_marginal_utility=compute_inverse_marginal_utility,
+        compute_exog_transition_vec=compute_exog_transition_vec,
+        has_second_continuous_state=True,
+        params=PARAMS,
+    )
+
+    np.testing.assert_equal(
+        endog_grid_candidate.shape,
+        (child_state_idxs.shape[0], n_continuous_state, exog_savings_grid.shape[0]),
+    )
+    np.testing.assert_equal(
+        value_candidate.shape,
+        (child_state_idxs.shape[0], n_continuous_state, exog_savings_grid.shape[0]),
+    )
+    np.testing.assert_equal(
+        policy_candidate.shape,
+        (child_state_idxs.shape[0], n_continuous_state, exog_savings_grid.shape[0]),
+    )
+    np.testing.assert_equal(
+        expected_values.shape,
+        (child_state_idxs.shape[0], n_continuous_state, exog_savings_grid.shape[0]),
+    )

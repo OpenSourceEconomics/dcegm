@@ -276,9 +276,9 @@ def backward_induction(
         policy_solved,
         endog_grid_solved,
     ) = create_solution_container(
-        has_second_continuous_state,
         n_state_choices=n_state_choices,
         options=options,
+        has_second_continuous_state=has_second_continuous_state,
     )
 
     # Solve the last two periods. We do this separately as the marginal utility of
@@ -299,6 +299,7 @@ def backward_induction(
         value_solved=value_solved,
         policy_solved=policy_solved,
         endog_grid_solved=endog_grid_solved,
+        has_second_continuous_state=has_second_continuous_state,
     )
 
     # If it is a two period model we are done.
@@ -368,7 +369,7 @@ def backward_induction(
     return value_solved, policy_solved, endog_grid_solved
 
 
-def create_solution_container(has_second_continuous_state, n_state_choices, options):
+def create_solution_container(n_state_choices, options, has_second_continuous_state):
     """Create solution containers for value, policy, and endog_grid."""
 
     n_total_wealth_grid = options["tuning_params"]["n_total_wealth_grid"]

@@ -41,9 +41,9 @@ TEST_CASES_EXOG_LTC_AND_JOB_OFFER = [
 
 @pytest.mark.parametrize(
     "toy_model, euler_rhs, wealth_idx, state_idx",
+    TEST_CASES_EXOG_LTC,
     # TEST_CASES_EXOG_LTC + TEST_CASES_EXOG_LTC_AND_JOB_OFFER,
-    TEST_CASES_EXOG_LTC_AND_JOB_OFFER,
-    # TEST_CASES_EXOG_LTC,
+    # TEST_CASES_EXOG_LTC_AND_JOB_OFFER,
 )
 def test_two_period(toy_model, euler_rhs, wealth_idx, state_idx, request):
     toy_model = request.getfixturevalue(toy_model)

@@ -78,23 +78,24 @@ def load_example_model():
 
 @pytest.fixture(scope="session")
 def params_and_options_exog_ltc():
-    params = {}
-    params["rho"] = 0.5
-    params["delta"] = 0.5
-    params["interest_rate"] = 0.02
-    params["ltc_cost"] = 5
-    params["wage_avg"] = 8
-    params["sigma"] = 1
-    params["lambda"] = 10
-    params["beta"] = 0.95
 
-    # exog params
-    params["ltc_prob_constant"] = 0.3
-    params["ltc_prob_age"] = 0.1
-    params["job_offer_constant"] = 0.5
-    params["job_offer_age"] = 0
-    params["job_offer_educ"] = 0
-    params["job_offer_type_two"] = 0.4
+    params = {
+        "rho": 0.5,
+        "delta": 0.5,
+        "interest_rate": 0.02,
+        "ltc_cost": 5,
+        "wage_avg": 8,
+        "sigma": 1,
+        "lambda": 10,
+        "beta": 0.95,
+        # Exogenous parameters
+        "ltc_prob_constant": 0.3,
+        "ltc_prob_age": 0.1,
+        "job_offer_constant": 0.5,
+        "job_offer_age": 0,
+        "job_offer_educ": 0,
+        "job_offer_type_two": 0.4,
+    }
 
     options = {
         "model_params": {
@@ -120,25 +121,25 @@ def params_and_options_exog_ltc():
 
 @pytest.fixture(scope="session")
 def params_and_options_exog_ltc_and_job_offer():
-    # ToDo: Write this as dictionary such that it has a much nicer overview
-    params = {}
-    params["rho"] = 0.5
-    params["delta"] = 0.5
-    params["interest_rate"] = 0.02
-    params["ltc_cost"] = 5
-    params["wage_avg"] = 8
-    params["sigma"] = 1
-    params["lambda"] = 1
-    params["ltc_prob"] = 0.3
-    params["beta"] = 0.95
 
-    # exog params
-    params["ltc_prob_constant"] = 0.3
-    params["ltc_prob_age"] = 0.1
-    params["job_offer_constant"] = 0.5
-    params["job_offer_age"] = 0
-    params["job_offer_educ"] = 0
-    params["job_offer_type_two"] = 0.4
+    params = {
+        "rho": 0.5,
+        "delta": 0.5,
+        "interest_rate": 0.02,
+        "ltc_cost": 5,
+        "wage_avg": 8,
+        "sigma": 1,
+        "lambda": 1,
+        "ltc_prob": 0.3,
+        "beta": 0.95,
+        # Exogenous parameters
+        "ltc_prob_constant": 0.3,
+        "ltc_prob_age": 0.1,
+        "job_offer_constant": 0.5,
+        "job_offer_age": 0,
+        "job_offer_educ": 0,
+        "job_offer_type_two": 0.4,
+    }
 
     options = {
         "model_params": {

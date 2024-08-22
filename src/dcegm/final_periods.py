@@ -19,6 +19,7 @@ def solve_last_two_periods(
     value_solved,
     policy_solved,
     endog_grid_solved,
+    has_second_continuous_state: bool,
 ):
     """Solves the last two periods of the model.
 
@@ -63,7 +64,7 @@ def solve_last_two_periods(
         endog_grid_solved=endog_grid_solved,
     )
 
-    (endog_grid, policy, value) = solve_for_interpolated_values(
+    endog_grid, policy, value = solve_for_interpolated_values(
         value_interpolated=value_interp_final_period,
         marginal_utility_interpolated=marginal_utility_final_last_period,
         state_choice_mat=batch_info["state_choice_mat_second_last_period"],
@@ -74,11 +75,15 @@ def solve_last_two_periods(
         income_shock_weights=income_shock_weights,
         exog_savings_grid=exog_savings_grid,
         model_funcs=model_funcs,
+        has_second_continuous_state=has_second_continuous_state,
     )
+
     idx_second_last = batch_info["idx_state_choices_second_last_period"]
+
     value_solved = value_solved.at[idx_second_last, :].set(value)
     policy_solved = policy_solved.at[idx_second_last, :].set(policy)
     endog_grid_solved = endog_grid_solved.at[idx_second_last, :].set(endog_grid)
+
     return value_solved, policy_solved, endog_grid_solved
 
 
