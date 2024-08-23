@@ -244,8 +244,7 @@ def backward_induction(
                 discrete_states_beginning_of_next_period=state_space_dict,
                 continuous_state_beginning_of_next_period=continuous_state_next_period,
                 savings_grid=exog_grids[0],
-                income_shocks_current_period=income_shock_draws_unscaled
-                * params["sigma"],
+                income_shocks=income_shock_draws_unscaled * params["sigma"],
                 params=params,
                 compute_beginning_of_period_resources=model_funcs[
                     "compute_beginning_of_period_resources"
