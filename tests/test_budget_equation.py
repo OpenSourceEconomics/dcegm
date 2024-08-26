@@ -210,16 +210,8 @@ def _transform_lagged_choice_to_working_hours(lagged_choice):
     return not_working * 0 + part_time * 2000 + full_time * 3000
 
 
-def _update_continuous_state(period, lagged_choice, continuous_grid_point, params):
+def _update_continuous_state(period, lagged_choice, continuous_state, params):
 
     working_hours = _transform_lagged_choice_to_working_hours(lagged_choice)
 
-    return (
-        1
-        / (period + 1)
-        * (
-            period * continuous_grid_point
-            # + (working_hours) / options["working_hours_max"]  # 3000
-            + (working_hours) / 3000
-        )
-    )
+    return 1 / (period + 1) * (period * continuous_state + (working_hours) / 3000)

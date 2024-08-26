@@ -5,10 +5,11 @@ from functools import partial
 
 def determine_function_arguments_and_partial_options(func, options):
     signature = set(inspect.signature(func).parameters)
+
     (
         partialed_func,
         signature,
-    ) = partial_options_and_addtional_arguments_and_update_signature(
+    ) = partial_options_and_update_signature(
         func=func,
         signature=signature,
         options=options,
@@ -23,9 +24,39 @@ def determine_function_arguments_and_partial_options(func, options):
     return processed_func
 
 
-def partial_options_and_addtional_arguments_and_update_signature(
-    func, signature, options
+def determine_function_arguments_and_partial_options(
+    func, options, continuous_state=None
 ):
+    signature = set(inspect.signature(func).parameters)
+
+    # # Check if 'continuous_state' is in the signature
+    # if "continuous_state" not in signature:
+    #     raise ValueError(f"The function does not have a 'continuous_state' argument")
+
+    # if continuous_state:
+    #     signature.remove(continuous_state)
+    #     signature.add("continuous_state")
+
+    partialed_func, signature = partial_options_and_update_signature(
+        func=func,
+        signature=signature,
+        options=options,
+    )
+
+    @functools.wraps(func)
+    def processed_func(**kwargs):
+
+        if continuous_state:
+            kwargs[continuous_state] = kwargs["continuous_state"]
+
+        func_kwargs = {key: kwargs[key] for key in signature}
+
+        return partialed_func(**func_kwargs)
+
+    return processed_func
+
+
+def partial_options_and_update_signature(func, signature, options):
     """Partial in options and update signature."""
     if "options" in signature:
         func = partial(func, options=options)

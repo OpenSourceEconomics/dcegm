@@ -228,7 +228,6 @@ def backward_induction(
     taste_shock_scale = params["lambda"]
 
     if has_second_continuous_state:
-        # continuous_grid = jnp.linspace(0, 1, 10)
         continuous_state_next_period = calculate_continuous_state(
             discrete_states_beginning_of_period=state_space_dict,
             continuous_grid=exog_grids[1],
@@ -238,7 +237,7 @@ def backward_induction(
             ],
         )
 
-        # extra dimension for continuous state
+        # Extra dimension for continuous state
         wealth_beginning_of_next_period = (
             calculate_resources_for_second_continuous_state(
                 discrete_states_beginning_of_next_period=state_space_dict,

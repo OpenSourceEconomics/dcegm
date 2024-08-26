@@ -120,6 +120,21 @@ def process_model_functions(
             options=model_params_options,
         )
 
+    if "continuous_state" in options["state_space"]:
+        continuous_state = list(options["state_space"]["continuous_state"].keys())[0]
+
+        func_name = next(
+            (key for key in state_space_functions if "continuous_state" in key), None
+        )
+
+        update_continuous_state = determine_function_arguments_and_partial_options(
+            func=state_space_functions[func_name],
+            options=model_params_options,
+            continuous_state=continuous_state,
+        )
+    else:
+        update_continuous_state = None
+
     compute_upper_envelope = create_upper_envelope_function(options)
 
     model_funcs = {
@@ -132,6 +147,7 @@ def process_model_functions(
         "compute_exog_transition_vec": compute_exog_transition_vec,
         "get_state_specific_choice_set": get_state_specific_choice_set,
         "get_next_period_state": get_next_period_state,
+        "update_continuous_state": update_continuous_state,
         "compute_upper_envelope": compute_upper_envelope,
     }
 

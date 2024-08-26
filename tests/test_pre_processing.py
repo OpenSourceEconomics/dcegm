@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 from jax import vmap
 
+from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.params import process_params
 from dcegm.pre_processing.setup_model import (
     load_and_setup_model,
@@ -10,6 +11,7 @@ from dcegm.pre_processing.setup_model import (
     setup_model,
 )
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
+from dcegm.pre_processing.state_space import check_options_and_set_defaults
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
 from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space_function_dict,
@@ -19,6 +21,22 @@ from toy_models.consumption_retirement_model.utility_functions import (
     create_utility_function_dict,
     utiility_log_crra,
 )
+
+
+def get_next_continuous_state(period, lagged_choice, experience, options, params):
+
+    working_hours = _transform_lagged_choice_to_working_hours(lagged_choice)
+
+    return 1 / (period + 1) * (period * experience + (working_hours) / 3000)
+
+
+def _transform_lagged_choice_to_working_hours(lagged_choice):
+
+    not_working = lagged_choice == 0
+    part_time = lagged_choice == 1
+    full_time = lagged_choice == 2
+
+    return not_working * 0 + part_time * 2000 + full_time * 3000
 
 
 def util_wrap(state_dict, params, util_func):
@@ -206,3 +224,69 @@ def test_grid_parameters():
             utility_functions_final_period=create_final_period_utility_function_dict(),
             budget_constraint=budget_constraint,
         )
+
+
+_periods = [0, 1, 2, 3, 4, 5]
+_lagged_choices = [0, 1, 3]
+_continuous_states = np.linspace(0, 1, 10)
+TEST_INPUT = [
+    (p, l, c) for p in _periods for l in _lagged_choices for c in _continuous_states
+]
+
+
+@pytest.mark.parametrize("period, lagged_choice, continuous_state", TEST_INPUT)
+def test_second_continuous_state(period, lagged_choice, continuous_state):
+
+    options = {
+        "state_space": {
+            "n_periods": 25,
+            "choices": np.arange(3),
+            "endogenous_states": {
+                "married": [0, 1],
+                "n_children": np.arange(3),
+            },
+            "continuous_state": {"experience": np.linspace(0, 1, 6)},
+        },
+        "model_params": {"savings_rate": 0.04},
+    }
+
+    _exog_grids = {
+        "savings": np.linspace(0, 10_000, 100),
+        "experience": np.linspace(0, 1, 6),
+    }
+    exog_grids = (_exog_grids["savings"], _exog_grids["experience"])
+
+    state_space_functions = create_state_space_function_dict()
+
+    state_space_functions["get_next_period_continuous_state"] = (
+        get_next_continuous_state
+    )
+
+    options = check_options_and_set_defaults(options, exog_grids=exog_grids)
+
+    model_funcs = process_model_functions(
+        options,
+        state_space_functions=state_space_functions,
+        utility_functions=create_utility_function_dict(),
+        utility_functions_final_period=create_final_period_utility_function_dict(),
+        budget_constraint=budget_constraint,
+    )
+
+    update_continuous_state = model_funcs["update_continuous_state"]
+
+    got = update_continuous_state(
+        period=period,
+        lagged_choice=lagged_choice,
+        continuous_state=continuous_state,
+        options=options,
+        params={},
+    )
+    expected = get_next_continuous_state(
+        period=period,
+        lagged_choice=lagged_choice,
+        experience=continuous_state,
+        options=options,
+        params={},
+    )
+
+    np.testing.assert_allclose(got, expected)

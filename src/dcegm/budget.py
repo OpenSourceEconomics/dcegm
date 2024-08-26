@@ -32,7 +32,7 @@ def calc_continuous_state_for_each_grid_point(
 ):
     out = compute_continuous_state(
         **state_vec,
-        continuous_grid_point=exog_continuous_grid_point,
+        continuous_state=exog_continuous_grid_point,
         params=params,
     )
     return out
