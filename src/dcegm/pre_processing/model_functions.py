@@ -124,7 +124,13 @@ def process_model_functions(
         continuous_state = list(options["state_space"]["continuous_state"].keys())[0]
 
         func_name = next(
-            (key for key in state_space_functions if "continuous_state" in key), None
+            (
+                key
+                for key in state_space_functions
+                if f"get_next_period_{continuous_state}" in key
+                or f"get_next_{continuous_state}" in key
+            ),
+            None,
         )
 
         update_continuous_state = determine_function_arguments_and_partial_options(

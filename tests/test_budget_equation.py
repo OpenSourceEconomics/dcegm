@@ -21,6 +21,79 @@ from toy_models.consumption_retirement_model.budget_functions import (
     budget_constraint,
 )
 
+# =====================================================================================
+# Auxiliary functions
+# =====================================================================================
+
+
+@jax.jit
+def budget_constraint_based_on_experience(
+    period: int,
+    lagged_choice: int,
+    continuous_state_beginning_of_period: float,
+    savings_end_of_previous_period: float,
+    income_shock_previous_period: float,
+    options: Dict[str, Any],
+    params: Dict[str, float],
+) -> float:
+
+    experience_years = continuous_state_beginning_of_period * period
+
+    wage = _calc_stochastic_income_for_experience(
+        experience=experience_years,
+        lagged_choice=lagged_choice,
+        wage_shock=income_shock_previous_period,
+        params=params,
+    )
+    working_hours = _transform_lagged_choice_to_working_hours(lagged_choice)
+
+    wealth_beginning_of_period = (
+        wage * working_hours * (lagged_choice > 0)
+        + (1 + params["interest_rate"]) * savings_end_of_previous_period
+    )
+
+    return jnp.maximum(wealth_beginning_of_period, params["consumption_floor"])
+
+
+def _calc_stochastic_income_for_experience(
+    experience: float,
+    lagged_choice: float,
+    wage_shock: float,
+    params: Dict[str, float],
+) -> float:
+    """Computes the current level of deterministic and stochastic income."""
+
+    log_wage = (
+        params["constant"]
+        + params["exp"] * experience
+        + params["exp_squared"] * experience**2
+        + params["part_time"] * (lagged_choice == 1)
+    )
+
+    return jnp.exp(log_wage + wage_shock)
+
+
+def _transform_lagged_choice_to_working_hours(lagged_choice):
+
+    not_working = lagged_choice == 0
+    part_time = lagged_choice == 1
+    full_time = lagged_choice == 2
+
+    return not_working * 0 + part_time * 2000 + full_time * 3000
+
+
+def _update_continuous_state(period, lagged_choice, continuous_state, params):
+
+    working_hours = _transform_lagged_choice_to_working_hours(lagged_choice)
+
+    return 1 / (period + 1) * (period * continuous_state + (working_hours) / 3000)
+
+
+# =====================================================================================
+# Tests
+# =====================================================================================
+
+
 model = ["deaton", "retirement_taste_shocks", "retirement_no_taste_shocks"]
 period = [0, 5, 7]
 labor_choice = [0, 1]
@@ -128,9 +201,6 @@ def test_wealth_and_second_continuous_state(
     _quad_points, _ = roots_sh_legendre(n_quad_points)
     quad_points = norm.ppf(_quad_points) * sigma
 
-    random_saving_scalar = np.random.randint(0, n_grid_points)
-    random_shock_scalar = np.random.randint(0, n_quad_points)
-
     compute_beginning_of_period_resources = (
         determine_function_arguments_and_partial_options(
             func=budget_constraint_based_on_experience, options={}
@@ -150,68 +220,3 @@ def test_wealth_and_second_continuous_state(
         wealth_next.shape,
         (len(child_state_dict["period"]), n_exp_points, n_grid_points, n_quad_points),
     )
-
-
-@jax.jit
-def budget_constraint_based_on_experience(
-    period: int,
-    lagged_choice: int,
-    continuous_state_beginning_of_period: float,
-    savings_end_of_previous_period: float,
-    income_shock_previous_period: float,
-    options: Dict[str, Any],
-    params: Dict[str, float],
-) -> float:
-
-    experience_years = continuous_state_beginning_of_period * period
-
-    wage = _calc_stochastic_income_for_experience(
-        experience=experience_years,
-        lagged_choice=lagged_choice,
-        wage_shock=income_shock_previous_period,
-        params=params,
-    )
-    working_hours = _transform_lagged_choice_to_working_hours(lagged_choice)
-
-    wealth_beginning_of_period = (
-        wage * working_hours * (lagged_choice > 0)
-        + (1 + params["interest_rate"]) * savings_end_of_previous_period
-    )
-
-    return jnp.maximum(wealth_beginning_of_period, params["consumption_floor"])
-
-
-def _calc_stochastic_income_for_experience(
-    experience: float,
-    lagged_choice: float,
-    wage_shock: float,
-    params: Dict[str, float],
-) -> float:
-    """Computes the current level of deterministic and stochastic income."""
-
-    # exp_coeffs = jnp.array([params["constant"], params["exp"], params["exp_squared"]])
-
-    log_wage = (
-        params["constant"]
-        + params["exp"] * experience
-        + params["exp_squared"] * experience**2
-        + params["part_time"] * (lagged_choice == 1)
-    )
-
-    return jnp.exp(log_wage + wage_shock)
-
-
-def _transform_lagged_choice_to_working_hours(lagged_choice):
-
-    not_working = lagged_choice == 0
-    part_time = lagged_choice == 1
-    full_time = lagged_choice == 2
-
-    return not_working * 0 + part_time * 2000 + full_time * 3000
-
-
-def _update_continuous_state(period, lagged_choice, continuous_state, params):
-
-    working_hours = _transform_lagged_choice_to_working_hours(lagged_choice)
-
-    return 1 / (period + 1) * (period * continuous_state + (working_hours) / 3000)

@@ -3,39 +3,10 @@ import inspect
 from functools import partial
 
 
-def determine_function_arguments_and_partial_options(func, options):
-    signature = set(inspect.signature(func).parameters)
-
-    (
-        partialed_func,
-        signature,
-    ) = partial_options_and_update_signature(
-        func=func,
-        signature=signature,
-        options=options,
-    )
-
-    @functools.wraps(func)
-    def processed_func(**kwargs):
-        func_kwargs = {key: kwargs[key] for key in signature}
-
-        return partialed_func(**func_kwargs)
-
-    return processed_func
-
-
 def determine_function_arguments_and_partial_options(
     func, options, continuous_state=None
 ):
     signature = set(inspect.signature(func).parameters)
-
-    # # Check if 'continuous_state' is in the signature
-    # if "continuous_state" not in signature:
-    #     raise ValueError(f"The function does not have a 'continuous_state' argument")
-
-    # if continuous_state:
-    #     signature.remove(continuous_state)
-    #     signature.add("continuous_state")
 
     partialed_func, signature = partial_options_and_update_signature(
         func=func,

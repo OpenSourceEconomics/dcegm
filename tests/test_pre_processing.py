@@ -23,7 +23,7 @@ from toy_models.consumption_retirement_model.utility_functions import (
 )
 
 
-def get_next_continuous_state(period, lagged_choice, experience, options, params):
+def get_next_experience(period, lagged_choice, experience, options, params):
 
     working_hours = _transform_lagged_choice_to_working_hours(lagged_choice)
 
@@ -127,7 +127,7 @@ def test_load_and_save_model(
     load_example_model,
 ):
     options = {}
-    params, _raw_options = load_example_model(f"{model_name}")
+    _params, _raw_options = load_example_model(f"{model_name}")
 
     options["model_params"] = _raw_options
     options["model_params"]["n_choices"] = _raw_options["n_discrete_choices"]
@@ -240,7 +240,9 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
     options = {
         "state_space": {
             "n_periods": 25,
+            "savings_grid": np.linspace(0, 10_000, 100),
             "choices": np.arange(3),
+            # discrete states
             "endogenous_states": {
                 "married": [0, 1],
                 "n_children": np.arange(3),
@@ -249,6 +251,7 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
         },
         "model_params": {"savings_rate": 0.04},
     }
+    params = {}
 
     _exog_grids = {
         "savings": np.linspace(0, 10_000, 100),
@@ -257,10 +260,7 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
     exog_grids = (_exog_grids["savings"], _exog_grids["experience"])
 
     state_space_functions = create_state_space_function_dict()
-
-    state_space_functions["get_next_period_continuous_state"] = (
-        get_next_continuous_state
-    )
+    state_space_functions["get_next_period_experience"] = get_next_experience
 
     options = check_options_and_set_defaults(options, exog_grids=exog_grids)
 
@@ -279,14 +279,14 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
         lagged_choice=lagged_choice,
         continuous_state=continuous_state,
         options=options,
-        params={},
+        params=params,
     )
-    expected = get_next_continuous_state(
+    expected = get_next_experience(
         period=period,
         lagged_choice=lagged_choice,
         experience=continuous_state,
         options=options,
-        params={},
+        params=params,
     )
 
     np.testing.assert_allclose(got, expected)
