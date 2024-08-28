@@ -118,7 +118,7 @@ def policy_for_state_choice_vec(
     return policy
 
 
-def get_state_choice_index_per_state(
+def get_state_choice_index_per_discrete_state(
     map_state_choice_to_index, states, state_space_names
 ):
     indexes = map_state_choice_to_index[

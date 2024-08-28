@@ -222,8 +222,6 @@ def interp2d_value_and_marg_util_for_state_choice(
 
     def interp_on_single_wealth_point(wealth_point, regular_point):
 
-        # regular_grid_child_state_choice = endog_grid_child_state_choice[]
-
         # To-Do: Add second vmap for regular grid point
 
         policy_interp, value_interp = (
