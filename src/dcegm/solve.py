@@ -122,7 +122,9 @@ def get_solve_func_for_model(model):
     """Create a solve function, which only takes params as input."""
 
     options = model["options"]
-    has_second_continuous_state = options["has_second_continuous_state"]
+    has_second_continuous_state = len(options["state_space"]["continuous_states"]) > 1
+
+    # To/Do: Rename, since "exog_savings_grid" is a tuple of grids.
     exog_grids = model["exog_savings_grid"]
 
     # ToDo: Make interface with several draw possibilities.
@@ -287,7 +289,7 @@ def backward_induction(
         policy_solved,
         endog_grid_solved,
     ) = solve_last_two_periods(
-        resources_beginning_of_period=wealth_and_continuous_state_next_period,
+        wealth_and_continuous_state_next_period=wealth_and_continuous_state_next_period,
         params=params,
         taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,

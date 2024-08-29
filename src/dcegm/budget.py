@@ -46,6 +46,7 @@ def calculate_resources_for_second_continuous_state(
     params,
     compute_beginning_of_period_resources,
 ):
+
     resources_beginning_of_period = vmap(
         vmap(
             vmap(
@@ -129,6 +130,7 @@ def calc_resources_for_each_continuous_state_and_savings_grid_point(
         income_shock_previous_period=income_shock_draw,
         params=params,
     )
+
     return out
 
 

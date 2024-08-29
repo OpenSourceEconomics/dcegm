@@ -18,6 +18,7 @@ def interpolate_value_and_marg_util(
     endog_grid_child_state_choice: jnp.ndarray,
     policy_child_state_choice: jnp.ndarray,
     value_child_state_choice: jnp.ndarray,
+    child_state_idxs: jnp.ndarray,
     has_second_continuous_state: bool,
     params: Dict[str, float],
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
@@ -56,7 +57,9 @@ def interpolate_value_and_marg_util(
     """
 
     if has_second_continuous_state:
-        wealth_next, continuous_state_next = wealth_and_continuous_state_next
+        _continuous_state, _wealth = wealth_and_continuous_state_next
+        continuous_state_next = _continuous_state[child_state_idxs]
+        wealth_next = _wealth[child_state_idxs]
         regular_grid = exog_grids[1]
 
         # interp_for_single_state_choice = vmap(
@@ -85,6 +88,7 @@ def interpolate_value_and_marg_util(
         )
 
     else:
+        wealth_next = wealth_and_continuous_state_next[child_state_idxs]
 
         interp_for_single_state_choice = vmap(
             interp1d_value_and_marg_util_for_state_choice,
@@ -95,7 +99,7 @@ def interpolate_value_and_marg_util(
             compute_marginal_utility,
             compute_utility,
             state_choice_vec,
-            wealth_and_continuous_state_next,
+            wealth_next,
             endog_grid_child_state_choice,
             policy_child_state_choice,
             value_child_state_choice,

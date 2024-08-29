@@ -579,7 +579,19 @@ def check_options_and_set_defaults(options, exog_grids):
     )
 
     options["has_second_continuous_state"] = False
-    options["n_regular_grid"] = 6
+    # options["n_regular_grid"] = 6
+
+    if len(options["state_space"]["continuous_states"]) > 1:
+        options["has_second_continuous_state"] = True
+        second_continuous_state = next(
+            (
+                value
+                for key, value in options["state_space"]["continuous_states"].items()
+                if key != "wealth"
+            ),
+            None,
+        )
+        options["tuning_params"]["n_regular_grid"] = len(second_continuous_state)
 
     return options
 

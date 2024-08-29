@@ -5,6 +5,9 @@ from upper_envelope.fues_jax.fues_jax import fues_jax
 
 from dcegm.pre_processing.exog_processes import create_exog_transition_function
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
+from dcegm.pre_processing.shared import (
+    determine_function_arguments_and_partial_options_beginning_of_period,
+)
 
 
 def process_model_functions(
@@ -78,11 +81,11 @@ def process_model_functions(
         options=model_params_options,
     )
 
-    compute_beginning_of_period_resources = (
-        determine_function_arguments_and_partial_options(
-            func=budget_constraint, options=model_params_options
-        )
-    )
+    # compute_beginning_of_period_resources = (
+    #     determine_function_arguments_and_partial_options(
+    #         func=budget_constraint, options=model_params_options
+    #     )
+    # )
 
     state_space_functions = (
         {} if state_space_functions is None else state_space_functions
@@ -120,15 +123,27 @@ def process_model_functions(
             options=model_params_options,
         )
 
-    if "continuous_state" in options["state_space"]:
-        continuous_state = list(options["state_space"]["continuous_state"].keys())[0]
+    # if "continuous_states" in options["state_space"] and :
+    second_continuous_state = next(
+        (
+            {key: value}
+            for key, value in options["state_space"]["continuous_states"].items()
+            if key != "wealth"
+        ),
+        None,
+    )
+    if second_continuous_state:
+        # continuous_state = list(options["state_space"]["continuous_state"].keys())[0]
+        continuous_state = list(second_continuous_state.keys())[0]
 
         func_name = next(
             (
                 key
                 for key in state_space_functions
-                if f"get_next_period_{continuous_state}" in key
-                or f"get_next_{continuous_state}" in key
+                for name in ["continuous_state", continuous_state]
+                if f"get_next_period_{name}" in key
+                or f"get_next_{name}" in key
+                or f"update_{name}" in key
             ),
             None,
         )
@@ -138,8 +153,28 @@ def process_model_functions(
             options=model_params_options,
             continuous_state=continuous_state,
         )
+        compute_beginning_of_period_continuous_state = (
+            determine_function_arguments_and_partial_options_beginning_of_period(
+                func=state_space_functions[func_name],
+                options=model_params_options,
+                continuous_state=continuous_state,
+            )
+        )
+        compute_beginning_of_period_resources = (
+            determine_function_arguments_and_partial_options(
+                func=budget_constraint,
+                options=model_params_options,
+                continuous_state=continuous_state,
+            )
+        )
     else:
         update_continuous_state = None
+        compute_beginning_of_period_continuous_state = None
+        compute_beginning_of_period_resources = (
+            determine_function_arguments_and_partial_options(
+                func=budget_constraint, options=model_params_options
+            )
+        )
 
     compute_upper_envelope = create_upper_envelope_function(options)
 
@@ -150,6 +185,7 @@ def process_model_functions(
         "compute_utility_final": compute_utility_final,
         "compute_marginal_utility_final": compute_marginal_utility_final,
         "compute_beginning_of_period_resources": compute_beginning_of_period_resources,
+        "compute_beginning_of_period_continuous_state": compute_beginning_of_period_continuous_state,
         "compute_exog_transition_vec": compute_exog_transition_vec,
         "get_state_specific_choice_set": get_state_specific_choice_set,
         "get_next_period_state": get_next_period_state,
