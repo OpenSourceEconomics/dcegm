@@ -4,8 +4,8 @@ import jax.numpy as jnp
 from upper_envelope.fues_jax.fues_jax import fues_jax
 
 from dcegm.pre_processing.exog_processes import create_exog_transition_function
-from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from dcegm.pre_processing.shared import (
+    determine_function_arguments_and_partial_options,
     determine_function_arguments_and_partial_options_beginning_of_period,
 )
 

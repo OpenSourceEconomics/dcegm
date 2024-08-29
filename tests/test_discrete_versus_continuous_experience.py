@@ -1,8 +1,8 @@
 from typing import Any, Dict
-import numpy as np
-import jax.numpy as jnp
-import jax
 
+import jax
+import jax.numpy as jnp
+import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
