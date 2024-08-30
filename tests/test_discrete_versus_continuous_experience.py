@@ -24,17 +24,20 @@ from toy_models.consumption_retirement_model.utility_functions import (
     utiility_log_crra_final_consume_all,
 )
 
+from toy_models.consumption_retirement_model.budget_functions import budget_constraint
+
 
 def sparsity_condition(
     period,
     experience,
+    options,
 ):
 
     max_init_experience = 0
 
     cond = True
 
-    if (period < experience) | (experience > N_PERIODS):
+    if (period < experience) | (experience > options["n_periods"]):
         cond = False
 
     # if (age >= options["max_ret_age"] + 1) & (is_retired(lagged_choice) is False):
@@ -125,7 +128,7 @@ def budget_constraint_continuous(
 
     # Calculate stochastic labor income
     income_from_previous_period = _calc_stochastic_income(
-        experience=experience_years * 100,
+        experience=experience_years,
         wage_shock=income_shock_previous_period,
         params=params,
     )
@@ -154,7 +157,7 @@ def budget_constraint_discrete(
 
     # Calculate stochastic labor income
     income_from_previous_period = _calc_stochastic_income(
-        experience=experience * 100,
+        experience=experience,
         wage_shock=income_shock_previous_period,
         params=params,
     )
@@ -233,31 +236,107 @@ def get_state_specific_feasible_choice_set(
     return feasible_choice_set
 
 
-def sparsity_condition(
-    period,
-    experience,
-):
-
-    max_init_experience = 0
-
-    cond = True
-
-    if (period + max_init_experience == experience) & (period > 0) | (
-        experience > N_PERIODS
-    ):
-        cond = False
-
-    # if (age >= options["max_ret_age"] + 1) & (is_retired(lagged_choice) is False):
-    #     cond = False
-
-    return cond
-
-
 # ====================================================================================
 # Test
 # ====================================================================================
 
 
+def test_replication_discrete(load_example_model):
+    options = {}
+    model_name = "retirement_no_taste_shocks"
+    params, _raw_options = load_example_model(f"{model_name}")
+
+    _n_periods = 20
+
+    options["model_params"] = _raw_options
+    options["model_params"]["n_periods"] = _n_periods
+    options["model_params"]["n_choices"] = _raw_options["n_discrete_choices"]
+    options["state_space"] = {
+        "n_periods": _n_periods,
+        # "choices": [i for i in range(_raw_options["n_discrete_choices"])],
+        "choices": np.arange(2),
+        "endogenous_states": {
+            "experience": np.arange(_n_periods),
+            "sparsity_condition": sparsity_condition,
+        },
+        "continuous_states": {
+            "wealth": jnp.linspace(
+                0,
+                options["model_params"]["max_wealth"],
+                options["model_params"]["n_grid_points"],
+            )
+        },
+    }
+
+    exog_savings_grid = jnp.linspace(
+        0,
+        options["model_params"]["max_wealth"],
+        options["model_params"]["n_grid_points"],
+    )
+    utility_functions = create_utility_function_dict()
+    utility_functions_final_period = create_final_period_utility_function_dict()
+
+    state_space_functions = {
+        "get_next_period_state": get_next_period_state,
+        "get_state_specific_feasible_choice_set": get_state_specific_feasible_choice_set,
+    }
+
+    model = setup_model(
+        options=options,
+        exog_grids=(exog_savings_grid,),
+        state_space_functions=state_space_functions,
+        utility_functions=utility_functions,
+        utility_functions_final_period=utility_functions_final_period,
+        budget_constraint=budget_constraint_discrete,
+    )
+    value, policy, endog_grid = solve_dcegm(
+        params,
+        options,
+        exog_grids=(exog_savings_grid,),
+        state_space_functions=state_space_functions,
+        utility_functions=utility_functions,
+        utility_functions_final_period=utility_functions_final_period,
+        budget_constraint=budget_constraint_discrete,
+    )
+
+    # =================================================================================
+    # Continuous experience
+    # =================================================================================
+
+    options_cont = options.copy()
+    options_cont["state_space"]["continuous_states"]["experience"] = np.linspace(
+        0, 1, EXPERIENCE_GRID_POINTS
+    )
+
+    state_space_functions_continuous = {
+        "get_next_period_state": get_next_period_discrete_state,
+        "update_continuous_state": get_next_period_experience,
+        "get_state_specific_feasible_choice_set": get_state_specific_feasible_choice_set,
+    }
+
+    model_cont = setup_model(
+        options=options_cont,
+        exog_grids=(exog_savings_grid, jnp.linspace(0, 1, EXPERIENCE_GRID_POINTS)),
+        state_space_functions=state_space_functions_continuous,
+        utility_functions=utility_functions,
+        utility_functions_final_period=utility_functions_final_period,
+        budget_constraint=budget_constraint_continuous,
+    )
+    value_cont, policy_cont, endog_grid_cont = solve_dcegm(
+        params,
+        options_cont,
+        exog_grids=(exog_savings_grid, jnp.linspace(0, 1, EXPERIENCE_GRID_POINTS)),
+        state_space_functions=state_space_functions_continuous,
+        utility_functions=utility_functions,
+        utility_functions_final_period=utility_functions_final_period,
+        budget_constraint=budget_constraint_continuous,
+    )
+
+    state_choice_space_cont = model_cont["model_structure"]["state_choice_space"]
+    breakpoint()
+
+
+@pytest.mark.skip()
 def test_discrete_exp():
 
     exog_savings_grid = jnp.linspace(
