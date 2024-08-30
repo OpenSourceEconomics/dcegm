@@ -6,12 +6,16 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
+from dcegm.interpolation.interp2d import (
+    interp2d_policy_and_value_on_wealth_and_regular_grid,
+)
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import solve_dcegm
 from tests.utils.interp1d_auxiliary import (
     interpolate_policy_and_value_on_wealth_grid,
     linear_interpolation_with_extrapolation,
 )
+from toy_models.consumption_retirement_model.budget_functions import budget_constraint
 
 # from toy_models.consumption_retirement_model.budget_functions import budget_constraint
 from toy_models.consumption_retirement_model.state_space_objects import (
@@ -22,11 +26,6 @@ from toy_models.consumption_retirement_model.utility_functions import (
     create_utility_function_dict,
     utiility_log_crra,
     utiility_log_crra_final_consume_all,
-)
-
-from toy_models.consumption_retirement_model.budget_functions import budget_constraint
-from dcegm.interpolation.interp2d import (
-    interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
 
 
