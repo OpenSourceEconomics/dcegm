@@ -25,6 +25,9 @@ from toy_models.consumption_retirement_model.utility_functions import (
 )
 
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
+from dcegm.interpolation.interp2d import (
+    interp2d_policy_and_value_on_wealth_and_regular_grid,
+)
 
 
 def sparsity_condition(
@@ -195,24 +198,26 @@ def get_next_period_experience(period, choice, experience, options, params):
     return 1 / (period + 1) * (period * experience + working)
 
 
-def get_next_period_state(period, choice, experience):
+def get_next_period_state(period, choice, married, experience):
 
     next_state = {}
 
     next_state["period"] = period + 1
     next_state["lagged_choice"] = choice
+    next_state["married"] = married
 
     next_state["experience"] = experience + (choice == 0)
 
     return next_state
 
 
-def get_next_period_discrete_state(period, choice):
+def get_next_period_discrete_state(period, choice, married):
 
     next_state = {}
 
     next_state["period"] = period + 1
     next_state["lagged_choice"] = choice
+    next_state["married"] = married
 
     return next_state
 
@@ -257,6 +262,7 @@ def test_replication_discrete(load_example_model):
         "choices": np.arange(2),
         "endogenous_states": {
             "experience": np.arange(_n_periods),
+            "married": np.arange(2),
             "sparsity_condition": sparsity_condition,
         },
         "continuous_states": {
@@ -299,14 +305,20 @@ def test_replication_discrete(load_example_model):
         budget_constraint=budget_constraint_discrete,
     )
 
+    state_choice_space_discrete = model["model_structure"]["state_choice_space"]
+    where_experience = model["model_structure"]["state_space_names"].index("experience")
+
     # =================================================================================
     # Continuous experience
     # =================================================================================
+    experience_grid = np.linspace(0, 1, EXPERIENCE_GRID_POINTS)
 
     options_cont = options.copy()
     options_cont["state_space"]["continuous_states"]["experience"] = np.linspace(
         0, 1, EXPERIENCE_GRID_POINTS
     )
+    options_cont["state_space"]["endogenous_states"].pop("experience")
+    options_cont["state_space"]["endogenous_states"].pop("sparsity_condition")
 
     state_space_functions_continuous = {
         "get_next_period_state": get_next_period_discrete_state,
@@ -333,6 +345,54 @@ def test_replication_discrete(load_example_model):
     )
 
     state_choice_space_cont = model_cont["model_structure"]["state_choice_space"]
+
+    # =================================================================================
+    # Interpolate
+    # =================================================================================
+
+    # # idx_discrete = state_choice_space_discrete[state_choice_space_discrete[:, 0] == 15]
+    # # idx_continuous = state_choice_space_discrete.shape[1] - 1
+
+    period = 15
+    exp = 10
+    exp_share_to_test = exp / period
+
+    idx_discrete = state_choice_space_discrete[
+        (state_choice_space_discrete[:, 0] == period)
+        & (state_choice_space_discrete[:, where_experience] == exp)
+    ]
+    idx_cont = state_choice_space_cont[state_choice_space_cont[:, 0] == period]
+
+    val_disc = value[idx_discrete[-1]]
+    val_cont = value_cont[idx_cont[-1]]
+
+    matches = jnp.all(state_choice_space_discrete == idx_discrete[-1], axis=1)
+    d = jnp.where(matches)[0]
+
+    matches = jnp.all(state_choice_space_cont == idx_cont[-1], axis=1)
+    c = jnp.where(matches)[0]
+
+    # value_cont_interp = linear_interpolation_with_extrapolation(
+    #     x_new=exp_share_to_test, x=experience_grid, y=value_cont[c]
+    # )
+
+    state_space_names_cont = model_cont["model_structure"]["state_space_names"]
+    state_space_names_cont.append("choice")
+    state_choice_vec_cont = dict(zip(state_space_names_cont, idx_cont[-1]))
+
+    # jnp.squeeze(value_cont[c], axis=0)
+
+    value_interp, policy_interp = interp2d_policy_and_value_on_wealth_and_regular_grid(
+        regular_grid=experience_grid,
+        wealth_grid=endog_grid_cont[c][0],
+        policy_grid=policy_cont[c][0],
+        value_grid=value_cont[c][0],
+        regular_point_to_interp=exp_share_to_test,
+        wealth_point_to_interp=endog_grid_cont[c][0][0][50],
+        compute_utility=model_cont["model_funcs"]["compute_utility"],
+        state_choice_vec=state_choice_vec_cont,
+        params=params,
+    )
     breakpoint()
 
 

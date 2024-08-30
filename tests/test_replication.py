@@ -131,6 +131,7 @@ def test_benchmark_models(
             policy=policy[state_choice_idx],
             value_grid=value[state_choice_idx],
         )
+        breakpoint()
 
         aaae(policy_expec_interp, policy_calc_interp)
         aaae(value_expec_interp, value_calc_interp)
