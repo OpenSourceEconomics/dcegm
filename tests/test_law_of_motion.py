@@ -10,7 +10,7 @@ from numpy.testing import assert_array_almost_equal as aaae
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 
-from dcegm.budget import (
+from dcegm.law_of_motion import (
     calculate_continuous_state,
     calculate_resources_for_second_continuous_state,
 )

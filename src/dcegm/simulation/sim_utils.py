@@ -4,14 +4,14 @@ import pandas as pd
 from jax import numpy as jnp
 from jax import vmap
 
-from dcegm.budget import (
-    calculate_resources_for_all_agents,
-    calculate_resources_given_second_continuous_state_for_all_agents,
-)
 from dcegm.interface import get_state_choice_index_per_discrete_state
 from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
 from dcegm.interpolation.interp2d import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
+)
+from dcegm.law_of_motion import (
+    calculate_resources_for_all_agents,
+    calculate_resources_given_second_continuous_state_for_all_agents,
 )
 
 

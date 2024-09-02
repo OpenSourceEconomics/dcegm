@@ -119,9 +119,7 @@ def _calc_stochastic_income(
 
 def get_next_period_experience(period, choice, experience, options, params):
 
-    working = choice == 0
-
-    return 1 / (period + 1) * (period * experience + working)
+    return 1 / (period + 1) * (period * experience + (choice == 0))
 
 
 def get_next_period_state(period, choice, married, experience):

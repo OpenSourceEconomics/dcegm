@@ -582,8 +582,7 @@ def check_options_and_set_defaults(options):
 
     exog_grids = options["state_space"]["continuous_states"].copy()
 
-    if len(options["state_space"]["continuous_states"]) > 1:
-
+    if len(options["state_space"]["continuous_states"]) == 2:
         second_continuous_state = next(
             (
                 {key: value}
