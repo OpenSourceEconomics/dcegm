@@ -16,12 +16,10 @@ from tests.utils.interp1d_auxiliary import (
     interpolate_policy_and_value_on_wealth_grid,
     linear_interpolation_with_extrapolation,
 )
-
 from toy_models.consumption_retirement_model.utility_functions import (
     create_final_period_utility_function_dict,
     create_utility_function_dict,
 )
-
 
 N_PERIODS = 20
 MAX_WEALTH = 50
