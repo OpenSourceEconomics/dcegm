@@ -9,12 +9,12 @@ import numpy as np
 import pandas as pd
 from jax import jit
 
-from dcegm.budget import (
+from dcegm.final_periods import solve_last_two_periods
+from dcegm.law_of_motion import (
     calculate_continuous_state,
     calculate_resources,
     calculate_resources_for_second_continuous_state,
 )
-from dcegm.final_periods import solve_last_two_periods
 from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.params import process_params
 from dcegm.pre_processing.setup_model import setup_model
