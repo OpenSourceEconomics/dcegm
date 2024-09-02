@@ -54,7 +54,9 @@ def process_model_functions(
 
     """
 
-    compute_exog_transition_vec = create_exog_transition_function(options)
+    compute_exog_transition_vec, processed_exog_funcs_dict = (
+        create_exog_transition_function(options)
+    )
 
     model_params_options = options["model_params"]
 
@@ -130,6 +132,7 @@ def process_model_functions(
         "compute_marginal_utility_final": compute_marginal_utility_final,
         "compute_beginning_of_period_resources": compute_beginning_of_period_resources,
         "compute_exog_transition_vec": compute_exog_transition_vec,
+        "processed_exog_funcs": processed_exog_funcs_dict,
         "get_state_specific_choice_set": get_state_specific_choice_set,
         "get_next_period_state": get_next_period_state,
         "compute_upper_envelope": compute_upper_envelope,
