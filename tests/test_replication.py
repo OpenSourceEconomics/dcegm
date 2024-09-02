@@ -129,7 +129,7 @@ def test_benchmark_models(
             wealth_beginning_of_period=wealth_grid_to_test,
             endog_wealth_grid=endog_grid[state_choice_idx],
             policy=policy[state_choice_idx],
-            value_grid=value[state_choice_idx],
+            value=value[state_choice_idx],
         )
         breakpoint()
 
