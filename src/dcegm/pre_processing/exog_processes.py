@@ -16,13 +16,14 @@ def create_exog_transition_function(options):
     if "exogenous_processes" not in options["state_space"]:
         options["state_space"]["exogenous_states"] = {"exog_state": [0]}
         compute_exog_transition_vec = return_dummy_exog_transition
+        processed_exog_funcs_dict = {}
     else:
-        exog_funcs = process_exog_funcs(options)
+        exog_funcs, processed_exog_funcs_dict = process_exog_funcs(options)
 
         compute_exog_transition_vec = partial(
             get_exog_transition_vec, exog_funcs=exog_funcs
         )
-    return compute_exog_transition_vec
+    return compute_exog_transition_vec, processed_exog_funcs_dict
 
 
 def process_exog_funcs(options):
@@ -38,18 +39,17 @@ def process_exog_funcs(options):
     exog_processes = options["state_space"]["exogenous_processes"]
 
     exog_funcs = []
+    processed_exog_funcs = {}
 
     # What about vectors instead of callables supplied?
-    for exog in exog_processes.values():
-        if isinstance(exog["transition"], Callable):
-            exog_funcs += [
-                determine_function_arguments_and_partial_options(
-                    func=exog["transition"],
-                    options=options["model_params"],
-                )
-            ]
-
-    return exog_funcs
+    for exog_name, exog_dict in exog_processes.items():
+        if isinstance(exog_dict["transition"], Callable):
+            processed_exog_func = determine_function_arguments_and_partial_options(
+                func=exog_dict["transition"], options=options["model_params"]
+            )
+            exog_funcs += [processed_exog_func]
+            processed_exog_funcs[exog_name] = processed_exog_func
+    return exog_funcs, processed_exog_funcs
 
 
 def get_exog_transition_vec(exog_funcs, params, **state_choice_vars):
