@@ -74,7 +74,7 @@ def create_choice_prob_func_unobserved_states(
     unobserved_state_specs,
 ):
     # First prepare full observed states, choices and pre period states for weighting
-    full_mask = unobserved_state_specs["observed_bool"].values
+    full_mask = unobserved_state_specs["observed_bool"]
     full_observed_states = {
         name: observed_states[name][full_mask]
         for name in model["model_structure"]["state_space_names"]
