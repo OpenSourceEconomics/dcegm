@@ -81,12 +81,6 @@ def process_model_functions(
         options=model_params_options,
     )
 
-    # compute_beginning_of_period_resources = (
-    #     determine_function_arguments_and_partial_options(
-    #         func=budget_constraint, options=model_params_options
-    #     )
-    # )
-
     state_space_functions = (
         {} if state_space_functions is None else state_space_functions
     )
@@ -123,24 +117,17 @@ def process_model_functions(
             options=model_params_options,
         )
 
-    # if "continuous_states" in options["state_space"] and :
-    second_continuous_state = next(
-        (
-            {key: value}
-            for key, value in options["state_space"]["continuous_states"].items()
-            if key != "wealth"
-        ),
-        None,
-    )
-    if second_continuous_state:
-        # continuous_state = list(options["state_space"]["continuous_state"].keys())[0]
-        continuous_state = list(second_continuous_state.keys())[0]
+    if len(options["state_space"]["continuous_states"]) == 2:
+        continuous_state_name = options["second_continuous_state_name"]
 
         func_name = next(
             (
                 key
                 for key in state_space_functions
-                for name in ["continuous_state", continuous_state]
+                for name in [
+                    "continuous_state",
+                    continuous_state_name,
+                ]
                 if f"get_next_period_{name}" in key
                 or f"get_next_{name}" in key
                 or f"update_{name}" in key
@@ -151,20 +138,20 @@ def process_model_functions(
         update_continuous_state = determine_function_arguments_and_partial_options(
             func=state_space_functions[func_name],
             options=model_params_options,
-            continuous_state=continuous_state,
+            continuous_state=continuous_state_name,
         )
         compute_beginning_of_period_continuous_state = (
             determine_function_arguments_and_partial_options_beginning_of_period(
                 func=state_space_functions[func_name],
                 options=model_params_options,
-                continuous_state=continuous_state,
+                continuous_state=continuous_state_name,
             )
         )
         compute_beginning_of_period_resources = (
             determine_function_arguments_and_partial_options(
                 func=budget_constraint,
                 options=model_params_options,
-                continuous_state=continuous_state,
+                continuous_state=continuous_state_name,
             )
         )
     else:

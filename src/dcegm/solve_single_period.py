@@ -61,7 +61,7 @@ def solve_single_period(
         params=params,
         taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,
-        exog_savings_grid=exog_grids[0],
+        exog_savings_grid=exog_grids["wealth"],
         model_funcs=model_funcs,
         has_second_continuous_state=has_second_continuous_state,
     )

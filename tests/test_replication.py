@@ -58,11 +58,6 @@ def test_benchmark_models(
         },
     }
 
-    exog_savings_grid = jnp.linspace(
-        0,
-        options["model_params"]["max_wealth"],
-        options["model_params"]["n_grid_points"],
-    )
     utility_functions = create_utility_function_dict()
     utility_functions_final_period = create_final_period_utility_function_dict()
 
@@ -75,7 +70,6 @@ def test_benchmark_models(
 
     model = setup_model(
         options=options,
-        exog_grids=(exog_savings_grid,),
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
@@ -85,7 +79,6 @@ def test_benchmark_models(
     value, policy, endog_grid = solve_dcegm(
         params,
         options,
-        exog_grids=(exog_savings_grid,),
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
@@ -131,7 +124,6 @@ def test_benchmark_models(
             policy=policy[state_choice_idx],
             value=value[state_choice_idx],
         )
-        breakpoint()
 
         aaae(policy_expec_interp, policy_calc_interp)
         aaae(value_expec_interp, value_calc_interp)

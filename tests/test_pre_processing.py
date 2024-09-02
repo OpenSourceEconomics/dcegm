@@ -57,6 +57,9 @@ def test_wrap_function(load_example_model):
                     "thus": np.arange(25),
                     "that": [0, 1],
                 },
+                "continuous_states": {
+                    "wealth": np.linspace(0, 500, 100),
+                },
                 "exogenous_processes": {
                     "ltc": {"states": np.array([0]), "transition": jnp.array([0])}
                 },
@@ -134,17 +137,14 @@ def test_load_and_save_model(
     options["state_space"] = {
         "n_periods": 25,
         "choices": [i for i in range(_raw_options["n_discrete_choices"])],
+        "continuous_states": {
+            "wealth": np.linspace(0, 500, 100),
+        },
     }
-
-    exog_savings_grid = jnp.linspace(
-        0,
-        options["model_params"]["max_wealth"],
-        options["model_params"]["n_grid_points"],
-    )
+    options["exog_grids"] = options["state_space"]["continuous_states"]["wealth"].copy()
 
     model_setup = setup_model(
         options=options,
-        exog_grids=(exog_savings_grid,),
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -153,7 +153,6 @@ def test_load_and_save_model(
 
     model_after_saving = setup_and_save_model(
         options=options,
-        exog_savings_grid=(exog_savings_grid,),
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -196,12 +195,14 @@ def test_load_and_save_model(
 def test_grid_parameters():
     options = {
         "model_params": {
-            "max_wealth": 10,
-            "n_grid_points": 100,
+            "saving_rate": 0.04,
         },
         "state_space": {
             "n_periods": 25,
             "choices": [0, 1],
+            "continuous_states": {
+                "wealth": np.linspace(0, 10, 100),
+            },
         },
         "tuning_params": {
             "extra_wealth_grid_factor": 0.2,
@@ -209,16 +210,9 @@ def test_grid_parameters():
         },
     }
 
-    exog_savings_grid = jnp.linspace(
-        0,
-        options["model_params"]["max_wealth"],
-        options["model_params"]["n_grid_points"],
-    )
-
     with pytest.raises(ValueError) as e:
         setup_model(
             options=options,
-            exog_grids=(exog_savings_grid,),
             state_space_functions=create_state_space_function_dict(),
             utility_functions=create_utility_function_dict(),
             utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -240,29 +234,25 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
     options = {
         "state_space": {
             "n_periods": 25,
-            "savings_grid": np.linspace(0, 10_000, 100),
             "choices": np.arange(3),
             # discrete states
             "endogenous_states": {
                 "married": [0, 1],
                 "n_children": np.arange(3),
             },
-            "continuous_state": {"experience": np.linspace(0, 1, 6)},
+            "continuous_states": {
+                "wealth": np.linspace(0, 10_000, 100),
+                "experience": np.linspace(0, 1, 6),
+            },
         },
         "model_params": {"savings_rate": 0.04},
     }
     params = {}
 
-    _exog_grids = {
-        "savings": np.linspace(0, 10_000, 100),
-        "experience": np.linspace(0, 1, 6),
-    }
-    exog_grids = (_exog_grids["savings"], _exog_grids["experience"])
-
     state_space_functions = create_state_space_function_dict()
     state_space_functions["get_next_period_experience"] = get_next_experience
 
-    options = check_options_and_set_defaults(options, exog_grids=exog_grids)
+    options = check_options_and_set_defaults(options)
 
     model_funcs = process_model_functions(
         options,

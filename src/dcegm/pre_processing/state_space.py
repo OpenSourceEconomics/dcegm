@@ -513,9 +513,8 @@ def create_indexer_for_space(space):
     return map_vars_to_index
 
 
-def check_options_and_set_defaults(options, exog_grids):
+def check_options_and_set_defaults(options):
     """Check if options are valid and set defaults."""
-    n_savings_grid_points = exog_grids[0].shape[0]
 
     if not isinstance(options, dict):
         raise ValueError("Options must be a dictionary.")
@@ -544,6 +543,9 @@ def check_options_and_set_defaults(options, exog_grids):
 
     if "n_choices" not in options["model_params"]:
         options["model_params"]["n_choices"] = len(options["state_space"]["choices"])
+
+    n_savings_grid_points = len(options["state_space"]["continuous_states"]["wealth"])
+    options["n_wealth_grid"] = n_savings_grid_points
 
     if "tuning_params" not in options:
         options["tuning_params"] = {}
@@ -578,20 +580,32 @@ def check_options_and_set_defaults(options, exog_grids):
         * (1 + options["tuning_params"]["extra_wealth_grid_factor"])
     )
 
-    options["has_second_continuous_state"] = False
-    # options["n_regular_grid"] = 6
+    exog_grids = options["state_space"]["continuous_states"].copy()
 
     if len(options["state_space"]["continuous_states"]) > 1:
-        options["has_second_continuous_state"] = True
+
         second_continuous_state = next(
             (
-                value
+                {key: value}
                 for key, value in options["state_space"]["continuous_states"].items()
                 if key != "wealth"
             ),
             None,
         )
-        options["tuning_params"]["n_regular_grid"] = len(second_continuous_state)
+
+        second_continuous_state_name = list(second_continuous_state.keys())[0]
+        options["second_continuous_state_name"] = second_continuous_state_name
+
+        options["tuning_params"]["n_second_continuous_grid"] = len(
+            second_continuous_state[second_continuous_state_name]
+        )
+
+        exog_grids["second_continuous"] = options["state_space"]["continuous_states"][
+            second_continuous_state_name
+        ]
+        exog_grids.pop(second_continuous_state_name)
+
+    options["exog_grids"] = exog_grids
 
     return options
 

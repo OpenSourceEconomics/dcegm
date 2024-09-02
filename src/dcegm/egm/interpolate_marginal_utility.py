@@ -60,15 +60,8 @@ def interpolate_value_and_marg_util(
         _continuous_state, _wealth = wealth_and_continuous_state_next
         continuous_state_next = _continuous_state[child_state_idxs]
         wealth_next = _wealth[child_state_idxs]
-        regular_grid = exog_grids[1]
+        regular_grid = exog_grids["second_continuous"]
 
-        # interp_for_single_state_choice = vmap(
-        #     vmap(
-        #         interp2d_value_and_marg_util_for_state_choice,
-        #         in_axes=(None, None, 0, 1, 1, 0, 0, 0, None),  # continuous state
-        #     ),
-        #     in_axes=(None, None, 0, 0, 0, 0, 0, 0, None),  # discrete state-choice
-        # )
         interp_for_single_state_choice = vmap(
             interp2d_value_and_marg_util_for_state_choice,
             in_axes=(None, None, 0, None, 0, 0, 0, 0, 0, None),  # discrete state-choice

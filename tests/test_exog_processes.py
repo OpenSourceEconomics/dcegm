@@ -52,8 +52,6 @@ def test_exog_processes():
 
     options = {
         "model_params": {
-            "n_grid_points": 100,
-            "max_wealth": 50,
             "quadrature_points_stochastic": 5,
             "n_choices": 2,
         },
@@ -62,6 +60,9 @@ def test_exog_processes():
             "choices": np.arange(2),
             "endogenous_states": {
                 "married": [0, 1],
+            },
+            "continuous_states": {
+                "wealth": np.linspace(0, 50, 100),
             },
             "exogenous_processes": {
                 "health_mother": {

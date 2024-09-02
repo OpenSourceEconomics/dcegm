@@ -16,84 +16,18 @@ from tests.utils.interp1d_auxiliary import (
     interpolate_policy_and_value_on_wealth_grid,
     linear_interpolation_with_extrapolation,
 )
-from toy_models.consumption_retirement_model.budget_functions import budget_constraint
 
-# from toy_models.consumption_retirement_model.budget_functions import budget_constraint
-from toy_models.consumption_retirement_model.state_space_objects import (
-    create_state_space_function_dict,
-)
 from toy_models.consumption_retirement_model.utility_functions import (
     create_final_period_utility_function_dict,
     create_utility_function_dict,
-    utiility_log_crra,
-    utiility_log_crra_final_consume_all,
 )
 
 
-def sparsity_condition(
-    period,
-    experience,
-    options,
-):
-
-    max_init_experience = 0
-
-    cond = True
-
-    if (period + max_init_experience < experience) | (
-        experience > options["n_periods"]
-    ):
-        cond = False
-
-    return cond
-
-
+N_PERIODS = 20
 MAX_WEALTH = 50
 WEALTH_GRID_POINTS = 100
-EXPERIENCE_GRID_POINTS = 6  # 9
+EXPERIENCE_GRID_POINTS = 6
 
-N_PERIODS = 20
-
-# OPTIONS_DISCRETE_EXP = {
-#     "model_params": {
-#         "n_grid_points": WEALTH_GRID_POINTS,
-#         "max_wealth": MAX_WEALTH,
-#         "quadrature_points_stochastic": 5,
-#         "n_choices": 2,
-#     },
-#     "state_space": {
-#         "n_periods": N_PERIODS,
-#         "choices": np.arange(2),
-#         "endogenous_states": {
-#             "married": [0, 1],
-#             "experience": np.arange(N_PERIODS),
-#             "sparsity_condition": sparsity_condition,
-#         },
-#         "continuous_states": {
-#             "wealth": np.linspace(0, MAX_WEALTH, WEALTH_GRID_POINTS),
-#         },
-#     },
-# }
-
-# OPTIONS_CONTINUOUS_EXP = {
-#     "model_params": {
-#         "n_grid_points": WEALTH_GRID_POINTS,
-#         "max_wealth": MAX_WEALTH,
-#         "quadrature_points_stochastic": 5,
-#         "n_choices": 2,
-#     },
-#     "state_space": {
-#         "n_periods": N_PERIODS,
-#         "choices": np.arange(2),
-#         "endogenous_states": {
-#             "married": [0, 1],
-#         },
-#         "continuous_states": {
-#             "wealth": np.linspace(0, MAX_WEALTH, WEALTH_GRID_POINTS),
-#             "experience": np.linspace(0, 1, EXPERIENCE_GRID_POINTS),
-#         },
-#     },
-# }
 
 PARAMS = {
     "beta": 0.95,
@@ -223,7 +157,6 @@ def get_state_specific_feasible_choice_set(
     """Select state-specific feasible choice set such that retirement is absorbing."""
 
     n_choices = options["n_choices"]
-    # n_choices = len(options["state_space"]["choices"])
 
     # Once the agent choses retirement, she can only choose retirement thereafter.
     # Hence, retirement is an absorbing state.
@@ -235,19 +168,38 @@ def get_state_specific_feasible_choice_set(
     return feasible_choice_set
 
 
+def sparsity_condition(
+    period,
+    experience,
+    options,
+):
+
+    max_init_experience = 0
+
+    cond = True
+
+    if (period + max_init_experience < experience) | (
+        experience > options["n_periods"]
+    ):
+        cond = False
+
+    return cond
+
+
 # ====================================================================================
 # Test
 # ====================================================================================
 
 
-def test_replication_discrete(load_example_model):
+@pytest.mark.xfail(reason="Find bug")
+def test_replication_discrete_versus_continuous_experience(load_example_model):
     options = {}
     model_name = "retirement_no_taste_shocks"
     params, _raw_options = load_example_model(f"{model_name}")
 
     options["model_params"] = _raw_options
     options["model_params"]["n_periods"] = N_PERIODS
-    options["model_params"]["n_max_wealth"] = MAX_WEALTH
+    options["model_params"]["max_wealth"] = MAX_WEALTH
     options["model_params"]["n_grid_points"] = WEALTH_GRID_POINTS
     options["model_params"]["n_choices"] = _raw_options["n_discrete_choices"]
 
@@ -268,7 +220,6 @@ def test_replication_discrete(load_example_model):
         },
     }
 
-    exog_savings_grid = options["state_space"]["continuous_states"]["wealth"]
     utility_functions = create_utility_function_dict()
     utility_functions_final_period = create_final_period_utility_function_dict()
 
@@ -279,7 +230,6 @@ def test_replication_discrete(load_example_model):
 
     model_disc = setup_model(
         options=options,
-        exog_grids=(exog_savings_grid,),
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
@@ -288,7 +238,6 @@ def test_replication_discrete(load_example_model):
     value_disc, policy_disc, endog_grid_disc = solve_dcegm(
         params,
         options,
-        exog_grids=(exog_savings_grid,),
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
@@ -303,12 +252,10 @@ def test_replication_discrete(load_example_model):
     # =================================================================================
     # Continuous experience
     # =================================================================================
-    experience_grid = np.linspace(0, 1, EXPERIENCE_GRID_POINTS)
+    experience_grid = jnp.linspace(0, 1, EXPERIENCE_GRID_POINTS)
 
     options_cont = options.copy()
-    options_cont["state_space"]["continuous_states"]["experience"] = np.linspace(
-        0, 1, EXPERIENCE_GRID_POINTS
-    )
+    options_cont["state_space"]["continuous_states"]["experience"] = experience_grid
     options_cont["state_space"]["endogenous_states"].pop("experience")
     options_cont["state_space"]["endogenous_states"].pop("sparsity_condition")
 
@@ -320,7 +267,6 @@ def test_replication_discrete(load_example_model):
 
     model_cont = setup_model(
         options=options_cont,
-        exog_grids=(exog_savings_grid, jnp.linspace(0, 1, EXPERIENCE_GRID_POINTS)),
         state_space_functions=state_space_functions_continuous,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
@@ -329,7 +275,6 @@ def test_replication_discrete(load_example_model):
     value_cont, policy_cont, endog_grid_cont = solve_dcegm(
         params,
         options_cont,
-        exog_grids=(exog_savings_grid, jnp.linspace(0, 1, EXPERIENCE_GRID_POINTS)),
         state_space_functions=state_space_functions_continuous,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,

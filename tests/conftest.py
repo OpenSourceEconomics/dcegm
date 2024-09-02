@@ -99,8 +99,6 @@ def params_and_options_exog_ltc():
 
     options = {
         "model_params": {
-            "n_grid_points": WEALTH_GRID_POINTS,
-            "max_wealth": 50,
             "quadrature_points_stochastic": 5,
             "n_choices": 2,
         },
@@ -109,6 +107,9 @@ def params_and_options_exog_ltc():
             "choices": np.arange(2),
             "endogenous_states": {
                 "married": [0, 1],
+            },
+            "continuous_states": {
+                "wealth": np.linspace(0, 50, WEALTH_GRID_POINTS),
             },
             "exogenous_processes": {
                 "ltc": {"transition": prob_exog_ltc, "states": [0, 1]},
@@ -143,8 +144,6 @@ def params_and_options_exog_ltc_and_job_offer():
 
     options = {
         "model_params": {
-            "n_grid_points": WEALTH_GRID_POINTS,
-            "max_wealth": 50,
             "quadrature_points_stochastic": 5,
             "n_choices": 2,
         },
@@ -153,6 +152,9 @@ def params_and_options_exog_ltc_and_job_offer():
             "choices": np.arange(2),
             "endogenous_states": {
                 "married": [0, 1],
+            },
+            "continuous_states": {
+                "wealth": np.linspace(0, 50, WEALTH_GRID_POINTS),
             },
             "exogenous_processes": {
                 "ltc": {"transition": prob_exog_ltc, "states": [0, 1]},
@@ -169,16 +171,10 @@ def toy_model_exog_ltc(
     params_and_options_exog_ltc,
 ):
     params, options = params_and_options_exog_ltc
-    exog_savings_grid = jnp.linspace(
-        0,
-        options["model_params"]["max_wealth"],
-        options["model_params"]["n_grid_points"],
-    )
 
     out = {}
     model = setup_model(
         options=options,
-        exog_grids=(exog_savings_grid,),
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -192,7 +188,6 @@ def toy_model_exog_ltc(
     ) = solve_dcegm(
         params,
         options,
-        exog_grids=(exog_savings_grid,),
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -210,16 +205,10 @@ def toy_model_exog_ltc_and_job_offer(
     params_and_options_exog_ltc_and_job_offer,
 ):
     params, options = params_and_options_exog_ltc_and_job_offer
-    exog_savings_grid = jnp.linspace(
-        0,
-        options["model_params"]["max_wealth"],
-        options["model_params"]["n_grid_points"],
-    )
 
     out = {}
     model = setup_model(
         options=options,
-        exog_grids=(exog_savings_grid,),
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -233,7 +222,6 @@ def toy_model_exog_ltc_and_job_offer(
     ) = solve_dcegm(
         params,
         options,
-        exog_grids=(exog_savings_grid,),
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),

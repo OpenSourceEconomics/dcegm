@@ -28,6 +28,9 @@ def options(load_example_model):
                     "thus": np.arange(25),
                     "that": [0, 1],
                 },
+                "continuous_states": {
+                    "wealth": np.linspace(0, 50, 100),
+                },
                 "exogenous_processes": {
                     "ltc": {"states": np.array([0]), "transition": jnp.array([0])}
                 },
@@ -211,6 +214,7 @@ def test_state_space():
                 "retirement_age_id": np.arange(10, dtype=int),
                 "sparsity_condition": sparsity_condition,
             },
+            "continuous_states": {"wealth": np.linspace(0, 50, 100)},
         },
         "model_params": {
             "n_periods": n_periods,  # 25 + 50 = 75
