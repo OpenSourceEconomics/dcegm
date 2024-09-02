@@ -18,6 +18,7 @@ from dcegm.interface import get_state_choice_index_per_state
 from dcegm.interpolation import interp_value_on_wealth
 from dcegm.solve import get_solve_func_for_model
 
+
 def create_individual_likelihood_function_for_model(
     model: Dict[str, Any],
     observed_states: Dict[str, int],
@@ -66,6 +67,7 @@ def create_individual_likelihood_function_for_model(
 
     return individual_likelihood
 
+
 def create_choice_prob_func_unobserved_states(
     model: Dict[str, Any],
     observed_states: Dict[str, int],
@@ -88,7 +90,9 @@ def create_choice_prob_func_unobserved_states(
         for name in unobserved_state_specs["pre_period_states"].keys()
     }
     for state_name in unobserved_state_specs["states"]:
-        pre_period_full_observed_states[state_name + "_new"] = full_observed_states[state_name]
+        pre_period_full_observed_states[state_name + "_new"] = full_observed_states[
+            state_name
+        ]
 
     # Finish with partial prob function for full observed states
     partial_choice_probs_full_observed_states = create_partial_choice_prob_calculation(
@@ -97,7 +101,6 @@ def create_choice_prob_func_unobserved_states(
         observed_wealth=full_observed_wealth,
         model=model,
     )
-
 
     # Read out possible values for unobserved states
     unobserved_state_values = {}
@@ -148,7 +151,9 @@ def create_choice_prob_func_unobserved_states(
                 )
         # Now overwrite existing lists
         possible_unobserved_states = new_possible_unobserved_states
-        possible_pre_period_unobserved_states = new_possible_pre_period_unobserved_states
+        possible_pre_period_unobserved_states = (
+            new_possible_pre_period_unobserved_states
+        )
 
     # Create a list of partial choice probability functions for each unique
     # combination of unobserved states.
@@ -183,7 +188,9 @@ def create_choice_prob_func_unobserved_states(
         objects = {}
         i = 0
         for partial_choice_prob, unobserved_state, pre_period_unobserved_states in zip(
-            partial_choice_probs_unobserved_states, possible_unobserved_states, possible_pre_period_unobserved_states
+            partial_choice_probs_unobserved_states,
+            possible_unobserved_states,
+            possible_pre_period_unobserved_states,
         ):
             weights = jax.vmap(
                 partial_weight_func,
