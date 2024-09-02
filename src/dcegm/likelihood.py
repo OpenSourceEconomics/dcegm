@@ -15,7 +15,7 @@ from dcegm.egm.aggregate_marginal_utility import (
     calculate_choice_probs_and_unsqueezed_logsum,
 )
 from dcegm.interface import get_state_choice_index_per_state
-from dcegm.interpolation import interp_value_on_wealth
+from dcegm.interpolation.interp1d import interp_value_on_wealth
 from dcegm.solve import get_solve_func_for_model
 
 
