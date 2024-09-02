@@ -6,10 +6,10 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
+from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
 from dcegm.interpolation.interp2d import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
-from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import solve_dcegm
 from tests.utils.interp1d_auxiliary import (
