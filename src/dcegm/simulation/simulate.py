@@ -51,14 +51,6 @@ def simulate_all_periods(
         for key, value in states_initial.items()
         if key in discrete_state_space
     }
-    # states_initial_dtype = {
-    #     key: (
-    #         value.astype(discrete_state_space[key].dtype)
-    #         if key in discrete_state_space
-    #         else value
-    #     )
-    #     for key, value in states_initial.items()
-    # }
 
     if second_continuous_state:
         states_initial_dtype[second_continuous_state_name] = states_initial[
@@ -77,22 +69,6 @@ def simulate_all_periods(
     model_structure = model["model_structure"]
     model_funcs = model["model_funcs"]
 
-    # has_second_continuous_state = (
-    #     True
-    #     if "continuous_state" in state_space_dict
-    #     else False
-    #     # or len 2
-    # )
-
-    # second_continuous_state = next(
-    #     (
-    #         key
-    #         for key in model["options"]["state_space"]["continuous_states"]
-    #         if key != "wealth"
-    #     ),
-    #     None,
-    # )
-
     compute_next_period_states = {
         "get_next_period_state": model_funcs["get_next_period_state"],
         "update_continuous_state": model_funcs["update_continuous_state"],
@@ -102,7 +78,6 @@ def simulate_all_periods(
         simulate_single_period,
         params=params,
         state_space_names=model_structure["state_space_names"],
-        second_continuous_state=second_continuous_state,
         endog_grid_solved=endog_grid_solved,
         value_solved=value_solved,
         policy_solved=policy_solved,
@@ -117,6 +92,7 @@ def simulate_all_periods(
         ],
         exog_state_mapping=model_funcs["exog_state_mapping"],
         compute_next_period_states=compute_next_period_states,
+        second_continuous_state=second_continuous_state,
     )
 
     states_and_resources_beginning_of_first_period = (
@@ -155,7 +131,6 @@ def simulate_single_period(
     sim_specific_keys,
     params,
     state_space_names,
-    second_continuous_state,
     endog_grid_solved,
     value_solved,
     policy_solved,
@@ -166,22 +141,16 @@ def simulate_single_period(
     compute_beginning_of_period_resources,
     exog_state_mapping,
     compute_next_period_states,
+    second_continuous_state=None,
 ):
     (
         states_beginning_of_period,
         resources_beginning_of_period,
     ) = states_and_resources_beginning_of_period
 
-    # states_beginning_of_period = states_beginning_of_period.copy()
-
     if second_continuous_state:
         continuous_state_name = list(second_continuous_state.keys())[0]
         continuous_grid = second_continuous_state[continuous_state_name]
-
-        # continuous_state_beginning_of_period = states_beginning_of_period.pop(
-        #     continuous_state_name
-        # )
-        # discrete_states_beginning_of_period = states_beginning_of_period
 
         continuous_state_beginning_of_period = states_beginning_of_period[
             continuous_state_name
@@ -191,10 +160,14 @@ def simulate_single_period(
             for key, value in states_beginning_of_period.items()
             if key != continuous_state_name
         }
+    else:
+        discrete_states_beginning_of_period = states_beginning_of_period
+        continuous_state_beginning_of_period = None
+        continuous_grid = None
 
     # Interpolate policy and value function for all agents.
     policy, values_pre_taste_shock = interpolate_policy_and_value_for_all_agents(
-        discrete_states_beginning_of_period=states_beginning_of_period,
+        discrete_states_beginning_of_period=discrete_states_beginning_of_period,
         continuous_state_beginning_of_period=continuous_state_beginning_of_period,
         resources_beginning_of_period=resources_beginning_of_period,
         value_solved=value_solved,
@@ -254,9 +227,11 @@ def simulate_single_period(
         sim_specific_keys=sim_specific_keys,
     )
 
-    states_next_period = discrete_states_next_period | {
-        continuous_state_name: continuous_state_next_period
-    }
+    states_next_period = discrete_states_next_period
+
+    if second_continuous_state:
+        states_next_period[continuous_state_name] = continuous_state_next_period
+
     carry = states_next_period, resources_beginning_of_next_period
 
     result = {
@@ -282,7 +257,7 @@ def simulate_final_period(
     choice_range,
     map_state_choice_to_index,
     compute_utility_final_period,
-    second_continuous_state,
+    second_continuous_state=None,
 ):
     invalid_number = np.iinfo(map_state_choice_to_index.dtype).max
 

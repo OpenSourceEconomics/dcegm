@@ -31,22 +31,6 @@ def interpolate_policy_and_value_for_all_agents(
 ):
 
     if continuous_state_beginning_of_period is not None:
-        # continuous_state_name = list(second_continuous_state.keys())[0]
-        # continuous_grid = second_continuous_state[continuous_state_name]
-
-        # # continuous_state_beginning_of_period = states_beginning_of_period.pop(
-        # #     continuous_state_name
-        # # )
-        # # discrete_states_beginning_of_period = states_beginning_of_period
-
-        # continuous_state_beginning_of_period = states_beginning_of_period[
-        #     continuous_state_name
-        # ]
-        # discrete_states_beginning_of_period = {
-        #     key: value
-        #     for key, value in states_beginning_of_period.items()
-        #     if key != continuous_state_name
-        # }
 
         discrete_state_choice_indexes = get_state_choice_index_per_discrete_state(
             map_state_choice_to_index=map_state_choice_to_index,
@@ -67,21 +51,6 @@ def interpolate_policy_and_value_for_all_agents(
         endog_grid_agent = jnp.take(
             endog_grid_solved, discrete_state_choice_indexes, axis=0
         )
-
-        # =================================================================================
-
-        # vectorized_interp = vmap(
-        #     vmap(
-        #         vmap(
-        #             interpolate_policy_and_value_function,
-        #             in_axes=(None, None, 0, 0, 0, None, None, None),  # continuous state
-        #         ),
-        #         in_axes=(None, None, 0, 0, 0, 0, None, None),  # choices
-        #     ),
-        #     in_axes=(0, 0, 0, 0, 0, None, None, None),  # agents
-        # )
-
-        # =================================================================================
 
         vectorized_interp = vmap(
             vmap(
@@ -129,8 +98,6 @@ def interpolate_policy_and_value_for_all_agents(
             endog_grid_solved, discrete_state_choice_indexes, axis=0
         )
 
-        # =================================================================================
-
         vectorized_interp = vmap(
             vmap(
                 interp1d_policy_and_value_function,
@@ -138,8 +105,6 @@ def interpolate_policy_and_value_for_all_agents(
             ),
             in_axes=(0, 0, 0, 0, 0, None, None, None),  # agents
         )
-
-        # =================================================================================
 
         policy_agent, value_agent = vectorized_interp(
             resources_beginning_of_period,
@@ -251,16 +216,6 @@ def transition_to_next_period(
         choice,
         params,
     )
-    continuous_state_next_period = vmap(
-        update_continuous_state_for_one_agent,
-        in_axes=(None, 0, 0, 0, None),  # choice
-    )(
-        compute_next_period_states["update_continuous_state"],
-        discrete_states_beginning_of_period,
-        continuous_state_beginning_of_period,
-        choice,
-        params,
-    )
 
     # Generate states next period and apply budged constraint for wealth at the
     # beginning of next period.
@@ -273,8 +228,19 @@ def transition_to_next_period(
     income_shocks_next_period = draw_normal_shocks(
         key=sim_specific_keys[1, :], num_agents=n_agents, mean=0, std=params["sigma"]
     )
-    resources_beginning_of_next_period = (
-        calculate_resources_given_second_continuous_state_for_all_agents(
+
+    if continuous_state_beginning_of_period is not None:
+        continuous_state_next_period = vmap(
+            update_continuous_state_for_one_agent,
+            in_axes=(None, 0, 0, 0, None),  # choice
+        )(
+            compute_next_period_states["update_continuous_state"],
+            discrete_states_beginning_of_period,
+            continuous_state_beginning_of_period,
+            choice,
+            params,
+        )
+        resources_beginning_of_next_period = calculate_resources_given_second_continuous_state_for_all_agents(
             states_beginning_of_period=discrete_states_next_period,
             continuous_state_beginning_of_period=continuous_state_next_period,
             savings_end_of_previous_period=savings_current_period,
@@ -282,7 +248,16 @@ def transition_to_next_period(
             params=params,
             compute_beginning_of_period_resources=compute_beginning_of_period_resources,
         )
-    )
+    else:
+        continuous_state_next_period = None
+
+        resources_beginning_of_next_period = calculate_resources_for_all_agents(
+            states_beginning_of_period=discrete_states_next_period,
+            savings_end_of_previous_period=savings_current_period,
+            income_shocks_of_period=income_shocks_next_period,
+            params=params,
+            compute_beginning_of_period_resources=compute_beginning_of_period_resources,
+        )
 
     return (
         resources_beginning_of_next_period,

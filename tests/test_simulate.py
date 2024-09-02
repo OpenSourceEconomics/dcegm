@@ -57,13 +57,6 @@ def _transform_lagged_choice_to_working_hours(lagged_choice):
 @pytest.fixture()
 def model_setup(toy_model_exog_ltc):
     options = toy_model_exog_ltc["options"]
-    options["state_space"]["continuous_states"] = {
-        "wealth": np.linspace(
-            0,
-            options["model_params"]["max_wealth"],
-            options["model_params"]["n_grid_points"],
-        )
-    }
 
     seed = 111
     n_agents = 1_000
@@ -96,7 +89,6 @@ def model_setup(toy_model_exog_ltc):
     }
 
 
-@pytest.mark.skip()
 def test_simulate_lax_scan(model_setup):
     params = model_setup["params"]
     options = model_setup["options"]
@@ -141,8 +133,7 @@ def test_simulate_lax_scan(model_setup):
             "compute_beginning_of_period_resources"
         ],
         exog_state_mapping=exog_state_mapping,
-        get_next_period_state=get_next_period_state,
-        has_second_continuous_state=False,
+        compute_next_period_states={"get_next_period_state": get_next_period_state},
     )
 
     # a) lax.scan
@@ -171,7 +162,6 @@ def test_simulate_lax_scan(model_setup):
         choice_range=choice_range,
         map_state_choice_to_index=jnp.array(map_state_choice_to_index),
         compute_utility_final_period=model_funcs["compute_utility_final"],
-        has_second_continuous_state=False,
     )
     final_period_dict = simulate_final_period(
         states_and_resources_beginning_of_final_period,
@@ -181,7 +171,6 @@ def test_simulate_lax_scan(model_setup):
         choice_range=choice_range,
         map_state_choice_to_index=jnp.array(map_state_choice_to_index),
         compute_utility_final_period=model_funcs["compute_utility_final"],
-        has_second_continuous_state=False,
     )
 
     aaae(np.squeeze(lax_sim_dict_zero["taste_shocks"]), sim_dict_zero["taste_shocks"])
@@ -194,7 +183,6 @@ def test_simulate_lax_scan(model_setup):
         aaae(lax_final_period_dict[key], final_period_dict[key])
 
 
-@pytest.mark.skip()
 def test_simulate(model_setup):
     params = model_setup["params"]
     options = model_setup["options"]
@@ -236,7 +224,6 @@ def test_simulate(model_setup):
     aaae(value_period_zero.mean(), expected.mean(), decimal=2)
 
 
-# @pytest.mark.skip()
 def test_simulate_second_continuous_choice(model_setup):
 
     model = model_setup["model"].copy()
