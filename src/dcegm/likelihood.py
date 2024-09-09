@@ -65,7 +65,7 @@ def create_individual_likelihood_function_for_model(
         log_value = jnp.sum(-likelihood_contributions)
         return log_value, likelihood_contributions
 
-    return individual_likelihood
+    return jax.jit(individual_likelihood)
 
 
 def create_choice_prob_func_unobserved_states(
@@ -222,17 +222,9 @@ def create_choice_prob_func_unobserved_states(
             endog_grid_in=endog_grid_in,
             params_in=params_in,
         )
-        weight_choice_probs_full = jax.vmap(
-            partial_weight_func,
-            in_axes=(None, 0, 0),
-        )(
-            params_in,
-            pre_period_full_observed_states,
-            unobserved_state_specs["pre_period_choices"][full_mask],
-        )
 
         choice_probs_final = choice_probs_final.at[observed_states_index].set(
-            choice_probs_full * weight_choice_probs_full
+            choice_probs_full
         )
 
         return choice_probs_final
