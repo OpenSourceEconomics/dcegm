@@ -5,6 +5,8 @@ from typing import Callable, Dict
 import jax.lax
 import jax.numpy as jnp
 
+from dcegm.interpolation.interp1d import get_index_high_and_low
+
 TRANSFORMATION_MAT = jnp.array(
     [
         [1.0, 0.0, 0.0, 0.0],
@@ -273,10 +275,9 @@ def find_grid_coords_for_interp(
     """
 
     # Determine the closest points in the regular direction
-    regular_idx_left = search_for_closest_lower_idx_and_clip(
+    regular_idx_right, regular_idx_left = get_index_high_and_low(
         regular_grid, regular_point_to_interp
     )
-    regular_idx_right = regular_idx_left + 1
 
     regular_points = jnp.array(
         [
@@ -288,14 +289,12 @@ def find_grid_coords_for_interp(
     )
 
     # Determine the closest points in the irregular (wealth) direction
-    wealth_idx_lower_left = search_for_closest_lower_idx_and_clip(
+    wealth_idx_upper_left, wealth_idx_lower_left = get_index_high_and_low(
         wealth_grid[regular_idx_left], wealth_point_to_interp
     )
-    wealth_idx_upper_left = wealth_idx_lower_left + 1
-    wealth_idx_lower_right = search_for_closest_lower_idx_and_clip(
+    wealth_idx_upper_right, wealth_idx_lower_right = get_index_high_and_low(
         wealth_grid[regular_idx_right], wealth_point_to_interp
     )
-    wealth_idx_upper_right = wealth_idx_lower_right + 1
 
     coords_idxs = jnp.array(
         [
@@ -395,34 +394,3 @@ def compute_vertex_weights(x, y):
     """
 
     return jnp.array([(1 - x) * (1 - y), x * (1 - y), x * y, (1 - x) * y])
-
-
-def search_for_closest_lower_idx_and_clip(sorted_grid, element):
-    """Search for the closest lower insertion index of an element into a sorted grid.
-
-    This function locates the position where a given element should be inserted into a
-    sorted array (`sorted_grid`) to guarantee the element is always referenced against
-    valid neighboring grid points.
-
-    The subtraction of 1 from the result of `searchsorted` accounts for finding the
-    lower index of the bounding interval where interpolation occurs.
-
-    The resulting index is clipped to ensure it remains within valid bounds.
-
-    Args:
-        sorted_grid (jnp.ndarray): A 1d array of sorted values representing the grid
-            where the search is conducted. The array must be sorted in ascending order.
-        element (float): The value for which to determine the insertion index
-            on the sorted grid.
-
-    Returns:
-        int: The index of the element to be inserted into the grid. The index refers to
-            the closest point on the sorted grid and is clipped to make sure it lies
-            within the valid range of indices.
-
-    """
-
-    idx_low = jnp.searchsorted(sorted_grid, element) - 1
-    idx_low = jnp.clip(idx_low, 0, len(sorted_grid) - 2)
-
-    return idx_low

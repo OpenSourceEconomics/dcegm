@@ -243,7 +243,6 @@ def _get_post_decision_marg_utils_and_emax(
             child states in the current period t.
 
     """
-
     # state-choice specific
     marg_utils_child = jnp.take(marg_util_next, idx_post_decision_child_states, axis=0)
     emax_child = jnp.take(emax_next, idx_post_decision_child_states, axis=0)

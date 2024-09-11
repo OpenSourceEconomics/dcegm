@@ -117,9 +117,10 @@ def _calc_stochastic_income(
     return jnp.exp(labor_income + wage_shock)
 
 
-def get_next_period_experience(period, choice, experience, options, params):
+def get_next_period_experience(period, lagged_choice, experience, options, params):
+    # ToDo: Rewrite in the sense of budget equation
 
-    return 1 / (period + 1) * (period * experience + (choice == 0))
+    return (1 / period) * ((period - 1) * experience + (lagged_choice == 0))
 
 
 def get_next_period_state(period, choice, married, experience):
@@ -187,7 +188,6 @@ def sparsity_condition(
 # ====================================================================================
 
 
-@pytest.mark.xfail(reason="Find bug")
 def test_replication_discrete_versus_continuous_experience(load_example_model):
     options = {}
     model_name = "retirement_no_taste_shocks"
@@ -283,7 +283,7 @@ def test_replication_discrete_versus_continuous_experience(load_example_model):
     # Interpolate
     # =================================================================================
 
-    period = 15
+    period = 19
     experience = 10
     exp_share_to_test = experience / period
 
@@ -310,46 +310,43 @@ def test_replication_discrete_versus_continuous_experience(load_example_model):
     state_space_names_cont.append("choice")
     state_choice_vec_cont = dict(zip(state_space_names_cont, state_choice_cont))
 
-    for exp in range(1, 6):
-        for wealth in range(1, options["model_params"]["n_grid_points"]):
+    for wealth_to_test in np.arange(5, 100, 5, dtype=float):
 
-            policy_cont_interp, value_cont_interp = (
-                interp2d_policy_and_value_on_wealth_and_regular_grid(
-                    regular_grid=experience_grid,
-                    wealth_grid=jnp.squeeze(endog_grid_cont[idx_cont], axis=0),
-                    policy_grid=jnp.squeeze(policy_cont[idx_cont], axis=0),
-                    value_grid=jnp.squeeze(value_cont[idx_cont], axis=0),
-                    regular_point_to_interp=exp_share_to_test,
-                    wealth_point_to_interp=jnp.squeeze(
-                        endog_grid_cont[idx_cont, exp, wealth], axis=0
-                    ),
-                    compute_utility=model_cont["model_funcs"]["compute_utility"],
-                    state_choice_vec=state_choice_vec_cont,
-                    params=params,
-                )
-            )
-
-            # (
-            #     policy_disc_interp,
-            #     value_disc_interp,
-            # ) = interpolate_policy_and_value_on_wealth_grid(
-            #     wealth_beginning_of_period=jnp.squeeze(
-            #         endog_grid_cont[idx_disc, exp, wealth], axis=0
-            #     ),
-            #     endog_wealth_grid=jnp.squeeze(endog_grid_disc[idx_disc], axis=0),
-            #     policy=jnp.squeeze(policy_disc[idx_disc], axis=0),
-            #     value=jnp.squeeze(value_disc[idx_disc], axis=0),
-            # )
-
-            policy_disc_interp, value_disc_interp = interp1d_policy_and_value_on_wealth(
-                wealth=jnp.squeeze(endog_grid_cont[idx_disc, exp, wealth], axis=0),
-                endog_grid=jnp.squeeze(endog_grid_disc[idx_disc], axis=0),
-                policy=jnp.squeeze(policy_disc[idx_disc], axis=0),
-                value=jnp.squeeze(value_disc[idx_disc], axis=0),
-                compute_utility=model_disc["model_funcs"]["compute_utility"],
-                state_choice_vec=state_choice_vec_disc,
+        policy_cont_interp, value_cont_interp = (
+            interp2d_policy_and_value_on_wealth_and_regular_grid(
+                regular_grid=experience_grid,
+                wealth_grid=jnp.squeeze(endog_grid_cont[idx_cont], axis=0),
+                policy_grid=jnp.squeeze(policy_cont[idx_cont], axis=0),
+                value_grid=jnp.squeeze(value_cont[idx_cont], axis=0),
+                regular_point_to_interp=exp_share_to_test,
+                wealth_point_to_interp=jnp.array(wealth_to_test),
+                compute_utility=model_cont["model_funcs"]["compute_utility"],
+                state_choice_vec=state_choice_vec_cont,
                 params=params,
             )
+        )
 
-            aaae(value_cont_interp, value_disc_interp)
-            aaae(policy_cont_interp, policy_disc_interp)
+        # (
+        #     policy_disc_interp,
+        #     value_disc_interp,
+        # ) = interpolate_policy_and_value_on_wealth_grid(
+        #     wealth_beginning_of_period=jnp.squeeze(
+        #         endog_grid_cont[idx_disc, exp, wealth], axis=0
+        #     ),
+        #     endog_wealth_grid=jnp.squeeze(endog_grid_disc[idx_disc], axis=0),
+        #     policy=jnp.squeeze(policy_disc[idx_disc], axis=0),
+        #     value=jnp.squeeze(value_disc[idx_disc], axis=0),
+        # )
+
+        policy_disc_interp, value_disc_interp = interp1d_policy_and_value_on_wealth(
+            wealth=jnp.array(wealth_to_test),
+            endog_grid=jnp.squeeze(endog_grid_disc[idx_disc], axis=0),
+            policy=jnp.squeeze(policy_disc[idx_disc], axis=0),
+            value=jnp.squeeze(value_disc[idx_disc], axis=0),
+            compute_utility=model_disc["model_funcs"]["compute_utility"],
+            state_choice_vec=state_choice_vec_disc,
+            params=params,
+        )
+
+        aaae(value_cont_interp, value_disc_interp)
+        aaae(policy_cont_interp, policy_disc_interp)
