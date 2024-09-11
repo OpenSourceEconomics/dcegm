@@ -169,7 +169,7 @@ def input_for_aggregation():
 @pytest.fixture()
 def test_input_for_euler_equation():
     model_params_options = OPTIONS["model_params"]
-    compute_exog_transition_vec = create_exog_transition_function(OPTIONS)
+    compute_exog_transition_vec, _ = create_exog_transition_function(OPTIONS)
 
     utility_functions = create_utility_function_dict()
 
