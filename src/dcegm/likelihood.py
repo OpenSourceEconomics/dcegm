@@ -247,7 +247,6 @@ def create_partial_choice_prob_calculation(
     model,
 ):
     observed_state_choice_indexes = get_state_choice_index_per_discrete_state(
-(
         states=observed_states,
         map_state_choice_to_index=model["model_structure"]["map_state_choice_to_index"],
         state_space_names=model["model_structure"]["state_space_names"],
