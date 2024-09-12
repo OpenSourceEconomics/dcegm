@@ -45,6 +45,7 @@ def create_individual_likelihood_function_for_model(
             observed_wealth=observed_wealth,
             observed_choices=observed_choices,
             unobserved_state_specs=unobserved_state_specs,
+            weight_full_states=True,
         )
 
     def individual_likelihood(params):
@@ -77,6 +78,7 @@ def create_choice_prob_func_unobserved_states(
     observed_wealth: np.array,
     observed_choices: np.array,
     unobserved_state_specs,
+    weight_full_states=True
 ):
     # First prepare full observed states, choices and pre period states for weighting
     full_mask = unobserved_state_specs["observed_bool"]
@@ -226,9 +228,23 @@ def create_choice_prob_func_unobserved_states(
             params_in=params_in,
         )
 
-        choice_probs_final = choice_probs_final.at[observed_states_index].set(
-            choice_probs_full
-        )
+        if weight_full_states:
+            weight_choice_probs_full = jax.vmap(
+                partial_weight_func,
+                in_axes=(None, 0, 0),
+            )(
+                params_in,
+                pre_period_full_observed_states,
+                unobserved_state_specs["pre_period_choices"][full_mask],
+            )
+
+            choice_probs_final = choice_probs_final.at[observed_states_index].set(
+                choice_probs_full * weight_choice_probs_full
+            )
+        else:
+            choice_probs_final = choice_probs_final.at[observed_states_index].set(
+                choice_probs_full
+            )
 
         return choice_probs_final
 
