@@ -216,7 +216,9 @@ def create_choice_prob_func_unobserved_states(
             objects[i]["weights"] = weights
 
             i += 1
-            unobserved_probs += weights * unweighted_choice_probs
+            unobserved_probs += jnp.nan_to_num(
+                weights * unweighted_choice_probs, nan=0.0
+            )
 
         choice_probs_final = choice_probs_final.at[unobserved_states_index].set(
             unobserved_probs
