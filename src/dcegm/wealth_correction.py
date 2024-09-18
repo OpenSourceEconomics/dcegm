@@ -5,13 +5,12 @@ from dcegm.budget import calculate_resources_for_each_grid_point
 
 
 def adjust_observed_wealth(observed_states_dict, wealth, params, model):
-    """This function corrects the wealth data, which is observed without the income of
-    last periods choice.
+    """Correct wealth data, which is observed without the income of last period's choice.
 
     In the dcegm framework, individuals make their consumption decision given the income
-    of last period. Therefore agents in the model have a higher beginning of period
+    of the previous period. Therefore, agents in the model have a higher beginning of period
     wealth than the observed wealth in survey data. This function can be used to align
-    this two deifinitions of wealth.
+    these two wealth definitions.
 
     """
     savings_last_period = jnp.asarray(wealth / (1 + params["interest_rate"]))
