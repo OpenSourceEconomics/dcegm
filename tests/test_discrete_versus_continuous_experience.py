@@ -284,7 +284,7 @@ def test_replication_discrete_versus_continuous_experience(load_example_model):
     # =================================================================================
 
     period = 19
-    experience = 10
+    experience = 15
     exp_share_to_test = experience / period
 
     state_choice_disc = state_choice_space_disc[

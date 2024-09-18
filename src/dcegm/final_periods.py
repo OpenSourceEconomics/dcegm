@@ -83,9 +83,9 @@ def solve_last_two_periods(
 
     idx_second_last = batch_info["idx_state_choices_second_last_period"]
 
-    value_solved = value_solved.at[idx_second_last, :].set(value)
-    policy_solved = policy_solved.at[idx_second_last, :].set(policy)
-    endog_grid_solved = endog_grid_solved.at[idx_second_last, :].set(endog_grid)
+    value_solved = value_solved.at[idx_second_last, ...].set(value)
+    policy_solved = policy_solved.at[idx_second_last, ...].set(policy)
+    endog_grid_solved = endog_grid_solved.at[idx_second_last, ...].set(endog_grid)
 
     return value_solved, policy_solved, endog_grid_solved
 
@@ -276,6 +276,7 @@ def solve_final_period(
 def calculate_value_and_marg_util_for_each_gridpoint(
     state_choice_vec, resources, params, compute_utility, compute_marginal_utility
 ):
+    """Continous state is missing here!"""
     value = compute_utility(
         **state_choice_vec,
         resources=resources,
