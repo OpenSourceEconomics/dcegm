@@ -406,19 +406,15 @@ def process_exog_model_specifications(state_space_options):
 
 
 def span_subspace_and_read_information(subdict_of_space, states_names):
-    all_states_values = []
+    """Span subspace and read information from dictionary."""
+    # Retrieve all state arrays from the dictionary
+    states = [np.array(subdict_of_space[name]) for name in states_names]
 
-    for state_name in states_names:
-        state_values = subdict_of_space[state_name]
+    # Use np.meshgrid to get all combinations, then reshape and stack them
+    grids = np.meshgrid(*states, indexing="ij")
+    space = np.column_stack([grid.ravel() for grid in grids])
 
-        # Add if size_endog_state is 1, then raise Error
-        all_states_values += [state_values]
-
-    sub_state_space = np.array(
-        np.meshgrid(*all_states_values, indexing="xy")
-    ).T.reshape(-1, len(states_names))
-
-    return sub_state_space
+    return space
 
 
 def process_endog_state_specifications(state_space_options, model_params):
