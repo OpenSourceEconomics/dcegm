@@ -276,7 +276,7 @@ def solve_final_period(
 def calculate_value_and_marg_util_for_each_gridpoint(
     state_choice_vec, resources, params, compute_utility, compute_marginal_utility
 ):
-    """Continous state is missing here!"""
+    """Continuous state is missing here!"""
     value = compute_utility(
         **state_choice_vec,
         resources=resources,

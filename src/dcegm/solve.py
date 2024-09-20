@@ -261,6 +261,7 @@ def backward_induction(
             continuous_state_next_period,
             wealth_beginning_of_next_period,
         )
+        # breakpoint()
 
     else:
         wealth_and_continuous_state_next_period = calculate_resources(
