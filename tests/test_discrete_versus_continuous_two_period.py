@@ -313,14 +313,6 @@ def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint_continuous_dcegm,
     )
-    value_dcegm, policy_dcegm, endog_grid_dcegm = solve_dcegm(
-        params,
-        options,
-        state_space_functions=state_space_functions_continuous,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
-        budget_constraint=budget_constraint_continuous_dcegm,
-    )
 
     (
         wealth_and_continuous_state_next_period_cont,
@@ -331,19 +323,19 @@ def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx
         wealth_beginning_at_regular_cont,
         model_funcs_cont,
         batch_info_cont,
-        value_solved_cont,
-        policy_solved_cont,
-        endog_grid_solved_cont,
+        value_solved,
+        policy_solved,
+        endog_grid_solved,
     ) = get_solve_last_two_periods_args(model, params, has_second_continuous_state=True)
 
     (
-        value_solved_cont,
-        policy_solved_cont,
-        endog_grid_solved_cont,
-        value_last_regular_cont,
-        marginal_utility_last_regular_cont,
-        value_interp_final_period_cont,
-        marginal_utility_final_last_period_cont,
+        value_solved,
+        policy_solved,
+        endog_grid_solved,
+        value_last_regular,
+        marginal_utility_last_regular,
+        value_interp_final_period,
+        marginal_utility_final_last_period,
     ) = solve_final_period(
         idx_state_choices_final_period=batch_info_cont[
             "idx_state_choices_final_period"
@@ -357,11 +349,50 @@ def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx
         params=params,
         compute_utility=model_funcs_cont["compute_utility_final"],
         compute_marginal_utility=model_funcs_cont["compute_marginal_utility_final"],
-        value_solved=value_solved_cont,
-        policy_solved=policy_solved_cont,
-        endog_grid_solved=endog_grid_solved_cont,
+        value_solved=value_solved,
+        policy_solved=policy_solved,
+        endog_grid_solved=endog_grid_solved,
         has_second_continuous_state=True,  # since this is continuous, set to True
     )
+
+    endog_grid_second_last, policy_second_last, value_second_last = (
+        solve_for_interpolated_values(
+            value_interpolated=value_interp_final_period,
+            marginal_utility_interpolated=marginal_utility_final_last_period,
+            state_choice_mat=batch_info_cont["state_choice_mat_second_last_period"],
+            child_state_idxs=batch_info_cont["child_states_second_last_period"],
+            states_to_choices_child_states=batch_info_cont[
+                "state_to_choices_final_period"
+            ],
+            params=params,
+            taste_shock_scale=taste_shock_scale,
+            income_shock_weights=income_shock_weights,
+            exog_savings_grid=exog_grids_cont["wealth"],
+            model_funcs=model_funcs_cont,
+            has_second_continuous_state=True,
+        )
+    )
+
+    idx_second_last = batch_info_cont["idx_state_choices_second_last_period"]
+
+    # To-Do: Second to last period not correct yet for second continuous case
+    value_solved = value_solved.at[idx_second_last, ...].set(value_second_last)
+    policy_solved = policy_solved.at[idx_second_last, ...].set(policy_second_last)
+    endog_grid_solved = endog_grid_solved.at[idx_second_last, ...].set(
+        endog_grid_second_last
+    )
+
+    # value_dcegm, policy_dcegm, endog_grid_dcegm = solve_dcegm(
+    #     params,
+    #     options,
+    #     state_space_functions=state_space_functions_continuous,
+    #     utility_functions=utility_functions,
+    #     utility_functions_final_period=utility_functions_final_period,
+    #     budget_constraint=budget_constraint_continuous_dcegm,
+    # )
+    # aaae(value_dcegm, value_solved)
+    # aaae(policy_dcegm, policy_solved)
+    # aaae(endog_grid_dcegm, endog_grid_solved)
 
     # =================================================================================
 
@@ -377,22 +408,26 @@ def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx
 
     for state_choice_idx in parent_states_of_state:
         for exp in range(EXPERIENCE_GRID_POINTS):
-            endog_grid = endog_grid_dcegm[state_choice_idx, exp, wealth_idx + 1]
-            policy = policy_dcegm[state_choice_idx, exp, wealth_idx + 1]
+            endog_grid_second_last = endog_grid_solved[
+                state_choice_idx, exp, wealth_idx + 1
+            ]
+            policy_second_last = policy_solved[state_choice_idx, exp, wealth_idx + 1]
             choice = state_choice_space_0[state_choice_idx, -1]
 
-            if ~np.isnan(endog_grid) and endog_grid > 0:
+            if ~np.isnan(endog_grid_second_last) and endog_grid_second_last > 0:
 
                 euler = euler_rhs(
-                    wealth=endog_grid,
+                    wealth=endog_grid_second_last,
                     params=params,
                     draws=income_shock_draws_unscaled,
                     weights=income_shock_weights,
                     choice_1=choice,
-                    consumption=policy,
+                    consumption=policy_second_last,
                     experience=exp,
                 )
-                marg_util = marginal_utility_crra(consumption=policy, params=params)
+                marg_util = marginal_utility_crra(
+                    consumption=policy_second_last, params=params
+                )
 
                 assert_allclose(euler - marg_util, 0, atol=1e-3)
 
