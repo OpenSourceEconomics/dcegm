@@ -15,6 +15,7 @@ def solve_single_period(
     exog_grids,
     income_shock_weights,
     wealth_and_continuous_state_next_period,
+    wealth_beginning_at_regular,
     model_funcs,
     taste_shock_scale,
 ):
@@ -32,21 +33,81 @@ def solve_single_period(
     ) = xs
 
     # EGM step 1)
-    value_interpolated, marginal_utility_interpolated = interpolate_value_and_marg_util(
-        compute_marginal_utility=model_funcs["compute_marginal_utility"],
-        compute_utility=model_funcs["compute_utility"],
-        state_choice_vec=state_choice_mat_child,
-        exog_grids=exog_grids,
-        wealth_and_continuous_state_next=wealth_and_continuous_state_next_period,
-        endog_grid_child_state_choice=endog_grid_solved[
-            child_state_choice_idxs_to_interpolate
-        ],
-        policy_child_state_choice=policy_solved[child_state_choice_idxs_to_interpolate],
-        value_child_state_choice=value_solved[child_state_choice_idxs_to_interpolate],
-        child_state_idxs=child_state_idxs,
-        has_second_continuous_state=has_second_continuous_state,
-        params=params,
-    )
+    if has_second_continuous_state:
+        # _continuous_state, _wealth = wealth_and_continuous_state_next_period
+        # wealth_and_continuous_state_next_period_regular = (
+        #     _continuous_state,
+        #     wealth_beginning_at_regular,
+        # )
+
+        # # new: use regular next period wealth for value
+        # value_interpolated_regular, marginal_utility_interpolated_regular = (
+        #     interpolate_value_and_marg_util(
+        #         compute_marginal_utility=model_funcs["compute_marginal_utility"],
+        #         compute_utility=model_funcs["compute_utility"],
+        #         state_choice_vec=state_choice_mat_child,
+        #         exog_grids=exog_grids,
+        #         wealth_and_continuous_state_next=wealth_and_continuous_state_next_period_regular,
+        #         endog_grid_child_state_choice=endog_grid_solved[
+        #             child_state_choice_idxs_to_interpolate
+        #         ],
+        #         policy_child_state_choice=policy_solved[
+        #             child_state_choice_idxs_to_interpolate
+        #         ],
+        #         value_child_state_choice=value_solved[
+        #             child_state_choice_idxs_to_interpolate
+        #         ],
+        #         child_state_idxs=child_state_idxs,
+        #         has_second_continuous_state=has_second_continuous_state,
+        #         params=params,
+        #     )
+        # )
+
+        # as before, use next period wealth for marginal utility
+        value_interpolated, marginal_utility_interpolated = (
+            interpolate_value_and_marg_util(
+                compute_marginal_utility=model_funcs["compute_marginal_utility"],
+                compute_utility=model_funcs["compute_utility"],
+                state_choice_vec=state_choice_mat_child,
+                exog_grids=exog_grids,
+                wealth_and_continuous_state_next=wealth_and_continuous_state_next_period,
+                endog_grid_child_state_choice=endog_grid_solved[
+                    child_state_choice_idxs_to_interpolate
+                ],
+                policy_child_state_choice=policy_solved[
+                    child_state_choice_idxs_to_interpolate
+                ],
+                value_child_state_choice=value_solved[
+                    child_state_choice_idxs_to_interpolate
+                ],
+                child_state_idxs=child_state_idxs,
+                has_second_continuous_state=has_second_continuous_state,
+                params=params,
+            )
+        )
+
+    else:
+        value_interpolated, marginal_utility_interpolated = (
+            interpolate_value_and_marg_util(
+                compute_marginal_utility=model_funcs["compute_marginal_utility"],
+                compute_utility=model_funcs["compute_utility"],
+                state_choice_vec=state_choice_mat_child,
+                exog_grids=exog_grids,
+                wealth_and_continuous_state_next=wealth_and_continuous_state_next_period,
+                endog_grid_child_state_choice=endog_grid_solved[
+                    child_state_choice_idxs_to_interpolate
+                ],
+                policy_child_state_choice=policy_solved[
+                    child_state_choice_idxs_to_interpolate
+                ],
+                value_child_state_choice=value_solved[
+                    child_state_choice_idxs_to_interpolate
+                ],
+                child_state_idxs=child_state_idxs,
+                has_second_continuous_state=has_second_continuous_state,
+                params=params,
+            )
+        )
 
     (
         endog_grid_state_choice,
@@ -93,34 +154,72 @@ def solve_for_interpolated_values(
     # EGM step 2)
     # Aggregate the marginal utilities and expected values over all state-choice
     # combinations and income shock draws
-    marg_util, emax = aggregate_marg_utils_and_exp_values(
-        value_state_choice_specific=value_interpolated,
-        marg_util_state_choice_specific=marginal_utility_interpolated,
-        reshape_state_choice_vec_to_mat=states_to_choices_child_states,
-        taste_shock_scale=taste_shock_scale,
-        income_shock_weights=income_shock_weights,
-    )
+    # marg_util, emax = aggregate_marg_utils_and_exp_values(
+    #     value_state_choice_specific=value_interpolated,
+    #     marg_util_state_choice_specific=marginal_utility_interpolated,
+    #     reshape_state_choice_vec_to_mat=states_to_choices_child_states,
+    #     taste_shock_scale=taste_shock_scale,
+    #     income_shock_weights=income_shock_weights,
+    # )
 
     # EGM step 3)
-    (
-        endog_grid_candidate,
-        value_candidate,
-        policy_candidate,
-        expected_values,
-    ) = calculate_candidate_solutions_from_euler_equation(
-        exog_savings_grid=exog_savings_grid,
-        marg_util=marg_util,
-        emax=emax,
-        state_choice_mat=state_choice_mat,
-        idx_post_decision_child_states=child_state_idxs,
-        compute_inverse_marginal_utility=model_funcs[
-            "compute_inverse_marginal_utility"
-        ],
-        compute_utility=model_funcs["compute_utility"],
-        compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
-        has_second_continuous_state=has_second_continuous_state,
-        params=params,
-    )
+
+    if has_second_continuous_state:
+        marg_util, emax = aggregate_marg_utils_and_exp_values(
+            value_state_choice_specific=value_interpolated,
+            marg_util_state_choice_specific=marginal_utility_interpolated,
+            reshape_state_choice_vec_to_mat=states_to_choices_child_states,
+            taste_shock_scale=taste_shock_scale,
+            income_shock_weights=income_shock_weights,
+        )
+
+        (
+            endog_grid_candidate,
+            value_candidate,
+            policy_candidate,
+            expected_values,
+        ) = calculate_candidate_solutions_from_euler_equation(
+            exog_savings_grid=exog_savings_grid,
+            marg_util=marg_util,
+            emax=emax,
+            state_choice_mat=state_choice_mat,
+            idx_post_decision_child_states=child_state_idxs,
+            compute_inverse_marginal_utility=model_funcs[
+                "compute_inverse_marginal_utility"
+            ],
+            compute_utility=model_funcs["compute_utility"],
+            compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
+            has_second_continuous_state=has_second_continuous_state,
+            params=params,
+        )
+    else:
+        marg_util, emax = aggregate_marg_utils_and_exp_values(
+            value_state_choice_specific=value_interpolated,
+            marg_util_state_choice_specific=marginal_utility_interpolated,
+            reshape_state_choice_vec_to_mat=states_to_choices_child_states,
+            taste_shock_scale=taste_shock_scale,
+            income_shock_weights=income_shock_weights,
+        )
+
+        (
+            endog_grid_candidate,
+            value_candidate,
+            policy_candidate,
+            expected_values,
+        ) = calculate_candidate_solutions_from_euler_equation(
+            exog_savings_grid=exog_savings_grid,
+            marg_util=marg_util,
+            emax=emax,
+            state_choice_mat=state_choice_mat,
+            idx_post_decision_child_states=child_state_idxs,
+            compute_inverse_marginal_utility=model_funcs[
+                "compute_inverse_marginal_utility"
+            ],
+            compute_utility=model_funcs["compute_utility"],
+            compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
+            has_second_continuous_state=has_second_continuous_state,
+            params=params,
+        )
 
     # Run upper envelope over all state-choice combinations to remove suboptimal
     # candidates

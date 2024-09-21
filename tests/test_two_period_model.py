@@ -21,7 +21,9 @@ from tests.two_period_models.model import marginal_utility
 WEALTH_GRID_POINTS = 100
 ALL_WEALTH_GRIDS = list(range(WEALTH_GRID_POINTS))
 RANDOM_TEST_SET_LTC = np.random.choice(ALL_WEALTH_GRIDS, size=10, replace=False)
-PRODUCT_EXOG_LTC = list(product(RANDOM_TEST_SET_LTC, list(range(4))))
+PRODUCT_EXOG_LTC = list(
+    product(RANDOM_TEST_SET_LTC, list(range(4)))
+)  # 4 endog states in period 0
 EXOG_LTC = [(euler_rhs_exog_ltc,) + tup for tup in PRODUCT_EXOG_LTC]
 TEST_CASES_EXOG_LTC = [("toy_model_exog_ltc",) + tup for tup in EXOG_LTC]
 
@@ -78,13 +80,12 @@ def test_two_period(toy_model, euler_rhs, wealth_idx, state_idx, request):
 
     for state_choice_idx in parent_states_of_state:
         endog_grid = endog_grid_period[state_choice_idx, wealth_idx + 1]
-        policy = policy_period[state_choice_idx]
+        cons_calc = policy_period[state_choice_idx, wealth_idx + 1]
         choice = state_choice_space_0[state_choice_idx, -1]
 
         if ~np.isnan(endog_grid) and endog_grid > 0:
             initial_conditions["wealth"] = endog_grid
 
-            cons_calc = policy[wealth_idx + 1]
             diff = euler_rhs(
                 initial_conditions,
                 params,

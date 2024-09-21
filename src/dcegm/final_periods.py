@@ -4,6 +4,7 @@ from typing import Callable, Dict, Tuple
 
 import jax.numpy as jnp
 from jax import vmap
+from numpy.testing import assert_array_almost_equal as aaae
 
 from dcegm.solve_single_period import solve_for_interpolated_values
 
@@ -28,6 +29,7 @@ def solve_last_two_periods(
     solved using the user-specified utility function and the second to last period
     is solved using the user-specified utility function and the user-specified
     bequest function.
+
     Args:
         resources_beginning_of_period (np.ndarray): 2d array of shape
             (n_states, n_grid_wealth) of the resources at the beginning of the
@@ -50,6 +52,8 @@ def solve_last_two_periods(
         value_solved,
         policy_solved,
         endog_grid_solved,
+        value_last_regular,
+        marginal_utility_last_regular,
         value_interp_final_period,
         marginal_utility_final_last_period,
     ) = solve_final_period(
@@ -67,25 +71,67 @@ def solve_last_two_periods(
         has_second_continuous_state=has_second_continuous_state,
     )
 
-    endog_grid, policy, value = solve_for_interpolated_values(
-        value_interpolated=value_interp_final_period,
-        marginal_utility_interpolated=marginal_utility_final_last_period,
-        state_choice_mat=batch_info["state_choice_mat_second_last_period"],
-        child_state_idxs=batch_info["child_states_second_last_period"],
-        states_to_choices_child_states=batch_info["state_to_choices_final_period"],
-        params=params,
-        taste_shock_scale=taste_shock_scale,
-        income_shock_weights=income_shock_weights,
-        exog_savings_grid=exog_grids["wealth"],
-        model_funcs=model_funcs,
-        has_second_continuous_state=has_second_continuous_state,
-    )
+    if has_second_continuous_state:
+        idx_state_choices_final_period = batch_info["idx_state_choices_final_period"]
+        idx_parent_states_final_period = batch_info["idxs_parent_states_final_period"]
 
-    idx_second_last = batch_info["idx_state_choices_second_last_period"]
+        _continuous_state, resources = wealth_and_continuous_state_next_period
+        # continuous_state = _continuous_state[idx_parent_states_final_period]
+        resources = resources[idx_parent_states_final_period]
+        n_wealth = resources.shape[2]
 
-    value_solved = value_solved.at[idx_second_last, ...].set(value)
-    policy_solved = policy_solved.at[idx_second_last, ...].set(policy)
-    endog_grid_solved = endog_grid_solved.at[idx_second_last, ...].set(endog_grid)
+        value_solved_last_regular = value_solved[
+            idx_state_choices_final_period, :, : n_wealth + 1
+        ]
+        policy_solved_last_regular = policy_solved[
+            idx_state_choices_final_period, :, : n_wealth + 1
+        ]
+        endog_grid_solved_last_regular = endog_grid_solved[
+            idx_state_choices_final_period, :, : n_wealth + 1
+        ]
+
+        endog_grid, policy, value = solve_for_interpolated_values(
+            value_interpolated=value_interp_final_period,
+            marginal_utility_interpolated=marginal_utility_final_last_period,
+            state_choice_mat=batch_info["state_choice_mat_second_last_period"],
+            child_state_idxs=batch_info["child_states_second_last_period"],
+            states_to_choices_child_states=batch_info["state_to_choices_final_period"],
+            params=params,
+            taste_shock_scale=taste_shock_scale,
+            income_shock_weights=income_shock_weights,
+            exog_savings_grid=exog_grids["wealth"],
+            model_funcs=model_funcs,
+            has_second_continuous_state=has_second_continuous_state,
+        )
+
+        idx_second_last = batch_info["idx_state_choices_second_last_period"]
+
+        # To-Do: Second to last period not correct yet for second continuous case
+        value_solved = value_solved.at[idx_second_last, ...].set(value)
+        policy_solved = policy_solved.at[idx_second_last, ...].set(policy)
+        endog_grid_solved = endog_grid_solved.at[idx_second_last, ...].set(endog_grid)
+
+    else:
+        endog_grid, policy, value = solve_for_interpolated_values(
+            value_interpolated=value_interp_final_period,
+            marginal_utility_interpolated=marginal_utility_final_last_period,
+            state_choice_mat=batch_info["state_choice_mat_second_last_period"],
+            child_state_idxs=batch_info["child_states_second_last_period"],
+            states_to_choices_child_states=batch_info["state_to_choices_final_period"],
+            params=params,
+            taste_shock_scale=taste_shock_scale,
+            income_shock_weights=income_shock_weights,
+            exog_savings_grid=exog_grids["wealth"],
+            model_funcs=model_funcs,
+            has_second_continuous_state=has_second_continuous_state,
+        )
+
+        idx_second_last = batch_info["idx_state_choices_second_last_period"]
+
+        # To-Do: Second to last period not correct yet for second continuous case
+        value_solved = value_solved.at[idx_second_last, ...].set(value)
+        policy_solved = policy_solved.at[idx_second_last, ...].set(policy)
+        endog_grid_solved = endog_grid_solved.at[idx_second_last, ...].set(endog_grid)
 
     return value_solved, policy_solved, endog_grid_solved
 
@@ -104,7 +150,8 @@ def solve_final_period(
     endog_grid_solved,
     has_second_continuous_state: bool,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
-    """Computes solution to final period for policy and value function.
+    """Compute solution to final period for policy and value function.
+
     In the last period, everything is consumed, i.e. consumption = savings.
     Args:
 
@@ -123,13 +170,14 @@ def solve_final_period(
             (n_states, n_grid_wealth, n_income_shocks) of the optimal
             policy for all final states, end of period assets, and
             income shocks.
+
     """
 
     if has_second_continuous_state:
-        continuous_state, resources = wealth_and_continuous_state_next_period
+        _continuous_state, resources = wealth_and_continuous_state_next_period
 
+        # continuous_state = _continuous_state[idx_parent_states_final_period]
         resources = resources[idx_parent_states_final_period]
-        continuous_state = continuous_state[idx_parent_states_final_period]
         n_wealth = resources.shape[2]
 
         value, marg_util = vmap(
@@ -156,7 +204,7 @@ def solve_final_period(
             idx_parent_states_final_period
         ]
 
-        value_regular, _ = vmap(
+        value_regular, marg_util_regular = vmap(
             vmap(
                 vmap(
                     vmap(
@@ -264,10 +312,15 @@ def solve_final_period(
             idx_state_choices_final_period, : n_wealth + 1
         ].set(resources_with_zeros)
 
+        value_regular = None
+        marg_util_regular = None
+
     return (
         value_solved,
         policy_solved,
         endog_grid_solved,
+        value_regular,
+        marg_util_regular,
         value,
         marg_util,
     )
