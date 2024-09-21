@@ -82,7 +82,7 @@ def marginal_utility_crra(
     return marginal_utility
 
 
-def euler_rhs(wealth, params, draws, weights, choice_1, consumption, experience):
+def euler_rhs(wealth, params, draws, weights, choice, consumption, experience):
     beta = params["beta"]
     interest_factor = 1 + params["interest_rate"]
 
@@ -91,7 +91,7 @@ def euler_rhs(wealth, params, draws, weights, choice_1, consumption, experience)
         marg_util_draw = marginal_utility_weighted(
             wealth=wealth,
             params=params,
-            choice_1=choice_1,
+            choice=choice,
             income_shock=draw,
             consumption=consumption,
             experience=experience,
@@ -102,29 +102,28 @@ def euler_rhs(wealth, params, draws, weights, choice_1, consumption, experience)
 
 
 def marginal_utility_weighted(
-    wealth, params, choice_1, income_shock, consumption, experience
+    wealth, params, choice, income_shock, consumption, experience
 ):
     """Return the expected marginal utility for one realization of the wage shock."""
-    budget_1 = wealth
 
     weighted_marginal = 0
-    for choice_2 in (0, 1):
-        budget_2 = budget_constraint_continuous(
-            period=0,
-            lagged_choice=choice_1,
+    for choice_next in (0, 1):
+        budget_next = budget_constraint_continuous(
+            period=1,
+            lagged_choice=choice,
             lagged_consumption=consumption,
             experience=experience,
-            lagged_resources=budget_1,
+            lagged_resources=wealth,
             income_shock_previous_period=income_shock,
             options={},
             params=params,
         )
 
-        marginal_utility_2 = marginal_utility_crra(consumption=budget_2, params=params)
+        marginal_utility = marginal_utility_crra(consumption=budget_next, params=params)
 
         weighted_marginal += (
-            choice_prob(consumption=budget_2, choice=choice_2, params=params)
-            * marginal_utility_2
+            choice_prob(consumption=budget_next, choice=choice_next, params=params)
+            * marginal_utility
         )
 
     return weighted_marginal
@@ -355,32 +354,26 @@ def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx
         has_second_continuous_state=True,  # since this is continuous, set to True
     )
 
-    endog_grid_second_last, policy_second_last, value_second_last = (
-        solve_for_interpolated_values(
-            value_interpolated=value_interp_final_period,
-            marginal_utility_interpolated=marginal_utility_final_last_period,
-            state_choice_mat=batch_info_cont["state_choice_mat_second_last_period"],
-            child_state_idxs=batch_info_cont["child_states_second_last_period"],
-            states_to_choices_child_states=batch_info_cont[
-                "state_to_choices_final_period"
-            ],
-            params=params,
-            taste_shock_scale=taste_shock_scale,
-            income_shock_weights=income_shock_weights,
-            exog_savings_grid=exog_grids_cont["wealth"],
-            model_funcs=model_funcs_cont,
-            has_second_continuous_state=True,
-        )
+    endog_grid, policy, value_second_last = solve_for_interpolated_values(
+        value_interpolated=value_interp_final_period,
+        marginal_utility_interpolated=marginal_utility_final_last_period,
+        state_choice_mat=batch_info_cont["state_choice_mat_second_last_period"],
+        child_state_idxs=batch_info_cont["child_states_second_last_period"],
+        states_to_choices_child_states=batch_info_cont["state_to_choices_final_period"],
+        params=params,
+        taste_shock_scale=taste_shock_scale,
+        income_shock_weights=income_shock_weights,
+        exog_savings_grid=exog_grids_cont["wealth"],
+        model_funcs=model_funcs_cont,
+        has_second_continuous_state=True,
     )
 
     idx_second_last = batch_info_cont["idx_state_choices_second_last_period"]
 
     # To-Do: Second to last period not correct yet for second continuous case
     value_solved = value_solved.at[idx_second_last, ...].set(value_second_last)
-    policy_solved = policy_solved.at[idx_second_last, ...].set(policy_second_last)
-    endog_grid_solved = endog_grid_solved.at[idx_second_last, ...].set(
-        endog_grid_second_last
-    )
+    policy_solved = policy_solved.at[idx_second_last, ...].set(policy)
+    endog_grid_solved = endog_grid_solved.at[idx_second_last, ...].set(endog_grid)
 
     # value_dcegm, policy_dcegm, endog_grid_dcegm = solve_dcegm(
     #     params,
@@ -408,28 +401,25 @@ def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx
 
     for state_choice_idx in parent_states_of_state:
         for exp in range(EXPERIENCE_GRID_POINTS):
-            endog_grid_second_last = endog_grid_solved[
-                state_choice_idx, exp, wealth_idx + 1
-            ]
-            policy_second_last = policy_solved[state_choice_idx, exp, wealth_idx + 1]
+            endog_grid = endog_grid_solved[state_choice_idx, exp, wealth_idx + 1]
+            policy = policy_solved[state_choice_idx, exp, wealth_idx + 1]
             choice = state_choice_space_0[state_choice_idx, -1]
 
-            if ~np.isnan(endog_grid_second_last) and endog_grid_second_last > 0:
+            if ~np.isnan(endog_grid) and endog_grid > 0:
 
-                euler = euler_rhs(
-                    wealth=endog_grid_second_last,
+                euler_calc = euler_rhs(
+                    wealth=endog_grid,
                     params=params,
                     draws=income_shock_draws_unscaled,
                     weights=income_shock_weights,
-                    choice_1=choice,
-                    consumption=policy_second_last,
+                    choice=choice,
+                    # calculate lagged_resources - lagged_consumption
+                    consumption=policy,
                     experience=exp,
                 )
-                marg_util = marginal_utility_crra(
-                    consumption=policy_second_last, params=params
-                )
+                marg_util = marginal_utility_crra(consumption=policy, params=params)
 
-                assert_allclose(euler - marg_util, 0, atol=1e-3)
+                assert_allclose(euler_calc - marg_util, 0, atol=1e-3)
 
 
 def get_solve_last_two_periods_args(model, params, has_second_continuous_state):
