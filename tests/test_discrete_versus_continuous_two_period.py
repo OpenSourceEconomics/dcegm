@@ -331,10 +331,9 @@ def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx
         value_solved,
         policy_solved,
         endog_grid_solved,
-        value_last_regular,
-        marginal_utility_last_regular,
         value_interp_final_period,
         marginal_utility_final_last_period,
+        _,
     ) = solve_final_period(
         idx_state_choices_final_period=batch_info_cont[
             "idx_state_choices_final_period"
@@ -354,7 +353,7 @@ def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx
         has_second_continuous_state=True,  # since this is continuous, set to True
     )
 
-    endog_grid, policy, value_second_last = solve_for_interpolated_values(
+    endog_grid, policy, value_second_last, *_ = solve_for_interpolated_values(
         value_interpolated=value_interp_final_period,
         marginal_utility_interpolated=marginal_utility_final_last_period,
         state_choice_mat=batch_info_cont["state_choice_mat_second_last_period"],
@@ -410,16 +409,17 @@ def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx
                 euler_calc = euler_rhs(
                     wealth=endog_grid,
                     params=params,
-                    draws=income_shock_draws_unscaled,
+                    draws=income_shock_draws_unscaled * params["sigma"],
                     weights=income_shock_weights,
                     choice=choice,
                     # calculate lagged_resources - lagged_consumption
                     consumption=policy,
                     experience=exp,
                 )
+
                 marg_util = marginal_utility_crra(consumption=policy, params=params)
 
-                assert_allclose(euler_calc - marg_util, 0, atol=1e-3)
+                assert_allclose(euler_calc - marg_util, 0, atol=2e-6)
 
 
 def get_solve_last_two_periods_args(model, params, has_second_continuous_state):
