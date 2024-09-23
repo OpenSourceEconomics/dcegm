@@ -47,7 +47,7 @@ PARAMS = {
     "delta": 0.35,
     "rho": 1.95,
     "interest_rate": 0.04,
-    "lambda": 10,  # taste shock (scale) parameter
+    "lambda": 1,  # taste shock (scale) parameter
     "sigma": 1,  # shock on labor income, standard deviation
     "constant": 0.75,
     "exp": 0.04,
@@ -105,20 +105,21 @@ def marginal_utility_weighted(
     wealth, params, choice, income_shock, consumption, experience
 ):
     """Return the expected marginal utility for one realization of the wage shock."""
+    # ToDO: Lets name it lagged_choice
+    exp_new = get_next_period_experience(1, choice, experience, params)
 
+    budget_next = budget_constraint_continuous(
+        period=1,
+        lagged_choice=choice,
+        lagged_consumption=consumption,
+        experience=exp_new,
+        lagged_resources=wealth,
+        income_shock_previous_period=income_shock,
+        options={},
+        params=params,
+    )
     weighted_marginal = 0
     for choice_next in (0, 1):
-        budget_next = budget_constraint_continuous(
-            period=1,
-            lagged_choice=choice,
-            lagged_consumption=consumption,
-            experience=experience,
-            lagged_resources=wealth,
-            income_shock_previous_period=income_shock,
-            options={},
-            params=params,
-        )
-
         marginal_utility = marginal_utility_crra(consumption=budget_next, params=params)
 
         weighted_marginal += (
@@ -215,7 +216,7 @@ def calc_stochastic_income(
     return jnp.exp(labor_income + wage_shock)
 
 
-def get_next_period_experience(period, lagged_choice, experience, options, params):
+def get_next_period_experience(period, lagged_choice, experience, params):
     # ToDo: Rewrite in the sense of budget equation
 
     return (1 / period) * ((period - 1) * experience + (lagged_choice == 0))
@@ -422,7 +423,7 @@ def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx
 
                 marg_util = marginal_utility_crra(consumption=policy, params=params)
 
-                assert_allclose(euler_calc - marg_util, 0, atol=1e-4)
+                assert_allclose(euler_calc - marg_util, 0, atol=1e-6)
 
 
 def get_solve_last_two_periods_args(model, params, has_second_continuous_state):
