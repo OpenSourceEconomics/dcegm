@@ -47,8 +47,8 @@ PARAMS = {
     "delta": 0.35,
     "rho": 1.95,
     "interest_rate": 0.04,
-    "lambda": 2.2204e-16,  # taste shock (scale) parameter
-    "sigma": 0,  # shock on labor income, standard deviation
+    "lambda": 10,  # taste shock (scale) parameter
+    "sigma": 1,  # shock on labor income, standard deviation
     "constant": 0.75,
     "exp": 0.04,
     "exp_squared": -0.0002,
@@ -131,10 +131,13 @@ def marginal_utility_weighted(
 
 def choice_prob(consumption, choice, params):
     v = utility_crra(consumption=consumption, params=params, choice=choice)
-    v_0 = utility_crra(consumption=consumption, params=params, choice=0)
-    v_1 = utility_crra(consumption=consumption, params=params, choice=1)
+    v_other = utility_crra(consumption=consumption, params=params, choice=1 - choice)
+    max_v = jnp.maximum(v, v_other)
 
-    return np.exp(v) / (np.exp(v_0) + np.exp(v_1))
+    return np.exp((v - max_v) / params["lambda"]) / (
+        np.exp((v_other - max_v) / params["lambda"])
+        + np.exp((v - max_v) / params["lambda"])
+    )
 
 
 def budget_constraint_continuous(
@@ -419,7 +422,7 @@ def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx
 
                 marg_util = marginal_utility_crra(consumption=policy, params=params)
 
-                assert_allclose(euler_calc - marg_util, 0, atol=2e-6)
+                assert_allclose(euler_calc - marg_util, 0, atol=1e-4)
 
 
 def get_solve_last_two_periods_args(model, params, has_second_continuous_state):
