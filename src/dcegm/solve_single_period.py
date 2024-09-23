@@ -113,6 +113,8 @@ def solve_single_period(
         endog_grid_state_choice,
         policy_state_choice,
         value_state_choice,
+        marg_util,
+        emax,
     ) = solve_for_interpolated_values(
         value_interpolated=value_interpolated,
         marginal_utility_interpolated=marginal_utility_interpolated,
@@ -243,6 +245,8 @@ def solve_for_interpolated_values(
         endog_grid_state_choice,
         policy_state_choice,
         value_state_choice,
+        marg_util,
+        emax,
     )
 
 

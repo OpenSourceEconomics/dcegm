@@ -52,10 +52,9 @@ def solve_last_two_periods(
         value_solved,
         policy_solved,
         endog_grid_solved,
-        value_last_regular,
-        marginal_utility_last_regular,
         value_interp_final_period,
         marginal_utility_final_last_period,
+        cont_state_final,
     ) = solve_final_period(
         idx_state_choices_final_period=batch_info["idx_state_choices_final_period"],
         idx_parent_states_final_period=batch_info["idxs_parent_states_final_period"],
@@ -71,69 +70,35 @@ def solve_last_two_periods(
         has_second_continuous_state=has_second_continuous_state,
     )
 
-    if has_second_continuous_state:
-        idx_state_choices_final_period = batch_info["idx_state_choices_final_period"]
-        idx_parent_states_final_period = batch_info["idxs_parent_states_final_period"]
+    endog_grid, policy, value, marg_util, emax = solve_for_interpolated_values(
+        value_interpolated=value_interp_final_period,
+        marginal_utility_interpolated=marginal_utility_final_last_period,
+        state_choice_mat=batch_info["state_choice_mat_second_last_period"],
+        child_state_idxs=batch_info["child_states_second_last_period"],
+        states_to_choices_child_states=batch_info["state_to_choices_final_period"],
+        params=params,
+        taste_shock_scale=taste_shock_scale,
+        income_shock_weights=income_shock_weights,
+        exog_savings_grid=exog_grids["wealth"],
+        model_funcs=model_funcs,
+        has_second_continuous_state=has_second_continuous_state,
+    )
 
-        _continuous_state, resources = wealth_and_continuous_state_next_period
-        # continuous_state = _continuous_state[idx_parent_states_final_period]
-        resources = resources[idx_parent_states_final_period]
-        n_wealth = resources.shape[2]
+    idx_second_last = batch_info["idx_state_choices_second_last_period"]
 
-        value_solved_last_regular = value_solved[
-            idx_state_choices_final_period, :, : n_wealth + 1
-        ]
-        policy_solved_last_regular = policy_solved[
-            idx_state_choices_final_period, :, : n_wealth + 1
-        ]
-        endog_grid_solved_last_regular = endog_grid_solved[
-            idx_state_choices_final_period, :, : n_wealth + 1
-        ]
+    # To-Do: Second to last period not correct yet for second continuous case
+    value_solved = value_solved.at[idx_second_last, ...].set(value)
+    policy_solved = policy_solved.at[idx_second_last, ...].set(policy)
+    endog_grid_solved = endog_grid_solved.at[idx_second_last, ...].set(endog_grid)
 
-        endog_grid, policy, value = solve_for_interpolated_values(
-            value_interpolated=value_interp_final_period,
-            marginal_utility_interpolated=marginal_utility_final_last_period,
-            state_choice_mat=batch_info["state_choice_mat_second_last_period"],
-            child_state_idxs=batch_info["child_states_second_last_period"],
-            states_to_choices_child_states=batch_info["state_to_choices_final_period"],
-            params=params,
-            taste_shock_scale=taste_shock_scale,
-            income_shock_weights=income_shock_weights,
-            exog_savings_grid=exog_grids["wealth"],
-            model_funcs=model_funcs,
-            has_second_continuous_state=has_second_continuous_state,
-        )
-
-        idx_second_last = batch_info["idx_state_choices_second_last_period"]
-
-        # To-Do: Second to last period not correct yet for second continuous case
-        value_solved = value_solved.at[idx_second_last, ...].set(value)
-        policy_solved = policy_solved.at[idx_second_last, ...].set(policy)
-        endog_grid_solved = endog_grid_solved.at[idx_second_last, ...].set(endog_grid)
-
-    else:
-        endog_grid, policy, value = solve_for_interpolated_values(
-            value_interpolated=value_interp_final_period,
-            marginal_utility_interpolated=marginal_utility_final_last_period,
-            state_choice_mat=batch_info["state_choice_mat_second_last_period"],
-            child_state_idxs=batch_info["child_states_second_last_period"],
-            states_to_choices_child_states=batch_info["state_to_choices_final_period"],
-            params=params,
-            taste_shock_scale=taste_shock_scale,
-            income_shock_weights=income_shock_weights,
-            exog_savings_grid=exog_grids["wealth"],
-            model_funcs=model_funcs,
-            has_second_continuous_state=has_second_continuous_state,
-        )
-
-        idx_second_last = batch_info["idx_state_choices_second_last_period"]
-
-        # To-Do: Second to last period not correct yet for second continuous case
-        value_solved = value_solved.at[idx_second_last, ...].set(value)
-        policy_solved = policy_solved.at[idx_second_last, ...].set(policy)
-        endog_grid_solved = endog_grid_solved.at[idx_second_last, ...].set(endog_grid)
-
-    return value_solved, policy_solved, endog_grid_solved
+    return (
+        value_solved,
+        policy_solved,
+        endog_grid_solved,
+        emax,
+        marg_util,
+        cont_state_final,
+    )
 
 
 def solve_final_period(
@@ -179,6 +144,7 @@ def solve_final_period(
         # continuous_state = _continuous_state[idx_parent_states_final_period]
         resources = resources[idx_parent_states_final_period]
         n_wealth = resources.shape[2]
+        cont_state_final = _continuous_state[idx_parent_states_final_period]
 
         value, marg_util = vmap(
             vmap(
@@ -204,7 +170,7 @@ def solve_final_period(
             idx_parent_states_final_period
         ]
 
-        value_regular, marg_util_regular = vmap(
+        value_regular, _ = vmap(
             vmap(
                 vmap(
                     vmap(
@@ -311,18 +277,15 @@ def solve_final_period(
         endog_grid_solved = endog_grid_solved.at[
             idx_state_choices_final_period, : n_wealth + 1
         ].set(resources_with_zeros)
-
-        value_regular = None
-        marg_util_regular = None
+        cont_state_final = None
 
     return (
         value_solved,
         policy_solved,
         endog_grid_solved,
-        value_regular,
-        marg_util_regular,
         value,
         marg_util,
+        cont_state_final,
     )
 
 
