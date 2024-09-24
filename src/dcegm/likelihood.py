@@ -27,6 +27,7 @@ def create_individual_likelihood_function_for_model(
     params_all,
     unobserved_state_specs=None,
 ):
+
     solve_func = get_solve_func_for_model(
         model=model,
     )
@@ -62,12 +63,10 @@ def create_individual_likelihood_function_for_model(
             endog_grid_in=endog_grid_solved,
             params_in=params_update,
         )
-        mask = choice_probs < 1e-10
         # Negative ll contributions are positive numbers. The smaller the better the fit
         # Add high fixed punishment for not explained choices
-        neg_likelihood_contributions = -jnp.log(choice_probs) + mask * 999
-        log_value = jnp.sum(neg_likelihood_contributions)
-        return log_value, neg_likelihood_contributions
+        neg_likelihood_contributions = (-jnp.log(choice_probs)).clip(max=999)
+        return neg_likelihood_contributions
 
     return jax.jit(individual_likelihood)
 
