@@ -21,7 +21,7 @@ from toy_models.consumption_retirement_model.utility_functions import (
     create_utility_function_dict,
 )
 
-N_PERIODS = 2
+N_PERIODS = 20
 MAX_WEALTH = 50
 WEALTH_GRID_POINTS = 100
 EXPERIENCE_GRID_POINTS = 6
@@ -123,7 +123,6 @@ def get_next_period_experience(period, lagged_choice, experience, options, param
     # ToDo: Rewrite in the sense of budget equation
 
     return (1 / period) * ((period - 1) * experience + (lagged_choice == 0))
-    # return 0
 
 
 def get_next_period_state(period, choice, lagged_choice, experience):
@@ -158,10 +157,10 @@ def get_state_specific_feasible_choice_set(
 
     # Once the agent choses retirement, she can only choose retirement thereafter.
     # Hence, retirement is an absorbing state.
-    # if lagged_choice == 1:
-    #     feasible_choice_set = np.array([1])
-    # else:
-    feasible_choice_set = np.arange(n_choices)
+    if lagged_choice == 1:
+        feasible_choice_set = np.array([1])
+    else:
+        feasible_choice_set = np.arange(n_choices)
 
     return feasible_choice_set
 
@@ -281,16 +280,16 @@ def test_replication_discrete_versus_continuous_experience():
     # Interpolate
     # =================================================================================
 
-    # period = 1  # 19
-    # experience = 1  # 10
-    # exp_share_to_test = experience / period
+    period = 18  # 19
+    experience = 10  # 10
+    exp_share_to_test = experience / period
 
     lagged_choice = 1
     choice = 1
 
-    period = 0
-    experience = 0
-    exp_share_to_test = 0
+    # period = 0
+    # experience = 0
+    # exp_share_to_test = 0
 
     state_choice_disc_dict = {
         "period": period,
