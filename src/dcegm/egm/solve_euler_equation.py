@@ -87,8 +87,8 @@ def calculate_candidate_solutions_from_euler_equation(
 
 
 def compute_optimal_policy_and_value(
-    marg_utils: np.ndarray,
-    emax: np.ndarray,
+    marg_util_next: np.ndarray,
+    emax_next: np.ndarray,
     exogenous_savings_grid: np.ndarray,
     state_choice_vec: Dict,
     compute_inverse_marginal_utility: Callable,
@@ -138,8 +138,8 @@ def compute_optimal_policy_and_value(
 
     policy, expected_value = solve_euler_equation(
         state_choice_vec=state_choice_vec,
-        marg_utils=marg_utils,
-        emax=emax,
+        marg_util_next=marg_util_next,
+        emax_next=emax_next,
         compute_inverse_marginal_utility=compute_inverse_marginal_utility,
         compute_exog_transition_vec=compute_exog_transition_vec,
         params=params,
@@ -154,8 +154,8 @@ def compute_optimal_policy_and_value(
 
 def solve_euler_equation(
     state_choice_vec: dict,
-    marg_utils: np.ndarray,
-    emax: np.ndarray,
+    marg_util_next: np.ndarray,
+    emax_next: np.ndarray,
     compute_inverse_marginal_utility: Callable,
     compute_exog_transition_vec: Callable,
     params: Dict[str, float],
@@ -192,11 +192,11 @@ def solve_euler_equation(
     transition_vec = compute_exog_transition_vec(params=params, **state_choice_vec)
 
     # Integrate out uncertainty over exogenous processes
-    marginal_utility = jnp.nansum(transition_vec * marg_utils)
-    expected_value = jnp.nansum(transition_vec * emax)
+    marginal_utility_next = jnp.nansum(transition_vec * marg_util_next)
+    expected_value = jnp.nansum(transition_vec * emax_next)
 
     # RHS of Euler Eq., p. 337 IJRS (2017) by multiplying with marginal wealth
-    rhs_euler = marginal_utility * (1 + params["interest_rate"]) * params["beta"]
+    rhs_euler = marginal_utility_next * (1 + params["interest_rate"]) * params["beta"]
 
     policy = compute_inverse_marginal_utility(
         marginal_utility=rhs_euler,

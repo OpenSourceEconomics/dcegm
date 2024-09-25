@@ -419,6 +419,8 @@ def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx
                 )
                 marg_util = marginal_utility_crra(consumption=policy, params=params)
 
+                # in fact, policy_t = inverse_marg_util(euler_calc(policy_{t+1}))
+
                 assert_allclose(euler_calc - marg_util, 0, atol=1e-3)
 
 
