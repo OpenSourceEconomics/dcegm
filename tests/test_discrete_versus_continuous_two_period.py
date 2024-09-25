@@ -87,7 +87,7 @@ def euler_rhs(
     lagged_consumption,
     lagged_choice,
     experience,
-    draws,
+    income_shocks,
     weights,
     params,
 ):
@@ -95,7 +95,7 @@ def euler_rhs(
     interest_factor = 1 + params["interest_rate"]
 
     rhs = 0
-    for index_draw, draw in enumerate(draws):
+    for idx_draw, draw in enumerate(income_shocks):
         marg_util_draw = marginal_utility_weighted(
             lagged_resources=lagged_resources,
             params=params,
@@ -104,7 +104,7 @@ def euler_rhs(
             lagged_consumption=lagged_consumption,
             experience=experience,
         )
-        rhs += weights[index_draw] * marg_util_draw
+        rhs += weights[idx_draw] * marg_util_draw
 
     return rhs * beta * interest_factor
 
@@ -133,16 +133,16 @@ def marginal_utility_weighted(
         params=params,
     )
 
-    weighted_marginal = 0
+    marginal_utility_weighted = 0
     for choice_next in (0, 1):
         marginal_utility = marginal_utility_crra(consumption=budget_next, params=params)
 
-        weighted_marginal += (
+        marginal_utility_weighted += (
             choice_prob(consumption=budget_next, choice=choice_next, params=params)
             * marginal_utility
         )
 
-    return weighted_marginal
+    return marginal_utility_weighted
 
 
 def choice_prob(consumption, choice, params):
@@ -466,7 +466,7 @@ def test_euler_equation(wealth_idx, state_idx, create_test_inputs):
                     lagged_consumption=policy_period_0,
                     lagged_choice=lagged_choice,
                     experience=exp,
-                    draws=income_shock_draws_unscaled * params["sigma"],
+                    income_shocks=income_shock_draws_unscaled * params["sigma"],
                     weights=income_shock_weights,
                     params=params,
                 )

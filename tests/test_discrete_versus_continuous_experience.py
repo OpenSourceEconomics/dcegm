@@ -122,7 +122,8 @@ def _calc_stochastic_income(
 def get_next_period_experience(period, lagged_choice, experience, options, params):
     # ToDo: Rewrite in the sense of budget equation
 
-    return (1 / period) * ((period - 1) * experience + (lagged_choice == 0))
+    # return (1 / period) * ((period - 1) * experience + (lagged_choice == 0))
+    return 0
 
 
 def get_next_period_state(period, choice, experience):
@@ -132,7 +133,7 @@ def get_next_period_state(period, choice, experience):
     next_state["period"] = period + 1
     next_state["lagged_choice"] = choice
 
-    next_state["experience"] = experience + (choice == 0)
+    next_state["experience"] = experience  # + (choice == 0)
 
     return next_state
 
