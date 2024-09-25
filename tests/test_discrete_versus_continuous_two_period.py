@@ -47,8 +47,8 @@ PARAMS = {
     "delta": 0.35,
     "rho": 1.95,
     "interest_rate": 0.04,
-    "lambda": 2.2204e-16,  # taste shock (scale) parameter
-    "sigma": 0,  # shock on labor income, standard deviation
+    "lambda": 1,  # taste shock (scale) parameter
+    "sigma": 1,  # shock on labor income, standard deviation
     "constant": 0.75,
     "exp": 0.04,
     "exp_squared": -0.0002,
@@ -105,20 +105,21 @@ def marginal_utility_weighted(
     wealth, params, choice, income_shock, consumption, experience
 ):
     """Return the expected marginal utility for one realization of the wage shock."""
+    # ToDO: Lets name it lagged_choice
+    exp_new = get_next_period_experience(1, choice, experience, params)
 
+    budget_next = budget_constraint_continuous(
+        period=1,
+        lagged_choice=choice,
+        lagged_consumption=consumption,
+        experience=exp_new,
+        lagged_resources=wealth,
+        income_shock_previous_period=income_shock,
+        options={},
+        params=params,
+    )
     weighted_marginal = 0
     for choice_next in (0, 1):
-        budget_next = budget_constraint_continuous(
-            period=1,
-            lagged_choice=choice,
-            lagged_consumption=consumption,
-            experience=experience,
-            lagged_resources=wealth,
-            income_shock_previous_period=income_shock,
-            options={},
-            params=params,
-        )
-
         marginal_utility = marginal_utility_crra(consumption=budget_next, params=params)
 
         weighted_marginal += (
@@ -131,10 +132,13 @@ def marginal_utility_weighted(
 
 def choice_prob(consumption, choice, params):
     v = utility_crra(consumption=consumption, params=params, choice=choice)
-    v_0 = utility_crra(consumption=consumption, params=params, choice=0)
-    v_1 = utility_crra(consumption=consumption, params=params, choice=1)
+    v_other = utility_crra(consumption=consumption, params=params, choice=1 - choice)
+    max_v = jnp.maximum(v, v_other)
 
-    return np.exp(v) / (np.exp(v_0) + np.exp(v_1))
+    return np.exp((v - max_v) / params["lambda"]) / (
+        np.exp((v_other - max_v) / params["lambda"])
+        + np.exp((v - max_v) / params["lambda"])
+    )
 
 
 def budget_constraint_continuous(
@@ -212,7 +216,7 @@ def calc_stochastic_income(
     return jnp.exp(labor_income + wage_shock)
 
 
-def get_next_period_experience(period, lagged_choice, experience, options, params):
+def get_next_period_experience(period, lagged_choice, experience, params):
     # ToDo: Rewrite in the sense of budget equation
 
     return (1 / period) * ((period - 1) * experience + (lagged_choice == 0))
@@ -331,10 +335,9 @@ def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx
         value_solved,
         policy_solved,
         endog_grid_solved,
-        value_last_regular,
-        marginal_utility_last_regular,
         value_interp_final_period,
         marginal_utility_final_last_period,
+        _,
     ) = solve_final_period(
         idx_state_choices_final_period=batch_info_cont[
             "idx_state_choices_final_period"
@@ -354,7 +357,7 @@ def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx
         has_second_continuous_state=True,  # since this is continuous, set to True
     )
 
-    endog_grid, policy, value_second_last = solve_for_interpolated_values(
+    endog_grid, policy, value_second_last, *_ = solve_for_interpolated_values(
         value_interpolated=value_interp_final_period,
         marginal_utility_interpolated=marginal_utility_final_last_period,
         state_choice_mat=batch_info_cont["state_choice_mat_second_last_period"],
@@ -410,18 +413,17 @@ def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx
                 euler_calc = euler_rhs(
                     wealth=endog_grid,
                     params=params,
-                    draws=income_shock_draws_unscaled,
+                    draws=income_shock_draws_unscaled * params["sigma"],
                     weights=income_shock_weights,
                     choice=choice,
                     # calculate lagged_resources - lagged_consumption
                     consumption=policy,
                     experience=exp,
                 )
+
                 marg_util = marginal_utility_crra(consumption=policy, params=params)
 
-                # in fact, policy_t = inverse_marg_util(euler_calc(policy_{t+1}))
-
-                assert_allclose(euler_calc - marg_util, 0, atol=1e-3)
+                assert_allclose(euler_calc - marg_util, 0, atol=1e-6)
 
 
 def get_solve_last_two_periods_args(model, params, has_second_continuous_state):
