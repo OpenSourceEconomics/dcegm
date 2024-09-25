@@ -20,7 +20,7 @@ from toy_models.consumption_retirement_model.utility_functions import (
 N_PERIODS = 20
 MAX_WEALTH = 50
 WEALTH_GRID_POINTS = 100
-EXPERIENCE_GRID_POINTS = 15
+EXPERIENCE_GRID_POINTS = 6
 
 
 PARAMS = {
