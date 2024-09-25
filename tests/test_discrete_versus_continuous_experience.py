@@ -122,18 +122,18 @@ def _calc_stochastic_income(
 def get_next_period_experience(period, lagged_choice, experience, options, params):
     # ToDo: Rewrite in the sense of budget equation
 
-    # return (1 / period) * ((period - 1) * experience + (lagged_choice == 0))
-    return 0
+    return (1 / period) * ((period - 1) * experience + (lagged_choice == 0))
+    # return 0
 
 
-def get_next_period_state(period, choice, experience):
+def get_next_period_state(period, choice, lagged_choice, experience):
 
     next_state = {}
 
     next_state["period"] = period + 1
     next_state["lagged_choice"] = choice
 
-    next_state["experience"] = experience  # + (choice == 0)
+    next_state["experience"] = experience + (lagged_choice == 0)
 
     return next_state
 
@@ -281,11 +281,12 @@ def test_replication_discrete_versus_continuous_experience():
     # Interpolate
     # =================================================================================
 
-    period = 1  # 19
-    experience = 1  # 10
+    # period = 1  # 19
+    # experience = 1  # 10
+    # exp_share_to_test = experience / period
+
     lagged_choice = 1
     choice = 1
-    exp_share_to_test = experience / period
 
     period = 0
     experience = 0
