@@ -222,14 +222,14 @@ def test_replication_discrete_versus_continuous_experience():
     utility_functions = create_utility_function_dict()
     utility_functions_final_period = create_final_period_utility_function_dict()
 
-    state_space_functions = {
+    state_space_functions_discrete = {
         "get_next_period_state": get_next_period_state,
         "get_state_specific_feasible_choice_set": get_state_specific_feasible_choice_set,
     }
 
     model_disc = setup_model(
         options=options,
-        state_space_functions=state_space_functions,
+        state_space_functions=state_space_functions_discrete,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint_discrete,
@@ -237,7 +237,7 @@ def test_replication_discrete_versus_continuous_experience():
     value_disc, policy_disc, endog_grid_disc, *_ = solve_dcegm(
         params,
         options,
-        state_space_functions=state_space_functions,
+        state_space_functions=state_space_functions_discrete,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint_discrete,
@@ -284,12 +284,12 @@ def test_replication_discrete_versus_continuous_experience():
     experience = 10
     exp_share_to_test = experience / period
 
-    lagged_choice = 0
+    lagged_choice = 1
     choice = 1
 
-    period = 0
-    experience = 0
-    exp_share_to_test = 0
+    # period = 0
+    # experience = 0
+    # exp_share_to_test = 0
 
     state_choice_disc_dict = {
         "period": period,
@@ -360,3 +360,6 @@ def test_replication_discrete_versus_continuous_experience():
 
         aaae(value_cont_interp, value_disc_interp)
         aaae(policy_cont_interp, policy_disc_interp)
+
+        # aaae(value_cont_interp, value_disc_interp, decimal=6)
+        # aaae(policy_cont_interp, policy_disc_interp, decimal=6)

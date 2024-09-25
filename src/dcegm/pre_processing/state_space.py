@@ -338,8 +338,7 @@ def create_state_choice_space(
 
                 # Current state without exog
                 state_dict_without_exog = {
-                    key: state_dict[key]
-                    for i, key in enumerate(states_names_without_exog)
+                    key: state_dict[key] for key in states_names_without_exog
                 }
 
                 endog_state_update = get_next_period_state(
@@ -359,6 +358,7 @@ def create_state_choice_space(
                     )
                     + exog_states_tuple
                 )
+
                 try:
                     child_idxs = map_state_to_index[states_next_tuple]
                 except:
