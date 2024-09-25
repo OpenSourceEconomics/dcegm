@@ -222,18 +222,6 @@ def get_next_period_experience(period, lagged_choice, experience, params):
     return (1 / period) * ((period - 1) * experience + (lagged_choice == 0))
 
 
-def get_next_period_state(period, choice, experience):
-
-    next_state = {}
-
-    next_state["period"] = period + 1
-    next_state["lagged_choice"] = choice
-
-    next_state["experience"] = experience + (choice == 0)
-
-    return next_state
-
-
 def get_next_period_discrete_state(period, choice):
 
     next_state = {}
@@ -263,13 +251,12 @@ def get_state_specific_feasible_choice_set(
 
 
 # ====================================================================================
-# Test
+# Test inputs
 # ====================================================================================
 
 
-@pytest.mark.parametrize("wealth_idx, state_idx", WEALTH_AND_STATE_IDX)
-def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx):
-
+@pytest.fixture()
+def create_test_inputs():
     options = {}
     _raw_options = {
         "n_discrete_choices": 2,
@@ -303,7 +290,7 @@ def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx
     # Continuous experience
     # =================================================================================
 
-    state_space_functions_continuous = {
+    state_space_functions = {
         "get_next_period_state": get_next_period_discrete_state,
         "update_continuous_state": get_next_period_experience,
         "get_state_specific_feasible_choice_set": get_state_specific_feasible_choice_set,
@@ -311,7 +298,7 @@ def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx
 
     model = setup_model(
         options=options,
-        state_space_functions=state_space_functions_continuous,
+        state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint_continuous_dcegm,
@@ -329,7 +316,9 @@ def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx
         value_solved,
         policy_solved,
         endog_grid_solved,
-    ) = get_solve_last_two_periods_args(model, params, has_second_continuous_state=True)
+    ) = _get_solve_last_two_periods_args(
+        model, params, has_second_continuous_state=True
+    )
 
     (
         value_solved,
@@ -354,7 +343,7 @@ def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx
         value_solved=value_solved,
         policy_solved=policy_solved,
         endog_grid_solved=endog_grid_solved,
-        has_second_continuous_state=True,  # since this is continuous, set to True
+        has_second_continuous_state=True,
     )
 
     endog_grid, policy, value_second_last, *_ = solve_for_interpolated_values(
@@ -373,40 +362,85 @@ def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx
 
     idx_second_last = batch_info_cont["idx_state_choices_second_last_period"]
 
-    # To-Do: Second to last period not correct yet for second continuous case
     value_solved = value_solved.at[idx_second_last, ...].set(value_second_last)
     policy_solved = policy_solved.at[idx_second_last, ...].set(policy)
     endog_grid_solved = endog_grid_solved.at[idx_second_last, ...].set(endog_grid)
 
-    # value_dcegm, policy_dcegm, endog_grid_dcegm = solve_dcegm(
-    #     params,
-    #     options,
-    #     state_space_functions=state_space_functions_continuous,
-    #     utility_functions=utility_functions,
-    #     utility_functions_final_period=utility_functions_final_period,
-    #     budget_constraint=budget_constraint_continuous_dcegm,
-    # )
-    # aaae(value_dcegm, value_solved)
-    # aaae(policy_dcegm, policy_solved)
-    # aaae(endog_grid_dcegm, endog_grid_solved)
+    return (
+        value_solved,
+        policy_solved,
+        endog_grid_solved,
+        model,
+        params,
+        income_shock_draws_unscaled,
+        income_shock_weights,
+        utility_functions,
+        utility_functions_final_period,
+        state_space_functions,
+    )
 
-    # =================================================================================
+
+# ====================================================================================
+# Tests
+# ====================================================================================
+
+
+def test_solution(create_test_inputs):
+
+    (
+        value_solved,
+        policy_solved,
+        endog_grid_solved,
+        model,
+        params,
+        income_shock_draws_unscaled,
+        income_shock_weights,
+        utility_functions,
+        utility_functions_final_period,
+        state_space_functions,
+    ) = create_test_inputs
+
+    value_dcegm, policy_dcegm, endog_grid_dcegm = solve_dcegm(
+        params,
+        model["options"],
+        state_space_functions=state_space_functions,
+        utility_functions=utility_functions,
+        utility_functions_final_period=utility_functions_final_period,
+        budget_constraint=budget_constraint_continuous_dcegm,
+    )
+
+    aaae(value_dcegm, value_solved)
+    aaae(policy_dcegm, policy_solved)
+    aaae(endog_grid_dcegm, endog_grid_solved)
+
+
+@pytest.mark.parametrize("wealth_idx, state_idx", WEALTH_AND_STATE_IDX)
+def test_euler_equation(wealth_idx, state_idx, create_test_inputs):
+
+    (
+        value_solved,
+        policy_solved,
+        endog_grid_solved,
+        model,
+        params,
+        income_shock_draws_unscaled,
+        income_shock_weights,
+        *_,
+    ) = create_test_inputs
 
     model_structure = model["model_structure"]
-    _state_space_dict = model["model_structure"]["state_space_dict"]
     state_choice_space = model["model_structure"]["state_choice_space"]
+    state_choice_space_period_0 = state_choice_space[state_choice_space[:, 0] == 0]
 
-    state_choice_space_0 = state_choice_space[state_choice_space[:, 0] == 0]
-
-    parent_states_of_state = np.where(
+    parent_states_of_current_state = np.where(
         model_structure["map_state_choice_to_parent_state"] == state_idx
     )[0]
 
-    for state_choice_idx in parent_states_of_state:
+    for state_choice_idx in parent_states_of_current_state:
         for exp in range(EXPERIENCE_GRID_POINTS):
             endog_grid = endog_grid_solved[state_choice_idx, exp, wealth_idx + 1]
             policy = policy_solved[state_choice_idx, exp, wealth_idx + 1]
-            choice = state_choice_space_0[state_choice_idx, -1]
+            choice = state_choice_space_period_0[state_choice_idx, -1]
 
             if ~np.isnan(endog_grid) and endog_grid > 0:
 
@@ -426,7 +460,12 @@ def test_replication_discrete_versus_continuous_experience(wealth_idx, state_idx
                 assert_allclose(euler_calc - marg_util, 0, atol=1e-6)
 
 
-def get_solve_last_two_periods_args(model, params, has_second_continuous_state):
+# ====================================================================================
+# Auxiliary functions
+# ====================================================================================
+
+
+def _get_solve_last_two_periods_args(model, params, has_second_continuous_state):
     options = model["options"]
     batch_info = model["batch_info"]
 
