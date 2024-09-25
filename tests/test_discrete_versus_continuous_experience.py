@@ -497,26 +497,24 @@ def get_next_period_experience(period, lagged_choice, experience, options, param
     return (1 / period) * ((period - 1) * experience + (lagged_choice == 0))
 
 
-def get_next_period_state(period, choice, married, experience):
+def get_next_period_state(period, choice, experience):
 
     next_state = {}
 
     next_state["period"] = period + 1
     next_state["lagged_choice"] = choice
-    next_state["married"] = married
 
     next_state["experience"] = experience + (choice == 0)
 
     return next_state
 
 
-def get_next_period_discrete_state(period, choice, married):
+def get_next_period_discrete_state(period, choice):
 
     next_state = {}
 
     next_state["period"] = period + 1
     next_state["lagged_choice"] = choice
-    next_state["married"] = married
 
     return next_state
 
@@ -578,7 +576,6 @@ def test_replication_discrete_versus_continuous_experience(load_example_model):
         "choices": np.arange(2),
         "endogenous_states": {
             "experience": np.arange(N_PERIODS),
-            "married": np.arange(2),
             "sparsity_condition": sparsity_condition,
         },
         "continuous_states": {
@@ -659,6 +656,8 @@ def test_replication_discrete_versus_continuous_experience(load_example_model):
 
     period = 19
     experience = 10
+    lagged_choice = 1
+    choice = 1
     exp_share_to_test = experience / period
 
     state_choice_disc = state_choice_space_disc[
@@ -684,14 +683,62 @@ def test_replication_discrete_versus_continuous_experience(load_example_model):
     state_space_names_cont.append("choice")
     state_choice_vec_cont = dict(zip(state_space_names_cont, state_choice_cont))
 
+    # =================================================================================
+    state_choice_disc_dict = {
+        "period": period,
+        "lagged_choice": lagged_choice,
+        "experience": experience,
+        "dummy_exog": 0,
+        "choice": choice,
+    }
+
+    state_choice_cont_dict = {
+        "period": period,
+        "lagged_choice": lagged_choice,
+        "dummy_exog": 0,
+        "choice": choice,
+    }
+
+    # vec and dict correct
+
+    idx_state_ch_cont = model_cont["model_structure"]["map_state_choice_to_index"][
+        period, lagged_choice, 0, choice
+    ]
+
+    idx_state_ch_disc = model_disc["model_structure"]["map_state_choice_to_index"][
+        period, lagged_choice, experience, 0, choice
+    ]
+
+    idx_state_cont = model_cont["model_structure"]["map_state_to_index"][
+        period, lagged_choice, 0
+    ]
+    min_state_idx = model_cont["model_structure"]["map_state_to_index"][
+        period, :, :
+    ].min()
+    in_period_idx_cont = idx_state_cont - min_state_idx
+
+    idx_state_disc = model_disc["model_structure"]["map_state_to_index"][
+        period, lagged_choice, experience, 0
+    ]
+    min_state_idx = model_disc["model_structure"]["map_state_to_index"][
+        period, :, :, :
+    ].min()
+    in_period_idx_disc = idx_state_disc - min_state_idx
+    # breakpoint()
+
+    # =================================================================================
+
     for wealth_to_test in np.arange(5, 100, 5, dtype=float):
 
         policy_cont_interp, value_cont_interp = (
             interp2d_policy_and_value_on_wealth_and_regular_grid(
                 regular_grid=experience_grid,
-                wealth_grid=jnp.squeeze(endog_grid_cont[idx_cont], axis=0),
-                policy_grid=jnp.squeeze(policy_cont[idx_cont], axis=0),
-                value_grid=jnp.squeeze(value_cont[idx_cont], axis=0),
+                # wealth_grid=jnp.squeeze(endog_grid_cont[idx_state_ch_cont], axis=0),
+                # policy_grid=jnp.squeeze(policy_cont[idx_state_ch_cont], axis=0),
+                # value_grid=jnp.squeeze(value_cont[idx_state_ch_cont], axis=0),
+                wealth_grid=endog_grid_cont[idx_state_ch_cont],
+                policy_grid=policy_cont[idx_state_ch_cont],
+                value_grid=value_cont[idx_state_ch_cont],
                 regular_point_to_interp=exp_share_to_test,
                 wealth_point_to_interp=jnp.array(wealth_to_test),
                 compute_utility=model_cont["model_funcs"]["compute_utility"],
@@ -700,23 +747,14 @@ def test_replication_discrete_versus_continuous_experience(load_example_model):
             )
         )
 
-        # (
-        #     policy_disc_interp,
-        #     value_disc_interp,
-        # ) = interpolate_policy_and_value_on_wealth_grid(
-        #     wealth_beginning_of_period=jnp.squeeze(
-        #         endog_grid_cont[idx_disc, exp, wealth], axis=0
-        #     ),
-        #     endog_wealth_grid=jnp.squeeze(endog_grid_disc[idx_disc], axis=0),
-        #     policy=jnp.squeeze(policy_disc[idx_disc], axis=0),
-        #     value=jnp.squeeze(value_disc[idx_disc], axis=0),
-        # )
-
         policy_disc_interp, value_disc_interp = interp1d_policy_and_value_on_wealth(
             wealth=jnp.array(wealth_to_test),
-            endog_grid=jnp.squeeze(endog_grid_disc[idx_disc], axis=0),
-            policy=jnp.squeeze(policy_disc[idx_disc], axis=0),
-            value=jnp.squeeze(value_disc[idx_disc], axis=0),
+            # endog_grid=jnp.squeeze(endog_grid_disc[idx_state_ch_disc], axis=0),
+            # policy=jnp.squeeze(policy_disc[idx_state_ch_disc], axis=0),
+            # value=jnp.squeeze(value_disc[idx_state_ch_disc], axis=0),
+            endog_grid=endog_grid_disc[idx_state_ch_disc],
+            policy=policy_disc[idx_state_ch_disc],
+            value=value_disc[idx_state_ch_disc],
             compute_utility=model_disc["model_funcs"]["compute_utility"],
             state_choice_vec=state_choice_vec_disc,
             params=params,
