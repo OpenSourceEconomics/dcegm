@@ -52,7 +52,6 @@ def test_two_period(toy_model, euler_rhs, wealth_idx, state_idx, request):
 
     params = toy_model["params"]
     options = toy_model["options"]
-    # breakpoint()
 
     quad_points, quad_weights = roots_sh_legendre(
         options["model_params"]["quadrature_points_stochastic"]

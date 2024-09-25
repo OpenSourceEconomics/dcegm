@@ -82,18 +82,26 @@ def marginal_utility_crra(
     return marginal_utility
 
 
-def euler_rhs(wealth, params, draws, weights, choice, consumption, experience):
+def euler_rhs(
+    lagged_resources,
+    lagged_consumption,
+    lagged_choice,
+    experience,
+    draws,
+    weights,
+    params,
+):
     beta = params["beta"]
     interest_factor = 1 + params["interest_rate"]
 
     rhs = 0
     for index_draw, draw in enumerate(draws):
         marg_util_draw = marginal_utility_weighted(
-            wealth=wealth,
+            lagged_resources=lagged_resources,
             params=params,
-            choice=choice,
+            lagged_choice=lagged_choice,
             income_shock=draw,
-            consumption=consumption,
+            lagged_consumption=lagged_consumption,
             experience=experience,
         )
         rhs += weights[index_draw] * marg_util_draw
@@ -102,22 +110,29 @@ def euler_rhs(wealth, params, draws, weights, choice, consumption, experience):
 
 
 def marginal_utility_weighted(
-    wealth, params, choice, income_shock, consumption, experience
+    lagged_resources,
+    lagged_choice,
+    lagged_consumption,
+    experience,
+    income_shock,
+    params,
 ):
     """Return the expected marginal utility for one realization of the wage shock."""
-    # ToDO: Lets name it lagged_choice
-    exp_new = get_next_period_experience(1, choice, experience, params)
+    exp_new = get_next_period_experience(
+        period=1, lagged_choice=lagged_choice, experience=experience, params=params
+    )
 
     budget_next = budget_constraint_continuous(
         period=1,
-        lagged_choice=choice,
-        lagged_consumption=consumption,
+        lagged_resources=lagged_resources,
+        lagged_consumption=lagged_consumption,
+        lagged_choice=lagged_choice,
         experience=exp_new,
-        lagged_resources=wealth,
         income_shock_previous_period=income_shock,
         options={},
         params=params,
     )
+
     weighted_marginal = 0
     for choice_next in (0, 1):
         marginal_utility = marginal_utility_crra(consumption=budget_next, params=params)
@@ -143,10 +158,10 @@ def choice_prob(consumption, choice, params):
 
 def budget_constraint_continuous(
     period: int,
-    lagged_choice: int,
-    lagged_consumption: float,
-    experience: float,
     lagged_resources: float,
+    lagged_consumption: float,
+    lagged_choice: int,
+    experience: float,
     income_shock_previous_period: float,
     options: Dict[str, Any],
     params: Dict[str, float],
@@ -173,9 +188,9 @@ def budget_constraint_continuous(
 
 def budget_constraint_continuous_dcegm(
     period: int,
+    savings_end_of_previous_period: float,
     lagged_choice: int,
     experience: float,
-    savings_end_of_previous_period: float,
     income_shock_previous_period: float,
     options: Dict[str, Any],
     params: Dict[str, float],
@@ -393,8 +408,8 @@ def test_solution(create_test_inputs):
         endog_grid_solved,
         model,
         params,
-        income_shock_draws_unscaled,
-        income_shock_weights,
+        _income_shock_draws_unscaled,
+        _income_shock_weights,
         utility_functions,
         utility_functions_final_period,
         state_space_functions,
@@ -418,7 +433,7 @@ def test_solution(create_test_inputs):
 def test_euler_equation(wealth_idx, state_idx, create_test_inputs):
 
     (
-        value_solved,
+        _value_solved,
         policy_solved,
         endog_grid_solved,
         model,
@@ -437,27 +452,30 @@ def test_euler_equation(wealth_idx, state_idx, create_test_inputs):
     )[0]
 
     for state_choice_idx in parent_states_of_current_state:
-        for exp in range(EXPERIENCE_GRID_POINTS):
-            endog_grid = endog_grid_solved[state_choice_idx, exp, wealth_idx + 1]
-            policy = policy_solved[state_choice_idx, exp, wealth_idx + 1]
-            choice = state_choice_space_period_0[state_choice_idx, -1]
+        for exp_idx, exp in enumerate(range(EXPERIENCE_GRID_POINTS)):
+            endog_grid_period_0 = endog_grid_solved[
+                state_choice_idx, exp_idx, wealth_idx + 1
+            ]
+            policy_period_0 = policy_solved[state_choice_idx, exp_idx, wealth_idx + 1]
+            lagged_choice = state_choice_space_period_0[state_choice_idx, -1]
 
-            if ~np.isnan(endog_grid) and endog_grid > 0:
+            if ~np.isnan(endog_grid_period_0) and endog_grid_period_0 > 0:
 
-                euler_calc = euler_rhs(
-                    wealth=endog_grid,
-                    params=params,
+                euler_next = euler_rhs(
+                    lagged_resources=endog_grid_period_0,
+                    lagged_consumption=policy_period_0,
+                    lagged_choice=lagged_choice,
+                    experience=exp,
                     draws=income_shock_draws_unscaled * params["sigma"],
                     weights=income_shock_weights,
-                    choice=choice,
-                    # calculate lagged_resources - lagged_consumption
-                    consumption=policy,
-                    experience=exp,
+                    params=params,
                 )
 
-                marg_util = marginal_utility_crra(consumption=policy, params=params)
+                marg_util_current = marginal_utility_crra(
+                    consumption=policy_period_0, params=params
+                )
 
-                assert_allclose(euler_calc - marg_util, 0, atol=1e-6)
+                assert_allclose(euler_next - marg_util_current, 0, atol=1e-6)
 
 
 # ====================================================================================
