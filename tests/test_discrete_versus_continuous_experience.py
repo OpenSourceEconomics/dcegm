@@ -280,16 +280,16 @@ def test_replication_discrete_versus_continuous_experience():
     # Interpolate
     # =================================================================================
 
-    period = 18  # 19
-    experience = 10  # 10
+    period = 18
+    experience = 10
     exp_share_to_test = experience / period
 
-    lagged_choice = 1
+    lagged_choice = 0
     choice = 1
 
-    # period = 0
-    # experience = 0
-    # exp_share_to_test = 0
+    period = 0
+    experience = 0
+    exp_share_to_test = 0
 
     state_choice_disc_dict = {
         "period": period,
