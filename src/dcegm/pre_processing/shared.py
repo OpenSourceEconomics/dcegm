@@ -17,13 +17,6 @@ def determine_function_arguments_and_partial_options(
     @functools.wraps(func)
     def processed_func(**kwargs):
 
-        # if continuous_state:
-        #     if "continuous_state" in kwargs:
-        #         kwargs[continuous_state] = kwargs["continuous_state"]
-        #     elif "continuous_state_beginning_of_period" in kwargs:
-        #         kwargs[continuous_state] = kwargs[
-        #             "continuous_state_beginning_of_period"
-        #         ]
         if continuous_state:
             kwargs[continuous_state] = kwargs.get(
                 "continuous_state", kwargs.get("continuous_state_beginning_of_period")

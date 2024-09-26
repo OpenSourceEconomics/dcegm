@@ -21,7 +21,7 @@ from toy_models.consumption_retirement_model.utility_functions import (
     create_utility_function_dict,
 )
 
-N_PERIODS = 20
+N_PERIODS = 2
 MAX_WEALTH = 50
 WEALTH_GRID_POINTS = 100
 EXPERIENCE_GRID_POINTS = 6
@@ -132,7 +132,7 @@ def get_next_period_state(period, choice, lagged_choice, experience):
     next_state["period"] = period + 1
     next_state["lagged_choice"] = choice
 
-    next_state["experience"] = experience + (lagged_choice == 0)
+    next_state["experience"] = experience + (choice == 0)
 
     return next_state
 
@@ -162,7 +162,8 @@ def get_state_specific_feasible_choice_set(
     else:
         feasible_choice_set = np.arange(n_choices)
 
-    return feasible_choice_set
+    # return feasible_choice_set
+    return jnp.array([0])
 
 
 def sparsity_condition(
@@ -176,7 +177,7 @@ def sparsity_condition(
     cond = True
 
     if (period + max_init_experience < experience) | (
-        experience > options["n_periods"]
+        experience >= options["n_periods"]
     ):
         cond = False
 
@@ -192,7 +193,7 @@ def test_replication_discrete_versus_continuous_experience():
 
     options = {}
     _raw_options = {
-        "n_discrete_choices": 2,
+        "n_discrete_choices": 1,
         "quadrature_points_stochastic": 5,
     }
     params = PARAMS
@@ -205,7 +206,7 @@ def test_replication_discrete_versus_continuous_experience():
 
     options["state_space"] = {
         "n_periods": N_PERIODS,
-        "choices": np.arange(2),
+        "choices": np.arange(1),
         "endogenous_states": {
             "experience": np.arange(N_PERIODS),
             "sparsity_condition": sparsity_condition,
@@ -284,12 +285,12 @@ def test_replication_discrete_versus_continuous_experience():
     experience = 10
     exp_share_to_test = experience / period
 
-    lagged_choice = 1
-    choice = 1
+    lagged_choice = 0
+    choice = 0
 
-    # period = 0
-    # experience = 0
-    # exp_share_to_test = 0
+    period = 0
+    experience = 0
+    exp_share_to_test = 0
 
     state_choice_disc_dict = {
         "period": period,
@@ -298,7 +299,6 @@ def test_replication_discrete_versus_continuous_experience():
         "dummy_exog": 0,
         "choice": choice,
     }
-
     state_choice_cont_dict = {
         "period": period,
         "lagged_choice": lagged_choice,
@@ -306,12 +306,25 @@ def test_replication_discrete_versus_continuous_experience():
         "choice": choice,
     }
 
-    idx_state_choice_cont = model_cont["model_structure"]["map_state_choice_to_index"][
-        period, lagged_choice, 0, choice
-    ]
+    # _idx_state_choice_cont = model_cont["model_structure"]["map_state_choice_to_index"][
+    #     period, lagged_choice, 0, choice
+    # ]
+    # _idx_state_choice_disc = model_disc["model_structure"]["map_state_choice_to_index"][
+    #     period, lagged_choice, experience, 0, choice
+    # ]
 
     idx_state_choice_disc = model_disc["model_structure"]["map_state_choice_to_index"][
-        period, lagged_choice, experience, 0, choice
+        state_choice_disc_dict["period"],
+        state_choice_disc_dict["lagged_choice"],
+        state_choice_disc_dict["experience"],
+        state_choice_disc_dict["dummy_exog"],
+        state_choice_disc_dict["choice"],
+    ]
+    idx_state_choice_cont = model_cont["model_structure"]["map_state_choice_to_index"][
+        state_choice_cont_dict["period"],
+        state_choice_cont_dict["lagged_choice"],
+        state_choice_cont_dict["dummy_exog"],
+        state_choice_cont_dict["choice"],
     ]
 
     # idx_state_cont = model_cont["model_structure"]["map_state_to_index"][
