@@ -46,6 +46,7 @@ def create_batches_and_information(
 
     state_space = model_structure["state_space"]
     state_space_names = model_structure["state_space_names"]
+
     map_state_choice_to_parent_state = model_structure[
         "map_state_choice_to_parent_state"
     ]
@@ -297,6 +298,9 @@ def add_last_two_period_information(
     child_states_second_last_period = map_state_choice_to_child_states[
         idx_state_choice_second_last_period
     ]
+
+    # To-Do: Reduce by state
+    # int(np.min(idx_state_choice_final_period))
     min_val = np.min(
         child_states_second_last_period[child_states_second_last_period > 0]
     )
@@ -306,6 +310,7 @@ def add_last_two_period_information(
     parent_states_final_period = map_state_choice_to_parent_state[
         idx_state_choice_final_period
     ]
+
     batch_info = {
         **batch_info,
         "idx_state_choices_final_period": idx_state_choice_final_period,
