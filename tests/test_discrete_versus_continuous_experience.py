@@ -10,7 +10,7 @@ from dcegm.interpolation.interp2d import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
 from dcegm.pre_processing.setup_model import setup_model
-from dcegm.solve import solve_dcegm
+from dcegm.solve import get_solve_func_for_model, solve_dcegm
 from toy_models.consumption_retirement_model.utility_functions import (
     create_final_period_utility_function_dict,
     create_utility_function_dict,
@@ -184,7 +184,7 @@ def sparsity_condition(
 # ====================================================================================
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def test_setup():
     options = {}
     _raw_options = {
@@ -236,14 +236,9 @@ def test_setup():
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint_discrete,
     )
-    value_disc, policy_disc, endog_grid_disc, *_ = solve_dcegm(
-        params,
-        options,
-        state_space_functions=state_space_functions_discrete,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
-        budget_constraint=budget_constraint_discrete,
-    )
+
+    solve_disc = get_solve_func_for_model(model_disc)
+    value_disc, policy_disc, endog_grid_disc, *_ = solve_disc(params)
 
     # =================================================================================
     # Continuous experience
@@ -269,14 +264,9 @@ def test_setup():
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint_continuous,
     )
-    value_cont, policy_cont, endog_grid_cont, *_ = solve_dcegm(
-        params,
-        options_cont,
-        state_space_functions=state_space_functions_continuous,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
-        budget_constraint=budget_constraint_continuous,
-    )
+
+    solve_cont = get_solve_func_for_model(model_cont)
+    value_cont, policy_cont, endog_grid_cont, *_ = solve_cont(params)
 
     return (
         params,
@@ -298,6 +288,9 @@ def test_setup():
         (1, 1, 0, 0),
         (2, 1, 0, 1),
         (3, 2, 1, 0),
+        (3, 3, 1, 0),
+        (4, 4, 0, 0),
+        (4, 0, 1, 1),
     ],
 )
 def test_replication_discrete_versus_continuous_experience(
@@ -377,5 +370,5 @@ def test_replication_discrete_versus_continuous_experience(
             params=params,
         )
 
-        aaae(value_cont_interp, value_disc_interp, decimal=1e-5)
-        aaae(policy_cont_interp, policy_disc_interp, decimal=1e-5)
+        aaae(value_cont_interp, value_disc_interp, decimal=1e-6)
+        aaae(policy_cont_interp, policy_disc_interp, decimal=1e-6)
