@@ -1,6 +1,5 @@
 from typing import Any, Dict
 
-import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -12,10 +11,6 @@ from dcegm.interpolation.interp2d import (
 )
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import solve_dcegm
-from tests.utils.interp1d_auxiliary import (
-    interpolate_policy_and_value_on_wealth_grid,
-    linear_interpolation_with_extrapolation,
-)
 from toy_models.consumption_retirement_model.utility_functions import (
     create_final_period_utility_function_dict,
     create_utility_function_dict,
@@ -104,7 +99,6 @@ def budget_constraint_discrete(
     return jnp.maximum(wealth_beginning_of_period, params["consumption_floor"])
 
 
-# @jax.jit
 def _calc_stochastic_income(
     experience: int,
     wage_shock: float,
@@ -190,8 +184,8 @@ def sparsity_condition(
 # ====================================================================================
 
 
-def test_replication_discrete_versus_continuous_experience():
-
+@pytest.fixture()
+def test_setup():
     options = {}
     _raw_options = {
         "n_discrete_choices": N_DISCRETE_CHOICES,
@@ -230,6 +224,10 @@ def test_replication_discrete_versus_continuous_experience():
         "get_next_period_state": get_next_period_state,
         "get_state_specific_feasible_choice_set": get_state_specific_feasible_choice_set,
     }
+
+    # =================================================================================
+    # Discrete experience
+    # =================================================================================
 
     model_disc = setup_model(
         options=options,
@@ -280,20 +278,46 @@ def test_replication_discrete_versus_continuous_experience():
         budget_constraint=budget_constraint_continuous,
     )
 
-    # =================================================================================
-    # Interpolate
-    # =================================================================================
+    return (
+        params,
+        experience_grid,
+        model_disc,
+        model_cont,
+        value_disc,
+        policy_disc,
+        endog_grid_disc,
+        value_cont,
+        policy_cont,
+        endog_grid_cont,
+    )
 
-    # period = 18
-    # experience = 10
-    # exp_share_to_test = experience / period
 
-    lagged_choice = 0
-    choice = 0
+@pytest.mark.parametrize(
+    "period, experience, lagged_choice, choice",
+    [
+        (1, 1, 0, 0),
+        (2, 1, 0, 1),
+        (3, 2, 1, 0),
+    ],
+)
+def test_replication_discrete_versus_continuous_experience(
+    period, experience, lagged_choice, choice, test_setup
+):
 
-    period = 1
-    experience = 1
-    exp_share_to_test = 1
+    (
+        params,
+        experience_grid,
+        model_disc,
+        model_cont,
+        value_disc,
+        policy_disc,
+        endog_grid_disc,
+        value_cont,
+        policy_cont,
+        endog_grid_cont,
+    ) = test_setup
+
+    exp_share_to_test = experience / period if period > 0 else 0
 
     state_choice_disc_dict = {
         "period": period,
@@ -323,25 +347,8 @@ def test_replication_discrete_versus_continuous_experience():
         state_choice_cont_dict["choice"],
     ]
 
-    state_choice_space_disc = model_disc["model_structure"]["state_choice_space"]
-    state_choice_space_cont = model_cont["model_structure"]["state_choice_space"]
-
-    # idx_state_cont = model_cont["model_structure"]["map_state_to_index"][
-    #     period, lagged_choice, 0
-    # ]
-    # min_state_idx = model_cont["model_structure"]["map_state_to_index"][
-    #     period, :, :
-    # ].min()
-    # in_period_idx_cont = idx_state_cont - min_state_idx
-
-    # idx_state_disc = model_disc["model_structure"]["map_state_to_index"][
-    #     period, lagged_choice, experience, 0
-    # ]
-    # min_state_idx = model_disc["model_structure"]["map_state_to_index"][
-    #     period, :, :, :
-    # ].min()
-    # in_period_idx_disc = idx_state_disc - min_state_idx
-
+    # =================================================================================
+    # Interpolate
     # =================================================================================
 
     for wealth_to_test in np.arange(5, 100, 5, dtype=float):
