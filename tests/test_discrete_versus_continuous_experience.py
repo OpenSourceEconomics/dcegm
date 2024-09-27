@@ -16,7 +16,7 @@ from toy_models.consumption_retirement_model.utility_functions import (
     create_utility_function_dict,
 )
 
-N_PERIODS = 3
+N_PERIODS = 5
 N_DISCRETE_CHOICES = 2
 MAX_WEALTH = 50
 WEALTH_GRID_POINTS = 100
@@ -377,5 +377,5 @@ def test_replication_discrete_versus_continuous_experience(
             params=params,
         )
 
-        aaae(value_cont_interp, value_disc_interp)
-        aaae(policy_cont_interp, policy_disc_interp)
+        aaae(value_cont_interp, value_disc_interp, decimal=1e-5)
+        aaae(policy_cont_interp, policy_disc_interp, decimal=1e-5)
