@@ -325,7 +325,6 @@ def backward_induction(
             params=params,
             exog_grids=exog_grids,
             wealth_and_continuous_state_next_period=wealth_and_continuous_state_next_period,
-            wealth_beginning_at_regular=wealth_beginning_at_regular,
             income_shock_weights=income_shock_weights,
             model_funcs=model_funcs,
             taste_shock_scale=taste_shock_scale,

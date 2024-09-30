@@ -9,8 +9,8 @@ from jax import vmap
 
 def calculate_candidate_solutions_from_euler_equation(
     exog_savings_grid: np.ndarray,
-    marg_util: jnp.ndarray,
-    emax: jnp.ndarray,
+    marg_util_next: jnp.ndarray,
+    emax_next: jnp.ndarray,
     state_choice_mat: np.ndarray,
     idx_post_decision_child_states: np.ndarray,
     compute_utility: Callable,
@@ -20,13 +20,18 @@ def calculate_candidate_solutions_from_euler_equation(
     params: Dict[str, float],
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Calculate candidates for the optimal policy and value function."""
-    feasible_marg_utils_child, feasible_emax_child = (
-        _get_post_decision_marg_utils_and_emax(
-            marg_util_next=marg_util,
-            emax_next=emax,
-            idx_post_decision_child_states=idx_post_decision_child_states,
-        )
+    # feasible_marg_utils_child, feasible_emax_child = (
+    #     _get_post_decision_marg_utils_and_emax(
+    #         marg_util_next=marg_util_next,
+    #         emax_next=emax_next,
+    #         idx_post_decision_child_states=idx_post_decision_child_states,
+    #     )
+    # )
+
+    feasible_marg_utils_child = jnp.take(
+        marg_util_next, idx_post_decision_child_states, axis=0
     )
+    feasible_emax_child = jnp.take(emax_next, idx_post_decision_child_states, axis=0)
 
     # transform exog_transition_mat to matrix with same shape as state_choice_vec
 

@@ -219,8 +219,6 @@ def interp2d_value_and_marg_util_for_state_choice(
 
     def interp_on_single_wealth_point(wealth_point, regular_point):
 
-        # To-Do: Add second vmap for regular grid point
-
         policy_interp, value_interp = (
             interp2d_policy_and_value_on_wealth_and_regular_grid(
                 regular_grid=regular_grid,
@@ -252,8 +250,7 @@ def interp2d_value_and_marg_util_for_state_choice(
         in_axes=(0, 0),  # continuous state grid
     )
 
-    # To-Do: Interpolate over next period regular and wealth point
-    # Old points regular grid and endog grid
+    # Old points: regular grid and endog grid
     # New points: continuous state next period and wealth next period
     value_interp, marg_util_interp = interp_over_single_wealth_and_income_shock_draw(
         wealth_beginning_of_next_period, continuous_state_beginning_of_next_period

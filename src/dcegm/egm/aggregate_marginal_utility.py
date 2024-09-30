@@ -57,6 +57,7 @@ def aggregate_marg_utils_and_exp_values(
     )
 
     log_sum_unsqueezed = max_value_per_state + taste_shock_scale * jnp.log(sum_exp)
+
     # Because we kept the dimensions in the maximum and sum over choice specific objects
     # to perform subtraction and division, we now need to squeeze the log_sum again
     # to remove the redundant axis.
