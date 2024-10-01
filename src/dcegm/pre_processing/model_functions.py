@@ -162,14 +162,34 @@ def process_model_functions(
             options=model_params_options,
             continuous_state=continuous_state_name,
         )
+        compute_marginal_utility = determine_function_arguments_and_partial_options(
+            func=utility_functions["marginal_utility"],
+            options=model_params_options,
+            continuous_state=continuous_state_name,
+        )
+        compute_inverse_marginal_utility = (
+            determine_function_arguments_and_partial_options(
+                func=utility_functions["inverse_marginal_utility"],
+                options=model_params_options,
+                continuous_state=continuous_state_name,
+            )
+        )
         compute_utility_final = determine_function_arguments_and_partial_options(
             func=utility_functions_final_period["utility"],
             options=model_params_options,
             continuous_state=continuous_state_name,
         )
+        compute_marginal_utility_final = (
+            determine_function_arguments_and_partial_options(
+                func=utility_functions_final_period["marginal_utility"],
+                options=model_params_options,
+                continuous_state=continuous_state_name,
+            )
+        )
 
         compute_upper_envelope = create_upper_envelope_function(
-            options, continuous_state=continuous_state_name
+            options,
+            continuous_state=continuous_state_name,
         )
 
     else:
@@ -184,9 +204,24 @@ def process_model_functions(
         compute_utility = determine_function_arguments_and_partial_options(
             func=utility_functions["utility"], options=model_params_options
         )
+        compute_marginal_utility = determine_function_arguments_and_partial_options(
+            func=utility_functions["marginal_utility"], options=model_params_options
+        )
+        compute_inverse_marginal_utility = (
+            determine_function_arguments_and_partial_options(
+                func=utility_functions["inverse_marginal_utility"],
+                options=model_params_options,
+            )
+        )
         compute_utility_final = determine_function_arguments_and_partial_options(
             func=utility_functions_final_period["utility"],
             options=model_params_options,
+        )
+        compute_marginal_utility_final = (
+            determine_function_arguments_and_partial_options(
+                func=utility_functions_final_period["marginal_utility"],
+                options=model_params_options,
+            )
         )
 
         compute_upper_envelope = create_upper_envelope_function(options)

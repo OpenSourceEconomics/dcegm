@@ -10,6 +10,7 @@ function interp1d and griddata.
 """
 
 from functools import partial
+from typing import Dict
 
 import jax
 import jax.numpy as jnp
@@ -26,6 +27,7 @@ from dcegm.egm.interpolate_marginal_utility import (
 from dcegm.interpolation.interp2d import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
+from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from tests.utils.interp1d_auxiliary import (
     linear_interpolation_with_extrapolation,
     linear_interpolation_with_inserting_missing_values,
@@ -38,6 +40,39 @@ from toy_models.consumption_retirement_model.utility_functions import (
     marginal_utility_crra,
     utility_crra,
 )
+
+
+def utility_crra_with_second_continuous(
+    consumption: jnp.array,
+    continuous_state: jnp.array,
+    choice: int,
+    params: Dict[str, float],
+) -> jnp.array:
+    """Computes the agent's current utility based on a CRRA utility function.
+
+    Args:
+        consumption (jnp.array): Level of the agent's consumption.
+            Array of shape (i) (n_quad_stochastic * n_grid_wealth,)
+            when called by :func:`~dcgm.call_egm_step.map_exog_to_endog_grid`
+            and :func:`~dcgm.call_egm_step.get_next_period_value`, or
+            (ii) of shape (n_grid_wealth,) when called by
+            :func:`~dcgm.call_egm_step.get_current_period_value`.
+        choice (int): Choice of the agent, e.g. 0 = "retirement", 1 = "working".
+        params (dict): Dictionary containing model parameters.
+            Relevant here is the CRRA coefficient theta.
+
+    Returns:
+        utility (jnp.array): Agent's utility . Array of shape
+            (n_quad_stochastic * n_grid_wealth,) or (n_grid_wealth,).
+
+    """
+
+    utility_consumption = (consumption ** (1 - params["rho"]) - 1) / (1 - params["rho"])
+
+    utility = utility_consumption - (1 - choice) * params["delta"]
+
+    return utility
+
 
 PARAMS = {
     "beta": 0.95,
@@ -127,12 +162,19 @@ def test_interp2d():
         policy_interp_custom = custom_interp2d_quad(
             irregular_grids, regular_grid, policy, test_points
         )
+
+        compute_utility = determine_function_arguments_and_partial_options(
+            utility_crra_with_second_continuous,
+            options={},
+            continuous_state="continuous_state",
+        )
+
         value_interp_custom = custom_interp2d_quad_value_function(
             irregular_grids,
             regular_grid,
             values=value,
             points=test_points,
-            flow_util=utility_crra,
+            flow_util=compute_utility,
             params=PARAMS,
         )
 
@@ -151,7 +193,7 @@ def test_interp2d():
                 value_grid=value_jax,
                 wealth_point_to_interp=x_in,
                 regular_point_to_interp=y_in,
-                compute_utility=utility_crra,
+                compute_utility=compute_utility,
                 state_choice_vec={"choice": 0},
                 params=PARAMS,
             )

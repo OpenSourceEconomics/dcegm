@@ -163,7 +163,7 @@ def solve_final_period(
         )(
             state_choice_mat_final_period,
             resources_final,
-            second_continuous_grid,
+            continuous_state_final,
             params,
             compute_utility,
             compute_marginal_utility,

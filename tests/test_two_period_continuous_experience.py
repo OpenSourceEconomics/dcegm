@@ -352,6 +352,7 @@ def create_test_inputs():
         state_choice_mat_final_period=batch_info_cont["state_choice_mat_final_period"],
         wealth_and_continuous_state_next_period=wealth_and_continuous_state_next_period_cont,
         wealth_beginning_at_regular_period=wealth_beginning_at_regular_cont,
+        exog_grids=exog_grids_cont,
         params=params,
         compute_utility=model_funcs_cont["compute_utility_final"],
         compute_marginal_utility=model_funcs_cont["compute_marginal_utility_final"],
