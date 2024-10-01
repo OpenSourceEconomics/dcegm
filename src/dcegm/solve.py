@@ -124,19 +124,17 @@ def get_solve_func_for_model(model):
         options["model_params"]["quadrature_points_stochastic"]
     )
 
-    backward_jit = jit(
-        partial(
-            backward_induction,
-            options=options,
-            exog_grids=exog_grids,
-            has_second_continuous_state=has_second_continuous_state,
-            state_space_dict=model["model_structure"]["state_space_dict"],
-            n_state_choices=model["model_structure"]["state_choice_space"].shape[0],
-            batch_info=model["batch_info"],
-            income_shock_draws_unscaled=income_shock_draws_unscaled,
-            income_shock_weights=income_shock_weights,
-            model_funcs=model["model_funcs"],
-        )
+    backward_jit = partial(
+        backward_induction,
+        options=options,
+        exog_grids=exog_grids,
+        has_second_continuous_state=has_second_continuous_state,
+        state_space_dict=model["model_structure"]["state_space_dict"],
+        n_state_choices=model["model_structure"]["state_choice_space"].shape[0],
+        batch_info=model["batch_info"],
+        income_shock_draws_unscaled=income_shock_draws_unscaled,
+        income_shock_weights=income_shock_weights,
+        model_funcs=model["model_funcs"],
     )
 
     def solve_func(params):

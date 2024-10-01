@@ -63,7 +63,7 @@ def solve_single_period(
         params=params,
         taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,
-        exog_savings_grid=exog_grids["wealth"],
+        exog_grids=exog_grids,
         model_funcs=model_funcs,
         has_second_continuous_state=has_second_continuous_state,
     )
@@ -88,7 +88,7 @@ def solve_for_interpolated_values(
     params,
     taste_shock_scale,
     income_shock_weights,
-    exog_savings_grid,
+    exog_grids,
     model_funcs,
     has_second_continuous_state,
 ):
@@ -110,7 +110,7 @@ def solve_for_interpolated_values(
         policy_candidate,
         expected_values,
     ) = calculate_candidate_solutions_from_euler_equation(
-        exog_savings_grid=exog_savings_grid,
+        exog_grids=exog_grids,
         marg_util_next=marg_util,
         emax_next=emax,
         state_choice_mat=state_choice_mat,
@@ -135,6 +135,7 @@ def solve_for_interpolated_values(
         policy_candidate=policy_candidate,
         value_candidate=value_candidate,
         expected_values=expected_values,
+        exog_grids=exog_grids,
         state_choice_mat=state_choice_mat,
         compute_utility=model_funcs["compute_utility"],
         params=params,
@@ -156,6 +157,7 @@ def run_upper_envelope(
     policy_candidate,
     value_candidate,
     expected_values,
+    exog_grids,
     state_choice_mat,
     compute_utility,
     params,
@@ -172,14 +174,15 @@ def run_upper_envelope(
         return vmap(
             vmap(
                 compute_upper_envelope_for_state_choice,
-                in_axes=(0, 0, 0, 0, None, None, None),  # continuous state
+                in_axes=(0, 0, 0, 0, 0, None, None, None),  # continuous state
             ),
-            in_axes=(0, 0, 0, 0, 0, None, None),  # discrete states and choices
+            in_axes=(0, 0, 0, 0, None, 0, None, None),  # discrete states and choices
         )(
             endog_grid_candidate,
             policy_candidate,
             value_candidate,
             expected_values[:, :, 0],
+            exog_grids["second_continuous"],
             state_choice_mat,
             compute_utility,
             params,

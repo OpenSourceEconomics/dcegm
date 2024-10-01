@@ -233,7 +233,10 @@ def interp2d_value_and_marg_util_for_state_choice(
             )
         )
         marg_util_interp = compute_marginal_utility(
-            consumption=policy_interp, params=params, **state_choice_vec
+            consumption=policy_interp,
+            continuous_state=regular_point,
+            params=params,
+            **state_choice_vec
         )
 
         return value_interp, marg_util_interp

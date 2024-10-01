@@ -370,7 +370,7 @@ def create_test_inputs():
         params=params,
         taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,
-        exog_savings_grid=exog_grids_cont["wealth"],
+        exog_grids=exog_grids_cont["wealth"],
         model_funcs=model_funcs_cont,
         has_second_continuous_state=True,
     )

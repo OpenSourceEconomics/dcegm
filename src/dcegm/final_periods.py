@@ -61,6 +61,7 @@ def solve_last_two_periods(
         state_choice_mat_final_period=batch_info["state_choice_mat_final_period"],
         wealth_and_continuous_state_next_period=wealth_and_continuous_state_next_period,
         wealth_beginning_at_regular_period=wealth_beginning_at_regular,
+        exog_grids=exog_grids,
         params=params,
         compute_utility=model_funcs["compute_utility_final"],
         compute_marginal_utility=model_funcs["compute_marginal_utility_final"],
@@ -79,7 +80,7 @@ def solve_last_two_periods(
         params=params,
         taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,
-        exog_savings_grid=exog_grids["wealth"],
+        exog_grids=exog_grids,
         model_funcs=model_funcs,
         has_second_continuous_state=has_second_continuous_state,
     )
@@ -106,6 +107,7 @@ def solve_final_period(
     state_choice_mat_final_period,
     wealth_and_continuous_state_next_period: jnp.ndarray,
     wealth_beginning_at_regular_period: Dict[str, jnp.ndarray],
+    exog_grids: Dict[str, jnp.ndarray],
     params: Dict[str, float],
     compute_utility: Callable,
     compute_marginal_utility: Callable,
@@ -144,21 +146,24 @@ def solve_final_period(
         resources_final = resources_final[idx_parent_states_final_period]
         n_wealth = resources_final.shape[2]
 
+        second_continuous_grid = exog_grids["second_continuous"]
+
         value, marg_util = vmap(
             vmap(
                 vmap(
                     vmap(
-                        calculate_value_and_marg_util_for_each_gridpoint,
-                        in_axes=(None, 0, None, None, None),  # income shocks
+                        calc_value_and_marg_util_for_each_gridpoint_second_continuous,
+                        in_axes=(None, 0, None, None, None, None),  # income shocks
                     ),
-                    in_axes=(None, 0, None, None, None),  # wealth
+                    in_axes=(None, 0, None, None, None, None),  # wealth
                 ),
-                in_axes=(None, 0, None, None, None),  # continuous_state
+                in_axes=(None, 0, 0, None, None, None),  # second continuous_state
             ),
-            in_axes=(0, 0, None, None, None),  # discrete state choices
+            in_axes=(0, 0, None, None, None, None),  # discrete state choices
         )(
             state_choice_mat_final_period,
             resources_final,
+            second_continuous_grid,
             params,
             compute_utility,
             compute_marginal_utility,
@@ -172,17 +177,18 @@ def solve_final_period(
             vmap(
                 vmap(
                     vmap(
-                        calculate_value_and_marg_util_for_each_gridpoint,
-                        in_axes=(None, 0, None, None, None),  # income shocks
+                        calc_value_and_marg_util_for_each_gridpoint_second_continuous,
+                        in_axes=(None, 0, None, None, None, None),  # income shocks
                     ),
-                    in_axes=(None, 0, None, None, None),  # wealth
+                    in_axes=(None, 0, None, None, None, None),  # wealth
                 ),
-                in_axes=(None, 0, None, None, None),  # continuous_state
+                in_axes=(None, 0, 0, None, None, None),  # second continuous_state
             ),
-            in_axes=(0, 0, None, None, None),  # discrete state choices
+            in_axes=(0, 0, None, None, None, None),  # discrete state choices
         )(
             state_choice_mat_final_period,
             resources_regular,
+            second_continuous_grid,
             params,
             compute_utility,
             compute_marginal_utility,
@@ -233,7 +239,7 @@ def solve_final_period(
         value, marg_util = vmap(
             vmap(
                 vmap(
-                    calculate_value_and_marg_util_for_each_gridpoint,
+                    calc_value_and_marg_util_for_each_gridpoint,
                     in_axes=(None, 0, None, None, None),  # income shocks
                 ),
                 in_axes=(None, 0, None, None, None),  # wealth
@@ -289,13 +295,38 @@ def solve_final_period(
     )
 
 
-def calculate_value_and_marg_util_for_each_gridpoint(
+def calc_value_and_marg_util_for_each_gridpoint(
     state_choice_vec, resources, params, compute_utility, compute_marginal_utility
 ):
     """Continuous state is missing here!"""
     value = compute_utility(
         **state_choice_vec,
         resources=resources,
+        params=params,
+    )
+
+    marg_util = compute_marginal_utility(
+        **state_choice_vec,
+        resources=resources,
+        params=params,
+    )
+
+    return value, marg_util
+
+
+def calc_value_and_marg_util_for_each_gridpoint_second_continuous(
+    state_choice_vec,
+    resources,
+    second_continuous_state,
+    params,
+    compute_utility,
+    compute_marginal_utility,
+):
+    """Continuous state is missing here!"""
+    value = compute_utility(
+        **state_choice_vec,
+        resources=resources,
+        continuous_state=second_continuous_state,
         params=params,
     )
 

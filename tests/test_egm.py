@@ -300,7 +300,7 @@ def test_euler_1d(test_input_for_euler_equation):
         policy_candidate,
         expected_values,
     ) = calculate_candidate_solutions_from_euler_equation(
-        exog_savings_grid=exog_savings_grid,
+        exog_grids=exog_savings_grid,
         marg_util_next=marg_util,
         emax_next=emax,
         state_choice_mat=state_choice_mat,
@@ -367,7 +367,7 @@ def test_euler_2d(test_input_for_euler_equation):
         policy_candidate,
         expected_values,
     ) = calculate_candidate_solutions_from_euler_equation(
-        exog_savings_grid=exog_savings_grid,
+        exog_grids=exog_savings_grid,
         marg_util_next=marg_util,
         emax_next=emax,
         state_choice_mat=state_choice_mat,
