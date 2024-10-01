@@ -15,6 +15,8 @@ from toy_models.consumption_retirement_model.utility_functions import (
     inverse_marginal_utility_crra,
     marginal_utility_crra,
     marginal_utility_final_consume_all,
+    utility_crra,
+    utility_final_consume_all,
 )
 
 N_PERIODS = 2
@@ -185,7 +187,7 @@ def get_state_specific_feasible_choice_set(
 
 
 # @pytest.fixture(scope="session")
-def test_here():
+def test_setup():
     options = {}
     _raw_options = {
         "n_discrete_choices": N_DISCRETE_CHOICES,
@@ -214,20 +216,24 @@ def test_here():
         },
     }
 
-    utility_functions = {
-        "utility": utility_crra_with_experience,
-        "marginal_utility": marginal_utility_crra,
-        "inverse_marginal_utility": inverse_marginal_utility_crra,
-    }
-    utility_functions_final_period = {
-        "utility": utility_final_consume_all_with_experience,
-        "marginal_utility": marginal_utility_final_consume_all,
-    }
-
     state_space_functions = {
         "get_next_period_state": get_next_period_discrete_state,
         "update_continuous_state": get_next_period_experience,
         "get_state_specific_feasible_choice_set": get_state_specific_feasible_choice_set,
+    }
+
+    # =================================================================================
+    # With utility function that does NOT depend on experience
+    # =================================================================================
+
+    utility_functions = {
+        "utility": utility_crra,
+        "marginal_utility": marginal_utility_crra,
+        "inverse_marginal_utility": inverse_marginal_utility_crra,
+    }
+    utility_functions_final_period = {
+        "utility": utility_final_consume_all,
+        "marginal_utility": marginal_utility_final_consume_all,
     }
 
     model = setup_model(
@@ -240,3 +246,32 @@ def test_here():
 
     solve = get_solve_func_for_model(model)
     value, policy, endog_grid, *_ = solve(params)
+
+    # =================================================================================
+    # With utility function that depends on experience
+    # =================================================================================
+
+    utility_functions_with_experience = {
+        "utility": utility_crra_with_experience,
+        "marginal_utility": marginal_utility_crra,
+        "inverse_marginal_utility": inverse_marginal_utility_crra,
+    }
+    utility_functions_with_experience_final_period = {
+        "utility": utility_final_consume_all_with_experience,
+        "marginal_utility": marginal_utility_final_consume_all,
+    }
+
+    model_with_exp_util = setup_model(
+        options=options,
+        state_space_functions=state_space_functions,
+        utility_functions=utility_functions_with_experience,
+        utility_functions_final_period=utility_functions_with_experience_final_period,
+        budget_constraint=budget_constraint_continuous,
+    )
+
+    solve_with_exp_util = get_solve_func_for_model(model_with_exp_util)
+    value_with_exp_util, policy_with_exp_util, endog_grid_with_exp_util, *_ = (
+        solve_with_exp_util(params)
+    )
+
+    aaae(value, value_with_exp_util)
