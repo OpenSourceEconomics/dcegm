@@ -54,7 +54,6 @@ def solve_last_two_periods(
         endog_grid_solved,
         value_interp_final_period,
         marginal_utility_final_last_period,
-        continuous_state_final,
     ) = solve_final_period(
         idx_state_choices_final_period=batch_info["idx_state_choices_final_period"],
         idx_parent_states_final_period=batch_info["idxs_parent_states_final_period"],
@@ -97,7 +96,6 @@ def solve_last_two_periods(
         endog_grid_solved,
         emax,
         marg_util,
-        continuous_state_final,
     )
 
 
@@ -159,7 +157,7 @@ def solve_final_period(
                 ),
                 in_axes=(None, 0, 0, None, None, None),  # second continuous_state
             ),
-            in_axes=(0, 0, None, None, None, None),  # discrete state choices
+            in_axes=(0, 0, 0, None, None, None),  # discrete state choices
         )(
             state_choice_mat_final_period,
             resources_final,
@@ -291,7 +289,6 @@ def solve_final_period(
         endog_grid_solved,
         value,
         marg_util,
-        continuous_state_final,
     )
 
 

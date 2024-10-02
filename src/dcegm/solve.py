@@ -295,7 +295,6 @@ def backward_induction(
         endog_grid_solved,
         value_interp_final_period,
         marginal_utility_final_last_period,
-        cont_state_final,
     ) = solve_last_two_periods(
         wealth_and_continuous_state_next_period=wealth_and_continuous_state_next_period,
         params=params,
@@ -379,9 +378,6 @@ def backward_induction(
         value_solved,
         policy_solved,
         endog_grid_solved,
-        value_interp_final_period,
-        marginal_utility_final_last_period,
-        cont_state_final,
     )
 
 

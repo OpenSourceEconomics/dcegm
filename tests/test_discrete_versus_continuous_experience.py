@@ -43,43 +43,30 @@ PARAMS = {
 
 
 def budget_constraint_continuous(
-    period: int,
-    lagged_choice: int,
-    experience: float,
-    savings_end_of_previous_period: float,
-    income_shock_previous_period: float,
-    options: Dict[str, Any],
-    params: Dict[str, float],
-) -> float:
-
-    working = lagged_choice == 0
-
+    period,
+    lagged_choice,
+    experience,
+    savings_end_of_previous_period,
+    income_shock_previous_period,
+    params,
+):
     experience_years = experience * period
-
-    income_from_previous_period = _calc_stochastic_income(
+    return budget_constraint_discrete(
+        lagged_choice=lagged_choice,
         experience=experience_years,
-        wage_shock=income_shock_previous_period,
+        savings_end_of_previous_period=savings_end_of_previous_period,
+        income_shock_previous_period=income_shock_previous_period,
         params=params,
     )
 
-    wealth_beginning_of_period = (
-        income_from_previous_period * working
-        + (1 + params["interest_rate"]) * savings_end_of_previous_period
-    )
-
-    # Retirement safety net, only in retirement model, but we require to have it always
-    # as a parameter
-    return jnp.maximum(wealth_beginning_of_period, params["consumption_floor"])
-
 
 def budget_constraint_discrete(
-    lagged_choice: int,
-    experience: int,
-    savings_end_of_previous_period: float,
-    income_shock_previous_period: float,
-    options: Dict[str, Any],
-    params: Dict[str, float],
-) -> float:
+    lagged_choice,
+    experience,
+    savings_end_of_previous_period,
+    income_shock_previous_period,
+    params,
+):
 
     working = lagged_choice == 0
 
@@ -100,10 +87,10 @@ def budget_constraint_discrete(
 
 
 def _calc_stochastic_income(
-    experience: int,
-    wage_shock: float,
-    params: Dict[str, float],
-) -> float:
+    experience,
+    wage_shock,
+    params,
+):
 
     labor_income = (
         params["constant"]
@@ -114,9 +101,7 @@ def _calc_stochastic_income(
     return jnp.exp(labor_income + wage_shock)
 
 
-def get_next_period_experience(period, lagged_choice, experience, options, params):
-    # ToDo: Rewrite in the sense of budget equation
-
+def get_next_period_experience(period, lagged_choice, experience):
     return (1 / period) * ((period - 1) * experience + (lagged_choice == 0))
 
 
@@ -132,37 +117,8 @@ def get_next_period_state(period, choice, experience):
     return next_state
 
 
-def get_next_period_discrete_state(period, choice):
-
-    next_state = {}
-
-    next_state["period"] = period + 1
-    next_state["lagged_choice"] = choice
-
-    return next_state
-
-
-def get_state_specific_feasible_choice_set(
-    lagged_choice: int,
-    options: Dict,
-) -> np.ndarray:
-    """Select state-specific feasible choice set such that retirement is absorbing."""
-
-    n_choices = options["n_choices"]
-
-    # Once the agent choses retirement, she can only choose retirement thereafter.
-    # Hence, retirement is an absorbing state.
-    # if lagged_choice == 1:
-    #     feasible_choice_set = np.array([1])
-    # else:
-    feasible_choice_set = np.arange(n_choices)
-
-    return feasible_choice_set
-
-
 def sparsity_condition(
     period,
-    lagged_choice,
     experience,
     options,
 ):
@@ -222,7 +178,6 @@ def test_setup():
 
     state_space_functions_discrete = {
         "get_next_period_state": get_next_period_state,
-        "get_state_specific_feasible_choice_set": get_state_specific_feasible_choice_set,
     }
 
     # =================================================================================
@@ -238,7 +193,7 @@ def test_setup():
     )
 
     solve_disc = get_solve_func_for_model(model_disc)
-    value_disc, policy_disc, endog_grid_disc, *_ = solve_disc(params)
+    value_disc, policy_disc, endog_grid_disc = solve_disc(params)
 
     # =================================================================================
     # Continuous experience
@@ -252,9 +207,7 @@ def test_setup():
     options_cont["state_space"]["endogenous_states"].pop("sparsity_condition")
 
     state_space_functions_continuous = {
-        "get_next_period_state": get_next_period_discrete_state,
         "update_continuous_state": get_next_period_experience,
-        "get_state_specific_feasible_choice_set": get_state_specific_feasible_choice_set,
     }
 
     model_cont = setup_model(
@@ -266,7 +219,7 @@ def test_setup():
     )
 
     solve_cont = get_solve_func_for_model(model_cont)
-    value_cont, policy_cont, endog_grid_cont, *_ = solve_cont(params)
+    value_cont, policy_cont, endog_grid_cont = solve_cont(params)
 
     return (
         params,
