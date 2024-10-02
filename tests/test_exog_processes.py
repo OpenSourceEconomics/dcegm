@@ -1,15 +1,17 @@
 """Test module for exogenous processes."""
 
+from itertools import product
+
 import jax.numpy as jnp
 import numpy as np
+import pytest
 from numpy.testing import assert_almost_equal as aaae
 
 from dcegm.pre_processing.exog_processes import create_exog_state_mapping
 from dcegm.pre_processing.model_functions import process_model_functions
-from dcegm.pre_processing.state_space import (
-    create_discrete_state_space_and_choice_objects,
-)
+
 from tests.two_period_models.model import prob_exog_health
+from dcegm.pre_processing.state_space import create_state_space_and_choice_objects
 from toy_models.consumption_retirement_model.budget_functions import budget_constraint
 from toy_models.consumption_retirement_model.state_space_objects import (
     create_state_space_function_dict,
@@ -30,25 +32,84 @@ def trans_prob_care_demand(health_state, params):
     return prob_care_demand
 
 
-def test_exog_processes():
-    params = {}
-    params["rho"] = 0.5
-    params["delta"] = 0.5
-    params["interest_rate"] = 0.02
-    params["ltc_cost"] = 5
-    params["wage_avg"] = 8
-    params["sigma"] = 1
-    params["lambda"] = 1
-    params["ltc_prob"] = 0.3
-    params["beta"] = 0.95
+def prob_exog_health_father(health_mother, params):
+    prob_good_health = (
+        (health_mother == 0) * 0.7
+        + (health_mother == 1) * 0.3
+        + (health_mother == 2) * 0.2
+    )
+    prob_medium_health = (
+        (health_mother == 0) * 0.2
+        + (health_mother == 1) * 0.5
+        + (health_mother == 2) * 0.2
+    )
+    prob_bad_health = (
+        (health_mother == 0) * 0.1
+        + (health_mother == 1) * 0.2
+        + (health_mother == 2) * 0.6
+    )
 
-    # exog params
-    params["ltc_prob_constant"] = 0.3
-    params["ltc_prob_age"] = 0.1
-    params["job_offer_constant"] = 0.5
-    params["job_offer_age"] = 0
-    params["job_offer_educ"] = 0
-    params["job_offer_type_two"] = 0.4
+    return jnp.array([prob_good_health, prob_medium_health, prob_bad_health])
+
+
+def prob_exog_health_mother(health_father, params):
+    prob_good_health = (
+        (health_father == 0) * 0.7
+        + (health_father == 1) * 0.3
+        + (health_father == 2) * 0.2
+    )
+    prob_medium_health = (
+        (health_father == 0) * 0.2
+        + (health_father == 1) * 0.5
+        + (health_father == 2) * 0.2
+    )
+    prob_bad_health = (
+        (health_father == 0) * 0.1
+        + (health_father == 1) * 0.2
+        + (health_father == 2) * 0.6
+    )
+
+    return jnp.array([prob_good_health, prob_medium_health, prob_bad_health])
+
+
+def prob_exog_health_child(health_child, params):
+    prob_good_health = (health_child == 0) * 0.7 + (health_child == 1) * 0.3
+    prob_medium_health = (health_child == 0) * 0.2 + (health_child == 1) * 0.5
+
+    return jnp.array([prob_good_health, prob_medium_health])
+
+
+def prob_exog_health_grandma(health_grandma, params):
+    prob_good_health = (health_grandma == 0) * 0.7 + (health_grandma == 1) * 0.3
+    prob_medium_health = (health_grandma == 0) * 0.2 + (health_grandma == 1) * 0.5
+
+    return jnp.array([prob_good_health, prob_medium_health])
+
+
+EXOG_STATE_GRID = [0, 1, 2]
+EXOG_STATE_GRID_SMALL = [0, 1]
+
+
+@pytest.mark.parametrize(
+    "health_state_mother, health_state_father, health_state_child, health_state_grandma",
+    product(
+        EXOG_STATE_GRID, EXOG_STATE_GRID, EXOG_STATE_GRID_SMALL, EXOG_STATE_GRID_SMALL
+    ),
+)
+def test_exog_processes(
+    health_state_mother, health_state_father, health_state_child, health_state_grandma
+):
+    params = {
+        "rho": 0.5,
+        "delta": 0.5,
+        "interest_rate": 0.02,
+        "ltc_cost": 5,
+        "wage_avg": 8,
+        "sigma": 1,
+        "lambda": 1,
+        "ltc_prob": 0.3,
+        "beta": 0.95,
+    }
 
     options = {
         "model_params": {
@@ -66,12 +127,20 @@ def test_exog_processes():
             },
             "exogenous_processes": {
                 "health_mother": {
-                    "transition": prob_exog_health,
+                    "transition": prob_exog_health_mother,
                     "states": [0, 1, 2],
                 },
                 "health_father": {
-                    "transition": prob_exog_health,
+                    "transition": prob_exog_health_father,
                     "states": [0, 1, 2],
+                },
+                "health_child": {
+                    "transition": prob_exog_health_child,
+                    "states": [0, 1],
+                },
+                "health_grandma": {
+                    "transition": prob_exog_health_grandma,
+                    "states": [0, 1],
                 },
             },
         },
@@ -93,10 +162,47 @@ def test_exog_processes():
         model_structure["exog_state_space"].astype(np.int16),
         model_structure["exog_states_names"],
     )
+    # First check if mapping works
     mother_bad_health = np.where(model_structure["exog_state_space"][:, 0] == 2)[0]
 
     for exog_state in mother_bad_health:
         assert exog_state_mapping(exog_proc_state=exog_state)["health_mother"] == 2
+
+    # Now check probabilities
+    state_choices_test = {
+        "period": 0,
+        "lagged_choice": 0,
+        "married": 0,
+        "health_mother": health_state_mother,
+        "health_father": health_state_father,
+        "health_child": health_state_child,
+        "health_grandma": health_state_grandma,
+        "choice": 0,
+    }
+    prob_vector = model_funcs["compute_exog_transition_vec"](
+        params=params, **state_choices_test
+    )
+    prob_mother_health = model_funcs["processed_exog_funcs"]["health_mother"](
+        params=params, **state_choices_test
+    )
+    prob_father_health = model_funcs["processed_exog_funcs"]["health_father"](
+        params=params, **state_choices_test
+    )
+    prob_child_health = model_funcs["processed_exog_funcs"]["health_child"](
+        params=params, **state_choices_test
+    )
+    prob_grandma_health = model_funcs["processed_exog_funcs"]["health_grandma"](
+        params=params, **state_choices_test
+    )
+
+    for exog_val, prob in enumerate(prob_vector):
+        child_prob_states = exog_state_mapping(exog_val)
+        prob_mother = prob_mother_health[child_prob_states["health_mother"]]
+        prob_father = prob_father_health[child_prob_states["health_father"]]
+        prob_child = prob_child_health[child_prob_states["health_child"]]
+        prob_grandma = prob_grandma_health[child_prob_states["health_grandma"]]
+        prob_expec = prob_mother * prob_father * prob_child * prob_grandma
+        aaae(prob, prob_expec)
 
 
 def test_nested_exog_process():

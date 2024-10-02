@@ -27,6 +27,7 @@ def create_individual_likelihood_function_for_model(
     params_all,
     unobserved_state_specs=None,
 ):
+
     solve_func = get_solve_func_for_model(
         model=model,
     )
@@ -45,6 +46,7 @@ def create_individual_likelihood_function_for_model(
             observed_wealth=observed_wealth,
             observed_choices=observed_choices,
             unobserved_state_specs=unobserved_state_specs,
+            weight_full_states=True,
         )
 
     def individual_likelihood(params):
@@ -60,12 +62,13 @@ def create_individual_likelihood_function_for_model(
             value_in=value_solved,
             endog_grid_in=endog_grid_solved,
             params_in=params_update,
-        ).clip(min=1e-10)
-        likelihood_contributions = jnp.log(choice_probs)
-        log_value = jnp.sum(-likelihood_contributions)
-        return log_value, likelihood_contributions
+        )
+        # Negative ll contributions are positive numbers. The smaller the better the fit
+        # Add high fixed punishment for not explained choices
+        neg_likelihood_contributions = (-jnp.log(choice_probs)).clip(max=999)
+        return neg_likelihood_contributions
 
-    return individual_likelihood
+    return jax.jit(individual_likelihood)
 
 
 def create_choice_prob_func_unobserved_states(
@@ -74,6 +77,7 @@ def create_choice_prob_func_unobserved_states(
     observed_wealth: np.array,
     observed_choices: np.array,
     unobserved_state_specs,
+    weight_full_states=True,
 ):
     # First prepare full observed states, choices and pre period states for weighting
     full_mask = unobserved_state_specs["observed_bool"]
@@ -211,7 +215,9 @@ def create_choice_prob_func_unobserved_states(
             objects[i]["weights"] = weights
 
             i += 1
-            unobserved_probs += weights * unweighted_choice_probs
+            unobserved_probs += jnp.nan_to_num(
+                weights * unweighted_choice_probs, nan=0.0
+            )
 
         choice_probs_final = choice_probs_final.at[unobserved_states_index].set(
             unobserved_probs
@@ -222,18 +228,24 @@ def create_choice_prob_func_unobserved_states(
             endog_grid_in=endog_grid_in,
             params_in=params_in,
         )
-        weight_choice_probs_full = jax.vmap(
-            partial_weight_func,
-            in_axes=(None, 0, 0),
-        )(
-            params_in,
-            pre_period_full_observed_states,
-            unobserved_state_specs["pre_period_choices"][full_mask],
-        )
 
-        choice_probs_final = choice_probs_final.at[observed_states_index].set(
-            choice_probs_full * weight_choice_probs_full
-        )
+        if weight_full_states:
+            weight_choice_probs_full = jax.vmap(
+                partial_weight_func,
+                in_axes=(None, 0, 0),
+            )(
+                params_in,
+                pre_period_full_observed_states,
+                unobserved_state_specs["pre_period_choices"][full_mask],
+            )
+
+            choice_probs_final = choice_probs_final.at[observed_states_index].set(
+                choice_probs_full * weight_choice_probs_full
+            )
+        else:
+            choice_probs_final = choice_probs_final.at[observed_states_index].set(
+                choice_probs_full
+            )
 
         return choice_probs_final
 
