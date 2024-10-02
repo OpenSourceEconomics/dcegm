@@ -165,7 +165,7 @@ def test_interp2d():
         compute_utility = determine_function_arguments_and_partial_options(
             utility_crra_with_second_continuous,
             options={},
-            continuous_state="continuous_state",
+            continuous_state_name="continuous_state",
         )
 
         value_interp_custom = custom_interp2d_quad_value_function(

@@ -10,9 +10,9 @@ from numpy.testing import assert_almost_equal as aaae
 from dcegm.pre_processing.exog_processes import create_exog_state_mapping
 from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.state_space import (
+    check_options_and_set_defaults,
     create_discrete_state_space_and_choice_objects,
 )
-from tests.two_period_models.model import prob_exog_health
 from toy_models.cons_ret_model_dcegm_paper.budget_constraint import budget_constraint
 from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
     create_state_space_function_dict,
@@ -147,6 +147,7 @@ def test_exog_processes(
         },
     }
 
+    options = check_options_and_set_defaults(options)
     model_funcs = process_model_functions(
         options,
         state_space_functions=create_state_space_function_dict(),

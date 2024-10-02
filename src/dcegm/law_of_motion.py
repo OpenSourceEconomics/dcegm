@@ -14,9 +14,7 @@ def calc_cont_grids_next_period(
             discrete_states_beginning_of_period=state_space_dict,
             continuous_grid=exog_grids["second_continuous"],
             params=params,
-            compute_continuous_state=model_funcs[
-                "compute_beginning_of_period_continuous_state"
-            ],
+            compute_continuous_state=model_funcs["update_continuous_state"],
         )
 
         # Extra dimension for continuous state
