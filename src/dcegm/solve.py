@@ -9,8 +9,8 @@ import numpy as np
 import pandas as pd
 from jax import jit
 
-from dcegm.budget import calculate_resources
 from dcegm.final_periods import solve_last_two_periods
+from dcegm.law_of_motion import calc_cont_grids_next_period
 from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.params import process_params
 from dcegm.pre_processing.setup_model import setup_model
@@ -20,7 +20,6 @@ from dcegm.solve_single_period import solve_single_period
 def solve_dcegm(
     params: pd.DataFrame,
     options: Dict,
-    exog_savings_grid: jnp.ndarray,
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
@@ -31,8 +30,6 @@ def solve_dcegm(
     Args:
         params (pd.DataFrame): Params DataFrame.
         options (dict): Options dictionary.
-        exog_savings_grid (jnp.ndarray): 1d array of shape (n_grid_wealth,) containing
-            the user-supplied exogenous savings grid.
         utility_functions (Dict[str, callable]): Dictionary of three user-supplied
             functions for computation of:
             (i) utility
@@ -56,7 +53,6 @@ def solve_dcegm(
 
     backward_jit = get_solve_function(
         options=options,
-        exog_savings_grid=exog_savings_grid,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         budget_constraint=budget_constraint,
@@ -70,7 +66,6 @@ def solve_dcegm(
 
 def get_solve_function(
     options: Dict[str, Any],
-    exog_savings_grid: jnp.ndarray,
     utility_functions: Dict[str, Callable],
     budget_constraint: Callable,
     utility_functions_final_period: Dict[str, Callable],
@@ -80,8 +75,6 @@ def get_solve_function(
 
     Args:
         options (dict): Options dictionary.
-        exog_savings_grid (jnp.ndarray): 1d array of shape (n_grid_wealth,) containing
-            the user-supplied exogenous savings grid.
         utility_functions (Dict[str, callable]): Dictionary of three user-supplied
             functions for computation of:
             (i) utility
@@ -104,7 +97,6 @@ def get_solve_function(
 
     model = setup_model(
         options=options,
-        exog_savings_grid=exog_savings_grid,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
@@ -118,7 +110,9 @@ def get_solve_func_for_model(model):
     """Create a solve function, which only takes params as input."""
 
     options = model["options"]
-    exog_savings_grid = model["exog_savings_grid"]
+
+    exog_grids = options["exog_grids"]
+    has_second_continuous_state = len(exog_grids) == 2
 
     # ToDo: Make interface with several draw possibilities.
     # ToDo: Some day make user supplied draw function.
@@ -126,11 +120,12 @@ def get_solve_func_for_model(model):
         options["model_params"]["quadrature_points_stochastic"]
     )
 
-    backward_jit = jit(
+    backward_jit = jax.jit(
         partial(
             backward_induction,
             options=options,
-            exog_savings_grid=exog_savings_grid,
+            exog_grids=exog_grids,
+            has_second_continuous_state=has_second_continuous_state,
             state_space_dict=model["model_structure"]["state_space_dict"],
             n_state_choices=model["model_structure"]["state_choice_space"].shape[0],
             batch_info=model["batch_info"],
@@ -150,12 +145,13 @@ def get_solve_func_for_model(model):
 def backward_induction(
     params: Dict[str, float],
     options: Dict[str, Any],
-    exog_savings_grid: np.ndarray,
+    has_second_continuous_state: bool,
+    exog_grids: Dict[str, jnp.ndarray],
     state_space_dict: np.ndarray,
     n_state_choices: int,
     batch_info: Dict[str, np.ndarray],
-    income_shock_draws_unscaled: np.ndarray,
-    income_shock_weights: np.ndarray,
+    income_shock_draws_unscaled: jnp.ndarray,
+    income_shock_weights: jnp.ndarray,
     model_funcs: Dict[str, Callable],
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Do backward induction and solve for optimal policy and value function.
@@ -171,6 +167,9 @@ def backward_induction(
             - "transform_between_state_and_state_choice_vec" (callable)
         exog_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
             containing the exogenous savings grid.
+        has_second_continuous_state (bool): Boolean indicating whether the model
+            features a second continuous state variable. If False, the only
+            continuous state variable is consumption/savings.
         state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
             which serves as a collection of all possible states. By convention,
             the first column must contain the period and the last column the
@@ -217,15 +216,15 @@ def backward_induction(
     """
     taste_shock_scale = params["lambda"]
 
-    resources_beginning_of_period = calculate_resources(
-        states_beginning_of_period=state_space_dict,
-        savings_end_of_last_period=exog_savings_grid,
-        income_shocks_of_period=income_shock_draws_unscaled * params["sigma"],
+    cont_grids_next_period = calc_cont_grids_next_period(
+        state_space_dict=state_space_dict,
+        exog_grids=exog_grids,
+        income_shock_draws_unscaled=income_shock_draws_unscaled,
         params=params,
-        compute_beginning_of_period_resources=model_funcs[
-            "compute_beginning_of_period_resources"
-        ],
+        model_funcs=model_funcs,
+        has_second_continuous_state=has_second_continuous_state,
     )
+
     # Create solution containers. The 20 percent extra in wealth grid needs to go
     # into tuning parameters
     (
@@ -235,26 +234,28 @@ def backward_induction(
     ) = create_solution_container(
         n_state_choices=n_state_choices,
         options=options,
+        has_second_continuous_state=has_second_continuous_state,
     )
 
     # Solve the last two periods. We do this separately as the marginal utility of
-    # the child states in the last period is calculated with the marginal utility
+    # the child states in the last period is calculated from the marginal utility
     # function of the bequest function, which might differ.
     (
         value_solved,
         policy_solved,
         endog_grid_solved,
     ) = solve_last_two_periods(
-        resources_beginning_of_period=resources_beginning_of_period,
+        cont_grids_next_period=cont_grids_next_period,
         params=params,
         taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,
-        exog_savings_grid=exog_savings_grid,
+        exog_grids=exog_grids,
         model_funcs=model_funcs,
         batch_info=batch_info,
         value_solved=value_solved,
         policy_solved=policy_solved,
         endog_grid_solved=endog_grid_solved,
+        has_second_continuous_state=has_second_continuous_state,
     )
 
     # If it is a two period model we are done.
@@ -265,9 +266,10 @@ def backward_induction(
         return solve_single_period(
             carry=carry,
             xs=xs,
+            has_second_continuous_state=has_second_continuous_state,
             params=params,
-            exog_savings_grid=exog_savings_grid,
-            resources_beginning_of_period=resources_beginning_of_period,
+            exog_grids=exog_grids,
+            cont_grids_next_period=cont_grids_next_period,
             income_shock_weights=income_shock_weights,
             model_funcs=model_funcs,
             taste_shock_scale=taste_shock_scale,
@@ -320,22 +322,51 @@ def backward_induction(
             endog_grid_solved,
         ) = final_carry
 
-    return value_solved, policy_solved, endog_grid_solved
+    return (
+        value_solved,
+        policy_solved,
+        endog_grid_solved,
+    )
 
 
-def create_solution_container(n_state_choices, options):
+def create_solution_container(n_state_choices, options, has_second_continuous_state):
     """Create solution containers for value, policy, and endog_grid."""
 
     n_total_wealth_grid = options["tuning_params"]["n_total_wealth_grid"]
 
-    value_solved = jnp.full(
-        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
-    )
-    policy_solved = jnp.full(
-        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
-    )
-    endog_grid_solved = jnp.full(
-        (n_state_choices, n_total_wealth_grid), dtype=jnp.float64, fill_value=jnp.nan
-    )
+    if has_second_continuous_state:
+        n_second_continuous_grid = options["tuning_params"]["n_second_continuous_grid"]
+
+        value_solved = jnp.full(
+            (n_state_choices, n_second_continuous_grid, n_total_wealth_grid),
+            dtype=jnp.float64,
+            fill_value=jnp.nan,
+        )
+        policy_solved = jnp.full(
+            (n_state_choices, n_second_continuous_grid, n_total_wealth_grid),
+            dtype=jnp.float64,
+            fill_value=jnp.nan,
+        )
+        endog_grid_solved = jnp.full(
+            (n_state_choices, n_second_continuous_grid, n_total_wealth_grid),
+            dtype=jnp.float64,
+            fill_value=jnp.nan,
+        )
+    else:
+        value_solved = jnp.full(
+            (n_state_choices, n_total_wealth_grid),
+            dtype=jnp.float64,
+            fill_value=jnp.nan,
+        )
+        policy_solved = jnp.full(
+            (n_state_choices, n_total_wealth_grid),
+            dtype=jnp.float64,
+            fill_value=jnp.nan,
+        )
+        endog_grid_solved = jnp.full(
+            (n_state_choices, n_total_wealth_grid),
+            dtype=jnp.float64,
+            fill_value=jnp.nan,
+        )
 
     return value_solved, policy_solved, endog_grid_solved

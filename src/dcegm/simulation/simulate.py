@@ -7,7 +7,7 @@ import jax.numpy as jnp
 import numpy as np
 from jax import vmap
 
-from dcegm.interface import get_state_choice_index_per_state
+from dcegm.interface import get_state_choice_index_per_discrete_state
 from dcegm.simulation.sim_utils import (
     compute_final_utility_for_each_choice,
     draw_taste_shocks,
@@ -28,12 +28,34 @@ def simulate_all_periods(
     value_solved,
     model,
 ):
+
+    second_continuous_state = next(
+        (
+            {key: value}
+            for key, value in model["options"]["state_space"][
+                "continuous_states"
+            ].items()
+            if key != "wealth"
+        ),
+        None,
+    )
+    second_continuous_state_name = (
+        next(iter(second_continuous_state.keys())) if second_continuous_state else None
+    )
+
+    discrete_state_space = model["model_structure"]["state_space_dict"]
+
     # Set initial states to internal dtype
-    state_space_dict = model["model_structure"]["state_space_dict"]
-    states_initial = {
-        key: value.astype(state_space_dict[key].dtype)
+    states_initial_dtype = {
+        key: value.astype(discrete_state_space[key].dtype)
         for key, value in states_initial.items()
+        if key in discrete_state_space
     }
+
+    if second_continuous_state:
+        states_initial_dtype[second_continuous_state_name] = states_initial[
+            second_continuous_state_name
+        ]
 
     # Prepare random seeds for taste shocks
     n_keys = len(resources_initial) + 2
@@ -46,6 +68,11 @@ def simulate_all_periods(
 
     model_structure = model["model_structure"]
     model_funcs = model["model_funcs"]
+
+    compute_next_period_states = {
+        "get_next_period_state": model_funcs["get_next_period_state"],
+        "update_continuous_state": model_funcs["update_continuous_state"],
+    }
 
     simulate_body = partial(
         simulate_single_period,
@@ -64,10 +91,15 @@ def simulate_all_periods(
             "compute_beginning_of_period_resources"
         ],
         exog_state_mapping=model_funcs["exog_state_mapping"],
-        get_next_period_state=model_funcs["get_next_period_state"],
+        compute_next_period_states=compute_next_period_states,
+        second_continuous_state=second_continuous_state,
     )
 
-    states_and_resources_beginning_of_first_period = states_initial, resources_initial
+    states_and_resources_beginning_of_first_period = (
+        states_initial_dtype,
+        resources_initial,
+    )
+
     states_and_resources_beginning_of_final_period, sim_dict = jax.lax.scan(
         f=simulate_body,
         init=states_and_resources_beginning_of_first_period,
@@ -83,6 +115,7 @@ def simulate_all_periods(
         choice_range=model_structure["choice_range"],
         map_state_choice_to_index=model_structure["map_state_choice_to_index"],
         compute_utility_final_period=model_funcs["compute_utility_final"],
+        second_continuous_state=second_continuous_state,
     )
 
     result = {
@@ -107,16 +140,35 @@ def simulate_single_period(
     compute_utility,
     compute_beginning_of_period_resources,
     exog_state_mapping,
-    get_next_period_state,
+    compute_next_period_states,
+    second_continuous_state=None,
 ):
     (
         states_beginning_of_period,
         resources_beginning_of_period,
     ) = states_and_resources_beginning_of_period
 
+    if second_continuous_state:
+        continuous_state_name = list(second_continuous_state.keys())[0]
+        continuous_grid = second_continuous_state[continuous_state_name]
+
+        continuous_state_beginning_of_period = states_beginning_of_period[
+            continuous_state_name
+        ]
+        discrete_states_beginning_of_period = {
+            key: value
+            for key, value in states_beginning_of_period.items()
+            if key != continuous_state_name
+        }
+    else:
+        discrete_states_beginning_of_period = states_beginning_of_period
+        continuous_state_beginning_of_period = None
+        continuous_grid = None
+
     # Interpolate policy and value function for all agents.
     policy, values_pre_taste_shock = interpolate_policy_and_value_for_all_agents(
-        states_beginning_of_period=states_beginning_of_period,
+        discrete_states_beginning_of_period=discrete_states_beginning_of_period,
+        continuous_state_beginning_of_period=continuous_state_beginning_of_period,
         resources_beginning_of_period=resources_beginning_of_period,
         value_solved=value_solved,
         policy_solved=policy_solved,
@@ -126,6 +178,7 @@ def simulate_single_period(
         params=params,
         state_space_names=state_space_names,
         compute_utility=compute_utility,
+        continuous_grid=continuous_grid,
     )
 
     # Draw taste shocks and calculate final value.
@@ -158,19 +211,27 @@ def simulate_single_period(
 
     (
         resources_beginning_of_next_period,
-        states_next_period,
+        discrete_states_next_period,
+        continuous_state_next_period,
         income_shocks_next_period,
     ) = transition_to_next_period(
-        states_beginning_of_period=states_beginning_of_period,
+        discrete_states_beginning_of_period=discrete_states_beginning_of_period,
+        continuous_state_beginning_of_period=continuous_state_beginning_of_period,
         savings_current_period=savings_current_period,
         choice=choice,
         params=params,
         compute_exog_transition_vec=compute_exog_transition_vec,
         exog_state_mapping=exog_state_mapping,
         compute_beginning_of_period_resources=compute_beginning_of_period_resources,
-        get_next_period_state=get_next_period_state,
+        compute_next_period_states=compute_next_period_states,
         sim_specific_keys=sim_specific_keys,
     )
+
+    states_next_period = discrete_states_next_period
+
+    if second_continuous_state:
+        states_next_period[continuous_state_name] = continuous_state_next_period
+
     carry = states_next_period, resources_beginning_of_next_period
 
     result = {
@@ -196,6 +257,7 @@ def simulate_final_period(
     choice_range,
     map_state_choice_to_index,
     compute_utility_final_period,
+    second_continuous_state=None,
 ):
     invalid_number = np.iinfo(map_state_choice_to_index.dtype).max
 
@@ -210,9 +272,9 @@ def simulate_final_period(
     utilities_pre_taste_shock = vmap(
         vmap(
             compute_final_utility_for_each_choice,
-            in_axes=(None, 0, None, None, None),
+            in_axes=(None, 0, None, None, None),  # choices
         ),
-        in_axes=(0, None, 0, None, None),
+        in_axes=(0, None, 0, None, None),  # agents
     )(
         states_beginning_of_final_period,
         choice_range,
@@ -220,7 +282,7 @@ def simulate_final_period(
         params,
         compute_utility_final_period,
     )
-    state_choice_indexes = get_state_choice_index_per_state(
+    state_choice_indexes = get_state_choice_index_per_discrete_state(
         map_state_choice_to_index=map_state_choice_to_index,
         states=states_beginning_of_final_period,
         state_space_names=state_space_names,

@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 from jax import vmap
 
+from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.params import process_params
 from dcegm.pre_processing.setup_model import (
     load_and_setup_model,
@@ -10,15 +11,32 @@ from dcegm.pre_processing.setup_model import (
     setup_model,
 )
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
-from toy_models.consumption_retirement_model.budget_functions import budget_constraint
-from toy_models.consumption_retirement_model.state_space_objects import (
+from dcegm.pre_processing.state_space import check_options_and_set_defaults
+from toy_models.cons_ret_model_dcegm_paper.budget_constraint import budget_constraint
+from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
     create_state_space_function_dict,
 )
-from toy_models.consumption_retirement_model.utility_functions import (
+from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
     create_final_period_utility_function_dict,
     create_utility_function_dict,
     utiility_log_crra,
 )
+
+
+def get_next_experience(period, lagged_choice, experience, options, params):
+
+    working_hours = _transform_lagged_choice_to_working_hours(lagged_choice)
+
+    return 1 / (period + 1) * (period * experience + (working_hours) / 3000)
+
+
+def _transform_lagged_choice_to_working_hours(lagged_choice):
+
+    not_working = lagged_choice == 0
+    part_time = lagged_choice == 1
+    full_time = lagged_choice == 2
+
+    return not_working * 0 + part_time * 2000 + full_time * 3000
 
 
 def util_wrap(state_dict, params, util_func):
@@ -38,6 +56,9 @@ def test_wrap_function(load_example_model):
                 "endogenous_states": {
                     "thus": np.arange(25),
                     "that": [0, 1],
+                },
+                "continuous_states": {
+                    "wealth": np.linspace(0, 500, 100),
                 },
                 "exogenous_processes": {
                     "ltc": {"states": np.array([0]), "transition": jnp.array([0])}
@@ -109,24 +130,21 @@ def test_load_and_save_model(
     load_example_model,
 ):
     options = {}
-    params, _raw_options = load_example_model(f"{model_name}")
+    _params, _raw_options = load_example_model(f"{model_name}")
 
     options["model_params"] = _raw_options
     options["model_params"]["n_choices"] = _raw_options["n_discrete_choices"]
     options["state_space"] = {
         "n_periods": 25,
         "choices": [i for i in range(_raw_options["n_discrete_choices"])],
+        "continuous_states": {
+            "wealth": np.linspace(0, 500, 100),
+        },
     }
-
-    exog_savings_grid = jnp.linspace(
-        0,
-        options["model_params"]["max_wealth"],
-        options["model_params"]["n_grid_points"],
-    )
+    options["exog_grids"] = options["state_space"]["continuous_states"]["wealth"].copy()
 
     model_setup = setup_model(
         options=options,
-        exog_savings_grid=exog_savings_grid,
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -135,7 +153,6 @@ def test_load_and_save_model(
 
     model_after_saving = setup_and_save_model(
         options=options,
-        exog_savings_grid=exog_savings_grid,
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -178,12 +195,14 @@ def test_load_and_save_model(
 def test_grid_parameters():
     options = {
         "model_params": {
-            "max_wealth": 10,
-            "n_grid_points": 100,
+            "saving_rate": 0.04,
         },
         "state_space": {
             "n_periods": 25,
             "choices": [0, 1],
+            "continuous_states": {
+                "wealth": np.linspace(0, 10, 100),
+            },
         },
         "tuning_params": {
             "extra_wealth_grid_factor": 0.2,
@@ -191,18 +210,73 @@ def test_grid_parameters():
         },
     }
 
-    exog_savings_grid = jnp.linspace(
-        0,
-        options["model_params"]["max_wealth"],
-        options["model_params"]["n_grid_points"],
-    )
-
     with pytest.raises(ValueError) as e:
         setup_model(
             options=options,
-            exog_savings_grid=exog_savings_grid,
             state_space_functions=create_state_space_function_dict(),
             utility_functions=create_utility_function_dict(),
             utility_functions_final_period=create_final_period_utility_function_dict(),
             budget_constraint=budget_constraint,
         )
+
+
+_periods = [0, 1, 2, 3, 4, 5]
+_lagged_choices = [0, 1, 3]
+_continuous_states = np.linspace(0, 1, 10)
+TEST_INPUT = [
+    (p, l, c) for p in _periods for l in _lagged_choices for c in _continuous_states
+]
+
+
+@pytest.mark.parametrize("period, lagged_choice, continuous_state", TEST_INPUT)
+def test_second_continuous_state(period, lagged_choice, continuous_state):
+
+    options = {
+        "state_space": {
+            "n_periods": 25,
+            "choices": np.arange(3),
+            # discrete states
+            "endogenous_states": {
+                "married": [0, 1],
+                "n_children": np.arange(3),
+            },
+            "continuous_states": {
+                "wealth": np.linspace(0, 10_000, 100),
+                "experience": np.linspace(0, 1, 6),
+            },
+        },
+        "model_params": {"savings_rate": 0.04},
+    }
+    params = {}
+
+    state_space_functions = create_state_space_function_dict()
+    state_space_functions["get_next_period_experience"] = get_next_experience
+
+    options = check_options_and_set_defaults(options)
+
+    model_funcs = process_model_functions(
+        options,
+        state_space_functions=state_space_functions,
+        utility_functions=create_utility_function_dict(),
+        utility_functions_final_period=create_final_period_utility_function_dict(),
+        budget_constraint=budget_constraint,
+    )
+
+    update_continuous_state = model_funcs["update_continuous_state"]
+
+    got = update_continuous_state(
+        period=period,
+        lagged_choice=lagged_choice,
+        continuous_state=continuous_state,
+        options=options,
+        params=params,
+    )
+    expected = get_next_experience(
+        period=period,
+        lagged_choice=lagged_choice,
+        experience=continuous_state,
+        options=options,
+        params=params,
+    )
+
+    np.testing.assert_allclose(got, expected)

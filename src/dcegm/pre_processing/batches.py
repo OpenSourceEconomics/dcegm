@@ -46,6 +46,7 @@ def create_batches_and_information(
 
     state_space = model_structure["state_space"]
     state_space_names = model_structure["state_space_names"]
+
     map_state_choice_to_parent_state = model_structure[
         "map_state_choice_to_parent_state"
     ]
@@ -228,7 +229,7 @@ def extend_child_state_choices_to_aggregate_choices(
             "Please contact developer."
         )
 
-    # Now span an array with n_states time the maximum number of child states across
+    # Now span an array with n_states times the maximum number of child states across
     # all batches and the number of choices. Fill with invalid state choice index
     n_batches = len(idx_to_aggregate_choice)
     max_n_child_states = np.max(max_n_state_unique_in_batches)
@@ -279,15 +280,17 @@ def add_last_two_period_information(
     # To solve the second last period, we need the child states in the last period
     # and the corresponding matrix, where each row is a state with the state choice
     # ids as entry in each choice
-    states_final_period = state_space[state_space[:, 0] == n_periods - 1]
+    idx_states_final_period = np.where(state_space[:, 0] == n_periods - 1)[0]
+    states_final_period = state_space[idx_states_final_period]
     # Now construct a tuple for indexing
     n_state_vars = states_final_period.shape[1]
     states_tuple = tuple(states_final_period[:, i] for i in range(n_state_vars))
 
     # Now get the matrix we use for choice aggregation
     state_to_choices_final_period = map_state_choice_to_index[states_tuple]
-    # Normalize to be able to index in the interpolated values
-    min_val = np.min(state_to_choices_final_period[state_to_choices_final_period > 0])
+
+    # Reindex the state choices in the final period, to have them starting at 0.
+    min_val = int(np.min(idx_state_choice_final_period))
     state_to_choices_final_period -= min_val
 
     idx_state_choice_second_last_period = np.where(
@@ -297,15 +300,15 @@ def add_last_two_period_information(
     child_states_second_last_period = map_state_choice_to_child_states[
         idx_state_choice_second_last_period
     ]
-    min_val = np.min(
-        child_states_second_last_period[child_states_second_last_period > 0]
-    )
+
+    min_val = int(np.min(idx_states_final_period))
     child_states_second_last_period -= min_val
 
     # Also add parent states in last period
     parent_states_final_period = map_state_choice_to_parent_state[
         idx_state_choice_final_period
     ]
+
     batch_info = {
         **batch_info,
         "idx_state_choices_final_period": idx_state_choice_final_period,

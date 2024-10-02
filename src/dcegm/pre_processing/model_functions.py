@@ -4,7 +4,10 @@ import jax.numpy as jnp
 from upper_envelope.fues_jax.fues_jax import fues_jax
 
 from dcegm.pre_processing.exog_processes import create_exog_transition_function
-from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
+from dcegm.pre_processing.shared import (
+    determine_function_arguments_and_partial_options,
+    determine_function_arguments_and_partial_options_beginning_of_period,
+)
 
 
 def process_model_functions(
@@ -60,9 +63,9 @@ def process_model_functions(
 
     model_params_options = options["model_params"]
 
-    compute_utility = determine_function_arguments_and_partial_options(
-        func=utility_functions["utility"], options=model_params_options
-    )
+    # compute_utility = determine_function_arguments_and_partial_options(
+    #     func=utility_functions["utility"], options=model_params_options
+    # )
     compute_marginal_utility = determine_function_arguments_and_partial_options(
         func=utility_functions["marginal_utility"], options=model_params_options
     )
@@ -71,19 +74,13 @@ def process_model_functions(
         options=model_params_options,
     )
 
-    compute_utility_final = determine_function_arguments_and_partial_options(
-        func=utility_functions_final_period["utility"],
-        options=model_params_options,
-    )
+    # compute_utility_final = determine_function_arguments_and_partial_options(
+    #     func=utility_functions_final_period["utility"],
+    #     options=model_params_options,
+    # )
     compute_marginal_utility_final = determine_function_arguments_and_partial_options(
         func=utility_functions_final_period["marginal_utility"],
         options=model_params_options,
-    )
-
-    compute_beginning_of_period_resources = (
-        determine_function_arguments_and_partial_options(
-            func=budget_constraint, options=model_params_options
-        )
     )
 
     state_space_functions = (
@@ -122,7 +119,112 @@ def process_model_functions(
             options=model_params_options,
         )
 
-    compute_upper_envelope = create_upper_envelope_function(options)
+    if len(options["state_space"]["continuous_states"]) == 2:
+        continuous_state_name = options["second_continuous_state_name"]
+
+        func_name = next(
+            (
+                key
+                for key in state_space_functions
+                for name in [
+                    "continuous_state",
+                    continuous_state_name,
+                ]
+                if f"get_next_period_{name}" in key
+                or f"get_next_{name}" in key
+                or f"update_{name}" in key
+            ),
+            None,
+        )
+
+        update_continuous_state = determine_function_arguments_and_partial_options(
+            func=state_space_functions[func_name],
+            options=model_params_options,
+            continuous_state=continuous_state_name,
+        )
+        compute_beginning_of_period_continuous_state = (
+            determine_function_arguments_and_partial_options_beginning_of_period(
+                func=state_space_functions[func_name],
+                options=model_params_options,
+                continuous_state=continuous_state_name,
+            )
+        )
+        compute_beginning_of_period_resources = (
+            determine_function_arguments_and_partial_options(
+                func=budget_constraint,
+                options=model_params_options,
+                continuous_state=continuous_state_name,
+            )
+        )
+
+        compute_utility = determine_function_arguments_and_partial_options(
+            func=utility_functions["utility"],
+            options=model_params_options,
+            continuous_state=continuous_state_name,
+        )
+        compute_marginal_utility = determine_function_arguments_and_partial_options(
+            func=utility_functions["marginal_utility"],
+            options=model_params_options,
+            continuous_state=continuous_state_name,
+        )
+        compute_inverse_marginal_utility = (
+            determine_function_arguments_and_partial_options(
+                func=utility_functions["inverse_marginal_utility"],
+                options=model_params_options,
+                continuous_state=continuous_state_name,
+            )
+        )
+        compute_utility_final = determine_function_arguments_and_partial_options(
+            func=utility_functions_final_period["utility"],
+            options=model_params_options,
+            continuous_state=continuous_state_name,
+        )
+        compute_marginal_utility_final = (
+            determine_function_arguments_and_partial_options(
+                func=utility_functions_final_period["marginal_utility"],
+                options=model_params_options,
+                continuous_state=continuous_state_name,
+            )
+        )
+
+        compute_upper_envelope = create_upper_envelope_function(
+            options,
+            continuous_state=continuous_state_name,
+        )
+
+    else:
+        update_continuous_state = None
+        compute_beginning_of_period_continuous_state = None
+        compute_beginning_of_period_resources = (
+            determine_function_arguments_and_partial_options(
+                func=budget_constraint, options=model_params_options
+            )
+        )
+
+        compute_utility = determine_function_arguments_and_partial_options(
+            func=utility_functions["utility"], options=model_params_options
+        )
+        compute_marginal_utility = determine_function_arguments_and_partial_options(
+            func=utility_functions["marginal_utility"], options=model_params_options
+        )
+        compute_inverse_marginal_utility = (
+            determine_function_arguments_and_partial_options(
+                func=utility_functions["inverse_marginal_utility"],
+                options=model_params_options,
+            )
+        )
+        compute_utility_final = determine_function_arguments_and_partial_options(
+            func=utility_functions_final_period["utility"],
+            options=model_params_options,
+        )
+        compute_marginal_utility_final = (
+            determine_function_arguments_and_partial_options(
+                func=utility_functions_final_period["marginal_utility"],
+                options=model_params_options,
+            )
+        )
+
+        compute_upper_envelope = create_upper_envelope_function(options)
 
     model_funcs = {
         "compute_utility": compute_utility,
@@ -131,59 +233,116 @@ def process_model_functions(
         "compute_utility_final": compute_utility_final,
         "compute_marginal_utility_final": compute_marginal_utility_final,
         "compute_beginning_of_period_resources": compute_beginning_of_period_resources,
+        "compute_beginning_of_period_continuous_state": compute_beginning_of_period_continuous_state,
         "compute_exog_transition_vec": compute_exog_transition_vec,
         "processed_exog_funcs": processed_exog_funcs_dict,
         "get_state_specific_choice_set": get_state_specific_choice_set,
         "get_next_period_state": get_next_period_state,
+        "update_continuous_state": update_continuous_state,
         "compute_upper_envelope": compute_upper_envelope,
     }
 
     return model_funcs
 
 
-def create_upper_envelope_function(options):
+def create_upper_envelope_function(options, continuous_state=None):
     if len(options["state_space"]["choices"]) < 2:
         compute_upper_envelope = _return_policy_and_value
     else:
 
-        def compute_upper_envelope(
-            endog_grid,
-            policy,
-            value,
-            expected_value_zero_savings,
-            state_choice_dict,
-            utility_function,
-            params,
-        ):
-            value_kwargs = {
-                "expected_value_zero_savings": expected_value_zero_savings,
-                "params": params,
-                **state_choice_dict,
-            }
+        if continuous_state:
 
-            def value_function(
-                consumption, expected_value_zero_savings, params, **state_choice_dict
+            def compute_upper_envelope(
+                endog_grid,
+                policy,
+                value,
+                expected_value_zero_savings,
+                second_continuous_state,
+                state_choice_dict,
+                utility_function,
+                params,
             ):
-                return (
-                    utility_function(
-                        consumption=consumption, params=params, **state_choice_dict
+                value_kwargs = {
+                    "second_continuous_state": second_continuous_state,
+                    "expected_value_zero_savings": expected_value_zero_savings,
+                    "params": params,
+                    **state_choice_dict,
+                }
+
+                def value_function(
+                    consumption,
+                    second_continuous_state,
+                    expected_value_zero_savings,
+                    params,
+                    **state_choice_dict,
+                ):
+                    return (
+                        utility_function(
+                            consumption=consumption,
+                            continuous_state=second_continuous_state,
+                            params=params,
+                            **state_choice_dict,
+                        )
+                        + params["beta"] * expected_value_zero_savings
                     )
-                    + params["beta"] * expected_value_zero_savings
+
+                return fues_jax(
+                    endog_grid=endog_grid,
+                    policy=policy,
+                    value=value,
+                    expected_value_zero_savings=expected_value_zero_savings,
+                    value_function=value_function,
+                    value_function_kwargs=value_kwargs,
+                    n_constrained_points_to_add=options["tuning_params"][
+                        "n_constrained_points_to_add"
+                    ],
+                    n_final_wealth_grid=endog_grid.shape[0]
+                    * (1 + options["tuning_params"]["extra_wealth_grid_factor"]),
                 )
 
-            return fues_jax(
-                endog_grid=endog_grid,
-                policy=policy,
-                value=value,
-                expected_value_zero_savings=expected_value_zero_savings,
-                value_function=value_function,
-                value_function_kwargs=value_kwargs,
-                n_constrained_points_to_add=options["tuning_params"][
-                    "n_constrained_points_to_add"
-                ],
-                n_final_wealth_grid=endog_grid.shape[0]
-                * (1 + options["tuning_params"]["extra_wealth_grid_factor"]),
-            )
+        else:
+
+            def compute_upper_envelope(
+                endog_grid,
+                policy,
+                value,
+                expected_value_zero_savings,
+                state_choice_dict,
+                utility_function,
+                params,
+            ):
+                value_kwargs = {
+                    "expected_value_zero_savings": expected_value_zero_savings,
+                    "params": params,
+                    **state_choice_dict,
+                }
+
+                def value_function(
+                    consumption,
+                    expected_value_zero_savings,
+                    params,
+                    **state_choice_dict,
+                ):
+                    return (
+                        utility_function(
+                            consumption=consumption, params=params, **state_choice_dict
+                        )
+                        + params["beta"] * expected_value_zero_savings
+                    )
+
+                return fues_jax(
+                    endog_grid=endog_grid,
+                    policy=policy,
+                    value=value,
+                    expected_value_zero_savings=expected_value_zero_savings,
+                    value_function=value_function,
+                    value_function_kwargs=value_kwargs,
+                    n_constrained_points_to_add=options["tuning_params"][
+                        "n_constrained_points_to_add"
+                    ],
+                    n_final_wealth_grid=endog_grid.shape[0]
+                    * (1 + options["tuning_params"]["extra_wealth_grid_factor"]),
+                )
 
     return compute_upper_envelope
 

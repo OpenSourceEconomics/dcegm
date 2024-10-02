@@ -74,7 +74,7 @@ def interpolate_policy_and_value_on_wealth_grid(
     wealth_beginning_of_period: jnp.ndarray,
     endog_wealth_grid: jnp.ndarray,
     policy: jnp.ndarray,
-    value_grid: jnp.ndarray,
+    value: jnp.ndarray,
 ):
     """Interpolate policy and value functions on the wealth grid.
 
@@ -87,9 +87,9 @@ def interpolate_policy_and_value_on_wealth_grid(
             begin of period wealth.
         endog_wealth_grid (jnp.array): 1d array of shape (n,) containing the endogenous
             wealth grid.
-        policy_grid (jnp.ndarray): 1d array of shape (n,) containing the
+        policy (jnp.ndarray): 1d array of shape (n,) containing the
             policy function corresponding to the endogenous wealth grid.
-        value_grid (jnp.ndarray): 1d array of shape (n,) containing the value function
+        value (jnp.ndarray): 1d array of shape (n,) containing the value function
             values corresponding to the endogenous wealth grid.
 
     Returns:
@@ -117,8 +117,8 @@ def interpolate_policy_and_value_on_wealth_grid(
     )
 
     value_new = linear_interpolation_formula(
-        y_high=jnp.take(value_grid, ind_high),
-        y_low=jnp.take(value_grid, ind_low),
+        y_high=jnp.take(value, ind_high),
+        y_low=jnp.take(value, ind_low),
         x_high=wealth_high,
         x_low=wealth_low,
         x_new=wealth_beginning_of_period,

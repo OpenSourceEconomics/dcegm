@@ -6,7 +6,7 @@ import pytest
 
 from dcegm.pre_processing.debugging import inspect_state_space
 from dcegm.pre_processing.state_space import create_state_space
-from toy_models.consumption_retirement_model.state_space_objects import (
+from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
     get_state_specific_feasible_choice_set,
 )
 
@@ -27,6 +27,9 @@ def options(load_example_model):
                 "endogenous_states": {
                     "thus": np.arange(25),
                     "that": [0, 1],
+                },
+                "continuous_states": {
+                    "wealth": np.linspace(0, 50, 100),
                 },
                 "exogenous_processes": {
                     "ltc": {"states": np.array([0]), "transition": jnp.array([0])}
@@ -211,6 +214,7 @@ def test_state_space():
                 "retirement_age_id": np.arange(10, dtype=int),
                 "sparsity_condition": sparsity_condition,
             },
+            "continuous_states": {"wealth": np.linspace(0, 50, 100)},
         },
         "model_params": {
             "n_periods": n_periods,  # 25 + 50 = 75

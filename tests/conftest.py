@@ -18,10 +18,10 @@ from tests.two_period_models.model import (
     prob_exog_job_offer,
     prob_exog_ltc,
 )
-from toy_models.consumption_retirement_model.state_space_objects import (
+from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
     create_state_space_function_dict,
 )
-from toy_models.consumption_retirement_model.utility_functions import (
+from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
     create_final_period_utility_function_dict,
     create_utility_function_dict,
 )
@@ -78,28 +78,27 @@ def load_example_model():
 
 @pytest.fixture(scope="session")
 def params_and_options_exog_ltc():
-    params = {}
-    params["rho"] = 0.5
-    params["delta"] = 0.5
-    params["interest_rate"] = 0.02
-    params["ltc_cost"] = 5
-    params["wage_avg"] = 8
-    params["sigma"] = 1
-    params["lambda"] = 10
-    params["beta"] = 0.95
 
-    # exog params
-    params["ltc_prob_constant"] = 0.3
-    params["ltc_prob_age"] = 0.1
-    params["job_offer_constant"] = 0.5
-    params["job_offer_age"] = 0
-    params["job_offer_educ"] = 0
-    params["job_offer_type_two"] = 0.4
+    params = {
+        "rho": 0.5,
+        "delta": 0.5,
+        "interest_rate": 0.02,
+        "ltc_cost": 5,
+        "wage_avg": 8,
+        "sigma": 1,
+        "lambda": 10,
+        "beta": 0.95,
+        # Exogenous parameters
+        "ltc_prob_constant": 0.3,
+        "ltc_prob_age": 0.1,
+        "job_offer_constant": 0.5,
+        "job_offer_age": 0,
+        "job_offer_educ": 0,
+        "job_offer_type_two": 0.4,
+    }
 
     options = {
         "model_params": {
-            "n_grid_points": WEALTH_GRID_POINTS,
-            "max_wealth": 50,
             "quadrature_points_stochastic": 5,
             "n_choices": 2,
         },
@@ -108,6 +107,9 @@ def params_and_options_exog_ltc():
             "choices": np.arange(2),
             "endogenous_states": {
                 "married": [0, 1],
+            },
+            "continuous_states": {
+                "wealth": np.linspace(0, 50, WEALTH_GRID_POINTS),
             },
             "exogenous_processes": {
                 "ltc": {"transition": prob_exog_ltc, "states": [0, 1]},
@@ -120,30 +122,28 @@ def params_and_options_exog_ltc():
 
 @pytest.fixture(scope="session")
 def params_and_options_exog_ltc_and_job_offer():
-    # ToDo: Write this as dictionary such that it has a much nicer overview
-    params = {}
-    params["rho"] = 0.5
-    params["delta"] = 0.5
-    params["interest_rate"] = 0.02
-    params["ltc_cost"] = 5
-    params["wage_avg"] = 8
-    params["sigma"] = 1
-    params["lambda"] = 1
-    params["ltc_prob"] = 0.3
-    params["beta"] = 0.95
 
-    # exog params
-    params["ltc_prob_constant"] = 0.3
-    params["ltc_prob_age"] = 0.1
-    params["job_offer_constant"] = 0.5
-    params["job_offer_age"] = 0
-    params["job_offer_educ"] = 0
-    params["job_offer_type_two"] = 0.4
+    params = {
+        "rho": 0.5,
+        "delta": 0.5,
+        "interest_rate": 0.02,
+        "ltc_cost": 5,
+        "wage_avg": 8,
+        "sigma": 1,
+        "lambda": 1,
+        "ltc_prob": 0.3,
+        "beta": 0.95,
+        # Exogenous parameters
+        "ltc_prob_constant": 0.3,
+        "ltc_prob_age": 0.1,
+        "job_offer_constant": 0.5,
+        "job_offer_age": 0,
+        "job_offer_educ": 0,
+        "job_offer_type_two": 0.4,
+    }
 
     options = {
         "model_params": {
-            "n_grid_points": WEALTH_GRID_POINTS,
-            "max_wealth": 50,
             "quadrature_points_stochastic": 5,
             "n_choices": 2,
         },
@@ -152,6 +152,9 @@ def params_and_options_exog_ltc_and_job_offer():
             "choices": np.arange(2),
             "endogenous_states": {
                 "married": [0, 1],
+            },
+            "continuous_states": {
+                "wealth": np.linspace(0, 50, WEALTH_GRID_POINTS),
             },
             "exogenous_processes": {
                 "ltc": {"transition": prob_exog_ltc, "states": [0, 1]},
@@ -168,16 +171,10 @@ def toy_model_exog_ltc(
     params_and_options_exog_ltc,
 ):
     params, options = params_and_options_exog_ltc
-    exog_savings_grid = jnp.linspace(
-        0,
-        options["model_params"]["max_wealth"],
-        options["model_params"]["n_grid_points"],
-    )
 
     out = {}
     model = setup_model(
         options=options,
-        exog_savings_grid=exog_savings_grid,
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -191,7 +188,6 @@ def toy_model_exog_ltc(
     ) = solve_dcegm(
         params,
         options,
-        exog_savings_grid=exog_savings_grid,
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -209,16 +205,10 @@ def toy_model_exog_ltc_and_job_offer(
     params_and_options_exog_ltc_and_job_offer,
 ):
     params, options = params_and_options_exog_ltc_and_job_offer
-    exog_savings_grid = jnp.linspace(
-        0,
-        options["model_params"]["max_wealth"],
-        options["model_params"]["n_grid_points"],
-    )
 
     out = {}
     model = setup_model(
         options=options,
-        exog_savings_grid=exog_savings_grid,
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -232,7 +222,6 @@ def toy_model_exog_ltc_and_job_offer(
     ) = solve_dcegm(
         params,
         options,
-        exog_savings_grid=exog_savings_grid,
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),

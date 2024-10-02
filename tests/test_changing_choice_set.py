@@ -17,7 +17,7 @@ import pytest
 
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import get_solve_function
-from toy_models.consumption_retirement_model.utility_functions import (
+from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
     inverse_marginal_utility_crra,
     marginal_utility_crra,
     marginal_utility_final_consume_all,
@@ -83,8 +83,8 @@ def test_model():
 
     options = {
         "model_params": {
-            "n_grid_points": 100,
-            "max_wealth": 500,
+            # "n_grid_points": 100,
+            # "max_wealth": 500,
             "quadrature_points_stochastic": 5,
             "min_age": 0,
             "n_periods": 5,
@@ -99,6 +99,9 @@ def test_model():
             "endogenous_states": {
                 "experience": np.arange(5),
                 "sparsity_condition": sparsity_condition,
+            },
+            "continuous_states": {
+                "wealth": np.linspace(0, 500, 100),
             },
             "exogenous_processes": {
                 "health": {"transition": prob_health, "states": [0, 1]},
@@ -199,27 +202,21 @@ def test_extended_choice_set_model(
     test_model, state_space_functions, utility_functions, utility_functions_final_period
 ):
     params, options = test_model
-    savings_grid = jnp.linspace(
-        0,
-        options["model_params"]["max_wealth"],
-        options["model_params"]["n_grid_points"],
-    )
+
     solve_func = get_solve_function(
         options=options,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         budget_constraint=budget,
-        exog_savings_grid=savings_grid,
         utility_functions_final_period=utility_functions_final_period,
     )
     sol = solve_func(params)
-    value, _policy, _endog_grid = sol
+    value, _policy, _endog_grid, *_ = sol
     value_expec = pickle.load(
         open(TEST_DIR / "resources" / "extended_choice_set" / "value.pkl", "rb")
     )
     model = setup_model(
         options=options,
-        exog_savings_grid=savings_grid,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,

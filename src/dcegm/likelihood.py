@@ -14,7 +14,7 @@ import numpy as np
 from dcegm.egm.aggregate_marginal_utility import (
     calculate_choice_probs_and_unsqueezed_logsum,
 )
-from dcegm.interface import get_state_choice_index_per_state
+from dcegm.interface import get_state_choice_index_per_discrete_state
 from dcegm.interpolation.interp1d import interp_value_on_wealth
 from dcegm.solve import get_solve_func_for_model
 
@@ -258,7 +258,7 @@ def create_partial_choice_prob_calculation(
     observed_wealth,
     model,
 ):
-    observed_state_choice_indexes = get_state_choice_index_per_state(
+    observed_state_choice_indexes = get_state_choice_index_per_discrete_state(
         states=observed_states,
         map_state_choice_to_index=model["model_structure"]["map_state_choice_to_index"],
         state_space_names=model["model_structure"]["state_space_names"],

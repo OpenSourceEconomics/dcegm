@@ -36,7 +36,7 @@ def get_index_high_and_low(x, x_new):
     return ind_high, ind_high - 1
 
 
-def interpolate_policy_and_value_on_wealth(
+def interp1d_policy_and_value_on_wealth(
     wealth: float | jnp.ndarray,
     endog_grid: jnp.ndarray,
     policy: jnp.ndarray,
@@ -48,7 +48,7 @@ def interpolate_policy_and_value_on_wealth(
     """Interpolate policy and value function given a single wealth grid point.
 
     Args:
-        wealth (float): Wealth value to interpolate.
+        wealth (float | jnp.ndarray): New wealth point(s) to interpolate.
         endog_grid (jnp.ndarray): Solved endogenous wealth grid.
         policy (jnp.ndarray): Solved policy function.
         value (jnp.ndarray): Solved value function.
@@ -98,10 +98,10 @@ def interp_value_on_wealth(
     state_choice_vec: Dict[str, int],
     params: Dict[str, float],
 ) -> float:
-    """Interpolate value given a single wealth value.
+    """Interpolate value function on a single wealth point.
 
     Args:
-        wealth (float): Wealth value to interpolate.
+        wealth (float): New wealth point to interpolate.
         endog_grid (jnp.ndarray): Solved endogenous wealth grid.
         value (jnp.ndarray): Solved value function.
         state_choice_vec (Dict): Dictionary containing a single state and choice.
@@ -135,10 +135,10 @@ def interp_policy_on_wealth(
     endog_grid: jnp.ndarray,
     policy: jnp.ndarray,
 ) -> float:
-    """Interpolate value given a single wealth value.
+    """Interpolate policy function on a single wealth point.
 
     Args:
-        wealth (float): Wealth value to interpolate.
+        wealth (float): New wealth point to interpolate.
         endog_grid (jnp.ndarray): Solved endogenous wealth grid.
         value (jnp.ndarray): Solved value function.
         state_choice_vec (Dict): Dictionary containing a single state and choice.
@@ -211,7 +211,7 @@ def interp_value_and_check_creditconstraint(
         x_new=new_wealth,
     )
 
-    # Now recalculate the value when consumed all wealth
+    # Now recalculate the closed-form value of consuming all wealth
     utility = compute_utility(
         consumption=new_wealth,
         params=params,
@@ -222,7 +222,6 @@ def interp_value_and_check_creditconstraint(
     # Check if we are in the credit constrained region
     credit_constraint = new_wealth <= endog_grid_min
 
-    # If so we return the value if all is consumed.
     value_interp = (
         credit_constraint * value_interp_closed_form
         + (1 - credit_constraint) * value_interp_on_grid

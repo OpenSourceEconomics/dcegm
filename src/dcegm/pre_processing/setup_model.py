@@ -10,13 +10,12 @@ from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.state_space import (
     check_options_and_set_defaults,
     create_array_with_smallest_int_dtype,
-    create_state_space_and_choice_objects,
+    create_discrete_state_space_and_choice_objects,
 )
 
 
 def setup_model(
     options: Dict,
-    exog_savings_grid: jnp.ndarray,
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
@@ -47,9 +46,7 @@ def setup_model(
         budget_constraint (Callable): User supplied budget constraint.
 
     """
-    options = check_options_and_set_defaults(
-        options, exog_savings_grid=exog_savings_grid
-    )
+    options = check_options_and_set_defaults(options)
 
     model_funcs = process_model_functions(
         options,
@@ -59,7 +56,7 @@ def setup_model(
         budget_constraint=budget_constraint,
     )
 
-    model_structure = create_state_space_and_choice_objects(
+    model_structure = create_discrete_state_space_and_choice_objects(
         options=options,
         model_funcs=model_funcs,
     )
@@ -76,7 +73,6 @@ def setup_model(
 
     return {
         "options": options,
-        "exog_savings_grid": exog_savings_grid,
         "model_funcs": model_funcs,
         "model_structure": model_structure,
         "batch_info": jax.tree.map(create_array_with_smallest_int_dtype, batch_info),
@@ -85,7 +81,6 @@ def setup_model(
 
 def setup_and_save_model(
     options: Dict,
-    exog_savings_grid: jnp.ndarray,
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
@@ -102,7 +97,6 @@ def setup_and_save_model(
 
     model = setup_model(
         options=options,
-        exog_savings_grid=exog_savings_grid,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
@@ -110,7 +104,7 @@ def setup_and_save_model(
     )
 
     dict_to_save = {
-        "exog_savings_grid": model["exog_savings_grid"],
+        "exog_grids": options["exog_grids"],
         "model_structure": model["model_structure"],
         "batch_info": model["batch_info"],
     }
@@ -131,9 +125,7 @@ def load_and_setup_model(
 
     model = pickle.load(open(path, "rb"))
 
-    model["options"] = check_options_and_set_defaults(
-        options, exog_savings_grid=model["exog_savings_grid"]
-    )
+    model["options"] = check_options_and_set_defaults(options)
 
     model["model_funcs"] = process_model_functions(
         options=model["options"],

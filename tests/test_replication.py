@@ -7,15 +7,15 @@ from numpy.testing import assert_array_almost_equal as aaae
 
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import solve_dcegm
-from tests.utils.interpolations import (
+from tests.utils.interp1d_auxiliary import (
     interpolate_policy_and_value_on_wealth_grid,
     linear_interpolation_with_extrapolation,
 )
-from toy_models.consumption_retirement_model.budget_functions import budget_constraint
-from toy_models.consumption_retirement_model.state_space_objects import (
+from toy_models.cons_ret_model_dcegm_paper.budget_constraint import budget_constraint
+from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
     create_state_space_function_dict,
 )
-from toy_models.consumption_retirement_model.utility_functions import (
+from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
     create_final_period_utility_function_dict,
     create_utility_function_dict,
     utiility_log_crra,
@@ -49,13 +49,15 @@ def test_benchmark_models(
     options["state_space"] = {
         "n_periods": 25,
         "choices": [i for i in range(_raw_options["n_discrete_choices"])],
+        "continuous_states": {
+            "wealth": jnp.linspace(
+                0,
+                options["model_params"]["max_wealth"],
+                options["model_params"]["n_grid_points"],
+            )
+        },
     }
 
-    exog_savings_grid = jnp.linspace(
-        0,
-        options["model_params"]["max_wealth"],
-        options["model_params"]["n_grid_points"],
-    )
     utility_functions = create_utility_function_dict()
     utility_functions_final_period = create_final_period_utility_function_dict()
 
@@ -68,17 +70,15 @@ def test_benchmark_models(
 
     model = setup_model(
         options=options,
-        exog_savings_grid=exog_savings_grid,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
     )
 
-    value, policy, endog_grid = solve_dcegm(
+    value, policy, endog_grid, *_ = solve_dcegm(
         params,
         options,
-        exog_savings_grid=exog_savings_grid,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
@@ -122,7 +122,7 @@ def test_benchmark_models(
             wealth_beginning_of_period=wealth_grid_to_test,
             endog_wealth_grid=endog_grid[state_choice_idx],
             policy=policy[state_choice_idx],
-            value_grid=value[state_choice_idx],
+            value=value[state_choice_idx],
         )
 
         aaae(policy_expec_interp, policy_calc_interp)

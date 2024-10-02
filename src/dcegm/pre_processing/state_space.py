@@ -7,11 +7,11 @@ import numpy as np
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 
 
-def create_state_space_and_choice_objects(
+def create_discrete_state_space_and_choice_objects(
     options,
     model_funcs,
 ):
-    """Create dictionary of state and state-choice objects for each period.
+    """Create dictionary of discrete state and state-choice objects for each period.
 
     Args:
         options (Dict[str, int]): Options dictionary.
@@ -338,8 +338,7 @@ def create_state_choice_space(
 
                 # Current state without exog
                 state_dict_without_exog = {
-                    key: state_dict[key]
-                    for i, key in enumerate(states_names_without_exog)
+                    key: state_dict[key] for key in states_names_without_exog
                 }
 
                 endog_state_update = get_next_period_state(
@@ -359,6 +358,7 @@ def create_state_choice_space(
                     )
                     + exog_states_tuple
                 )
+
                 try:
                     child_idxs = map_state_to_index[states_next_tuple]
                 except:
@@ -397,7 +397,6 @@ def process_exog_model_specifications(state_space_options):
             subdict_of_space=dict_of_only_states,
             states_names=exog_state_names,
         )
-
     else:
         exog_state_names = ["dummy_exog"]
         exog_state_space = np.array([[0]], dtype=np.uint8)
@@ -420,7 +419,14 @@ def span_subspace_and_read_information(subdict_of_space, states_names):
 def process_endog_state_specifications(state_space_options, model_params):
     """Get number of endog states which we loop over when creating the state space."""
 
-    if "endogenous_states" in state_space_options:
+    # if "endogenous_states" in state_space_options:
+    # if (
+    #     "endogenous_states" in state_space_options
+    #     and isinstance(state_space_options["endogenous_states"], dict)
+    #     and state_space_options["endogenous_states"]
+    # ):
+    if state_space_options.get("endogenous_states"):
+
         endog_state_keys = state_space_options["endogenous_states"].keys()
 
         if "sparsity_condition" in state_space_options["endogenous_states"].keys():
@@ -509,9 +515,8 @@ def create_indexer_for_space(space):
     return map_vars_to_index
 
 
-def check_options_and_set_defaults(options, exog_savings_grid):
+def check_options_and_set_defaults(options):
     """Check if options are valid and set defaults."""
-    n_grid_points = exog_savings_grid.shape[0]
 
     if not isinstance(options, dict):
         raise ValueError("Options must be a dictionary.")
@@ -541,6 +546,9 @@ def check_options_and_set_defaults(options, exog_savings_grid):
     if "n_choices" not in options["model_params"]:
         options["model_params"]["n_choices"] = len(options["state_space"]["choices"])
 
+    n_savings_grid_points = len(options["state_space"]["continuous_states"]["wealth"])
+    options["n_wealth_grid"] = n_savings_grid_points
+
     if "tuning_params" not in options:
         options["tuning_params"] = {}
 
@@ -552,12 +560,14 @@ def check_options_and_set_defaults(options, exog_savings_grid):
     options["tuning_params"]["n_constrained_points_to_add"] = (
         options["tuning_params"]["n_constrained_points_to_add"]
         if "n_constrained_points_to_add" in options["tuning_params"]
-        else n_grid_points // 10
+        else n_savings_grid_points // 10
     )
 
     if (
-        n_grid_points * (1 + options["tuning_params"]["extra_wealth_grid_factor"])
-        < n_grid_points + options["tuning_params"]["n_constrained_points_to_add"]
+        n_savings_grid_points
+        * (1 + options["tuning_params"]["extra_wealth_grid_factor"])
+        < n_savings_grid_points
+        + options["tuning_params"]["n_constrained_points_to_add"]
     ):
         raise ValueError(
             f"""\n\n
@@ -568,8 +578,35 @@ def check_options_and_set_defaults(options, exog_savings_grid):
             the credit constrained part of the wealth grid. \n\n"""
         )
     options["tuning_params"]["n_total_wealth_grid"] = int(
-        n_grid_points * (1 + options["tuning_params"]["extra_wealth_grid_factor"])
+        n_savings_grid_points
+        * (1 + options["tuning_params"]["extra_wealth_grid_factor"])
     )
+
+    exog_grids = options["state_space"]["continuous_states"].copy()
+
+    if len(options["state_space"]["continuous_states"]) == 2:
+        second_continuous_state = next(
+            (
+                {key: value}
+                for key, value in options["state_space"]["continuous_states"].items()
+                if key != "wealth"
+            ),
+            None,
+        )
+
+        second_continuous_state_name = list(second_continuous_state.keys())[0]
+        options["second_continuous_state_name"] = second_continuous_state_name
+
+        options["tuning_params"]["n_second_continuous_grid"] = len(
+            second_continuous_state[second_continuous_state_name]
+        )
+
+        exog_grids["second_continuous"] = options["state_space"]["continuous_states"][
+            second_continuous_state_name
+        ]
+        exog_grids.pop(second_continuous_state_name)
+
+    options["exog_grids"] = exog_grids
 
     return options
 
