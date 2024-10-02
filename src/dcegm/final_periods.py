@@ -93,8 +93,6 @@ def solve_last_two_periods(
         value_solved,
         policy_solved,
         endog_grid_solved,
-        emax,
-        marg_util,
     )
 
 
