@@ -11,13 +11,7 @@ from dcegm.interpolation.interp2d import (
 )
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import get_solve_func_for_model
-from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
-    create_final_period_utility_function_dict,
-    create_utility_function_dict,
-)
-from toy_models.cons_ret_model_with_exp.state_space_objects import (
-    create_state_space_function_dict,
-)
+from toy_models.load_example_model import load_example_models
 
 N_PERIODS = 5
 N_DISCRETE_CHOICES = 2
@@ -43,69 +37,6 @@ PARAMS = {
 # ====================================================================================
 # Model functions
 # ====================================================================================
-
-
-def budget_constraint_continuous(
-    period,
-    lagged_choice,
-    experience,
-    savings_end_of_previous_period,
-    income_shock_previous_period,
-    params,
-):
-    experience_years = experience * period
-    return budget_constraint_discrete(
-        lagged_choice=lagged_choice,
-        experience=experience_years,
-        savings_end_of_previous_period=savings_end_of_previous_period,
-        income_shock_previous_period=income_shock_previous_period,
-        params=params,
-    )
-
-
-def budget_constraint_discrete(
-    lagged_choice,
-    experience,
-    savings_end_of_previous_period,
-    income_shock_previous_period,
-    params,
-):
-
-    working = lagged_choice == 0
-
-    income_from_previous_period = _calc_stochastic_income(
-        experience=experience,
-        wage_shock=income_shock_previous_period,
-        params=params,
-    )
-
-    wealth_beginning_of_period = (
-        income_from_previous_period * working
-        + (1 + params["interest_rate"]) * savings_end_of_previous_period
-    )
-
-    # Retirement safety net, only in retirement model, but we require to have it always
-    # as a parameter
-    return jnp.maximum(wealth_beginning_of_period, params["consumption_floor"])
-
-
-def _calc_stochastic_income(
-    experience,
-    wage_shock,
-    params,
-):
-
-    labor_income = (
-        params["constant"]
-        + params["exp"] * experience
-        + params["exp_squared"] * experience**2
-    )
-
-    return jnp.exp(labor_income + wage_shock)
-
-
-def get_next_period_experience(period, lagged_choice, experience):
-    return (1 / period) * ((period - 1) * experience + (lagged_choice == 0))
 
 
 def sparsity_condition(
@@ -164,20 +95,20 @@ def test_setup():
         },
     }
 
-    utility_functions = create_utility_function_dict()
-    utility_functions_final_period = create_final_period_utility_function_dict()
-
     # =================================================================================
     # Discrete experience
     # =================================================================================
 
-    state_space_functions_discrete = create_state_space_function_dict()
+    model_funcs_discr_exp = load_example_models("with_exp")
+
     model_disc = setup_model(
         options=options,
-        state_space_functions=state_space_functions_discrete,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
-        budget_constraint=budget_constraint_discrete,
+        state_space_functions=model_funcs_discr_exp["state_space_functions"],
+        utility_functions=model_funcs_discr_exp["utility_functions"],
+        utility_functions_final_period=model_funcs_discr_exp[
+            "final_period_utility_functions"
+        ],
+        budget_constraint=model_funcs_discr_exp["budget_constraint"],
     )
 
     solve_disc = get_solve_func_for_model(model_disc)
@@ -194,16 +125,16 @@ def test_setup():
     options_cont["state_space"]["endogenous_states"].pop("experience")
     options_cont["state_space"]["endogenous_states"].pop("sparsity_condition")
 
-    state_space_functions_continuous = {
-        "update_continuous_state": get_next_period_experience,
-    }
+    model_funcs_cont_exp = load_example_models("with_cont_exp")
 
     model_cont = setup_model(
         options=options_cont,
-        state_space_functions=state_space_functions_continuous,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
-        budget_constraint=budget_constraint_continuous,
+        state_space_functions=model_funcs_cont_exp["state_space_functions"],
+        utility_functions=model_funcs_cont_exp["utility_functions"],
+        utility_functions_final_period=model_funcs_cont_exp[
+            "final_period_utility_functions"
+        ],
+        budget_constraint=model_funcs_cont_exp["budget_constraint"],
     )
 
     solve_cont = get_solve_func_for_model(model_cont)

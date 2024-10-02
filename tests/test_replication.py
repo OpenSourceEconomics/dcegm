@@ -11,7 +11,7 @@ from tests.utils.interp1d_auxiliary import (
     interpolate_policy_and_value_on_wealth_grid,
     linear_interpolation_with_extrapolation,
 )
-from toy_models.cons_ret_model_dcegm_paper.budget_functions import budget_constraint
+from toy_models.cons_ret_model_dcegm_paper.budget_constraint import budget_constraint
 from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
     create_state_space_function_dict,
 )
