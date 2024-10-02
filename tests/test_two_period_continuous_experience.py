@@ -368,10 +368,11 @@ def create_test_inputs():
         state_choice_mat=batch_info_cont["state_choice_mat_second_last_period"],
         child_state_idxs=batch_info_cont["child_states_second_last_period"],
         states_to_choices_child_states=batch_info_cont["state_to_choices_final_period"],
+        cont_grids_next_period=exog_grids_cont["second_continuous"],
         params=params,
         taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,
-        exog_grids=exog_grids_cont["wealth"],
+        exog_grids=exog_grids_cont,
         model_funcs=model_funcs_cont,
         has_second_continuous_state=True,
     )

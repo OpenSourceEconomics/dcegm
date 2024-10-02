@@ -77,6 +77,7 @@ def solve_last_two_periods(
         params=params,
         taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,
+        cont_grids_next_period=cont_grids_next_period,
         exog_grids=exog_grids,
         model_funcs=model_funcs,
         has_second_continuous_state=has_second_continuous_state,

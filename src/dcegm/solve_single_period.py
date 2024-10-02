@@ -64,6 +64,7 @@ def solve_single_period(
         taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,
         exog_grids=exog_grids,
+        cont_grids_next_period=cont_grids_next_period,
         model_funcs=model_funcs,
         has_second_continuous_state=has_second_continuous_state,
     )
@@ -89,6 +90,7 @@ def solve_for_interpolated_values(
     taste_shock_scale,
     income_shock_weights,
     exog_grids,
+    cont_grids_next_period,
     model_funcs,
     has_second_continuous_state,
 ):
@@ -115,11 +117,7 @@ def solve_for_interpolated_values(
         emax_next=emax,
         state_choice_mat=state_choice_mat,
         idx_post_decision_child_states=child_state_idxs,
-        compute_inverse_marginal_utility=model_funcs[
-            "compute_inverse_marginal_utility"
-        ],
-        compute_utility=model_funcs["compute_utility"],
-        compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
+        model_funcs=model_funcs,
         has_second_continuous_state=has_second_continuous_state,
         params=params,
     )
