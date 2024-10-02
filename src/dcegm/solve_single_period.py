@@ -14,7 +14,7 @@ def solve_single_period(
     params,
     exog_grids,
     income_shock_weights,
-    wealth_and_continuous_state_next_period,
+    cont_grids_next_period,
     model_funcs,
     taste_shock_scale,
 ):
@@ -25,7 +25,7 @@ def solve_single_period(
         state_choices_idxs,
         child_state_choices_to_aggr_choice,
         child_states_to_integrate_exog,
-        child_state_choice_idxs_to_interpolate,
+        child_state_choice_idxs_to_interp,
         child_state_idxs,
         state_choice_mat,
         state_choice_mat_child,
@@ -37,12 +37,12 @@ def solve_single_period(
         compute_utility=model_funcs["compute_utility"],
         state_choice_vec=state_choice_mat_child,
         exog_grids=exog_grids,
-        wealth_and_continuous_state_next=wealth_and_continuous_state_next_period,
+        cont_grids_next_period=cont_grids_next_period,
         endog_grid_child_state_choice=endog_grid_solved[
-            child_state_choice_idxs_to_interpolate
+            child_state_choice_idxs_to_interp
         ],
-        policy_child_state_choice=policy_solved[child_state_choice_idxs_to_interpolate],
-        value_child_state_choice=value_solved[child_state_choice_idxs_to_interpolate],
+        policy_child_state_choice=policy_solved[child_state_choice_idxs_to_interp],
+        value_child_state_choice=value_solved[child_state_choice_idxs_to_interp],
         child_state_idxs=child_state_idxs,
         has_second_continuous_state=has_second_continuous_state,
         params=params,
@@ -64,6 +64,7 @@ def solve_single_period(
         taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,
         exog_grids=exog_grids,
+        cont_grids_next_period=cont_grids_next_period,
         model_funcs=model_funcs,
         has_second_continuous_state=has_second_continuous_state,
     )
@@ -89,6 +90,7 @@ def solve_for_interpolated_values(
     taste_shock_scale,
     income_shock_weights,
     exog_grids,
+    cont_grids_next_period,
     model_funcs,
     has_second_continuous_state,
 ):
@@ -115,11 +117,7 @@ def solve_for_interpolated_values(
         emax_next=emax,
         state_choice_mat=state_choice_mat,
         idx_post_decision_child_states=child_state_idxs,
-        compute_inverse_marginal_utility=model_funcs[
-            "compute_inverse_marginal_utility"
-        ],
-        compute_utility=model_funcs["compute_utility"],
-        compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
+        model_funcs=model_funcs,
         has_second_continuous_state=has_second_continuous_state,
         params=params,
     )

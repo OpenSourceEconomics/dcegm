@@ -44,7 +44,6 @@ from toy_models.consumption_retirement_model.utility_functions import (
 
 def utility_crra_with_second_continuous(
     consumption: jnp.array,
-    continuous_state: jnp.array,
     choice: int,
     params: Dict[str, float],
 ) -> jnp.array:
@@ -216,9 +215,10 @@ def test_interp2d():
 
 def test_interp2d_value_and_marg_util():
 
-    marginal_utility_crra_partial = partial(marginal_utility_crra, options={})
-
-    experience_grid = np.linspace(0, 1, 6)
+    marginal_utility_crra_partial = determine_function_arguments_and_partial_options(
+        func=marginal_utility_crra,
+        options={},
+    )
 
     np.random.seed(1234)
     a, b = np.random.uniform(1, 10), np.random.uniform(1, 10)
@@ -254,16 +254,6 @@ def test_interp2d_value_and_marg_util():
     )
 
     marg_util, val = interp_for_single_state_choice(
-        # compute_marginal_utility,
-        # compute_utility,
-        # state_choice_vec,
-        # regular_grid,
-        # wealth_next,
-        # continuous_state_next,
-        # endog_grid_child_state_choice,
-        # policy_child_state_choice,
-        # value_child_state_choice,
-        # params,
         marginal_utility_crra_partial,
         utility_crra,
         {"choice": jnp.array([0, 1])},

@@ -16,15 +16,7 @@ from dcegm.egm.solve_euler_equation import (
 )
 from dcegm.pre_processing.exog_processes import create_exog_transition_function
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
-from tests.two_period_models.model import (
-    budget_dcegm_exog_ltc,
-    budget_dcegm_exog_ltc_and_job_offer,
-    prob_exog_job_offer,
-    prob_exog_ltc,
-)
-from toy_models.consumption_retirement_model.state_space_objects import (
-    create_state_space_function_dict,
-)
+from tests.two_period_models.model import prob_exog_ltc
 from toy_models.consumption_retirement_model.utility_functions import (
     create_final_period_utility_function_dict,
     create_utility_function_dict,
@@ -180,6 +172,11 @@ def test_input_for_euler_equation():
         func=utility_functions["inverse_marginal_utility"],
         options=model_params_options,
     )
+    model_funcs = {
+        "compute_utility": compute_utility,
+        "compute_inverse_marginal_utility": compute_inverse_marginal_utility,
+        "compute_exog_transition_vec": compute_exog_transition_vec,
+    }
 
     exog_savings_grid = jnp.linspace(0, 10_000, 100)
 
@@ -215,9 +212,7 @@ def test_input_for_euler_equation():
         exog_savings_grid,
         state_choice_mat,
         child_state_idxs,
-        compute_utility,
-        compute_inverse_marginal_utility,
-        compute_exog_transition_vec,
+        model_funcs,
     )
 
 
@@ -281,9 +276,7 @@ def test_euler_1d(test_input_for_euler_equation):
         exog_savings_grid,
         state_choice_mat,
         child_state_idxs,
-        compute_utility,
-        compute_inverse_marginal_utility,
-        compute_exog_transition_vec,
+        model_funcs,
     ) = test_input_for_euler_equation
 
     key = random.PRNGKey(42)
@@ -305,9 +298,7 @@ def test_euler_1d(test_input_for_euler_equation):
         emax_next=emax,
         state_choice_mat=state_choice_mat,
         idx_post_decision_child_states=child_state_idxs,
-        compute_utility=compute_utility,
-        compute_inverse_marginal_utility=compute_inverse_marginal_utility,
-        compute_exog_transition_vec=compute_exog_transition_vec,
+        model_funcs=model_funcs,
         has_second_continuous_state=False,
         params=PARAMS,
     )
@@ -338,9 +329,7 @@ def test_euler_2d(test_input_for_euler_equation):
         exog_savings_grid,
         state_choice_mat,
         child_state_idxs,
-        compute_utility,
-        compute_inverse_marginal_utility,
-        compute_exog_transition_vec,
+        model_funcs,
     ) = test_input_for_euler_equation
 
     key = random.PRNGKey(42)
@@ -377,9 +366,7 @@ def test_euler_2d(test_input_for_euler_equation):
         emax_next=emax,
         state_choice_mat=state_choice_mat,
         idx_post_decision_child_states=child_state_idxs,
-        compute_utility=compute_utility,
-        compute_inverse_marginal_utility=compute_inverse_marginal_utility,
-        compute_exog_transition_vec=compute_exog_transition_vec,
+        model_funcs=model_funcs,
         has_second_continuous_state=True,
         params=PARAMS,
     )
