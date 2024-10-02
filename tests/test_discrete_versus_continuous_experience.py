@@ -17,7 +17,7 @@ N_PERIODS = 5
 N_DISCRETE_CHOICES = 2
 MAX_WEALTH = 50
 WEALTH_GRID_POINTS = 100
-EXPERIENCE_GRID_POINTS = 6
+EXPERIENCE_GRID_POINTS = 5
 
 
 PARAMS = {
@@ -130,6 +130,7 @@ def test_setup():
     "period, experience, lagged_choice, choice",
     [
         (1, 0, 1, 0),
+        (1, 0, 1, 0),
         (1, 1, 0, 0),
         (2, 1, 0, 1),
         (2, 1, 0, 0),
@@ -220,5 +221,5 @@ def test_replication_discrete_versus_continuous_experience(
             params=PARAMS,
         )
 
-        aaae(value_cont_interp, value_disc_interp, decimal=1e-6)
-        aaae(policy_cont_interp, policy_disc_interp, decimal=1e-6)
+        aaae(value_cont_interp, value_disc_interp, decimal=4)
+        aaae(policy_cont_interp, policy_disc_interp, decimal=4)

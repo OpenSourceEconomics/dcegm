@@ -229,7 +229,7 @@ def solve_final_period_discrete(
     )
     # Choose which draw we take for policy and value function as those are not
     # saved with respect to the draws
-    middle_of_draws = int(value.shape[2] + 1 / 2)
+    middle_of_draws = int((value.shape[2] - 1) / 2)
     # Select solutions to store
     value_final = value[:, :, middle_of_draws]
 
