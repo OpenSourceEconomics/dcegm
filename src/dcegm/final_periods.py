@@ -432,22 +432,23 @@ def calc_budget_and_value_for_each_gridpoint(
 ):
     state_vec = state_choice_vec.copy()
     state_vec.pop("choice")
+
     wealth_final_period = (
         calc_resources_for_each_continuous_state_and_savings_grid_point(
-            state_vec,
-            second_continuous_state,
-            savings_grid_point,
-            jnp.array(0.0),
-            params,
-            compute_beginning_of_period_resources,
+            state_vec=state_vec,
+            continuous_state_beginning_of_period=second_continuous_state,
+            exog_savings_grid_point=savings_grid_point,
+            income_shock_draw=jnp.array(0.0),
+            params=params,
+            compute_beginning_of_period_resources=compute_beginning_of_period_resources,
         )
     )
     value = calc_value_for_each_gridpoint_second_continuous(
-        state_choice_vec,
-        wealth_final_period,
-        second_continuous_state,
-        params,
-        compute_utility,
+        state_choice_vec=state_choice_vec,
+        wealth_final_period=wealth_final_period,
+        second_continuous_state=second_continuous_state,
+        params=params,
+        compute_utility=compute_utility,
     )
     return value, wealth_final_period
 

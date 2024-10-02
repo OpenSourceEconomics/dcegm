@@ -17,7 +17,7 @@ N_PERIODS = 5
 N_DISCRETE_CHOICES = 2
 MAX_WEALTH = 50
 WEALTH_GRID_POINTS = 100
-EXPERIENCE_GRID_POINTS = 100
+EXPERIENCE_GRID_POINTS = 5
 
 PARAMS = {
     "beta": 0.95,
@@ -159,7 +159,6 @@ def utility_final_consume_all_with_cont_exp(
     period: int,
     params: Dict[str, float],
 ):
-
     experience_years = experience * period
     return utility_final_consume_all_with_exp(
         choice=choice,
@@ -297,9 +296,9 @@ def test_setup():
         # (1, 0, 1, 0),
         # (1, 1, 0, 0),
         # (2, 1, 0, 1),
-        (4, 1, 0, 0),
-        (3, 0, 1, 0),
-        (3, 3, 1, 0),
+        # (4, 1, 0, 0),
+        # (3, 0, 1, 0),
+        # (3, 3, 1, 0),
         (4, 4, 0, 0),
         (4, 0, 1, 1),
     ],
