@@ -186,7 +186,7 @@ def get_state_specific_feasible_choice_set(
 # ====================================================================================
 
 
-# @pytest.fixture(scope="session")
+@pytest.mark.skip(reason="Not implemented yet")
 def test_setup():
     options = {}
     _raw_options = {

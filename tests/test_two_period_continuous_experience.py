@@ -13,11 +13,7 @@ from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
 from dcegm.interpolation.interp2d import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
-from dcegm.law_of_motion import (
-    calculate_continuous_state,
-    calculate_resources,
-    calculate_resources_for_second_continuous_state,
-)
+from dcegm.law_of_motion import calc_cont_grids_next_period
 from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import create_solution_container, solve_dcegm
@@ -232,37 +228,7 @@ def calc_stochastic_income(
 
 
 def get_next_period_experience(period, lagged_choice, experience, params):
-    # ToDo: Rewrite in the sense of budget equation
-
     return (1 / period) * ((period - 1) * experience + (lagged_choice == 0))
-
-
-def get_next_period_discrete_state(period, choice):
-
-    next_state = {}
-
-    next_state["period"] = period + 1
-    next_state["lagged_choice"] = choice
-
-    return next_state
-
-
-def get_state_specific_feasible_choice_set(
-    lagged_choice: int,
-    options: Dict,
-) -> np.ndarray:
-    """Select state-specific feasible choice set such that retirement is absorbing."""
-
-    n_choices = options["n_choices"]
-
-    # # Once the agent choses retirement, she can only choose retirement thereafter.
-    # # Hence, retirement is an absorbing state.
-    # if lagged_choice == 1:
-    #     feasible_choice_set = np.array([1])
-    # else:
-    feasible_choice_set = np.arange(n_choices)
-
-    return feasible_choice_set
 
 
 # ====================================================================================
@@ -306,9 +272,7 @@ def create_test_inputs():
     # =================================================================================
 
     state_space_functions = {
-        "get_next_period_state": get_next_period_discrete_state,
         "update_continuous_state": get_next_period_experience,
-        "get_state_specific_feasible_choice_set": get_state_specific_feasible_choice_set,
     }
 
     model = setup_model(
@@ -320,12 +284,11 @@ def create_test_inputs():
     )
 
     (
-        wealth_and_continuous_state_next_period_cont,
+        cont_grids_next_period,
         income_shock_draws_unscaled,
         income_shock_weights,
         taste_shock_scale,
         exog_grids_cont,
-        wealth_beginning_at_regular_cont,
         model_funcs_cont,
         batch_info_cont,
         value_solved,
@@ -341,7 +304,6 @@ def create_test_inputs():
         endog_grid_solved,
         value_interp_final_period,
         marginal_utility_final_last_period,
-        _,
     ) = solve_final_period(
         idx_state_choices_final_period=batch_info_cont[
             "idx_state_choices_final_period"
@@ -350,8 +312,7 @@ def create_test_inputs():
             "idxs_parent_states_final_period"
         ],
         state_choice_mat_final_period=batch_info_cont["state_choice_mat_final_period"],
-        wealth_and_continuous_state_next_period=wealth_and_continuous_state_next_period_cont,
-        wealth_beginning_at_regular_period=wealth_beginning_at_regular_cont,
+        cont_grids_next_period=cont_grids_next_period,
         exog_grids=exog_grids_cont,
         params=params,
         compute_utility=model_funcs_cont["compute_utility_final"],
@@ -501,65 +462,14 @@ def _get_solve_last_two_periods_args(model, params, has_second_continuous_state)
     state_space_dict = model["model_structure"]["state_space_dict"]
     model_funcs = model["model_funcs"]
 
-    # Distinction based on has_second_continuous_state
-    if has_second_continuous_state:
-        # Calculate continuous state for the next period
-        continuous_state_next_period = calculate_continuous_state(
-            discrete_states_beginning_of_period=state_space_dict,
-            continuous_grid=exog_grids["second_continuous"],
-            params=params,
-            compute_continuous_state=model_funcs[
-                "compute_beginning_of_period_continuous_state"
-            ],
-        )
-
-        # Extra dimension for continuous state
-        wealth_beginning_of_next_period = (
-            calculate_resources_for_second_continuous_state(
-                discrete_states_beginning_of_next_period=state_space_dict,
-                continuous_state_beginning_of_next_period=continuous_state_next_period,
-                savings_grid=exog_grids["wealth"],
-                income_shocks=income_shock_draws_unscaled * params["sigma"],
-                params=params,
-                compute_beginning_of_period_resources=model_funcs[
-                    "compute_beginning_of_period_resources"
-                ],
-            )
-        )
-
-        # Extra dimension for continuous state (regular wealth calculation)
-        wealth_beginning_at_regular = calculate_resources_for_second_continuous_state(
-            discrete_states_beginning_of_next_period=state_space_dict,
-            continuous_state_beginning_of_next_period=jnp.tile(
-                exog_grids["second_continuous"],
-                (continuous_state_next_period.shape[0], 1),
-            ),
-            savings_grid=exog_grids["wealth"],
-            income_shocks=income_shock_draws_unscaled * params["sigma"],
-            params=params,
-            compute_beginning_of_period_resources=model_funcs[
-                "compute_beginning_of_period_resources"
-            ],
-        )
-
-        # Combined wealth and continuous state for the next period
-        wealth_and_continuous_state_next_period = (
-            continuous_state_next_period,
-            wealth_beginning_of_next_period,
-        )
-
-    else:
-        # Single state calculation (no second continuous state)
-        wealth_and_continuous_state_next_period = calculate_resources(
-            discrete_states_beginning_of_period=state_space_dict,
-            savings_grid=exog_grids["wealth"],
-            income_shocks_current_period=income_shock_draws_unscaled * params["sigma"],
-            params=params,
-            compute_beginning_of_period_resources=model_funcs[
-                "compute_beginning_of_period_resources"
-            ],
-        )
-        wealth_beginning_at_regular = None
+    cont_grids_next_period = calc_cont_grids_next_period(
+        state_space_dict=state_space_dict,
+        exog_grids=exog_grids,
+        income_shock_draws_unscaled=income_shock_draws_unscaled,
+        params=params,
+        model_funcs=model_funcs,
+        has_second_continuous_state=has_second_continuous_state,
+    )
 
     # Create solution containers for value, policy, and endogenous grids
     value_solved, policy_solved, endog_grid_solved = create_solution_container(
@@ -569,12 +479,11 @@ def _get_solve_last_two_periods_args(model, params, has_second_continuous_state)
     )
 
     return (
-        wealth_and_continuous_state_next_period,
+        cont_grids_next_period,
         income_shock_draws_unscaled,
         income_shock_weights,
         taste_shock_scale,
         exog_grids,
-        wealth_beginning_at_regular,
         model_funcs,
         batch_info,
         value_solved,
