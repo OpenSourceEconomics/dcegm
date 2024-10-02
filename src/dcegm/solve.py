@@ -10,11 +10,7 @@ import pandas as pd
 from jax import jit
 
 from dcegm.final_periods import solve_last_two_periods
-from dcegm.law_of_motion import (
-    calculate_continuous_state,
-    calculate_resources,
-    calculate_resources_for_second_continuous_state,
-)
+from dcegm.law_of_motion import calc_cont_grids_next_period
 from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.params import process_params
 from dcegm.pre_processing.setup_model import setup_model
@@ -124,17 +120,19 @@ def get_solve_func_for_model(model):
         options["model_params"]["quadrature_points_stochastic"]
     )
 
-    backward_jit = partial(
-        backward_induction,
-        options=options,
-        exog_grids=exog_grids,
-        has_second_continuous_state=has_second_continuous_state,
-        state_space_dict=model["model_structure"]["state_space_dict"],
-        n_state_choices=model["model_structure"]["state_choice_space"].shape[0],
-        batch_info=model["batch_info"],
-        income_shock_draws_unscaled=income_shock_draws_unscaled,
-        income_shock_weights=income_shock_weights,
-        model_funcs=model["model_funcs"],
+    backward_jit = jax.jit(
+        partial(
+            backward_induction,
+            options=options,
+            exog_grids=exog_grids,
+            has_second_continuous_state=has_second_continuous_state,
+            state_space_dict=model["model_structure"]["state_space_dict"],
+            n_state_choices=model["model_structure"]["state_choice_space"].shape[0],
+            batch_info=model["batch_info"],
+            income_shock_draws_unscaled=income_shock_draws_unscaled,
+            income_shock_weights=income_shock_weights,
+            model_funcs=model["model_funcs"],
+        )
     )
 
     def solve_func(params):
@@ -148,12 +146,12 @@ def backward_induction(
     params: Dict[str, float],
     options: Dict[str, Any],
     has_second_continuous_state: bool,
-    exog_grids: np.ndarray,
+    exog_grids: Dict[str, jnp.ndarray],
     state_space_dict: np.ndarray,
     n_state_choices: int,
     batch_info: Dict[str, np.ndarray],
-    income_shock_draws_unscaled: np.ndarray,
-    income_shock_weights: np.ndarray,
+    income_shock_draws_unscaled: jnp.ndarray,
+    income_shock_weights: jnp.ndarray,
     model_funcs: Dict[str, Callable],
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Do backward induction and solve for optimal policy and value function.
@@ -218,48 +216,15 @@ def backward_induction(
     """
     taste_shock_scale = params["lambda"]
 
-    if has_second_continuous_state:
-        continuous_state_next_period = calculate_continuous_state(
-            discrete_states_beginning_of_period=state_space_dict,
-            continuous_grid=exog_grids["second_continuous"],
-            params=params,
-            compute_continuous_state=model_funcs[
-                "compute_beginning_of_period_continuous_state"
-            ],
-        )
-
-        # Extra dimension for continuous state
-        wealth_beginning_of_next_period = (
-            calculate_resources_for_second_continuous_state(
-                discrete_states_beginning_of_next_period=state_space_dict,
-                continuous_state_beginning_of_next_period=continuous_state_next_period,
-                savings_grid=exog_grids["wealth"],
-                income_shocks=income_shock_draws_unscaled * params["sigma"],
-                params=params,
-                compute_beginning_of_period_resources=model_funcs[
-                    "compute_beginning_of_period_resources"
-                ],
-            )
-        )
-
-        cont_grids_next_period = {
-            "wealth": wealth_beginning_of_next_period,
-            "second_continuous": continuous_state_next_period,
-        }
-
-    else:
-        wealth_next_period = calculate_resources(
-            discrete_states_beginning_of_period=state_space_dict,
-            savings_grid=exog_grids["wealth"],
-            income_shocks_current_period=income_shock_draws_unscaled * params["sigma"],
-            params=params,
-            compute_beginning_of_period_resources=model_funcs[
-                "compute_beginning_of_period_resources"
-            ],
-        )
-        cont_grids_next_period = {
-            "wealth": wealth_next_period,
-        }
+    # Calculate the continuous grids for the next period
+    cont_grids_next_period = calc_cont_grids_next_period(
+        state_space_dict=state_space_dict,
+        exog_grids=exog_grids,
+        income_shock_draws_unscaled=income_shock_draws_unscaled,
+        params=params,
+        model_funcs=model_funcs,
+        has_second_continuous_state=has_second_continuous_state,
+    )
 
     # Create solution containers. The 20 percent extra in wealth grid needs to go
     # into tuning parameters
