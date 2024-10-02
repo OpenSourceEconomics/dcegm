@@ -342,15 +342,19 @@ def solve_final_period_second_continuous(
         model_funcs["compute_beginning_of_period_resources"],
     )
 
+    sort_idx = jnp.argsort(wealth_at_regular, axis=2)
+    wealth_sorted = jnp.take_along_axis(wealth_at_regular, sort_idx, axis=2)
+    values_sorted = jnp.take_along_axis(value_regular, sort_idx, axis=2)
+
     # Store results and add zero entry for the first column
-    zeros_to_append = jnp.zeros(value_regular.shape[:-1])
+    zeros_to_append = jnp.zeros(values_sorted.shape[:-1])
 
     # Stack along the second-to-last axis (axis 1)
     values_with_zeros = jnp.concatenate(
-        (zeros_to_append[..., None], value_regular), axis=2
+        (zeros_to_append[..., None], values_sorted), axis=2
     )
     wealth_with_zeros = jnp.concatenate(
-        (zeros_to_append[..., None], wealth_at_regular), axis=2
+        (zeros_to_append[..., None], wealth_sorted), axis=2
     )
 
     value_solved = value_solved.at[
