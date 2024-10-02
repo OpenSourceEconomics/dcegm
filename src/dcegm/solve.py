@@ -242,28 +242,13 @@ def backward_induction(
             )
         )
 
-        # Extra dimension for continuous state
-        wealth_beginning_at_regular = calculate_resources_for_second_continuous_state(
-            discrete_states_beginning_of_next_period=state_space_dict,
-            continuous_state_beginning_of_next_period=jnp.tile(
-                exog_grids["second_continuous"],
-                (continuous_state_next_period.shape[0], 1),
-            ),
-            savings_grid=exog_grids["wealth"],
-            income_shocks=income_shock_draws_unscaled * params["sigma"],
-            params=params,
-            compute_beginning_of_period_resources=model_funcs[
-                "compute_beginning_of_period_resources"
-            ],
-        )
-
-        wealth_and_continuous_state_next_period = (
-            continuous_state_next_period,
-            wealth_beginning_of_next_period,
-        )
+        cont_grids_next_period = {
+            "wealth": wealth_beginning_of_next_period,
+            "second_continuous": continuous_state_next_period,
+        }
 
     else:
-        wealth_and_continuous_state_next_period = calculate_resources(
+        wealth_next_period = calculate_resources(
             discrete_states_beginning_of_period=state_space_dict,
             savings_grid=exog_grids["wealth"],
             income_shocks_current_period=income_shock_draws_unscaled * params["sigma"],
@@ -272,7 +257,9 @@ def backward_induction(
                 "compute_beginning_of_period_resources"
             ],
         )
-        wealth_beginning_at_regular = None
+        cont_grids_next_period = {
+            "wealth": wealth_next_period,
+        }
 
     # Create solution containers. The 20 percent extra in wealth grid needs to go
     # into tuning parameters
@@ -296,12 +283,11 @@ def backward_induction(
         value_interp_final_period,
         marginal_utility_final_last_period,
     ) = solve_last_two_periods(
-        wealth_and_continuous_state_next_period=wealth_and_continuous_state_next_period,
+        cont_grids_next_period=cont_grids_next_period,
         params=params,
         taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,
         exog_grids=exog_grids,
-        wealth_beginning_at_regular=wealth_beginning_at_regular,
         model_funcs=model_funcs,
         batch_info=batch_info,
         value_solved=value_solved,
@@ -321,7 +307,7 @@ def backward_induction(
             has_second_continuous_state=has_second_continuous_state,
             params=params,
             exog_grids=exog_grids,
-            wealth_and_continuous_state_next_period=wealth_and_continuous_state_next_period,
+            cont_grids_next_period=cont_grids_next_period,
             income_shock_weights=income_shock_weights,
             model_funcs=model_funcs,
             taste_shock_scale=taste_shock_scale,

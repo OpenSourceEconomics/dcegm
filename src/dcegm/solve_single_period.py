@@ -14,7 +14,7 @@ def solve_single_period(
     params,
     exog_grids,
     income_shock_weights,
-    wealth_and_continuous_state_next_period,
+    cont_grids_next_period,
     model_funcs,
     taste_shock_scale,
 ):
@@ -37,7 +37,7 @@ def solve_single_period(
         compute_utility=model_funcs["compute_utility"],
         state_choice_vec=state_choice_mat_child,
         exog_grids=exog_grids,
-        wealth_and_continuous_state_next=wealth_and_continuous_state_next_period,
+        cont_grids_next_period=cont_grids_next_period,
         endog_grid_child_state_choice=endog_grid_solved[
             child_state_choice_idxs_to_interpolate
         ],

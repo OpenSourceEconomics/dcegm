@@ -14,7 +14,7 @@ def interpolate_value_and_marg_util(
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
     exog_grids: Tuple[jnp.ndarray, jnp.ndarray],
-    wealth_and_continuous_state_next: jnp.ndarray,
+    cont_grids_next_period: Dict[str, jnp.ndarray],
     endog_grid_child_state_choice: jnp.ndarray,
     policy_child_state_choice: jnp.ndarray,
     value_child_state_choice: jnp.ndarray,
@@ -55,11 +55,12 @@ def interpolate_value_and_marg_util(
             income shock.
 
     """
+    wealth_child_states = cont_grids_next_period["wealth"][child_state_idxs]
 
     if has_second_continuous_state:
-        _continuous_state, _wealth = wealth_and_continuous_state_next
-        continuous_state_next = _continuous_state[child_state_idxs]
-        wealth_next = _wealth[child_state_idxs]
+        continuous_state_child_states = cont_grids_next_period["second_continuous"][
+            child_state_idxs
+        ]
         regular_grid = exog_grids["second_continuous"]
 
         interp_for_single_state_choice = vmap(
@@ -72,8 +73,8 @@ def interpolate_value_and_marg_util(
             compute_utility,
             state_choice_vec,
             regular_grid,
-            wealth_next,
-            continuous_state_next,
+            wealth_child_states,
+            continuous_state_child_states,
             endog_grid_child_state_choice,
             policy_child_state_choice,
             value_child_state_choice,
@@ -81,8 +82,6 @@ def interpolate_value_and_marg_util(
         )
 
     else:
-        wealth_next = wealth_and_continuous_state_next[child_state_idxs]
-
         interp_for_single_state_choice = vmap(
             interp1d_value_and_marg_util_for_state_choice,
             in_axes=(None, None, 0, 0, 0, 0, 0, None),  # discrete state-choice
@@ -92,7 +91,7 @@ def interpolate_value_and_marg_util(
             compute_marginal_utility,
             compute_utility,
             state_choice_vec,
-            wealth_next,
+            wealth_child_states,
             endog_grid_child_state_choice,
             policy_child_state_choice,
             value_child_state_choice,
