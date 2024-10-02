@@ -18,9 +18,7 @@ def determine_function_arguments_and_partial_options(
     def processed_func(**kwargs):
 
         if continuous_state_name:
-            kwargs[continuous_state_name] = kwargs.get(
-                "continuous_state", kwargs.get("continuous_state_beginning_of_period")
-            )
+            kwargs[continuous_state_name] = kwargs.get("continuous_state")
 
         func_kwargs = {key: kwargs[key] for key in signature}
 

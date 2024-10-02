@@ -109,7 +109,7 @@ def calc_resources_for_each_continuous_state_and_savings_grid_point(
 ):
     out = compute_beginning_of_period_resources(
         **state_vec,
-        continuous_state_beginning_of_period=continuous_state_beginning_of_period,
+        continuous_state=continuous_state_beginning_of_period,
         savings_end_of_previous_period=exog_savings_grid_point,
         income_shock_previous_period=income_shock_draw,
         params=params,

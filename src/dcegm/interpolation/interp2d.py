@@ -195,7 +195,10 @@ def interp2d_value_and_check_creditconstraint(
     # Now recalculate the closed-form value of consuming all wealth
     value_calc_left = (
         compute_utility(
-            consumption=wealth_point_to_interp, params=params, **state_choice_vec
+            consumption=wealth_point_to_interp,
+            params=params,
+            continuous_state=regular_point_to_interp,
+            **state_choice_vec
         )
         + params["beta"] * value_at_zero_wealth[regular_idx_left]
     )
@@ -206,7 +209,10 @@ def interp2d_value_and_check_creditconstraint(
     )
     value_calc_right = (
         compute_utility(
-            consumption=wealth_point_to_interp, params=params, **state_choice_vec
+            consumption=wealth_point_to_interp,
+            continuous_state=regular_point_to_interp,
+            params=params,
+            **state_choice_vec
         )
         + params["beta"] * value_at_zero_wealth[regular_idx_right]
     )
