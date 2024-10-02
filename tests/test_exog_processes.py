@@ -10,11 +10,11 @@ from dcegm.pre_processing.state_space import (
     create_discrete_state_space_and_choice_objects,
 )
 from tests.two_period_models.model import prob_exog_health
-from toy_models.dcegm_paper_cons_ret_model.budget_functions import budget_constraint
-from toy_models.dcegm_paper_cons_ret_model.state_space_objects import (
+from toy_models.cons_ret_model_dcegm_paper.budget_functions import budget_constraint
+from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
     create_state_space_function_dict,
 )
-from toy_models.dcegm_paper_cons_ret_model.utility_functions import (
+from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
     create_final_period_utility_function_dict,
     create_utility_function_dict,
 )

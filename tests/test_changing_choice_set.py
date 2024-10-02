@@ -17,7 +17,7 @@ import pytest
 
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import get_solve_function
-from toy_models.dcegm_paper_cons_ret_model.utility_functions import (
+from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
     inverse_marginal_utility_crra,
     marginal_utility_crra,
     marginal_utility_final_consume_all,

@@ -10,10 +10,13 @@ from dcegm.interpolation.interp2d import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
 from dcegm.pre_processing.setup_model import setup_model
-from dcegm.solve import get_solve_func_for_model, solve_dcegm
-from toy_models.dcegm_paper_cons_ret_model.utility_functions import (
+from dcegm.solve import get_solve_func_for_model
+from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
     create_final_period_utility_function_dict,
     create_utility_function_dict,
+)
+from toy_models.cons_ret_model_with_exp.state_space_objects import (
+    create_state_space_function_dict,
 )
 
 N_PERIODS = 5
@@ -105,18 +108,6 @@ def get_next_period_experience(period, lagged_choice, experience):
     return (1 / period) * ((period - 1) * experience + (lagged_choice == 0))
 
 
-def get_next_period_state(period, choice, experience):
-
-    next_state = {}
-
-    next_state["period"] = period + 1
-    next_state["lagged_choice"] = choice
-
-    next_state["experience"] = experience + (choice == 0)
-
-    return next_state
-
-
 def sparsity_condition(
     period,
     experience,
@@ -176,14 +167,11 @@ def test_setup():
     utility_functions = create_utility_function_dict()
     utility_functions_final_period = create_final_period_utility_function_dict()
 
-    state_space_functions_discrete = {
-        "get_next_period_state": get_next_period_state,
-    }
-
     # =================================================================================
     # Discrete experience
     # =================================================================================
 
+    state_space_functions_discrete = create_state_space_function_dict()
     model_disc = setup_model(
         options=options,
         state_space_functions=state_space_functions_discrete,
