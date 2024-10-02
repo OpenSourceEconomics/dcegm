@@ -25,3 +25,21 @@ def get_next_period_state(period, choice, experience):
     next_state["experience"] = experience + (choice == 0)
 
     return next_state
+
+
+def sparsity_condition(
+    period,
+    experience,
+    options,
+):
+
+    max_init_experience = 0
+
+    cond = True
+
+    if (period + max_init_experience < experience) | (
+        experience >= options["n_periods"]
+    ):
+        cond = False
+
+    return cond

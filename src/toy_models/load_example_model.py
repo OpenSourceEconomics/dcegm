@@ -19,6 +19,7 @@ def load_example_models(model_name):
             "utility_functions": crm_paper.create_utility_function_dict(),
             "final_period_utility_functions": crm_paper.create_final_period_utility_function_dict(),
             "budget_constraint": crm_exp.budget_constraint_exp,
+            "sparsity_condition": crm_exp.sparsity_condition,
         }
 
     elif model_name == "with_cont_exp":

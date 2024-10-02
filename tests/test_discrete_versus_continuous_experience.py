@@ -33,30 +33,6 @@ PARAMS = {
     "consumption_floor": 0.001,
 }
 
-
-# ====================================================================================
-# Model functions
-# ====================================================================================
-
-
-def sparsity_condition(
-    period,
-    experience,
-    options,
-):
-
-    max_init_experience = 0
-
-    cond = True
-
-    if (period + max_init_experience < experience) | (
-        experience >= options["n_periods"]
-    ):
-        cond = False
-
-    return cond
-
-
 # ====================================================================================
 # Test
 # ====================================================================================
@@ -64,27 +40,27 @@ def sparsity_condition(
 
 @pytest.fixture(scope="session")
 def test_setup():
-    options = {}
-    _raw_options = {
-        "n_discrete_choices": N_DISCRETE_CHOICES,
+
+    # =================================================================================
+    # Discrete experience
+    # =================================================================================
+
+    model_funcs_discr_exp = load_example_models("with_exp")
+
+    model_params = {
+        "n_choices": N_DISCRETE_CHOICES,
         "quadrature_points_stochastic": 5,
+        "n_periods": N_PERIODS,
     }
-    params = PARAMS
 
-    options["model_params"] = _raw_options
-    options["model_params"]["n_periods"] = N_PERIODS
-    options["model_params"]["max_wealth"] = MAX_WEALTH
-    options["model_params"]["n_grid_points"] = WEALTH_GRID_POINTS
-    options["model_params"]["n_choices"] = _raw_options["n_discrete_choices"]
-
-    options["state_space"] = {
+    state_space_options = {
         "n_periods": N_PERIODS,
         "choices": np.arange(
             N_DISCRETE_CHOICES,
         ),
         "endogenous_states": {
             "experience": np.arange(N_PERIODS),
-            "sparsity_condition": sparsity_condition,
+            "sparsity_condition": model_funcs_discr_exp["sparsity_condition"],
         },
         "continuous_states": {
             "wealth": jnp.linspace(
@@ -94,15 +70,13 @@ def test_setup():
             )
         },
     }
-
-    # =================================================================================
-    # Discrete experience
-    # =================================================================================
-
-    model_funcs_discr_exp = load_example_models("with_exp")
+    options_discrete = {
+        "model_params": model_params,
+        "state_space": state_space_options,
+    }
 
     model_disc = setup_model(
-        options=options,
+        options=options_discrete,
         state_space_functions=model_funcs_discr_exp["state_space_functions"],
         utility_functions=model_funcs_discr_exp["utility_functions"],
         utility_functions_final_period=model_funcs_discr_exp[
@@ -112,7 +86,7 @@ def test_setup():
     )
 
     solve_disc = get_solve_func_for_model(model_disc)
-    value_disc, policy_disc, endog_grid_disc = solve_disc(params)
+    value_disc, policy_disc, endog_grid_disc = solve_disc(PARAMS)
 
     # =================================================================================
     # Continuous experience
@@ -120,10 +94,9 @@ def test_setup():
 
     experience_grid = jnp.linspace(0, 1, EXPERIENCE_GRID_POINTS)
 
-    options_cont = options.copy()
+    options_cont = options_discrete.copy()
     options_cont["state_space"]["continuous_states"]["experience"] = experience_grid
-    options_cont["state_space"]["endogenous_states"].pop("experience")
-    options_cont["state_space"]["endogenous_states"].pop("sparsity_condition")
+    options_cont["state_space"].pop("endogenous_states")
 
     model_funcs_cont_exp = load_example_models("with_cont_exp")
 
@@ -138,10 +111,9 @@ def test_setup():
     )
 
     solve_cont = get_solve_func_for_model(model_cont)
-    value_cont, policy_cont, endog_grid_cont = solve_cont(params)
+    value_cont, policy_cont, endog_grid_cont = solve_cont(PARAMS)
 
     return (
-        params,
         experience_grid,
         model_disc,
         model_cont,
@@ -171,7 +143,6 @@ def test_replication_discrete_versus_continuous_experience(
 ):
 
     (
-        params,
         experience_grid,
         model_disc,
         model_cont,
@@ -229,7 +200,7 @@ def test_replication_discrete_versus_continuous_experience(
                 wealth_point_to_interp=jnp.array(wealth_to_test),
                 compute_utility=model_cont["model_funcs"]["compute_utility"],
                 state_choice_vec=state_choice_cont_dict,
-                params=params,
+                params=PARAMS,
             )
         )
 
@@ -240,7 +211,7 @@ def test_replication_discrete_versus_continuous_experience(
             value=value_disc[idx_state_choice_disc],
             compute_utility=model_disc["model_funcs"]["compute_utility"],
             state_choice_vec=state_choice_disc_dict,
-            params=params,
+            params=PARAMS,
         )
 
         aaae(value_cont_interp, value_disc_interp, decimal=1e-6)
