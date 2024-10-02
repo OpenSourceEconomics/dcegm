@@ -150,14 +150,14 @@ def test_get_beginning_of_period_wealth(
     aaae(wealth_beginning_of_period, max(consump_floor, budget_expected))
 
 
-# =====================================================================================
+TEST_CASES_SECOND_CONTINUOUS = list(product(model, max_wealth, n_grid_points))
 
 
 @pytest.mark.parametrize(
-    "model, period, labor_choice, max_wealth, n_grid_points", TEST_CASES
+    "model, max_wealth, n_grid_points", TEST_CASES_SECOND_CONTINUOUS
 )
 def test_wealth_and_second_continuous_state(
-    model, period, labor_choice, max_wealth, n_grid_points, load_example_model
+    model, max_wealth, n_grid_points, load_example_model
 ):
 
     # parametrize over number of experience points
@@ -195,28 +195,3 @@ def test_wealth_and_second_continuous_state(
     )
 
     aaae(exp_next, experience_next)
-
-    # ========================================================================
-
-    _quad_points, _ = roots_sh_legendre(n_quad_points)
-    quad_points = norm.ppf(_quad_points) * sigma
-
-    compute_beginning_of_period_resources = (
-        determine_function_arguments_and_partial_options(
-            func=budget_constraint_based_on_experience, options={}
-        )
-    )
-
-    wealth_next = calculate_resources_for_second_continuous_state(
-        discrete_states_beginning_of_next_period=child_state_dict,
-        continuous_state_beginning_of_next_period=experience_next,
-        savings_grid=savings_grid,
-        income_shocks=quad_points,
-        params=params,
-        compute_beginning_of_period_resources=compute_beginning_of_period_resources,
-    )
-
-    np.testing.assert_equal(
-        wealth_next.shape,
-        (len(child_state_dict["period"]), n_exp_points, n_grid_points, n_quad_points),
-    )

@@ -33,7 +33,7 @@ def calculate_candidate_solutions_from_euler_equation(
         ) = vmap(
             vmap(
                 vmap(
-                    wrapper_cont_optimal_policy_and_value,
+                    compute_optimal_policy_and_value_wrapper,
                     in_axes=(1, 1, None, 0, None, None, None),  # savings
                 ),
                 in_axes=(1, 1, 0, None, None, None, None),  # second continuous state
@@ -77,7 +77,7 @@ def calculate_candidate_solutions_from_euler_equation(
     )
 
 
-def wrapper_cont_optimal_policy_and_value(
+def compute_optimal_policy_and_value_wrapper(
     marg_util_next: np.ndarray,
     emax_next: np.ndarray,
     second_continuous_grid: np.ndarray,
@@ -86,9 +86,9 @@ def wrapper_cont_optimal_policy_and_value(
     model_funcs: Dict[str, Callable],
     params: Dict[str, float],
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Simple wrapper function to write second continuous grid point into
-    state_choice_vec."""
+    """Write second continuous grid point into state_choice_vec."""
     state_choice_vec["second_continuous"] = second_continuous_grid
+
     return compute_optimal_policy_and_value(
         marg_util_next,
         emax_next,

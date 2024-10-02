@@ -216,7 +216,6 @@ def backward_induction(
     """
     taste_shock_scale = params["lambda"]
 
-    # Calculate the continuous grids for the next period
     cont_grids_next_period = calc_cont_grids_next_period(
         state_space_dict=state_space_dict,
         exog_grids=exog_grids,
@@ -245,8 +244,6 @@ def backward_induction(
         value_solved,
         policy_solved,
         endog_grid_solved,
-        value_interp_final_period,
-        marginal_utility_final_last_period,
     ) = solve_last_two_periods(
         cont_grids_next_period=cont_grids_next_period,
         params=params,
