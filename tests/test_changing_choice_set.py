@@ -211,7 +211,7 @@ def test_extended_choice_set_model(
         utility_functions_final_period=utility_functions_final_period,
     )
     sol = solve_func(params)
-    value, _policy, _endog_grid = sol
+    value, _policy, _endog_grid, *_ = sol
     value_expec = pickle.load(
         open(TEST_DIR / "resources" / "extended_choice_set" / "value.pkl", "rb")
     )

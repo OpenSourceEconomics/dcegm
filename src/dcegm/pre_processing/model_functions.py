@@ -63,9 +63,9 @@ def process_model_functions(
 
     model_params_options = options["model_params"]
 
-    compute_utility = determine_function_arguments_and_partial_options(
-        func=utility_functions["utility"], options=model_params_options
-    )
+    # compute_utility = determine_function_arguments_and_partial_options(
+    #     func=utility_functions["utility"], options=model_params_options
+    # )
     compute_marginal_utility = determine_function_arguments_and_partial_options(
         func=utility_functions["marginal_utility"], options=model_params_options
     )
@@ -74,10 +74,10 @@ def process_model_functions(
         options=model_params_options,
     )
 
-    compute_utility_final = determine_function_arguments_and_partial_options(
-        func=utility_functions_final_period["utility"],
-        options=model_params_options,
-    )
+    # compute_utility_final = determine_function_arguments_and_partial_options(
+    #     func=utility_functions_final_period["utility"],
+    #     options=model_params_options,
+    # )
     compute_marginal_utility_final = determine_function_arguments_and_partial_options(
         func=utility_functions_final_period["marginal_utility"],
         options=model_params_options,
@@ -156,6 +156,42 @@ def process_model_functions(
                 continuous_state=continuous_state_name,
             )
         )
+
+        compute_utility = determine_function_arguments_and_partial_options(
+            func=utility_functions["utility"],
+            options=model_params_options,
+            continuous_state=continuous_state_name,
+        )
+        compute_marginal_utility = determine_function_arguments_and_partial_options(
+            func=utility_functions["marginal_utility"],
+            options=model_params_options,
+            continuous_state=continuous_state_name,
+        )
+        compute_inverse_marginal_utility = (
+            determine_function_arguments_and_partial_options(
+                func=utility_functions["inverse_marginal_utility"],
+                options=model_params_options,
+                continuous_state=continuous_state_name,
+            )
+        )
+        compute_utility_final = determine_function_arguments_and_partial_options(
+            func=utility_functions_final_period["utility"],
+            options=model_params_options,
+            continuous_state=continuous_state_name,
+        )
+        compute_marginal_utility_final = (
+            determine_function_arguments_and_partial_options(
+                func=utility_functions_final_period["marginal_utility"],
+                options=model_params_options,
+                continuous_state=continuous_state_name,
+            )
+        )
+
+        compute_upper_envelope = create_upper_envelope_function(
+            options,
+            continuous_state=continuous_state_name,
+        )
+
     else:
         update_continuous_state = None
         compute_beginning_of_period_continuous_state = None
@@ -165,7 +201,30 @@ def process_model_functions(
             )
         )
 
-    compute_upper_envelope = create_upper_envelope_function(options)
+        compute_utility = determine_function_arguments_and_partial_options(
+            func=utility_functions["utility"], options=model_params_options
+        )
+        compute_marginal_utility = determine_function_arguments_and_partial_options(
+            func=utility_functions["marginal_utility"], options=model_params_options
+        )
+        compute_inverse_marginal_utility = (
+            determine_function_arguments_and_partial_options(
+                func=utility_functions["inverse_marginal_utility"],
+                options=model_params_options,
+            )
+        )
+        compute_utility_final = determine_function_arguments_and_partial_options(
+            func=utility_functions_final_period["utility"],
+            options=model_params_options,
+        )
+        compute_marginal_utility_final = (
+            determine_function_arguments_and_partial_options(
+                func=utility_functions_final_period["marginal_utility"],
+                options=model_params_options,
+            )
+        )
+
+        compute_upper_envelope = create_upper_envelope_function(options)
 
     model_funcs = {
         "compute_utility": compute_utility,
@@ -186,49 +245,104 @@ def process_model_functions(
     return model_funcs
 
 
-def create_upper_envelope_function(options):
+def create_upper_envelope_function(options, continuous_state=None):
     if len(options["state_space"]["choices"]) < 2:
         compute_upper_envelope = _return_policy_and_value
     else:
 
-        def compute_upper_envelope(
-            endog_grid,
-            policy,
-            value,
-            expected_value_zero_savings,
-            state_choice_dict,
-            utility_function,
-            params,
-        ):
-            value_kwargs = {
-                "expected_value_zero_savings": expected_value_zero_savings,
-                "params": params,
-                **state_choice_dict,
-            }
+        if continuous_state:
 
-            def value_function(
-                consumption, expected_value_zero_savings, params, **state_choice_dict
+            def compute_upper_envelope(
+                endog_grid,
+                policy,
+                value,
+                expected_value_zero_savings,
+                second_continuous_state,
+                state_choice_dict,
+                utility_function,
+                params,
             ):
-                return (
-                    utility_function(
-                        consumption=consumption, params=params, **state_choice_dict
+                value_kwargs = {
+                    "second_continuous_state": second_continuous_state,
+                    "expected_value_zero_savings": expected_value_zero_savings,
+                    "params": params,
+                    **state_choice_dict,
+                }
+
+                def value_function(
+                    consumption,
+                    second_continuous_state,
+                    expected_value_zero_savings,
+                    params,
+                    **state_choice_dict,
+                ):
+                    return (
+                        utility_function(
+                            consumption=consumption,
+                            continuous_state=second_continuous_state,
+                            params=params,
+                            **state_choice_dict,
+                        )
+                        + params["beta"] * expected_value_zero_savings
                     )
-                    + params["beta"] * expected_value_zero_savings
+
+                return fues_jax(
+                    endog_grid=endog_grid,
+                    policy=policy,
+                    value=value,
+                    expected_value_zero_savings=expected_value_zero_savings,
+                    value_function=value_function,
+                    value_function_kwargs=value_kwargs,
+                    n_constrained_points_to_add=options["tuning_params"][
+                        "n_constrained_points_to_add"
+                    ],
+                    n_final_wealth_grid=endog_grid.shape[0]
+                    * (1 + options["tuning_params"]["extra_wealth_grid_factor"]),
                 )
 
-            return fues_jax(
-                endog_grid=endog_grid,
-                policy=policy,
-                value=value,
-                expected_value_zero_savings=expected_value_zero_savings,
-                value_function=value_function,
-                value_function_kwargs=value_kwargs,
-                n_constrained_points_to_add=options["tuning_params"][
-                    "n_constrained_points_to_add"
-                ],
-                n_final_wealth_grid=endog_grid.shape[0]
-                * (1 + options["tuning_params"]["extra_wealth_grid_factor"]),
-            )
+        else:
+
+            def compute_upper_envelope(
+                endog_grid,
+                policy,
+                value,
+                expected_value_zero_savings,
+                state_choice_dict,
+                utility_function,
+                params,
+            ):
+                value_kwargs = {
+                    "expected_value_zero_savings": expected_value_zero_savings,
+                    "params": params,
+                    **state_choice_dict,
+                }
+
+                def value_function(
+                    consumption,
+                    expected_value_zero_savings,
+                    params,
+                    **state_choice_dict,
+                ):
+                    return (
+                        utility_function(
+                            consumption=consumption, params=params, **state_choice_dict
+                        )
+                        + params["beta"] * expected_value_zero_savings
+                    )
+
+                return fues_jax(
+                    endog_grid=endog_grid,
+                    policy=policy,
+                    value=value,
+                    expected_value_zero_savings=expected_value_zero_savings,
+                    value_function=value_function,
+                    value_function_kwargs=value_kwargs,
+                    n_constrained_points_to_add=options["tuning_params"][
+                        "n_constrained_points_to_add"
+                    ],
+                    n_final_wealth_grid=endog_grid.shape[0]
+                    * (1 + options["tuning_params"]["extra_wealth_grid_factor"]),
+                )
 
     return compute_upper_envelope
 

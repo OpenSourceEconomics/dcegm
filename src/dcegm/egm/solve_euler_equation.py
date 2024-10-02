@@ -8,9 +8,9 @@ from jax import vmap
 
 
 def calculate_candidate_solutions_from_euler_equation(
-    exog_savings_grid: np.ndarray,
-    marg_util: jnp.ndarray,
-    emax: jnp.ndarray,
+    exog_grids: np.ndarray,
+    marg_util_next: jnp.ndarray,
+    emax_next: jnp.ndarray,
     state_choice_mat: np.ndarray,
     idx_post_decision_child_states: np.ndarray,
     compute_utility: Callable,
@@ -20,13 +20,11 @@ def calculate_candidate_solutions_from_euler_equation(
     params: Dict[str, float],
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Calculate candidates for the optimal policy and value function."""
-    feasible_marg_utils_child, feasible_emax_child = (
-        _get_post_decision_marg_utils_and_emax(
-            marg_util_next=marg_util,
-            emax_next=emax,
-            idx_post_decision_child_states=idx_post_decision_child_states,
-        )
+
+    feasible_marg_utils_child = jnp.take(
+        marg_util_next, idx_post_decision_child_states, axis=0
     )
+    feasible_emax_child = jnp.take(emax_next, idx_post_decision_child_states, axis=0)
 
     # transform exog_transition_mat to matrix with same shape as state_choice_vec
 
@@ -39,16 +37,47 @@ def calculate_candidate_solutions_from_euler_equation(
         ) = vmap(
             vmap(
                 vmap(
-                    compute_optimal_policy_and_value,
-                    in_axes=(1, 1, 0, None, None, None, None, None),  # savings grid
+                    compute_optimal_policy_and_value_second_continuous,
+                    in_axes=(
+                        1,
+                        1,
+                        None,
+                        0,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                    ),  # savings
                 ),
-                in_axes=(1, 1, None, None, None, None, None, None),  # continuous state
+                in_axes=(
+                    1,
+                    1,
+                    0,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                ),  # second continuous state
             ),
-            in_axes=(0, 0, None, 0, None, None, None, None),  # discrete states choices
+            in_axes=(
+                0,
+                0,
+                None,
+                None,
+                0,
+                None,
+                None,
+                None,
+                None,
+            ),  # discrete states choices
         )(
             feasible_marg_utils_child,
             feasible_emax_child,
-            exog_savings_grid,
+            exog_grids["second_continuous"],
+            exog_grids["wealth"],
             state_choice_mat,
             compute_inverse_marginal_utility,
             compute_utility,
@@ -70,7 +99,7 @@ def calculate_candidate_solutions_from_euler_equation(
         )(
             feasible_marg_utils_child,
             feasible_emax_child,
-            exog_savings_grid,
+            exog_grids["wealth"],
             state_choice_mat,
             compute_inverse_marginal_utility,
             compute_utility,
@@ -87,8 +116,8 @@ def calculate_candidate_solutions_from_euler_equation(
 
 
 def compute_optimal_policy_and_value(
-    marg_utils: np.ndarray,
-    emax: np.ndarray,
+    marg_util_next: np.ndarray,
+    emax_next: np.ndarray,
     exogenous_savings_grid: np.ndarray,
     state_choice_vec: Dict,
     compute_inverse_marginal_utility: Callable,
@@ -138,8 +167,8 @@ def compute_optimal_policy_and_value(
 
     policy, expected_value = solve_euler_equation(
         state_choice_vec=state_choice_vec,
-        marg_utils=marg_utils,
-        emax=emax,
+        marg_util_next=marg_util_next,
+        emax_next=emax_next,
         compute_inverse_marginal_utility=compute_inverse_marginal_utility,
         compute_exog_transition_vec=compute_exog_transition_vec,
         params=params,
@@ -152,10 +181,82 @@ def compute_optimal_policy_and_value(
     return endog_grid, policy, value, expected_value
 
 
+def compute_optimal_policy_and_value_second_continuous(
+    marg_util_next: np.ndarray,
+    emax_next: np.ndarray,
+    second_continuous_grid: np.ndarray,
+    exogenous_savings_grid: np.ndarray,
+    state_choice_vec: Dict,
+    compute_inverse_marginal_utility: Callable,
+    compute_utility: Callable,
+    compute_exog_transition_vec: Callable,
+    params: Dict[str, float],
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Compute optimal child-state- and choice-specific policy and value function.
+
+    Given the marginal utilities of possible child states and next period wealth, we
+    compute the optimal policy and value functions by solving the euler equation
+    and using the optimal consumption level in the bellman equation.
+
+    Args:
+        marg_utils (np.ndarray): 1d array of shape (n_exog_processes,) containing
+            the state-choice specific marginal utilities for a given point on
+            the savings grid.
+        emax (np.ndarray): 1d array of shape (n_exog_processes,) containing
+            the state-choice specific expected maximum value for a given point on
+            the savings grid.
+        exogenous_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
+            containing the exogenous savings grid.
+        trans_vec_state (np.ndarray): 1d array of shape (n_exog_processes,) containing
+            for each exogenous process state the corresponding transition probability.
+        state_choice_vec (np.ndarray): A dictionary containing the states and a
+        corresponding admissible choice of a particular state choice vector.
+        compute_inverse_marginal_utility (Callable): Function for calculating the
+            inverse marginal utility, which takes the marginal utility as only input.
+        compute_value (callable): Function for calculating the value from consumption
+            level, discrete choice and expected value. The inputs ```discount_rate```
+            and ```compute_utility``` are already partialled in.
+        params (dict): Dictionary of model parameters.
+
+    Returns:
+        tuple:
+
+        - endog_grid (np.ndarray): 1d array of shape (n_grid_wealth + 1,)
+            containing the current state- and choice-specific endogenous grid.
+        - policy (np.ndarray): 1d array of shape (n_grid_wealth + 1,)
+            containing the current state- and choice-specific policy function.
+        - value (np.ndarray): 1d array of shape (n_grid_wealth + 1,)
+            containing the current state- and choice-specific value function.
+        - expected_value_zero_savings (float): The agent's expected value given that
+            she saves nothing.
+
+    """
+
+    policy, expected_value = solve_euler_equation(
+        state_choice_vec=state_choice_vec,
+        marg_util_next=marg_util_next,
+        emax_next=emax_next,
+        compute_inverse_marginal_utility=compute_inverse_marginal_utility,
+        compute_exog_transition_vec=compute_exog_transition_vec,
+        params=params,
+    )
+    endog_grid = exogenous_savings_grid + policy
+
+    utility = compute_utility(
+        consumption=policy,
+        continuous_state=second_continuous_grid,
+        params=params,
+        **state_choice_vec,
+    )
+    value = utility + params["beta"] * expected_value
+
+    return endog_grid, policy, value, expected_value
+
+
 def solve_euler_equation(
     state_choice_vec: dict,
-    marg_utils: np.ndarray,
-    emax: np.ndarray,
+    marg_util_next: np.ndarray,
+    emax_next: np.ndarray,
     compute_inverse_marginal_utility: Callable,
     compute_exog_transition_vec: Callable,
     params: Dict[str, float],
@@ -192,11 +293,11 @@ def solve_euler_equation(
     transition_vec = compute_exog_transition_vec(params=params, **state_choice_vec)
 
     # Integrate out uncertainty over exogenous processes
-    marginal_utility = jnp.nansum(transition_vec * marg_utils)
-    expected_value = jnp.nansum(transition_vec * emax)
+    marginal_utility_next = jnp.nansum(transition_vec * marg_util_next)
+    expected_value = jnp.nansum(transition_vec * emax_next)
 
     # RHS of Euler Eq., p. 337 IJRS (2017) by multiplying with marginal wealth
-    rhs_euler = marginal_utility * (1 + params["interest_rate"]) * params["beta"]
+    rhs_euler = marginal_utility_next * (1 + params["interest_rate"]) * params["beta"]
 
     policy = compute_inverse_marginal_utility(
         marginal_utility=rhs_euler,
@@ -243,7 +344,6 @@ def _get_post_decision_marg_utils_and_emax(
             child states in the current period t.
 
     """
-
     # state-choice specific
     marg_utils_child = jnp.take(marg_util_next, idx_post_decision_child_states, axis=0)
     emax_child = jnp.take(emax_next, idx_post_decision_child_states, axis=0)

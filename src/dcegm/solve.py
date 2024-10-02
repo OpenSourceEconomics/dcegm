@@ -124,19 +124,17 @@ def get_solve_func_for_model(model):
         options["model_params"]["quadrature_points_stochastic"]
     )
 
-    backward_jit = jit(
-        partial(
-            backward_induction,
-            options=options,
-            exog_grids=exog_grids,
-            has_second_continuous_state=has_second_continuous_state,
-            state_space_dict=model["model_structure"]["state_space_dict"],
-            n_state_choices=model["model_structure"]["state_choice_space"].shape[0],
-            batch_info=model["batch_info"],
-            income_shock_draws_unscaled=income_shock_draws_unscaled,
-            income_shock_weights=income_shock_weights,
-            model_funcs=model["model_funcs"],
-        )
+    backward_jit = partial(
+        backward_induction,
+        options=options,
+        exog_grids=exog_grids,
+        has_second_continuous_state=has_second_continuous_state,
+        state_space_dict=model["model_structure"]["state_space_dict"],
+        n_state_choices=model["model_structure"]["state_choice_space"].shape[0],
+        batch_info=model["batch_info"],
+        income_shock_draws_unscaled=income_shock_draws_unscaled,
+        income_shock_weights=income_shock_weights,
+        model_funcs=model["model_funcs"],
     )
 
     def solve_func(params):
@@ -244,6 +242,21 @@ def backward_induction(
             )
         )
 
+        # Extra dimension for continuous state
+        wealth_beginning_at_regular = calculate_resources_for_second_continuous_state(
+            discrete_states_beginning_of_next_period=state_space_dict,
+            continuous_state_beginning_of_next_period=jnp.tile(
+                exog_grids["second_continuous"],
+                (continuous_state_next_period.shape[0], 1),
+            ),
+            savings_grid=exog_grids["wealth"],
+            income_shocks=income_shock_draws_unscaled * params["sigma"],
+            params=params,
+            compute_beginning_of_period_resources=model_funcs[
+                "compute_beginning_of_period_resources"
+            ],
+        )
+
         wealth_and_continuous_state_next_period = (
             continuous_state_next_period,
             wealth_beginning_of_next_period,
@@ -259,6 +272,7 @@ def backward_induction(
                 "compute_beginning_of_period_resources"
             ],
         )
+        wealth_beginning_at_regular = None
 
     # Create solution containers. The 20 percent extra in wealth grid needs to go
     # into tuning parameters
@@ -279,12 +293,16 @@ def backward_induction(
         value_solved,
         policy_solved,
         endog_grid_solved,
+        value_interp_final_period,
+        marginal_utility_final_last_period,
+        cont_state_final,
     ) = solve_last_two_periods(
         wealth_and_continuous_state_next_period=wealth_and_continuous_state_next_period,
         params=params,
         taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,
-        exog_savings_grid=exog_grids["wealth"],
+        exog_grids=exog_grids,
+        wealth_beginning_at_regular=wealth_beginning_at_regular,
         model_funcs=model_funcs,
         batch_info=batch_info,
         value_solved=value_solved,
@@ -357,7 +375,14 @@ def backward_induction(
             endog_grid_solved,
         ) = final_carry
 
-    return value_solved, policy_solved, endog_grid_solved
+    return (
+        value_solved,
+        policy_solved,
+        endog_grid_solved,
+        value_interp_final_period,
+        marginal_utility_final_last_period,
+        cont_state_final,
+    )
 
 
 def create_solution_container(n_state_choices, options, has_second_continuous_state):

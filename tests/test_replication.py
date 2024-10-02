@@ -76,7 +76,7 @@ def test_benchmark_models(
         budget_constraint=budget_constraint,
     )
 
-    value, policy, endog_grid = solve_dcegm(
+    value, policy, endog_grid, *_ = solve_dcegm(
         params,
         options,
         state_space_functions=state_space_functions,

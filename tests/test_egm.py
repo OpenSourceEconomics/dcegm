@@ -300,9 +300,9 @@ def test_euler_1d(test_input_for_euler_equation):
         policy_candidate,
         expected_values,
     ) = calculate_candidate_solutions_from_euler_equation(
-        exog_savings_grid=exog_savings_grid,
-        marg_util=marg_util,
-        emax=emax,
+        exog_grids={"wealth": exog_savings_grid},
+        marg_util_next=marg_util,
+        emax_next=emax,
         state_choice_mat=state_choice_mat,
         idx_post_decision_child_states=child_state_idxs,
         compute_utility=compute_utility,
@@ -361,15 +361,20 @@ def test_euler_2d(test_input_for_euler_equation):
         maxval=100.0,
     )
 
+    exog_grids = {
+        "wealth": exog_savings_grid,
+        "second_continuous": jnp.linspace(0, 1, 7),
+    }
+
     (
         endog_grid_candidate,
         value_candidate,
         policy_candidate,
         expected_values,
     ) = calculate_candidate_solutions_from_euler_equation(
-        exog_savings_grid=exog_savings_grid,
-        marg_util=marg_util,
-        emax=emax,
+        exog_grids=exog_grids,
+        marg_util_next=marg_util,
+        emax_next=emax,
         state_choice_mat=state_choice_mat,
         idx_post_decision_child_states=child_state_idxs,
         compute_utility=compute_utility,

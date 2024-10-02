@@ -338,8 +338,7 @@ def create_state_choice_space(
 
                 # Current state without exog
                 state_dict_without_exog = {
-                    key: state_dict[key]
-                    for i, key in enumerate(states_names_without_exog)
+                    key: state_dict[key] for key in states_names_without_exog
                 }
 
                 endog_state_update = get_next_period_state(
@@ -359,6 +358,7 @@ def create_state_choice_space(
                     )
                     + exog_states_tuple
                 )
+
                 try:
                     child_idxs = map_state_to_index[states_next_tuple]
                 except:
@@ -397,7 +397,6 @@ def process_exog_model_specifications(state_space_options):
             subdict_of_space=dict_of_only_states,
             states_names=exog_state_names,
         )
-
     else:
         exog_state_names = ["dummy_exog"]
         exog_state_space = np.array([[0]], dtype=np.uint8)
@@ -424,7 +423,14 @@ def span_subspace_and_read_information(subdict_of_space, states_names):
 def process_endog_state_specifications(state_space_options, model_params):
     """Get number of endog states which we loop over when creating the state space."""
 
-    if "endogenous_states" in state_space_options:
+    # if "endogenous_states" in state_space_options:
+    # if (
+    #     "endogenous_states" in state_space_options
+    #     and isinstance(state_space_options["endogenous_states"], dict)
+    #     and state_space_options["endogenous_states"]
+    # ):
+    if state_space_options.get("endogenous_states"):
+
         endog_state_keys = state_space_options["endogenous_states"].keys()
 
         if "sparsity_condition" in state_space_options["endogenous_states"].keys():
