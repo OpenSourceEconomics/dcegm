@@ -16,7 +16,7 @@ from dcegm.law_of_motion import (
 )
 from dcegm.pre_processing.params import process_params
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
-from toy_models.consumption_retirement_model.budget_functions import budget_constraint
+from toy_models.cons_ret_model_dcegm_paper.budget_constraint import budget_constraint
 
 # =====================================================================================
 # Auxiliary functions

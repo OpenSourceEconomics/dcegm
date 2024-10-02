@@ -10,11 +10,8 @@ from dcegm.interpolation.interp2d import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
 from dcegm.pre_processing.setup_model import setup_model
-from dcegm.solve import get_solve_func_for_model, solve_dcegm
-from toy_models.consumption_retirement_model.utility_functions import (
-    create_final_period_utility_function_dict,
-    create_utility_function_dict,
-)
+from dcegm.solve import get_solve_func_for_model
+from toy_models.load_example_model import load_example_models
 
 N_PERIODS = 5
 N_DISCRETE_CHOICES = 2
@@ -36,105 +33,6 @@ PARAMS = {
     "consumption_floor": 0.001,
 }
 
-
-# ====================================================================================
-# Model functions
-# ====================================================================================
-
-
-def budget_constraint_continuous(
-    period,
-    lagged_choice,
-    experience,
-    savings_end_of_previous_period,
-    income_shock_previous_period,
-    params,
-):
-    experience_years = experience * period
-    return budget_constraint_discrete(
-        lagged_choice=lagged_choice,
-        experience=experience_years,
-        savings_end_of_previous_period=savings_end_of_previous_period,
-        income_shock_previous_period=income_shock_previous_period,
-        params=params,
-    )
-
-
-def budget_constraint_discrete(
-    lagged_choice,
-    experience,
-    savings_end_of_previous_period,
-    income_shock_previous_period,
-    params,
-):
-
-    working = lagged_choice == 0
-
-    income_from_previous_period = _calc_stochastic_income(
-        experience=experience,
-        wage_shock=income_shock_previous_period,
-        params=params,
-    )
-
-    wealth_beginning_of_period = (
-        income_from_previous_period * working
-        + (1 + params["interest_rate"]) * savings_end_of_previous_period
-    )
-
-    # Retirement safety net, only in retirement model, but we require to have it always
-    # as a parameter
-    return jnp.maximum(wealth_beginning_of_period, params["consumption_floor"])
-
-
-def _calc_stochastic_income(
-    experience,
-    wage_shock,
-    params,
-):
-
-    labor_income = (
-        params["constant"]
-        + params["exp"] * experience
-        + params["exp_squared"] * experience**2
-    )
-
-    return jnp.exp(labor_income + wage_shock)
-
-
-def get_next_period_experience(period, lagged_choice, experience):
-    return (1 / period) * ((period - 1) * experience + (lagged_choice == 0))
-
-
-def get_next_period_state(period, choice, experience):
-
-    next_state = {}
-
-    next_state["period"] = period + 1
-    next_state["lagged_choice"] = choice
-
-    next_state["experience"] = experience + (choice == 0)
-
-    return next_state
-
-
-def sparsity_condition(
-    period,
-    experience,
-    options,
-):
-
-    max_init_experience = 0
-
-    cond = True
-
-    if (period + max_init_experience < experience) | (
-        experience >= options["n_periods"]
-    ):
-        cond = False
-
-    return cond
-
-
 # ====================================================================================
 # Test
 # ====================================================================================
@@ -142,27 +40,27 @@ def sparsity_condition(
 
 @pytest.fixture(scope="session")
 def test_setup():
-    options = {}
-    _raw_options = {
-        "n_discrete_choices": N_DISCRETE_CHOICES,
+
+    # =================================================================================
+    # Discrete experience
+    # =================================================================================
+
+    model_funcs_discr_exp = load_example_models("with_exp")
+
+    model_params = {
+        "n_choices": N_DISCRETE_CHOICES,
         "quadrature_points_stochastic": 5,
+        "n_periods": N_PERIODS,
     }
-    params = PARAMS
 
-    options["model_params"] = _raw_options
-    options["model_params"]["n_periods"] = N_PERIODS
-    options["model_params"]["max_wealth"] = MAX_WEALTH
-    options["model_params"]["n_grid_points"] = WEALTH_GRID_POINTS
-    options["model_params"]["n_choices"] = _raw_options["n_discrete_choices"]
-
-    options["state_space"] = {
+    state_space_options = {
         "n_periods": N_PERIODS,
         "choices": np.arange(
             N_DISCRETE_CHOICES,
         ),
         "endogenous_states": {
             "experience": np.arange(N_PERIODS),
-            "sparsity_condition": sparsity_condition,
+            "sparsity_condition": model_funcs_discr_exp["sparsity_condition"],
         },
         "continuous_states": {
             "wealth": jnp.linspace(
@@ -172,28 +70,23 @@ def test_setup():
             )
         },
     }
-
-    utility_functions = create_utility_function_dict()
-    utility_functions_final_period = create_final_period_utility_function_dict()
-
-    state_space_functions_discrete = {
-        "get_next_period_state": get_next_period_state,
+    options_discrete = {
+        "model_params": model_params,
+        "state_space": state_space_options,
     }
 
-    # =================================================================================
-    # Discrete experience
-    # =================================================================================
-
     model_disc = setup_model(
-        options=options,
-        state_space_functions=state_space_functions_discrete,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
-        budget_constraint=budget_constraint_discrete,
+        options=options_discrete,
+        state_space_functions=model_funcs_discr_exp["state_space_functions"],
+        utility_functions=model_funcs_discr_exp["utility_functions"],
+        utility_functions_final_period=model_funcs_discr_exp[
+            "final_period_utility_functions"
+        ],
+        budget_constraint=model_funcs_discr_exp["budget_constraint"],
     )
 
     solve_disc = get_solve_func_for_model(model_disc)
-    value_disc, policy_disc, endog_grid_disc = solve_disc(params)
+    value_disc, policy_disc, endog_grid_disc = solve_disc(PARAMS)
 
     # =================================================================================
     # Continuous experience
@@ -201,28 +94,26 @@ def test_setup():
 
     experience_grid = jnp.linspace(0, 1, EXPERIENCE_GRID_POINTS)
 
-    options_cont = options.copy()
+    options_cont = options_discrete.copy()
     options_cont["state_space"]["continuous_states"]["experience"] = experience_grid
-    options_cont["state_space"]["endogenous_states"].pop("experience")
-    options_cont["state_space"]["endogenous_states"].pop("sparsity_condition")
+    options_cont["state_space"].pop("endogenous_states")
 
-    state_space_functions_continuous = {
-        "update_continuous_state": get_next_period_experience,
-    }
+    model_funcs_cont_exp = load_example_models("with_cont_exp")
 
     model_cont = setup_model(
         options=options_cont,
-        state_space_functions=state_space_functions_continuous,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
-        budget_constraint=budget_constraint_continuous,
+        state_space_functions=model_funcs_cont_exp["state_space_functions"],
+        utility_functions=model_funcs_cont_exp["utility_functions"],
+        utility_functions_final_period=model_funcs_cont_exp[
+            "final_period_utility_functions"
+        ],
+        budget_constraint=model_funcs_cont_exp["budget_constraint"],
     )
 
     solve_cont = get_solve_func_for_model(model_cont)
-    value_cont, policy_cont, endog_grid_cont = solve_cont(params)
+    value_cont, policy_cont, endog_grid_cont = solve_cont(PARAMS)
 
     return (
-        params,
         experience_grid,
         model_disc,
         model_cont,
@@ -252,7 +143,6 @@ def test_replication_discrete_versus_continuous_experience(
 ):
 
     (
-        params,
         experience_grid,
         model_disc,
         model_cont,
@@ -310,7 +200,7 @@ def test_replication_discrete_versus_continuous_experience(
                 wealth_point_to_interp=jnp.array(wealth_to_test),
                 compute_utility=model_cont["model_funcs"]["compute_utility"],
                 state_choice_vec=state_choice_cont_dict,
-                params=params,
+                params=PARAMS,
             )
         )
 
@@ -321,7 +211,7 @@ def test_replication_discrete_versus_continuous_experience(
             value=value_disc[idx_state_choice_disc],
             compute_utility=model_disc["model_funcs"]["compute_utility"],
             state_choice_vec=state_choice_disc_dict,
-            params=params,
+            params=PARAMS,
         )
 
         aaae(value_cont_interp, value_disc_interp, decimal=1e-6)

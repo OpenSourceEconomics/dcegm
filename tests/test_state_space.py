@@ -6,7 +6,7 @@ import pytest
 
 from dcegm.pre_processing.debugging import inspect_state_space
 from dcegm.pre_processing.state_space import create_state_space
-from toy_models.consumption_retirement_model.state_space_objects import (
+from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
     get_state_specific_feasible_choice_set,
 )
 

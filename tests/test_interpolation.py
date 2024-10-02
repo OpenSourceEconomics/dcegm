@@ -36,7 +36,7 @@ from tests.utils.interp2d_auxiliary import (
     custom_interp2d_quad,
     custom_interp2d_quad_value_function,
 )
-from toy_models.consumption_retirement_model.utility_functions import (
+from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
     marginal_utility_crra,
     utility_crra,
 )

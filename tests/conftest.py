@@ -18,10 +18,10 @@ from tests.two_period_models.model import (
     prob_exog_job_offer,
     prob_exog_ltc,
 )
-from toy_models.consumption_retirement_model.state_space_objects import (
+from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
     create_state_space_function_dict,
 )
-from toy_models.consumption_retirement_model.utility_functions import (
+from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
     create_final_period_utility_function_dict,
     create_utility_function_dict,
 )

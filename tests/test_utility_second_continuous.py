@@ -11,7 +11,7 @@ from dcegm.interpolation.interp2d import (
 )
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import get_solve_func_for_model, solve_dcegm
-from toy_models.consumption_retirement_model.utility_functions import (
+from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
     inverse_marginal_utility_crra,
     marginal_utility_crra,
     marginal_utility_final_consume_all,
