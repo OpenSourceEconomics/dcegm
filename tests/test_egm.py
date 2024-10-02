@@ -17,7 +17,7 @@ from dcegm.egm.solve_euler_equation import (
 from dcegm.pre_processing.exog_processes import create_exog_transition_function
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from tests.two_period_models.model import prob_exog_ltc
-from toy_models.consumption_retirement_model.utility_functions import (
+from toy_models.dcegm_paper_cons_ret_model.utility_functions import (
     create_final_period_utility_function_dict,
     create_utility_function_dict,
 )

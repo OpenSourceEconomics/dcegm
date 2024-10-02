@@ -11,11 +11,11 @@ from tests.utils.interp1d_auxiliary import (
     interpolate_policy_and_value_on_wealth_grid,
     linear_interpolation_with_extrapolation,
 )
-from toy_models.consumption_retirement_model.budget_functions import budget_constraint
-from toy_models.consumption_retirement_model.state_space_objects import (
+from toy_models.dcegm_paper_cons_ret_model.budget_functions import budget_constraint
+from toy_models.dcegm_paper_cons_ret_model.state_space_objects import (
     create_state_space_function_dict,
 )
-from toy_models.consumption_retirement_model.utility_functions import (
+from toy_models.dcegm_paper_cons_ret_model.utility_functions import (
     create_final_period_utility_function_dict,
     create_utility_function_dict,
     utiility_log_crra,
