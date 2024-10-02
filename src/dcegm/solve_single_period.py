@@ -25,7 +25,7 @@ def solve_single_period(
         state_choices_idxs,
         child_state_choices_to_aggr_choice,
         child_states_to_integrate_exog,
-        child_state_choice_idxs_to_interpolate,
+        child_state_choice_idxs_to_interp,
         child_state_idxs,
         state_choice_mat,
         state_choice_mat_child,
@@ -39,10 +39,10 @@ def solve_single_period(
         exog_grids=exog_grids,
         cont_grids_next_period=cont_grids_next_period,
         endog_grid_child_state_choice=endog_grid_solved[
-            child_state_choice_idxs_to_interpolate
+            child_state_choice_idxs_to_interp
         ],
-        policy_child_state_choice=policy_solved[child_state_choice_idxs_to_interpolate],
-        value_child_state_choice=value_solved[child_state_choice_idxs_to_interpolate],
+        policy_child_state_choice=policy_solved[child_state_choice_idxs_to_interp],
+        value_child_state_choice=value_solved[child_state_choice_idxs_to_interp],
         child_state_idxs=child_state_idxs,
         has_second_continuous_state=has_second_continuous_state,
         params=params,
