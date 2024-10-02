@@ -30,7 +30,7 @@ PARAMS = {
     "beta": 0.95,
     "delta": 0.35,
     "rho": 1.95,
-    "exp_util": 0,
+    "exp_util": 0.5,
     "interest_rate": 0.04,
     "lambda": 1,  # taste shock (scale) parameter
     "sigma": 1,  # shock on labor income, standard deviation
@@ -45,58 +45,103 @@ PARAMS = {
 # ====================================================================================
 
 
-def utility_crra_with_experience(
+def utility_cont_exp(
+    consumption: float,
+    experience: float,
+    period: int,
+    choice: int,
+    params: Dict[str, float],
+):
+    experience_years = experience * period
+    return utility_experience(
+        consumption=consumption,
+        experience=experience_years,
+        choice=choice,
+        params=params,
+    )
+
+
+def marginal_utility_cont_exp(
+    consumption: float,
+    experience: float,
+    period: int,
+    choice: int,
+    params: Dict[str, float],
+):
+    experience_years = experience * period
+    return marg_utility_experience(
+        consumption=consumption,
+        experience=experience_years,
+        choice=choice,
+        params=params,
+    )
+
+
+def inverse_marginal_utility_cont_exp(
+    marginal_utility: float,
+    experience: float,
+    period: int,
+    choice: int,
+    params: Dict[str, float],
+):
+    experience_years = experience * period
+    return inverse_marg_utility_experience(
+        marginal_utility=marginal_utility,
+        experience=experience_years,
+        choice=choice,
+        params=params,
+    )
+
+
+def utility_experience(
     consumption: float,
     experience: float,
     choice: int,
-    period: int,
     params: Dict[str, float],
 ) -> float:
-    """Computes the agent's current utility based on a CRRA utility function.
-
-    Args:
-        consumption (jnp.array): Level of the agent's consumption.
-            Array of shape (i) (n_quad_stochastic * n_grid_wealth,)
-            when called by :func:`~dcgm.call_egm_step.map_exog_to_endog_grid`
-            and :func:`~dcgm.call_egm_step.get_next_period_value`, or
-            (ii) of shape (n_grid_wealth,) when called by
-            :func:`~dcgm.call_egm_step.get_current_period_value`.
-        choice (int): Choice of the agent, e.g. 0 = "retirement", 1 = "working".
-        params (dict): Dictionary containing model parameters.
-            Relevant here is the CRRA coefficient theta.
-
-    Returns:
-        utility (jnp.array): Agent's utility . Array of shape
-            (n_quad_stochastic * n_grid_wealth,) or (n_grid_wealth,).
-
-    """
-    exp_years = experience * period
 
     utility_consumption = (consumption ** (1 - params["rho"]) - 1) / (1 - params["rho"])
 
     utility = (
-        utility_consumption
+        utility_consumption * params["exp_util"] * experience
         - (1 - choice) * params["delta"]  # disutility of working
-        + params["exp_util"] * exp_years  # utility of experience
     )
-
     return utility
+
+
+def marg_utility_experience(
+    consumption: float,
+    experience: float,
+    choice: int,
+    params: Dict[str, float],
+) -> float:
+
+    return (consumption ** (-params["rho"])) * params["exp_util"] * experience
+
+
+def inverse_marg_utility_experience(
+    marginal_utility: float,
+    experience: float,
+    choice: int,
+    params: Dict[str, float],
+) -> float:
+
+    return (marginal_utility / (params["exp_util"] * experience)) ** (
+        -1 / params["rho"]
+    )
 
 
 def utility_final_consume_all_with_experience(
     choice: int,
     resources: jnp.array,
     experience: float,
-    period: int,
     params: Dict[str, float],
 ):
-    exp_years = experience * period
 
     util_consumption = (resources ** (1 - params["rho"]) - 1) / (1 - params["rho"])
     util = (
-        util_consumption
+        util_consumption * params["exp_util"] * experience
         - (1 - choice) * params["delta"]
-        + params["exp_util"] * exp_years
     )
 
     return util
@@ -148,19 +193,7 @@ def _calc_stochastic_income(
 
 
 def get_next_period_experience(period, lagged_choice, experience, options, params):
-    # ToDo: Rewrite in the sense of budget equation
-
     return (1 / period) * ((period - 1) * experience + (lagged_choice == 0))
-
-
-def get_next_period_discrete_state(period, choice):
-
-    next_state = {}
-
-    next_state["period"] = period + 1
-    next_state["lagged_choice"] = choice
-
-    return next_state
 
 
 def get_state_specific_feasible_choice_set(

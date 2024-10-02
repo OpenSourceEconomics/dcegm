@@ -16,10 +16,7 @@ from dcegm.law_of_motion import (
 )
 from dcegm.pre_processing.params import process_params
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
-from toy_models.consumption_retirement_model.budget_functions import (
-    _calc_stochastic_income,
-    budget_constraint,
-)
+from toy_models.consumption_retirement_model.budget_functions import budget_constraint
 
 # =====================================================================================
 # Auxiliary functions
@@ -137,15 +134,18 @@ def test_get_beginning_of_period_wealth(
         params=params,
     )
 
-    _labor_income = _calc_stochastic_income(
-        **child_state_dict,
-        wage_shock=quad_points[random_shock_scalar],
-        min_age=options["min_age"],
-        constant=params["constant"],
-        exp=params["exp"],
-        exp_squared=params["exp_squared"],
-    )
-    budget_expected = (1 + r) * savings_grid[random_saving_scalar] + _labor_income
+    if labor_choice == 0:
+        age = options["min_age"] + period
+        exp_income = (
+            params["constant"] + params["exp"] * age + params["exp_squared"] * age**2
+        )
+        labor_income = jnp.exp(exp_income + quad_points[random_shock_scalar])
+    elif labor_choice == 1:
+        labor_income = 0
+    else:
+        raise ValueError("Labor choice not defined")
+
+    budget_expected = (1 + r) * savings_grid[random_saving_scalar] + labor_income
 
     aaae(wealth_beginning_of_period, max(consump_floor, budget_expected))
 
