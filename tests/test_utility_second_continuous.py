@@ -1,5 +1,6 @@
 import copy
-from typing import Any, Dict
+from itertools import product
+from typing import Dict
 
 import jax.numpy as jnp
 import numpy as np
@@ -18,7 +19,7 @@ N_PERIODS = 5
 N_DISCRETE_CHOICES = 2
 MAX_WEALTH = 50
 WEALTH_GRID_POINTS = 100
-EXPERIENCE_GRID_POINTS = 5
+EXPERIENCE_GRID_POINTS = 13
 
 PARAMS = {
     "beta": 0.95,
@@ -34,11 +35,13 @@ PARAMS = {
     "consumption_floor": 0.5,
 }
 
-# ====================================================================================
+# =====================================================================================
 # Model functions for experience dependent utility
-# ====================================================================================
-# Start with discrete experience
-# ====================================================================================
+# =====================================================================================
+
+# =====================================================================================
+# Discrete experience
+# =====================================================================================
 
 
 def utility_exp(
@@ -104,9 +107,9 @@ def marginal_utility_final_consume_all_with_exp(
     )
 
 
-# ====================================================================================
-# Then cont experience
-# ====================================================================================
+# =====================================================================================
+# Continuous experience
+# =====================================================================================
 
 
 def utility_cont_exp(
@@ -117,6 +120,7 @@ def utility_cont_exp(
     params: Dict[str, float],
 ):
     experience_years = experience * period
+
     return utility_exp(
         consumption=consumption,
         experience=experience_years,
@@ -132,6 +136,7 @@ def marginal_utility_cont_exp(
     params: Dict[str, float],
 ):
     experience_years = experience * period
+
     return marg_utility_exp(
         consumption=consumption,
         experience=experience_years,
@@ -146,6 +151,7 @@ def inverse_marginal_utility_cont_exp(
     params: Dict[str, float],
 ):
     experience_years = experience * period
+
     return inverse_marg_utility_exp(
         marginal_utility=marginal_utility,
         experience=experience_years,
@@ -161,6 +167,7 @@ def utility_final_consume_all_with_cont_exp(
     params: Dict[str, float],
 ):
     experience_years = experience * period
+
     return utility_final_consume_all_with_exp(
         choice=choice,
         resources=resources,
@@ -173,6 +180,7 @@ def marginal_utility_final_consume_all_with_cont_exp(
     resources, experience, period, params
 ):
     experience_years = experience * period
+
     return marginal_utility_final_consume_all_with_exp(
         resources=resources,
         experience=experience_years,
@@ -293,16 +301,12 @@ def test_setup():
 
 @pytest.mark.parametrize(
     "period, experience, lagged_choice, choice",
-    [
-        # (1, 0, 1, 0),
-        # (1, 1, 0, 0),
-        # (2, 1, 0, 1),
-        # (4, 1, 0, 0),
-        # (3, 0, 1, 0),
-        # (3, 3, 1, 0),
-        (4, 4, 0, 0),
-        (4, 0, 1, 1),
-    ],
+    product(
+        np.arange(N_PERIODS),
+        np.arange(N_PERIODS),
+        np.arange(N_DISCRETE_CHOICES),
+        np.arange(N_DISCRETE_CHOICES),
+    ),
 )
 def test_replication_discrete_versus_continuous_experience(
     period, experience, lagged_choice, choice, test_setup
@@ -350,35 +354,50 @@ def test_replication_discrete_versus_continuous_experience(
         state_choice_cont_dict["choice"],
     ]
 
-    # =================================================================================
+    state_specific_choice_set = model_disc["model_funcs"][
+        "get_state_specific_choice_set"
+    ](**state_choice_disc_dict)
+    choice_valid = choice in state_specific_choice_set
+
+    sparsity_condition = load_example_models("with_exp")["sparsity_condition"]
+    state_valid = sparsity_condition(
+        period,
+        experience,
+        lagged_choice,
+        model_disc["options"]["model_params"],
+    )
+
+    # ================================================================================
     # Interpolate
-    # =================================================================================
+    # ================================================================================
 
-    for wealth_to_test in np.arange(50, 100, 5, dtype=float):
+    if state_valid & choice_valid:
 
-        policy_cont_interp, value_cont_interp = (
-            interp2d_policy_and_value_on_wealth_and_regular_grid(
-                regular_grid=experience_grid,
-                wealth_grid=endog_grid_cont[idx_state_choice_cont],
-                policy_grid=policy_cont[idx_state_choice_cont],
-                value_grid=value_cont[idx_state_choice_cont],
-                regular_point_to_interp=exp_share_to_test,
-                wealth_point_to_interp=jnp.array(wealth_to_test),
-                compute_utility=model_cont["model_funcs"]["compute_utility"],
-                state_choice_vec=state_choice_cont_dict,
+        for wealth_to_test in np.arange(1, 100, 5, dtype=float):
+
+            policy_cont_interp, value_cont_interp = (
+                interp2d_policy_and_value_on_wealth_and_regular_grid(
+                    regular_grid=experience_grid,
+                    wealth_grid=endog_grid_cont[idx_state_choice_cont],
+                    policy_grid=policy_cont[idx_state_choice_cont],
+                    value_grid=value_cont[idx_state_choice_cont],
+                    regular_point_to_interp=exp_share_to_test,
+                    wealth_point_to_interp=jnp.array(wealth_to_test),
+                    compute_utility=model_cont["model_funcs"]["compute_utility"],
+                    state_choice_vec=state_choice_cont_dict,
+                    params=PARAMS,
+                )
+            )
+
+            policy_disc_interp, value_disc_interp = interp1d_policy_and_value_on_wealth(
+                wealth=jnp.array(wealth_to_test),
+                endog_grid=endog_grid_disc[idx_state_choice_disc],
+                policy=policy_disc[idx_state_choice_disc],
+                value=value_disc[idx_state_choice_disc],
+                compute_utility=model_disc["model_funcs"]["compute_utility"],
+                state_choice_vec=state_choice_disc_dict,
                 params=PARAMS,
             )
-        )
 
-        policy_disc_interp, value_disc_interp = interp1d_policy_and_value_on_wealth(
-            wealth=jnp.array(wealth_to_test),
-            endog_grid=endog_grid_disc[idx_state_choice_disc],
-            policy=policy_disc[idx_state_choice_disc],
-            value=value_disc[idx_state_choice_disc],
-            compute_utility=model_disc["model_funcs"]["compute_utility"],
-            state_choice_vec=state_choice_disc_dict,
-            params=PARAMS,
-        )
-
-        aaae(value_cont_interp, value_disc_interp, decimal=1e-6)
-        aaae(policy_cont_interp, policy_disc_interp, decimal=1e-6)
+            aaae(value_cont_interp, value_disc_interp, decimal=3)
+            aaae(policy_cont_interp, policy_disc_interp, decimal=3)
