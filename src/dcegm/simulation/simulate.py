@@ -29,7 +29,7 @@ def simulate_all_periods(
     model,
 ):
 
-    second_continuous_state = next(
+    second_continuous_state_name_and_grid = next(
         (
             {key: value}
             for key, value in model["options"]["state_space"][
@@ -40,7 +40,9 @@ def simulate_all_periods(
         None,
     )
     second_continuous_state_name = (
-        next(iter(second_continuous_state.keys())) if second_continuous_state else None
+        next(iter(second_continuous_state_name_and_grid.keys()))
+        if second_continuous_state_name_and_grid
+        else None
     )
 
     discrete_state_space = model["model_structure"]["state_space_dict"]
@@ -52,7 +54,12 @@ def simulate_all_periods(
         if key in discrete_state_space
     }
 
-    if second_continuous_state:
+    if "dummy_exog" in model["model_structure"]["exog_states_names"]:
+        states_initial_dtype["dummy_exog"] = np.zeros_like(
+            states_initial_dtype["period"]
+        )
+
+    if second_continuous_state_name_and_grid:
         states_initial_dtype[second_continuous_state_name] = states_initial[
             second_continuous_state_name
         ]
@@ -92,7 +99,7 @@ def simulate_all_periods(
         ],
         exog_state_mapping=model_funcs["exog_state_mapping"],
         compute_next_period_states=compute_next_period_states,
-        second_continuous_state=second_continuous_state,
+        second_continuous_state=second_continuous_state_name_and_grid,
     )
 
     states_and_resources_beginning_of_first_period = (
@@ -115,7 +122,7 @@ def simulate_all_periods(
         choice_range=model_structure["choice_range"],
         map_state_choice_to_index=model_structure["map_state_choice_to_index"],
         compute_utility_final_period=model_funcs["compute_utility_final"],
-        second_continuous_state=second_continuous_state,
+        second_continuous_state=second_continuous_state_name_and_grid,
     )
 
     result = {

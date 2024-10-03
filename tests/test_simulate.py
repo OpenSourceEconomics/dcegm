@@ -43,7 +43,6 @@ def get_next_experience(period, choice, experience, options, params):
     working_hours = _transform_lagged_choice_to_working_hours(choice)
 
     return 1 / (period + 1) * (period * experience + (working_hours) / 3000)
-    # return working_hours * 1.0
 
 
 def _transform_lagged_choice_to_working_hours(lagged_choice):
