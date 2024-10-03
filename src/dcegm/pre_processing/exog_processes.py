@@ -6,7 +6,7 @@ from jax import numpy as jnp
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 
 
-def create_exog_transition_function(options):
+def create_exog_transition_function(options, continuous_state_name):
     """Create the exogenous process transition function.
 
     The output function takes a state vector(also choice?), params and options as input.
@@ -18,7 +18,9 @@ def create_exog_transition_function(options):
         compute_exog_transition_vec = return_dummy_exog_transition
         processed_exog_funcs_dict = {}
     else:
-        exog_funcs, processed_exog_funcs_dict = process_exog_funcs(options)
+        exog_funcs, processed_exog_funcs_dict = process_exog_funcs(
+            options, continuous_state_name
+        )
 
         compute_exog_transition_vec = partial(
             get_exog_transition_vec, exog_funcs=exog_funcs
@@ -26,7 +28,7 @@ def create_exog_transition_function(options):
     return compute_exog_transition_vec, processed_exog_funcs_dict
 
 
-def process_exog_funcs(options):
+def process_exog_funcs(options, continuous_state_name):
     """Process exogenous functions.
 
     Args:
@@ -45,7 +47,9 @@ def process_exog_funcs(options):
     for exog_name, exog_dict in exog_processes.items():
         if isinstance(exog_dict["transition"], Callable):
             processed_exog_func = determine_function_arguments_and_partial_options(
-                func=exog_dict["transition"], options=options["model_params"]
+                func=exog_dict["transition"],
+                options=options["model_params"],
+                continuous_state_name=continuous_state_name,
             )
             exog_funcs += [processed_exog_func]
             processed_exog_funcs[exog_name] = processed_exog_func

@@ -48,25 +48,21 @@ def solve_single_period(
         params=params,
     )
 
-    (
-        endog_grid_state_choice,
-        policy_state_choice,
-        value_state_choice,
-        marg_util,
-        emax,
-    ) = solve_for_interpolated_values(
-        value_interpolated=value_interpolated,
-        marginal_utility_interpolated=marginal_utility_interpolated,
-        state_choice_mat=state_choice_mat,
-        child_state_idxs=child_states_to_integrate_exog,
-        states_to_choices_child_states=child_state_choices_to_aggr_choice,
-        params=params,
-        taste_shock_scale=taste_shock_scale,
-        income_shock_weights=income_shock_weights,
-        exog_grids=exog_grids,
-        cont_grids_next_period=cont_grids_next_period,
-        model_funcs=model_funcs,
-        has_second_continuous_state=has_second_continuous_state,
+    endog_grid_state_choice, policy_state_choice, value_state_choice = (
+        solve_for_interpolated_values(
+            value_interpolated=value_interpolated,
+            marginal_utility_interpolated=marginal_utility_interpolated,
+            state_choice_mat=state_choice_mat,
+            child_state_idxs=child_states_to_integrate_exog,
+            states_to_choices_child_states=child_state_choices_to_aggr_choice,
+            params=params,
+            taste_shock_scale=taste_shock_scale,
+            income_shock_weights=income_shock_weights,
+            exog_grids=exog_grids,
+            cont_grids_next_period=cont_grids_next_period,
+            model_funcs=model_funcs,
+            has_second_continuous_state=has_second_continuous_state,
+        )
     )
 
     value_solved = value_solved.at[state_choices_idxs, :].set(value_state_choice)
@@ -145,8 +141,6 @@ def solve_for_interpolated_values(
         endog_grid_state_choice,
         policy_state_choice,
         value_state_choice,
-        marg_util,
-        emax,
     )
 
 
