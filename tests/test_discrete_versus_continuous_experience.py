@@ -1,3 +1,4 @@
+from itertools import product
 from typing import Any, Dict
 
 import jax.numpy as jnp
@@ -128,23 +129,12 @@ def test_setup():
 
 @pytest.mark.parametrize(
     "period, experience, lagged_choice, choice",
-    [
-        (1, 0, 1, 0),
-        (1, 0, 1, 0),
-        (1, 1, 0, 0),
-        (2, 1, 0, 1),
-        (2, 1, 0, 0),
-        (3, 3, 1, 0),
-        (3, 2, 0, 0),
-        (3, 2, 1, 0),
-        (3, 1, 1, 0),
-        (3, 0, 1, 0),
-        (4, 4, 0, 0),
-        (4, 3, 1, 1),
-        (4, 2, 0, 0),
-        (4, 1, 1, 1),
-        (4, 0, 1, 1),
-    ],
+    product(
+        np.arange(1, N_PERIODS),
+        np.arange(1, N_PERIODS),
+        np.arange(N_DISCRETE_CHOICES),
+        np.arange(N_DISCRETE_CHOICES),
+    ),
 )
 def test_replication_discrete_versus_continuous_experience(
     period, experience, lagged_choice, choice, test_setup
@@ -191,36 +181,42 @@ def test_replication_discrete_versus_continuous_experience(
         state_choice_cont_dict["dummy_exog"],
         state_choice_cont_dict["choice"],
     ]
+    state_specific_choice_set = model_disc["model_funcs"][
+        "get_state_specific_choice_set"
+    ](**state_choice_disc_dict)
+    choice_valid = choice in state_specific_choice_set
+    state_valid = not ((period < experience) | (experience >= N_PERIODS))
+    if state_valid & choice_valid:
 
-    # =================================================================================
-    # Interpolate
-    # =================================================================================
+        # =================================================================================
+        # Interpolate
+        # =================================================================================
 
-    for wealth_to_test in np.arange(5, 100, 5, dtype=float):
+        for wealth_to_test in np.arange(5, 100, 5, dtype=float):
 
-        policy_cont_interp, value_cont_interp = (
-            interp2d_policy_and_value_on_wealth_and_regular_grid(
-                regular_grid=experience_grid,
-                wealth_grid=endog_grid_cont[idx_state_choice_cont],
-                policy_grid=policy_cont[idx_state_choice_cont],
-                value_grid=value_cont[idx_state_choice_cont],
-                regular_point_to_interp=exp_share_to_test,
-                wealth_point_to_interp=jnp.array(wealth_to_test),
-                compute_utility=model_cont["model_funcs"]["compute_utility"],
-                state_choice_vec=state_choice_cont_dict,
+            policy_cont_interp, value_cont_interp = (
+                interp2d_policy_and_value_on_wealth_and_regular_grid(
+                    regular_grid=experience_grid,
+                    wealth_grid=endog_grid_cont[idx_state_choice_cont],
+                    policy_grid=policy_cont[idx_state_choice_cont],
+                    value_grid=value_cont[idx_state_choice_cont],
+                    regular_point_to_interp=exp_share_to_test,
+                    wealth_point_to_interp=jnp.array(wealth_to_test),
+                    compute_utility=model_cont["model_funcs"]["compute_utility"],
+                    state_choice_vec=state_choice_cont_dict,
+                    params=PARAMS,
+                )
+            )
+
+            policy_disc_interp, value_disc_interp = interp1d_policy_and_value_on_wealth(
+                wealth=jnp.array(wealth_to_test),
+                endog_grid=endog_grid_disc[idx_state_choice_disc],
+                policy=policy_disc[idx_state_choice_disc],
+                value=value_disc[idx_state_choice_disc],
+                compute_utility=model_disc["model_funcs"]["compute_utility"],
+                state_choice_vec=state_choice_disc_dict,
                 params=PARAMS,
             )
-        )
 
-        policy_disc_interp, value_disc_interp = interp1d_policy_and_value_on_wealth(
-            wealth=jnp.array(wealth_to_test),
-            endog_grid=endog_grid_disc[idx_state_choice_disc],
-            policy=policy_disc[idx_state_choice_disc],
-            value=value_disc[idx_state_choice_disc],
-            compute_utility=model_disc["model_funcs"]["compute_utility"],
-            state_choice_vec=state_choice_disc_dict,
-            params=PARAMS,
-        )
-
-        aaae(value_cont_interp, value_disc_interp, decimal=4)
-        aaae(policy_cont_interp, policy_disc_interp, decimal=4)
+            aaae(value_cont_interp, value_disc_interp, decimal=4)
+            aaae(policy_cont_interp, policy_disc_interp, decimal=4)

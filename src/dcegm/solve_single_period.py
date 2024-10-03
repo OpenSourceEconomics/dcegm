@@ -140,6 +140,8 @@ def solve_for_interpolated_values(
         has_second_continuous_state=has_second_continuous_state,
         compute_upper_envelope_for_state_choice=model_funcs["compute_upper_envelope"],
     )
+    # if has_second_continuous_state:
+    #     breakpoint()
 
     return (
         endog_grid_state_choice,
