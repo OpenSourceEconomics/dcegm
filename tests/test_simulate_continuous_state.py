@@ -1,3 +1,4 @@
+import copy
 from typing import Any, Dict
 
 import jax.numpy as jnp
@@ -5,19 +6,14 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
-from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
-from dcegm.interpolation.interp2d import (
-    interp2d_policy_and_value_on_wealth_and_regular_grid,
-)
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from dcegm.simulation.sim_utils import create_simulation_df
-from dcegm.simulation.simulate import (
-    simulate_all_periods,
-    simulate_final_period,
-    simulate_single_period,
-)
+from dcegm.simulation.simulate import simulate_all_periods
 from dcegm.solve import get_solve_func_for_model
+from toy_models.cons_ret_model_with_cont_exp.state_space_objects import (
+    get_next_period_experience,
+)
 from toy_models.load_example_model import load_example_models
 
 N_PERIODS = 5
@@ -97,7 +93,11 @@ def test_setup():
 
     experience_grid = jnp.linspace(0, 1, EXPERIENCE_GRID_POINTS)
 
-    options_cont = options_discrete.copy()
+    options_cont = copy.deepcopy(options_discrete)
+    # options_cont = {
+    #     "model_params": copy.deepcopy(model_params),
+    #     "state_space": copy.deepcopy(state_space_options),
+    # }
     options_cont["state_space"]["continuous_states"]["experience"] = experience_grid
     options_cont["state_space"].pop("endogenous_states")
 
@@ -149,8 +149,21 @@ def test_similate_discrete_versus_continuous_experience(test_setup):
         "lagged_choice": np.zeros(n_agents),  # all agents start as workers
         "experience": np.zeros(n_agents),
     }
-
     resources_initial = np.ones(n_agents) * 10
+
+    result_disc = simulate_all_periods(
+        states_initial=states_initial,
+        resources_initial=resources_initial,
+        n_periods=model_disc["options"]["state_space"]["n_periods"],
+        params=PARAMS,
+        seed=111,
+        endog_grid_solved=endog_grid_disc,
+        value_solved=value_disc,
+        policy_solved=policy_disc,
+        model=model_disc,
+    )
+
+    df_disc = create_simulation_df(result_disc)
 
     result_cont = simulate_all_periods(
         states_initial=states_initial,
@@ -164,4 +177,4 @@ def test_similate_discrete_versus_continuous_experience(test_setup):
         model=model_cont,
     )
 
-    df = create_simulation_df(result_cont)
+    df_cont = create_simulation_df(result_cont)

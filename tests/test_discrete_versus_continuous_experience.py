@@ -1,3 +1,4 @@
+import copy
 from typing import Any, Dict
 
 import jax.numpy as jnp
@@ -94,7 +95,7 @@ def test_setup():
 
     experience_grid = jnp.linspace(0, 1, EXPERIENCE_GRID_POINTS)
 
-    options_cont = options_discrete.copy()
+    options_cont = copy.deepcopy(options_discrete)
     options_cont["state_space"]["continuous_states"]["experience"] = experience_grid
     options_cont["state_space"].pop("endogenous_states")
 

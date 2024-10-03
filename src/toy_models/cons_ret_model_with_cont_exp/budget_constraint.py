@@ -12,6 +12,7 @@ def budget_constraint_cont_exp(
     params,
 ):
     experience_years = experience * period
+
     return budget_constraint_exp(
         lagged_choice=lagged_choice,
         experience=experience_years,
