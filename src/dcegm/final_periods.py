@@ -69,7 +69,7 @@ def solve_last_two_periods(
         has_second_continuous_state=has_second_continuous_state,
     )
 
-    endog_grid, policy, value, marg_util, emax = solve_for_interpolated_values(
+    endog_grid, policy, value = solve_for_interpolated_values(
         value_interpolated=value_interp_final_period,
         marginal_utility_interpolated=marginal_utility_final_last_period,
         state_choice_mat=batch_info["state_choice_mat_second_last_period"],
@@ -181,9 +181,9 @@ def solve_final_period(
     )
 
 
-###############################################################
+# =====================================================================================
 # Solve final period discrete states only
-###############################################################
+# =====================================================================================
 
 
 def solve_final_period_discrete(
@@ -267,9 +267,9 @@ def solve_final_period_discrete(
     )
 
 
-###############################################################
+# =====================================================================================
 # Solver final period with second continuous state
-###############################################################
+# =====================================================================================
 
 
 def solve_final_period_second_continuous(
@@ -327,7 +327,7 @@ def solve_final_period_second_continuous(
     value_regular, wealth_at_regular = vmap(
         vmap(
             vmap(
-                calc_budget_and_value_for_each_gridpoint,
+                calc_value_and_budget_for_each_gridpoint,
                 in_axes=(None, 0, None, None, None, None),  # wealth
             ),
             in_axes=(None, None, 0, None, None, None),  # second continuous_state
@@ -422,7 +422,7 @@ def calc_value_and_marg_util_for_each_gridpoint_second_continuous(
     return value, marg_util
 
 
-def calc_budget_and_value_for_each_gridpoint(
+def calc_value_and_budget_for_each_gridpoint(
     state_choice_vec,
     savings_grid_point,
     second_continuous_state,
@@ -443,6 +443,7 @@ def calc_budget_and_value_for_each_gridpoint(
             compute_beginning_of_period_resources=compute_beginning_of_period_resources,
         )
     )
+
     value = calc_value_for_each_gridpoint_second_continuous(
         state_choice_vec=state_choice_vec,
         wealth_final_period=wealth_final_period,
@@ -450,6 +451,7 @@ def calc_budget_and_value_for_each_gridpoint(
         params=params,
         compute_utility=compute_utility,
     )
+
     return value, wealth_final_period
 
 

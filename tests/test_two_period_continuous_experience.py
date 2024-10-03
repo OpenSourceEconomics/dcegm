@@ -1,27 +1,18 @@
 from itertools import product
 from typing import Any, Dict
 
-import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 from numpy.testing import assert_array_almost_equal as aaae
 
-from dcegm.final_periods import solve_final_period, solve_last_two_periods
-from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
-from dcegm.interpolation.interp2d import (
-    interp2d_policy_and_value_on_wealth_and_regular_grid,
-)
+from dcegm.final_periods import solve_final_period
 from dcegm.law_of_motion import calc_cont_grids_next_period
 from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import create_solution_container, solve_dcegm
 from dcegm.solve_single_period import solve_for_interpolated_values
-from tests.utils.interp1d_auxiliary import (
-    interpolate_policy_and_value_on_wealth_grid,
-    linear_interpolation_with_extrapolation,
-)
 from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
     create_final_period_utility_function_dict,
     create_utility_function_dict,
@@ -322,7 +313,7 @@ def create_test_inputs():
         has_second_continuous_state=True,
     )
 
-    endog_grid, policy, value_second_last, *_ = solve_for_interpolated_values(
+    endog_grid, policy, value_second_last = solve_for_interpolated_values(
         value_interpolated=value_interp_final_period,
         marginal_utility_interpolated=marginal_utility_final_last_period,
         state_choice_mat=batch_info_cont["state_choice_mat_second_last_period"],
