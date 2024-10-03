@@ -234,7 +234,7 @@ def transition_to_next_period(
             update_continuous_state_for_one_agent,
             in_axes=(None, 0, 0, 0, None),  # choice
         )(
-            compute_next_period_states["update_continuous_state"],
+            compute_next_period_states["update_continuous_state_for_next_period"],
             discrete_states_beginning_of_period,
             continuous_state_beginning_of_period,
             choice,

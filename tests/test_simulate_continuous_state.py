@@ -1,6 +1,7 @@
 import copy
 from typing import Any, Dict
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -16,7 +17,7 @@ from toy_models.cons_ret_model_with_cont_exp.state_space_objects import (
 )
 from toy_models.load_example_model import load_example_models
 
-N_PERIODS = 5
+N_PERIODS = 10
 N_DISCRETE_CHOICES = 2
 MAX_WEALTH = 50
 WEALTH_GRID_POINTS = 100
@@ -94,10 +95,6 @@ def test_setup():
     experience_grid = jnp.linspace(0, 1, EXPERIENCE_GRID_POINTS)
 
     options_cont = copy.deepcopy(options_discrete)
-    # options_cont = {
-    #     "model_params": copy.deepcopy(model_params),
-    #     "state_space": copy.deepcopy(state_space_options),
-    # }
     options_cont["state_space"]["continuous_states"]["experience"] = experience_grid
     options_cont["state_space"].pop("endogenous_states")
 
@@ -178,3 +175,55 @@ def test_similate_discrete_versus_continuous_experience(test_setup):
     )
 
     df_cont = create_simulation_df(result_cont)
+
+    min_experience = df_cont["experience"].min()
+    max_experience = df_cont["experience"].max()
+    mean_experience = df_cont["experience"].mean()
+
+    # df_cont_reset = df_cont.reset_index(level="period")
+    # df_cont_reset["experience_years"] = (
+    #     df_cont_reset["period"] * df_cont_reset["experience"]
+    # )
+
+    # Create the new column 'experience_years' as period * experience
+    df_cont["experience_years"] = (
+        df_cont.index.get_level_values("period") * df_cont["experience"]
+    )
+
+    # aaae(df_disc["experience"].astype(float), df_cont["experience_years"], decimal=0)
+
+    # Identify mismatched elements
+    mismatches = np.where(
+        np.round(df_disc["experience"].astype(float), 0)
+        != np.round(df_cont["experience_years"], 0)
+    )
+
+    # Show the mismatched values
+    mismatch_values = {
+        "actual": df_disc["experience"].astype(float).iloc[mismatches],
+        "desired": df_cont["experience_years"].iloc[mismatches],
+    }
+
+    mismatch_values
+
+    #
+
+    # Tolerance for closeness (within 4 decimal places)
+    tolerance = 10**-4
+
+    # Find the indices where the values are close enough
+    close_indices = np.isclose(
+        # df_disc["value_max"].astype(float), df_cont["value_max"], atol=tolerance
+        df_disc["utility"],
+        df_cont["utility"],
+        atol=tolerance,
+    )
+
+    # Filter the arrays to include only rows where the values are close
+    filtered_df_disc_experience = df_disc["experience"].astype(float)[close_indices]
+    filtered_df_cont_experience_years = df_cont["experience_years"][close_indices]
+
+    aaae(df_disc["taste_shocks_0"], df_cont["taste_shocks_0"], decimal=4)
+    aaae(df_disc["taste_shocks_1"], df_cont["taste_shocks_1"], decimal=4)
+    # aaae(df_disc["value_max"], df_cont["value_max"], decimal=4)
+    aaae(filtered_df_disc_experience, filtered_df_cont_experience_years, decimal=4)

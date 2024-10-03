@@ -13,8 +13,13 @@ def create_state_space_function_dict():
     return {
         "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
         "update_continuous_state": get_next_period_experience,
+        "update_continuous_state_for_next_period": get_next_period_experience_simulation,
     }
 
 
 def get_next_period_experience(period, lagged_choice, experience):
     return (1 / period) * ((period - 1) * experience + (lagged_choice == 0))
+
+
+def get_next_period_experience_simulation(period, choice, experience):
+    return (1 / (period + 1)) * (period * experience + (choice == 0))
