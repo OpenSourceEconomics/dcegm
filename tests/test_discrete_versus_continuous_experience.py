@@ -17,7 +17,7 @@ N_PERIODS = 5
 N_DISCRETE_CHOICES = 2
 MAX_WEALTH = 50
 WEALTH_GRID_POINTS = 100
-EXPERIENCE_GRID_POINTS = 5
+EXPERIENCE_GRID_POINTS = 12
 
 
 PARAMS = {
@@ -136,6 +136,7 @@ def test_setup():
         (2, 1, 0, 0),
         (3, 3, 1, 0),
         (3, 2, 0, 0),
+        (3, 2, 1, 0),
         (3, 1, 1, 0),
         (3, 0, 1, 0),
         (4, 4, 0, 0),

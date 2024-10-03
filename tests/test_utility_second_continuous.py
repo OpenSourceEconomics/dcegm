@@ -17,7 +17,7 @@ N_PERIODS = 5
 N_DISCRETE_CHOICES = 2
 MAX_WEALTH = 50
 WEALTH_GRID_POINTS = 100
-EXPERIENCE_GRID_POINTS = 5
+EXPERIENCE_GRID_POINTS = 13
 
 PARAMS = {
     "beta": 0.95,
@@ -293,14 +293,18 @@ def test_setup():
 @pytest.mark.parametrize(
     "period, experience, lagged_choice, choice",
     [
-        # (1, 0, 1, 0),
         # (1, 1, 0, 0),
-        # (2, 1, 0, 1),
-        # (4, 1, 0, 0),
-        # (3, 0, 1, 0),
-        # (3, 3, 1, 0),
-        (4, 4, 0, 0),
-        (4, 0, 1, 1),
+        # (2, 2, 0, 0),
+        # (3, 3, 0, 0),
+        # (3, 0, 1, 1),
+        (3, 2, 1, 0),
+        # (3, 2, 1, 1),
+        # (4, 4, 0, 0),
+        (4, 3, 0, 0),
+        (4, 3, 0, 1),
+        # (4, 2, 0, 0),
+        # (4, 1, 1, 1),
+        # (4, 0, 1, 1),
     ],
 )
 def test_replication_discrete_versus_continuous_experience(
@@ -353,7 +357,7 @@ def test_replication_discrete_versus_continuous_experience(
     # Interpolate
     # =================================================================================
 
-    for wealth_to_test in np.arange(50, 100, 5, dtype=float):
+    for wealth_to_test in np.arange(1, 100, 5, dtype=float):
 
         policy_cont_interp, value_cont_interp = (
             interp2d_policy_and_value_on_wealth_and_regular_grid(
@@ -379,5 +383,5 @@ def test_replication_discrete_versus_continuous_experience(
             params=PARAMS,
         )
 
-        aaae(value_cont_interp, value_disc_interp, decimal=1e-6)
-        aaae(policy_cont_interp, policy_disc_interp, decimal=1e-6)
+        aaae(value_cont_interp, value_disc_interp, decimal=4)
+        aaae(policy_cont_interp, policy_disc_interp, decimal=4)
