@@ -294,8 +294,8 @@ def test_setup():
 @pytest.mark.parametrize(
     "period, experience, lagged_choice, choice",
     product(
-        np.arange(1, N_PERIODS),
-        np.arange(1, N_PERIODS),
+        np.arange(N_PERIODS),
+        np.arange(N_PERIODS),
         np.arange(N_DISCRETE_CHOICES),
         np.arange(N_DISCRETE_CHOICES),
     ),
@@ -350,7 +350,15 @@ def test_replication_discrete_versus_continuous_experience(
         "get_state_specific_choice_set"
     ](**state_choice_disc_dict)
     choice_valid = choice in state_specific_choice_set
-    state_valid = not ((period < experience) | (experience >= N_PERIODS))
+
+    sparsity_condition = load_example_models("with_exp")["sparsity_condition"]
+    state_valid = sparsity_condition(
+        period,
+        experience,
+        lagged_choice,
+        model_disc["options"]["model_params"],
+    )
+
     if state_valid & choice_valid:
 
         # =================================================================================
