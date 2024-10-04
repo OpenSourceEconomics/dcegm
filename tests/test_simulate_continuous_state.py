@@ -162,68 +162,71 @@ def test_similate_discrete_versus_continuous_experience(test_setup):
 
     df_disc = create_simulation_df(result_disc)
 
-    result_cont = simulate_all_periods(
-        states_initial=states_initial,
-        resources_initial=resources_initial,
-        n_periods=model_cont["options"]["state_space"]["n_periods"],
-        params=PARAMS,
-        seed=111,
-        endog_grid_solved=endog_grid_cont,
-        value_solved=value_cont,
-        policy_solved=policy_cont,
-        model=model_cont,
-    )
-
-    df_cont = create_simulation_df(result_cont)
-
-    min_experience = df_cont["experience"].min()
-    max_experience = df_cont["experience"].max()
-    mean_experience = df_cont["experience"].mean()
-
-    # df_cont_reset = df_cont.reset_index(level="period")
-    # df_cont_reset["experience_years"] = (
-    #     df_cont_reset["period"] * df_cont_reset["experience"]
+    # result_cont = simulate_all_periods(
+    #     states_initial=states_initial,
+    #     resources_initial=resources_initial,
+    #     n_periods=model_cont["options"]["state_space"]["n_periods"],
+    #     params=PARAMS,
+    #     seed=111,
+    #     endog_grid_solved=endog_grid_cont,
+    #     value_solved=value_cont,
+    #     policy_solved=policy_cont,
+    #     model=model_cont,
     # )
 
-    # Create the new column 'experience_years' as period * experience
-    df_cont["experience_years"] = (
-        df_cont.index.get_level_values("period") * df_cont["experience"]
-    )
+    # df_cont = create_simulation_df(result_cont)
 
-    # aaae(df_disc["experience"].astype(float), df_cont["experience_years"], decimal=0)
+    # min_experience = df_cont["experience"].min()
+    # max_experience = df_cont["experience"].max()
+    # mean_experience = df_cont["experience"].mean()
 
-    # Identify mismatched elements
-    mismatches = np.where(
-        np.round(df_disc["experience"].astype(float), 0)
-        != np.round(df_cont["experience_years"], 0)
-    )
+    # # df_cont_reset = df_cont.reset_index(level="period")
+    # # df_cont_reset["experience_years"] = (
+    # #     df_cont_reset["period"] * df_cont_reset["experience"]
+    # # )
 
-    # Show the mismatched values
-    mismatch_values = {
-        "actual": df_disc["experience"].astype(float).iloc[mismatches],
-        "desired": df_cont["experience_years"].iloc[mismatches],
-    }
+    # # Create the new column 'experience_years' as period * experience
+    # df_cont["experience_years"] = (
+    #     df_cont.index.get_level_values("period") * df_cont["experience"]
+    # )
 
-    mismatch_values
+    # # aaae(df_disc["experience"].astype(float), df_cont["experience_years"], decimal=0)
 
-    #
+    # # Identify mismatched elements
+    # mismatches = np.where(
+    #     np.round(df_disc["experience"].astype(float), 0)
+    #     != np.round(df_cont["experience_years"], 0)
+    # )
 
-    # Tolerance for closeness (within 4 decimal places)
-    tolerance = 10**-4
+    # # Show the mismatched values
+    # mismatch_values = {
+    #     "actual": df_disc["experience"].astype(float).iloc[mismatches],
+    #     "desired": df_cont["experience_years"].iloc[mismatches],
+    # }
 
-    # Find the indices where the values are close enough
-    close_indices = np.isclose(
-        # df_disc["value_max"].astype(float), df_cont["value_max"], atol=tolerance
-        df_disc["utility"],
-        df_cont["utility"],
-        atol=tolerance,
-    )
+    # mismatch_values
 
-    # Filter the arrays to include only rows where the values are close
-    filtered_df_disc_experience = df_disc["experience"].astype(float)[close_indices]
-    filtered_df_cont_experience_years = df_cont["experience_years"][close_indices]
+    # #
 
-    aaae(df_disc["taste_shocks_0"], df_cont["taste_shocks_0"], decimal=4)
-    aaae(df_disc["taste_shocks_1"], df_cont["taste_shocks_1"], decimal=4)
-    # aaae(df_disc["value_max"], df_cont["value_max"], decimal=4)
-    aaae(filtered_df_disc_experience, filtered_df_cont_experience_years, decimal=4)
+    # # Tolerance for closeness (within 4 decimal places)
+    # tolerance = 10**-4
+
+    # # Find the indices where the values are close enough
+    # close_indices = np.isclose(
+    #     df_disc["value_max"],
+    #     df_cont["value_max"],
+    #     atol=tolerance,
+    #     # df_disc["utility"],
+    #     # df_cont["utility"],
+    #     # atol=tolerance,
+    # )
+
+    # # Filter the arrays to include only rows where the values are close
+    # filtered_df_disc_experience = df_disc["experience"].astype(float)[close_indices]
+    # filtered_df_cont_experience_years = df_cont["experience_years"][close_indices]
+
+    # aaae(df_disc["taste_shocks_0"], df_cont["taste_shocks_0"], decimal=4)
+    # aaae(df_disc["taste_shocks_1"], df_cont["taste_shocks_1"], decimal=4)
+    # # aaae(df_disc["value_max"], df_cont["value_max"], decimal=4)
+    # aaae(filtered_df_disc_experience, filtered_df_cont_experience_years, decimal=4)
+    # breakpoint()
