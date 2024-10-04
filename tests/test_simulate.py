@@ -221,7 +221,7 @@ def test_simulate_second_continuous_choice(model_setup):
         determine_function_arguments_and_partial_options(
             func=get_next_period_experience,
             options=model["options"]["model_params"],
-            continuous_state="experience",
+            continuous_state_name="experience",
         )
     )
 

@@ -4,8 +4,10 @@ from typing import Callable, Dict, Tuple
 
 import jax.numpy as jnp
 from jax import vmap
-from numpy.testing import assert_array_almost_equal as aaae
 
+from dcegm.law_of_motion import (
+    calc_resources_for_each_continuous_state_and_savings_grid_point,
+)
 from dcegm.solve_single_period import solve_for_interpolated_values
 
 
@@ -60,15 +62,14 @@ def solve_last_two_periods(
         cont_grids_next_period=cont_grids_next_period,
         exog_grids=exog_grids,
         params=params,
-        compute_utility=model_funcs["compute_utility_final"],
-        compute_marginal_utility=model_funcs["compute_marginal_utility_final"],
+        model_funcs=model_funcs,
         value_solved=value_solved,
         policy_solved=policy_solved,
         endog_grid_solved=endog_grid_solved,
         has_second_continuous_state=has_second_continuous_state,
     )
 
-    endog_grid, policy, value, marg_util, emax = solve_for_interpolated_values(
+    endog_grid, policy, value = solve_for_interpolated_values(
         value_interpolated=value_interp_final_period,
         marginal_utility_interpolated=marginal_utility_final_last_period,
         state_choice_mat=batch_info["state_choice_mat_second_last_period"],
@@ -103,8 +104,7 @@ def solve_final_period(
     cont_grids_next_period: Dict[str, jnp.ndarray],
     exog_grids: Dict[str, jnp.ndarray],
     params: Dict[str, float],
-    compute_utility: Callable,
-    compute_marginal_utility: Callable,
+    model_funcs: Dict[str, Callable],
     value_solved,
     policy_solved,
     endog_grid_solved,
@@ -146,8 +146,7 @@ def solve_final_period(
             cont_grids_next_period=cont_grids_next_period,
             exog_grids=exog_grids,
             params=params,
-            compute_utility=compute_utility,
-            compute_marginal_utility=compute_marginal_utility,
+            model_funcs=model_funcs,
             value_solved=value_solved,
             policy_solved=policy_solved,
             endog_grid_solved=endog_grid_solved,
@@ -166,8 +165,8 @@ def solve_final_period(
             cont_grids_next_period=cont_grids_next_period,
             exog_grids=exog_grids,
             params=params,
-            compute_utility=compute_utility,
-            compute_marginal_utility=compute_marginal_utility,
+            compute_utility=model_funcs["compute_utility_final"],
+            compute_marginal_utility=model_funcs["compute_marginal_utility_final"],
             value_solved=value_solved,
             policy_solved=policy_solved,
             endog_grid_solved=endog_grid_solved,
@@ -182,9 +181,9 @@ def solve_final_period(
     )
 
 
-###############################################################
+# =====================================================================================
 # Solve final period discrete states only
-###############################################################
+# =====================================================================================
 
 
 def solve_final_period_discrete(
@@ -230,7 +229,7 @@ def solve_final_period_discrete(
     )
     # Choose which draw we take for policy and value function as those are not
     # saved with respect to the draws
-    middle_of_draws = int(value.shape[2] + 1 / 2)
+    middle_of_draws = int((value.shape[2] - 1) / 2)
     # Select solutions to store
     value_final = value[:, :, middle_of_draws]
 
@@ -268,9 +267,9 @@ def solve_final_period_discrete(
     )
 
 
-###############################################################
+# =====================================================================================
 # Solver final period with second continuous state
-###############################################################
+# =====================================================================================
 
 
 def solve_final_period_second_continuous(
@@ -280,8 +279,7 @@ def solve_final_period_second_continuous(
     cont_grids_next_period: Dict[str, jnp.ndarray],
     exog_grids: Dict[str, jnp.ndarray],
     params: Dict[str, float],
-    compute_utility: Callable,
-    compute_marginal_utility: Callable,
+    model_funcs: Dict[str, Callable],
     value_solved,
     policy_solved,
     endog_grid_solved,
@@ -320,47 +318,54 @@ def solve_final_period_second_continuous(
         resources_child_states_final_period,
         continuous_state_final,
         params,
-        compute_utility,
-        compute_marginal_utility,
+        model_funcs["compute_utility_final"],
+        model_funcs["compute_marginal_utility_final"],
     )
 
     # For the value to save in the second continuous case, we calculate the value
     # at the exogenous wealth and second continuous points
-    value_regular = vmap(
+    value_regular, wealth_at_regular = vmap(
         vmap(
             vmap(
-                calc_value_for_each_gridpoint_second_continuous,
-                in_axes=(None, 0, None, None, None),  # wealth
+                calc_value_and_budget_for_each_gridpoint,
+                in_axes=(None, 0, None, None, None, None),  # wealth
             ),
-            in_axes=(None, None, 0, None, None),  # second continuous_state
+            in_axes=(None, None, 0, None, None, None),  # second continuous_state
         ),
-        in_axes=(0, None, None, None, None),  # discrete state choices
+        in_axes=(0, None, None, None, None, None),  # discrete state choices
     )(
         state_choice_mat_final_period,
         exog_grids["wealth"],
         exog_grids["second_continuous"],
         params,
-        compute_utility,
+        model_funcs["compute_utility_final"],
+        model_funcs["compute_beginning_of_period_resources"],
     )
 
+    sort_idx = jnp.argsort(wealth_at_regular, axis=2)
+    wealth_sorted = jnp.take_along_axis(wealth_at_regular, sort_idx, axis=2)
+    values_sorted = jnp.take_along_axis(value_regular, sort_idx, axis=2)
+
     # Store results and add zero entry for the first column
-    zeros_to_append = jnp.zeros(value_regular.shape[:-1])
+    zeros_to_append = jnp.zeros(values_sorted.shape[:-1])
 
     # Stack along the second-to-last axis (axis 1)
     values_with_zeros = jnp.concatenate(
-        (zeros_to_append[..., None], value_regular), axis=2
+        (zeros_to_append[..., None], values_sorted), axis=2
     )
-    exog_wealth_with_zero = jnp.append(0, exog_grids["wealth"])
+    wealth_with_zeros = jnp.concatenate(
+        (zeros_to_append[..., None], wealth_sorted), axis=2
+    )
 
     value_solved = value_solved.at[
         idx_state_choices_final_period, :, : n_wealth + 1
     ].set(values_with_zeros)
     policy_solved = policy_solved.at[
         idx_state_choices_final_period, :, : n_wealth + 1
-    ].set(exog_wealth_with_zero)
+    ].set(wealth_with_zeros)
     endog_grid_solved = endog_grid_solved.at[
         idx_state_choices_final_period, :, : n_wealth + 1
-    ].set(exog_wealth_with_zero)
+    ].set(wealth_with_zeros)
 
     return (
         value_solved,
@@ -410,10 +415,44 @@ def calc_value_and_marg_util_for_each_gridpoint_second_continuous(
     marg_util = compute_marginal_utility(
         **state_choice_vec,
         resources=wealth_final_period,
+        continuous_state=second_continuous_state,
         params=params,
     )
 
     return value, marg_util
+
+
+def calc_value_and_budget_for_each_gridpoint(
+    state_choice_vec,
+    savings_grid_point,
+    second_continuous_state,
+    params,
+    compute_utility,
+    compute_beginning_of_period_resources,
+):
+    state_vec = state_choice_vec.copy()
+    state_vec.pop("choice")
+
+    wealth_final_period = (
+        calc_resources_for_each_continuous_state_and_savings_grid_point(
+            state_vec=state_vec,
+            continuous_state_beginning_of_period=second_continuous_state,
+            exog_savings_grid_point=savings_grid_point,
+            income_shock_draw=jnp.array(0.0),
+            params=params,
+            compute_beginning_of_period_resources=compute_beginning_of_period_resources,
+        )
+    )
+
+    value = calc_value_for_each_gridpoint_second_continuous(
+        state_choice_vec=state_choice_vec,
+        wealth_final_period=wealth_final_period,
+        second_continuous_state=second_continuous_state,
+        params=params,
+        compute_utility=compute_utility,
+    )
+
+    return value, wealth_final_period
 
 
 def calc_value_for_each_gridpoint_second_continuous(

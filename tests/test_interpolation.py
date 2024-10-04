@@ -165,7 +165,7 @@ def test_interp2d():
         compute_utility = determine_function_arguments_and_partial_options(
             utility_crra_with_second_continuous,
             options={},
-            continuous_state="continuous_state",
+            continuous_state_name="continuous_state",
         )
 
         value_interp_custom = custom_interp2d_quad_value_function(
@@ -220,6 +220,11 @@ def test_interp2d_value_and_marg_util():
         options={},
     )
 
+    utility_crra_partial = determine_function_arguments_and_partial_options(
+        func=utility_crra,
+        options={},
+    )
+
     np.random.seed(1234)
     a, b = np.random.uniform(1, 10), np.random.uniform(1, 10)
 
@@ -255,7 +260,7 @@ def test_interp2d_value_and_marg_util():
 
     marg_util, val = interp_for_single_state_choice(
         marginal_utility_crra_partial,
-        utility_crra,
+        utility_crra_partial,
         {"choice": jnp.array([0, 1])},
         jnp.array(experience_grid),
         jnp.array(wealth_next_state_choice),

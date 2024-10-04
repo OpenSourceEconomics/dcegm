@@ -181,9 +181,8 @@ def test_similate_discrete_versus_continuous_experience(test_setup):
     )
 
     # Tolerance for closeness (within 4 decimal places)
-    tolerance = 10**-4
-
     # Find the indices where the values are close enough
+    tolerance = 10**-4
     close_indices = np.isclose(
         # df_disc["value_max"].astype(float), df_cont["value_max"], atol=tolerance
         df_disc["utility"],
@@ -199,5 +198,4 @@ def test_similate_discrete_versus_continuous_experience(test_setup):
     aaae(df_disc["taste_shocks_1"], df_cont["taste_shocks_1"], decimal=4)
     # aaae(df_disc["value_max"], df_cont["value_max"], decimal=4)
     aaae(filtered_df_disc_experience, filtered_df_cont_experience_years, decimal=4)
-    # breakpoint()
     aaae(df_disc["experience"], df_cont["experience_years"])

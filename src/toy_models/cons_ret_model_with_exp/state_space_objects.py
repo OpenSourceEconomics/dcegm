@@ -30,16 +30,16 @@ def get_next_period_state(period, choice, experience):
 def sparsity_condition(
     period,
     experience,
+    lagged_choice,
     options,
 ):
-
-    max_init_experience = 0
-
-    cond = True
-
-    if (period + max_init_experience < experience) | (
-        experience >= options["n_periods"]
-    ):
-        cond = False
-
-    return cond
+    if period < experience:
+        return False
+    elif experience >= options["n_periods"]:
+        return False
+    elif (experience == period) & (lagged_choice == 1):
+        return False
+    elif (period > 0) & (lagged_choice == 0) & (experience == 0):
+        return False
+    else:
+        return True

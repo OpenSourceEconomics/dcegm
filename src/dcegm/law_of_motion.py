@@ -14,9 +14,7 @@ def calc_cont_grids_next_period(
             discrete_states_beginning_of_period=state_space_dict,
             continuous_grid=exog_grids["second_continuous"],
             params=params,
-            compute_continuous_state=model_funcs[
-                "compute_beginning_of_period_continuous_state"
-            ],
+            compute_continuous_state=model_funcs["update_continuous_state"],
         )
 
         # Extra dimension for continuous state
@@ -101,6 +99,25 @@ def calc_resources_for_each_savings_grid_point(
 # =====================================================================================
 
 
+def calc_resources_for_each_continuous_state_and_savings_grid_point(
+    state_vec,
+    continuous_state_beginning_of_period,
+    exog_savings_grid_point,
+    income_shock_draw,
+    params,
+    compute_beginning_of_period_resources,
+):
+    out = compute_beginning_of_period_resources(
+        **state_vec,
+        continuous_state=continuous_state_beginning_of_period,
+        savings_end_of_previous_period=exog_savings_grid_point,
+        income_shock_previous_period=income_shock_draw,
+        params=params,
+    )
+
+    return out
+
+
 def calculate_continuous_state(
     discrete_states_beginning_of_period,
     continuous_grid,
@@ -166,25 +183,6 @@ def calculate_resources_for_second_continuous_state(
         compute_beginning_of_period_resources,
     )
     return resources_beginning_of_period
-
-
-def calc_resources_for_each_continuous_state_and_savings_grid_point(
-    state_vec,
-    continuous_state_beginning_of_period,
-    exog_savings_grid_point,
-    income_shock_draw,
-    params,
-    compute_beginning_of_period_resources,
-):
-    out = compute_beginning_of_period_resources(
-        **state_vec,
-        continuous_state_beginning_of_period=continuous_state_beginning_of_period,
-        savings_end_of_previous_period=exog_savings_grid_point,
-        income_shock_previous_period=income_shock_draw,
-        params=params,
-    )
-
-    return out
 
 
 # =====================================================================================
