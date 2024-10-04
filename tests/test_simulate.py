@@ -55,10 +55,10 @@ def model_setup(toy_model_exog_ltc):
         "married": np.zeros(n_agents),
         "ltc": np.zeros(n_agents),
     }
-    initial_resources = np.ones(n_agents) * 10
-    initial_states_and_resources = initial_states, initial_resources
+    initial_wealth = np.ones(n_agents) * 10
+    initial_states_and_wealth = initial_states, initial_wealth
 
-    n_keys = len(initial_resources) + 2
+    n_keys = len(initial_wealth) + 2
     sim_specific_keys = jnp.array(
         [
             jax.random.split(jax.random.PRNGKey(seed + period), num=n_keys)
@@ -69,8 +69,8 @@ def model_setup(toy_model_exog_ltc):
     return {
         **toy_model_exog_ltc,
         "initial_states": initial_states,
-        "initial_resources": initial_resources,
-        "initial_states_and_resources": initial_states_and_resources,
+        "initial_wealth": initial_wealth,
+        "initial_states_and_wealth": initial_states_and_wealth,
         "sim_specific_keys": sim_specific_keys,
         "seed": seed,
     }
@@ -94,7 +94,7 @@ def test_simulate_lax_scan(model_setup):
     endog_grid = model_setup["endog_grid"]
 
     states_initial = model_setup["initial_states"]
-    resources_initial = model_setup["initial_resources"]
+    wealth_initial = model_setup["initial_wealth"]
 
     sim_specific_keys = model_setup["sim_specific_keys"]
 
@@ -103,7 +103,7 @@ def test_simulate_lax_scan(model_setup):
         key: value.astype(state_space_dict[key].dtype)
         for key, value in states_initial.items()
     }
-    initial_states_and_resources = states_initial, resources_initial
+    initial_states_and_wealth = states_initial, wealth_initial
 
     simulate_body = partial(
         simulate_single_period,
@@ -116,8 +116,8 @@ def test_simulate_lax_scan(model_setup):
         choice_range=jnp.arange(map_state_choice_to_index.shape[-1], dtype=np.uint8),
         compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
         compute_utility=model_funcs["compute_utility"],
-        compute_beginning_of_period_resources=model_funcs[
-            "compute_beginning_of_period_resources"
+        compute_beginning_of_period_wealth=model_funcs[
+            "compute_beginning_of_period_wealth"
         ],
         exog_state_mapping=exog_state_mapping,
         compute_next_period_states={"get_next_period_state": get_next_period_state},
@@ -125,24 +125,22 @@ def test_simulate_lax_scan(model_setup):
 
     # a) lax.scan
     (
-        lax_states_and_resources_beginning_of_final_period,
+        lax_states_and_wealth_beginning_of_final_period,
         lax_sim_dict_zero,
     ) = jax.lax.scan(
         f=simulate_body,
-        init=initial_states_and_resources,
+        init=initial_states_and_wealth,
         xs=sim_specific_keys[:-1],
     )
 
     # b) single call
     (
-        states_and_resources_beginning_of_final_period,
+        states_and_wealth_beginning_of_final_period,
         sim_dict_zero,
-    ) = simulate_body(
-        initial_states_and_resources, sim_specific_keys=sim_specific_keys[0]
-    )
+    ) = simulate_body(initial_states_and_wealth, sim_specific_keys=sim_specific_keys[0])
 
     lax_final_period_dict = simulate_final_period(
-        lax_states_and_resources_beginning_of_final_period,
+        lax_states_and_wealth_beginning_of_final_period,
         sim_specific_keys=sim_specific_keys[-1],
         params=params,
         state_space_names=state_space_names,
@@ -151,7 +149,7 @@ def test_simulate_lax_scan(model_setup):
         compute_utility_final_period=model_funcs["compute_utility_final"],
     )
     final_period_dict = simulate_final_period(
-        states_and_resources_beginning_of_final_period,
+        states_and_wealth_beginning_of_final_period,
         sim_specific_keys=sim_specific_keys[-1],
         params=params,
         state_space_names=state_space_names,
@@ -186,11 +184,11 @@ def test_simulate(model_setup):
         "married": np.zeros(n_agents),
         "ltc": np.zeros(n_agents),
     }
-    resources_initial = np.ones(n_agents) * 10
+    wealth_initial = np.ones(n_agents) * 10
 
     result = simulate_all_periods(
         states_initial=discrete_initial_states,
-        resources_initial=resources_initial,
+        wealth_initial=wealth_initial,
         n_periods=options["state_space"]["n_periods"],
         params=params,
         seed=111,
@@ -245,11 +243,11 @@ def test_simulate_second_continuous_choice(model_setup):
         "ltc": np.zeros(n_agents),
         "experience": np.ones(n_agents),
     }
-    resources_initial = np.ones(n_agents) * 10
+    wealth_initial = np.ones(n_agents) * 10
 
     result = simulate_all_periods(
         states_initial=states_initial,
-        resources_initial=resources_initial,
+        wealth_initial=wealth_initial,
         n_periods=options["state_space"]["n_periods"],
         params=params,
         seed=111,

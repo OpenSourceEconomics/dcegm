@@ -87,12 +87,12 @@ def inverse_marg_utility_exp(
 
 def utility_final_consume_all_with_exp(
     choice,
-    resources,
+    wealth,
     experience,
     params,
 ):
 
-    util_consumption = (resources ** (1 - params["rho"])) / (1 - params["rho"])
+    util_consumption = (wealth ** (1 - params["rho"])) / (1 - params["rho"])
     util = (
         util_consumption * params["exp_util"] * jnp.log(experience + 2)
         - (1 - choice) * params["delta"]
@@ -102,12 +102,10 @@ def utility_final_consume_all_with_exp(
 
 
 def marginal_utility_final_consume_all_with_exp(
-    resources: jnp.array, experience: float, params: Dict[str, float]
+    wealth: jnp.array, experience: float, params: Dict[str, float]
 ) -> jnp.array:
 
-    return (
-        (resources ** (-params["rho"])) * params["exp_util"] * jnp.log(experience + 2)
-    )
+    return (wealth ** (-params["rho"])) * params["exp_util"] * jnp.log(experience + 2)
 
 
 # =====================================================================================
@@ -170,7 +168,7 @@ def inverse_marginal_utility_cont_exp(
 
 def utility_final_consume_all_with_cont_exp(
     choice: int,
-    resources: jnp.array,
+    wealth: jnp.array,
     experience: float,
     period: int,
     params: Dict[str, float],
@@ -181,20 +179,20 @@ def utility_final_consume_all_with_cont_exp(
 
     return utility_final_consume_all_with_exp(
         choice=choice,
-        resources=resources,
+        wealth=wealth,
         experience=experience_years,
         params=params,
     )
 
 
 def marginal_utility_final_consume_all_with_cont_exp(
-    resources, experience, period, params, options
+    wealth, experience, period, params, options
 ):
     max_init_experience_period = period + options["max_init_experience"]
     experience_years = experience * max_init_experience_period
 
     return marginal_utility_final_consume_all_with_exp(
-        resources=resources,
+        wealth=wealth,
         experience=experience_years,
         params=params,
     )

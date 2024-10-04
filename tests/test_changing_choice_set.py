@@ -159,8 +159,8 @@ def utility_functions():
     }
 
 
-def utility_final(resources, params):
-    return utility_crra(resources, 1, params)
+def utility_final(wealth, params):
+    return utility_crra(wealth, 1, params)
 
 
 @pytest.fixture(scope="session")

@@ -35,6 +35,7 @@ def sparsity_condition(
 ):
     max_exp_period = period + options["max_init_experience"]
     max_total_experience = options["n_periods"] + options["max_init_experience"]
+
     if max_exp_period < experience:
         return False
     elif max_total_experience <= experience:

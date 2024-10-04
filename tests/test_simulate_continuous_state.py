@@ -26,7 +26,7 @@ PARAMS = {
     "delta": 0.35,
     "rho": 1.95,
     "interest_rate": 0.04,
-    "lambda": 0.1,  # taste shock (scale) parameter
+    "lambda": 1,  # taste shock (scale) parameter
     "sigma": 1,  # shock on labor income, standard deviation
     "constant": 0.75,
     "exp": 0.04,
@@ -35,7 +35,7 @@ PARAMS = {
 }
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def test_setup():
 
     # =================================================================================
@@ -90,10 +90,10 @@ def test_setup():
     # Continuous experience
     # =================================================================================
 
-    experience_grid = jnp.linspace(0, 1, EXPERIENCE_GRID_POINTS)
-
     options_cont = copy.deepcopy(options_discrete)
-    options_cont["state_space"]["continuous_states"]["experience"] = experience_grid
+    options_cont["state_space"]["continuous_states"]["experience"] = jnp.linspace(
+        0, 1, EXPERIENCE_GRID_POINTS
+    )
     options_cont["state_space"].pop("endogenous_states")
 
     model_funcs_cont_exp = load_example_models("with_cont_exp")
@@ -112,7 +112,6 @@ def test_setup():
     value_cont, policy_cont, endog_grid_cont = solve_cont(PARAMS)
 
     return (
-        experience_grid,
         model_disc,
         model_cont,
         value_disc,
@@ -126,7 +125,6 @@ def test_setup():
 
 def test_similate_discrete_versus_continuous_experience(test_setup):
     (
-        experience_grid,
         model_disc,
         model_cont,
         value_disc,
@@ -144,11 +142,11 @@ def test_similate_discrete_versus_continuous_experience(test_setup):
         "lagged_choice": np.zeros(n_agents),  # all agents start as workers
         "experience": np.ones(n_agents),
     }
-    resources_initial = np.ones(n_agents) * 10
+    wealth_initial = np.ones(n_agents) * 10
 
     result_disc = simulate_all_periods(
         states_initial=states_initial,
-        resources_initial=resources_initial,
+        wealth_initial=wealth_initial,
         n_periods=model_disc["options"]["state_space"]["n_periods"],
         params=PARAMS,
         seed=111,
@@ -162,7 +160,7 @@ def test_similate_discrete_versus_continuous_experience(test_setup):
 
     result_cont = simulate_all_periods(
         states_initial=states_initial,
-        resources_initial=resources_initial,
+        wealth_initial=wealth_initial,
         n_periods=model_cont["options"]["state_space"]["n_periods"],
         params=PARAMS,
         seed=111,
@@ -189,6 +187,7 @@ def test_similate_discrete_versus_continuous_experience(test_setup):
 
     # Check if choices are the same
     aaae(df_disc["choice"], df_cont["choice"])
+
     # Check if savings and consumption are reasonable close
     aaae(df_disc["savings"], df_cont["savings"], decimal=5)
     aaae(df_disc["consumption"], df_cont["consumption"], decimal=5)
