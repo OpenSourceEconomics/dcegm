@@ -174,11 +174,21 @@ def test_similate_discrete_versus_continuous_experience(test_setup):
 
     df_cont = create_simulation_df(result_cont)
 
+    # Check if taste shocks are the same
+    aaae(df_disc["taste_shocks_0"], df_cont["taste_shocks_0"])
+    aaae(df_disc["taste_shocks_1"], df_cont["taste_shocks_1"])
+
+    # Check if value is reasonable close
+    aaae(df_disc["value_max"], df_cont["value_max"], decimal=4)
+
+    # Check if experience is the same
     df_cont["experience_years"] = (
         df_cont.index.get_level_values("period") + MAX_INIT_EXPERIENCE
     ) * df_cont["experience"]
-
-    aaae(df_disc["taste_shocks_0"], df_cont["taste_shocks_0"], decimal=4)
-    aaae(df_disc["taste_shocks_1"], df_cont["taste_shocks_1"], decimal=4)
-    aaae(df_disc["value_max"], df_cont["value_max"], decimal=4)
     aaae(df_disc["experience"], df_cont["experience_years"])
+
+    # Check if choices are the same
+    aaae(df_disc["choice"], df_cont["choice"])
+    # Check if savings and consumption are reasonable close
+    aaae(df_disc["savings"], df_cont["savings"], decimal=5)
+    aaae(df_disc["consumption"], df_cont["consumption"], decimal=5)
