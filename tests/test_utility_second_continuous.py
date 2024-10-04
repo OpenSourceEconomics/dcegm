@@ -19,7 +19,10 @@ N_PERIODS = 5
 N_DISCRETE_CHOICES = 2
 MAX_WEALTH = 50
 WEALTH_GRID_POINTS = 100
-EXPERIENCE_GRID_POINTS = 13
+# Grid needs to be set very fine. Interpolation on state variables which determine
+# utility might not be the smartest way, but still want the package to do it.
+EXPERIENCE_GRID_POINTS = 61
+MAX_INIT_EXPERIENCE = 1
 
 PARAMS = {
     "beta": 0.95,
@@ -54,7 +57,7 @@ def utility_exp(
     utility_consumption = (consumption ** (1 - params["rho"])) / (1 - params["rho"])
 
     utility = (
-        utility_consumption * params["exp_util"] * jnp.exp(experience + 1)
+        utility_consumption * params["exp_util"] * jnp.log(experience + 2)
         - (1 - choice) * params["delta"]  # disutility of working
     )
     return utility
@@ -67,7 +70,7 @@ def marg_utility_exp(
 ) -> float:
 
     return (
-        (consumption ** (-params["rho"])) * params["exp_util"] * jnp.exp(experience + 1)
+        (consumption ** (-params["rho"])) * params["exp_util"] * jnp.log(experience + 2)
     )
 
 
@@ -77,7 +80,7 @@ def inverse_marg_utility_exp(
     params,
 ):
 
-    return (marginal_utility / (params["exp_util"] * jnp.exp(experience + 1))) ** (
+    return (marginal_utility / (params["exp_util"] * jnp.log(experience + 2))) ** (
         -1 / params["rho"]
     )
 
@@ -91,7 +94,7 @@ def utility_final_consume_all_with_exp(
 
     util_consumption = (resources ** (1 - params["rho"])) / (1 - params["rho"])
     util = (
-        util_consumption * params["exp_util"] * jnp.exp(experience + 1)
+        util_consumption * params["exp_util"] * jnp.log(experience + 2)
         - (1 - choice) * params["delta"]
     )
 
@@ -103,7 +106,7 @@ def marginal_utility_final_consume_all_with_exp(
 ) -> jnp.array:
 
     return (
-        (resources ** (-params["rho"])) * params["exp_util"] * jnp.exp(experience + 1)
+        (resources ** (-params["rho"])) * params["exp_util"] * jnp.log(experience + 2)
     )
 
 
@@ -118,8 +121,10 @@ def utility_cont_exp(
     period: int,
     choice: int,
     params: Dict[str, float],
+    options: Dict[str, float],
 ):
-    experience_years = experience * period
+    max_init_experience_period = period + options["max_init_experience"]
+    experience_years = experience * max_init_experience_period
 
     return utility_exp(
         consumption=consumption,
@@ -134,8 +139,10 @@ def marginal_utility_cont_exp(
     experience: float,
     period: int,
     params: Dict[str, float],
+    options: Dict[str, float],
 ):
-    experience_years = experience * period
+    max_init_experience_period = period + options["max_init_experience"]
+    experience_years = experience * max_init_experience_period
 
     return marg_utility_exp(
         consumption=consumption,
@@ -149,8 +156,10 @@ def inverse_marginal_utility_cont_exp(
     experience: float,
     period: int,
     params: Dict[str, float],
+    options: Dict[str, float],
 ):
-    experience_years = experience * period
+    max_init_experience_period = period + options["max_init_experience"]
+    experience_years = experience * max_init_experience_period
 
     return inverse_marg_utility_exp(
         marginal_utility=marginal_utility,
@@ -165,8 +174,10 @@ def utility_final_consume_all_with_cont_exp(
     experience: float,
     period: int,
     params: Dict[str, float],
+    options: Dict[str, float],
 ):
-    experience_years = experience * period
+    max_init_experience_period = period + options["max_init_experience"]
+    experience_years = experience * max_init_experience_period
 
     return utility_final_consume_all_with_exp(
         choice=choice,
@@ -177,9 +188,10 @@ def utility_final_consume_all_with_cont_exp(
 
 
 def marginal_utility_final_consume_all_with_cont_exp(
-    resources, experience, period, params
+    resources, experience, period, params, options
 ):
-    experience_years = experience * period
+    max_init_experience_period = period + options["max_init_experience"]
+    experience_years = experience * max_init_experience_period
 
     return marginal_utility_final_consume_all_with_exp(
         resources=resources,
@@ -206,6 +218,7 @@ def test_setup():
         "n_choices": N_DISCRETE_CHOICES,
         "quadrature_points_stochastic": 5,
         "n_periods": N_PERIODS,
+        "max_init_experience": MAX_INIT_EXPERIENCE,
     }
 
     state_space_options = {
@@ -214,7 +227,7 @@ def test_setup():
             N_DISCRETE_CHOICES,
         ),
         "endogenous_states": {
-            "experience": np.arange(N_PERIODS),
+            "experience": np.arange(N_PERIODS + MAX_INIT_EXPERIENCE),
             "sparsity_condition": model_funcs_discr_exp["sparsity_condition"],
         },
         "continuous_states": {
@@ -323,8 +336,9 @@ def test_replication_discrete_versus_continuous_experience(
         policy_cont,
         endog_grid_cont,
     ) = test_setup
+    max_period_exp = period + MAX_INIT_EXPERIENCE
 
-    exp_share_to_test = experience / period if period > 0 else 0
+    exp_share_to_test = experience / max_period_exp if max_period_exp > 0 else 0
 
     state_choice_disc_dict = {
         "period": period,

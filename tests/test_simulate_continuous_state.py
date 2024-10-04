@@ -8,13 +8,9 @@ import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
 from dcegm.pre_processing.setup_model import setup_model
-from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
 from dcegm.solve import get_solve_func_for_model
-from toy_models.cons_ret_model_with_cont_exp.state_space_objects import (
-    get_next_period_experience,
-)
 from toy_models.load_example_model import load_example_models
 
 N_PERIODS = 10
@@ -22,6 +18,7 @@ N_DISCRETE_CHOICES = 2
 MAX_WEALTH = 50
 WEALTH_GRID_POINTS = 100
 EXPERIENCE_GRID_POINTS = 6
+MAX_INIT_EXPERIENCE = 1
 
 
 PARAMS = {
@@ -29,7 +26,7 @@ PARAMS = {
     "delta": 0.35,
     "rho": 1.95,
     "interest_rate": 0.04,
-    "lambda": 1,  # taste shock (scale) parameter
+    "lambda": 0.1,  # taste shock (scale) parameter
     "sigma": 1,  # shock on labor income, standard deviation
     "constant": 0.75,
     "exp": 0.04,
@@ -51,6 +48,7 @@ def test_setup():
         "n_choices": N_DISCRETE_CHOICES,
         "quadrature_points_stochastic": 5,
         "n_periods": N_PERIODS,
+        "max_init_experience": MAX_INIT_EXPERIENCE,
     }
 
     state_space_options = {
@@ -59,7 +57,7 @@ def test_setup():
             N_DISCRETE_CHOICES,
         ),
         "endogenous_states": {
-            "experience": np.arange(N_PERIODS),
+            "experience": np.arange(N_PERIODS + MAX_INIT_EXPERIENCE),
             "sparsity_condition": model_funcs_discr_exp["sparsity_condition"],
         },
         "continuous_states": {
@@ -144,7 +142,7 @@ def test_similate_discrete_versus_continuous_experience(test_setup):
     states_initial = {
         "period": np.zeros(n_agents),
         "lagged_choice": np.zeros(n_agents),  # all agents start as workers
-        "experience": np.zeros(n_agents),
+        "experience": np.ones(n_agents),
     }
     resources_initial = np.ones(n_agents) * 10
 
@@ -162,71 +160,35 @@ def test_similate_discrete_versus_continuous_experience(test_setup):
 
     df_disc = create_simulation_df(result_disc)
 
-    # result_cont = simulate_all_periods(
-    #     states_initial=states_initial,
-    #     resources_initial=resources_initial,
-    #     n_periods=model_cont["options"]["state_space"]["n_periods"],
-    #     params=PARAMS,
-    #     seed=111,
-    #     endog_grid_solved=endog_grid_cont,
-    #     value_solved=value_cont,
-    #     policy_solved=policy_cont,
-    #     model=model_cont,
-    # )
+    result_cont = simulate_all_periods(
+        states_initial=states_initial,
+        resources_initial=resources_initial,
+        n_periods=model_cont["options"]["state_space"]["n_periods"],
+        params=PARAMS,
+        seed=111,
+        endog_grid_solved=endog_grid_cont,
+        value_solved=value_cont,
+        policy_solved=policy_cont,
+        model=model_cont,
+    )
 
-    # df_cont = create_simulation_df(result_cont)
+    df_cont = create_simulation_df(result_cont)
 
-    # min_experience = df_cont["experience"].min()
-    # max_experience = df_cont["experience"].max()
-    # mean_experience = df_cont["experience"].mean()
+    # Check if taste shocks are the same
+    aaae(df_disc["taste_shocks_0"], df_cont["taste_shocks_0"])
+    aaae(df_disc["taste_shocks_1"], df_cont["taste_shocks_1"])
 
-    # # df_cont_reset = df_cont.reset_index(level="period")
-    # # df_cont_reset["experience_years"] = (
-    # #     df_cont_reset["period"] * df_cont_reset["experience"]
-    # # )
+    # Check if value is reasonable close
+    aaae(df_disc["value_max"], df_cont["value_max"], decimal=4)
 
-    # # Create the new column 'experience_years' as period * experience
-    # df_cont["experience_years"] = (
-    #     df_cont.index.get_level_values("period") * df_cont["experience"]
-    # )
+    # Check if experience is the same
+    df_cont["experience_years"] = (
+        df_cont.index.get_level_values("period") + MAX_INIT_EXPERIENCE
+    ) * df_cont["experience"]
+    aaae(df_disc["experience"], df_cont["experience_years"])
 
-    # # aaae(df_disc["experience"].astype(float), df_cont["experience_years"], decimal=0)
-
-    # # Identify mismatched elements
-    # mismatches = np.where(
-    #     np.round(df_disc["experience"].astype(float), 0)
-    #     != np.round(df_cont["experience_years"], 0)
-    # )
-
-    # # Show the mismatched values
-    # mismatch_values = {
-    #     "actual": df_disc["experience"].astype(float).iloc[mismatches],
-    #     "desired": df_cont["experience_years"].iloc[mismatches],
-    # }
-
-    # mismatch_values
-
-    # #
-
-    # # Tolerance for closeness (within 4 decimal places)
-    # tolerance = 10**-4
-
-    # # Find the indices where the values are close enough
-    # close_indices = np.isclose(
-    #     df_disc["value_max"],
-    #     df_cont["value_max"],
-    #     atol=tolerance,
-    #     # df_disc["utility"],
-    #     # df_cont["utility"],
-    #     # atol=tolerance,
-    # )
-
-    # # Filter the arrays to include only rows where the values are close
-    # filtered_df_disc_experience = df_disc["experience"].astype(float)[close_indices]
-    # filtered_df_cont_experience_years = df_cont["experience_years"][close_indices]
-
-    # aaae(df_disc["taste_shocks_0"], df_cont["taste_shocks_0"], decimal=4)
-    # aaae(df_disc["taste_shocks_1"], df_cont["taste_shocks_1"], decimal=4)
-    # # aaae(df_disc["value_max"], df_cont["value_max"], decimal=4)
-    # aaae(filtered_df_disc_experience, filtered_df_cont_experience_years, decimal=4)
-    # breakpoint()
+    # Check if choices are the same
+    aaae(df_disc["choice"], df_cont["choice"])
+    # Check if savings and consumption are reasonable close
+    aaae(df_disc["savings"], df_cont["savings"], decimal=5)
+    aaae(df_disc["consumption"], df_cont["consumption"], decimal=5)

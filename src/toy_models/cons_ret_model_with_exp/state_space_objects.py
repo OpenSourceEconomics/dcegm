@@ -33,11 +33,13 @@ def sparsity_condition(
     lagged_choice,
     options,
 ):
-    if period < experience:
+    max_exp_period = period + options["max_init_experience"]
+    max_total_experience = options["n_periods"] + options["max_init_experience"]
+    if max_exp_period < experience:
         return False
-    elif experience >= options["n_periods"]:
+    elif max_total_experience <= experience:
         return False
-    elif (experience == period) & (lagged_choice == 1):
+    elif (experience == max_exp_period) & (lagged_choice == 1):
         return False
     elif (lagged_choice == 0) & (experience == 0):
         return False

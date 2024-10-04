@@ -210,6 +210,24 @@ def calculate_resources_for_all_agents(
     return resources_beginning_of_next_period
 
 
+def calculate_second_continuous_state_for_all_agents(
+    discrete_states_beginning_of_period,
+    continuous_state_beginning_of_period,
+    params,
+    compute_continuous_state,
+):
+    continuous_state_beginning_of_next_period = vmap(
+        calc_continuous_state_for_each_grid_point,
+        in_axes=(0, 0, None, None),
+    )(
+        discrete_states_beginning_of_period,
+        continuous_state_beginning_of_period,
+        params,
+        compute_continuous_state,
+    )
+    return continuous_state_beginning_of_next_period
+
+
 def calculate_resources_given_second_continuous_state_for_all_agents(
     states_beginning_of_period,
     continuous_state_beginning_of_period,

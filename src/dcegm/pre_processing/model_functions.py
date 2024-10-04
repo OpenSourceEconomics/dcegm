@@ -101,13 +101,10 @@ def process_model_functions(
     )
 
     # Now state space functions
-    (
-        get_state_specific_choice_set,
-        get_next_period_state,
-        update_continuous_state,
-        update_continuous_state_for_next_period,
-    ) = process_state_space_functions(
-        state_space_functions, options, continuous_state_name
+    get_state_specific_choice_set, get_next_period_state, update_continuous_state = (
+        process_state_space_functions(
+            state_space_functions, options, continuous_state_name
+        )
     )
 
     # Budget equation
@@ -133,7 +130,6 @@ def process_model_functions(
         "compute_marginal_utility_final": compute_marginal_utility_final,
         "compute_beginning_of_period_resources": compute_beginning_of_period_resources,
         "update_continuous_state": update_continuous_state,
-        "update_continuous_state_for_next_period": update_continuous_state_for_next_period,
         "compute_exog_transition_vec": compute_exog_transition_vec,
         "processed_exog_funcs": processed_exog_funcs_dict,
         "get_state_specific_choice_set": get_state_specific_choice_set,
@@ -207,23 +203,10 @@ def process_state_space_functions(
             options=options["model_params"],
             continuous_state_name=continuous_state_name,
         )
-        update_continuous_state_for_next_period = (
-            determine_function_arguments_and_partial_options(
-                func=state_space_functions["update_continuous_state_for_next_period"],
-                options=options["model_params"],
-                continuous_state_name=continuous_state_name,
-            )
-        )
     else:
         update_continuous_state = None
-        update_continuous_state_for_next_period = None
 
-    return (
-        get_state_specific_choice_set,
-        get_next_period_state,
-        update_continuous_state,
-        update_continuous_state_for_next_period,
-    )
+    return get_state_specific_choice_set, get_next_period_state, update_continuous_state
 
 
 def create_upper_envelope_function(options, continuous_state=None):

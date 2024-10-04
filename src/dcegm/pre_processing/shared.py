@@ -28,7 +28,7 @@ def determine_function_arguments_and_partial_options(
 
 
 def determine_function_arguments_and_partial_options_beginning_of_period(
-    func, options, continuous_state=None
+    func, options, continuous_state_name=None
 ):
     signature = set(inspect.signature(func).parameters)
 
@@ -41,8 +41,8 @@ def determine_function_arguments_and_partial_options_beginning_of_period(
     @functools.wraps(func)
     def processed_func(**kwargs):
 
-        if continuous_state:
-            kwargs[continuous_state] = kwargs["continuous_state"]
+        if continuous_state_name:
+            kwargs[continuous_state_name] = kwargs["continuous_state"]
 
         func_kwargs = {key: kwargs[key] for key in signature}
 
