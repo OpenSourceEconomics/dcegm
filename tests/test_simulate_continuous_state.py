@@ -176,37 +176,9 @@ def test_similate_discrete_versus_continuous_experience(test_setup):
 
     df_cont = create_simulation_df(result_cont)
 
-    # min_experience = df_cont["experience"].min()
-    # max_experience = df_cont["experience"].max()
-    # mean_experience = df_cont["experience"].mean()
-
-    # # df_cont_reset = df_cont.reset_index(level="period")
-    # # df_cont_reset["experience_years"] = (
-    # #     df_cont_reset["period"] * df_cont_reset["experience"]
-    # # )
-
-    # # Create the new column 'experience_years' as period * experience
-    # df_cont["experience_years"] = (
-    #     df_cont.index.get_level_values("period") * df_cont["experience"]
-    # )
-
-    # # aaae(df_disc["experience"].astype(float), df_cont["experience_years"], decimal=0)
-
-    # # Identify mismatched elements
-    # mismatches = np.where(
-    #     np.round(df_disc["experience"].astype(float), 0)
-    #     != np.round(df_cont["experience_years"], 0)
-    # )
-
-    # # Show the mismatched values
-    # mismatch_values = {
-    #     "actual": df_disc["experience"].astype(float).iloc[mismatches],
-    #     "desired": df_cont["experience_years"].iloc[mismatches],
-    # }
-
-    # mismatch_values
-
-    # #
+    df_cont["experience_years"] = (
+        df_cont.index.get_level_values("period") * df_cont["experience"]
+    )
 
     # Tolerance for closeness (within 4 decimal places)
     tolerance = 10**-4

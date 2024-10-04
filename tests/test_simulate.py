@@ -15,6 +15,9 @@ from dcegm.simulation.simulate import (
     simulate_final_period,
     simulate_single_period,
 )
+from toy_models.cons_ret_model_with_cont_exp.state_space_objects import (
+    get_next_period_experience,
+)
 
 
 def _create_test_objects_from_df(df, params):
@@ -36,21 +39,6 @@ def _create_test_objects_from_df(df, params):
     )
 
     return value_period_zero, expected
-
-
-def get_next_experience(period, choice, experience, options, params):
-
-    working_hours = _transform_lagged_choice_to_working_hours(choice)
-
-    return 1 / (period + 1) * (period * experience + (working_hours) / 3000)
-
-
-def _transform_lagged_choice_to_working_hours(lagged_choice):
-
-    working = lagged_choice == 0
-    retired = lagged_choice == 1
-
-    return working * 3000 + retired * 0
 
 
 @pytest.fixture()
@@ -231,7 +219,7 @@ def test_simulate_second_continuous_choice(model_setup):
     )
     model["model_funcs"]["update_continuous_state"] = (
         determine_function_arguments_and_partial_options(
-            func=get_next_experience,
+            func=get_next_period_experience,
             options=model["options"]["model_params"],
             continuous_state="experience",
         )
