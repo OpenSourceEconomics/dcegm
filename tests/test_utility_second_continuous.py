@@ -118,8 +118,10 @@ def utility_cont_exp(
     period: int,
     choice: int,
     params: Dict[str, float],
+    options: Dict[str, float],
 ):
-    experience_years = experience * period
+    max_init_experience_period = period + options["max_init_experience"]
+    experience_years = experience * max_init_experience_period
 
     return utility_exp(
         consumption=consumption,
@@ -134,6 +136,7 @@ def marginal_utility_cont_exp(
     experience: float,
     period: int,
     params: Dict[str, float],
+    options: Dict[str, float],
 ):
     experience_years = experience * period
 
@@ -149,8 +152,10 @@ def inverse_marginal_utility_cont_exp(
     experience: float,
     period: int,
     params: Dict[str, float],
+    options: Dict[str, float],
 ):
-    experience_years = experience * period
+    max_init_experience_period = period + options["max_init_experience"]
+    experience_years = experience * max_init_experience_period
 
     return inverse_marg_utility_exp(
         marginal_utility=marginal_utility,
@@ -165,8 +170,10 @@ def utility_final_consume_all_with_cont_exp(
     experience: float,
     period: int,
     params: Dict[str, float],
+    options: Dict[str, float],
 ):
-    experience_years = experience * period
+    max_init_experience_period = period + options["max_init_experience"]
+    experience_years = experience * max_init_experience_period
 
     return utility_final_consume_all_with_exp(
         choice=choice,
@@ -177,9 +184,10 @@ def utility_final_consume_all_with_cont_exp(
 
 
 def marginal_utility_final_consume_all_with_cont_exp(
-    resources, experience, period, params
+    resources, experience, period, params, options
 ):
-    experience_years = experience * period
+    max_init_experience_period = period + options["max_init_experience"]
+    experience_years = experience * max_init_experience_period
 
     return marginal_utility_final_consume_all_with_exp(
         resources=resources,

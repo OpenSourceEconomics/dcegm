@@ -440,7 +440,7 @@ def determine_optimal_batch_size(
             # the maximum index of the batch, i.e. if all state choice relevant to
             # solve the current state choices of the batch are in previous batches
             min_state_choice_idx = np.min(unique_child_state_choice_idxs)
-            if batch.max() > min_state_choice_idx:
+            if batch.max() >= min_state_choice_idx:
                 batch_not_found = True
                 need_to_reduce_batchsize = True
                 break

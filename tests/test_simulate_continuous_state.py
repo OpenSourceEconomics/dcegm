@@ -22,6 +22,7 @@ N_DISCRETE_CHOICES = 2
 MAX_WEALTH = 50
 WEALTH_GRID_POINTS = 100
 EXPERIENCE_GRID_POINTS = 6
+MAX_INIT_EXPERIENCE = 1
 
 
 PARAMS = {
@@ -51,6 +52,7 @@ def test_setup():
         "n_choices": N_DISCRETE_CHOICES,
         "quadrature_points_stochastic": 5,
         "n_periods": N_PERIODS,
+        "max_init_experience": MAX_INIT_EXPERIENCE,
     }
 
     state_space_options = {
@@ -144,7 +146,7 @@ def test_similate_discrete_versus_continuous_experience(test_setup):
     states_initial = {
         "period": np.zeros(n_agents),
         "lagged_choice": np.zeros(n_agents),  # all agents start as workers
-        "experience": np.zeros(n_agents),
+        "experience": np.ones(n_agents),
     }
     resources_initial = np.ones(n_agents) * 10
 
