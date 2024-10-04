@@ -227,6 +227,7 @@ def test_simulate_second_continuous_choice(model_setup):
 
     params = model_setup["params"]
     options = model_setup["options"]
+    options["model_params"]["max_init_experience"] = 1
 
     key = jax.random.PRNGKey(0)
     noise = jax.random.normal(key, shape=(24, 6, 120)) * 0
@@ -242,7 +243,7 @@ def test_simulate_second_continuous_choice(model_setup):
         "lagged_choice": np.zeros(n_agents),  # all agents start as workers
         "married": np.zeros(n_agents),
         "ltc": np.zeros(n_agents),
-        "experience": np.zeros(n_agents),
+        "experience": np.ones(n_agents),
     }
     resources_initial = np.ones(n_agents) * 10
 

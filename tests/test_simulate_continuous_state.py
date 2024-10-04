@@ -8,13 +8,9 @@ import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
 from dcegm.pre_processing.setup_model import setup_model
-from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
 from dcegm.solve import get_solve_func_for_model
-from toy_models.cons_ret_model_with_cont_exp.state_space_objects import (
-    get_next_period_experience,
-)
 from toy_models.load_example_model import load_example_models
 
 N_PERIODS = 10
@@ -61,7 +57,7 @@ def test_setup():
             N_DISCRETE_CHOICES,
         ),
         "endogenous_states": {
-            "experience": np.arange(N_PERIODS),
+            "experience": np.arange(N_PERIODS + MAX_INIT_EXPERIENCE),
             "sparsity_condition": model_funcs_discr_exp["sparsity_condition"],
         },
         "continuous_states": {
