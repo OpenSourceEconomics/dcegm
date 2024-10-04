@@ -175,25 +175,10 @@ def test_similate_discrete_versus_continuous_experience(test_setup):
     df_cont = create_simulation_df(result_cont)
 
     df_cont["experience_years"] = (
-        df_cont.index.get_level_values("period") * df_cont["experience"]
-    )
-
-    # Tolerance for closeness (within 4 decimal places)
-    # Find the indices where the values are close enough
-    tolerance = 10**-4
-    close_indices = np.isclose(
-        # df_disc["value_max"].astype(float), df_cont["value_max"], atol=tolerance
-        df_disc["utility"],
-        df_cont["utility"],
-        atol=tolerance,
-    )
-
-    # Filter the arrays to include only rows where the values are close
-    filtered_df_disc_experience = df_disc["experience"].astype(float)[close_indices]
-    filtered_df_cont_experience_years = df_cont["experience_years"][close_indices]
+        df_cont.index.get_level_values("period") + MAX_INIT_EXPERIENCE
+    ) * df_cont["experience"]
 
     aaae(df_disc["taste_shocks_0"], df_cont["taste_shocks_0"], decimal=4)
     aaae(df_disc["taste_shocks_1"], df_cont["taste_shocks_1"], decimal=4)
-    # aaae(df_disc["value_max"], df_cont["value_max"], decimal=4)
-    aaae(filtered_df_disc_experience, filtered_df_cont_experience_years, decimal=4)
+    aaae(df_disc["value_max"], df_cont["value_max"], decimal=4)
     aaae(df_disc["experience"], df_cont["experience_years"])
