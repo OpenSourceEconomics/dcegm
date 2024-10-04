@@ -87,7 +87,7 @@ def compute_optimal_policy_and_value_wrapper(
     params: Dict[str, float],
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Write second continuous grid point into state_choice_vec."""
-    state_choice_vec["second_continuous"] = second_continuous_grid
+    state_choice_vec["continuous_state"] = second_continuous_grid
 
     return compute_optimal_policy_and_value(
         marg_util_next,

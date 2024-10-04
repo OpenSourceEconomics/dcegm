@@ -56,32 +56,97 @@ def process_model_functions(
             transition probabilities for each state.
 
     """
+    # First check if we have a second continuous state
+    has_second_continuous_state = len(options["exog_grids"]) == 2
+    # Assign name
+    if has_second_continuous_state:
+        continuous_state_name = options["second_continuous_state_name"]
+    else:
+        continuous_state_name = None
 
-    compute_exog_transition_vec, processed_exog_funcs_dict = (
-        create_exog_transition_function(options)
+    # Process mandatory functions. Start with utility functions
+    compute_utility = determine_function_arguments_and_partial_options(
+        func=utility_functions["utility"],
+        options=options["model_params"],
+        continuous_state_name=continuous_state_name,
     )
-
-    model_params_options = options["model_params"]
-
-    # compute_utility = determine_function_arguments_and_partial_options(
-    #     func=utility_functions["utility"], options=model_params_options
-    # )
     compute_marginal_utility = determine_function_arguments_and_partial_options(
-        func=utility_functions["marginal_utility"], options=model_params_options
+        func=utility_functions["marginal_utility"],
+        options=options["model_params"],
+        continuous_state_name=continuous_state_name,
     )
     compute_inverse_marginal_utility = determine_function_arguments_and_partial_options(
         func=utility_functions["inverse_marginal_utility"],
-        options=model_params_options,
+        options=options["model_params"],
+        continuous_state_name=continuous_state_name,
+    )
+    # Final period utility functions
+    compute_utility_final = determine_function_arguments_and_partial_options(
+        func=utility_functions_final_period["utility"],
+        options=options["model_params"],
+        continuous_state_name=continuous_state_name,
     )
 
-    # compute_utility_final = determine_function_arguments_and_partial_options(
-    #     func=utility_functions_final_period["utility"],
-    #     options=model_params_options,
-    # )
     compute_marginal_utility_final = determine_function_arguments_and_partial_options(
         func=utility_functions_final_period["marginal_utility"],
-        options=model_params_options,
+        options=options["model_params"],
+        continuous_state_name=continuous_state_name,
     )
+
+    # Now exogenous transition function if present
+    compute_exog_transition_vec, processed_exog_funcs_dict = (
+        create_exog_transition_function(
+            options, continuous_state_name=continuous_state_name
+        )
+    )
+
+    # Now state space functions
+    (
+        get_state_specific_choice_set,
+        get_next_period_state,
+        update_continuous_state,
+        update_continuous_state_for_next_period,
+    ) = process_state_space_functions(
+        state_space_functions, options, continuous_state_name
+    )
+
+    # Budget equation
+    compute_beginning_of_period_resources = (
+        determine_function_arguments_and_partial_options(
+            func=budget_constraint,
+            options=options["model_params"],
+            continuous_state_name=continuous_state_name,
+        )
+    )
+
+    # Upper envelope function
+    compute_upper_envelope = create_upper_envelope_function(
+        options,
+        continuous_state=continuous_state_name,
+    )
+
+    model_funcs = {
+        "compute_utility": compute_utility,
+        "compute_marginal_utility": compute_marginal_utility,
+        "compute_inverse_marginal_utility": compute_inverse_marginal_utility,
+        "compute_utility_final": compute_utility_final,
+        "compute_marginal_utility_final": compute_marginal_utility_final,
+        "compute_beginning_of_period_resources": compute_beginning_of_period_resources,
+        "update_continuous_state": update_continuous_state,
+        "update_continuous_state_for_next_period": update_continuous_state_for_next_period,
+        "compute_exog_transition_vec": compute_exog_transition_vec,
+        "processed_exog_funcs": processed_exog_funcs_dict,
+        "get_state_specific_choice_set": get_state_specific_choice_set,
+        "get_next_period_state": get_next_period_state,
+        "compute_upper_envelope": compute_upper_envelope,
+    }
+
+    return model_funcs
+
+
+def process_state_space_functions(
+    state_space_functions, options, continuous_state_name
+):
 
     state_space_functions = (
         {} if state_space_functions is None else state_space_functions
@@ -100,7 +165,8 @@ def process_model_functions(
         get_state_specific_choice_set = (
             determine_function_arguments_and_partial_options(
                 func=state_space_functions["get_state_specific_choice_set"],
-                options=model_params_options,
+                options=options["model_params"],
+                continuous_state_name=continuous_state_name,
             )
         )
 
@@ -116,12 +182,11 @@ def process_model_functions(
     else:
         get_next_period_state = determine_function_arguments_and_partial_options(
             func=state_space_functions["get_next_period_state"],
-            options=model_params_options,
+            options=options["model_params"],
+            continuous_state_name=continuous_state_name,
         )
 
-    if len(options["state_space"]["continuous_states"]) == 2:
-        continuous_state_name = options["second_continuous_state_name"]
-
+    if continuous_state_name is not None:
         func_name = next(
             (
                 key
@@ -139,120 +204,26 @@ def process_model_functions(
 
         update_continuous_state = determine_function_arguments_and_partial_options(
             func=state_space_functions[func_name],
-            options=model_params_options,
-            continuous_state=continuous_state_name,
+            options=options["model_params"],
+            continuous_state_name=continuous_state_name,
         )
         update_continuous_state_for_next_period = (
             determine_function_arguments_and_partial_options(
                 func=state_space_functions["update_continuous_state_for_next_period"],
-                options=model_params_options,
-                continuous_state=continuous_state_name,
+                options=options["model_params"],
+                continuous_state_name=continuous_state_name,
             )
         )
-
-        compute_beginning_of_period_continuous_state = (
-            determine_function_arguments_and_partial_options_beginning_of_period(
-                func=state_space_functions[func_name],
-                options=model_params_options,
-                continuous_state=continuous_state_name,
-            )
-        )
-        compute_beginning_of_period_resources = (
-            determine_function_arguments_and_partial_options(
-                func=budget_constraint,
-                options=model_params_options,
-                continuous_state=continuous_state_name,
-            )
-        )
-
-        compute_utility = determine_function_arguments_and_partial_options(
-            func=utility_functions["utility"],
-            options=model_params_options,
-            continuous_state=continuous_state_name,
-        )
-        compute_marginal_utility = determine_function_arguments_and_partial_options(
-            func=utility_functions["marginal_utility"],
-            options=model_params_options,
-            continuous_state=continuous_state_name,
-        )
-        compute_inverse_marginal_utility = (
-            determine_function_arguments_and_partial_options(
-                func=utility_functions["inverse_marginal_utility"],
-                options=model_params_options,
-                continuous_state=continuous_state_name,
-            )
-        )
-        compute_utility_final = determine_function_arguments_and_partial_options(
-            func=utility_functions_final_period["utility"],
-            options=model_params_options,
-            continuous_state=continuous_state_name,
-        )
-        compute_marginal_utility_final = (
-            determine_function_arguments_and_partial_options(
-                func=utility_functions_final_period["marginal_utility"],
-                options=model_params_options,
-                continuous_state=continuous_state_name,
-            )
-        )
-
-        compute_upper_envelope = create_upper_envelope_function(
-            options,
-            continuous_state=continuous_state_name,
-        )
-
     else:
         update_continuous_state = None
         update_continuous_state_for_next_period = None
-        compute_beginning_of_period_continuous_state = None
-        compute_beginning_of_period_resources = (
-            determine_function_arguments_and_partial_options(
-                func=budget_constraint, options=model_params_options
-            )
-        )
 
-        compute_utility = determine_function_arguments_and_partial_options(
-            func=utility_functions["utility"], options=model_params_options
-        )
-        compute_marginal_utility = determine_function_arguments_and_partial_options(
-            func=utility_functions["marginal_utility"], options=model_params_options
-        )
-        compute_inverse_marginal_utility = (
-            determine_function_arguments_and_partial_options(
-                func=utility_functions["inverse_marginal_utility"],
-                options=model_params_options,
-            )
-        )
-        compute_utility_final = determine_function_arguments_and_partial_options(
-            func=utility_functions_final_period["utility"],
-            options=model_params_options,
-        )
-        compute_marginal_utility_final = (
-            determine_function_arguments_and_partial_options(
-                func=utility_functions_final_period["marginal_utility"],
-                options=model_params_options,
-            )
-        )
-
-        compute_upper_envelope = create_upper_envelope_function(options)
-
-    model_funcs = {
-        "compute_utility": compute_utility,
-        "compute_marginal_utility": compute_marginal_utility,
-        "compute_inverse_marginal_utility": compute_inverse_marginal_utility,
-        "compute_utility_final": compute_utility_final,
-        "compute_marginal_utility_final": compute_marginal_utility_final,
-        "compute_beginning_of_period_resources": compute_beginning_of_period_resources,
-        "compute_beginning_of_period_continuous_state": compute_beginning_of_period_continuous_state,
-        "compute_exog_transition_vec": compute_exog_transition_vec,
-        "processed_exog_funcs": processed_exog_funcs_dict,
-        "get_state_specific_choice_set": get_state_specific_choice_set,
-        "get_next_period_state": get_next_period_state,
-        "update_continuous_state": update_continuous_state,
-        "update_continuous_state_for_next_period": update_continuous_state_for_next_period,
-        "compute_upper_envelope": compute_upper_envelope,
-    }
-
-    return model_funcs
+    return (
+        get_state_specific_choice_set,
+        get_next_period_state,
+        update_continuous_state,
+        update_continuous_state_for_next_period,
+    )
 
 
 def create_upper_envelope_function(options, continuous_state=None):
