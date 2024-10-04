@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 from jax import vmap
 
-from dcegm.law_of_motion import calc_resources_for_each_savings_grid_point
+from dcegm.law_of_motion import calc_wealth_for_each_savings_grid_point
 
 
 def adjust_observed_wealth(observed_states_dict, wealth, params, model):
@@ -17,7 +17,7 @@ def adjust_observed_wealth(observed_states_dict, wealth, params, model):
     savings_last_period = jnp.asarray(wealth / (1 + params["interest_rate"]))
 
     adjusted_resources = vmap(
-        calc_resources_for_each_savings_grid_point, in_axes=(0, 0, None, None, None)
+        calc_wealth_for_each_savings_grid_point, in_axes=(0, 0, None, None, None)
     )(
         observed_states_dict,
         savings_last_period,

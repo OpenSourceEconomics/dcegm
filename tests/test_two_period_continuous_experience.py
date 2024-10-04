@@ -70,7 +70,7 @@ def marginal_utility_crra(
 
 
 def euler_rhs(
-    lagged_resources,
+    lagged_wealth,
     lagged_consumption,
     lagged_choice,
     experience,
@@ -84,7 +84,7 @@ def euler_rhs(
     rhs = 0
     for idx_draw, draw in enumerate(income_shocks):
         marg_util_draw = marginal_utility_weighted(
-            lagged_resources=lagged_resources,
+            lagged_wealth=lagged_wealth,
             params=params,
             lagged_choice=lagged_choice,
             income_shock=draw,
@@ -97,7 +97,7 @@ def euler_rhs(
 
 
 def marginal_utility_weighted(
-    lagged_resources,
+    lagged_wealth,
     lagged_choice,
     lagged_consumption,
     experience,
@@ -111,7 +111,7 @@ def marginal_utility_weighted(
 
     budget_next = budget_constraint_continuous(
         period=1,
-        lagged_resources=lagged_resources,
+        lagged_wealth=lagged_wealth,
         lagged_consumption=lagged_consumption,
         lagged_choice=lagged_choice,
         experience=exp_new,
@@ -145,7 +145,7 @@ def choice_prob(consumption, choice, params):
 
 def budget_constraint_continuous(
     period: int,
-    lagged_resources: float,
+    lagged_wealth: float,
     lagged_consumption: float,
     lagged_choice: int,
     experience: float,
@@ -166,7 +166,7 @@ def budget_constraint_continuous(
 
     wealth_beginning_of_period = income_from_previous_period * working + (
         1 + params["interest_rate"]
-    ) * (lagged_resources - lagged_consumption)
+    ) * (lagged_wealth - lagged_consumption)
 
     # Retirement safety net, only in retirement model, but we require to have it always
     # as a parameter
@@ -227,7 +227,7 @@ def get_next_period_experience(period, lagged_choice, experience, params):
 # ====================================================================================
 
 
-@pytest.fixture()
+@pytest.fixture(scope="module")
 def create_test_inputs():
     options = {}
     _raw_options = {
@@ -319,7 +319,6 @@ def create_test_inputs():
         state_choice_mat=batch_info_cont["state_choice_mat_second_last_period"],
         child_state_idxs=batch_info_cont["child_states_second_last_period"],
         states_to_choices_child_states=batch_info_cont["state_to_choices_final_period"],
-        cont_grids_next_period=exog_grids_cont["second_continuous"],
         params=params,
         taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,
@@ -415,7 +414,7 @@ def test_euler_equation(wealth_idx, state_idx, create_test_inputs):
             if ~np.isnan(endog_grid_period_0) and endog_grid_period_0 > 0:
 
                 euler_next = euler_rhs(
-                    lagged_resources=endog_grid_period_0,
+                    lagged_wealth=endog_grid_period_0,
                     lagged_consumption=policy_period_0,
                     lagged_choice=lagged_choice,
                     experience=exp,

@@ -44,7 +44,7 @@ def utiility_log_crra(
 
 
 def utiility_log_crra_final_consume_all(
-    resources: jnp.array,
+    wealth: jnp.array,
     choice: int,
     params: Dict[str, float],  # delta: float
 ) -> jnp.array:
@@ -66,7 +66,7 @@ def utiility_log_crra_final_consume_all(
             (n_quad_stochastic * n_grid_wealth,) or (n_grid_wealth,).
 
     """
-    return jnp.log(resources) - (1 - choice) * params["delta"]
+    return jnp.log(wealth) - (1 - choice) * params["delta"]
 
 
 def utility_crra(
@@ -159,17 +159,17 @@ def create_final_period_utility_function_dict():
 
 def utility_final_consume_all(
     choice: int,
-    resources: jnp.array,
+    wealth: jnp.array,
     params: Dict[str, float],
 ):
-    util_consumption = (resources ** (1 - params["rho"]) - 1) / (1 - params["rho"])
+    util_consumption = (wealth ** (1 - params["rho"]) - 1) / (1 - params["rho"])
     util = util_consumption - (1 - choice) * params["delta"]
 
     return util
 
 
 def marginal_utility_final_consume_all(
-    choice, resources: jnp.array, params: Dict[str, float], options: Dict[str, Any]
+    choice, wealth: jnp.array, params: Dict[str, float], options: Dict[str, Any]
 ) -> jnp.array:
     """Computes marginal utility of CRRA utility function.
 
@@ -184,6 +184,6 @@ def marginal_utility_final_consume_all(
             function. Array of shape (n_quad_stochastic * n_grid_wealth,).
 
     """
-    marg_util = resources ** (-params["rho"])
+    marg_util = wealth ** (-params["rho"])
 
     return marg_util

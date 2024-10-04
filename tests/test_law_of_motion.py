@@ -10,12 +10,8 @@ from numpy.testing import assert_array_almost_equal as aaae
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 
-from dcegm.law_of_motion import (
-    calculate_continuous_state,
-    calculate_resources_for_second_continuous_state,
-)
+from dcegm.law_of_motion import calculate_continuous_state
 from dcegm.pre_processing.params import process_params
-from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from toy_models.cons_ret_model_dcegm_paper.budget_constraint import budget_constraint
 
 # =====================================================================================
