@@ -16,14 +16,14 @@ def adjust_observed_wealth(observed_states_dict, wealth, params, model):
     """
     savings_last_period = jnp.asarray(wealth / (1 + params["interest_rate"]))
 
-    adjusted_resources = vmap(
+    adjusted_wealth = vmap(
         calc_wealth_for_each_savings_grid_point, in_axes=(0, 0, None, None, None)
     )(
         observed_states_dict,
         savings_last_period,
         jnp.array(0.0, dtype=jnp.float64),
         params,
-        model["model_funcs"]["compute_beginning_of_period_resources"],
+        model["model_funcs"]["compute_beginning_of_period_wealth"],
     )
 
-    return adjusted_resources
+    return adjusted_wealth
