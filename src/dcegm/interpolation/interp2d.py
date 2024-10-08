@@ -95,6 +95,38 @@ def interp2d_policy_and_value_on_wealth_and_regular_grid(
     return policy_interp, value_interp
 
 
+def interp2d_value_on_wealth_and_regular_grid(
+    regular_grid: jnp.ndarray,
+    wealth_grid: jnp.ndarray,
+    value_grid: jnp.ndarray,
+    regular_point_to_interp: jnp.ndarray | float,
+    wealth_point_to_interp: jnp.ndarray | float,
+    compute_utility: Callable,
+    state_choice_vec: Dict[str, int],
+    params: dict,
+):
+    regular_points, wealth_points, coords_idxs = find_grid_coords_for_interp(
+        regular_grid=regular_grid,
+        wealth_grid=wealth_grid,
+        regular_point_to_interp=regular_point_to_interp,
+        wealth_point_to_interp=wealth_point_to_interp,
+    )
+    value_interp = interp2d_value_and_check_creditconstraint(
+        regular_points=regular_points,
+        wealth_points=wealth_points,
+        value_grid=value_grid,
+        coords_idxs=coords_idxs,
+        regular_point_to_interp=regular_point_to_interp,
+        wealth_point_to_interp=wealth_point_to_interp,
+        compute_utility=compute_utility,
+        wealth_min_unconstrained=wealth_grid[:, 1],
+        value_at_zero_wealth=value_grid[:, 0],
+        state_choice_vec=state_choice_vec,
+        params=params,
+    )
+    return value_interp
+
+
 def interp2d_policy(
     regular_points,
     wealth_points,

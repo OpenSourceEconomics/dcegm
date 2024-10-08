@@ -16,13 +16,13 @@ from dcegm.egm.aggregate_marginal_utility import (
 )
 from dcegm.interface import get_state_choice_index_per_discrete_state
 from dcegm.interpolation.interp1d import interp_value_on_wealth
+from dcegm.interpolation.interp2d import interp2d_value_on_wealth_and_regular_grid
 from dcegm.solve import get_solve_func_for_model
 
 
 def create_individual_likelihood_function_for_model(
     model: Dict[str, Any],
     observed_states: Dict[str, int],
-    observed_wealth: np.array,
     observed_choices: np.array,
     params_all,
     unobserved_state_specs=None,
@@ -35,7 +35,6 @@ def create_individual_likelihood_function_for_model(
         choice_prob_func = create_partial_choice_prob_calculation(
             observed_states=observed_states,
             observed_choices=observed_choices,
-            observed_wealth=observed_wealth,
             model=model,
         )
     else:
@@ -43,7 +42,6 @@ def create_individual_likelihood_function_for_model(
         choice_prob_func = create_choice_prob_func_unobserved_states(
             model=model,
             observed_states=observed_states,
-            observed_wealth=observed_wealth,
             observed_choices=observed_choices,
             unobserved_state_specs=unobserved_state_specs,
             weight_full_states=True,
@@ -74,19 +72,27 @@ def create_individual_likelihood_function_for_model(
 def create_choice_prob_func_unobserved_states(
     model: Dict[str, Any],
     observed_states: Dict[str, int],
-    observed_wealth: np.array,
     observed_choices: np.array,
     unobserved_state_specs,
     weight_full_states=True,
 ):
     # First prepare full observed states, choices and pre period states for weighting
     full_mask = unobserved_state_specs["observed_bool"]
+    if len(model["options"]["exog_grids"]) == 2:
+        second_cont_state_name = model["options"]["second_continuous_state_name"]
+        state_space_names = model["model_structure"]["discrete_states_names"] + [
+            "wealth",
+            second_cont_state_name,
+        ]
+    else:
+        state_space_names = model["model_structure"]["discrete_states_names"] + [
+            "wealth"
+        ]
+
     full_observed_states = {
-        name: observed_states[name][full_mask]
-        for name in model["model_structure"]["discrete_states_names"]
+        name: observed_states[name][full_mask] for name in state_space_names
     }
     full_observed_choices = observed_choices[full_mask]
-    full_observed_wealth = observed_wealth[full_mask]
     # Now the states of last period for weighting and also the unobserved states
     # for this period
     pre_period_full_observed_states = {
@@ -102,7 +108,6 @@ def create_choice_prob_func_unobserved_states(
     partial_choice_probs_full_observed_states = create_partial_choice_prob_calculation(
         observed_states=full_observed_states,
         observed_choices=full_observed_choices,
-        observed_wealth=full_observed_wealth,
         model=model,
     )
 
@@ -121,8 +126,7 @@ def create_choice_prob_func_unobserved_states(
 
     # Read out the observed states of the unobserved states
     unobserved_states = {
-        name: observed_states[name][~full_mask]
-        for name in model["model_structure"]["discrete_states_names"]
+        name: observed_states[name][~full_mask] for name in state_space_names
     }
     # Also pre period states
     pre_period_unobserved_states = {
@@ -262,8 +266,6 @@ def create_partial_choice_prob_calculation(
         discrete_states_names=model["model_structure"]["discrete_states_names"],
     )
 
-    options = model["options"]
-
     def partial_choice_prob_func(value_in, endog_grid_in, params_in):
         return calc_choice_prob_for_state_choices(
             value_solved=value_in,
@@ -272,8 +274,7 @@ def create_partial_choice_prob_calculation(
             states=observed_states,
             choices=observed_choices,
             state_choice_indexes=discrete_observed_state_choice_indexes,
-            choice_range=np.arange(options["model_params"]["n_choices"], dtype=int),
-            compute_utility=model["model_funcs"]["compute_utility"],
+            model=model,
         )
 
     return partial_choice_prob_func
@@ -286,9 +287,7 @@ def calc_choice_prob_for_state_choices(
     states,
     choices,
     state_choice_indexes,
-    oberseved_wealth,
-    choice_range,
-    compute_utility,
+    model,
 ):
     """This function interpolates the policy and value function for all agents.
 
@@ -302,9 +301,7 @@ def calc_choice_prob_for_state_choices(
         params=params,
         observed_states=states,
         state_choice_indexes=state_choice_indexes,
-        oberseved_wealth=oberseved_wealth,
-        choice_range=choice_range,
-        compute_utility=compute_utility,
+        model=model,
     )
     choice_probs = jnp.take_along_axis(
         choice_prob_across_choices, choices[:, None], axis=1
@@ -318,31 +315,59 @@ def calc_choice_probs_for_states(
     params,
     observed_states,
     state_choice_indexes,
-    oberseved_wealth,
-    choice_range,
-    compute_utility,
+    model,
 ):
     value_grid_agent = jnp.take(
         value_solved, state_choice_indexes, axis=0, mode="fill", fill_value=jnp.nan
     )
     endog_grid_agent = jnp.take(endog_grid_solved, state_choice_indexes, axis=0)
-    vectorized_interp = jax.vmap(
-        jax.vmap(
-            interpolate_value_for_state_in_each_choice,
-            in_axes=(None, None, 0, 0, 0, None, None),
-        ),
-        in_axes=(0, 0, 0, 0, None, None, None),
-    )
 
-    value_per_agent_interp = vectorized_interp(
-        observed_states,
-        oberseved_wealth,
-        endog_grid_agent,
-        value_grid_agent,
-        choice_range,
-        params,
-        compute_utility,
-    )
+    # Read out relevant model objects
+    options = model["options"]
+    choice_range = options["state_space"]["choices"]
+    compute_utility = model["model_funcs"]["compute_utility"]
+
+    if len(options["exog_grids"]) == 2:
+        vectorized_interp2d = jax.vmap(
+            jax.vmap(
+                interp2d_value_for_state_in_each_choice,
+                in_axes=(None, None, 0, 0, 0, None, None, None),
+            ),
+            in_axes=(0, 0, 0, 0, None, None, None, None),
+        )
+        # Extract second cont state name
+        second_continuous_state_name = options["second_continuous_state_name"]
+        second_cont_value = observed_states[second_continuous_state_name]
+        observed_states.pop(second_continuous_state_name)
+
+        value_per_agent_interp = vectorized_interp2d(
+            observed_states,
+            second_cont_value,
+            endog_grid_agent,
+            value_grid_agent,
+            choice_range,
+            params,
+            options["exog_grids"]["second_continuous"],
+            compute_utility,
+        )
+
+    else:
+        vectorized_interp1d = jax.vmap(
+            jax.vmap(
+                interp1d_value_for_state_in_each_choice,
+                in_axes=(None, 0, 0, 0, None, None),
+            ),
+            in_axes=(0, 0, 0, None, None, None),
+        )
+
+        value_per_agent_interp = vectorized_interp1d(
+            observed_states,
+            endog_grid_agent,
+            value_grid_agent,
+            choice_range,
+            params,
+            compute_utility,
+        )
     choice_prob_across_choices, _, _ = calculate_choice_probs_and_unsqueezed_logsum(
         choice_values_per_state=value_per_agent_interp,
         taste_shock_scale=params["lambda"],
@@ -350,9 +375,35 @@ def calc_choice_probs_for_states(
     return choice_prob_across_choices
 
 
-def interpolate_value_for_state_in_each_choice(
+def interp2d_value_for_state_in_each_choice(
     state,
-    resource_at_beginning_of_period,
+    second_cont_state,
+    endog_grid_agent,
+    value_agent,
+    choice,
+    params,
+    regular_grid,
+    compute_utility,
+):
+    state_choice_vec = {**state, "choice": choice}
+    state_choice_vec.pop("wealth")
+
+    value_interp = interp2d_value_on_wealth_and_regular_grid(
+        regular_grid=regular_grid,
+        wealth_grid=endog_grid_agent,
+        value_grid=value_agent,
+        regular_point_to_interp=second_cont_state,
+        wealth_point_to_interp=state["wealth"],
+        compute_utility=compute_utility,
+        state_choice_vec=state_choice_vec,
+        params=params,
+    )
+
+    return value_interp
+
+
+def interp1d_value_for_state_in_each_choice(
+    state,
     endog_grid_agent,
     value_agent,
     choice,
@@ -360,9 +411,10 @@ def interpolate_value_for_state_in_each_choice(
     compute_utility,
 ):
     state_choice_vec = {**state, "choice": choice}
+    state_choice_vec.pop("wealth")
 
     value_interp = interp_value_on_wealth(
-        wealth=resource_at_beginning_of_period,
+        wealth=state["wealth"],
         endog_grid=endog_grid_agent,
         value=value_agent,
         compute_utility=compute_utility,
