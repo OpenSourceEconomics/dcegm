@@ -105,6 +105,7 @@ def calc_wealth_for_each_continuous_state_and_savings_grid_point(
     params,
     compute_beginning_of_period_wealth,
 ):
+
     out = compute_beginning_of_period_wealth(
         **state_vec,
         continuous_state=continuous_state_beginning_of_period,

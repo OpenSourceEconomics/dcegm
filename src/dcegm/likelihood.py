@@ -83,7 +83,7 @@ def create_choice_prob_func_unobserved_states(
     full_mask = unobserved_state_specs["observed_bool"]
     full_observed_states = {
         name: observed_states[name][full_mask]
-        for name in model["model_structure"]["state_space_names"]
+        for name in model["model_structure"]["discrete_states_names"]
     }
     full_observed_choices = observed_choices[full_mask]
     full_observed_wealth = observed_wealth[full_mask]
@@ -122,7 +122,7 @@ def create_choice_prob_func_unobserved_states(
     # Read out the observed states of the unobserved states
     unobserved_states = {
         name: observed_states[name][~full_mask]
-        for name in model["model_structure"]["state_space_names"]
+        for name in model["model_structure"]["discrete_states_names"]
     }
     # Also pre period states
     pre_period_unobserved_states = {
@@ -167,7 +167,6 @@ def create_choice_prob_func_unobserved_states(
             create_partial_choice_prob_calculation(
                 observed_states=unobserved_state,
                 observed_choices=observed_choices[~full_mask],
-                observed_wealth=observed_wealth[~full_mask],
                 model=model,
             )
         )
@@ -255,13 +254,12 @@ def create_choice_prob_func_unobserved_states(
 def create_partial_choice_prob_calculation(
     observed_states,
     observed_choices,
-    observed_wealth,
     model,
 ):
-    observed_state_choice_indexes = get_state_choice_index_per_discrete_state(
+    discrete_observed_state_choice_indexes = get_state_choice_index_per_discrete_state(
         states=observed_states,
         map_state_choice_to_index=model["model_structure"]["map_state_choice_to_index"],
-        state_space_names=model["model_structure"]["state_space_names"],
+        discrete_states_names=model["model_structure"]["discrete_states_names"],
     )
 
     options = model["options"]
@@ -273,8 +271,7 @@ def create_partial_choice_prob_calculation(
             params=params_in,
             states=observed_states,
             choices=observed_choices,
-            state_choice_indexes=observed_state_choice_indexes,
-            oberseved_wealth=observed_wealth,
+            state_choice_indexes=discrete_observed_state_choice_indexes,
             choice_range=np.arange(options["model_params"]["n_choices"], dtype=int),
             compute_utility=model["model_funcs"]["compute_utility"],
         )

@@ -62,7 +62,7 @@ def create_discrete_state_space_and_choice_objects(
         state_space_options=options["state_space"],
         state_choice_space=state_choice_space,
         map_state_choice_to_child_states=map_state_choice_to_child_states,
-        state_space_names=states_names_without_exog + exog_states_names,
+        discrete_states_names=states_names_without_exog + exog_states_names,
     )
 
     model_structure = {
@@ -73,7 +73,7 @@ def create_discrete_state_space_and_choice_objects(
         "exog_state_space": exog_state_space,
         "states_names_without_exog": states_names_without_exog,
         "exog_states_names": exog_states_names,
-        "state_space_names": states_names_without_exog + exog_states_names,
+        "discrete_states_names": states_names_without_exog + exog_states_names,
         "state_choice_space": state_choice_space,
         "state_choice_space_dict": state_choice_space_dict,
         "map_state_choice_to_index": map_state_choice_to_index,
@@ -87,7 +87,7 @@ def test_state_space_objects(
     state_space_options,
     state_choice_space,
     map_state_choice_to_child_states,
-    state_space_names,
+    discrete_states_names,
 ):
     """Test state space objects for consistency."""
     n_periods = state_space_options["n_periods"]
@@ -108,7 +108,7 @@ def test_state_space_objects(
         invalid_state_choices_example = state_choice_space[invalid_child_states[0]]
         example_dict = {
             key: invalid_state_choices_example[i]
-            for i, key in enumerate(state_space_names)
+            for i, key in enumerate(discrete_states_names)
         }
         example_dict["choice"] = invalid_state_choices_example[-1]
         raise ValueError(
@@ -282,7 +282,7 @@ def create_state_choice_space(
     n_states, n_state_and_exog_variables = state_space.shape
     n_exog_states, n_exog_vars = exog_state_space.shape
     n_choices = len(state_space_options["choices"])
-    state_space_names = states_names_without_exog + exog_state_names
+    discrete_states_names = states_names_without_exog + exog_state_names
     n_periods = state_space_options["n_periods"]
 
     dtype_exog_state_space = get_smallest_int_type(n_exog_states)
@@ -322,7 +322,7 @@ def create_state_choice_space(
         state_idx = map_state_to_index[tuple(state_vec)]
 
         # Full state dictionary
-        state_dict = {key: state_vec[i] for i, key in enumerate(state_space_names)}
+        state_dict = {key: state_vec[i] for i, key in enumerate(discrete_states_names)}
 
         feasible_choice_set = get_state_specific_choice_set(
             **state_dict,

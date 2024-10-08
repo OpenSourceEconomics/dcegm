@@ -26,7 +26,7 @@ def interpolate_policy_and_value_for_all_agents(
     map_state_choice_to_index,
     choice_range,
     params,
-    state_space_names,
+    discrete_states_names,
     compute_utility,
     continuous_grid,
 ):
@@ -36,7 +36,7 @@ def interpolate_policy_and_value_for_all_agents(
         discrete_state_choice_indexes = get_state_choice_index_per_discrete_state(
             map_state_choice_to_index=map_state_choice_to_index,
             states=discrete_states_beginning_of_period,
-            state_space_names=state_space_names,
+            discrete_states_names=discrete_states_names,
         )
 
         value_grid_agent = jnp.take(
@@ -82,7 +82,7 @@ def interpolate_policy_and_value_for_all_agents(
         discrete_state_choice_indexes = get_state_choice_index_per_discrete_state(
             map_state_choice_to_index=map_state_choice_to_index,
             states=discrete_states_beginning_of_period,
-            state_space_names=state_space_names,
+            discrete_states_names=discrete_states_names,
         )
 
         value_grid_agent = jnp.take(
