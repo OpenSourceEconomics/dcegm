@@ -70,6 +70,8 @@ def setup_model(
         model_structure=model_structure,
         options=options,
     )
+    # Delete large array which is not needed
+    model_structure.pop("map_state_choice_to_child_states")
 
     return {
         "options": options,
