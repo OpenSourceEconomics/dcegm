@@ -39,6 +39,34 @@ def aggregate_marg_utils_and_exp_values(
             of the state-specific aggregate expected values.
 
     """
+    choice_probs, log_sum = aggregate_values_and_create_choice_probs(
+        value_state_choice_specific=value_state_choice_specific,
+        reshape_state_choice_vec_to_mat=reshape_state_choice_vec_to_mat,
+        taste_shock_scale=taste_shock_scale,
+    )
+
+    choice_marg_util_per_state = jnp.take(
+        marg_util_state_choice_specific,
+        reshape_state_choice_vec_to_mat,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
+
+    weighted_marg_util = choice_probs * choice_marg_util_per_state
+    marg_util = jnp.nansum(weighted_marg_util, axis=1)
+
+    shock_integrated_marg_util = marg_util @ income_shock_weights
+    shock_integrated_log_sum = log_sum @ income_shock_weights
+
+    return shock_integrated_marg_util, shock_integrated_log_sum
+
+
+def aggregate_values_and_create_choice_probs(
+        value_state_choice_specific: jnp.ndarray,
+        reshape_state_choice_vec_to_mat: np.ndarray,
+        taste_shock_scale: float,
+):
     choice_values_per_state = jnp.take(
         value_state_choice_specific,
         reshape_state_choice_vec_to_mat,
@@ -62,23 +90,7 @@ def aggregate_marg_utils_and_exp_values(
     # to perform subtraction and division, we now need to squeeze the log_sum again
     # to remove the redundant axis.
     log_sum = jnp.squeeze(log_sum_unsqueezed, axis=1)
-
-    choice_marg_util_per_state = jnp.take(
-        marg_util_state_choice_specific,
-        reshape_state_choice_vec_to_mat,
-        axis=0,
-        mode="fill",
-        fill_value=jnp.nan,
-    )
-
-    weighted_marg_util = choice_probs * choice_marg_util_per_state
-    marg_util = jnp.nansum(weighted_marg_util, axis=1)
-
-    shock_integrated_marg_util = marg_util @ income_shock_weights
-    shock_integrated_log_sum = log_sum @ income_shock_weights
-
-    return shock_integrated_marg_util, shock_integrated_log_sum
-
+    return choice_probs, log_sum
 
 def calculate_choice_probs_and_unsqueezed_logsum(
     choice_values_per_state: jnp.ndarray, taste_shock_scale: float

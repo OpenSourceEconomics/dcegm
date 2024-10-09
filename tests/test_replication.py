@@ -85,6 +85,13 @@ def test_benchmark_models(
         budget_constraint=budget_constraint,
     )
 
+    state_space = model["model_structure"]["state_space"]
+    reshape_state_choice_per_state = model["model_structure"]["map_state_choice_to_index"][
+        state_space[:, 0], state_space[:, 1], state_space[:, 2]
+    ]
+    from dcegm.egm.aggregate_marginal_utility import aggregate_values_and_create_choice_probs
+    breakpoint()
+
     policy_expected = pickle.load(
         (REPLICATION_TEST_RESOURCES_DIR / f"{model_name}" / "policy.pkl").open("rb")
     )
