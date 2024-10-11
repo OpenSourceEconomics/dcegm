@@ -338,7 +338,6 @@ def calc_choice_probs_for_states(
         # Extract second cont state name
         second_continuous_state_name = options["second_continuous_state_name"]
         second_cont_value = observed_states[second_continuous_state_name]
-        observed_states.pop(second_continuous_state_name)
 
         value_per_agent_interp = vectorized_interp2d(
             observed_states,
@@ -386,7 +385,6 @@ def interp2d_value_for_state_in_each_choice(
     compute_utility,
 ):
     state_choice_vec = {**state, "choice": choice}
-    state_choice_vec.pop("wealth")
 
     value_interp = interp2d_value_on_wealth_and_regular_grid(
         regular_grid=regular_grid,
@@ -411,7 +409,6 @@ def interp1d_value_for_state_in_each_choice(
     compute_utility,
 ):
     state_choice_vec = {**state, "choice": choice}
-    state_choice_vec.pop("wealth")
 
     value_interp = interp_value_on_wealth(
         wealth=state["wealth"],

@@ -20,7 +20,6 @@ def adjust_observed_wealth(observed_states_dict, params, model):
     observed_states_dict_int = observed_states_dict.copy()
 
     wealth_int = observed_states_dict["wealth"]
-    observed_states_dict.pop("wealth")
     savings_last_period = jnp.asarray(wealth_int / (1 + params["interest_rate"]))
 
     if len(model["options"]["exog_grids"]) == 2:
