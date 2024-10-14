@@ -11,7 +11,7 @@ def policy_and_value_for_state_choice_vec(
     state_choice_vec,
     wealth,
     map_state_choice_to_index,
-    state_space_names,
+    discrete_states_names,
     endog_grid_solved,
     policy_solved,
     value_solved,
@@ -30,7 +30,7 @@ def policy_and_value_for_state_choice_vec(
 
     """
     state_choice_tuple = tuple(
-        state_choice_vec[st] for st in state_space_names + ["choice"]
+        state_choice_vec[st] for st in discrete_states_names + ["choice"]
     )
 
     state_choice_index = map_state_choice_to_index[state_choice_tuple]
@@ -50,7 +50,7 @@ def value_for_state_choice_vec(
     state_choice_vec,
     wealth,
     map_state_choice_to_index,
-    state_space_names,
+    discrete_states_names,
     endog_grid_solved,
     value_solved,
     compute_utility,
@@ -68,7 +68,7 @@ def value_for_state_choice_vec(
 
     """
     state_choice_tuple = tuple(
-        state_choice_vec[st] for st in state_space_names + ["choice"]
+        state_choice_vec[st] for st in discrete_states_names + ["choice"]
     )
 
     state_choice_index = map_state_choice_to_index[state_choice_tuple]
@@ -88,7 +88,7 @@ def policy_for_state_choice_vec(
     state_choice_vec,
     wealth,
     map_state_choice_to_index,
-    state_space_names,
+    discrete_states_names,
     endog_grid_solved,
     policy_solved,
 ):
@@ -104,7 +104,7 @@ def policy_for_state_choice_vec(
 
     """
     state_choice_tuple = tuple(
-        state_choice_vec[st] for st in state_space_names + ["choice"]
+        state_choice_vec[st] for st in discrete_states_names + ["choice"]
     )
 
     state_choice_index = map_state_choice_to_index[state_choice_tuple]
@@ -119,10 +119,10 @@ def policy_for_state_choice_vec(
 
 
 def get_state_choice_index_per_discrete_state(
-    map_state_choice_to_index, states, state_space_names
+    map_state_choice_to_index, states, discrete_states_names
 ):
     indexes = map_state_choice_to_index[
-        tuple((states[key],) for key in state_space_names)
+        tuple((states[key],) for key in discrete_states_names)
     ]
     # As the code above generates a dummy dimension in the first we eliminate that
     return indexes[0]

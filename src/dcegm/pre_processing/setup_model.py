@@ -70,6 +70,8 @@ def setup_model(
         model_structure=model_structure,
         options=options,
     )
+    # Delete large array which is not needed
+    model_structure.pop("map_state_choice_to_child_states")
 
     return {
         "options": options,
@@ -104,7 +106,6 @@ def setup_and_save_model(
     )
 
     dict_to_save = {
-        "exog_grids": options["exog_grids"],
         "model_structure": model["model_structure"],
         "batch_info": model["batch_info"],
     }
