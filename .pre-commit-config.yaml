@@ -72,17 +72,17 @@ repos:
 #            tests/|
 #            docs/source/conf.py|
 #          )$
-  - repo: https://github.com/PyCQA/docformatter
-    rev: v1.7.5
-    hooks:
-      - id: docformatter
-        args:
-          - --in-place
-          - --wrap-summaries
-          - '88'
-          - --wrap-descriptions
-          - '88'
-          - --blank
+#  - repo: https://github.com/PyCQA/docformatter
+#    rev: v1.7.5
+#    hooks:
+#      - id: docformatter
+#        args:
+#          - --in-place
+#          - --wrap-summaries
+#          - '88'
+#          - --wrap-descriptions
+#          - '88'
+#          - --blank
   - repo: https://github.com/nbQA-dev/nbQA
     rev: 1.8.7
     hooks:
