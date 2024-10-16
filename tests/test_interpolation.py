@@ -85,6 +85,7 @@ def test_cases():
 
     for test_id in range(N_TEST_CASES):
         test_cases[test_id] = {}
+
         # setup a functional form
         a, b = np.random.uniform(1, 10), np.random.uniform(1, 10)
 
@@ -129,6 +130,7 @@ def test_cases():
         test_cases[test_id]["test_x"] = test_x
         test_cases[test_id]["test_y"] = test_y
         test_cases[test_id]["compute_utility"] = compute_utility
+
     return test_cases
 
 
@@ -172,7 +174,10 @@ def test_interp2d_against_scipy(test_cases, test_id):
 @pytest.mark.parametrize("test_id", range(N_TEST_CASES))
 def test_interp2d_against_custom(test_cases, test_id):
     """Test interpolation function against custom interpolation function.
-    We test the single interfaces as the joint ones are tested with the solution function.
+
+    We test the single interfaces as the joint ones are tested throgugh the
+    `solve_dcegm` function.
+
     """
     test_case = test_cases[test_id]
     test_points = test_case["test_points"]
@@ -211,7 +216,7 @@ def test_interp2d_against_custom(test_cases, test_id):
         jnp.array(test_y),
     )
 
-    interp2d_partial_policy = (
+    interp2d_partial_value = (
         lambda x_in, y_in: interp2d_value_on_wealth_and_regular_grid(
             regular_grid=jnp.array(regular_grid),
             wealth_grid=jnp.array(irregular_grids),
@@ -224,7 +229,7 @@ def test_interp2d_against_custom(test_cases, test_id):
         )
     )
 
-    value_interp_jax = jax.vmap(interp2d_partial_policy)(
+    value_interp_jax = jax.vmap(interp2d_partial_value)(
         jnp.array(test_x),
         jnp.array(test_y),
     )
