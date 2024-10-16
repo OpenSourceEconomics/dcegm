@@ -45,7 +45,7 @@ def create_batches_and_information(
     out_of_bounds_state_choice_idx = state_choice_space.shape[0] + 1
 
     state_space = model_structure["state_space"]
-    state_space_names = model_structure["state_space_names"]
+    discrete_states_names = model_structure["discrete_states_names"]
 
     map_state_choice_to_parent_state = model_structure[
         "map_state_choice_to_parent_state"
@@ -68,7 +68,7 @@ def create_batches_and_information(
             map_state_choice_to_parent_state=map_state_choice_to_parent_state,
             map_state_choice_to_child_states=map_state_choice_to_child_states,
             map_state_choice_to_index=map_state_choice_to_index,
-            state_space_names=state_space_names,
+            discrete_states_names=discrete_states_names,
             state_space=state_space,
             batch_info=batch_info,
         )
@@ -108,11 +108,11 @@ def create_batches_and_information(
 
         last_state_choices = {
             key: state_choice_space[:, i][last_batch]
-            for i, key in enumerate(state_space_names + ["choice"])
+            for i, key in enumerate(discrete_states_names + ["choice"])
         }
         last_state_choices_childs = {
             key: state_choice_space[:, i][last_child_state_idx_interp]
-            for i, key in enumerate(state_space_names + ["choice"])
+            for i, key in enumerate(discrete_states_names + ["choice"])
         }
         last_parent_state_idx_of_state_choice = map_state_choice_to_parent_state[
             last_child_state_idx_interp
@@ -143,7 +143,7 @@ def create_batches_and_information(
 
     state_choices_batches = {
         key: state_choice_space[:, i][batch_array]
-        for i, key in enumerate(state_space_names + ["choice"])
+        for i, key in enumerate(discrete_states_names + ["choice"])
     }
 
     # Now create the child state arrays. As these can have different shapes than the
@@ -163,7 +163,7 @@ def create_batches_and_information(
     ]
     state_choices_childs = {
         key: state_choice_space[:, i][child_state_choice_idxs_to_interp]
-        for i, key in enumerate(state_space_names + ["choice"])
+        for i, key in enumerate(discrete_states_names + ["choice"])
     }
 
     batch_info = {
@@ -188,7 +188,7 @@ def create_batches_and_information(
         map_state_choice_to_parent_state=map_state_choice_to_parent_state,
         map_state_choice_to_child_states=map_state_choice_to_child_states,
         map_state_choice_to_index=map_state_choice_to_index,
-        state_space_names=state_space_names,
+        discrete_states_names=discrete_states_names,
         state_space=state_space,
         batch_info=batch_info,
     )
@@ -269,7 +269,7 @@ def add_last_two_period_information(
     map_state_choice_to_parent_state,
     map_state_choice_to_child_states,
     map_state_choice_to_index,
-    state_space_names,
+    discrete_states_names,
     state_space,
     batch_info,
 ):
@@ -325,7 +325,7 @@ def add_last_two_period_information(
     ]:
         batch_info[f"state_choice_mat_{period_name}_period"] = {
             key: state_choice_space[:, i][idx]
-            for i, key in enumerate(state_space_names + ["choice"])
+            for i, key in enumerate(discrete_states_names + ["choice"])
         }
     return batch_info
 

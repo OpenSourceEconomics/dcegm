@@ -83,7 +83,7 @@ def test_simulate_lax_scan(model_setup):
     model_structure = model_setup["model"]["model_structure"]
     model_funcs = model_setup["model"]["model_funcs"]
 
-    state_space_names = model_structure["state_space_names"]
+    discrete_states_names = model_structure["discrete_states_names"]
     map_state_choice_to_index = model_structure["map_state_choice_to_index"]
 
     exog_state_mapping = model_funcs["exog_state_mapping"]
@@ -108,7 +108,7 @@ def test_simulate_lax_scan(model_setup):
     simulate_body = partial(
         simulate_single_period,
         params=params,
-        state_space_names=state_space_names,
+        discrete_states_names=discrete_states_names,
         endog_grid_solved=endog_grid,
         value_solved=value,
         policy_solved=policy,
@@ -143,7 +143,7 @@ def test_simulate_lax_scan(model_setup):
         lax_states_and_wealth_beginning_of_final_period,
         sim_specific_keys=sim_specific_keys[-1],
         params=params,
-        state_space_names=state_space_names,
+        discrete_states_names=discrete_states_names,
         choice_range=choice_range,
         map_state_choice_to_index=jnp.array(map_state_choice_to_index),
         compute_utility_final_period=model_funcs["compute_utility_final"],
@@ -152,7 +152,7 @@ def test_simulate_lax_scan(model_setup):
         states_and_wealth_beginning_of_final_period,
         sim_specific_keys=sim_specific_keys[-1],
         params=params,
-        state_space_names=state_space_names,
+        discrete_states_names=discrete_states_names,
         choice_range=choice_range,
         map_state_choice_to_index=jnp.array(map_state_choice_to_index),
         compute_utility_final_period=model_funcs["compute_utility_final"],

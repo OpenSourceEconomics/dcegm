@@ -95,6 +95,124 @@ def interp2d_policy_and_value_on_wealth_and_regular_grid(
     return policy_interp, value_interp
 
 
+def interp2d_value_on_wealth_and_regular_grid(
+    regular_grid: jnp.ndarray,
+    wealth_grid: jnp.ndarray,
+    value_grid: jnp.ndarray,
+    regular_point_to_interp: jnp.ndarray | float,
+    wealth_point_to_interp: jnp.ndarray | float,
+    compute_utility: Callable,
+    state_choice_vec: Dict[str, int],
+    params: dict,
+):
+    """Interpolate the value function on a 2D grid.
+
+    This function interpolates the values of the value function at a specific point
+    given by `regular_point_to_interp` and `wealth_point_to_interp`.
+
+    The function is useful in situtions where only the value but not the policy needs
+    to be computed - such as maximum likelihood estimation.
+
+    Args:
+        regular_points (jnp.ndarray): A 1d array of four elements representing the
+            regular grid points used for interpolation.
+        wealth_points (jnp.ndarray): A 1d array of four elements representing the
+            wealth grid points used for interpolation.
+        policy_grid (jnp.ndarray): A 2d array of policy function values with shape
+            (n_regular_grid_points, n_wealth_grid_points).
+        coords_idxs (jnp.ndarray): A 2d array of shape (2, 2) containing the indices
+            of the (regular, wealth) grid where the interpolation is performed.
+        regular_point_to_interp (float | jnp.ndarray): The regular grid point at which
+            to interpolate.
+        wealth_point_to_interp (float | jnp.ndarray): The wealth grid point at which
+            to interpolate.
+        compute_utility (Callable): User-defined function to compute the utility of
+            consumption.
+        state_choice_vec (Dict[str, int]): Dictionary specifying the state choices.
+        params (dict): A dictionary containing model parameters.
+
+    Returns:
+        float: The interpolated value of the policy function at the given
+            (regular, wealth) point.
+
+    """
+
+    regular_points, wealth_points, coords_idxs = find_grid_coords_for_interp(
+        regular_grid=regular_grid,
+        wealth_grid=wealth_grid,
+        regular_point_to_interp=regular_point_to_interp,
+        wealth_point_to_interp=wealth_point_to_interp,
+    )
+    value_interp = interp2d_value_and_check_creditconstraint(
+        regular_points=regular_points,
+        wealth_points=wealth_points,
+        value_grid=value_grid,
+        coords_idxs=coords_idxs,
+        regular_point_to_interp=regular_point_to_interp,
+        wealth_point_to_interp=wealth_point_to_interp,
+        compute_utility=compute_utility,
+        wealth_min_unconstrained=wealth_grid[:, 1],
+        value_at_zero_wealth=value_grid[:, 0],
+        state_choice_vec=state_choice_vec,
+        params=params,
+    )
+    return value_interp
+
+
+def interp2d_policy_on_wealth_and_regular_grid(
+    regular_grid: jnp.ndarray,
+    wealth_grid: jnp.ndarray,
+    policy_grid: jnp.ndarray,
+    regular_point_to_interp: jnp.ndarray | float,
+    wealth_point_to_interp: jnp.ndarray | float,
+):
+    """Interpolate the policy function on a 2D grid.
+
+    This function interpolates the values of the policy function at a specific point
+    given by `regular_point_to_interp` and `wealth_point_to_interp`.
+
+    The function is useful in situtions where only the policy but not the value needs
+    to be computed - such as maximum likelihood estimation.
+
+    Args:
+        regular_points (jnp.ndarray): A 1d array of four elements representing the
+            regular grid points used for interpolation.
+        wealth_points (jnp.ndarray): A 1d array of four elements representing the
+            wealth grid points used for interpolation.
+        policy_grid (jnp.ndarray): A 2d array of policy function values with shape
+            (n_regular_grid_points, n_wealth_grid_points).
+        coords_idxs (jnp.ndarray): A 2d array of shape (2, 2) containing the indices
+            of the (regular, wealth) grid where the interpolation is performed.
+        regular_point_to_interp (float | jnp.ndarray): The regular grid point at which
+            to interpolate.
+        wealth_point_to_interp (float | jnp.ndarray): The wealth grid point at which
+            to interpolate.
+
+    Returns:
+        float: The interpolated value of the policy function at the given
+            (regular, wealth) point.
+
+    """
+
+    regular_points, wealth_points, coords_idxs = find_grid_coords_for_interp(
+        regular_grid=regular_grid,
+        wealth_grid=wealth_grid,
+        regular_point_to_interp=regular_point_to_interp,
+        wealth_point_to_interp=wealth_point_to_interp,
+    )
+
+    policy_interp = interp2d_policy(
+        regular_points=regular_points,
+        wealth_points=wealth_points,
+        policy_grid=policy_grid,
+        coords_idxs=coords_idxs,
+        regular_point_to_interp=regular_point_to_interp,
+        wealth_point_to_interp=wealth_point_to_interp,
+    )
+
+    return policy_interp
+
+
 def interp2d_policy(
     regular_points,
     wealth_points,
@@ -105,8 +223,8 @@ def interp2d_policy(
 ):
     """Interpolate the policy function on a 2D grid.
 
-    This function interpolates the policy values at a specific point given by
-    `regular_point_to_interp` and `wealth_point_to_interp`.
+    This function interpolates the values of the policy function at a specific point
+    given by `regular_point_to_interp` and `wealth_point_to_interp`.
 
     Args:
         regular_points (jnp.ndarray): A 1d array of four elements representing the

@@ -84,7 +84,7 @@ def simulate_all_periods(
     simulate_body = partial(
         simulate_single_period,
         params=params,
-        state_space_names=model_structure["state_space_names"],
+        discrete_states_names=model_structure["discrete_states_names"],
         endog_grid_solved=endog_grid_solved,
         value_solved=value_solved,
         policy_solved=policy_solved,
@@ -118,7 +118,7 @@ def simulate_all_periods(
         states_and_wealth_beginning_of_final_period,
         sim_specific_keys=sim_specific_keys[-1],
         params=params,
-        state_space_names=model_structure["state_space_names"],
+        discrete_states_names=model_structure["discrete_states_names"],
         choice_range=model_structure["choice_range"],
         map_state_choice_to_index=model_structure["map_state_choice_to_index"],
         compute_utility_final_period=model_funcs["compute_utility_final"],
@@ -136,7 +136,7 @@ def simulate_single_period(
     states_and_wealth_beginning_of_period,
     sim_specific_keys,
     params,
-    state_space_names,
+    discrete_states_names,
     endog_grid_solved,
     value_solved,
     policy_solved,
@@ -182,7 +182,7 @@ def simulate_single_period(
         map_state_choice_to_index=map_state_choice_to_index,
         choice_range=choice_range,
         params=params,
-        state_space_names=state_space_names,
+        discrete_states_names=discrete_states_names,
         compute_utility=compute_utility,
         continuous_grid=continuous_grid,
     )
@@ -260,7 +260,7 @@ def simulate_final_period(
     states_and_wealth_beginning_of_period,
     sim_specific_keys,
     params,
-    state_space_names,
+    discrete_states_names,
     choice_range,
     map_state_choice_to_index,
     compute_utility_final_period,
@@ -291,7 +291,7 @@ def simulate_final_period(
     state_choice_indexes = get_state_choice_index_per_discrete_state(
         map_state_choice_to_index=map_state_choice_to_index,
         states=states_beginning_of_final_period,
-        state_space_names=state_space_names,
+        discrete_states_names=discrete_states_names,
     )
     utilities_pre_taste_shock = jnp.where(
         state_choice_indexes == invalid_number, np.nan, utilities_pre_taste_shock

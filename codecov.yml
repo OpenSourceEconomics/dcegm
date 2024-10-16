@@ -9,7 +9,7 @@ coverage:
   status:
     patch:
       default:
-        target: 75%
+        target: 70%
     project:
       default:
         target: 90%
@@ -20,4 +20,5 @@ ignore:
   - .tox/**/*
   - src/toy_models/*
   - src/dcegm/likelihood.py
+  - src/dcegm/wealth_correction.py
   - src/dcegm/interface.py

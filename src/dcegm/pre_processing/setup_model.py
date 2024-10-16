@@ -106,7 +106,6 @@ def setup_and_save_model(
     )
 
     dict_to_save = {
-        "exog_grids": options["exog_grids"],
         "model_structure": model["model_structure"],
         "batch_info": model["batch_info"],
     }
