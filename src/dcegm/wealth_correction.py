@@ -8,13 +8,18 @@ from dcegm.law_of_motion import (
 
 
 def adjust_observed_wealth(observed_states_dict, params, model):
-    """Correct wealth data, which is observed without the income of last period's
+    """Correct observed beginning of period wealth data for likelihood estimation.
+
+    Wealth in empirical survey data is observed without the income of last period's
     choice.
 
-    In the dcegm framework, individuals make their consumption decision given the income
-    of the previous period. Therefore, agents in the model have a higher beginning of
-    period wealth than the observed wealth in survey data. This function can be used to
-    align these two wealth definitions.
+    In the dcegm framework, however, individuals make their consumption decision given
+    the income of the previous period. Therefore, agents in the model have a higher
+    beginning of period wealth than the observed wealth in survey data.
+
+    This function can be used to align these two wealth definitions; especially in
+    likelihood estimation, where the computation of choice probabilities requires the
+    correct beginning of period wealth.
 
     """
     observed_states_dict_int = observed_states_dict.copy()
