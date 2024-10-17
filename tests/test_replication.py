@@ -86,10 +86,19 @@ def test_benchmark_models(
     )
 
     state_space = model["model_structure"]["state_space"]
-    reshape_state_choice_per_state = model["model_structure"]["map_state_choice_to_index"][
-        state_space[:, 0], state_space[:, 1], state_space[:, 2]
-    ]
-    from dcegm.egm.aggregate_marginal_utility import aggregate_values_and_create_choice_probs
+    reshape_state_choice_per_state = model["model_structure"][
+        "map_state_choice_to_index"
+    ][state_space[:, 0], state_space[:, 1], state_space[:, 2]]
+    from dcegm.egm.aggregate_marginal_utility import (
+        aggregate_values_and_create_choice_probs,
+    )
+
+    aggregate_values_and_create_choice_probs(
+        value_state_choice_specific=value,
+        reshape_state_choice_vec_to_mat=reshape_state_choice_per_state,
+        taste_shock_scale=params["lambda"],
+    )
+
     breakpoint()
 
     policy_expected = pickle.load(
