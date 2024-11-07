@@ -26,6 +26,7 @@ def create_individual_likelihood_function_for_model(
     observed_choices: np.array,
     params_all,
     unobserved_state_specs=None,
+    return_model_solution=False,
 ):
 
     solve_func = get_solve_func_for_model(
@@ -64,7 +65,16 @@ def create_individual_likelihood_function_for_model(
         # Negative ll contributions are positive numbers. The smaller the better the fit
         # Add high fixed punishment for not explained choices
         neg_likelihood_contributions = (-jnp.log(choice_probs)).clip(max=999)
-        return neg_likelihood_contributions
+
+        if return_model_solution:
+            solution = {
+                "value": value_solved,
+                "policy": policy_solved,
+                "endog_grid": endog_grid_solved,
+            }
+            return neg_likelihood_contributions, solution
+        else:
+            return neg_likelihood_contributions
 
     return jax.jit(individual_likelihood)
 
