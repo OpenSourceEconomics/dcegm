@@ -45,7 +45,6 @@ def create_individual_likelihood_function_for_model(
             observed_states=observed_states,
             observed_choices=observed_choices,
             unobserved_state_specs=unobserved_state_specs,
-            weight_full_states=True,
         )
 
     def individual_likelihood(params):
@@ -76,7 +75,7 @@ def create_individual_likelihood_function_for_model(
         else:
             return neg_likelihood_contributions
 
-    return individual_likelihood
+    return jax.jit(individual_likelihood)
 
 
 def create_choice_prob_func_unobserved_states(
@@ -84,7 +83,6 @@ def create_choice_prob_func_unobserved_states(
     observed_states: Dict[str, int],
     observed_choices: np.array,
     unobserved_state_specs,
-    weight_full_states=True,
 ):
     # First prepare full observed states, choices and pre period states for weighting
     state_space_names = model["model_structure"]["discrete_states_names"] + ["wealth"]
