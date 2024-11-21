@@ -76,7 +76,7 @@ def create_individual_likelihood_function_for_model(
         else:
             return neg_likelihood_contributions
 
-    return jax.jit(individual_likelihood)
+    return individual_likelihood
 
 
 def create_choice_prob_func_unobserved_states(
@@ -170,7 +170,6 @@ def create_choice_prob_func_unobserved_states(
 
     def choice_prob_func(value_in, endog_grid_in, params_in):
         choice_probs_final = jnp.zeros(n_obs, dtype=jnp.float64)
-        weights_sum = jnp.zeros(n_obs, dtype=jnp.float64)
         for partial_choice_prob, unobserved_state, weighting_vars in zip(
             partial_choice_probs_unobserved_states,
             possible_states,
@@ -190,9 +189,7 @@ def create_choice_prob_func_unobserved_states(
                 params_in=params_in,
             )
             choice_probs_final += unweighted_choice_probs * weights
-            weights_sum += weights
 
-        choice_probs_final = choice_probs_final / weights_sum
         return choice_probs_final
 
     return choice_prob_func
