@@ -27,7 +27,9 @@ def simulate_all_periods(
     policy_solved,
     value_solved,
     model,
+    model_sim=None,
 ):
+    model_sim = model if model_sim is None else model_sim
 
     second_continuous_state_dict = next(
         (
@@ -54,7 +56,7 @@ def simulate_all_periods(
         if key in discrete_state_space
     }
 
-    if "dummy_exog" in model["model_structure"]["exog_states_names"]:
+    if "dummy_exog" in model_sim["model_structure"]["exog_states_names"]:
         states_initial_dtype["dummy_exog"] = np.zeros_like(
             states_initial_dtype["period"]
         )
@@ -73,31 +75,31 @@ def simulate_all_periods(
         ]
     )
 
-    model_structure = model["model_structure"]
-    model_funcs = model["model_funcs"]
+    model_structure_solution = model["model_structure"]
+    model_funcs_sim = model_sim["model_funcs"]
 
     compute_next_period_states = {
-        "get_next_period_state": model_funcs["get_next_period_state"],
-        "update_continuous_state": model_funcs["update_continuous_state"],
+        "get_next_period_state": model_funcs_sim["get_next_period_state"],
+        "update_continuous_state": model_funcs_sim["update_continuous_state"],
     }
 
     simulate_body = partial(
         simulate_single_period,
         params=params,
-        discrete_states_names=model_structure["discrete_states_names"],
+        discrete_states_names=model_structure_solution["discrete_states_names"],
         endog_grid_solved=endog_grid_solved,
         value_solved=value_solved,
         policy_solved=policy_solved,
         map_state_choice_to_index=jnp.asarray(
-            model_structure["map_state_choice_to_index"]
+            model_structure_solution["map_state_choice_to_index"]
         ),
-        choice_range=model_structure["choice_range"],
-        compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
-        compute_utility=model_funcs["compute_utility"],
-        compute_beginning_of_period_wealth=model_funcs[
+        choice_range=model_structure_solution["choice_range"],
+        compute_exog_transition_vec=model_funcs_sim["compute_exog_transition_vec"],
+        compute_utility=model_funcs_sim["compute_utility"],
+        compute_beginning_of_period_wealth=model_funcs_sim[
             "compute_beginning_of_period_wealth"
         ],
-        exog_state_mapping=model_funcs["exog_state_mapping"],
+        exog_state_mapping=model_funcs_sim["exog_state_mapping"],
         compute_next_period_states=compute_next_period_states,
         second_continuous_state_dict=second_continuous_state_dict,
     )
@@ -118,10 +120,10 @@ def simulate_all_periods(
         states_and_wealth_beginning_of_final_period,
         sim_specific_keys=sim_specific_keys[-1],
         params=params,
-        discrete_states_names=model_structure["discrete_states_names"],
-        choice_range=model_structure["choice_range"],
-        map_state_choice_to_index=model_structure["map_state_choice_to_index"],
-        compute_utility_final_period=model_funcs["compute_utility_final"],
+        discrete_states_names=model_structure_solution["discrete_states_names"],
+        choice_range=model_structure_solution["choice_range"],
+        map_state_choice_to_index=model_structure_solution["map_state_choice_to_index"],
+        compute_utility_final_period=model_funcs_sim["compute_utility_final"],
     )
 
     result = {
