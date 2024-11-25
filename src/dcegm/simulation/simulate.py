@@ -47,7 +47,8 @@ def simulate_all_periods(
         else None
     )
 
-    discrete_state_space = model["model_structure"]["state_space_dict"]
+    model_structure_solution = model["model_structure"]
+    discrete_state_space = model_structure_solution["state_space_dict"]
 
     # Set initial states to internal dtype
     states_initial_dtype = {
@@ -56,7 +57,7 @@ def simulate_all_periods(
         if key in discrete_state_space
     }
 
-    if "dummy_exog" in model_sim["model_structure"]["exog_states_names"]:
+    if "dummy_exog" in model_structure_solution["exog_states_names"]:
         states_initial_dtype["dummy_exog"] = np.zeros_like(
             states_initial_dtype["period"]
         )
@@ -74,8 +75,6 @@ def simulate_all_periods(
             for period in range(n_periods)
         ]
     )
-
-    model_structure_solution = model["model_structure"]
     model_funcs_sim = model_sim["model_funcs"]
 
     compute_next_period_states = {
@@ -130,6 +129,8 @@ def simulate_all_periods(
         key: np.vstack([sim_dict[key], final_period_dict[key]])
         for key in sim_dict.keys()
     }
+    if "dummy_exog" not in model_sim["model_structure"]["exog_states_names"]:
+        result.pop("dummy_exog")
 
     return result
 
