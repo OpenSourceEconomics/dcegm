@@ -129,8 +129,9 @@ def simulate_all_periods(
         key: np.vstack([sim_dict[key], final_period_dict[key]])
         for key in sim_dict.keys()
     }
-    if "dummy_exog" not in model_sim["model_structure"]["exog_states_names"]:
-        result.pop("dummy_exog")
+    if "dummy_exog" in model_structure_solution["exog_states_names"]:
+        if "dummy_exog" not in model_sim["model_structure"]["exog_states_names"]:
+            result.pop("dummy_exog")
 
     return result
 
