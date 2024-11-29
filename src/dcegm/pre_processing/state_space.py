@@ -115,7 +115,8 @@ def test_state_space_objects(
         example_dict["choice"] = invalid_state_choices_example[-1]
         raise ValueError(
             f"\n\n\n\n Some state-choice combinations have invalid child "
-            f"states. "
+            f"states. Please update accordingly the deterministic law of motion or"
+            f"the proxy function."
             f"\n \n An example of a combination of state and choice with "
             f"invalid child states is: \n \n"
             f"{example_dict} \n \n"
@@ -137,7 +138,7 @@ def test_state_space_objects(
         }
         raise ValueError(
             f"\n\n\n\n Some states are not child states of any state-choice "
-            f"combination. \n \n"
+            f"combination or stochastic transition. Please revisit the sparsity condition. \n \n"
             f"An example of a state that is not a child state is: \n \n"
             f"{example_dict} \n \n"
         )

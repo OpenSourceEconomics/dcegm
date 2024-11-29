@@ -36,13 +36,19 @@ def sparsity_condition(
     max_exp_period = period + options["max_init_experience"]
     max_total_experience = options["n_periods"] + options["max_init_experience"]
 
+    # Experience must be smaller than the maximum experience in a period
     if max_exp_period < experience:
         return False
+    # Experience must be smaller than the maximum total experience
     elif max_total_experience <= experience:
         return False
+    # If experience is the maximum experience in a period, you must have been working last period
     elif (experience == max_exp_period) & (lagged_choice == 1):
         return False
-    elif (lagged_choice == 0) & (experience == 0):
+    # As retirement is absorbing, if you have been working last period
+    # your experience must be at least as big as the period as you
+    # had to been working all periods before
+    elif (lagged_choice == 0) & (experience < period):
         return False
     else:
         return True

@@ -47,12 +47,19 @@ def sparsity_condition(period, lagged_choice, experience, options):
     if period == 0 and lagged_choice != 0:
         return False
     # Starting from second we check if choice was in last periods full choice set
-    if period > 0 and lagged_choice not in choice_set(period - 1, 1):
+    elif (period > 0) and lagged_choice not in choice_set(period - 1, 1):
         return False
     # Filter states with too high experience
-    if (experience > period) or (experience > options["max_experience"]):
+    elif (experience > period) or (experience > options["max_experience"]):
         return False
-    return True
+    # If experience is 0 you can not have been working last period
+    elif (experience == 0) and (lagged_choice == 1):
+        return False
+    # If experience is equal to period you must have been working last period (periods larger than 0)
+    elif (experience == period) and (period > 0) and (lagged_choice != 1):
+        return False
+    else:
+        return True
 
 
 @pytest.fixture
