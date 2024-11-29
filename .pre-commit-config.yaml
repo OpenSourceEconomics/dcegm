@@ -55,7 +55,7 @@ repos:
         args:
           - --profile=black
   - repo: https://github.com/asottile/setup-cfg-fmt
-    rev: v2.5.0
+    rev: v2.7.0
     hooks:
       - id: setup-cfg-fmt
   - repo: https://github.com/psf/black
@@ -90,7 +90,7 @@ repos:
       - id: nbqa-ruff
         exclude: tests/sandbox/
   - repo: https://github.com/executablebooks/mdformat
-    rev: 0.7.17
+    rev: 0.7.18
     hooks:
       - id: mdformat
         additional_dependencies:
