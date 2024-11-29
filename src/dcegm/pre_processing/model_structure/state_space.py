@@ -4,14 +4,21 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from dcegm.pre_processing.shared import (
-    create_array_with_smallest_int_dtype,
-    determine_function_arguments_and_partial_options,
-    get_smallest_int_type,
+from dcegm.pre_processing.model_structure.checks import test_child_state_mapping
+from dcegm.pre_processing.model_structure.endogenous_states import (
+    process_endog_state_specifications,
 )
+from dcegm.pre_processing.model_structure.exog_processes import (
+    process_exog_model_specifications,
+)
+from dcegm.pre_processing.model_structure.shared import create_indexer_for_space
+from dcegm.pre_processing.model_structure.state_choice_space import (
+    create_state_choice_space,
+)
+from dcegm.pre_processing.shared import create_array_with_smallest_int_dtype
 
 
-def create_discrete_state_space_and_choice_objects(
+def create_model_structure(
     options,
     model_funcs,
 ):
@@ -34,113 +41,30 @@ def create_discrete_state_space_and_choice_objects(
     print("State space created.\n")
     print("Starting state-choice space creation and child state mapping.")
 
-    discrete_states_names = dict_of_state_space_objects["discrete_states_names"]
-    state_space = dict_of_state_space_objects["state_space"]
-    (
-        state_choice_space,
-        map_state_choice_to_index,
-        map_state_choice_to_parent_state,
-        map_state_choice_to_child_states,
-    ) = create_state_choice_space(
+    dict_of_state_choice_space_objects = create_state_choice_space(
         state_space_options=options["state_space"],
-        state_space=state_space,
-        states_names_without_exog=dict_of_state_space_objects[
-            "state_names_without_exog"
-        ],
-        exog_state_names=dict_of_state_space_objects["exog_states_names"],
-        exog_state_space=dict_of_state_space_objects["exog_state_space"],
-        map_child_state_to_index=dict_of_state_space_objects[
-            "map_child_state_to_index"
-        ],
-        map_state_to_index=dict_of_state_space_objects["map_state_to_index"],
         get_state_specific_choice_set=model_funcs["get_state_specific_choice_set"],
         get_next_period_state=model_funcs["get_next_period_state"],
+        dict_of_state_space_objects=dict_of_state_space_objects,
     )
     dict_of_state_space_objects.pop("map_child_state_to_index")
 
-    state_choice_space_dict = {
-        key: state_choice_space[:, i]
-        for i, key in enumerate(discrete_states_names + ["choice"])
-    }
-
-    test_state_space_objects(
+    test_child_state_mapping(
         state_space_options=options["state_space"],
-        state_choice_space=state_choice_space,
-        state_space=state_space,
-        map_state_choice_to_child_states=map_state_choice_to_child_states,
-        discrete_states_names=discrete_states_names,
+        state_choice_space=dict_of_state_choice_space_objects["state_choice_space"],
+        state_space=dict_of_state_space_objects["state_space"],
+        map_state_choice_to_child_states=dict_of_state_choice_space_objects[
+            "map_state_choice_to_child_states"
+        ],
+        discrete_states_names=dict_of_state_space_objects["discrete_states_names"],
     )
 
     model_structure = {
         **dict_of_state_space_objects,
+        **dict_of_state_choice_space_objects,
         "choice_range": jnp.asarray(options["state_space"]["choices"]),
-        "state_choice_space": state_choice_space,
-        "state_choice_space_dict": state_choice_space_dict,
-        "map_state_choice_to_index": map_state_choice_to_index,
-        "map_state_choice_to_parent_state": map_state_choice_to_parent_state,
-        "map_state_choice_to_child_states": map_state_choice_to_child_states,
     }
     return jax.tree.map(create_array_with_smallest_int_dtype, model_structure)
-
-
-def test_state_space_objects(
-    state_space_options,
-    state_choice_space,
-    state_space,
-    map_state_choice_to_child_states,
-    discrete_states_names,
-):
-    """Test state space objects for consistency."""
-    n_periods = state_space_options["n_periods"]
-    state_choices_idxs_wo_last = np.where(state_choice_space[:, 0] < n_periods - 1)[0]
-
-    # Check if all feasible state choice combinations have a valid child state
-    idxs_child_states = map_state_choice_to_child_states[state_choices_idxs_wo_last, :]
-
-    # Get dtype and max int for state space indexer
-    state_space_indexer_dtype = map_state_choice_to_child_states.dtype
-    invalid_state_space_idx = np.iinfo(state_space_indexer_dtype).max
-
-    if np.any(idxs_child_states == invalid_state_space_idx):
-        # Get row axis of child states that are invalid
-        invalid_child_states = np.unique(
-            np.where(idxs_child_states == invalid_state_space_idx)[0]
-        )
-        invalid_state_choices_example = state_choice_space[invalid_child_states[0]]
-        example_dict = {
-            key: invalid_state_choices_example[i]
-            for i, key in enumerate(discrete_states_names)
-        }
-        example_dict["choice"] = invalid_state_choices_example[-1]
-        raise ValueError(
-            f"\n\n\n\n Some state-choice combinations have invalid child "
-            f"states. Please update accordingly the deterministic law of motion or"
-            f"the proxy function."
-            f"\n \n An example of a combination of state and choice with "
-            f"invalid child states is: \n \n"
-            f"{example_dict} \n \n"
-        )
-
-    # Check if all states are a child states except the ones in the first period
-    idxs_states_except_first = np.where(state_space[:, 0] > 0)[0]
-    idxs_states_except_first_in_child_states = np.isin(
-        idxs_states_except_first, idxs_child_states
-    )
-    if not np.all(idxs_states_except_first_in_child_states):
-        not_child_state_idxs = idxs_states_except_first[
-            ~idxs_states_except_first_in_child_states
-        ]
-        not_child_state_example = state_space[not_child_state_idxs[0]]
-        example_dict = {
-            key: not_child_state_example[i]
-            for i, key in enumerate(discrete_states_names)
-        }
-        raise ValueError(
-            f"\n\n\n\n Some states are not child states of any state-choice "
-            f"combination or stochastic transition. Please revisit the sparsity condition. \n \n"
-            f"An example of a state that is not a child state is: \n \n"
-            f"{example_dict} \n \n"
-        )
 
 
 def create_state_space(options):
@@ -303,328 +227,3 @@ def create_indexer_inclucing_proxies(
         tuple_of_states_proxied_to
     ]
     return map_state_to_index_with_proxies
-
-
-def create_state_choice_space(
-    state_space_options,
-    state_space,
-    exog_state_space,
-    states_names_without_exog,
-    exog_state_names,
-    map_child_state_to_index,
-    map_state_to_index,
-    get_state_specific_choice_set,
-    get_next_period_state,
-):
-    """Create state choice space of all feasible state-choice combinations.
-
-    Also conditional on any realization of exogenous processes.
-
-    Args:
-        state_space (np.ndarray): 2d array of shape (n_states, n_state_vars + 1)
-            which serves as a collection of all possible states. By convention,
-            the first column must contain the period and the last column the
-            exogenous state. Any other state variables are in between.
-            E.g. if the two state variables are period and lagged choice and all choices
-            are admissible in each period, the shape of the state space array is
-            (n_periods * n_choices, 3).
-        map_state_to_state_space_index (np.ndarray): Indexer array that maps
-            a period-specific state vector to the respective index positions in the
-            state space.
-            The shape of this object is quite complicated. For each state variable it
-            has the number of potential states as rows, i.e.
-            (n_potential_states_state_var_1, n_potential_states_state_var_2, ....).
-        get_state_specific_choice_set (Callable): User-supplied function that returns
-            the set of feasible choices for a given state.
-
-    Returns:
-        tuple:
-
-        - state_choice_space(np.ndarray): 2d array of shape
-            (n_feasible_state_choice_combs, n_state_and_exog_variables + 1) containing
-            the space of all feasible state-choice combinations. By convention,
-            the second to last column contains the exogenous process.
-            The last column always contains the choice to be made at the end of the
-            period (which is not a state variable).
-        - map_state_choice_vec_to_parent_state (np.ndarray): 1d array of shape
-            (n_states * n_feasible_choices,) that maps from any vector of state-choice
-            combinations to the respective parent state.
-        - reshape_state_choice_vec_to_mat (np.ndarray): 2d array of shape
-            (n_states, n_feasible_choices). For each parent state, this array can be
-            used to reshape the vector of feasible state-choice combinations
-            to a matrix of lagged and current choice combinations of
-            shape (n_choices, n_choices).
-        - transform_between_state_and_state_choice_space (np.ndarray): 2d boolean
-            array of shape (n_states, n_states * n_feasible_choices) indicating which
-            state belongs to which state-choice combination in the entire state and
-            state choice space. The array is used to
-            (i) contract state-choice level arrays to the state level by summing
-                over state-choice combinations.
-            (ii) to expand state level arrays to the state-choice level.
-
-    """
-    n_states, n_state_and_exog_variables = state_space.shape
-    n_exog_states, n_exog_vars = exog_state_space.shape
-    n_choices = len(state_space_options["choices"])
-    discrete_states_names = states_names_without_exog + exog_state_names
-    n_periods = state_space_options["n_periods"]
-
-    dtype_exog_state_space = get_smallest_int_type(n_exog_states)
-
-    # Get dtype and maxint for choices
-    dtype_choices = get_smallest_int_type(n_choices)
-    # Get dtype and max int for state space
-    state_space_dtype = state_space.dtype
-
-    if np.iinfo(state_space_dtype).max > np.iinfo(dtype_choices).max:
-        state_choice_space_dtype = state_space_dtype
-    else:
-        state_choice_space_dtype = dtype_choices
-
-    state_choice_space_raw = np.zeros(
-        (n_states * n_choices, n_state_and_exog_variables + 1),
-        dtype=state_choice_space_dtype,
-    )
-
-    state_space_indexer_dtype = map_child_state_to_index.dtype
-    invalid_indexer_idx = np.iinfo(state_space_indexer_dtype).max
-
-    map_state_choice_to_parent_state = np.zeros(
-        (n_states * n_choices), dtype=state_space_indexer_dtype
-    )
-
-    map_state_choice_to_child_states = np.full(
-        (n_states * n_choices, n_exog_states),
-        fill_value=invalid_indexer_idx,
-        dtype=state_space_indexer_dtype,
-    )
-
-    exog_states_tuple = tuple(exog_state_space[:, i] for i in range(n_exog_vars))
-
-    idx = 0
-    for state_vec in state_space:
-        state_idx = map_state_to_index[tuple(state_vec)]
-
-        # Full state dictionary
-        this_period_state = {
-            key: state_vec[i] for i, key in enumerate(discrete_states_names)
-        }
-
-        feasible_choice_set = get_state_specific_choice_set(
-            **this_period_state,
-        )
-
-        for choice in feasible_choice_set:
-            state_choice_space_raw[idx, :-1] = state_vec
-            state_choice_space_raw[idx, -1] = choice
-
-            map_state_choice_to_parent_state[idx] = state_idx
-
-            if state_vec[0] < n_periods - 1:
-
-                endog_state_update = get_next_period_state(
-                    **this_period_state, choice=choice
-                )
-
-                check_endog_update_function(
-                    endog_state_update, this_period_state, choice, exog_state_names
-                )
-
-                next_period_state = this_period_state.copy()
-                next_period_state.update(endog_state_update)
-
-                next_period_state_tuple_wo_exog = tuple(
-                    np.full(
-                        n_exog_states,
-                        fill_value=next_period_state[key],
-                        dtype=dtype_exog_state_space,
-                    )
-                    for key in states_names_without_exog
-                )
-
-                states_next_tuple = next_period_state_tuple_wo_exog + exog_states_tuple
-
-                try:
-                    child_idxs = map_child_state_to_index[states_next_tuple]
-                except:
-                    raise IndexError(
-                        f"\n\n The state \n\n{endog_state_update}\n\n is reached as a "
-                        f"child state from an existing state, but does not exist for "
-                        f"some values of the exogenous processes. Please check if it "
-                        f"should not be reached or should exist by adapting the "
-                        f"sparsity condition and/or the set of possible state values."
-                    )
-
-                map_state_choice_to_child_states[idx, :] = child_idxs
-
-            idx += 1
-
-    state_choice_space = state_choice_space_raw[:idx]
-    map_state_choice_to_index = create_indexer_for_space(state_choice_space)
-
-    return (
-        state_choice_space,
-        map_state_choice_to_index,
-        map_state_choice_to_parent_state[:idx],
-        map_state_choice_to_child_states[:idx, :],
-    )
-
-
-def check_endog_update_function(
-    endog_state_update, this_period_state, choice, exog_state_names
-):
-    """Conduct several checks on the endogenous state update function."""
-    if endog_state_update["period"] != this_period_state["period"] + 1:
-        raise ValueError(
-            f"\n\n The update function does not return the correct next period count."
-            f"An example of this update happens with the state choice combination: \n\n"
-            f"{this_period_state} \n\n"
-        )
-
-    if endog_state_update["lagged_choice"] != choice:
-        raise ValueError(
-            f"\n\n The update function does not return the correct lagged choice for a given choice."
-            f"An example of this update happens with the state choice combination: \n\n"
-            f"{this_period_state} \n\n"
-        )
-
-    # Check if exogenous state is updated. This is forbidden.
-    for exog_state_name in exog_state_names:
-        if exog_state_name in endog_state_update.keys():
-            raise ValueError(
-                f"\n\n The exogenous state {exog_state_name} is also updated (or just returned)"
-                f"for in the endogenous update function. You can use the proxy function to implement"
-                f"a custom update rule, i.e. redirecting the exogenous process."
-                f"An example of this update happens with the state choice combination: \n\n"
-                f"{this_period_state} \n\n"
-            )
-
-
-def process_exog_model_specifications(state_space_options):
-    if "exogenous_processes" in state_space_options:
-        exog_state_names = list(state_space_options["exogenous_processes"].keys())
-        dict_of_only_states = {
-            key: state_space_options["exogenous_processes"][key]["states"]
-            for key in exog_state_names
-        }
-
-        exog_state_space = span_subspace_and_read_information(
-            subdict_of_space=dict_of_only_states,
-            states_names=exog_state_names,
-        )
-    else:
-        exog_state_names = ["dummy_exog"]
-        exog_state_space = np.array([[0]], dtype=np.uint8)
-
-    return exog_state_names, exog_state_space
-
-
-def span_subspace_and_read_information(subdict_of_space, states_names):
-    """Span subspace and read information from dictionary."""
-    # Retrieve all state arrays from the dictionary
-    states = [np.array(subdict_of_space[name]) for name in states_names]
-
-    # Use np.meshgrid to get all combinations, then reshape and stack them
-    grids = np.meshgrid(*states, indexing="ij")
-    space = np.column_stack([grid.ravel() for grid in grids])
-
-    return space
-
-
-def process_endog_state_specifications(state_space_options, model_params):
-    """Get number of endog states which we loop over when creating the state space."""
-
-    # if "endogenous_states" in state_space_options:
-    # if (
-    #     "endogenous_states" in state_space_options
-    #     and isinstance(state_space_options["endogenous_states"], dict)
-    #     and state_space_options["endogenous_states"]
-    # ):
-    if state_space_options.get("endogenous_states"):
-
-        endog_state_keys = state_space_options["endogenous_states"].keys()
-
-        if "sparsity_condition" in state_space_options["endogenous_states"].keys():
-            endog_states_names = list(set(endog_state_keys) - {"sparsity_condition"})
-            sparsity_cond_specified = True
-        else:
-            sparsity_cond_specified = False
-            endog_states_names = list(endog_state_keys)
-
-        endog_state_space = span_subspace_and_read_information(
-            subdict_of_space=state_space_options["endogenous_states"],
-            states_names=endog_states_names,
-        )
-        n_endog_states = endog_state_space.shape[0]
-
-    else:
-        endog_states_names = []
-        n_endog_states = 1
-
-        endog_state_space = None
-        sparsity_cond_specified = False
-
-    sparsity_func = select_sparsity_function(
-        sparsity_cond_specified=sparsity_cond_specified,
-        state_space_options=state_space_options,
-        model_params=model_params,
-    )
-
-    endog_states_add_func = create_endog_state_add_function(endog_state_space)
-
-    return (
-        endog_states_add_func,
-        endog_states_names,
-        n_endog_states,
-        sparsity_func,
-    )
-
-
-def select_sparsity_function(
-    sparsity_cond_specified, state_space_options, model_params
-):
-    if sparsity_cond_specified:
-        sparsity_func = determine_function_arguments_and_partial_options(
-            func=state_space_options["endogenous_states"]["sparsity_condition"],
-            options=model_params,
-        )
-    else:
-
-        def sparsity_func(**kwargs):
-            return True
-
-    return sparsity_func
-
-
-def create_endog_state_add_function(endog_state_space):
-    if endog_state_space is None:
-
-        def add_endog_states(id_endog_state):
-            return []
-
-    else:
-
-        def add_endog_states(id_endog_state):
-            return list(endog_state_space[id_endog_state])
-
-    return add_endog_states
-
-
-def create_indexer_for_space(space):
-    """Create indexer for space."""
-
-    # Indexer has always unsigned data type with integers starting at zero
-    # Leave one additional value for the invalid number
-    data_type = get_smallest_int_type(space.shape[0] + 1)
-    max_value = np.iinfo(data_type).max
-
-    max_var_values = np.max(space, axis=0)
-
-    map_vars_to_index = np.full(
-        max_var_values + 1, fill_value=max_value, dtype=data_type
-    )
-    index_tuple = tuple(space[:, i] for i in range(space.shape[1]))
-
-    map_vars_to_index[index_tuple] = np.arange(space.shape[0], dtype=data_type)
-
-    return map_vars_to_index

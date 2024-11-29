@@ -4,8 +4,8 @@ import pytest
 from jax import vmap
 
 from dcegm.pre_processing.check_options import check_options_and_set_defaults
+from dcegm.pre_processing.check_params import process_params
 from dcegm.pre_processing.model_functions import process_model_functions
-from dcegm.pre_processing.params import process_params
 from dcegm.pre_processing.setup_model import (
     load_and_setup_model,
     setup_and_save_model,
