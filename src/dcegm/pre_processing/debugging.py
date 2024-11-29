@@ -6,7 +6,7 @@ import pandas as pd
 from dcegm.pre_processing.model_structure.endogenous_states import (
     process_endog_state_specifications,
 )
-from dcegm.pre_processing.model_structure.exog_processes import (
+from dcegm.pre_processing.model_structure.exogenous_processes import (
     process_exog_model_specifications,
 )
 

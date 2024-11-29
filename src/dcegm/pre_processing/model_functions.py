@@ -3,7 +3,7 @@ from typing import Callable, Dict
 import jax.numpy as jnp
 from upper_envelope.fues_jax.fues_jax import fues_jax
 
-from dcegm.pre_processing.model_structure.exog_processes import (
+from dcegm.pre_processing.model_structure.exogenous_processes import (
     create_exog_transition_function,
 )
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options

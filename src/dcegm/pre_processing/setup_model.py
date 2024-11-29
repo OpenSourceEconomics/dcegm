@@ -6,10 +6,10 @@ import jax
 from dcegm.pre_processing.batches import create_batches_and_information
 from dcegm.pre_processing.check_options import check_options_and_set_defaults
 from dcegm.pre_processing.model_functions import process_model_functions
-from dcegm.pre_processing.model_structure.exog_processes import (
+from dcegm.pre_processing.model_structure.exogenous_processes import (
     create_exog_state_mapping,
 )
-from dcegm.pre_processing.model_structure.state_space import create_model_structure
+from dcegm.pre_processing.model_structure.model_structure import create_model_structure
 from dcegm.pre_processing.shared import create_array_with_smallest_int_dtype
 
 
