@@ -61,6 +61,7 @@ def create_discrete_state_space_and_choice_objects(
     test_state_space_objects(
         state_space_options=options["state_space"],
         state_choice_space=state_choice_space,
+        state_space=state_space,
         map_state_choice_to_child_states=map_state_choice_to_child_states,
         discrete_states_names=states_names_without_exog + exog_states_names,
     )
@@ -86,6 +87,7 @@ def create_discrete_state_space_and_choice_objects(
 def test_state_space_objects(
     state_space_options,
     state_choice_space,
+    state_space,
     map_state_choice_to_child_states,
     discrete_states_names,
 ):
@@ -94,16 +96,16 @@ def test_state_space_objects(
     state_choices_idxs_wo_last = np.where(state_choice_space[:, 0] < n_periods - 1)[0]
 
     # Check if all feasible state choice combinations have a valid child state
-    child_states = map_state_choice_to_child_states[state_choices_idxs_wo_last, :]
+    idxs_child_states = map_state_choice_to_child_states[state_choices_idxs_wo_last, :]
 
     # Get dtype and max int for state space indexer
     state_space_indexer_dtype = map_state_choice_to_child_states.dtype
     invalid_state_space_idx = np.iinfo(state_space_indexer_dtype).max
 
-    if np.any(child_states == invalid_state_space_idx):
+    if np.any(idxs_child_states == invalid_state_space_idx):
         # Get row axis of child states that are invalid
         invalid_child_states = np.unique(
-            np.where(child_states == invalid_state_space_idx)[0]
+            np.where(idxs_child_states == invalid_state_space_idx)[0]
         )
         invalid_state_choices_example = state_choice_space[invalid_child_states[0]]
         example_dict = {
@@ -116,6 +118,27 @@ def test_state_space_objects(
             f"states. "
             f"\n \n An example of a combination of state and choice with "
             f"invalid child states is: \n \n"
+            f"{example_dict} \n \n"
+        )
+
+    # Check if all states are a child states except the ones in the first period
+    idxs_states_except_first = np.where(state_space[:, 0] > 0)[0]
+    idxs_states_except_first_in_child_states = np.isin(
+        idxs_states_except_first, idxs_child_states
+    )
+    if not np.all(idxs_states_except_first_in_child_states):
+        not_child_state_idxs = idxs_states_except_first[
+            ~idxs_states_except_first_in_child_states
+        ]
+        not_child_state_example = state_space[not_child_state_idxs[0]]
+        example_dict = {
+            key: not_child_state_example[i]
+            for i, key in enumerate(discrete_states_names)
+        }
+        raise ValueError(
+            f"\n\n\n\n Some states are not child states of any state-choice "
+            f"combination. \n \n"
+            f"An example of a state that is not a child state is: \n \n"
             f"{example_dict} \n \n"
         )
 
