@@ -184,14 +184,17 @@ def create_state_space(options):
     ) = process_endog_state_specifications(
         state_space_options=state_space_options, model_params=model_params
     )
+    state_names_without_exog = ["period", "lagged_choice"] + endog_states_names
 
     (
         exog_states_names,
         exog_state_space_raw,
     ) = process_exog_model_specifications(state_space_options=state_space_options)
-    states_names_without_exog = ["period", "lagged_choice"] + endog_states_names
+    state_names = state_names_without_exog + exog_states_names
 
-    state_space_wo_exog_list = []
+    n_exog_states = exog_state_space_raw.shape[0]
+
+    state_space_list = []
 
     for period in range(n_periods):
         for endog_state_id in range(n_endog_states):
@@ -199,39 +202,32 @@ def create_state_space(options):
                 # Select the endogenous state combination
                 endog_states = add_endog_state_func(endog_state_id)
 
-                # Create the state vector without the exogenous processes
-                state_without_exog = [period, lagged_choice] + endog_states
+                for exog_state_id in range(n_exog_states):
+                    exog_states = exog_state_space_raw[exog_state_id, :]
 
-                # Transform to dictionary to call sparsity function from user
-                state_dict_without_exog = {
-                    states_names_without_exog[i]: state_value
-                    for i, state_value in enumerate(state_without_exog)
-                }
+                    # Create the state vector
+                    state = [period, lagged_choice] + endog_states + list(exog_states)
 
-                # Check if the state is valid by calling the sparsity function
-                is_state_valid = sparsity_func(**state_dict_without_exog)
-                if not is_state_valid:
-                    continue
-                else:
-                    state_space_wo_exog_list += [state_without_exog]
+                    # Transform to dictionary to call sparsity function from user
+                    state_dict = {
+                        state_names[i]: state_value
+                        for i, state_value in enumerate(state)
+                    }
 
-    n_exog_states = exog_state_space_raw.shape[0]
+                    # Check if the state is valid by calling the sparsity function
+                    is_state_valid = sparsity_func(**state_dict)
+                    if not is_state_valid:
+                        continue
+                    else:
+                        state_space_list += [state]
 
-    state_space_wo_exog = np.array(state_space_wo_exog_list)
-    state_space_wo_exog_full = np.repeat(state_space_wo_exog, n_exog_states, axis=0)
-    exog_state_space_full = np.tile(
-        exog_state_space_raw, (state_space_wo_exog.shape[0], 1)
-    )
-    state_space_raw = np.concatenate(
-        (state_space_wo_exog_full, exog_state_space_full), axis=1
-    )
-
+    state_space_raw = np.array(state_space_list)
     state_space = create_array_with_smallest_int_dtype(state_space_raw)
     map_state_to_index = create_indexer_for_space(state_space)
 
     state_space_dict = {
         key: create_array_with_smallest_int_dtype(state_space[:, i])
-        for i, key in enumerate(states_names_without_exog + exog_states_names)
+        for i, key in enumerate(state_names)
     }
 
     exog_state_space = create_array_with_smallest_int_dtype(exog_state_space_raw)
@@ -240,7 +236,7 @@ def create_state_space(options):
         state_space,
         state_space_dict,
         map_state_to_index,
-        states_names_without_exog,
+        state_names_without_exog,
         exog_states_names,
         exog_state_space,
     )
