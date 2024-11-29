@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 from jax import vmap
 
+from dcegm.pre_processing.check_options import check_options_and_set_defaults
 from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.params import process_params
 from dcegm.pre_processing.setup_model import (
@@ -11,7 +12,6 @@ from dcegm.pre_processing.setup_model import (
     setup_model,
 )
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
-from dcegm.pre_processing.state_space import check_options_and_set_defaults
 from toy_models.cons_ret_model_dcegm_paper.budget_constraint import budget_constraint
 from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
     create_state_space_function_dict,

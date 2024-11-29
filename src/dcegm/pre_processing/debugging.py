@@ -3,7 +3,7 @@ from typing import Dict
 import numpy as np
 import pandas as pd
 
-from dcegm.pre_processing.state_space import (
+from dcegm.pre_processing.model_structure.state_space import (
     process_endog_state_specifications,
     process_exog_model_specifications,
 )

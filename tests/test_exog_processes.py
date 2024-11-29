@@ -7,10 +7,12 @@ import numpy as np
 import pytest
 from numpy.testing import assert_almost_equal as aaae
 
-from dcegm.pre_processing.exog_processes import create_exog_state_mapping
+from dcegm.pre_processing.check_options import check_options_and_set_defaults
 from dcegm.pre_processing.model_functions import process_model_functions
-from dcegm.pre_processing.state_space import (
-    check_options_and_set_defaults,
+from dcegm.pre_processing.model_structure.exog_processes import (
+    create_exog_state_mapping,
+)
+from dcegm.pre_processing.model_structure.state_space import (
     create_discrete_state_space_and_choice_objects,
 )
 from toy_models.cons_ret_model_dcegm_paper.budget_constraint import budget_constraint
