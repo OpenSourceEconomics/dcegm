@@ -4,7 +4,6 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from dcegm.pre_processing.model_structure.checks import test_child_state_mapping
 from dcegm.pre_processing.model_structure.endogenous_states import (
     process_endog_state_specifications,
 )
@@ -37,33 +36,23 @@ def create_model_structure(
 
     """
     print("Starting state space creation")
-    dict_of_state_space_objects = create_state_space(options)
+    state_space_objects = create_state_space(options)
     print("State space created.\n")
     print("Starting state-choice space creation and child state mapping.")
 
-    dict_of_state_choice_space_objects = (
+    state_choice_and_child_state_objects = (
         create_state_choice_space_and_child_state_mapping(
             state_space_options=options["state_space"],
             get_state_specific_choice_set=model_funcs["get_state_specific_choice_set"],
             get_next_period_state=model_funcs["get_next_period_state"],
-            dict_of_state_space_objects=dict_of_state_space_objects,
+            state_space_arrays=state_space_objects,
         )
     )
-    dict_of_state_space_objects.pop("map_child_state_to_index")
-
-    test_child_state_mapping(
-        state_space_options=options["state_space"],
-        state_choice_space=dict_of_state_choice_space_objects["state_choice_space"],
-        state_space=dict_of_state_space_objects["state_space"],
-        map_state_choice_to_child_states=dict_of_state_choice_space_objects[
-            "map_state_choice_to_child_states"
-        ],
-        discrete_states_names=dict_of_state_space_objects["discrete_states_names"],
-    )
+    state_space_objects.pop("map_child_state_to_index")
 
     model_structure = {
-        **dict_of_state_space_objects,
-        **dict_of_state_choice_space_objects,
+        **state_space_objects,
+        **state_choice_and_child_state_objects,
         "choice_range": jnp.asarray(options["state_space"]["choices"]),
     }
     return jax.tree.map(create_array_with_smallest_int_dtype, model_structure)
