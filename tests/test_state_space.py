@@ -227,22 +227,17 @@ def test_state_space():
     }
 
     state_space_test, _ = create_state_space_test(options_sparse["model_params"])
-    (
-        state_space,
-        state_space_dict,
-        map_state_to_index,
-        states_names_without_exog,
-        exog_states_names,
-        exog_state_space,
-    ) = create_state_space(options=options_sparse)
+    dict_of_state_space_objects = create_state_space(options=options_sparse)
+
+    state_space = dict_of_state_space_objects["state_space"]
+    discrete_states_names = dict_of_state_space_objects["discrete_states_names"]
 
     # The dcegm package create the state vector in the order of the dictionary keys.
     # How these are ordered is not clear ex ante.
     state_space_sums_test = state_space_test.sum(axis=0)
     state_space_sums = state_space.sum(axis=0)
     state_space_sum_dict = {
-        key: state_space_sums[i]
-        for i, key in enumerate(states_names_without_exog + exog_states_names)
+        key: state_space_sums[i] for i, key in enumerate(discrete_states_names)
     }
 
     np.testing.assert_allclose(state_space_sum_dict["period"], state_space_sums_test[0])
@@ -266,5 +261,5 @@ def test_state_space():
     state_space_df = inspect_state_space(options=options_sparse)
     admissible_df = state_space_df[state_space_df["is_feasible"]]
 
-    for i, column in enumerate(states_names_without_exog + exog_states_names):
+    for i, column in enumerate(discrete_states_names):
         np.testing.assert_allclose(admissible_df[column].values, state_space[:, i])

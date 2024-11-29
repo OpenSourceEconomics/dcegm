@@ -25,16 +25,13 @@ def create_discrete_state_space_and_choice_objects(
             - "transform_between_state_and_state_choice_vec" (callable)
 
     """
+    print("Starting state space creation")
+    dict_of_state_space_objects = create_state_space(options)
+    print("State space created.\n")
+    print("Starting state-choice space creation and child state mapping.")
 
-    (
-        state_space,
-        state_space_dict,
-        map_state_to_index,
-        states_names_without_exog,
-        exog_states_names,
-        exog_state_space,
-    ) = create_state_space(options)
-
+    discrete_states_names = dict_of_state_space_objects["discrete_states_names"]
+    state_space = dict_of_state_space_objects["state_space"]
     (
         state_choice_space,
         map_state_choice_to_index,
@@ -43,19 +40,23 @@ def create_discrete_state_space_and_choice_objects(
     ) = create_state_choice_space(
         state_space_options=options["state_space"],
         state_space=state_space,
-        states_names_without_exog=states_names_without_exog,
-        exog_state_names=exog_states_names,
-        exog_state_space=exog_state_space,
-        map_state_to_index=map_state_to_index,
+        states_names_without_exog=dict_of_state_space_objects[
+            "state_names_without_exog"
+        ],
+        exog_state_names=dict_of_state_space_objects["exog_states_names"],
+        exog_state_space=dict_of_state_space_objects["exog_state_space"],
+        map_child_state_to_index=dict_of_state_space_objects[
+            "map_child_state_to_index"
+        ],
+        map_state_to_index=dict_of_state_space_objects["map_state_to_index"],
         get_state_specific_choice_set=model_funcs["get_state_specific_choice_set"],
         get_next_period_state=model_funcs["get_next_period_state"],
     )
+    dict_of_state_space_objects.pop("map_child_state_to_index")
 
     state_choice_space_dict = {
         key: state_choice_space[:, i]
-        for i, key in enumerate(
-            states_names_without_exog + exog_states_names + ["choice"]
-        )
+        for i, key in enumerate(discrete_states_names + ["choice"])
     }
 
     test_state_space_objects(
@@ -63,18 +64,12 @@ def create_discrete_state_space_and_choice_objects(
         state_choice_space=state_choice_space,
         state_space=state_space,
         map_state_choice_to_child_states=map_state_choice_to_child_states,
-        discrete_states_names=states_names_without_exog + exog_states_names,
+        discrete_states_names=discrete_states_names,
     )
 
     model_structure = {
-        "state_space": state_space,
+        **dict_of_state_space_objects,
         "choice_range": jnp.asarray(options["state_space"]["choices"]),
-        "state_space_dict": state_space_dict,
-        "map_state_to_index": map_state_to_index,
-        "exog_state_space": exog_state_space,
-        "states_names_without_exog": states_names_without_exog,
-        "exog_states_names": exog_states_names,
-        "discrete_states_names": states_names_without_exog + exog_states_names,
         "state_choice_space": state_choice_space,
         "state_choice_space_dict": state_choice_space_dict,
         "map_state_choice_to_index": map_state_choice_to_index,
@@ -153,7 +148,7 @@ def create_state_space(options):
         options (dict): Options dictionary.
 
     Returns:
-        tuple:
+        Dict:
 
         - state_vars (list): List of state variables.
         - state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
@@ -169,6 +164,9 @@ def create_state_space(options):
             (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
 
     """
+
+    def dummy_func_proxy(**kwargs):
+        return kwargs
 
     state_space_options = options["state_space"]
     model_params = options["model_params"]
@@ -190,11 +188,14 @@ def create_state_space(options):
         exog_states_names,
         exog_state_space_raw,
     ) = process_exog_model_specifications(state_space_options=state_space_options)
-    state_names = state_names_without_exog + exog_states_names
+    discrete_states_names = state_names_without_exog + exog_states_names
 
     n_exog_states = exog_state_space_raw.shape[0]
 
     state_space_list = []
+    list_of_states_proxied_from = []
+    list_of_states_proxied_to = []
+    proxies_exist = False
 
     for period in range(n_periods):
         for endog_state_id in range(n_endog_states):
@@ -210,36 +211,94 @@ def create_state_space(options):
 
                     # Transform to dictionary to call sparsity function from user
                     state_dict = {
-                        state_names[i]: state_value
+                        discrete_states_names[i]: state_value
                         for i, state_value in enumerate(state)
                     }
 
                     # Check if the state is valid by calling the sparsity function
-                    is_state_valid = sparsity_func(**state_dict)
-                    if not is_state_valid:
-                        continue
+                    state_is_valid = sparsity_func(**state_dict)
+
+                    # Check if state is proxied, by first applying proxy function and
+                    # then checking if states are the same
+                    state_dict_of_proxy = dummy_func_proxy(**state_dict)
+                    is_state_proxied = state_dict_of_proxy != state_dict
+
+                    if is_state_proxied:
+                        if state_is_valid:
+                            raise ValueError(
+                                f"\n\n The state \n\n{state_dict}\n\n is proxied but valid"
+                                f"according to the sparsity condition. If a state is proxied"
+                                f"it should not be valid according to the sparsity condition."
+                            )
+                        else:
+                            proxies_exist = True
+                            list_of_states_proxied_from += [state]
+                            state_list_proxied_to = [
+                                state_dict_of_proxy[key]
+                                for key in discrete_states_names
+                            ]
+                            list_of_states_proxied_to += [state_list_proxied_to]
                     else:
-                        state_space_list += [state]
+                        if not state_is_valid:
+                            continue
+                        else:
+                            state_space_list += [state]
 
     state_space_raw = np.array(state_space_list)
     state_space = create_array_with_smallest_int_dtype(state_space_raw)
     map_state_to_index = create_indexer_for_space(state_space)
 
+    if proxies_exist:
+        # If proxies exist we create a different indexer, to map
+        # the child states of state choices later to proxied states
+        map_state_to_index_with_proxies = create_indexer_inclucing_proxies(
+            map_state_to_index, list_of_states_proxied_from, list_of_states_proxied_to
+        )
+        map_child_state_to_index = map_state_to_index_with_proxies
+    else:
+        map_child_state_to_index = map_state_to_index
+
     state_space_dict = {
         key: create_array_with_smallest_int_dtype(state_space[:, i])
-        for i, key in enumerate(state_names)
+        for i, key in enumerate(discrete_states_names)
     }
 
     exog_state_space = create_array_with_smallest_int_dtype(exog_state_space_raw)
 
-    return (
-        state_space,
-        state_space_dict,
-        map_state_to_index,
-        state_names_without_exog,
-        exog_states_names,
-        exog_state_space,
+    dict_of_state_space_objects = {
+        "state_space": state_space,
+        "state_space_dict": state_space_dict,
+        "map_state_to_index": map_state_to_index,
+        "map_child_state_to_index": map_child_state_to_index,
+        "exog_state_space": exog_state_space,
+        "exog_states_names": exog_states_names,
+        "state_names_without_exog": state_names_without_exog,
+        "discrete_states_names": discrete_states_names,
+    }
+
+    return dict_of_state_space_objects
+
+
+def create_indexer_inclucing_proxies(
+    map_state_to_index, list_of_states_proxied_from, list_of_states_proxied_to
+):
+    """Create an indexer that includes the index of proxied invalid states."""
+    array_of_states_proxied_from = np.array(list_of_states_proxied_from)
+    array_of_states_proxied_to = np.array(list_of_states_proxied_to)
+
+    tuple_of_states_proxied_from = tuple(
+        array_of_states_proxied_from[:, i]
+        for i in range(array_of_states_proxied_from.shape[1])
     )
+    tuple_of_states_proxied_to = tuple(
+        array_of_states_proxied_to[:, i]
+        for i in range(array_of_states_proxied_to.shape[1])
+    )
+    map_state_to_index_with_proxies = map_state_to_index.copy()
+    map_state_to_index_with_proxies[tuple_of_states_proxied_from] = map_state_to_index[
+        tuple_of_states_proxied_to
+    ]
+    return map_state_to_index_with_proxies
 
 
 def create_state_choice_space(
@@ -248,6 +307,7 @@ def create_state_choice_space(
     exog_state_space,
     states_names_without_exog,
     exog_state_names,
+    map_child_state_to_index,
     map_state_to_index,
     get_state_specific_choice_set,
     get_next_period_state,
@@ -322,7 +382,7 @@ def create_state_choice_space(
         dtype=state_choice_space_dtype,
     )
 
-    state_space_indexer_dtype = map_state_to_index.dtype
+    state_space_indexer_dtype = map_child_state_to_index.dtype
     invalid_indexer_idx = np.iinfo(state_space_indexer_dtype).max
 
     map_state_choice_to_parent_state = np.zeros(
@@ -342,10 +402,12 @@ def create_state_choice_space(
         state_idx = map_state_to_index[tuple(state_vec)]
 
         # Full state dictionary
-        state_dict = {key: state_vec[i] for i, key in enumerate(discrete_states_names)}
+        this_period_state = {
+            key: state_vec[i] for i, key in enumerate(discrete_states_names)
+        }
 
         feasible_choice_set = get_state_specific_choice_set(
-            **state_dict,
+            **this_period_state,
         )
 
         for choice in feasible_choice_set:
@@ -356,31 +418,30 @@ def create_state_choice_space(
 
             if state_vec[0] < n_periods - 1:
 
-                # Current state without exog
-                state_dict_without_exog = {
-                    key: state_dict[key] for key in states_names_without_exog
-                }
-
                 endog_state_update = get_next_period_state(
-                    **state_dict_without_exog, choice=choice
+                    **this_period_state, choice=choice
                 )
 
-                state_dict_without_exog.update(endog_state_update)
+                check_endog_update_function(
+                    endog_state_update, this_period_state, choice, exog_state_names
+                )
 
-                states_next_tuple = (
-                    tuple(
-                        np.full(
-                            n_exog_states,
-                            fill_value=state_dict_without_exog[key],
-                            dtype=dtype_exog_state_space,
-                        )
-                        for key in states_names_without_exog
+                next_period_state = this_period_state.copy()
+                next_period_state.update(endog_state_update)
+
+                next_period_state_tuple_wo_exog = tuple(
+                    np.full(
+                        n_exog_states,
+                        fill_value=next_period_state[key],
+                        dtype=dtype_exog_state_space,
                     )
-                    + exog_states_tuple
+                    for key in states_names_without_exog
                 )
+
+                states_next_tuple = next_period_state_tuple_wo_exog + exog_states_tuple
 
                 try:
-                    child_idxs = map_state_to_index[states_next_tuple]
+                    child_idxs = map_child_state_to_index[states_next_tuple]
                 except:
                     raise IndexError(
                         f"\n\n The state \n\n{endog_state_update}\n\n is reached as a "
@@ -403,6 +464,36 @@ def create_state_choice_space(
         map_state_choice_to_parent_state[:idx],
         map_state_choice_to_child_states[:idx, :],
     )
+
+
+def check_endog_update_function(
+    endog_state_update, this_period_state, choice, exog_state_names
+):
+    """Conduct several checks on the endogenous state update function."""
+    if endog_state_update["period"] != this_period_state["period"] + 1:
+        raise ValueError(
+            f"\n\n The update function does not return the correct next period count."
+            f"An example of this update happens with the state choice combination: \n\n"
+            f"{this_period_state} \n\n"
+        )
+
+    if endog_state_update["lagged_choice"] != choice:
+        raise ValueError(
+            f"\n\n The update function does not return the correct lagged choice for a given choice."
+            f"An example of this update happens with the state choice combination: \n\n"
+            f"{this_period_state} \n\n"
+        )
+
+    # Check if exogenous state is updated. This is forbidden.
+    for exog_state_name in exog_state_names:
+        if exog_state_name in endog_state_update.keys():
+            raise ValueError(
+                f"\n\n The exogenous state {exog_state_name} is also updated (or just returned)"
+                f"for in the endogenous update function. You can use the proxy function to implement"
+                f"a custom update rule, i.e. redirecting the exogenous process."
+                f"An example of this update happens with the state choice combination: \n\n"
+                f"{this_period_state} \n\n"
+            )
 
 
 def process_exog_model_specifications(state_space_options):

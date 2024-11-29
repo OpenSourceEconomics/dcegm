@@ -66,6 +66,9 @@ def setup_model(
         model_structure["exog_states_names"],
     )
 
+    print("State, state-choice and child state mapping created.\n")
+    print("Start creating batches for the model.")
+
     batch_info = create_batches_and_information(
         model_structure=model_structure,
         options=options,
@@ -73,6 +76,7 @@ def setup_model(
     # Delete large array which is not needed
     model_structure.pop("map_state_choice_to_child_states")
 
+    print("Model setup complete.\n")
     return {
         "options": options,
         "model_funcs": model_funcs,
