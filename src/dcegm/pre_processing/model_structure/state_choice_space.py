@@ -5,7 +5,7 @@ from dcegm.pre_processing.model_structure.shared import create_indexer_for_space
 from dcegm.pre_processing.shared import get_smallest_int_type
 
 
-def create_state_choice_space(
+def create_state_choice_space_and_child_state_mapping(
     state_space_options,
     get_state_specific_choice_set,
     get_next_period_state,

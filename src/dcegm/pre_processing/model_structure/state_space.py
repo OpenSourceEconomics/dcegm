@@ -13,7 +13,7 @@ from dcegm.pre_processing.model_structure.exog_processes import (
 )
 from dcegm.pre_processing.model_structure.shared import create_indexer_for_space
 from dcegm.pre_processing.model_structure.state_choice_space import (
-    create_state_choice_space,
+    create_state_choice_space_and_child_state_mapping,
 )
 from dcegm.pre_processing.shared import create_array_with_smallest_int_dtype
 
@@ -41,11 +41,13 @@ def create_model_structure(
     print("State space created.\n")
     print("Starting state-choice space creation and child state mapping.")
 
-    dict_of_state_choice_space_objects = create_state_choice_space(
-        state_space_options=options["state_space"],
-        get_state_specific_choice_set=model_funcs["get_state_specific_choice_set"],
-        get_next_period_state=model_funcs["get_next_period_state"],
-        dict_of_state_space_objects=dict_of_state_space_objects,
+    dict_of_state_choice_space_objects = (
+        create_state_choice_space_and_child_state_mapping(
+            state_space_options=options["state_space"],
+            get_state_specific_choice_set=model_funcs["get_state_specific_choice_set"],
+            get_next_period_state=model_funcs["get_next_period_state"],
+            dict_of_state_space_objects=dict_of_state_space_objects,
+        )
     )
     dict_of_state_space_objects.pop("map_child_state_to_index")
 
