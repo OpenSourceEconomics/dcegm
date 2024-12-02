@@ -150,11 +150,27 @@ def create_state_choice_space_and_child_state_mapping(
                     child_idxs = map_child_state_to_index[states_next_tuple]
                 except:
                     raise IndexError(
-                        f"\n\n The state \n\n{endog_state_update}\n\n is reached as a "
-                        f"child state from an existing state, but does not exist for "
-                        f"some values of the exogenous processes. Please check if it "
-                        f"should not be reached or should exist by adapting the "
-                        f"sparsity condition and/or the set of possible state values."
+                        f"\n\n The state \n\n{endog_state_update}\n\n is a child state of"
+                        f"the state-choice combination \n\n{this_period_state}\n\n with choice: "
+                        f"{choice}.\n\n The state variables are out of bounds for the defined state space"
+                        f"Please check the possible state values in the state space definition."
+                    )
+
+                invalid_child_state_idxs = np.where(child_idxs == invalid_indexer_idx)[
+                    0
+                ]
+                if len(invalid_child_state_idxs) > 0:
+                    invalid_child_state_example = states_next_tuple[
+                        invalid_child_state_idxs[0]
+                    ]
+                    raise IndexError(
+                        f"\n\n The state \n\n{invalid_child_state_example}\n\n is a child state of "
+                        f"the state-choice combination \n\n{this_period_state}\n\n with choice: "
+                        f"{choice}.\n\n It is also declared invalid by the sparsity condition. Please"
+                        f"remember, that if a state is invalid because it can't be reached by the deterministic"
+                        f"update of states, this has to be reflected in the state space function get_next_period_state."
+                        f"If its exogenous state realization is invalid, this state has to be proxied to another state"
+                        f"by the sparsity condition."
                     )
 
                 map_state_choice_to_child_states[idx, :] = child_idxs
