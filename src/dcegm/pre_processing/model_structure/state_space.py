@@ -38,9 +38,6 @@ def create_state_space(options):
 
     """
 
-    def dummy_func_proxy(**kwargs):
-        return kwargs
-
     state_space_options = options["state_space"]
     model_params = options["model_params"]
 
@@ -89,33 +86,47 @@ def create_state_space(options):
                     }
 
                     # Check if the state is valid by calling the sparsity function
-                    state_is_valid = sparsity_func(**state_dict)
+                    sparsity_output = sparsity_func(**state_dict)
 
-                    # Check if state is proxied, by first applying proxy function and
-                    # then checking if states are the same
-                    state_dict_of_proxy = dummy_func_proxy(**state_dict)
-                    is_state_proxied = state_dict_of_proxy != state_dict
-
-                    if is_state_proxied:
-                        if state_is_valid:
+                    # The sparsity condition can either return a boolean indicating if the state
+                    # is valid or not, or a dictionary which contains the valid state which is used
+                    # instead as a child state for other states. If a state is invalid because of the
+                    # exogenous state component, the user must specify a valid state to use instead, as
+                    # we assume a state choice combination has n_exog_states children.
+                    # We do check later if the user correctly specified the proxy state. Here we just check
+                    # the format of the output.
+                    if isinstance(sparsity_output, dict):
+                        # Check if dictionary keys are the same and the items are ints
+                        if set(sparsity_output.keys()) != set(
+                            discrete_states_names
+                        ) or not all(
+                            isinstance(value, int) for value in sparsity_output.values()
+                        ):
                             raise ValueError(
-                                f"\n\n The state \n\n{state_dict}\n\n is proxied but valid"
-                                f"according to the sparsity condition. If a state is proxied"
-                                f"it should not be valid according to the sparsity condition."
+                                f" The state \n\n{sparsity_output}\n\n returned by the sparsity condition"
+                                f"does not have the correct format. The dictionary keys should be the same as"
+                                f"the discrete state names: \n\n{discrete_states_names}\n\n and the values should "
+                                f"be integers."
                             )
                         else:
+                            state_is_valid = False
                             proxies_exist = True
                             list_of_states_proxied_from += [state]
                             state_list_proxied_to = [
-                                state_dict_of_proxy[key]
-                                for key in discrete_states_names
+                                sparsity_output[key] for key in discrete_states_names
                             ]
                             list_of_states_proxied_to += [state_list_proxied_to]
+                    elif isinstance(sparsity_output, bool):
+                        state_is_valid = sparsity_output
                     else:
-                        if not state_is_valid:
-                            continue
-                        else:
-                            state_space_list += [state]
+                        raise ValueError(
+                            f"The sparsity condition for the state \n\n{state_dict}\n\n"
+                            f"returned an output of the wrong type. It should return either a boolean"
+                            f"or a dictionary."
+                        )
+
+                    if state_is_valid:
+                        state_space_list += [state]
 
     state_space_raw = np.array(state_space_list)
     state_space = create_array_with_smallest_int_dtype(state_space_raw)
