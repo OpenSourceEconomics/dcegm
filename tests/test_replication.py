@@ -3,6 +3,7 @@ from pathlib import Path
 
 import jax.numpy as jnp
 import pytest
+import yaml
 from numpy.testing import assert_array_almost_equal as aaae
 
 from dcegm.pre_processing.setup_model import setup_model
@@ -27,7 +28,6 @@ from toy_models.cons_ret_model_dcegm_paper.utility_functions_log_crra import (
 # Obtain the test directory of the package
 TEST_DIR = Path(__file__).parent
 
-# Directory with additional resources for the testing harness
 REPLICATION_TEST_RESOURCES_DIR = TEST_DIR / "resources" / "replication_tests"
 
 
@@ -39,18 +39,15 @@ REPLICATION_TEST_RESOURCES_DIR = TEST_DIR / "resources" / "replication_tests"
         "deaton",
     ],
 )
-def test_benchmark_models(
-    model_name,
-    load_example_model,
-):
+def test_benchmark_models(model_name, load_replication_params_and_specs):
+    params, model_specs = load_replication_params_and_specs(model_name)
     options = {}
-    params, _raw_options = load_example_model(f"{model_name}")
 
-    options["model_params"] = _raw_options
-    options["model_params"]["n_choices"] = _raw_options["n_discrete_choices"]
+    options["model_params"] = model_specs
+    options["model_params"]["n_choices"] = model_specs["n_discrete_choices"]
     options["state_space"] = {
         "n_periods": 25,
-        "choices": [i for i in range(_raw_options["n_discrete_choices"])],
+        "choices": [i for i in range(model_specs["n_discrete_choices"])],
         "continuous_states": {
             "wealth": jnp.linspace(
                 0,

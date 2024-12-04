@@ -150,9 +150,9 @@ def create_state_choice_space_and_child_state_mapping(
                     child_idxs = map_child_state_to_index[states_next_tuple]
                 except:
                     raise IndexError(
-                        f"\n\n The state \n\n{endog_state_update}\n\n is a child state of"
+                        f"\n\n The state \n\n{endog_state_update}\n\n is a child state of "
                         f"the state-choice combination \n\n{this_period_state}\n\n with choice: "
-                        f"{choice}.\n\n The state variables are out of bounds for the defined state space"
+                        f"{choice}.\n\n The state variables are out of bounds for the defined state space "
                         f"Please check the possible state values in the state space definition."
                     )
 

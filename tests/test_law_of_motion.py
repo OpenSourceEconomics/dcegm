@@ -100,9 +100,14 @@ TEST_CASES = list(product(model, period, labor_choice, max_wealth, n_grid_points
     "model, period, labor_choice, max_wealth, n_grid_points", TEST_CASES
 )
 def test_get_beginning_of_period_wealth(
-    model, period, labor_choice, max_wealth, n_grid_points, load_example_model
+    model,
+    period,
+    labor_choice,
+    max_wealth,
+    n_grid_points,
+    load_replication_params_and_specs,
 ):
-    params, options = load_example_model(f"{model}")
+    params, options = load_replication_params_and_specs(f"{model}")
     params["part_time"] = -1
 
     params = process_params(params)
@@ -153,13 +158,13 @@ TEST_CASES_SECOND_CONTINUOUS = list(product(model, max_wealth, n_grid_points))
     "model, max_wealth, n_grid_points", TEST_CASES_SECOND_CONTINUOUS
 )
 def test_wealth_and_second_continuous_state(
-    model, max_wealth, n_grid_points, load_example_model
+    model, max_wealth, n_grid_points, load_replication_params_and_specs
 ):
 
     # parametrize over number of experience points
     n_exp_points = 10
 
-    params, options = load_example_model(f"{model}")
+    params, options = load_replication_params_and_specs(f"{model}")
 
     options["working_hours_max"] = 3000
     params["part_time"] = -1

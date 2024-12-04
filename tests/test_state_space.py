@@ -12,9 +12,9 @@ from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
 
 
 @pytest.fixture()
-def options(load_example_model):
+def options(load_replication_params_and_specs):
     """Return options dictionary."""
-    _, _raw_options = load_example_model("retirement_no_taste_shocks")
+    _, _raw_options = load_replication_params_and_specs("retirement_no_taste_shocks")
     _raw_options["n_choices"] = 2
     options = {}
 

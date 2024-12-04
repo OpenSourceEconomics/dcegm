@@ -45,8 +45,8 @@ def util_wrap(state_dict, params, util_func):
     return util_func(**state_dict, params=params)
 
 
-def test_wrap_function(load_example_model):
-    params, _raw_options = load_example_model("deaton")
+def test_wrap_function(load_replication_params_and_specs):
+    params, _raw_options = load_replication_params_and_specs("deaton")
     options = {}
 
     options["model_params"] = _raw_options
@@ -101,9 +101,9 @@ def test_wrap_function(load_example_model):
 )
 def test_missing_parameter(
     model_name,
-    load_example_model,
+    load_replication_params_and_specs,
 ):
-    params, _ = load_example_model(f"{model_name}")
+    params, _ = load_replication_params_and_specs(f"{model_name}")
 
     params.pop("interest_rate")
     params.pop("sigma")
@@ -129,10 +129,10 @@ def test_missing_parameter(
 )
 def test_load_and_save_model(
     model_name,
-    load_example_model,
+    load_replication_params_and_specs,
 ):
     options = {}
-    _params, _raw_options = load_example_model(f"{model_name}")
+    _params, _raw_options = load_replication_params_and_specs(f"{model_name}")
 
     options["model_params"] = _raw_options
     options["model_params"]["n_choices"] = _raw_options["n_discrete_choices"]
