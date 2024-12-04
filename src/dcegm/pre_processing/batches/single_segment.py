@@ -3,7 +3,7 @@ import numpy as np
 from dcegm.pre_processing.batches.algo_batch_size import determine_optimal_batch_size
 
 
-def create_single_segment_of_batches(idx_state_choices_to_batch, model_structure):
+def create_single_segment_of_batches(bool_state_choices_to_batch, model_structure):
     """Create a single segment of evenly sized batches. If the last batch is not evenly
     we correct it.
     """
@@ -27,7 +27,7 @@ def create_single_segment_of_batches(idx_state_choices_to_batch, model_structure
         child_state_choices_to_aggr_choice_list,
         child_states_to_integrate_exog_list,
     ) = determine_optimal_batch_size(
-        idx_state_choices_to_batch=idx_state_choices_to_batch,
+        bool_state_choices_to_batch=bool_state_choices_to_batch,
         state_choice_space=state_choice_space,
         map_state_choice_to_child_states=map_state_choice_to_child_states,
         map_state_choice_to_index=map_state_choice_to_index,

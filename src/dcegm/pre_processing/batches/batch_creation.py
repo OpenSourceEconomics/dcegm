@@ -60,12 +60,12 @@ def create_batches_and_information(
         return batch_info
 
     state_choice_space = model_structure["state_choice_space"]
-    idx_state_choices_to_batch = state_choice_space[:, 0] < n_periods - 2
+    bool_state_choices_to_batch = state_choice_space[:, 0] < n_periods - 2
 
     if "min_period_batch_segments" not in state_space_options.keys():
 
         single_batch_segment_info = create_single_segment_of_batches(
-            idx_state_choices_to_batch, model_structure
+            bool_state_choices_to_batch, model_structure
         )
         segment_infos = {
             "n_segments": 1,
@@ -106,16 +106,16 @@ def create_batches_and_information(
             period_to_split = min_periods_to_split[-id_segment - 1]
 
             split_cond = state_choice_space[:, 0] < period_to_split
-            idx_state_choices_segment = idx_state_choices_to_batch & (~split_cond)
-            idx_state_choices_to_batch = idx_state_choices_to_batch & split_cond
+            bool_state_choices_segment = bool_state_choices_to_batch & (~split_cond)
+            bool_state_choices_to_batch = bool_state_choices_to_batch & split_cond
 
             segment_batch_info = create_single_segment_of_batches(
-                idx_state_choices_segment, model_structure
+                bool_state_choices_segment, model_structure
             )
             segment_infos[f"batches_info_segment_{id_segment}"] = segment_batch_info
 
         last_segment_batch_info = create_single_segment_of_batches(
-            idx_state_choices_to_batch, model_structure
+            bool_state_choices_to_batch, model_structure
         )
 
         # We loop until n_segments - 2 and then add the last segment

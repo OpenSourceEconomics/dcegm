@@ -158,10 +158,23 @@ def test_benchmark_models(load_replication_params_and_specs):
         utility_functions_final_period=model_funcs["final_period_utility_functions"],
         budget_constraint=model_funcs["budget_constraint"],
     )
-    # breakpoint()
+
     aaae(endog_grid_full[full_idxs], endog_grid_sep_1)
     aaae(value_full[full_idxs], value_sep_1)
     aaae(policy_full[full_idxs], policy_sep_1)
 
-    # options_sep_twice = options_sparse.copy()
-    # options_sep_twice["min_period_batch_segments"] = 20
+    options_sep_twice = options_sparse.copy()
+    options_sep_twice["state_space"]["min_period_batch_segments"] = [15, 20]
+
+    value_sep_2, policy_sep_2, endog_grid_sep_2 = solve_dcegm(
+        params=params,
+        options=options_sep_twice,
+        state_space_functions=model_funcs["state_space_functions"],
+        utility_functions=model_funcs["utility_functions"],
+        utility_functions_final_period=model_funcs["final_period_utility_functions"],
+        budget_constraint=model_funcs["budget_constraint"],
+    )
+
+    aaae(endog_grid_full[full_idxs], endog_grid_sep_2)
+    aaae(value_full[full_idxs], value_sep_2)
+    aaae(policy_full[full_idxs], policy_sep_2)
