@@ -275,54 +275,55 @@ def backward_induction(
             taste_shock_scale=taste_shock_scale,
         )
 
-    segment_info = batch_info["batches_info_segment_0"]
+    for id_segment in range(batch_info["n_segments"]):
+        segment_info = batch_info[f"batches_info_segment_{id_segment}"]
 
-    carry_start = (
-        value_solved,
-        policy_solved,
-        endog_grid_solved,
-    )
+        carry_start = (
+            value_solved,
+            policy_solved,
+            endog_grid_solved,
+        )
 
-    final_carry, _ = jax.lax.scan(
-        f=partial_single_period,
-        init=carry_start,
-        xs=(
-            segment_info["batches_state_choice_idx"],
-            segment_info["child_state_choices_to_aggr_choice"],
-            segment_info["child_states_to_integrate_exog"],
-            segment_info["child_state_choice_idxs_to_interp"],
-            segment_info["child_states_idxs"],
-            segment_info["state_choices"],
-            segment_info["state_choices_childs"],
-        ),
-    )
-
-    if not segment_info["batches_cover_all"]:
-        last_batch_info = segment_info["last_batch_info"]
-        extra_final_carry, () = partial_single_period(
-            carry=final_carry,
+        final_carry, _ = jax.lax.scan(
+            f=partial_single_period,
+            init=carry_start,
             xs=(
-                last_batch_info["state_choice_idx"],
-                last_batch_info["child_state_choices_to_aggr_choice"],
-                last_batch_info["child_states_to_integrate_exog"],
-                last_batch_info["child_state_choice_idxs_to_interp"],
-                last_batch_info["child_states_idxs"],
-                last_batch_info["state_choices"],
-                last_batch_info["state_choices_childs"],
+                segment_info["batches_state_choice_idx"],
+                segment_info["child_state_choices_to_aggr_choice"],
+                segment_info["child_states_to_integrate_exog"],
+                segment_info["child_state_choice_idxs_to_interp"],
+                segment_info["child_states_idxs"],
+                segment_info["state_choices"],
+                segment_info["state_choices_childs"],
             ),
         )
 
-        (
-            value_solved,
-            policy_solved,
-            endog_grid_solved,
-        ) = extra_final_carry
-    else:
-        (
-            value_solved,
-            policy_solved,
-            endog_grid_solved,
-        ) = final_carry
+        if not segment_info["batches_cover_all"]:
+            last_batch_info = segment_info["last_batch_info"]
+            extra_final_carry, () = partial_single_period(
+                carry=final_carry,
+                xs=(
+                    last_batch_info["state_choice_idx"],
+                    last_batch_info["child_state_choices_to_aggr_choice"],
+                    last_batch_info["child_states_to_integrate_exog"],
+                    last_batch_info["child_state_choice_idxs_to_interp"],
+                    last_batch_info["child_states_idxs"],
+                    last_batch_info["state_choices"],
+                    last_batch_info["state_choices_childs"],
+                ),
+            )
+
+            (
+                value_solved,
+                policy_solved,
+                endog_grid_solved,
+            ) = extra_final_carry
+        else:
+            (
+                value_solved,
+                policy_solved,
+                endog_grid_solved,
+            ) = final_carry
 
     return (
         value_solved,

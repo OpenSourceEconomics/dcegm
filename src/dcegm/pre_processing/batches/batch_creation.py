@@ -59,19 +59,25 @@ def create_batches_and_information(
 
         return batch_info
 
-    # if "split_model_calc" not in state_space_options.keys():
+    if "split_model_calc" not in state_space_options.keys():
 
-    state_choice_space = model_structure["state_choice_space"]
-    idx_state_choices_to_batch = state_choice_space[:, 0] < n_periods - 2
+        state_choice_space = model_structure["state_choice_space"]
+        idx_state_choices_to_batch = state_choice_space[:, 0] < n_periods - 2
 
-    single_batch_segment_info = create_single_segment_of_batches(
-        idx_state_choices_to_batch, model_structure
-    )
+        single_batch_segment_info = create_single_segment_of_batches(
+            idx_state_choices_to_batch, model_structure
+        )
+        segment_infos = {
+            "n_segments": 1,
+            "batches_info_segment_0": single_batch_segment_info,
+        }
+    else:
+        raise ValueError
 
     batch_info = {
         # First two bools determining the structure of solution functions we call
         "two_period_model": False,
-        "batches_info_segment_0": single_batch_segment_info,
+        **segment_infos,
         "last_two_period_info": last_two_period_info,
     }
 
