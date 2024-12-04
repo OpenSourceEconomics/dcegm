@@ -3,7 +3,6 @@ from pathlib import Path
 
 import jax.numpy as jnp
 import pytest
-import yaml
 from numpy.testing import assert_array_almost_equal as aaae
 
 from dcegm.pre_processing.setup_model import setup_model
@@ -12,18 +11,11 @@ from tests.utils.interp1d_auxiliary import (
     interpolate_policy_and_value_on_wealth_grid,
     linear_interpolation_with_extrapolation,
 )
-from toy_models.cons_ret_model_dcegm_paper.budget_constraint import budget_constraint
-from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
-    create_state_space_function_dict,
-)
-from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
-    create_final_period_utility_function_dict,
-    create_utility_function_dict,
-)
 from toy_models.cons_ret_model_dcegm_paper.utility_functions_log_crra import (
     utiility_log_crra,
     utiility_log_crra_final_consume_all,
 )
+from toy_models.load_example_model import load_example_models
 
 # Obtain the test directory of the package
 TEST_DIR = Path(__file__).parent
@@ -57,31 +49,30 @@ def test_benchmark_models(model_name, load_replication_params_and_specs):
         },
     }
 
-    utility_functions = create_utility_function_dict()
-    utility_functions_final_period = create_final_period_utility_function_dict()
+    model_funcs = load_example_models("dcegm_paper")
 
     if model_name == "deaton":
-        state_space_functions = None
-        utility_functions["utility"] = utiility_log_crra
-        utility_functions_final_period["utility"] = utiility_log_crra_final_consume_all
-    else:
-        state_space_functions = create_state_space_function_dict()
+        model_funcs["state_space_functions"] = None
+        model_funcs["utility_functions"]["utility"] = utiility_log_crra
+        model_funcs["final_period_utility_functions"][
+            "utility"
+        ] = utiility_log_crra_final_consume_all
 
     model = setup_model(
         options=options,
-        state_space_functions=state_space_functions,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
-        budget_constraint=budget_constraint,
+        state_space_functions=model_funcs["state_space_functions"],
+        utility_functions=model_funcs["utility_functions"],
+        utility_functions_final_period=model_funcs["final_period_utility_functions"],
+        budget_constraint=model_funcs["budget_constraint"],
     )
 
-    value, policy, endog_grid, *_ = solve_dcegm(
-        params,
-        options,
-        state_space_functions=state_space_functions,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
-        budget_constraint=budget_constraint,
+    value, policy, endog_grid = solve_dcegm(
+        params=params,
+        options=options,
+        state_space_functions=model_funcs["state_space_functions"],
+        utility_functions=model_funcs["utility_functions"],
+        utility_functions_final_period=model_funcs["final_period_utility_functions"],
+        budget_constraint=model_funcs["budget_constraint"],
     )
 
     policy_expected = pickle.load(

@@ -18,7 +18,7 @@ from dcegm.solve_single_period import solve_single_period
 
 
 def solve_dcegm(
-    params: pd.DataFrame,
+    params: Dict,
     options: Dict,
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
