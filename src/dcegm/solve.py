@@ -275,6 +275,8 @@ def backward_induction(
             taste_shock_scale=taste_shock_scale,
         )
 
+    segment_info = batch_info["batches_info_segment_0"]
+
     carry_start = (
         value_solved,
         policy_solved,
@@ -285,18 +287,18 @@ def backward_induction(
         f=partial_single_period,
         init=carry_start,
         xs=(
-            batch_info["batches_state_choice_idx"],
-            batch_info["child_state_choices_to_aggr_choice"],
-            batch_info["child_states_to_integrate_exog"],
-            batch_info["child_state_choice_idxs_to_interp"],
-            batch_info["child_states_idxs"],
-            batch_info["state_choices"],
-            batch_info["state_choices_childs"],
+            segment_info["batches_state_choice_idx"],
+            segment_info["child_state_choices_to_aggr_choice"],
+            segment_info["child_states_to_integrate_exog"],
+            segment_info["child_state_choice_idxs_to_interp"],
+            segment_info["child_states_idxs"],
+            segment_info["state_choices"],
+            segment_info["state_choices_childs"],
         ),
     )
 
-    if not batch_info["batches_cover_all"]:
-        last_batch_info = batch_info["last_batch_info"]
+    if not segment_info["batches_cover_all"]:
+        last_batch_info = segment_info["last_batch_info"]
         extra_final_carry, () = partial_single_period(
             carry=final_carry,
             xs=(

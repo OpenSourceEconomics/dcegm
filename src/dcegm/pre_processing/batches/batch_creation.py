@@ -71,7 +71,7 @@ def create_batches_and_information(
     batch_info = {
         # First two bools determining the structure of solution functions we call
         "two_period_model": False,
-        **single_batch_segment_info,
+        "batches_info_segment_0": single_batch_segment_info,
         "last_two_period_info": last_two_period_info,
     }
 
