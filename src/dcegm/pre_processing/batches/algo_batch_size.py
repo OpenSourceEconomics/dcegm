@@ -2,29 +2,29 @@ import numpy as np
 
 
 def determine_optimal_batch_size(
+    idx_state_choices_to_batch,
     state_choice_space,
-    n_periods,
     map_state_choice_to_child_states,
     map_state_choice_to_index,
     state_space,
     out_of_bounds_state_choice_idx,
 ):
+    # Get invalid state idx, by looking at the index mapping dtype
     invalid_state_idx = np.iinfo(map_state_choice_to_index.dtype).max
 
-    state_choice_space_wo_last_two = state_choice_space[
-        state_choice_space[:, 0] < n_periods - 2
-    ]
+    state_choice_space_to_batch = state_choice_space[idx_state_choices_to_batch]
 
-    # Filter out last period state_choice_ids
-    child_states_idx_backward = map_state_choice_to_child_states[
-        state_choice_space[:, 0] < n_periods - 2
+    child_states_of_state_choices_to_batch = map_state_choice_to_child_states[
+        idx_state_choices_to_batch
     ]
     # Order by child index to solve state choices in the same child states together
-    sort_index_by_child_states = np.argsort(child_states_idx_backward[:, 0])
-
-    state_choice_index_raw = np.arange(
-        state_choice_space_wo_last_two.shape[0], dtype=int
+    # Use first child state of the n_exog_states of each child states, because
+    # rows are the same in the child states mapping array
+    sort_index_by_child_states = np.argsort(
+        child_states_of_state_choices_to_batch[:, 0]
     )
+
+    state_choice_index_raw = np.arange(state_choice_space_to_batch.shape[0], dtype=int)
     state_choice_index_back = np.take(
         state_choice_index_raw, sort_index_by_child_states, axis=0
     )
@@ -32,7 +32,7 @@ def determine_optimal_batch_size(
     n_state_vars = state_space.shape[1]
 
     size_last_period = state_choice_space[
-        state_choice_space[:, 0] == state_choice_space_wo_last_two[-1, 0]
+        state_choice_space[:, 0] == state_choice_space_to_batch[-1, 0]
     ].shape[0]
 
     batch_not_found = True

@@ -77,14 +77,16 @@ def create_batches_and_information(
 
         return batch_info
 
+    idx_state_choices_to_batch = state_choice_space[:, 0] < n_periods - 2
+
     (
         batches_list,
         child_state_choice_idxs_to_interp_list,
         child_state_choices_to_aggr_choice_list,
         child_states_to_integrate_exog_list,
     ) = determine_optimal_batch_size(
+        idx_state_choices_to_batch=idx_state_choices_to_batch,
         state_choice_space=state_choice_space,
-        n_periods=n_periods,
         map_state_choice_to_child_states=map_state_choice_to_child_states,
         map_state_choice_to_index=map_state_choice_to_index,
         state_space=state_space,
