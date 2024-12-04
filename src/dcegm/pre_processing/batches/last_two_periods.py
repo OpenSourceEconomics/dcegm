@@ -3,13 +3,21 @@ import numpy as np
 
 def add_last_two_period_information(
     n_periods,
-    state_choice_space,
-    map_state_choice_to_parent_state,
-    map_state_choice_to_child_states,
-    map_state_choice_to_index,
-    discrete_states_names,
-    state_space,
+    model_structure,
 ):
+    state_choice_space = model_structure["state_choice_space"]
+
+    state_space = model_structure["state_space"]
+    discrete_states_names = model_structure["discrete_states_names"]
+
+    map_state_choice_to_parent_state = model_structure[
+        "map_state_choice_to_parent_state"
+    ]
+    map_state_choice_to_child_states = model_structure[
+        "map_state_choice_to_child_states"
+    ]
+    map_state_choice_to_index = model_structure["map_state_choice_to_index"]
+
     # Select state_choice idxs in final period
     idx_state_choice_final_period = np.where(state_choice_space[:, 0] == n_periods - 1)[
         0
