@@ -59,10 +59,10 @@ def create_batches_and_information(
 
         return batch_info
 
-    if "split_model_calc" not in state_space_options.keys():
+    state_choice_space = model_structure["state_choice_space"]
+    idx_state_choices_to_batch = state_choice_space[:, 0] < n_periods - 2
 
-        state_choice_space = model_structure["state_choice_space"]
-        idx_state_choices_to_batch = state_choice_space[:, 0] < n_periods - 2
+    if "split_model_calc" not in state_space_options.keys():
 
         single_batch_segment_info = create_single_segment_of_batches(
             idx_state_choices_to_batch, model_structure
@@ -71,8 +71,29 @@ def create_batches_and_information(
             "n_segments": 1,
             "batches_info_segment_0": single_batch_segment_info,
         }
+
+    elif isinstance(state_space_options["split_model_calc"], int):
+        period_to_split = state_space_options["split_model_calc"]
+
+        split_cond = state_choice_space[:, 0] < period_to_split
+        idx_state_choices_segment_0 = idx_state_choices_to_batch & (~split_cond)
+        idx_state_choices_segment_1 = idx_state_choices_to_batch & split_cond
+
+        segment_0_batch_info = create_single_segment_of_batches(
+            idx_state_choices_segment_0, model_structure
+        )
+        segment_1_batch_info = create_single_segment_of_batches(
+            idx_state_choices_segment_1, model_structure
+        )
+
+        segment_infos = {
+            "n_segments": 2,
+            "batches_info_segment_0": segment_0_batch_info,
+            "batches_info_segment_1": segment_1_batch_info,
+        }
+
     else:
-        raise ValueError
+        raise ValueError("So far only int separation is supported.")
 
     batch_info = {
         # First two bools determining the structure of solution functions we call
