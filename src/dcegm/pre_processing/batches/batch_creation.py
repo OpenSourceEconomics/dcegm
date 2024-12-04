@@ -47,8 +47,6 @@ def create_batches_and_information(
     n_periods = state_space_options["n_periods"]
     state_choice_space = model_structure["state_choice_space"]
 
-    out_of_bounds_state_choice_idx = state_choice_space.shape[0] + 1
-
     state_space = model_structure["state_space"]
     discrete_states_names = model_structure["discrete_states_names"]
 
@@ -93,16 +91,72 @@ def create_batches_and_information(
         map_state_choice_to_child_states=map_state_choice_to_child_states,
         map_state_choice_to_index=map_state_choice_to_index,
         state_space=state_space,
-        out_of_bounds_state_choice_idx=out_of_bounds_state_choice_idx,
     )
 
+    (
+        batches_list,
+        child_states_to_integrate_exog_list,
+        child_state_choices_to_aggr_choice_list,
+        child_state_choice_idxs_to_interp_list,
+        batches_cover_all,
+        last_batch_info,
+    ) = correct_for_uneven_last_batch(
+        batches_list,
+        child_states_to_integrate_exog_list,
+        child_state_choices_to_aggr_choice_list,
+        child_state_choice_idxs_to_interp_list,
+        state_choice_space,
+        map_state_choice_to_parent_state,
+        discrete_states_names,
+    )
+
+    single_batch_segment_info = prepare_and_align_batch_arrays(
+        batches_list,
+        child_states_to_integrate_exog_list,
+        child_state_choices_to_aggr_choice_list,
+        child_state_choice_idxs_to_interp_list,
+        state_choice_space,
+        map_state_choice_to_parent_state,
+        discrete_states_names,
+    )
+    single_batch_segment_info["batches_cover_all"] = batches_cover_all
+    if not batches_cover_all:
+        single_batch_segment_info["last_batch_info"] = last_batch_info
+
+    batch_info = {
+        # First two bools determining the structure of solution functions we call
+        "two_period_model": False,
+        **single_batch_segment_info,
+        "last_two_period_info": last_two_period_info,
+    }
+
+    return batch_info
+
+
+def correct_for_uneven_last_batch(
+    batches_list,
+    child_states_to_integrate_exog_list,
+    child_state_choices_to_aggr_choice_list,
+    child_state_choice_idxs_to_interp_list,
+    state_choice_space,
+    map_state_choice_to_parent_state,
+    discrete_states_names,
+):
+    """Check if the last batch has the same length as the others. If not, we need to save
+    the information separately.
+    """
     if len(batches_list) == 1:
         # This is the case for a three period model.
         batches_cover_all = True
+        # Set last batch info to None, because it is not needed
+        last_batch_info = None
     else:
         # In the case of more periods we determine if the last two batches have equal
         # size
         batches_cover_all = len(batches_list[-1]) == len(batches_list[-2])
+        # Set last batch info to None for now. If batches_cover_all is True it is not needed,
+        # if it is False, it will be overwritten
+        last_batch_info = None
 
     if not batches_cover_all:
         # In the case batches don't cover everything, we have to solve the last batch
@@ -143,6 +197,29 @@ def create_batches_and_information(
         child_state_choice_idxs_to_interp_list = child_state_choice_idxs_to_interp_list[
             :-1
         ]
+    return (
+        batches_list,
+        child_states_to_integrate_exog_list,
+        child_state_choices_to_aggr_choice_list,
+        child_state_choice_idxs_to_interp_list,
+        batches_cover_all,
+        last_batch_info,
+    )
+
+
+def prepare_and_align_batch_arrays(
+    batches_list,
+    child_states_to_integrate_exog_list,
+    child_state_choices_to_aggr_choice_list,
+    child_state_choice_idxs_to_interp_list,
+    state_choice_space,
+    map_state_choice_to_parent_state,
+    discrete_states_names,
+):
+    """Prepare the lists we get out of the algorithm (and after correction) for the
+    jax calculations. They all need to have the same length of leading axis"""
+    # Get out of bound state choice idx, by taking the number of state choices + 1
+    out_of_bounds_state_choice_idx = state_choice_space.shape[0] + 1
 
     # First convert batch information
     batch_array = np.array(batches_list)
@@ -174,9 +251,6 @@ def create_batches_and_information(
     }
 
     batch_info = {
-        # First two bools determining the structure of solution functions we call
-        "two_period_model": False,
-        "batches_cover_all": batches_cover_all,
         # Now the batch array information. First the batch itself
         "batches_state_choice_idx": batch_array,
         "state_choices": state_choices_batches,
@@ -186,10 +260,7 @@ def create_batches_and_information(
         "child_state_choice_idxs_to_interp": child_state_choice_idxs_to_interp,
         "child_states_idxs": parent_state_idx_of_state_choice,
         "state_choices_childs": state_choices_childs,
-        "last_two_period_info": last_two_period_info,
     }
-    if not batches_cover_all:
-        batch_info["last_batch_info"] = last_batch_info
     return batch_info
 
 

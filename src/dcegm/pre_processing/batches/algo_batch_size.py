@@ -7,10 +7,11 @@ def determine_optimal_batch_size(
     map_state_choice_to_child_states,
     map_state_choice_to_index,
     state_space,
-    out_of_bounds_state_choice_idx,
 ):
     # Get invalid state idx, by looking at the index mapping dtype
     invalid_state_idx = np.iinfo(map_state_choice_to_index.dtype).max
+    # Get out of bound state choice idx, by taking the number of state choices + 1
+    out_of_bounds_state_choice_idx = state_choice_space.shape[0] + 1
 
     state_choice_space_to_batch = state_choice_space[idx_state_choices_to_batch]
 
