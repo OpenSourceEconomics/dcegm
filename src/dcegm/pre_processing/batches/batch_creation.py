@@ -8,7 +8,7 @@ from dcegm.pre_processing.batches.last_two_periods import (
 
 def create_batches_and_information(
     model_structure,
-    options,
+    state_space_options,
 ):
     """Batches are used instead of periods to have chunks of equal sized state choices.
     The batch information dictionary contains the following arrays reflecting the.
@@ -44,7 +44,7 @@ def create_batches_and_information(
 
     """
 
-    n_periods = options["state_space"]["n_periods"]
+    n_periods = state_space_options["n_periods"]
     state_choice_space = model_structure["state_choice_space"]
 
     out_of_bounds_state_choice_idx = state_choice_space.shape[0] + 1
@@ -60,23 +60,23 @@ def create_batches_and_information(
     ]
     map_state_choice_to_index = model_structure["map_state_choice_to_index"]
 
+    last_two_period_info = add_last_two_period_information(
+        n_periods=n_periods,
+        state_choice_space=state_choice_space,
+        map_state_choice_to_parent_state=map_state_choice_to_parent_state,
+        map_state_choice_to_child_states=map_state_choice_to_child_states,
+        map_state_choice_to_index=map_state_choice_to_index,
+        discrete_states_names=discrete_states_names,
+        state_space=state_space,
+    )
+
     if n_periods == 2:
         # In the case of a two period model, we just need the information of the last
         # two periods
         batch_info = {
             "two_period_model": True,
-            "n_state_choices": state_choice_space.shape[0],
+            "last_two_period_info": last_two_period_info,
         }
-        batch_info = add_last_two_period_information(
-            n_periods=n_periods,
-            state_choice_space=state_choice_space,
-            map_state_choice_to_parent_state=map_state_choice_to_parent_state,
-            map_state_choice_to_child_states=map_state_choice_to_child_states,
-            map_state_choice_to_index=map_state_choice_to_index,
-            discrete_states_names=discrete_states_names,
-            state_space=state_space,
-            batch_info=batch_info,
-        )
 
         return batch_info
 
@@ -186,20 +186,10 @@ def create_batches_and_information(
         "child_state_choice_idxs_to_interp": child_state_choice_idxs_to_interp,
         "child_states_idxs": parent_state_idx_of_state_choice,
         "state_choices_childs": state_choices_childs,
+        "last_two_period_info": last_two_period_info,
     }
     if not batches_cover_all:
         batch_info["last_batch_info"] = last_batch_info
-    batch_info = add_last_two_period_information(
-        n_periods=n_periods,
-        state_choice_space=state_choice_space,
-        map_state_choice_to_parent_state=map_state_choice_to_parent_state,
-        map_state_choice_to_child_states=map_state_choice_to_child_states,
-        map_state_choice_to_index=map_state_choice_to_index,
-        discrete_states_names=discrete_states_names,
-        state_space=state_space,
-        batch_info=batch_info,
-    )
-
     return batch_info
 
 

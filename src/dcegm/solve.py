@@ -251,7 +251,7 @@ def backward_induction(
         income_shock_weights=income_shock_weights,
         exog_grids=exog_grids,
         model_funcs=model_funcs,
-        batch_info=batch_info,
+        last_two_period_batch_info=batch_info["last_two_period_info"],
         value_solved=value_solved,
         policy_solved=policy_solved,
         endog_grid_solved=endog_grid_solved,

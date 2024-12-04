@@ -9,7 +9,6 @@ def add_last_two_period_information(
     map_state_choice_to_index,
     discrete_states_names,
     state_space,
-    batch_info,
 ):
     # Select state_choice idxs in final period
     idx_state_choice_final_period = np.where(state_choice_space[:, 0] == n_periods - 1)[
@@ -47,8 +46,7 @@ def add_last_two_period_information(
         idx_state_choice_final_period
     ]
 
-    batch_info = {
-        **batch_info,
+    last_two_period_info = {
         "idx_state_choices_final_period": idx_state_choice_final_period,
         "idx_state_choices_second_last_period": idx_state_choice_second_last_period,
         "idxs_parent_states_final_period": parent_states_final_period,
@@ -61,8 +59,8 @@ def add_last_two_period_information(
         (idx_state_choice_final_period, "final"),
         (idx_state_choice_second_last_period, "second_last"),
     ]:
-        batch_info[f"state_choice_mat_{period_name}_period"] = {
+        last_two_period_info[f"state_choice_mat_{period_name}_period"] = {
             key: state_choice_space[:, i][idx]
             for i, key in enumerate(discrete_states_names + ["choice"])
         }
-    return batch_info
+    return last_two_period_info

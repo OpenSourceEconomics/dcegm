@@ -70,7 +70,7 @@ def setup_model(
 
     batch_info = create_batches_and_information(
         model_structure=model_structure,
-        options=options,
+        state_space_options=options["state_space"],
     )
     # Delete large array which is not needed
     model_structure.pop("map_state_choice_to_child_states")

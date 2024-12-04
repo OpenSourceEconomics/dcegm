@@ -18,7 +18,7 @@ def solve_last_two_periods(
     income_shock_weights: jnp.ndarray,
     exog_grids: Dict[str, jnp.ndarray],
     model_funcs: Dict[str, Callable],
-    batch_info,
+    last_two_period_batch_info,
     value_solved,
     policy_solved,
     endog_grid_solved,
@@ -39,7 +39,7 @@ def solve_last_two_periods(
         compute_utility (callable): User supplied utility function.
         compute_marginal_utility (callable): User supplied marginal utility
             function.
-        batch_info (dict): Dictionary containing information about the batch
+        last_two_period_batch_info (dict): Dictionary containing information about the batch
             size and the state space.
         value_solved (np.ndarray): 3d array of shape
             (n_states, n_grid_wealth, n_income_shocks) of the value function for
@@ -56,9 +56,15 @@ def solve_last_two_periods(
         value_interp_final_period,
         marginal_utility_final_last_period,
     ) = solve_final_period(
-        idx_state_choices_final_period=batch_info["idx_state_choices_final_period"],
-        idx_parent_states_final_period=batch_info["idxs_parent_states_final_period"],
-        state_choice_mat_final_period=batch_info["state_choice_mat_final_period"],
+        idx_state_choices_final_period=last_two_period_batch_info[
+            "idx_state_choices_final_period"
+        ],
+        idx_parent_states_final_period=last_two_period_batch_info[
+            "idxs_parent_states_final_period"
+        ],
+        state_choice_mat_final_period=last_two_period_batch_info[
+            "state_choice_mat_final_period"
+        ],
         cont_grids_next_period=cont_grids_next_period,
         exog_grids=exog_grids,
         params=params,
@@ -72,9 +78,13 @@ def solve_last_two_periods(
     endog_grid, policy, value = solve_for_interpolated_values(
         value_interpolated=value_interp_final_period,
         marginal_utility_interpolated=marginal_utility_final_last_period,
-        state_choice_mat=batch_info["state_choice_mat_second_last_period"],
-        child_state_idxs=batch_info["child_states_second_last_period"],
-        states_to_choices_child_states=batch_info["state_to_choices_final_period"],
+        state_choice_mat=last_two_period_batch_info[
+            "state_choice_mat_second_last_period"
+        ],
+        child_state_idxs=last_two_period_batch_info["child_states_second_last_period"],
+        states_to_choices_child_states=last_two_period_batch_info[
+            "state_to_choices_final_period"
+        ],
         params=params,
         taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,
@@ -83,7 +93,7 @@ def solve_last_two_periods(
         has_second_continuous_state=has_second_continuous_state,
     )
 
-    idx_second_last = batch_info["idx_state_choices_second_last_period"]
+    idx_second_last = last_two_period_batch_info["idx_state_choices_second_last_period"]
 
     value_solved = value_solved.at[idx_second_last, ...].set(value)
     policy_solved = policy_solved.at[idx_second_last, ...].set(policy)

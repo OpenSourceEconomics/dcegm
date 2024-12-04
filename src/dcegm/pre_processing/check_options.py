@@ -19,6 +19,9 @@ def check_options_and_set_defaults(options):
     if not isinstance(options["state_space"]["n_periods"], int):
         raise ValueError("Number of periods must be an integer.")
 
+    if not options["state_space"]["n_periods"] > 1:
+        raise ValueError("Number of periods must be greater than 1.")
+
     if "choices" not in options["state_space"]:
         print("Choices not given. Assume only single choice with value 0")
         options["state_space"]["choices"] = np.array([0], dtype=np.uint8)
