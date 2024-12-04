@@ -62,7 +62,7 @@ def create_batches_and_information(
     state_choice_space = model_structure["state_choice_space"]
     idx_state_choices_to_batch = state_choice_space[:, 0] < n_periods - 2
 
-    if "split_model_calc" not in state_space_options.keys():
+    if "min_period_batch_segments" not in state_space_options.keys():
 
         single_batch_segment_info = create_single_segment_of_batches(
             idx_state_choices_to_batch, model_structure
@@ -72,28 +72,56 @@ def create_batches_and_information(
             "batches_info_segment_0": single_batch_segment_info,
         }
 
-    elif isinstance(state_space_options["split_model_calc"], int):
-        period_to_split = state_space_options["split_model_calc"]
+    else:
 
-        split_cond = state_choice_space[:, 0] < period_to_split
-        idx_state_choices_segment_0 = idx_state_choices_to_batch & (~split_cond)
-        idx_state_choices_segment_1 = idx_state_choices_to_batch & split_cond
-
-        segment_0_batch_info = create_single_segment_of_batches(
-            idx_state_choices_segment_0, model_structure
-        )
-        segment_1_batch_info = create_single_segment_of_batches(
-            idx_state_choices_segment_1, model_structure
-        )
+        if isinstance(state_space_options["min_period_batch_segments"], int):
+            n_segments = 2
+            min_periods_to_split = [state_space_options["min_period_batch_segments"]]
+        elif isinstance(state_space_options["min_period_batch_segments"], list):
+            n_segments = len(state_space_options["min_period_batch_segments"]) + 1
+            min_periods_to_split = state_space_options["min_period_batch_segments"]
+            # Check if periods are increasing and at least two periods apart.
+            # Also that they are at least two periods smaller than n_periods - 2
+            if not all(
+                min_periods_to_split[i] < min_periods_to_split[i + 1]
+                for i in range(len(min_periods_to_split) - 1)
+            ) or not all(
+                min_periods_to_split[i] < n_periods - 2 - 2
+                for i in range(len(min_periods_to_split))
+            ):
+                raise ValueError(
+                    "The periods to split the batches have to be increasing and at least two periods apart."
+                )
+        else:
+            raise ValueError("So far only int or list separation is supported.")
 
         segment_infos = {
-            "n_segments": 2,
-            "batches_info_segment_0": segment_0_batch_info,
-            "batches_info_segment_1": segment_1_batch_info,
+            "n_segments": n_segments,
         }
 
-    else:
-        raise ValueError("So far only int separation is supported.")
+        for id_segment in range(n_segments - 1):
+
+            # Start from the end and assign segments, i.e. segment 0 starts at
+            # min_periods_to_split[-1] and ends at n_periods - 2
+            period_to_split = min_periods_to_split[-id_segment - 1]
+
+            split_cond = state_choice_space[:, 0] < period_to_split
+            idx_state_choices_segment = idx_state_choices_to_batch & (~split_cond)
+            idx_state_choices_to_batch = idx_state_choices_to_batch & split_cond
+
+            segment_batch_info = create_single_segment_of_batches(
+                idx_state_choices_segment, model_structure
+            )
+            segment_infos[f"batches_info_segment_{id_segment}"] = segment_batch_info
+
+        last_segment_batch_info = create_single_segment_of_batches(
+            idx_state_choices_to_batch, model_structure
+        )
+
+        # We loop until n_segments - 2 and then add the last segment
+        segment_infos[f"batches_info_segment_{n_segments - 1}"] = (
+            last_segment_batch_info
+        )
 
     batch_info = {
         # First two bools determining the structure of solution functions we call
