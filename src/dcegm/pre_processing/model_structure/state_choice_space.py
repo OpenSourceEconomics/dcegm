@@ -160,11 +160,15 @@ def create_state_choice_space_and_child_state_mapping(
                     0
                 ]
                 if len(invalid_child_state_idxs) > 0:
-                    invalid_child_state_example = states_next_tuple[
+                    invalid_child_state_example = np.array(states_next_tuple).T[
                         invalid_child_state_idxs[0]
                     ]
+                    invalid_child_state_dict = {
+                        key: invalid_child_state_example[i]
+                        for i, key in enumerate(discrete_states_names)
+                    }
                     raise IndexError(
-                        f"\n\n The state \n\n{invalid_child_state_example}\n\n is a child state of "
+                        f"\n\n The state \n\n{invalid_child_state_dict}\n\n is a child state of "
                         f"the state-choice combination \n\n{this_period_state}\n\n with choice: "
                         f"{choice}.\n\n It is also declared invalid by the sparsity condition. Please"
                         f"remember, that if a state is invalid because it can't be reached by the deterministic"

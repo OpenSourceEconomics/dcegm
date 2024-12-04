@@ -1,5 +1,6 @@
 """Functions for creating internal state space objects."""
 
+import jax.numpy as jnp
 import numpy as np
 
 from dcegm.pre_processing.model_structure.endogenous_states import (
@@ -96,26 +97,33 @@ def create_state_space(options):
                     # We do check later if the user correctly specified the proxy state. Here we just check
                     # the format of the output.
                     if isinstance(sparsity_output, dict):
-                        # Check if dictionary keys are the same and the items are ints
-                        if set(sparsity_output.keys()) != set(
-                            discrete_states_names
-                        ) or not all(
-                            isinstance(value, int) for value in sparsity_output.values()
-                        ):
+                        # Check if dictionary keys are the same
+                        if set(sparsity_output.keys()) != set(discrete_states_names):
                             raise ValueError(
-                                f" The state \n\n{sparsity_output}\n\n returned by the sparsity condition"
-                                f"does not have the correct format. The dictionary keys should be the same as"
-                                f"the discrete state names: \n\n{discrete_states_names}\n\n and the values should "
-                                f"be integers."
+                                f" The state \n\n{sparsity_output}\n\n returned by the sparsity condition "
+                                f"does not have the correct format. The dictionary keys should be the same as "
+                                f"the discrete state names: \n\n{discrete_states_names}\n\n."
                             )
-                        else:
-                            state_is_valid = False
-                            proxies_exist = True
-                            list_of_states_proxied_from += [state]
-                            state_list_proxied_to = [
-                                sparsity_output[key] for key in discrete_states_names
-                            ]
-                            list_of_states_proxied_to += [state_list_proxied_to]
+
+                        # Check if each value is integer or array with dtype int
+                        for key, value in sparsity_output.items():
+                            if isinstance(value, int) or np.issubdtype(
+                                value.dtype, np.integer
+                            ):
+                                pass
+                            else:
+                                raise ValueError(
+                                    f"The value of the key {key} in the state \n\n{sparsity_output}\n\n"
+                                    f"returned by the sparsity condition is not of integer type."
+                                )
+
+                        state_is_valid = False
+                        proxies_exist = True
+                        list_of_states_proxied_from += [state]
+                        state_list_proxied_to = [
+                            sparsity_output[key] for key in discrete_states_names
+                        ]
+                        list_of_states_proxied_to += [state_list_proxied_to]
                     elif isinstance(sparsity_output, bool):
                         state_is_valid = sparsity_output
                     else:
