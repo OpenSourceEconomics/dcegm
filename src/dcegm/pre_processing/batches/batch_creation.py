@@ -107,12 +107,14 @@ def create_batches_and_information(
 
             split_cond = state_choice_space[:, 0] < period_to_split
             bool_state_choices_segment = bool_state_choices_to_batch & (~split_cond)
-            bool_state_choices_to_batch = bool_state_choices_to_batch & split_cond
 
             segment_batch_info = create_single_segment_of_batches(
                 bool_state_choices_segment, model_structure
             )
             segment_infos[f"batches_info_segment_{id_segment}"] = segment_batch_info
+
+            # Set the bools to False which have been batched already
+            bool_state_choices_to_batch = bool_state_choices_to_batch & split_cond
 
         last_segment_batch_info = create_single_segment_of_batches(
             bool_state_choices_to_batch, model_structure
