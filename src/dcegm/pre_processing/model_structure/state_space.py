@@ -1,7 +1,7 @@
 """Functions for creating internal state space objects."""
 
-import jax.numpy as jnp
 import numpy as np
+import pandas as pd
 
 from dcegm.pre_processing.model_structure.endogenous_states import (
     process_endog_state_specifications,
@@ -13,7 +13,7 @@ from dcegm.pre_processing.model_structure.shared import create_indexer_for_space
 from dcegm.pre_processing.shared import create_array_with_smallest_int_dtype
 
 
-def create_state_space(options):
+def create_state_space(options, debugging=False):
     """Create state space object and indexer.
 
     We need to add the convention for the state space objects.
@@ -68,6 +68,11 @@ def create_state_space(options):
     list_of_states_proxied_to = []
     proxies_exist = False
 
+    # For debugging we create some additional containers
+    full_state_space_list = []
+    proxy_list = []
+    valid_list = []
+
     for period in range(n_periods):
         for endog_state_id in range(n_endog_states):
             for lagged_choice in range(n_choices):
@@ -79,6 +84,8 @@ def create_state_space(options):
 
                     # Create the state vector
                     state = [period, lagged_choice] + endog_states + list(exog_states)
+
+                    full_state_space_list += [state]
 
                     # Transform to dictionary to call sparsity function from user
                     state_dict = {
@@ -95,7 +102,9 @@ def create_state_space(options):
                     # exogenous state component, the user must specify a valid state to use instead, as
                     # we assume a state choice combination has n_exog_states children.
                     # We do check later if the user correctly specified the proxy state. Here we just check
-                    # the format of the output.
+                    # the format of the output. To simplify this specification the user can also return the same
+                    # state as used as input. Then the state is just valid. This allows to easier define a proxy
+                    # state for a whole set of states.
                     if isinstance(sparsity_output, dict):
                         # Check if dictionary keys are the same
                         if set(sparsity_output.keys()) != set(discrete_states_names):
@@ -117,15 +126,27 @@ def create_state_space(options):
                                     f"returned by the sparsity condition is not of integer type."
                                 )
 
-                        state_is_valid = False
-                        proxies_exist = True
-                        list_of_states_proxied_from += [state]
-                        state_list_proxied_to = [
-                            sparsity_output[key] for key in discrete_states_names
-                        ]
-                        list_of_states_proxied_to += [state_list_proxied_to]
+                        # Now check if the state is actually the same as the input state
+                        is_same_state = True
+                        for key, value in sparsity_output.items():
+                            same_value = state_dict[key] == value
+                            is_same_state &= same_value
+
+                        if is_same_state:
+                            state_is_valid = True
+                            proxy_list += [False]
+                        else:
+                            proxy_list += [True]
+                            state_is_valid = False
+                            proxies_exist = True
+                            list_of_states_proxied_from += [state]
+                            state_list_proxied_to = [
+                                sparsity_output[key] for key in discrete_states_names
+                            ]
+                            list_of_states_proxied_to += [state_list_proxied_to]
                     elif isinstance(sparsity_output, bool):
                         state_is_valid = sparsity_output
+                        proxy_list += [False]
                     else:
                         raise ValueError(
                             f"The sparsity condition for the state \n\n{state_dict}\n\n"
@@ -133,6 +154,7 @@ def create_state_space(options):
                             f"or a dictionary."
                         )
 
+                    valid_list += [state_is_valid]
                     if state_is_valid:
                         state_space_list += [state]
 
@@ -167,6 +189,27 @@ def create_state_space(options):
         "state_names_without_exog": state_names_without_exog,
         "discrete_states_names": discrete_states_names,
     }
+
+    # If debugging is called we create a dataframe with detailed information on
+    # full state space
+    if debugging:
+        state_space_full = np.array(full_state_space_list)
+        debug_df = pd.DataFrame(data=state_space_full, columns=discrete_states_names)
+        debug_df["is_valid"] = valid_list
+        debug_df["is_proxied"] = proxy_list
+
+        if proxies_exist:
+            array_of_states_proxied_to = np.array(list_of_states_proxied_to)
+            tuple_of_states_proxied_from = tuple(
+                array_of_states_proxied_to[:, i]
+                for i in range(array_of_states_proxied_to.shape[1])
+            )
+            full_indexer = create_indexer_for_space(state_space_full)
+            idxs_proxied_to = full_indexer[tuple_of_states_proxied_from]
+            debug_df["idxs_proxied_to"] = -9999
+            debug_df.loc[debug_df["is_proxied"], "idxs_proxied_to"] = idxs_proxied_to
+
+        return debug_df
 
     return dict_of_state_space_objects
 
