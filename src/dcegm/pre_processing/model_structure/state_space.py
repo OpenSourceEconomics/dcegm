@@ -46,9 +46,8 @@ def create_state_space(options, debugging=False):
     n_choices = len(state_space_options["choices"])
 
     (
-        add_endog_state_func,
+        endog_state_space,
         endog_states_names,
-        n_endog_states,
         sparsity_func,
     ) = process_endog_state_specifications(
         state_space_options=state_space_options, model_params=model_params
@@ -74,10 +73,13 @@ def create_state_space(options, debugging=False):
     valid_list = []
 
     for period in range(n_periods):
-        for endog_state_id in range(n_endog_states):
+        for endog_state_id in range(endog_state_space.shape[0]):
             for lagged_choice in range(n_choices):
-                # Select the endogenous state combination
-                endog_states = add_endog_state_func(endog_state_id)
+                # Select the endogenous state, if present
+                if len(endog_states_names) == 0:
+                    endog_states = []
+                else:
+                    endog_states = list(endog_state_space[endog_state_id])
 
                 for exog_state_id in range(n_exog_states):
                     exog_states = exog_state_space_raw[exog_state_id, :]
