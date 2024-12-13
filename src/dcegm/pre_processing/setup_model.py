@@ -10,6 +10,7 @@ from dcegm.pre_processing.model_structure.exogenous_processes import (
     create_exog_state_mapping,
 )
 from dcegm.pre_processing.model_structure.model_structure import create_model_structure
+from dcegm.pre_processing.model_structure.state_space import create_state_space
 from dcegm.pre_processing.shared import create_array_with_smallest_int_dtype
 
 
@@ -19,6 +20,7 @@ def setup_model(
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable] = None,
+    debug_output: str = None,
 ):
     """Set up the model for dcegm.
 
@@ -45,6 +47,10 @@ def setup_model(
         budget_constraint (Callable): User supplied budget constraint.
 
     """
+    debug_output = process_debug_string(debug_output, options)
+    if debug_output is not None:
+        return debug_output
+
     options = check_options_and_set_defaults(options)
 
     model_funcs = process_model_functions(
@@ -99,7 +105,6 @@ def setup_and_save_model(
     than recreating the model from scratch.
 
     """
-
     model = setup_model(
         options=options,
         state_space_functions=state_space_functions,
@@ -145,3 +150,11 @@ def load_and_setup_model(
     )
 
     return model
+
+
+def process_debug_string(debug_output, options):
+    if debug_output is not None:
+        if debug_output == "state_space_df":
+            return create_state_space(options, debugging=True)
+        else:
+            raise ValueError("The requested debug output is not implemented.")

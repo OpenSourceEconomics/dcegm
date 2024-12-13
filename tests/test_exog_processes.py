@@ -13,6 +13,7 @@ from dcegm.pre_processing.model_structure.exogenous_processes import (
     create_exog_state_mapping,
 )
 from dcegm.pre_processing.model_structure.model_structure import create_model_structure
+from dcegm.pre_processing.setup_model import setup_model
 from toy_models.cons_ret_model_dcegm_paper.budget_constraint import budget_constraint
 from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
     create_state_space_function_dict,
@@ -148,17 +149,16 @@ def test_exog_processes(
     }
 
     options = check_options_and_set_defaults(options)
-    model_funcs = process_model_functions(
+
+    model = setup_model(
         options,
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
         budget_constraint=budget_constraint,
     )
-    model_structure = create_model_structure(
-        options=options,
-        model_funcs=model_funcs,
-    )
+    model_funcs = model["model_funcs"]
+    model_structure = model["model_structure"]
 
     exog_state_mapping = create_exog_state_mapping(
         model_structure["exog_state_space"].astype(np.int16),

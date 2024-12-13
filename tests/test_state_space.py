@@ -4,8 +4,8 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from dcegm.pre_processing.debugging import inspect_state_space
 from dcegm.pre_processing.model_structure.state_space import create_state_space
+from dcegm.pre_processing.setup_model import setup_model
 from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
     get_state_specific_feasible_choice_set,
 )
@@ -258,8 +258,15 @@ def test_state_space():
     )
 
     ### Now test the inspection function.
-    state_space_df = inspect_state_space(options=options_sparse)
-    admissible_df = state_space_df[state_space_df["is_feasible"]]
+    state_space_df = setup_model(
+        options=options_sparse,
+        utility_functions=None,
+        utility_functions_final_period=None,
+        budget_constraint=None,
+        state_space_functions=None,
+        debug_output="state_space_df",
+    )
+    admissible_df = state_space_df[state_space_df["is_valid"]]
 
     for i, column in enumerate(discrete_states_names):
         np.testing.assert_allclose(admissible_df[column].values, state_space[:, i])
