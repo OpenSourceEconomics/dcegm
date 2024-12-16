@@ -252,7 +252,7 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
     params = {}
 
     state_space_functions = create_state_space_function_dict()
-    state_space_functions["get_next_period_experience"] = get_next_experience
+    state_space_functions["next_period_experience"] = get_next_experience
 
     options = check_options_and_set_defaults(options)
 
@@ -264,9 +264,9 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
         budget_constraint=budget_constraint,
     )
 
-    update_continuous_state = model_funcs["update_continuous_state"]
+    next_period_continuous_state = model_funcs["next_period_continuous_state"]
 
-    got = update_continuous_state(
+    got = next_period_continuous_state(
         period=period,
         lagged_choice=lagged_choice,
         continuous_state=continuous_state,

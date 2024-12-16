@@ -185,9 +185,9 @@ def test_replication_discrete_versus_continuous_experience(
         state_choice_cont_dict["dummy_exog"],
         state_choice_cont_dict["choice"],
     ]
-    state_specific_choice_set = model_disc["model_funcs"][
-        "get_state_specific_choice_set"
-    ](**state_choice_disc_dict)
+    state_specific_choice_set = model_disc["model_funcs"]["state_specific_choice_set"](
+        **state_choice_disc_dict
+    )
     choice_valid = choice in state_specific_choice_set
 
     sparsity_condition = load_example_models("with_exp")["sparsity_condition"]

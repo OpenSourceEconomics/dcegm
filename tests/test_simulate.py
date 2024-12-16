@@ -16,7 +16,7 @@ from dcegm.simulation.simulate import (
     simulate_single_period,
 )
 from toy_models.cons_ret_model_with_cont_exp.state_space_objects import (
-    get_next_period_experience,
+    next_period_experience,
 )
 
 
@@ -87,7 +87,7 @@ def test_simulate_lax_scan(model_setup):
     map_state_choice_to_index = model_structure["map_state_choice_to_index"]
 
     exog_state_mapping = model_funcs["exog_state_mapping"]
-    get_next_period_state = model_funcs["get_next_period_state"]
+    next_period_endogenous_state = model_funcs["next_period_endogenous_state"]
 
     value = model_setup["value"]
     policy = model_setup["policy"]
@@ -120,7 +120,9 @@ def test_simulate_lax_scan(model_setup):
             "compute_beginning_of_period_wealth"
         ],
         exog_state_mapping=exog_state_mapping,
-        compute_next_period_states={"get_next_period_state": get_next_period_state},
+        compute_next_period_states={
+            "next_period_endogenous_state": next_period_endogenous_state
+        },
     )
 
     # a) lax.scan
@@ -215,9 +217,9 @@ def test_simulate_second_continuous_choice(model_setup):
     model["options"]["state_space"]["continuous_states"]["experience"] = jnp.linspace(
         0, 1, 6
     )
-    model["model_funcs"]["update_continuous_state"] = (
+    model["model_funcs"]["next_period_continuous_state"] = (
         determine_function_arguments_and_partial_options(
-            func=get_next_period_experience,
+            func=next_period_experience,
             options=model["options"]["model_params"],
             continuous_state_name="experience",
         )

@@ -75,7 +75,7 @@ def _transform_lagged_choice_to_working_hours(lagged_choice):
     return not_working * 0 + part_time * 2000 + full_time * 3000
 
 
-def _update_continuous_state(period, lagged_choice, continuous_state, params):
+def _next_period_continuous_state(period, lagged_choice, continuous_state, params):
 
     working_hours = _transform_lagged_choice_to_working_hours(lagged_choice)
 
@@ -183,7 +183,7 @@ def test_wealth_and_second_continuous_state(
     }
 
     update_experience_vectorized = vmap(
-        lambda period, lagged_choice: _update_continuous_state(
+        lambda period, lagged_choice: _next_period_continuous_state(
             period, lagged_choice, experience_grid, options
         )
     )
@@ -192,7 +192,7 @@ def test_wealth_and_second_continuous_state(
     )
 
     exp_next = calculate_continuous_state(
-        child_state_dict, experience_grid, params, _update_continuous_state
+        child_state_dict, experience_grid, params, _next_period_continuous_state
     )
 
     aaae(exp_next, experience_next)

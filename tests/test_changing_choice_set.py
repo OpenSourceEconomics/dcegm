@@ -143,8 +143,8 @@ def next_period_state(period, choice, experience):
 def state_space_functions():
     """Return dict with state space functions."""
     out = {
-        "get_state_specific_choice_set": choice_set,
-        "get_next_period_state": next_period_state,
+        "state_specific_choice_set": choice_set,
+        "next_period_endogenous_state": next_period_state,
     }
     return out
 

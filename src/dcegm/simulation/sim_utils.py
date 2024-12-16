@@ -149,7 +149,7 @@ def transition_to_next_period(
     discrete_endog_states_next_period = vmap(
         update_discrete_states_for_one_agent, in_axes=(None, 0, 0, None)  # choice
     )(
-        compute_next_period_states["get_next_period_state"],
+        compute_next_period_states["next_period_endogenous_state"],
         discrete_states_beginning_of_period,
         choice,
         params,
@@ -174,7 +174,7 @@ def transition_to_next_period(
             continuous_state_beginning_of_period=continuous_state_beginning_of_period,
             params=params,
             compute_continuous_state=compute_next_period_states[
-                "update_continuous_state"
+                "next_period_continuous_state"
             ],
         )
 
@@ -228,7 +228,7 @@ def update_discrete_states_for_one_agent(update_func, state, choice, params):
     return update_func(**state, choice=choice, params=params)
 
 
-def update_continuous_state_for_one_agent(
+def next_period_continuous_state_for_one_agent(
     update_func, discrete_states, continuous_state, choice, params
 ):
 

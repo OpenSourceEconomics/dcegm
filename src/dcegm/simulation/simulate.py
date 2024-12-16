@@ -78,8 +78,8 @@ def simulate_all_periods(
     model_funcs_sim = model_sim["model_funcs"]
 
     compute_next_period_states = {
-        "get_next_period_state": model_funcs_sim["get_next_period_state"],
-        "update_continuous_state": model_funcs_sim["update_continuous_state"],
+        "next_period_endogenous_state": model_funcs_sim["next_period_endogenous_state"],
+        "next_period_continuous_state": model_funcs_sim["next_period_continuous_state"],
     }
 
     simulate_body = partial(

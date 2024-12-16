@@ -6,8 +6,8 @@ from dcegm.pre_processing.shared import get_smallest_int_type
 
 def create_state_choice_space_and_child_state_mapping(
     state_space_options,
-    get_state_specific_choice_set,
-    get_next_period_state,
+    state_specific_choice_set,
+    next_period_endogenous_state,
     state_space_arrays,
 ):
     """Create state choice space of all feasible state-choice combinations.
@@ -28,7 +28,7 @@ def create_state_choice_space_and_child_state_mapping(
             The shape of this object is quite complicated. For each state variable it
             has the number of potential states as rows, i.e.
             (n_potential_states_state_var_1, n_potential_states_state_var_2, ....).
-        get_state_specific_choice_set (Callable): User-supplied function that returns
+        state_specific_choice_set (Callable): User-supplied function that returns
             the set of feasible choices for a given state.
 
     Returns:
@@ -112,7 +112,7 @@ def create_state_choice_space_and_child_state_mapping(
             key: state_vec[i] for i, key in enumerate(discrete_states_names)
         }
 
-        feasible_choice_set = get_state_specific_choice_set(
+        feasible_choice_set = state_specific_choice_set(
             **this_period_state,
         )
 
@@ -124,7 +124,7 @@ def create_state_choice_space_and_child_state_mapping(
 
             if state_vec[0] < n_periods - 1:
 
-                endog_state_update = get_next_period_state(
+                endog_state_update = next_period_endogenous_state(
                     **this_period_state, choice=choice
                 )
 
@@ -172,7 +172,7 @@ def create_state_choice_space_and_child_state_mapping(
                         f"the state \n\n{this_period_state}\n\n with choice: {choice}.\n\n "
                         f"It is also declared invalid by the sparsity condition. Please "
                         f"remember, that if a state is invalid because it can't be reached by the deterministic"
-                        f"update of states, this has to be reflected in the state space function get_next_period_state."
+                        f"update of states, this has to be reflected in the state space function next_period_endogenous_state."
                         f"If its exogenous state realization is invalid, this state has to be proxied to another state"
                         f"by the sparsity condition."
                     )

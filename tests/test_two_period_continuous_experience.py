@@ -105,7 +105,7 @@ def marginal_utility_weighted(
     params,
 ):
     """Return the expected marginal utility for one realization of the wage shock."""
-    exp_new = get_next_period_experience(
+    exp_new = next_period_experience(
         period=1, lagged_choice=lagged_choice, experience=experience, params=params
     )
 
@@ -218,7 +218,7 @@ def calc_stochastic_income(
     return jnp.exp(labor_income + wage_shock)
 
 
-def get_next_period_experience(period, lagged_choice, experience, params):
+def next_period_experience(period, lagged_choice, experience, params):
     return (1 / period) * ((period - 1) * experience + (lagged_choice == 0))
 
 
@@ -263,7 +263,7 @@ def create_test_inputs():
     # =================================================================================
 
     state_space_functions = {
-        "update_continuous_state": get_next_period_experience,
+        "next_period_experience": next_period_experience,
     }
 
     model = setup_model(
