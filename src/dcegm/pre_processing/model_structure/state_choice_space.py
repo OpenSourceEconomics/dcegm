@@ -169,8 +169,8 @@ def create_state_choice_space_and_child_state_mapping(
                     }
                     raise IndexError(
                         f"\n\n The state \n\n{invalid_child_state_dict}\n\n is a child state of "
-                        f"the state-choice combination \n\n{this_period_state}\n\n with choice: "
-                        f"{choice}.\n\n It is also declared invalid by the sparsity condition. Please"
+                        f"the state \n\n{this_period_state}\n\n with choice: {choice}.\n\n "
+                        f"It is also declared invalid by the sparsity condition. Please "
                         f"remember, that if a state is invalid because it can't be reached by the deterministic"
                         f"update of states, this has to be reflected in the state space function get_next_period_state."
                         f"If its exogenous state realization is invalid, this state has to be proxied to another state"
@@ -186,7 +186,7 @@ def create_state_choice_space_and_child_state_mapping(
     map_state_choice_to_parent_state = map_state_choice_to_parent_state[:idx]
     map_state_choice_to_child_states = map_state_choice_to_child_states[:idx, :]
 
-    map_state_choice_to_index = create_indexer_for_space(state_choice_space)
+    map_state_choice_to_index, _ = create_indexer_for_space(state_choice_space)
 
     state_choice_space_dict = {
         key: state_choice_space[:, i]

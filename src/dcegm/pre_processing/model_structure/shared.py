@@ -20,7 +20,7 @@ def create_indexer_for_space(space):
 
     map_vars_to_index[index_tuple] = np.arange(space.shape[0], dtype=data_type)
 
-    return map_vars_to_index
+    return map_vars_to_index, max_value
 
 
 def span_subspace(subdict_of_space, states_names):

@@ -162,13 +162,17 @@ def create_state_space(options, debugging=False):
 
     state_space_raw = np.array(state_space_list)
     state_space = create_array_with_smallest_int_dtype(state_space_raw)
-    map_state_to_index = create_indexer_for_space(state_space)
+    map_state_to_index, invalid_index = create_indexer_for_space(state_space)
 
     if proxies_exist:
         # If proxies exist we create a different indexer, to map
         # the child states of state choices later to proxied states
         map_state_to_index_with_proxies = create_indexer_inclucing_proxies(
-            map_state_to_index, list_of_states_proxied_from, list_of_states_proxied_to
+            map_state_to_index,
+            list_of_states_proxied_from,
+            list_of_states_proxied_to,
+            discrete_states_names,
+            invalid_index,
         )
         map_child_state_to_index = map_state_to_index_with_proxies
     else:
@@ -206,7 +210,7 @@ def create_state_space(options, debugging=False):
                 array_of_states_proxied_to[:, i]
                 for i in range(array_of_states_proxied_to.shape[1])
             )
-            full_indexer = create_indexer_for_space(state_space_full)
+            full_indexer, _ = create_indexer_for_space(state_space_full)
             idxs_proxied_to = full_indexer[tuple_of_states_proxied_from]
             debug_df["idxs_proxied_to"] = -9999
             debug_df.loc[debug_df["is_proxied"], "idxs_proxied_to"] = idxs_proxied_to
@@ -217,7 +221,11 @@ def create_state_space(options, debugging=False):
 
 
 def create_indexer_inclucing_proxies(
-    map_state_to_index, list_of_states_proxied_from, list_of_states_proxied_to
+    map_state_to_index,
+    list_of_states_proxied_from,
+    list_of_states_proxied_to,
+    discrete_state_names,
+    invalid_index,
 ):
     """Create an indexer that includes the index of proxied invalid states."""
     array_of_states_proxied_from = np.array(list_of_states_proxied_from)
@@ -231,8 +239,38 @@ def create_indexer_inclucing_proxies(
         array_of_states_proxied_to[:, i]
         for i in range(array_of_states_proxied_to.shape[1])
     )
+    index_proxy_to = map_state_to_index[tuple_of_states_proxied_to]
+    invalid_proxy_idxs = np.where(index_proxy_to == invalid_index)[0]
+    if len(invalid_proxy_idxs) > 0:
+        example_state_proxy_to = array_of_states_proxied_to[invalid_proxy_idxs[0]]
+        invalid_state_dict_to = {
+            state_name: example_state_proxy_to[i]
+            for i, state_name in enumerate(discrete_state_names)
+        }
+        example_state_proxy_from = array_of_states_proxied_from[invalid_proxy_idxs[0]]
+        invalid_state_dict_from = {
+            state_name: example_state_proxy_from[i]
+            for i, state_name in enumerate(discrete_state_names)
+        }
+
+        import sys
+
+        RED = "\033[31m"  # ANSI code for red
+        RESET = "\033[0m"  # ANSI code to reset color
+        try:
+            raise ValueError(
+                f"\n\nThe state "
+                f"\n\n{pd.Series(invalid_state_dict_to).to_string()}\n\n"
+                f"is used as a proxy state for the state:"
+                f"\n\n{pd.Series(invalid_state_dict_from).to_string()}\n\n"
+                f"However, the proxy state is also declared invalid by "
+                "the sparsity condition. This is not allowed. The proxy state must be valid."
+            )
+        except ValueError as e:
+            print(f"\n\n{RED}State space error:{RESET} {e}", file=sys.stderr)
+            sys.exit(1)  # Exit without showing the traceback
+
     map_state_to_index_with_proxies = map_state_to_index.copy()
-    map_state_to_index_with_proxies[tuple_of_states_proxied_from] = map_state_to_index[
-        tuple_of_states_proxied_to
-    ]
+
+    map_state_to_index_with_proxies[tuple_of_states_proxied_from] = index_proxy_to
     return map_state_to_index_with_proxies
