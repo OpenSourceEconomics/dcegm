@@ -5,7 +5,10 @@ import jax
 
 from dcegm.pre_processing.batches.batch_creation import create_batches_and_information
 from dcegm.pre_processing.check_options import check_options_and_set_defaults
-from dcegm.pre_processing.model_functions import process_model_functions
+from dcegm.pre_processing.model_functions import (
+    process_model_functions,
+    process_sparsity_condition,
+)
 from dcegm.pre_processing.model_structure.exogenous_processes import (
     create_exog_state_mapping,
 )
@@ -47,7 +50,7 @@ def setup_model(
         budget_constraint (Callable): User supplied budget constraint.
 
     """
-    debug_output = process_debug_string(debug_output, options)
+    debug_output = process_debug_string(debug_output, state_space_functions, options)
     if debug_output is not None:
         return debug_output
 
@@ -152,9 +155,14 @@ def load_and_setup_model(
     return model
 
 
-def process_debug_string(debug_output, options):
+def process_debug_string(debug_output, state_space_functions, options):
     if debug_output is not None:
         if debug_output == "state_space_df":
-            return create_state_space(options, debugging=True)
+            sparsity_condition = process_sparsity_condition(
+                state_space_functions, options
+            )
+            return create_state_space(
+                options["state_space"], sparsity_condition, debugging=True
+            )
         else:
             raise ValueError("The requested debug output is not implemented.")

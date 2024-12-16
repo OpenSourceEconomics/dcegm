@@ -13,7 +13,7 @@ from dcegm.pre_processing.model_structure.shared import create_indexer_for_space
 from dcegm.pre_processing.shared import create_array_with_smallest_int_dtype
 
 
-def create_state_space(options, debugging=False):
+def create_state_space(state_space_options, sparsity_condition, debugging=False):
     """Create state space object and indexer.
 
     We need to add the convention for the state space objects.
@@ -38,20 +38,13 @@ def create_state_space(options, debugging=False):
             (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
 
     """
-
-    state_space_options = options["state_space"]
-    model_params = options["model_params"]
-
     n_periods = state_space_options["n_periods"]
     n_choices = len(state_space_options["choices"])
 
     (
         endog_state_space,
         endog_states_names,
-        sparsity_func,
-    ) = process_endog_state_specifications(
-        state_space_options=state_space_options, model_params=model_params
-    )
+    ) = process_endog_state_specifications(state_space_options=state_space_options)
     state_names_without_exog = ["period", "lagged_choice"] + endog_states_names
 
     (
@@ -96,7 +89,7 @@ def create_state_space(options, debugging=False):
                     }
 
                     # Check if the state is valid by calling the sparsity function
-                    sparsity_output = sparsity_func(**state_dict)
+                    sparsity_output = sparsity_condition(**state_dict)
 
                     # The sparsity condition can either return a boolean indicating if the state
                     # is valid or not, or a dictionary which contains the valid state which is used

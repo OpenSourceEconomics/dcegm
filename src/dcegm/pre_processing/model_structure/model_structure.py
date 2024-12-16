@@ -27,7 +27,11 @@ def create_model_structure(
 
     """
     print("Starting state space creation")
-    state_space_objects = create_state_space(options, debugging=False)
+    state_space_objects = create_state_space(
+        state_space_options=options["state_space"],
+        sparsity_condition=model_funcs["sparsity_condition"],
+        debugging=False,
+    )
     print("State space created.\n")
     print("Starting state-choice space creation and child state mapping.")
 

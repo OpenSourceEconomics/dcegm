@@ -100,7 +100,7 @@ def process_model_functions(
     )
 
     # Now state space functions
-    state_specific_choice_set, next_period_endogenous_state = (
+    state_specific_choice_set, next_period_endogenous_state, sparsity_condition = (
         process_state_space_functions(
             state_space_functions, options, continuous_state_name
         )
@@ -133,6 +133,7 @@ def process_model_functions(
         "compute_marginal_utility_final": compute_marginal_utility_final,
         "compute_beginning_of_period_wealth": compute_beginning_of_period_wealth,
         "next_period_continuous_state": next_period_continuous_state,
+        "sparsity_condition": sparsity_condition,
         "compute_exog_transition_vec": compute_exog_transition_vec,
         "processed_exog_funcs": processed_exog_funcs_dict,
         "state_specific_choice_set": state_specific_choice_set,
@@ -183,7 +184,25 @@ def process_state_space_functions(
             continuous_state_name=continuous_state_name,
         )
 
-    return state_specific_choice_set, next_period_endogenous_state
+    sparsity_condition = process_sparsity_condition(state_space_functions, options)
+
+    return state_specific_choice_set, next_period_endogenous_state, sparsity_condition
+
+
+def process_sparsity_condition(state_space_functions, options):
+    if "sparsity_condition" in state_space_functions.keys():
+        sparsity_condition = determine_function_arguments_and_partial_options(
+            func=state_space_functions["sparsity_condition"],
+            options=options["model_params"],
+        )
+        # ToDo: Error if sparsity condition takes second continuous state as input
+    else:
+        print("Sparsity condition not provided. Assume all states are valid.")
+
+        def sparsity_condition(**kwargs):
+            return True
+
+    return sparsity_condition
 
 
 def process_second_continuous_update_function(
