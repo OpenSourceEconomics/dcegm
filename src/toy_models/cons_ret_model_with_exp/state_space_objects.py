@@ -13,6 +13,7 @@ def create_state_space_function_dict():
     return {
         "state_specific_choice_set": get_state_specific_feasible_choice_set,
         "next_period_endogenous_state": next_period_endogenous_state,
+        "sparsity_condition": sparsity_condition,
     }
 
 

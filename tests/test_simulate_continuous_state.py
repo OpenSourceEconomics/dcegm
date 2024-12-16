@@ -58,7 +58,6 @@ def test_setup():
         ),
         "endogenous_states": {
             "experience": np.arange(N_PERIODS + MAX_INIT_EXPERIENCE),
-            "sparsity_condition": model_funcs_discr_exp["sparsity_condition"],
         },
         "continuous_states": {
             "wealth": jnp.linspace(

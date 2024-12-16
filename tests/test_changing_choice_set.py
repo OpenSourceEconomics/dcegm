@@ -105,7 +105,6 @@ def test_model():
             "choices": np.arange(3),
             "endogenous_states": {
                 "experience": np.arange(5),
-                "sparsity_condition": sparsity_condition,
             },
             "continuous_states": {
                 "wealth": np.linspace(0, 500, 100),
@@ -145,6 +144,7 @@ def state_space_functions():
     out = {
         "state_specific_choice_set": choice_set,
         "next_period_endogenous_state": next_period_state,
+        "sparsity_condition": sparsity_condition,
     }
     return out
 

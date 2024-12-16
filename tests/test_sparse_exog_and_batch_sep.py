@@ -115,14 +115,12 @@ def test_benchmark_models(load_replication_params_and_specs):
         budget_constraint=model_funcs["budget_constraint"],
     )
 
-    options_sparse = options.copy()
-    options_sparse["state_space"]["endogenous_states"][
-        "sparsity_condition"
-    ] = sparsity_condition
+    model_funcs_sparse = model_funcs.copy()
+    model_funcs_sparse["sparsity_condition"] = sparsity_condition
 
     model_sparse = setup_model(
-        options=options_sparse,
-        state_space_functions=model_funcs["state_space_functions"],
+        options=options,
+        state_space_functions=model_funcs_sparse["state_space_functions"],
         utility_functions=model_funcs["utility_functions"],
         utility_functions_final_period=model_funcs["final_period_utility_functions"],
         budget_constraint=model_funcs["budget_constraint"],
@@ -147,13 +145,13 @@ def test_benchmark_models(load_replication_params_and_specs):
     aaae(value_full[full_idxs], value_sparse)
     aaae(policy_full[full_idxs], policy_sparse)
 
-    options_sep_once = options_sparse.copy()
+    options_sep_once = options.copy()
     options_sep_once["state_space"]["min_period_batch_segments"] = 20
 
     value_sep_1, policy_sep_1, endog_grid_sep_1 = solve_dcegm(
         params=params,
         options=options_sep_once,
-        state_space_functions=model_funcs["state_space_functions"],
+        state_space_functions=model_funcs_sparse["state_space_functions"],
         utility_functions=model_funcs["utility_functions"],
         utility_functions_final_period=model_funcs["final_period_utility_functions"],
         budget_constraint=model_funcs["budget_constraint"],
@@ -163,13 +161,13 @@ def test_benchmark_models(load_replication_params_and_specs):
     aaae(value_full[full_idxs], value_sep_1)
     aaae(policy_full[full_idxs], policy_sep_1)
 
-    options_sep_twice = options_sparse.copy()
+    options_sep_twice = options.copy()
     options_sep_twice["state_space"]["min_period_batch_segments"] = [15, 20]
 
     value_sep_2, policy_sep_2, endog_grid_sep_2 = solve_dcegm(
         params=params,
         options=options_sep_twice,
-        state_space_functions=model_funcs["state_space_functions"],
+        state_space_functions=model_funcs_sparse["state_space_functions"],
         utility_functions=model_funcs["utility_functions"],
         utility_functions_final_period=model_funcs["final_period_utility_functions"],
         budget_constraint=model_funcs["budget_constraint"],
