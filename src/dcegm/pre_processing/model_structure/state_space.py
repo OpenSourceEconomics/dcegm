@@ -106,7 +106,8 @@ def create_state_space(state_space_options, sparsity_condition, debugging=False)
                             raise ValueError(
                                 f" The state \n\n{sparsity_output}\n\n returned by the sparsity condition "
                                 f"does not have the correct format. The dictionary keys should be the same as "
-                                f"the discrete state names: \n\n{discrete_states_names}\n\n."
+                                f"the discrete state names defined in the state space options. These are"
+                                f": \n\n{discrete_states_names}\n\n."
                             )
 
                         # Check if each value is integer or array with dtype int
