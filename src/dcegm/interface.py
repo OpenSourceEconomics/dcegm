@@ -5,6 +5,11 @@ from dcegm.interpolation.interp1d import (
     interp_policy_on_wealth,
     interp_value_on_wealth,
 )
+from dcegm.interpolation.interp2d import (
+    interp2d_policy_and_value_on_wealth_and_regular_grid,
+    interp2d_policy_on_wealth_and_regular_grid,
+    interp2d_value_on_wealth_and_regular_grid,
+)
 
 
 def policy_and_value_for_state_choice_vec(
@@ -47,14 +52,13 @@ def policy_and_value_for_state_choice_vec(
 
 
 def value_for_state_choice_vec(
-    state_choice_vec,
-    wealth,
-    map_state_choice_to_index,
-    discrete_states_names,
     endog_grid_solved,
     value_solved,
-    compute_utility,
     params,
+    model,
+    state_choice_vec,
+    wealth,
+    second_continous=None,
 ):
     """Get policy and value for a given state and choice vector.
 
@@ -67,20 +71,36 @@ def value_for_state_choice_vec(
         Tuple[float, float]: Policy and value for the given state and choice vector.
 
     """
+    map_state_choice_to_index = model["model_structure"]["map_state_choice_to_index"]
+    discrete_states_names = model["model_structure"]["discrete_states_names"]
+    compute_utility = model["model_funcs"]["compute_utility"]
+
     state_choice_tuple = tuple(
         state_choice_vec[st] for st in discrete_states_names + ["choice"]
     )
 
     state_choice_index = map_state_choice_to_index[state_choice_tuple]
 
-    value = interp_value_on_wealth(
-        wealth=wealth,
-        endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
-        value=jnp.take(value_solved, state_choice_index, axis=0),
-        compute_utility=compute_utility,
-        state_choice_vec=state_choice_vec,
-        params=params,
-    )
+    if second_continous is None:
+        value = interp_value_on_wealth(
+            wealth=wealth,
+            endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
+            value=jnp.take(value_solved, state_choice_index, axis=0),
+            compute_utility=compute_utility,
+            state_choice_vec=state_choice_vec,
+            params=params,
+        )
+    else:
+        value = interp2d_value_on_wealth_and_regular_grid(
+            regular_grid=model["options"]["exog_grids"]["second_continuous"],
+            wealth_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
+            value_grid=jnp.take(value_solved, state_choice_index, axis=0),
+            regular_point_to_interp=second_continous,
+            wealth_point_to_interp=wealth,
+            compute_utility=compute_utility,
+            state_choice_vec=state_choice_vec,
+            params=params,
+        )
     return value
 
 
