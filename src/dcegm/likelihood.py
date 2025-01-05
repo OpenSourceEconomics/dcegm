@@ -186,7 +186,12 @@ def create_choice_prob_func_unobserved_states(
                 endog_grid_in=endog_grid_in,
                 params_in=params_in,
             )
-            choice_probs_final += unweighted_choice_probs * weights
+
+            weighted_choice_prob = jnp.nan_to_num(
+                unweighted_choice_probs * weights, nan=0.0
+            )
+
+            choice_probs_final += weighted_choice_prob
 
         return choice_probs_final
 
