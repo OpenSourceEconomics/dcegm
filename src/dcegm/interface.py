@@ -71,7 +71,9 @@ def value_for_state_choice_vec(
         Tuple[float, float]: Policy and value for the given state and choice vector.
 
     """
-    map_state_choice_to_index = model["model_structure"]["map_state_choice_to_index"]
+    map_state_choice_to_index = model["model_structure"][
+        "map_state_choice_to_index_with_proxy"
+    ]
     discrete_states_names = model["model_structure"]["discrete_states_names"]
     compute_utility = model["model_funcs"]["compute_utility"]
 

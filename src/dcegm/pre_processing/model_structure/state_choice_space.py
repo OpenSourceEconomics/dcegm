@@ -61,7 +61,7 @@ def create_state_choice_space_and_child_state_mapping(
     states_names_without_exog = state_space_arrays["state_names_without_exog"]
     exog_state_names = state_space_arrays["exog_states_names"]
     exog_state_space = state_space_arrays["exog_state_space"]
-    map_child_state_to_index = state_space_arrays["map_child_state_to_index"]
+    map_state_to_index_with_proxy = state_space_arrays["map_state_to_index_with_proxy"]
     map_state_to_index = state_space_arrays["map_state_to_index"]
     state_space = state_space_arrays["state_space"]
 
@@ -88,7 +88,7 @@ def create_state_choice_space_and_child_state_mapping(
         dtype=state_choice_space_dtype,
     )
 
-    state_space_indexer_dtype = map_child_state_to_index.dtype
+    state_space_indexer_dtype = map_state_to_index_with_proxy.dtype
     invalid_indexer_idx = np.iinfo(state_space_indexer_dtype).max
 
     map_state_choice_to_parent_state = np.zeros(
@@ -147,7 +147,7 @@ def create_state_choice_space_and_child_state_mapping(
                 states_next_tuple = next_period_state_tuple_wo_exog + exog_states_tuple
 
                 try:
-                    child_idxs = map_child_state_to_index[states_next_tuple]
+                    child_idxs = map_state_to_index_with_proxy[states_next_tuple]
                 except:
                     raise IndexError(
                         f"\n\n The state \n\n{endog_state_update}\n\n is a child state of "
@@ -188,6 +188,22 @@ def create_state_choice_space_and_child_state_mapping(
 
     map_state_choice_to_index, _ = create_indexer_for_space(state_choice_space)
 
+    # Create indexer with proxy
+    state_space_incl_proxies = state_space_arrays["state_space_incl_proxies"]
+    state_space_incl_proxies_tuple = tuple(
+        state_space_incl_proxies[:, i] for i in range(n_state_and_exog_variables)
+    )
+    states_proxy_to = state_space[
+        map_state_to_index_with_proxy[state_space_incl_proxies_tuple]
+    ]
+    states_proxy_to_tuple = tuple(
+        states_proxy_to[:, i] for i in range(n_state_and_exog_variables)
+    )
+    map_state_choice_to_index_with_proxy = np.empty_like(map_state_choice_to_index)
+    map_state_choice_to_index_with_proxy[state_space_incl_proxies_tuple] = (
+        map_state_choice_to_index[states_proxy_to_tuple]
+    )
+
     state_choice_space_dict = {
         key: state_choice_space[:, i]
         for i, key in enumerate(discrete_states_names + ["choice"])
@@ -205,6 +221,7 @@ def create_state_choice_space_and_child_state_mapping(
         "state_choice_space": state_choice_space,
         "state_choice_space_dict": state_choice_space_dict,
         "map_state_choice_to_index": map_state_choice_to_index,
+        "map_state_choice_to_index_with_proxy": map_state_choice_to_index_with_proxy,
         "map_state_choice_to_parent_state": map_state_choice_to_parent_state,
         "map_state_choice_to_child_states": map_state_choice_to_child_states,
     }

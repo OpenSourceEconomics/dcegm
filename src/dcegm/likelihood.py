@@ -200,7 +200,9 @@ def create_partial_choice_prob_calculation(
 ):
     discrete_observed_state_choice_indexes = get_state_choice_index_per_discrete_state(
         states=observed_states,
-        map_state_choice_to_index=model["model_structure"]["map_state_choice_to_index"],
+        map_state_choice_to_index=model["model_structure"][
+            "map_state_choice_to_index_with_proxy"
+        ],
         discrete_states_names=model["model_structure"]["discrete_states_names"],
     )
 

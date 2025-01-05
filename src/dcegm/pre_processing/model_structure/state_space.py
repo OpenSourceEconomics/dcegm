@@ -154,9 +154,17 @@ def create_state_space(state_space_options, sparsity_condition, debugging=False)
                     if state_is_valid:
                         state_space_list += [state]
 
+    # Generate state space including proxies and max values
+    state_space_full = np.array(full_state_space_list)
+    max_values_unrestricted = np.max(state_space_full, axis=0)
+    proxy_or_valid = np.array(valid_list) | np.array(proxy_list)
+    state_space_incl_proxies = state_space_full[proxy_or_valid]
+
     state_space_raw = np.array(state_space_list)
     state_space = create_array_with_smallest_int_dtype(state_space_raw)
-    map_state_to_index, invalid_index = create_indexer_for_space(state_space)
+    map_state_to_index, invalid_index = create_indexer_for_space(
+        state_space, max_var_values=max_values_unrestricted
+    )
 
     if proxies_exist:
         # If proxies exist we create a different indexer, to map
@@ -168,9 +176,9 @@ def create_state_space(state_space_options, sparsity_condition, debugging=False)
             discrete_states_names,
             invalid_index,
         )
-        map_child_state_to_index = map_state_to_index_with_proxies
+        map_state_to_index_with_proxy = map_state_to_index_with_proxies
     else:
-        map_child_state_to_index = map_state_to_index
+        map_state_to_index_with_proxy = map_state_to_index
 
     state_space_dict = {
         key: create_array_with_smallest_int_dtype(state_space[:, i])
@@ -180,10 +188,11 @@ def create_state_space(state_space_options, sparsity_condition, debugging=False)
     exog_state_space = create_array_with_smallest_int_dtype(exog_state_space_raw)
 
     dict_of_state_space_objects = {
+        "state_space_incl_proxies": state_space_incl_proxies,
         "state_space": state_space,
         "state_space_dict": state_space_dict,
         "map_state_to_index": map_state_to_index,
-        "map_child_state_to_index": map_child_state_to_index,
+        "map_state_to_index_with_proxy": map_state_to_index_with_proxy,
         "exog_state_space": exog_state_space,
         "exog_states_names": exog_states_names,
         "state_names_without_exog": state_names_without_exog,
@@ -193,7 +202,6 @@ def create_state_space(state_space_options, sparsity_condition, debugging=False)
     # If debugging is called we create a dataframe with detailed information on
     # full state space
     if debugging:
-        state_space_full = np.array(full_state_space_list)
         debug_df = pd.DataFrame(data=state_space_full, columns=discrete_states_names)
         debug_df["is_valid"] = valid_list
         debug_df["is_proxied"] = proxy_list
