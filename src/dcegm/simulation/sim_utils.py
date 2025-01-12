@@ -244,7 +244,7 @@ def draw_taste_shocks(n_agents, n_choices, states, params, shock_functions, key)
     taste_shocks = jax.random.gumbel(key=key, shape=(n_agents, n_choices))
     # The following allows to specify a function to return taste shock scales for each
     # state differently.
-    if shock_functions["taste_shock_scale_per_state"]:
+    if shock_functions["calc_taste_shock_scale_per_state"]:
         taste_shock_scale = shock_functions["taste_shock_scale_per_state"](
             params=params,
             state_space_dict=states,

@@ -182,7 +182,7 @@ def process_shock_functions(shock_functions, options, continuous_state_name):
 
         shock_functions_processed["taste_shock_scale"] = read_function
 
-    shock_functions_processed["taste_shock_scale_per_state"] = (
+    shock_functions_processed["calc_taste_shock_scale_per_state"] = (
         taste_shock_scale_per_state
     )
     return shock_functions_processed

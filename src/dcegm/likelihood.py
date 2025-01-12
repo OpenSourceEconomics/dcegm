@@ -317,7 +317,7 @@ def calc_choice_probs_for_states(
 
     # The following allows to specify a function to return taste shock scales for each
     # state differently.
-    if model_funcs["shock_functions"]["taste_shock_scale_per_state"]:
+    if model_funcs["shock_functions"]["calc_taste_shock_scale_per_state"]:
         taste_shock_scale = model_funcs["shock_functions"][
             "taste_shock_scale_per_state"
         ](params=params, state_space_dict=observed_states)
