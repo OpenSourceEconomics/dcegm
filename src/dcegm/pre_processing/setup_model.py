@@ -101,6 +101,7 @@ def setup_and_save_model(
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable] = None,
+    shock_functions: Dict[str, Callable] = None,
     path: str = "model.pkl",
 ):
     """Set up the model and save.
@@ -116,6 +117,7 @@ def setup_and_save_model(
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
+        shock_functions=shock_functions,
     )
 
     dict_to_save = {
@@ -133,6 +135,7 @@ def load_and_setup_model(
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable] = None,
+    shock_functions: Dict[str, Callable] = None,
     path: str = "model.pkl",
 ):
     """Load the model from file."""
@@ -147,6 +150,7 @@ def load_and_setup_model(
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
+        shock_functions=shock_functions,
     )
 
     model["model_funcs"]["exog_state_mapping"] = create_exog_state_mapping(
