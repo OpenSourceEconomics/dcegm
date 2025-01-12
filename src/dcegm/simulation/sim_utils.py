@@ -240,17 +240,17 @@ def next_period_continuous_state_for_one_agent(
     )
 
 
-def draw_taste_shocks(n_agents, n_choices, states, params, draw_functions, key):
+def draw_taste_shocks(n_agents, n_choices, states, params, shock_functions, key):
     taste_shocks = jax.random.gumbel(key=key, shape=(n_agents, n_choices))
     # The following allows to specify a function to return taste shock scales for each
     # state differently.
-    if draw_functions["draw_taste_shock_per_state"]:
-        taste_shock_scale = draw_functions["draw_taste_shock_per_state"](
+    if shock_functions["taste_shock_scale_per_state"]:
+        taste_shock_scale = shock_functions["taste_shock_scale_per_state"](
             params=params,
             state_space_dict=states,
         )
     else:
-        taste_shock_scale = draw_functions["taste_shock_scale"](params)
+        taste_shock_scale = shock_functions["taste_shock_scale"](params)
 
     taste_shocks = taste_shock_scale * (taste_shocks - jnp.euler_gamma)
     return taste_shocks

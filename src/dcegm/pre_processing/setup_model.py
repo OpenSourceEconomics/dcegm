@@ -23,7 +23,7 @@ def setup_model(
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable] = None,
-    draw_functions: Dict[str, Callable] = None,
+    shock_functions: Dict[str, Callable] = None,
     debug_output: str = None,
 ):
     """Set up the model for dcegm.
@@ -63,7 +63,7 @@ def setup_model(
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
-        draw_functions=draw_functions,
+        shock_functions=shock_functions,
     )
 
     model_structure = create_model_structure(

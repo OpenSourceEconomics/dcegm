@@ -100,7 +100,7 @@ def simulate_all_periods(
         ],
         exog_state_mapping=model_funcs_sim["exog_state_mapping"],
         compute_next_period_states=compute_next_period_states,
-        draw_functions=model_funcs_sim["draw_functions"],
+        shock_functions=model_funcs_sim["shock_functions"],
         second_continuous_state_dict=second_continuous_state_dict,
     )
 
@@ -124,7 +124,7 @@ def simulate_all_periods(
         choice_range=model_structure_solution["choice_range"],
         map_state_choice_to_index=model_structure_solution["map_state_choice_to_index"],
         compute_utility_final_period=model_funcs_sim["compute_utility_final"],
-        draw_functions=model_funcs_sim["draw_functions"],
+        shock_functions=model_funcs_sim["shock_functions"],
     )
 
     result = {
@@ -153,7 +153,7 @@ def simulate_single_period(
     compute_beginning_of_period_wealth,
     exog_state_mapping,
     compute_next_period_states,
-    draw_functions,
+    shock_functions,
     second_continuous_state_dict=None,
 ):
     (
@@ -200,7 +200,7 @@ def simulate_single_period(
         n_choices=len(choice_range),
         states=states_beginning_of_period,
         params=params,
-        draw_functions=draw_functions,
+        shock_functions=shock_functions,
         key=sim_specific_keys[0, :],
     )
     values_across_choices = values_pre_taste_shock + taste_shocks
@@ -273,7 +273,7 @@ def simulate_final_period(
     choice_range,
     map_state_choice_to_index,
     compute_utility_final_period,
-    draw_functions,
+    shock_functions,
 ):
     invalid_number = np.iinfo(map_state_choice_to_index.dtype).max
 
@@ -313,7 +313,7 @@ def simulate_final_period(
         n_choices=n_choices,
         states=states_beginning_of_final_period,
         params=params,
-        draw_functions=draw_functions,
+        shock_functions=shock_functions,
         key=sim_specific_keys[0, :],
     )
     values_across_choices = utilities_pre_taste_shock + taste_shocks
