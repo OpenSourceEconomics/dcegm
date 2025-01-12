@@ -312,9 +312,21 @@ def calc_choice_probs_for_states(
             params,
             compute_utility,
         )
+
+    model_funcs = model["model_funcs"]
+
+    # The following allows to specify a function to return taste shock scales for each
+    # state differently.
+    if model_funcs["draw_functions"]["draw_taste_shock_per_state"]:
+        taste_shock_scale = model_funcs["draw_functions"]["draw_taste_shock_per_state"](
+            params=params, state_space_dict=observed_states
+        )
+    else:
+        taste_shock_scale = model_funcs["draw_functions"]["taste_shock_scale"](params)
+
     choice_prob_across_choices, _, _ = calculate_choice_probs_and_unsqueezed_logsum(
         choice_values_per_state=value_per_agent_interp,
-        taste_shock_scale=params["lambda"],
+        taste_shock_scale=taste_shock_scale,
     )
     return choice_prob_across_choices
 

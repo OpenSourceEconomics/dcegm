@@ -24,6 +24,7 @@ def solve_dcegm(
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable] = None,
+    draw_functions: Dict[str, Callable] = None,
 ) -> Dict[int, np.ndarray]:
     """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
@@ -57,6 +58,7 @@ def solve_dcegm(
         utility_functions=utility_functions,
         budget_constraint=budget_constraint,
         utility_functions_final_period=utility_functions_final_period,
+        draw_functions=draw_functions,
     )
 
     results = backward_jit(params=params)
@@ -70,6 +72,7 @@ def get_solve_function(
     budget_constraint: Callable,
     utility_functions_final_period: Dict[str, Callable],
     state_space_functions: Dict[str, Callable] = None,
+    draw_functions: Dict[str, Callable] = None,
 ) -> Callable:
     """Create a solve function, which only takes params as input.
 
@@ -101,6 +104,7 @@ def get_solve_function(
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
+        draw_functions=draw_functions,
     )
 
     return get_solve_func_for_model(model=model)
@@ -214,7 +218,14 @@ def backward_induction(
             from the backward induction.
 
     """
-    taste_shock_scale = params["lambda"]
+    # The following allows to specify a function to return taste shock scales for each
+    # state differently.
+    if model_funcs["draw_functions"]["draw_taste_shock_per_state"]:
+        taste_shock_scale = model_funcs["draw_functions"]["draw_taste_shock_per_state"](
+            params=params, state_space_dict=state_space_dict
+        )
+    else:
+        taste_shock_scale = model_funcs["draw_functions"]["taste_shock_scale"](params)
 
     cont_grids_next_period = calc_cont_grids_next_period(
         state_space_dict=state_space_dict,

@@ -48,6 +48,9 @@ def solve_single_period(
         params=params,
     )
 
+    if len(taste_shock_scale) > 1:
+        taste_shock_scale = taste_shock_scale[child_state_idxs]
+
     endog_grid_state_choice, policy_state_choice, value_state_choice = (
         solve_for_interpolated_values(
             value_interpolated=value_interpolated,

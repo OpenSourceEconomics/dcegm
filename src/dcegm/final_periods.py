@@ -14,7 +14,7 @@ from dcegm.solve_single_period import solve_for_interpolated_values
 def solve_last_two_periods(
     cont_grids_next_period: Dict[str, jnp.ndarray],
     params: Dict[str, float],
-    taste_shock_scale: float,
+    taste_shock_scale,
     income_shock_weights: jnp.ndarray,
     exog_grids: Dict[str, jnp.ndarray],
     model_funcs: Dict[str, Callable],
@@ -74,6 +74,11 @@ def solve_last_two_periods(
         endog_grid_solved=endog_grid_solved,
         has_second_continuous_state=has_second_continuous_state,
     )
+
+    if len(taste_shock_scale) > 1:
+        taste_shock_scale = taste_shock_scale[
+            last_two_period_batch_info["idxs_parent_states_final_period"]
+        ]
 
     endog_grid, policy, value = solve_for_interpolated_values(
         value_interpolated=value_interp_final_period,

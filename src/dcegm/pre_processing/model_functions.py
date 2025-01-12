@@ -1,5 +1,6 @@
 from typing import Callable, Dict
 
+import jax
 import jax.numpy as jnp
 from upper_envelope.fues_jax.fues_jax import fues_jax
 
@@ -15,6 +16,7 @@ def process_model_functions(
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
+    draw_functions: Dict[str, Callable] = None,
 ):
     """Create wrapped functions from user supplied functions.
 
@@ -125,6 +127,10 @@ def process_model_functions(
         continuous_state=continuous_state_name,
     )
 
+    draw_functions_processed = process_draw_functions(
+        draw_functions, options, continuous_state_name
+    )
+
     model_funcs = {
         "compute_utility": compute_utility,
         "compute_marginal_utility": compute_marginal_utility,
@@ -139,9 +145,69 @@ def process_model_functions(
         "state_specific_choice_set": state_specific_choice_set,
         "next_period_endogenous_state": next_period_endogenous_state,
         "compute_upper_envelope": compute_upper_envelope,
+        "draw_functions": draw_functions_processed,
     }
 
     return model_funcs
+
+
+def process_draw_functions(draw_functions, options, continuous_state_name):
+    draw_functions_processed = {} if draw_functions is None else draw_functions
+    if "taste_shock_per_state" in draw_functions_processed.keys():
+        draw_functions_processed["taste_shock_per_state"] = (
+            get_taste_shock_over_all_states_func(
+                draw_function_taste_shocks=draw_functions_processed[
+                    "taste_shock_per_state"
+                ],
+                options=options,
+                continuous_state_name=continuous_state_name,
+            )
+        )
+        draw_taste_shock_per_state = True
+    else:
+        draw_taste_shock_per_state = False
+        if "lambda" in options["model_params"]:
+            # Check if lambda is a scalar
+            lambda_val = options["model_params"]["lambda"]
+            if not isinstance(lambda_val, (int, float)):
+                raise ValueError(
+                    f"Lambda is not a scalar. If there is no draw function provided, "
+                    f"lambda must be a scalar. Got {lambda_val}."
+                )
+            read_function = lambda params_in: jnp.asarray(
+                [options["model_params"]["lambda"]]
+            )
+        else:
+            read_function = lambda params_in: jnp.asarray([params_in["lambda"]])
+
+        draw_functions_processed["taste_shock_scale"] = read_function
+
+    draw_functions_processed["draw_taste_shock_per_state"] = draw_taste_shock_per_state
+    return draw_functions_processed
+
+
+def get_taste_shock_over_all_states_func(
+    draw_function_taste_shocks, options, continuous_state_name
+):
+    not_allowed_states = ["wealth"]
+    if continuous_state_name is not None:
+        not_allowed_states += [continuous_state_name]
+    taste_shock_per_state_function = determine_function_arguments_and_partial_options(
+        func=draw_function_taste_shocks,
+        options=options["model_params"],
+        not_allowed_state_choices=not_allowed_states,
+        continuous_state_name=continuous_state_name,
+    )
+
+    def vectorized_taste_shock_per_state(state_dict_vec, params):
+        return taste_shock_per_state_function(params=params, **state_dict_vec)
+
+    def taste_shock_over_all_states_func(state_dict, params):
+        return jax.vmap(vectorized_taste_shock_per_state, in_axes=(0, None))(
+            state_dict, params
+        )
+
+    return taste_shock_over_all_states_func
 
 
 def process_state_space_functions(

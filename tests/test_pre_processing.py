@@ -107,11 +107,10 @@ def test_missing_parameter(
 
     params.pop("interest_rate")
     params.pop("sigma")
-    params.pop("lambda")
 
     params_dict = process_params(params)
 
-    for param in ["interest_rate", "sigma", "lambda"]:
+    for param in ["interest_rate", "sigma"]:
         assert param in params_dict.keys()
 
     params.pop("beta")

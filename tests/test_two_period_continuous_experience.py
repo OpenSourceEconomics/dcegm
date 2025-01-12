@@ -328,7 +328,7 @@ def create_test_inputs():
             "state_to_choices_final_period"
         ],
         params=params,
-        taste_shock_scale=taste_shock_scale,
+        taste_shock_scale=jnp.array([taste_shock_scale]),
         income_shock_weights=income_shock_weights,
         exog_grids=exog_grids_cont,
         model_funcs=model_funcs_cont,
