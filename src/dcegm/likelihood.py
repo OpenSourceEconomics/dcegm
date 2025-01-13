@@ -320,7 +320,7 @@ def calc_choice_probs_for_states(
     if model_funcs["shock_functions"]["calc_taste_shock_scale_per_state"]:
         taste_shock_scale = model_funcs["shock_functions"][
             "taste_shock_scale_per_state"
-        ](params=params, state_space_dict=observed_states)
+        ](params=params, state_dict=observed_states)
     else:
         taste_shock_scale = model_funcs["shock_functions"]["taste_shock_scale"](params)
 

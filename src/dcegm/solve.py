@@ -223,7 +223,7 @@ def backward_induction(
     if model_funcs["shock_functions"]["calc_taste_shock_scale_per_state"]:
         taste_shock_scale = model_funcs["shock_functions"][
             "taste_shock_scale_per_state"
-        ](params=params, state_space_dict=state_space_dict)
+        ](params=params, state_dict=state_space_dict)
     else:
         taste_shock_scale = model_funcs["shock_functions"]["taste_shock_scale"](params)
 
