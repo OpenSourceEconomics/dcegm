@@ -8,7 +8,7 @@ def aggregate_marg_utils_and_exp_values(
     value_state_choice_specific: jnp.ndarray,
     marg_util_state_choice_specific: jnp.ndarray,
     reshape_state_choice_vec_to_mat: np.ndarray,
-    taste_shock_scale: float,
+    taste_shock_scale,
     income_shock_weights: jnp.ndarray,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Compute the aggregate marginal utilities and expected values.
@@ -46,6 +46,12 @@ def aggregate_marg_utils_and_exp_values(
         mode="fill",
         fill_value=jnp.nan,
     )
+    if len(taste_shock_scale) > 1:
+        n_dims = len(choice_values_per_state.shape)
+        new_dims = (...,) + (None,) * (n_dims - 1)
+        taste_shock_scale_expanded = taste_shock_scale[new_dims]
+    else:
+        taste_shock_scale_expanded = taste_shock_scale
 
     (
         choice_probs,
@@ -53,10 +59,12 @@ def aggregate_marg_utils_and_exp_values(
         sum_exp,
     ) = calculate_choice_probs_and_unsqueezed_logsum(
         choice_values_per_state=choice_values_per_state,
-        taste_shock_scale=taste_shock_scale,
+        taste_shock_scale=taste_shock_scale_expanded,
     )
 
-    log_sum_unsqueezed = max_value_per_state + taste_shock_scale * jnp.log(sum_exp)
+    log_sum_unsqueezed = max_value_per_state + taste_shock_scale_expanded * jnp.log(
+        sum_exp
+    )
 
     # Because we kept the dimensions in the maximum and sum over choice specific objects
     # to perform subtraction and division, we now need to squeeze the log_sum again
