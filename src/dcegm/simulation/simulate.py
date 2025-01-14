@@ -90,7 +90,7 @@ def simulate_all_periods(
         value_solved=value_solved,
         policy_solved=policy_solved,
         map_state_choice_to_index=jnp.asarray(
-            model_structure_solution["map_state_choice_to_index"]
+            model_structure_solution["map_state_choice_to_index_with_proxy"]
         ),
         choice_range=model_structure_solution["choice_range"],
         compute_exog_transition_vec=model_funcs_sim["compute_exog_transition_vec"],
