@@ -25,6 +25,7 @@ def create_individual_likelihood_function_for_model(
     observed_states: Dict[str, int],
     observed_choices: np.array,
     params_all,
+    weight_observed_states=False,
     unobserved_state_specs=None,
     return_model_solution=False,
 ):
@@ -102,9 +103,6 @@ def create_choice_prob_func_unobserved_states(
     # Add unobserved states with appendix new and bools indicating if state is observed
     for state_name in unobserved_state_names:
         weighting_vars[state_name + "_new"] = observed_states[state_name]
-        weighting_vars[state_name + "_observed_bool"] = unobserved_state_specs[
-            "observed_bools_states"
-        ][state_name]
 
     # Read out possible values for unobserved states
     unobserved_state_values = {}
@@ -143,6 +141,16 @@ def create_choice_prob_func_unobserved_states(
         # Now overwrite existing lists
         possible_states = new_possible_states
         weighting_vars_for_possible_states = new_weighting_vars_for_possible_states
+
+    # Generate container for additional reweighting observed variables
+    # As for these the weight function is called 2 times, we need to half the weight later
+    observed_weights = np.ones(len(observed_choices), dtype=float)
+    # For each observed variable, we divide by the number of possible values, as the weight function
+    # is called for each observed value that often
+    for state_name in unobserved_state_names:
+        n_state_values = len(unobserved_state_values[state_name])
+
+        observed_weights[observed_bools[state_name]] /= n_state_values
 
     # Create a list of partial choice probability functions for each unique
     # combination of unobserved states.
@@ -188,7 +196,7 @@ def create_choice_prob_func_unobserved_states(
             )
 
             weighted_choice_prob = jnp.nan_to_num(
-                unweighted_choice_probs * weights, nan=0.0
+                unweighted_choice_probs * weights * observed_weights, nan=0.0
             )
 
             choice_probs_final += weighted_choice_prob
