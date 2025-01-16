@@ -25,6 +25,7 @@ def setup_model(
     state_space_functions: Dict[str, Callable] = None,
     shock_functions: Dict[str, Callable] = None,
     debug_output: str = None,
+    sim_model=False,
 ):
     """Set up the model for dcegm.
 
@@ -64,6 +65,7 @@ def setup_model(
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
         shock_functions=shock_functions,
+        sim_model=sim_model,
     )
 
     model_structure = create_model_structure(
@@ -137,6 +139,7 @@ def load_and_setup_model(
     state_space_functions: Dict[str, Callable] = None,
     shock_functions: Dict[str, Callable] = None,
     path: str = "model.pkl",
+    sim_model=False,
 ):
     """Load the model from file."""
 
@@ -151,6 +154,7 @@ def load_and_setup_model(
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
         shock_functions=shock_functions,
+        sim_model=sim_model,
     )
 
     model["model_funcs"]["exog_state_mapping"] = create_exog_state_mapping(
