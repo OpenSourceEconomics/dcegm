@@ -244,7 +244,7 @@ def create_test_inputs():
 
     options["state_space"] = {
         "n_periods": N_PERIODS,
-        "choices": np.arange(2),
+        "choices": 2,
         "continuous_states": {
             "wealth": jnp.linspace(
                 0,

@@ -54,16 +54,16 @@ def test_wrap_function(load_replication_params_and_specs):
         {
             "state_space": {
                 "n_periods": 25,
-                "choices": np.arange(2),
+                "choices": 2,
                 "endogenous_states": {
-                    "thus": np.arange(25),
-                    "that": [0, 1],
+                    "thus": 25,
+                    "that": 2,
                 },
                 "continuous_states": {
                     "wealth": np.linspace(0, 500, 100),
                 },
                 "exogenous_processes": {
-                    "ltc": {"states": np.array([0]), "transition": jnp.array([0])}
+                    "ltc": {"states": 1, "transition": jnp.array([0])}
                 },
             },
         }
@@ -138,7 +138,7 @@ def test_load_and_save_model(
     options["model_params"]["n_choices"] = _raw_options["n_discrete_choices"]
     options["state_space"] = {
         "n_periods": 25,
-        "choices": [i for i in range(_raw_options["n_discrete_choices"])],
+        "choices": len(_raw_options["n_discrete_choices"]),
         "continuous_states": {
             "wealth": np.linspace(0, 500, 100),
         },
@@ -201,7 +201,7 @@ def test_grid_parameters():
         },
         "state_space": {
             "n_periods": 25,
-            "choices": [0, 1],
+            "choices": 2,
             "continuous_states": {
                 "wealth": np.linspace(0, 10, 100),
             },
@@ -236,11 +236,11 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
     options = {
         "state_space": {
             "n_periods": 25,
-            "choices": np.arange(3),
+            "choices": 3,
             # discrete states
             "endogenous_states": {
-                "married": [0, 1],
-                "n_children": np.arange(3),
+                "married": 2,
+                "n_children": 3,
             },
             "continuous_states": {
                 "wealth": np.linspace(0, 10_000, 100),

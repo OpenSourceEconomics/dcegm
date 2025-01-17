@@ -39,7 +39,7 @@ def test_benchmark_models(model_name, load_replication_params_and_specs):
     options["model_params"]["n_choices"] = model_specs["n_discrete_choices"]
     options["state_space"] = {
         "n_periods": 25,
-        "choices": [i for i in range(model_specs["n_discrete_choices"])],
+        "choices": len(model_specs["n_discrete_choices"]),
         "continuous_states": {
             "wealth": jnp.linspace(
                 0,

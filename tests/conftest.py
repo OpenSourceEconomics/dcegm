@@ -104,15 +104,15 @@ def params_and_options_exog_ltc():
         },
         "state_space": {
             "n_periods": 2,
-            "choices": np.arange(2),
+            "choices": 2,
             "endogenous_states": {
-                "married": [0, 1],
+                "married": 2,
             },
             "continuous_states": {
                 "wealth": np.linspace(0, 50, WEALTH_GRID_POINTS),
             },
             "exogenous_processes": {
-                "ltc": {"transition": prob_exog_ltc, "states": [0, 1]},
+                "ltc": {"transition": prob_exog_ltc, "states": 2},
             },
         },
     }
@@ -149,16 +149,16 @@ def params_and_options_exog_ltc_and_job_offer():
         },
         "state_space": {
             "n_periods": 2,
-            "choices": np.arange(2),
+            "choices": 2,
             "endogenous_states": {
-                "married": [0, 1],
+                "married": 2,
             },
             "continuous_states": {
                 "wealth": np.linspace(0, 50, WEALTH_GRID_POINTS),
             },
             "exogenous_processes": {
-                "ltc": {"transition": prob_exog_ltc, "states": [0, 1]},
-                "job_offer": {"transition": prob_exog_job_offer, "states": [0, 1]},
+                "ltc": {"transition": prob_exog_ltc, "states": 2},
+                "job_offer": {"transition": prob_exog_job_offer, "states": 2},
             },
         },
     }

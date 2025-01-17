@@ -120,9 +120,9 @@ def test_exog_processes(
         },
         "state_space": {
             "n_periods": 2,
-            "choices": np.arange(2),
+            "choices": 2,
             "endogenous_states": {
-                "married": [0, 1],
+                "married": 2,
             },
             "continuous_states": {
                 "wealth": np.linspace(0, 50, 100),
@@ -130,19 +130,19 @@ def test_exog_processes(
             "exogenous_processes": {
                 "health_mother": {
                     "transition": prob_exog_health_mother,
-                    "states": [0, 1, 2],
+                    "states": 3,
                 },
                 "health_father": {
                     "transition": prob_exog_health_father,
-                    "states": [0, 1, 2],
+                    "states": 3,
                 },
                 "health_child": {
                     "transition": prob_exog_health_child,
-                    "states": [0, 1],
+                    "states": 2,
                 },
                 "health_grandma": {
                     "transition": prob_exog_health_grandma,
-                    "states": [0, 1],
+                    "states": 2,
                 },
             },
         },

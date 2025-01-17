@@ -221,11 +221,9 @@ def test_setup():
 
     state_space_options = {
         "n_periods": N_PERIODS,
-        "choices": np.arange(
-            N_DISCRETE_CHOICES,
-        ),
+        "choices": N_DISCRETE_CHOICES,
         "endogenous_states": {
-            "experience": np.arange(N_PERIODS + MAX_INIT_EXPERIENCE),
+            "experience": N_PERIODS + MAX_INIT_EXPERIENCE,
         },
         "continuous_states": {
             "wealth": jnp.linspace(

@@ -1,3 +1,6 @@
+import warnings
+
+import jax.numpy as jnp
 import numpy as np
 
 
@@ -23,24 +26,16 @@ def check_options_and_set_defaults(options):
         raise ValueError("Number of periods must be greater than 1.")
 
     if "choices" not in options["state_space"]:
-        print("Choices not given. Assume only single choice with value 0")
+        warnings.warn("Choices not given. Assume only single choice with value 0")
         options["state_space"]["choices"] = np.array([0], dtype=np.uint8)
-
-    if "choices" in options["state_space"]:
-        if isinstance(options["state_space"]["choices"], list):
-            options["state_space"]["choices"] = np.array(
-                options["state_space"]["choices"], dtype=np.uint8
+    else:
+        if not isinstance(options["state_space"]["choices"], int):
+            raise ValueError(
+                f"choices must be an integer and are {options['state_space']['choices']} instead of int."
             )
-        elif isinstance(options["state_space"]["choices"], int):
-            options["state_space"]["choices"] = np.array(
-                [options["state_space"]["choices"]], dtype=np.uint8
-            )
-        elif isinstance(options["state_space"]["choices"], np.ndarray):
-            options["state_space"]["choices"] = options["state_space"][
-                "choices"
-            ].astype(np.uint8)
-        else:
-            raise ValueError("Choices must be a list or an integer.")
+        options["state_space"]["choices"] = np.arange(
+            options["state_space"]["choices"], dtype=np.uint8
+        )
 
     if "model_params" not in options:
         raise ValueError("Options must contain a model parameters dictionary.")
@@ -50,6 +45,92 @@ def check_options_and_set_defaults(options):
 
     if "n_choices" not in options["model_params"]:
         options["model_params"]["n_choices"] = len(options["state_space"]["choices"])
+    else:
+        if (
+            len(options["state_space"]["choices"])
+            != options["model_params"]["n_choices"]
+        ):
+            warnings.warn(
+                f"""\n\n
+                n_choices in the options model_params dictionary ({options['model_params']['n_choices']}) is not equal to the number of choices
+                in the state space {len(options['state_space']['choices'])}. The number of choices in the state space is used.\n\n"""
+            )
+            options["model_params"]["n_choices"] = len(
+                options["state_space"]["choices"]
+            )
+
+    if "endogenous_states" in options["state_space"]:
+        if not isinstance(options["state_space"]["endogenous_states"], dict):
+            raise ValueError(
+                "endogenous_states specified in the options must be a dictionary."
+            )
+
+        for key, value in options["state_space"]["endogenous_states"].items():
+            if not isinstance(value, int):
+                raise ValueError(
+                    f"{key} value must be an integer. Got {key}:{type(value)} instead of {key}:int in the options endogenous states dictionary."
+                )
+            options["state_space"]["endogenous_states"][key] = np.arange(
+                value, dtype=np.uint8
+            )
+
+    if "exogenous_processes" in options["state_space"]:
+        if not isinstance(options["state_space"]["exogenous_processes"], dict):
+            raise ValueError("Exogenous processes must be a dictionary.")
+
+        for key, value in options["state_space"]["exogenous_processes"].items():
+            if not isinstance(value, dict):
+                raise ValueError(
+                    f"{key} value must be a dictionary in the options exogenous processes dictionary"
+                )
+            if "transition" not in value:
+                raise ValueError(
+                    f"{key} must contain a transition function in the options exogenous processes dictionary."
+                )
+            if "states" not in value:
+                raise ValueError(
+                    f"{key} must contain states in the options exogenous processes dictionary."
+                )
+            if not isinstance(value["states"], int):
+                raise ValueError(
+                    f"{key} states must be an int in the options exogenous processes dictionary."
+                )
+            value["states"] = np.arange(value["states"], dtype=np.uint8)
+
+    if "continuous_states" not in options["state_space"]:
+        raise ValueError("State space must contain continuous states.")
+
+    if "wealth" not in options["state_space"]["continuous_states"]:
+        raise ValueError("Continuous states must contain wealth.")
+
+    if not isinstance(
+        options["state_space"]["continuous_states"]["wealth"], jnp.ndarray
+    ):
+        if isinstance(options["state_space"]["continuous_states"]["wealth"], list):
+            options["state_space"]["continuous_states"]["wealth"] = jnp.array(
+                options["state_space"]["continuous_states"]["wealth"]
+            )
+        elif isinstance(
+            options["state_space"]["continuous_states"]["wealth"], np.ndarray
+        ):
+            options["state_space"]["continuous_states"]["wealth"] = jnp.array(
+                options["state_space"]["continuous_states"]["wealth"]
+            )
+        else:
+            raise ValueError(
+                f"Wealth must be a list, numpy array or jax numpy array is {type(options['state_space']['continuous_states']['wealth'])} instead."
+            )
+
+    for key, value in options["state_space"]["continuous_states"].items():
+        if key != "wealth":
+            if isinstance(value, list):
+                options["state_space"]["continuous_states"][key] = jnp.array(value)
+            elif isinstance(value, np.ndarray):
+                options["state_space"]["continuous_states"][key] = jnp.array(value)
+            elif not isinstance(value, jnp.ndarray):
+                raise ValueError(
+                    f"{key} must be a list, numpy array or jax numpy array is {type(value)} instead."
+                )
 
     n_savings_grid_points = len(options["state_space"]["continuous_states"]["wealth"])
     options["n_wealth_grid"] = n_savings_grid_points

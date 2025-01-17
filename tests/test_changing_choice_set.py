@@ -102,16 +102,16 @@ def test_model():
         },
         "state_space": {
             "n_periods": 5,
-            "choices": np.arange(3),
+            "choices": 3,
             "endogenous_states": {
-                "experience": np.arange(5),
+                "experience": 5,
             },
             "continuous_states": {
                 "wealth": np.linspace(0, 500, 100),
             },
             "exogenous_processes": {
-                "health": {"transition": prob_health, "states": [0, 1]},
-                "partner": {"transition": prob_partner, "states": [0, 1]},
+                "health": {"transition": prob_health, "states": 2},
+                "partner": {"transition": prob_partner, "states": 2},
             },
         },
     }

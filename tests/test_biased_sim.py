@@ -37,9 +37,9 @@ def marriage_transition(married, options):
 def state_space_options():
     state_space_options_sol = {
         "n_periods": 5,
-        "choices": np.arange(2),
+        "choices": 2,
         "endogenous_states": {
-            "married": np.arange(2, dtype=int),
+            "married": 2,
         },
         "continuous_states": {
             "wealth": np.arange(0, 100, 5, dtype=float),
@@ -48,10 +48,10 @@ def state_space_options():
 
     state_space_options_sim = {
         "n_periods": 5,
-        "choices": np.arange(2),
+        "choices": 2,
         "exogenous_processes": {
             "married": {
-                "states": np.arange(2, dtype=int),
+                "states": 2,
                 "transition": marriage_transition,
             },
         },
