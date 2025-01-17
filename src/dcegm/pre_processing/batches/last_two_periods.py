@@ -34,18 +34,30 @@ def add_last_two_period_information(
     # Now get the matrix we use for choice aggregation
     state_to_choices_final_period = map_state_choice_to_index[states_tuple]
 
-    # Reindex the state choices in the final period, to have them starting at 0.
+    # Reindex the array, which maps state choices to states in the final period.
+    # We need to do that, so we can index in idx_state_choice_final_period.
+    # As the state choice space is ordered by period,
+    # idx_state_choice_final_period are consecutive integers, with the first entry
+    # being the smallest. By subtracting the minimum we get the reindexing.
     min_val = int(np.min(idx_state_choice_final_period))
     state_to_choices_final_period -= min_val
 
     idx_state_choice_second_last_period = np.where(
         state_choice_space[:, 0] == n_periods - 2
     )[0]
-    # Also normalize the state choice idxs
+
+    # Now turn to the child state indexes
     child_states_second_last_period = map_state_choice_to_child_states[
         idx_state_choice_second_last_period
     ]
 
+    # Reindex the child states of the second last period, i.e. child_states_second_last_period
+    # from indexes of the whole state space to indexes of idx_states_final_period.
+    # As the state space is ordered by period, idx_states_final_period
+    # are consecutive integers. It could be that not all states in the final period are child states
+    # of the second last period (imagine a death state, all accumulated in the final period).
+    # Therefore, we reindex with the smallest index in idx_states_final_period. So if the child states
+    # do cover all states child_states_second_last_period, will have a 0 as minimal number.
     min_val = int(np.min(idx_states_final_period))
     child_states_second_last_period -= min_val
 
