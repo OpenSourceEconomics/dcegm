@@ -351,14 +351,18 @@ def test_replication_discrete_versus_continuous_experience(
         "choice": choice,
     }
 
-    idx_state_choice_disc = model_disc["model_structure"]["map_state_choice_to_index"][
+    idx_state_choice_disc = model_disc["model_structure"][
+        "map_state_choice_to_index_with_proxy"
+    ][
         state_choice_disc_dict["period"],
         state_choice_disc_dict["lagged_choice"],
         state_choice_disc_dict["experience"],
         state_choice_disc_dict["dummy_exog"],
         state_choice_disc_dict["choice"],
     ]
-    idx_state_choice_cont = model_cont["model_structure"]["map_state_choice_to_index"][
+    idx_state_choice_cont = model_cont["model_structure"][
+        "map_state_choice_to_index_with_proxy"
+    ][
         state_choice_cont_dict["period"],
         state_choice_cont_dict["lagged_choice"],
         state_choice_cont_dict["dummy_exog"],

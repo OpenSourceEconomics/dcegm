@@ -122,7 +122,9 @@ def simulate_all_periods(
         params=params,
         discrete_states_names=model_structure_solution["discrete_states_names"],
         choice_range=model_structure_solution["choice_range"],
-        map_state_choice_to_index=model_structure_solution["map_state_choice_to_index"],
+        map_state_choice_to_index=model_structure_solution[
+            "map_state_choice_to_index_with_proxy"
+        ],
         compute_utility_final_period=model_funcs_sim["compute_utility_final"],
         shock_functions=model_funcs_sim["shock_functions"],
     )

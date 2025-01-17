@@ -19,7 +19,7 @@ def create_single_segment_of_batches(bool_state_choices_to_batch, model_structur
     map_state_choice_to_child_states = model_structure[
         "map_state_choice_to_child_states"
     ]
-    map_state_choice_to_index = model_structure["map_state_choice_to_index"]
+    map_state_choice_to_index = model_structure["map_state_choice_to_index_with_proxy"]
 
     (
         batches_list,

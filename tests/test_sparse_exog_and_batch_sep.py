@@ -137,7 +137,7 @@ def test_benchmark_models(load_replication_params_and_specs):
     state_choice_space_tuple_sparse = tuple(
         state_choices_sparse[:, i] for i in range(state_choices_sparse.shape[1])
     )
-    full_idxs = model_full["model_structure"]["map_state_choice_to_index"][
+    full_idxs = model_full["model_structure"]["map_state_choice_to_index_with_proxy"][
         state_choice_space_tuple_sparse
     ]
 

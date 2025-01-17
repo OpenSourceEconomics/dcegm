@@ -16,7 +16,7 @@ def add_last_two_period_information(
     map_state_choice_to_child_states = model_structure[
         "map_state_choice_to_child_states"
     ]
-    map_state_choice_to_index = model_structure["map_state_choice_to_index"]
+    map_state_choice_to_index = model_structure["map_state_choice_to_index_with_proxy"]
 
     # Select state_choice idxs in final period
     idx_state_choice_final_period = np.where(state_choice_space[:, 0] == n_periods - 1)[

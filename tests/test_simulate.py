@@ -84,7 +84,7 @@ def test_simulate_lax_scan(model_setup):
     model_funcs = model_setup["model"]["model_funcs"]
 
     discrete_states_names = model_structure["discrete_states_names"]
-    map_state_choice_to_index = model_structure["map_state_choice_to_index"]
+    map_state_choice_to_index = model_structure["map_state_choice_to_index_with_proxy"]
 
     exog_state_mapping = model_funcs["exog_state_mapping"]
     next_period_endogenous_state = model_funcs["next_period_endogenous_state"]

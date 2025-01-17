@@ -220,7 +220,7 @@ def create_state_choice_space_and_child_state_mapping(
     dict_of_state_choice_space_objects = {
         "state_choice_space": state_choice_space,
         "state_choice_space_dict": state_choice_space_dict,
-        "map_state_choice_to_index": map_state_choice_to_index,
+        # "map_state_choice_to_index": map_state_choice_to_index,
         "map_state_choice_to_index_with_proxy": map_state_choice_to_index_with_proxy,
         "map_state_choice_to_parent_state": map_state_choice_to_parent_state,
         "map_state_choice_to_child_states": map_state_choice_to_child_states,
