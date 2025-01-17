@@ -25,9 +25,9 @@ def create_individual_likelihood_function_for_model(
     observed_states: Dict[str, int],
     observed_choices: np.array,
     params_all,
-    weight_observed_states=False,
     unobserved_state_specs=None,
     return_model_solution=False,
+    use_probability_of_observed_states=True,
 ):
 
     solve_func = get_solve_func_for_model(
@@ -46,6 +46,7 @@ def create_individual_likelihood_function_for_model(
             observed_states=observed_states,
             observed_choices=observed_choices,
             unobserved_state_specs=unobserved_state_specs,
+            use_probability_of_observed_states=use_probability_of_observed_states,
         )
 
     def individual_likelihood(params):
@@ -84,6 +85,7 @@ def create_choice_prob_func_unobserved_states(
     observed_states: Dict[str, int],
     observed_choices: np.array,
     unobserved_state_specs,
+    use_probability_of_observed_states=True,
 ):
     # First prepare full observed states, choices and pre period states for weighting
     state_space_names = model["model_structure"]["discrete_states_names"] + ["wealth"]
@@ -176,12 +178,13 @@ def create_choice_prob_func_unobserved_states(
 
     def choice_prob_func(value_in, endog_grid_in, params_in):
         choice_probs_final = jnp.zeros(n_obs, dtype=jnp.float64)
+        integrate_out_weights = jnp.zeros(n_obs, dtype=jnp.float64)
         for partial_choice_prob, unobserved_state, weighting_vars in zip(
             partial_choice_probs_unobserved_states,
             possible_states,
             weighting_vars_for_possible_states,
         ):
-            weights = jax.vmap(
+            unobserved_weights = jax.vmap(
                 partial_weight_func,
                 in_axes=(None, 0),
             )(
@@ -196,10 +199,15 @@ def create_choice_prob_func_unobserved_states(
             )
 
             weighted_choice_prob = jnp.nan_to_num(
-                unweighted_choice_probs * weights * observed_weights, nan=0.0
+                unweighted_choice_probs * unobserved_weights * observed_weights, nan=0.0
             )
 
+            integrate_out_weights += unobserved_weights * observed_weights
+
             choice_probs_final += weighted_choice_prob
+
+        if not use_probability_of_observed_states:
+            choice_probs_final /= integrate_out_weights
 
         return choice_probs_final
 
