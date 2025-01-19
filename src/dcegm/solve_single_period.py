@@ -50,6 +50,11 @@ def solve_single_period(
 
     if len(taste_shock_scale) > 1:
         taste_shock_scale = taste_shock_scale[child_state_idxs]
+        # After this we have the taste shock scale for each state at the entry where
+        # the belonging state choice is in state choice to interp. Next we would need to
+        # child_state_choices_to_aggr_choice to write the taste shocks in the rows where it belongs to.
+        # What to do with invalid state choices?
+        # How do I select the taste shock scale in each row. They should be all the same.
 
     endog_grid_state_choice, policy_state_choice, value_state_choice = (
         solve_for_interpolated_values(
