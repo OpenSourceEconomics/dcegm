@@ -108,22 +108,11 @@ def test_simulate_lax_scan(model_setup):
     simulate_body = partial(
         simulate_single_period,
         params=params,
-        discrete_states_names=discrete_states_names,
         endog_grid_solved=endog_grid,
         value_solved=value,
         policy_solved=policy,
-        map_state_choice_to_index=jnp.array(map_state_choice_to_index),
-        choice_range=jnp.arange(map_state_choice_to_index.shape[-1], dtype=np.uint8),
-        compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
-        compute_utility=model_funcs["compute_utility"],
-        compute_beginning_of_period_wealth=model_funcs[
-            "compute_beginning_of_period_wealth"
-        ],
-        exog_state_mapping=exog_state_mapping,
-        shock_functions=model_funcs["shock_functions"],
-        compute_next_period_states={
-            "next_period_endogenous_state": next_period_endogenous_state
-        },
+        model_funcs_sim=model_funcs,
+        model_structure_sol=model_structure,
     )
 
     # a) lax.scan

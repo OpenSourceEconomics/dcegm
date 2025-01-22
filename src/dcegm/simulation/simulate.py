@@ -47,8 +47,8 @@ def simulate_all_periods(
         else None
     )
 
-    model_structure_solution = model["model_structure"]
-    discrete_state_space = model_structure_solution["state_space_dict"]
+    model_structure_sol = model["model_structure"]
+    discrete_state_space = model_structure_sol["state_space_dict"]
 
     # Set initial states to internal dtype
     states_initial_dtype = {
@@ -57,7 +57,7 @@ def simulate_all_periods(
         if key in discrete_state_space
     }
 
-    if "dummy_exog" in model_structure_solution["exog_states_names"]:
+    if "dummy_exog" in model_structure_sol["exog_states_names"]:
         states_initial_dtype["dummy_exog"] = np.zeros_like(
             states_initial_dtype["period"]
         )
@@ -77,30 +77,14 @@ def simulate_all_periods(
     )
     model_funcs_sim = model_sim["model_funcs"]
 
-    compute_next_period_states = {
-        "next_period_endogenous_state": model_funcs_sim["next_period_endogenous_state"],
-        "next_period_continuous_state": model_funcs_sim["next_period_continuous_state"],
-    }
-
     simulate_body = partial(
         simulate_single_period,
         params=params,
-        discrete_states_names=model_structure_solution["discrete_states_names"],
         endog_grid_solved=endog_grid_solved,
         value_solved=value_solved,
         policy_solved=policy_solved,
-        map_state_choice_to_index=jnp.asarray(
-            model_structure_solution["map_state_choice_to_index_with_proxy"]
-        ),
-        choice_range=model_structure_solution["choice_range"],
-        compute_exog_transition_vec=model_funcs_sim["compute_exog_transition_vec"],
-        compute_utility=model_funcs_sim["compute_utility"],
-        compute_beginning_of_period_wealth=model_funcs_sim[
-            "compute_beginning_of_period_wealth"
-        ],
-        exog_state_mapping=model_funcs_sim["exog_state_mapping"],
-        compute_next_period_states=compute_next_period_states,
-        shock_functions=model_funcs_sim["shock_functions"],
+        model_structure_sol=model_structure_sol,
+        model_funcs_sim=model_funcs_sim,
         second_continuous_state_dict=second_continuous_state_dict,
     )
 
@@ -120,9 +104,9 @@ def simulate_all_periods(
         states_and_wealth_beginning_of_final_period,
         sim_specific_keys=sim_specific_keys[-1],
         params=params,
-        discrete_states_names=model_structure_solution["discrete_states_names"],
-        choice_range=model_structure_solution["choice_range"],
-        map_state_choice_to_index=model_structure_solution[
+        discrete_states_names=model_structure_sol["discrete_states_names"],
+        choice_range=model_structure_sol["choice_range"],
+        map_state_choice_to_index=model_structure_sol[
             "map_state_choice_to_index_with_proxy"
         ],
         compute_utility_final_period=model_funcs_sim["compute_utility_final"],
@@ -133,7 +117,7 @@ def simulate_all_periods(
         key: np.vstack([sim_dict[key], final_period_dict[key]])
         for key in sim_dict.keys()
     }
-    if "dummy_exog" in model_structure_solution["exog_states_names"]:
+    if "dummy_exog" in model_structure_sol["exog_states_names"]:
         if "dummy_exog" not in model_sim["model_structure"]["exog_states_names"]:
             result.pop("dummy_exog")
 
@@ -144,18 +128,11 @@ def simulate_single_period(
     states_and_wealth_beginning_of_period,
     sim_specific_keys,
     params,
-    discrete_states_names,
     endog_grid_solved,
     value_solved,
     policy_solved,
-    map_state_choice_to_index,
-    choice_range,
-    compute_exog_transition_vec,
-    compute_utility,
-    compute_beginning_of_period_wealth,
-    exog_state_mapping,
-    compute_next_period_states,
-    shock_functions,
+    model_structure_sol,
+    model_funcs_sim,
     second_continuous_state_dict=None,
 ):
     (
@@ -180,6 +157,7 @@ def simulate_single_period(
         continuous_state_beginning_of_period = None
         continuous_grid = None
 
+    choice_range = model_structure_sol["choice_range"]
     # Interpolate policy and value function for all agents.
     policy, values_pre_taste_shock = interpolate_policy_and_value_for_all_agents(
         discrete_states_beginning_of_period=discrete_states_beginning_of_period,
@@ -188,11 +166,13 @@ def simulate_single_period(
         value_solved=value_solved,
         policy_solved=policy_solved,
         endog_grid_solved=endog_grid_solved,
-        map_state_choice_to_index=map_state_choice_to_index,
-        choice_range=choice_range,
+        map_state_choice_to_index=jnp.asarray(
+            model_structure_sol["map_state_choice_to_index_with_proxy"]
+        ),
+        choice_range=model_structure_sol["choice_range"],
         params=params,
-        discrete_states_names=discrete_states_names,
-        compute_utility=compute_utility,
+        discrete_states_names=model_structure_sol["discrete_states_names"],
+        compute_utility=model_funcs_sim["compute_utility"],
         continuous_grid=continuous_grid,
     )
 
@@ -202,7 +182,7 @@ def simulate_single_period(
         n_choices=len(choice_range),
         states=states_beginning_of_period,
         params=params,
-        shock_functions=shock_functions,
+        shock_functions=model_funcs_sim["shock_functions"],
         key=sim_specific_keys[0, :],
     )
     values_across_choices = values_pre_taste_shock + taste_shocks
@@ -222,7 +202,7 @@ def simulate_single_period(
         states_beginning_of_period,
         choice,
         params,
-        compute_utility,
+        model_funcs_sim["compute_utility"],
     )
     savings_current_period = wealth_beginning_of_period - consumption
 
@@ -237,10 +217,7 @@ def simulate_single_period(
         savings_current_period=savings_current_period,
         choice=choice,
         params=params,
-        compute_exog_transition_vec=compute_exog_transition_vec,
-        exog_state_mapping=exog_state_mapping,
-        compute_beginning_of_period_wealth=compute_beginning_of_period_wealth,
-        compute_next_period_states=compute_next_period_states,
+        model_funcs_sim=model_funcs_sim,
         sim_specific_keys=sim_specific_keys,
     )
 
