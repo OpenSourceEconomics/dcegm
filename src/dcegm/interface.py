@@ -20,6 +20,7 @@ def policy_and_value_for_state_choice_vec(
     model,
     state_choice_vec,
     wealth,
+    compute_utility,
     second_continous=None,
 ):
     """Get policy and value for a given state and choice vector.
@@ -37,7 +38,6 @@ def policy_and_value_for_state_choice_vec(
         "map_state_choice_to_index_with_proxy"
     ]
     discrete_states_names = model["model_structure"]["discrete_states_names"]
-    compute_utility = model["model_funcs"]["compute_utility"]
 
     state_choice_tuple = tuple(
         state_choice_vec[st] for st in discrete_states_names + ["choice"]
