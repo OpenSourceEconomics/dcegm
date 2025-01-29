@@ -46,12 +46,6 @@ def aggregate_marg_utils_and_exp_values(
         mode="fill",
         fill_value=jnp.nan,
     )
-    if len(taste_shock_scale) > 1:
-        n_dims = len(choice_values_per_state.shape)
-        new_dims = (...,) + (None,) * (n_dims - 1)
-        taste_shock_scale_expanded = taste_shock_scale[new_dims]
-    else:
-        taste_shock_scale_expanded = taste_shock_scale
 
     (
         choice_probs,
@@ -59,12 +53,10 @@ def aggregate_marg_utils_and_exp_values(
         sum_exp,
     ) = calculate_choice_probs_and_unsqueezed_logsum(
         choice_values_per_state=choice_values_per_state,
-        taste_shock_scale=taste_shock_scale_expanded,
+        taste_shock_scale=taste_shock_scale,
     )
 
-    log_sum_unsqueezed = max_value_per_state + taste_shock_scale_expanded * jnp.log(
-        sum_exp
-    )
+    log_sum_unsqueezed = max_value_per_state + taste_shock_scale * jnp.log(sum_exp)
 
     # Because we kept the dimensions in the maximum and sum over choice specific objects
     # to perform subtraction and division, we now need to squeeze the log_sum again

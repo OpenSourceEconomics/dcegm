@@ -110,7 +110,6 @@ def simulate_all_periods(
             "map_state_choice_to_index_with_proxy"
         ],
         compute_utility_final_period=model_funcs_sim["compute_utility_final"],
-        shock_functions=model_funcs_sim["shock_functions"],
     )
 
     result = {
@@ -135,6 +134,8 @@ def simulate_single_period(
     model_funcs_sim,
     second_continuous_state_dict=None,
 ):
+
+    taste_shock_scale = params["lambda"]
     (
         states_beginning_of_period,
         wealth_beginning_of_period,
@@ -180,9 +181,7 @@ def simulate_single_period(
     taste_shocks = draw_taste_shocks(
         n_agents=len(wealth_beginning_of_period),
         n_choices=len(choice_range),
-        states=states_beginning_of_period,
-        params=params,
-        shock_functions=model_funcs_sim["shock_functions"],
+        taste_shock_scale=taste_shock_scale,
         key=sim_specific_keys[0, :],
     )
     values_across_choices = values_pre_taste_shock + taste_shocks
@@ -252,7 +251,6 @@ def simulate_final_period(
     choice_range,
     map_state_choice_to_index,
     compute_utility_final_period,
-    shock_functions,
 ):
     invalid_number = np.iinfo(map_state_choice_to_index.dtype).max
 
@@ -290,9 +288,7 @@ def simulate_final_period(
     taste_shocks = draw_taste_shocks(
         n_agents=n_agents,
         n_choices=n_choices,
-        states=states_beginning_of_final_period,
-        params=params,
-        shock_functions=shock_functions,
+        taste_shock_scale=params["lambda"],
         key=sim_specific_keys[0, :],
     )
     values_across_choices = utilities_pre_taste_shock + taste_shocks

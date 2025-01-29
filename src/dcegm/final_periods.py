@@ -75,11 +75,6 @@ def solve_last_two_periods(
         has_second_continuous_state=has_second_continuous_state,
     )
 
-    if len(taste_shock_scale) > 1:
-        taste_shock_scale = taste_shock_scale[
-            last_two_period_batch_info["idxs_parent_states_final_period"]
-        ]
-
     endog_grid, policy, value = solve_for_interpolated_values(
         value_interpolated=value_interp_final_period,
         marginal_utility_interpolated=marginal_utility_final_last_period,
