@@ -27,6 +27,7 @@ def create_individual_likelihood_function_for_model(
     params_all,
     unobserved_state_specs=None,
     return_model_solution=False,
+    use_probability_of_observed_states=True,
 ):
 
     solve_func = get_solve_func_for_model(
@@ -45,6 +46,7 @@ def create_individual_likelihood_function_for_model(
             observed_states=observed_states,
             observed_choices=observed_choices,
             unobserved_state_specs=unobserved_state_specs,
+            use_probability_of_observed_states=use_probability_of_observed_states,
         )
 
     def individual_likelihood(params):
@@ -83,6 +85,7 @@ def create_choice_prob_func_unobserved_states(
     observed_states: Dict[str, int],
     observed_choices: np.array,
     unobserved_state_specs,
+    use_probability_of_observed_states=True,
 ):
     # First prepare full observed states, choices and pre period states for weighting
     state_space_names = model["model_structure"]["discrete_states_names"] + ["wealth"]
@@ -102,9 +105,6 @@ def create_choice_prob_func_unobserved_states(
     # Add unobserved states with appendix new and bools indicating if state is observed
     for state_name in unobserved_state_names:
         weighting_vars[state_name + "_new"] = observed_states[state_name]
-        weighting_vars[state_name + "_observed_bool"] = unobserved_state_specs[
-            "observed_bools_states"
-        ][state_name]
 
     # Read out possible values for unobserved states
     unobserved_state_values = {}
@@ -144,6 +144,16 @@ def create_choice_prob_func_unobserved_states(
         possible_states = new_possible_states
         weighting_vars_for_possible_states = new_weighting_vars_for_possible_states
 
+    # Generate container for additional reweighting observed variables
+    # As for these the weight function is called 2 times, we need to half the weight later
+    observed_weights = np.ones(len(observed_choices), dtype=float)
+    # For each observed variable, we divide by the number of possible values, as the weight function
+    # is called for each observed value that often
+    for state_name in unobserved_state_names:
+        n_state_values = len(unobserved_state_values[state_name])
+
+        observed_weights[observed_bools[state_name]] /= n_state_values
+
     # Create a list of partial choice probability functions for each unique
     # combination of unobserved states.
     partial_choice_probs_unobserved_states = []
@@ -168,12 +178,13 @@ def create_choice_prob_func_unobserved_states(
 
     def choice_prob_func(value_in, endog_grid_in, params_in):
         choice_probs_final = jnp.zeros(n_obs, dtype=jnp.float64)
+        integrate_out_weights = jnp.zeros(n_obs, dtype=jnp.float64)
         for partial_choice_prob, unobserved_state, weighting_vars in zip(
             partial_choice_probs_unobserved_states,
             possible_states,
             weighting_vars_for_possible_states,
         ):
-            weights = jax.vmap(
+            unobserved_weights = jax.vmap(
                 partial_weight_func,
                 in_axes=(None, 0),
             )(
@@ -186,7 +197,17 @@ def create_choice_prob_func_unobserved_states(
                 endog_grid_in=endog_grid_in,
                 params_in=params_in,
             )
-            choice_probs_final += unweighted_choice_probs * weights
+
+            weighted_choice_prob = jnp.nan_to_num(
+                unweighted_choice_probs * unobserved_weights * observed_weights, nan=0.0
+            )
+
+            integrate_out_weights += unobserved_weights * observed_weights
+
+            choice_probs_final += weighted_choice_prob
+
+        if not use_probability_of_observed_states:
+            choice_probs_final /= integrate_out_weights
 
         return choice_probs_final
 
@@ -200,7 +221,9 @@ def create_partial_choice_prob_calculation(
 ):
     discrete_observed_state_choice_indexes = get_state_choice_index_per_discrete_state(
         states=observed_states,
-        map_state_choice_to_index=model["model_structure"]["map_state_choice_to_index"],
+        map_state_choice_to_index=model["model_structure"][
+            "map_state_choice_to_index_with_proxy"
+        ],
         discrete_states_names=model["model_structure"]["discrete_states_names"],
     )
 
@@ -305,6 +328,7 @@ def calc_choice_probs_for_states(
             params,
             compute_utility,
         )
+
     choice_prob_across_choices, _, _ = calculate_choice_probs_and_unsqueezed_logsum(
         choice_values_per_state=value_per_agent_interp,
         taste_shock_scale=params["lambda"],

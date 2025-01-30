@@ -11,12 +11,12 @@ def create_state_space_function_dict():
 
     """
     return {
-        "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
-        "update_continuous_state": get_next_period_experience,
+        "state_specific_choice_set": get_state_specific_feasible_choice_set,
+        "next_period_experience": next_period_experience,
     }
 
 
-def get_next_period_experience(period, lagged_choice, experience, options):
+def next_period_experience(period, lagged_choice, experience, options):
     max_experience_period = period + options["max_init_experience"]
 
     return (1 / max_experience_period) * (
