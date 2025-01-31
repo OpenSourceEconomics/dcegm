@@ -82,10 +82,23 @@ def test_inputs():
 
     solution = solve_func(params=params)
 
-    breakpoint()
 
-    return model
+    return {
+        "model": model,
+        "params": params,
+        "options": options,
+        "solution": solution,
+    }
 
 
-def test_1(test_inputs):
+def test_value(test_inputs):
+
+    state_test = {
+        "period": 8,
+         "choice": 2,
+         "job_offer": 1,
+         "survival": 1,
+         "already_retired": 0
+    }
+
     breakpoint()
