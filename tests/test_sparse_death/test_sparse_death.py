@@ -77,11 +77,11 @@ def test_inputs():
         utility_functions_final_period=create_final_period_utility_function_dict(),
         state_space_functions=create_state_space_functions(),
         budget_constraint=budget_constraint_exp,
+        debug_info="all",
     )
     solve_func = get_solve_func_for_model(model)
 
     solution = solve_func(params=params)
-
 
     return {
         "model": model,
@@ -91,14 +91,70 @@ def test_inputs():
     }
 
 
-def test_value(test_inputs):
+def test_child_states(test_inputs):
+    model_structure = test_inputs["model"]["model_structure"]
+    state_names = model_structure["discrete_states_names"]
+    state_choice_names = state_names + ["choice"]
 
-    state_test = {
+    state_choice_test = {
         "period": 8,
-         "choice": 2,
-         "job_offer": 1,
-         "survival": 1,
-         "already_retired": 0
+        "lagged_choice": 2,
+        "job_offer": 1,
+        "survival": 1,
+        "already_retired": 0,
+        "choice": 2,
     }
 
-    breakpoint()
+    state_choice_tuple = tuple(
+        (state_choice_test[name],) for name in state_choice_names
+    )
+
+    state_choice_idx = model_structure["map_state_choice_to_index_with_proxy"][
+        state_choice_tuple
+    ]
+    child_states_idxs = model_structure["map_state_choice_to_child_states"][
+        state_choice_idx
+    ]
+    child_states_idxs = np.squeeze(child_states_idxs)
+
+    child_states = model_structure["state_space"][child_states_idxs]
+    # Transform array into list of states by looping over rows of matrix
+    child_states_list = [list(child_state) for child_state in child_states]
+
+    # There are three possible child states. Two of them are alive states
+    # and one is a dead state.
+    alive_state = {
+        "period": 9,
+        "lagged_choice": 2,
+        "survival": 1,
+        "already_retired": 0,
+    }
+    # Create container with all child states and loop over job offer to
+    # create the two alive states
+    alive_states_to_check = []
+    for jo in range(2):
+        alive_state["job_offer"] = jo
+        alive_state_list = [alive_state[name] for name in state_names]
+        alive_states_to_check += [alive_state_list]
+
+    # Check that alive states are in child states once
+    for alive_state in alive_states_to_check:
+        assert alive_state in child_states_list
+        child_states_list.remove(alive_state)
+
+    # Add the dead state
+    dead_state = {
+        "period": 19,
+        "lagged_choice": 2,
+        "survival": 0,
+        "already_retired": 0,
+        "job_offer": 0,
+    }
+    dead_state_list = [dead_state[name] for name in state_names]
+
+    # Check that death state is twice in child states
+    for i in range(2):
+        assert dead_state_list in child_states_list
+        child_states_list.remove(dead_state_list)
+
+    assert len(child_states_list) == 0

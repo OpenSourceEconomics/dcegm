@@ -23,7 +23,7 @@ def setup_model(
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable] = None,
-    debug_output: str = None,
+    debug_info: str = None,
     sim_model=False,
 ):
     """Set up the model for dcegm.
@@ -51,9 +51,10 @@ def setup_model(
         budget_constraint (Callable): User supplied budget constraint.
 
     """
-    debug_output = process_debug_string(debug_output, state_space_functions, options)
-    if debug_output is not None:
-        return debug_output
+    if debug_info is not None:
+        debug_dict = process_debug_string(debug_info, state_space_functions, options)
+        if debug_dict["return_output"]:
+            return debug_dict["debug_output"]
 
     options = check_options_and_set_defaults(options)
 
@@ -83,8 +84,10 @@ def setup_model(
         model_structure=model_structure,
         state_space_options=options["state_space"],
     )
-    # Delete large array which is not needed
-    model_structure.pop("map_state_choice_to_child_states")
+    if not debug_info == "all":
+        # Delete large array which is not needed. Not if all is requested
+        # by the debug string.
+        model_structure.pop("map_state_choice_to_child_states")
 
     print("Model setup complete.\n")
     return {
@@ -162,13 +165,16 @@ def load_and_setup_model(
 
 
 def process_debug_string(debug_output, state_space_functions, options):
-    if debug_output is not None:
-        if debug_output == "state_space_df":
-            sparsity_condition = process_sparsity_condition(
-                state_space_functions, options
-            )
-            return create_state_space(
-                options["state_space"], sparsity_condition, debugging=True
-            )
-        else:
-            raise ValueError("The requested debug output is not implemented.")
+    if debug_output == "state_space_df":
+        sparsity_condition = process_sparsity_condition(state_space_functions, options)
+        out = create_state_space(
+            options["state_space"], sparsity_condition, debugging=True
+        )
+        debug_info = {"debug_output": out, "return_output": True}
+        return debug_info
+    elif debug_output == "all":
+        debug_info = {"return_output": False}
+        return debug_info
+
+    else:
+        raise ValueError("The requested debug output is not implemented.")

@@ -275,7 +275,7 @@ def test_state_space():
         utility_functions_final_period=None,
         budget_constraint=None,
         state_space_functions=state_space_functions,
-        debug_output="state_space_df",
+        debug_info="state_space_df",
     )
     admissible_df = state_space_df[state_space_df["is_valid"]]
 
