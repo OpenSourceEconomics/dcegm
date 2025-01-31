@@ -1,4 +1,5 @@
 import jax.numpy as jnp
+import pandas as pd
 
 from dcegm.interpolation.interp1d import (
     interp1d_policy_and_value_on_wealth,
@@ -10,6 +11,14 @@ from dcegm.interpolation.interp2d import (
     interp2d_policy_on_wealth_and_regular_grid,
     interp2d_value_on_wealth_and_regular_grid,
 )
+
+
+def get_n_state_choice_period(model):
+    return (
+        pd.Series(model["model_structure"]["state_choice_space"][:, 0])
+        .value_counts()
+        .sort_index()
+    )
 
 
 def policy_and_value_for_state_choice_vec(

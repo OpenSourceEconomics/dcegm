@@ -4,21 +4,35 @@ import jax.numpy as jnp
 def budget_constraint_exp(
     lagged_choice,
     experience,
+    already_retired,
     savings_end_of_previous_period,
     income_shock_previous_period,
     params,
+    options,
 ):
 
-    working = lagged_choice == 0
+    # If unemployed, then it will just be the consumption floor
+    working = lagged_choice == 2
+    retired = lagged_choice == 0
+
+    # Check if fresh retired. If so we give a bonus
+    fresh_retired = retired * (1 - already_retired)
+    replacement_rate = 0.48 + fresh_retired * options["fresh_bonus"]
+
+    # Scale experience
+    exp_years = experience * options["exp_scale"]
 
     income_from_previous_period = _calc_stochastic_income(
-        experience=experience,
+        experience=exp_years,
         wage_shock=income_shock_previous_period,
         params=params,
     )
 
     wealth_beginning_of_period = (
         income_from_previous_period * working
+        + income_from_previous_period
+        * replacement_rate
+        * retired  # 0.48 is the replacement rate
         + (1 + params["interest_rate"]) * savings_end_of_previous_period
     )
 
