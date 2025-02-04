@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from numpy.testing import assert_array_equal
 
 from dcegm.pre_processing.check_options import check_options_and_set_defaults
 
@@ -79,7 +80,13 @@ def test_invalid_n_periods_value(valid_options):
 def test_valid_choices_conversion(valid_options, choices, expected_array):
     valid_options["state_space"]["choices"] = choices
     options = check_options_and_set_defaults(valid_options)
-    np.testing.assert_array_equal(options["state_space"]["choices"], expected_array)
+    assert_array_equal(options["state_space"]["choices"], expected_array)
+
+
+def test_missing_sinlge_choice(valid_options):
+    del valid_options["state_space"]["choices"]
+    options = check_options_and_set_defaults(valid_options)
+    assert_array_equal(options["state_space"]["choices"], np.array([0], dtype=np.uint8))
 
 
 def test_invalid_choices_type(valid_options):
@@ -102,7 +109,7 @@ def test_invalid_model_params_type(valid_options):
         check_options_and_set_defaults(valid_options)
 
 
-# maybe also check this in the check_options_and_set_defaults function
+# Maybe also check this in the check_options_and_set_defaults function
 def test_missing_continuous_states(valid_options):
     del valid_options["state_space"]["continuous_states"]
     with pytest.raises(KeyError):
