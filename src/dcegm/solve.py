@@ -12,13 +12,13 @@ from jax import jit
 from dcegm.final_periods import solve_last_two_periods
 from dcegm.law_of_motion import calc_cont_grids_next_period
 from dcegm.numerical_integration import quadrature_legendre
-from dcegm.pre_processing.params import process_params
+from dcegm.pre_processing.check_params import process_params
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve_single_period import solve_single_period
 
 
 def solve_dcegm(
-    params: pd.DataFrame,
+    params: Dict,
     options: Dict,
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
@@ -70,6 +70,7 @@ def get_solve_function(
     budget_constraint: Callable,
     utility_functions_final_period: Dict[str, Callable],
     state_space_functions: Dict[str, Callable] = None,
+    sim_model: bool = False,
 ) -> Callable:
     """Create a solve function, which only takes params as input.
 
@@ -101,6 +102,7 @@ def get_solve_function(
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
+        sim_model=sim_model,
     )
 
     return get_solve_func_for_model(model=model)
@@ -251,7 +253,7 @@ def backward_induction(
         income_shock_weights=income_shock_weights,
         exog_grids=exog_grids,
         model_funcs=model_funcs,
-        batch_info=batch_info,
+        last_two_period_batch_info=batch_info["last_two_period_info"],
         value_solved=value_solved,
         policy_solved=policy_solved,
         endog_grid_solved=endog_grid_solved,
@@ -275,52 +277,55 @@ def backward_induction(
             taste_shock_scale=taste_shock_scale,
         )
 
-    carry_start = (
-        value_solved,
-        policy_solved,
-        endog_grid_solved,
-    )
+    for id_segment in range(batch_info["n_segments"]):
+        segment_info = batch_info[f"batches_info_segment_{id_segment}"]
 
-    final_carry, _ = jax.lax.scan(
-        f=partial_single_period,
-        init=carry_start,
-        xs=(
-            batch_info["batches_state_choice_idx"],
-            batch_info["child_state_choices_to_aggr_choice"],
-            batch_info["child_states_to_integrate_exog"],
-            batch_info["child_state_choice_idxs_to_interp"],
-            batch_info["child_states_idxs"],
-            batch_info["state_choices"],
-            batch_info["state_choices_childs"],
-        ),
-    )
+        carry_start = (
+            value_solved,
+            policy_solved,
+            endog_grid_solved,
+        )
 
-    if not batch_info["batches_cover_all"]:
-        last_batch_info = batch_info["last_batch_info"]
-        extra_final_carry, () = partial_single_period(
-            carry=final_carry,
+        final_carry, _ = jax.lax.scan(
+            f=partial_single_period,
+            init=carry_start,
             xs=(
-                last_batch_info["state_choice_idx"],
-                last_batch_info["child_state_choices_to_aggr_choice"],
-                last_batch_info["child_states_to_integrate_exog"],
-                last_batch_info["child_state_choice_idxs_to_interp"],
-                last_batch_info["child_states_idxs"],
-                last_batch_info["state_choices"],
-                last_batch_info["state_choices_childs"],
+                segment_info["batches_state_choice_idx"],
+                segment_info["child_state_choices_to_aggr_choice"],
+                segment_info["child_states_to_integrate_exog"],
+                segment_info["child_state_choice_idxs_to_interp"],
+                segment_info["child_states_idxs"],
+                segment_info["state_choices"],
+                segment_info["state_choices_childs"],
             ),
         )
 
-        (
-            value_solved,
-            policy_solved,
-            endog_grid_solved,
-        ) = extra_final_carry
-    else:
-        (
-            value_solved,
-            policy_solved,
-            endog_grid_solved,
-        ) = final_carry
+        if not segment_info["batches_cover_all"]:
+            last_batch_info = segment_info["last_batch_info"]
+            extra_final_carry, () = partial_single_period(
+                carry=final_carry,
+                xs=(
+                    last_batch_info["state_choice_idx"],
+                    last_batch_info["child_state_choices_to_aggr_choice"],
+                    last_batch_info["child_states_to_integrate_exog"],
+                    last_batch_info["child_state_choice_idxs_to_interp"],
+                    last_batch_info["child_states_idxs"],
+                    last_batch_info["state_choices"],
+                    last_batch_info["state_choices_childs"],
+                ),
+            )
+
+            (
+                value_solved,
+                policy_solved,
+                endog_grid_solved,
+            ) = extra_final_carry
+        else:
+            (
+                value_solved,
+                policy_solved,
+                endog_grid_solved,
+            ) = final_carry
 
     return (
         value_solved,

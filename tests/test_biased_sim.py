@@ -68,8 +68,8 @@ def state_space_options():
     return state_space_options
 
 
-def test_sim_and_sol_model(state_space_options, load_example_model):
-    params, model_params = load_example_model("retirement_taste_shocks")
+def test_sim_and_sol_model(state_space_options, load_replication_params_and_specs):
+    params, model_specs = load_replication_params_and_specs("retirement_taste_shocks")
     params["married_util"] = 0.5
 
     model_funcs = load_example_models("dcegm_paper")
@@ -78,7 +78,7 @@ def test_sim_and_sol_model(state_space_options, load_example_model):
 
     options_sol = {
         "state_space": state_space_options["solution"],
-        "model_params": model_params,
+        "model_params": model_specs,
     }
 
     model_sol = setup_model(
@@ -94,7 +94,7 @@ def test_sim_and_sol_model(state_space_options, load_example_model):
 
     options_sim = {
         "state_space": state_space_options["simulation"],
-        "model_params": model_params,
+        "model_params": model_specs,
     }
     marriage_trans_mat = jnp.array([[0.3, 0.7], [0.1, 0.9]])
     options_sim["model_params"]["marriage_trans_mat"] = marriage_trans_mat

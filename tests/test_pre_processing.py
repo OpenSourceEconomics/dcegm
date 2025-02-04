@@ -3,15 +3,15 @@ import numpy as np
 import pytest
 from jax import vmap
 
+from dcegm.pre_processing.check_options import check_options_and_set_defaults
+from dcegm.pre_processing.check_params import process_params
 from dcegm.pre_processing.model_functions import process_model_functions
-from dcegm.pre_processing.params import process_params
 from dcegm.pre_processing.setup_model import (
     load_and_setup_model,
     setup_and_save_model,
     setup_model,
 )
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
-from dcegm.pre_processing.state_space import check_options_and_set_defaults
 from toy_models.cons_ret_model_dcegm_paper.budget_constraint import budget_constraint
 from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
     create_state_space_function_dict,
@@ -45,8 +45,8 @@ def util_wrap(state_dict, params, util_func):
     return util_func(**state_dict, params=params)
 
 
-def test_wrap_function(load_example_model):
-    params, _raw_options = load_example_model("deaton")
+def test_wrap_function(load_replication_params_and_specs):
+    params, _raw_options = load_replication_params_and_specs("deaton")
     options = {}
 
     options["model_params"] = _raw_options
@@ -101,17 +101,16 @@ def test_wrap_function(load_example_model):
 )
 def test_missing_parameter(
     model_name,
-    load_example_model,
+    load_replication_params_and_specs,
 ):
-    params, _ = load_example_model(f"{model_name}")
+    params, _ = load_replication_params_and_specs(f"{model_name}")
 
     params.pop("interest_rate")
     params.pop("sigma")
-    params.pop("lambda")
 
     params_dict = process_params(params)
 
-    for param in ["interest_rate", "sigma", "lambda"]:
+    for param in ["interest_rate", "sigma"]:
         assert param in params_dict.keys()
 
     params.pop("beta")
@@ -129,10 +128,10 @@ def test_missing_parameter(
 )
 def test_load_and_save_model(
     model_name,
-    load_example_model,
+    load_replication_params_and_specs,
 ):
     options = {}
-    _params, _raw_options = load_example_model(f"{model_name}")
+    _params, _raw_options = load_replication_params_and_specs(f"{model_name}")
 
     options["model_params"] = _raw_options
     options["model_params"]["n_choices"] = _raw_options["n_discrete_choices"]
@@ -252,7 +251,7 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
     params = {}
 
     state_space_functions = create_state_space_function_dict()
-    state_space_functions["get_next_period_experience"] = get_next_experience
+    state_space_functions["next_period_experience"] = get_next_experience
 
     options = check_options_and_set_defaults(options)
 
@@ -264,9 +263,9 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
         budget_constraint=budget_constraint,
     )
 
-    update_continuous_state = model_funcs["update_continuous_state"]
+    next_period_continuous_state = model_funcs["next_period_continuous_state"]
 
-    got = update_continuous_state(
+    got = next_period_continuous_state(
         period=period,
         lagged_choice=lagged_choice,
         continuous_state=continuous_state,

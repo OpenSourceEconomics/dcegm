@@ -16,7 +16,7 @@ from dcegm.simulation.simulate import (
     simulate_single_period,
 )
 from toy_models.cons_ret_model_with_cont_exp.state_space_objects import (
-    get_next_period_experience,
+    next_period_experience,
 )
 
 
@@ -84,10 +84,10 @@ def test_simulate_lax_scan(model_setup):
     model_funcs = model_setup["model"]["model_funcs"]
 
     discrete_states_names = model_structure["discrete_states_names"]
-    map_state_choice_to_index = model_structure["map_state_choice_to_index"]
+    map_state_choice_to_index = model_structure["map_state_choice_to_index_with_proxy"]
 
     exog_state_mapping = model_funcs["exog_state_mapping"]
-    get_next_period_state = model_funcs["get_next_period_state"]
+    next_period_endogenous_state = model_funcs["next_period_endogenous_state"]
 
     value = model_setup["value"]
     policy = model_setup["policy"]
@@ -108,19 +108,11 @@ def test_simulate_lax_scan(model_setup):
     simulate_body = partial(
         simulate_single_period,
         params=params,
-        discrete_states_names=discrete_states_names,
         endog_grid_solved=endog_grid,
         value_solved=value,
         policy_solved=policy,
-        map_state_choice_to_index=jnp.array(map_state_choice_to_index),
-        choice_range=jnp.arange(map_state_choice_to_index.shape[-1], dtype=np.uint8),
-        compute_exog_transition_vec=model_funcs["compute_exog_transition_vec"],
-        compute_utility=model_funcs["compute_utility"],
-        compute_beginning_of_period_wealth=model_funcs[
-            "compute_beginning_of_period_wealth"
-        ],
-        exog_state_mapping=exog_state_mapping,
-        compute_next_period_states={"get_next_period_state": get_next_period_state},
+        model_funcs_sim=model_funcs,
+        model_structure_sol=model_structure,
     )
 
     # a) lax.scan
@@ -215,9 +207,9 @@ def test_simulate_second_continuous_choice(model_setup):
     model["options"]["state_space"]["continuous_states"]["experience"] = jnp.linspace(
         0, 1, 6
     )
-    model["model_funcs"]["update_continuous_state"] = (
+    model["model_funcs"]["next_period_continuous_state"] = (
         determine_function_arguments_and_partial_options(
-            func=get_next_period_experience,
+            func=next_period_experience,
             options=model["options"]["model_params"],
             continuous_state_name="experience",
         )

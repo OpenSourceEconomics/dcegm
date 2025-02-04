@@ -48,7 +48,7 @@ repos:
   #       args:
   #         - --py37-plus
   - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
+    rev: 6.0.0
     hooks:
       - id: isort
         name: isort
@@ -59,10 +59,10 @@ repos:
     hooks:
       - id: setup-cfg-fmt
   - repo: https://github.com/psf/black
-    rev: 24.10.0
+    rev: 25.1.0
     hooks:
       - id: black
-        language_version: python3.10
+        language_version: python3.11
 #  - repo: https://github.com/charliermarsh/ruff-pre-commit
 #    rev: v0.0.282
 #    hooks:
@@ -84,13 +84,13 @@ repos:
 #          - '88'
 #          - --blank
   - repo: https://github.com/nbQA-dev/nbQA
-    rev: 1.8.7
+    rev: 1.9.1
     hooks:
       - id: nbqa-black
       - id: nbqa-ruff
         exclude: tests/sandbox/
   - repo: https://github.com/executablebooks/mdformat
-    rev: 0.7.18
+    rev: 0.7.22
     hooks:
       - id: mdformat
         additional_dependencies:
@@ -101,7 +101,7 @@ repos:
           - '88'
         files: (README\.md)
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.3.0
+    rev: v2.4.1
     hooks:
       - id: codespell
         additional_dependencies:

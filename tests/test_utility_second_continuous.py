@@ -226,7 +226,6 @@ def test_setup():
         ),
         "endogenous_states": {
             "experience": np.arange(N_PERIODS + MAX_INIT_EXPERIENCE),
-            "sparsity_condition": model_funcs_discr_exp["sparsity_condition"],
         },
         "continuous_states": {
             "wealth": jnp.linspace(
@@ -352,31 +351,34 @@ def test_replication_discrete_versus_continuous_experience(
         "choice": choice,
     }
 
-    idx_state_choice_disc = model_disc["model_structure"]["map_state_choice_to_index"][
+    idx_state_choice_disc = model_disc["model_structure"][
+        "map_state_choice_to_index_with_proxy"
+    ][
         state_choice_disc_dict["period"],
         state_choice_disc_dict["lagged_choice"],
         state_choice_disc_dict["experience"],
         state_choice_disc_dict["dummy_exog"],
         state_choice_disc_dict["choice"],
     ]
-    idx_state_choice_cont = model_cont["model_structure"]["map_state_choice_to_index"][
+    idx_state_choice_cont = model_cont["model_structure"][
+        "map_state_choice_to_index_with_proxy"
+    ][
         state_choice_cont_dict["period"],
         state_choice_cont_dict["lagged_choice"],
         state_choice_cont_dict["dummy_exog"],
         state_choice_cont_dict["choice"],
     ]
 
-    state_specific_choice_set = model_disc["model_funcs"][
-        "get_state_specific_choice_set"
-    ](**state_choice_disc_dict)
+    state_specific_choice_set = model_disc["model_funcs"]["state_specific_choice_set"](
+        **state_choice_disc_dict
+    )
     choice_valid = choice in state_specific_choice_set
 
-    sparsity_condition = load_example_models("with_exp")["sparsity_condition"]
+    sparsity_condition = model_disc["model_funcs"]["sparsity_condition"]
     state_valid = sparsity_condition(
-        period,
-        experience,
-        lagged_choice,
-        model_disc["options"]["model_params"],
+        period=period,
+        experience=experience,
+        lagged_choice=lagged_choice,
     )
 
     # ================================================================================

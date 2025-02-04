@@ -105,7 +105,7 @@ def marginal_utility_weighted(
     params,
 ):
     """Return the expected marginal utility for one realization of the wage shock."""
-    exp_new = get_next_period_experience(
+    exp_new = next_period_experience(
         period=1, lagged_choice=lagged_choice, experience=experience, params=params
     )
 
@@ -218,7 +218,7 @@ def calc_stochastic_income(
     return jnp.exp(labor_income + wage_shock)
 
 
-def get_next_period_experience(period, lagged_choice, experience, params):
+def next_period_experience(period, lagged_choice, experience, params):
     return (1 / period) * ((period - 1) * experience + (lagged_choice == 0))
 
 
@@ -263,7 +263,7 @@ def create_test_inputs():
     # =================================================================================
 
     state_space_functions = {
-        "update_continuous_state": get_next_period_experience,
+        "next_period_experience": next_period_experience,
     }
 
     model = setup_model(
@@ -281,7 +281,7 @@ def create_test_inputs():
         taste_shock_scale,
         exog_grids_cont,
         model_funcs_cont,
-        batch_info_cont,
+        last_two_period_batch_info_cont,
         value_solved,
         policy_solved,
         endog_grid_solved,
@@ -296,13 +296,15 @@ def create_test_inputs():
         value_interp_final_period,
         marginal_utility_final_last_period,
     ) = solve_final_period(
-        idx_state_choices_final_period=batch_info_cont[
+        idx_state_choices_final_period=last_two_period_batch_info_cont[
             "idx_state_choices_final_period"
         ],
-        idx_parent_states_final_period=batch_info_cont[
+        idx_parent_states_final_period=last_two_period_batch_info_cont[
             "idxs_parent_states_final_period"
         ],
-        state_choice_mat_final_period=batch_info_cont["state_choice_mat_final_period"],
+        state_choice_mat_final_period=last_two_period_batch_info_cont[
+            "state_choice_mat_final_period"
+        ],
         cont_grids_next_period=cont_grids_next_period,
         exog_grids=exog_grids_cont,
         params=params,
@@ -316,18 +318,26 @@ def create_test_inputs():
     endog_grid, policy, value_second_last = solve_for_interpolated_values(
         value_interpolated=value_interp_final_period,
         marginal_utility_interpolated=marginal_utility_final_last_period,
-        state_choice_mat=batch_info_cont["state_choice_mat_second_last_period"],
-        child_state_idxs=batch_info_cont["child_states_second_last_period"],
-        states_to_choices_child_states=batch_info_cont["state_to_choices_final_period"],
+        state_choice_mat=last_two_period_batch_info_cont[
+            "state_choice_mat_second_last_period"
+        ],
+        child_state_idxs=last_two_period_batch_info_cont[
+            "child_states_second_last_period"
+        ],
+        states_to_choices_child_states=last_two_period_batch_info_cont[
+            "state_to_choices_final_period"
+        ],
         params=params,
-        taste_shock_scale=taste_shock_scale,
+        taste_shock_scale=jnp.array([taste_shock_scale]),
         income_shock_weights=income_shock_weights,
         exog_grids=exog_grids_cont,
         model_funcs=model_funcs_cont,
         has_second_continuous_state=True,
     )
 
-    idx_second_last = batch_info_cont["idx_state_choices_second_last_period"]
+    idx_second_last = last_two_period_batch_info_cont[
+        "idx_state_choices_second_last_period"
+    ]
 
     value_solved = value_solved.at[idx_second_last, ...].set(value_second_last)
     policy_solved = policy_solved.at[idx_second_last, ...].set(policy)
@@ -437,7 +447,7 @@ def test_euler_equation(wealth_idx, state_idx, create_test_inputs):
 
 def _get_solve_last_two_periods_args(model, params, has_second_continuous_state):
     options = model["options"]
-    batch_info = model["batch_info"]
+    batch_info_last_two_periods = model["batch_info"]["last_two_period_info"]
 
     exog_grids = options["exog_grids"]
 
@@ -474,7 +484,7 @@ def _get_solve_last_two_periods_args(model, params, has_second_continuous_state)
         taste_shock_scale,
         exog_grids,
         model_funcs,
-        batch_info,
+        batch_info_last_two_periods,
         value_solved,
         policy_solved,
         endog_grid_solved,

@@ -13,7 +13,7 @@ def create_state_space_function_dict():
 
     """
     return {
-        "get_state_specific_choice_set": get_state_specific_feasible_choice_set,
+        "state_specific_choice_set": get_state_specific_feasible_choice_set,
     }
 
 

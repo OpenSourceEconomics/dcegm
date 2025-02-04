@@ -127,29 +127,23 @@ def transition_to_next_period(
     savings_current_period,
     choice,
     params,
-    compute_exog_transition_vec,
-    exog_state_mapping,
-    compute_beginning_of_period_wealth,
-    compute_next_period_states,
+    model_funcs_sim,
     sim_specific_keys,
 ):
     n_agents = savings_current_period.shape[0]
 
-    exog_states_next_period = vmap(
-        realize_exog_process, in_axes=(0, 0, 0, None, None, None)
-    )(
+    exog_states_next_period = vmap(realize_exog_process, in_axes=(0, 0, 0, None, None))(
         discrete_states_beginning_of_period,
         choice,
         sim_specific_keys[2:, :],
         params,
-        compute_exog_transition_vec,
-        exog_state_mapping,
+        model_funcs_sim["processed_exog_funcs"],
     )
 
     discrete_endog_states_next_period = vmap(
         update_discrete_states_for_one_agent, in_axes=(None, 0, 0, None)  # choice
     )(
-        compute_next_period_states["get_next_period_state"],
+        model_funcs_sim["next_period_endogenous_state"],
         discrete_states_beginning_of_period,
         choice,
         params,
@@ -167,15 +161,14 @@ def transition_to_next_period(
         key=sim_specific_keys[1, :], num_agents=n_agents, mean=0, std=params["sigma"]
     )
 
+    next_period_wealth = model_funcs_sim["compute_beginning_of_period_wealth"]
     if continuous_state_beginning_of_period is not None:
 
         continuous_state_next_period = calculate_second_continuous_state_for_all_agents(
             discrete_states_beginning_of_period=discrete_states_next_period,
             continuous_state_beginning_of_period=continuous_state_beginning_of_period,
             params=params,
-            compute_continuous_state=compute_next_period_states[
-                "update_continuous_state"
-            ],
+            compute_continuous_state=model_funcs_sim["next_period_continuous_state"],
         )
 
         wealth_beginning_of_next_period = (
@@ -185,7 +178,7 @@ def transition_to_next_period(
                 savings_end_of_previous_period=savings_current_period,
                 income_shocks_of_period=income_shocks_next_period,
                 params=params,
-                compute_beginning_of_period_wealth=compute_beginning_of_period_wealth,
+                compute_beginning_of_period_wealth=next_period_wealth,
             )
         )
     else:
@@ -196,7 +189,7 @@ def transition_to_next_period(
             savings_end_of_previous_period=savings_current_period,
             income_shocks_of_period=income_shocks_next_period,
             params=params,
-            compute_beginning_of_period_wealth=compute_beginning_of_period_wealth,
+            compute_beginning_of_period_wealth=next_period_wealth,
         )
 
     return (
@@ -228,7 +221,7 @@ def update_discrete_states_for_one_agent(update_func, state, choice, params):
     return update_func(**state, choice=choice, params=params)
 
 
-def update_continuous_state_for_one_agent(
+def next_period_continuous_state_for_one_agent(
     update_func, discrete_states, continuous_state, choice, params
 ):
 
@@ -242,6 +235,7 @@ def update_continuous_state_for_one_agent(
 
 def draw_taste_shocks(n_agents, n_choices, taste_shock_scale, key):
     taste_shocks = jax.random.gumbel(key=key, shape=(n_agents, n_choices))
+
     taste_shocks = taste_shock_scale * (taste_shocks - jnp.euler_gamma)
     return taste_shocks
 
@@ -253,12 +247,15 @@ def vectorized_utility(consumption_period, state, choice, params, compute_utilit
     return utility
 
 
-def realize_exog_process(state, choice, key, params, exog_func, exog_state_mapping):
-    transition_vec = exog_func(params=params, **state, choice=choice)
-    exog_proc_next_period = jax.random.choice(
-        key=key, a=transition_vec.shape[0], p=transition_vec
-    )
-    exog_states_next_period = exog_state_mapping(exog_proc_next_period)
+def realize_exog_process(state, choice, key, params, processed_exog_funcs):
+    exog_states_next_period = {}
+    for exog_state_name in processed_exog_funcs.keys():
+        exog_state_vec = processed_exog_funcs[exog_state_name](
+            params=params, **state, choice=choice
+        )
+        exog_states_next_period[exog_state_name] = jax.random.choice(
+            key=key, a=exog_state_vec.shape[0], p=exog_state_vec
+        ).astype(state[exog_state_name].dtype)
     return exog_states_next_period
 
 

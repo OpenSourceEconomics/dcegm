@@ -1,19 +1,29 @@
-# model with 4 periods and the following choice structure:
-# period 3: consume all and die, no choices
-# period 2: continuous consumption and work choice (unemployment (d=0), work (d=1), retire (d=2))
-# period 1: continuous consumption and work choice (unemployment (d=0), work (d=1))
-# period 0: continuous consumption and work choice (unemployment (d=0), work (d=1))
-# following stochastic processes:
-# health: 2 states (good (h=0), bad (h=1)), bad causes monetary health costs
-# partner: 2 states (single (m=0), partner (m=1)), partner means higher utility of leisure
-# NOTE: wage is deterministic, depends on experience and health
-# state: period, lagged_choice, experience, health, partner
+"""Model with 4 periods and the following choice structure:
+
+- Period 3: Consume all and die (no choices).
+- Period 2: Continuous consumption and work choice
+  (unemployment (d=0), work (d=1), retire (d=2)).
+- Period 1: Continuous consumption and work choice
+  (unemployment (d=0), work (d=1)).
+- Period 0: Continuous consumption and work choice
+  (unemployment (d=0), work (d=1)).
+
+Following stochastic processes:
+- Health: 2 states (good (h=0), bad (h=1)); bad causes monetary health costs.
+- Partner: 2 states (single (m=0), partner (m=1)); partner means higher utility of leisure.
+
+NOTE: wage is deterministic and depends on experience and health.
+
+State variables: period, lagged_choice, experience, health, partner.
+"""
+
 import pickle
 from pathlib import Path
 
 import jax.numpy as jnp
 import numpy as np
 import pytest
+from numpy.testing import assert_allclose
 
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import get_solve_function
@@ -47,12 +57,19 @@ def sparsity_condition(period, lagged_choice, experience, options):
     if period == 0 and lagged_choice != 0:
         return False
     # Starting from second we check if choice was in last periods full choice set
-    if period > 0 and lagged_choice not in choice_set(period - 1, 1):
+    elif (period > 0) and lagged_choice not in choice_set(period - 1, 1):
         return False
     # Filter states with too high experience
-    if (experience > period) or (experience > options["max_experience"]):
+    elif (experience > period) or (experience > options["max_experience"]):
         return False
-    return True
+    # If experience is 0 you can not have been working last period
+    elif (experience == 0) and (lagged_choice == 1):
+        return False
+    # If experience is equal to period you must have been working last period (periods larger than 0)
+    elif (experience == period) and (period > 0) and (lagged_choice != 1):
+        return False
+    else:
+        return True
 
 
 @pytest.fixture
@@ -98,7 +115,6 @@ def test_model():
             "choices": np.arange(3),
             "endogenous_states": {
                 "experience": np.arange(5),
-                "sparsity_condition": sparsity_condition,
             },
             "continuous_states": {
                 "wealth": np.linspace(0, 500, 100),
@@ -136,8 +152,9 @@ def next_period_state(period, choice, experience):
 def state_space_functions():
     """Return dict with state space functions."""
     out = {
-        "get_state_specific_choice_set": choice_set,
-        "get_next_period_state": next_period_state,
+        "state_specific_choice_set": choice_set,
+        "next_period_endogenous_state": next_period_state,
+        "sparsity_condition": sparsity_condition,
     }
     return out
 
@@ -212,9 +229,11 @@ def test_extended_choice_set_model(
     )
     sol = solve_func(params)
     value, _policy, _endog_grid, *_ = sol
+
     value_expec = pickle.load(
         open(TEST_DIR / "resources" / "extended_choice_set" / "value.pkl", "rb")
     )
+
     model = setup_model(
         options=options,
         state_space_functions=state_space_functions,
@@ -247,7 +266,7 @@ def test_extended_choice_set_model(
             # Read out relevant row of arrays and compare first two elements
             value_i = value[i]
             value_expec_i = value_expec_reindexed[i]
-            np.testing.assert_allclose(value_i[:2], value_expec_i[:2])
+            assert_allclose(value_i[:2], value_expec_i[:2])
             # Now check all elements that are not nan in the arrays and do not equal the
             # second element in the expected array are equal
             value_i_non_nan = value_i[~np.isnan(value_i)][2:]
@@ -255,4 +274,4 @@ def test_extended_choice_set_model(
             value_expec_i_non_nan = value_expec_i_non_nan[
                 ~np.isclose(value_expec_i_non_nan, value_expec_i[1])
             ]
-            np.testing.assert_allclose(value_i_non_nan, value_expec_i_non_nan)
+            assert_allclose(value_i_non_nan, value_expec_i_non_nan)
