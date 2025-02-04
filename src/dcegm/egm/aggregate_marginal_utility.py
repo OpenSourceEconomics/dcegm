@@ -8,7 +8,7 @@ def aggregate_marg_utils_and_exp_values(
     value_state_choice_specific: jnp.ndarray,
     marg_util_state_choice_specific: jnp.ndarray,
     reshape_state_choice_vec_to_mat: np.ndarray,
-    taste_shock_scale: float,
+    taste_shock_scale,
     income_shock_weights: jnp.ndarray,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Compute the aggregate marginal utilities and expected values.

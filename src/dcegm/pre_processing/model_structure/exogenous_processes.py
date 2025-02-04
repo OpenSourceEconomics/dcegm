@@ -1,8 +1,10 @@
 from functools import partial
 from typing import Callable
 
+import numpy as np
 from jax import numpy as jnp
 
+from dcegm.pre_processing.model_structure.shared import span_subspace
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 
 
@@ -83,3 +85,22 @@ def create_exog_state_mapping(exog_state_space, exog_names):
         return exog_state_dict
 
     return exog_state_mapping
+
+
+def process_exog_model_specifications(state_space_options):
+    if "exogenous_processes" in state_space_options:
+        exog_state_names = list(state_space_options["exogenous_processes"].keys())
+        dict_of_only_states = {
+            key: state_space_options["exogenous_processes"][key]["states"]
+            for key in exog_state_names
+        }
+
+        exog_state_space = span_subspace(
+            subdict_of_space=dict_of_only_states,
+            states_names=exog_state_names,
+        )
+    else:
+        exog_state_names = ["dummy_exog"]
+        exog_state_space = np.array([[0]], dtype=np.uint8)
+
+    return exog_state_names, exog_state_space

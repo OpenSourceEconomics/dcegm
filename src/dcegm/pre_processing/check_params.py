@@ -20,8 +20,6 @@ def process_params(params: Union[dict, pd.Series, pd.DataFrame]) -> Dict[str, fl
 
     if "interest_rate" not in params:
         params["interest_rate"] = 0
-    if "lambda" not in params:
-        params["lambda"] = 0
     if "sigma" not in params:
         params["sigma"] = 0
     if "beta" not in params:

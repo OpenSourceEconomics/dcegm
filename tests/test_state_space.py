@@ -4,17 +4,18 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from dcegm.pre_processing.debugging import inspect_state_space
-from dcegm.pre_processing.state_space import create_state_space
+from dcegm.pre_processing.model_functions import process_sparsity_condition
+from dcegm.pre_processing.model_structure.state_space import create_state_space
+from dcegm.pre_processing.setup_model import setup_model
 from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
     get_state_specific_feasible_choice_set,
 )
 
 
 @pytest.fixture()
-def options(load_example_model):
+def options(load_replication_params_and_specs):
     """Return options dictionary."""
-    _, _raw_options = load_example_model("retirement_no_taste_shocks")
+    _, _raw_options = load_replication_params_and_specs("retirement_no_taste_shocks")
     _raw_options["n_choices"] = 2
     options = {}
 
@@ -212,7 +213,6 @@ def test_state_space():
                 "experience": np.arange(n_periods, dtype=int),
                 "policy_state": np.arange(36, dtype=int),
                 "retirement_age_id": np.arange(10, dtype=int),
-                "sparsity_condition": sparsity_condition,
             },
             "continuous_states": {"wealth": np.linspace(0, 50, 100)},
         },
@@ -226,23 +226,29 @@ def test_state_space():
         },
     }
 
+    state_space_functions = {
+        "sparsity_condition": sparsity_condition,
+    }
+
+    processed_sparsity_condition = process_sparsity_condition(
+        options=options_sparse, state_space_functions=state_space_functions
+    )
+
     state_space_test, _ = create_state_space_test(options_sparse["model_params"])
-    (
-        state_space,
-        state_space_dict,
-        map_state_to_index,
-        states_names_without_exog,
-        exog_states_names,
-        exog_state_space,
-    ) = create_state_space(options=options_sparse)
+    dict_of_state_space_objects = create_state_space(
+        state_space_options=options_sparse["state_space"],
+        sparsity_condition=processed_sparsity_condition,
+    )
+
+    state_space = dict_of_state_space_objects["state_space"]
+    discrete_states_names = dict_of_state_space_objects["discrete_states_names"]
 
     # The dcegm package create the state vector in the order of the dictionary keys.
     # How these are ordered is not clear ex ante.
     state_space_sums_test = state_space_test.sum(axis=0)
     state_space_sums = state_space.sum(axis=0)
     state_space_sum_dict = {
-        key: state_space_sums[i]
-        for i, key in enumerate(states_names_without_exog + exog_states_names)
+        key: state_space_sums[i] for i, key in enumerate(discrete_states_names)
     }
 
     np.testing.assert_allclose(state_space_sum_dict["period"], state_space_sums_test[0])
@@ -263,8 +269,15 @@ def test_state_space():
     )
 
     ### Now test the inspection function.
-    state_space_df = inspect_state_space(options=options_sparse)
-    admissible_df = state_space_df[state_space_df["is_feasible"]]
+    state_space_df = setup_model(
+        options=options_sparse,
+        utility_functions=None,
+        utility_functions_final_period=None,
+        budget_constraint=None,
+        state_space_functions=state_space_functions,
+        debug_info="state_space_df",
+    )
+    admissible_df = state_space_df[state_space_df["is_valid"]]
 
-    for i, column in enumerate(states_names_without_exog + exog_states_names):
+    for i, column in enumerate(discrete_states_names):
         np.testing.assert_allclose(admissible_df[column].values, state_space[:, i])

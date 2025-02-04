@@ -58,20 +58,20 @@ def pytest_sessionfinish(session, exitstatus):  # noqa: ARG001
 
 
 @pytest.fixture(scope="session")
-def load_example_model():
-    def load_options_and_params(model):
+def load_replication_params_and_specs():
+    def load_options_and_params(model_name):
         """Return parameters and options of an example model."""
-        params = pd.read_csv(
-            REPLICATION_TEST_RESOURCES_DIR / f"{model}" / "params.csv",
-            index_col=["category", "name"],
+        params = yaml.safe_load(
+            (
+                REPLICATION_TEST_RESOURCES_DIR / f"{model_name}" / "params.yaml"
+            ).read_text()
         )
-        params = (
-            params.reset_index()[["name", "value"]].set_index("name")["value"].to_dict()
+        model_specs = yaml.safe_load(
+            (
+                REPLICATION_TEST_RESOURCES_DIR / f"{model_name}" / "options.yaml"
+            ).read_text()
         )
-        options = yaml.safe_load(
-            (REPLICATION_TEST_RESOURCES_DIR / f"{model}" / "options.yaml").read_text()
-        )
-        return params, options
+        return params, model_specs
 
     return load_options_and_params
 
