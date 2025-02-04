@@ -1,25 +1,21 @@
-import jax
 import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import pytest
 
-from dcegm.interface import get_n_state_choice_period
-from dcegm.pre_processing.setup_model import setup_model
-from dcegm.simulation.sim_utils import create_simulation_df
-from dcegm.simulation.simulate import simulate_all_periods
+from dcegm.pre_processing.setup_model import process_debug_string, setup_model
 from dcegm.solve import get_solve_func_for_model
-from tests.test_sparse_death.budget import budget_constraint_exp
-from tests.test_sparse_death.exog_processes import job_offer, prob_survival
-from tests.test_sparse_death.state_space import create_state_space_functions
-from tests.test_sparse_death.utility import (
+from tests.sparse_death.budget import budget_constraint_exp
+from tests.sparse_death.exog_processes import job_offer, prob_survival
+from tests.sparse_death.state_space import create_state_space_functions
+from tests.sparse_death.utility import (
     create_final_period_utility_function_dict,
     create_utility_function_dict,
 )
 
 
 @pytest.fixture
-def test_inputs():
+def inputs():
     n_periods = 20
     n_choices = 3
 
@@ -91,8 +87,8 @@ def test_inputs():
     }
 
 
-def test_child_states(test_inputs):
-    model_structure = test_inputs["model"]["model_structure"]
+def test_child_states(inputs):
+    model_structure = inputs["model"]["model_structure"]
     state_names = model_structure["discrete_states_names"]
     state_choice_names = state_names + ["choice"]
 
@@ -153,8 +149,22 @@ def test_child_states(test_inputs):
     dead_state_list = [dead_state[name] for name in state_names]
 
     # Check that death state is twice in child states
-    for i in range(2):
+    for _ in range(2):
         assert dead_state_list in child_states_list
         child_states_list.remove(dead_state_list)
 
     assert len(child_states_list) == 0
+
+
+def test_sparse_debugging_output(inputs):
+    options = inputs["options"]
+
+    state_space_functions = create_state_space_functions()
+    # state_space_functions=options["state_space"], sparsity_condition, debugging=True
+
+    debug_dict = process_debug_string(
+        debug_output="state_space_df",
+        state_space_functions=state_space_functions,
+        options=options,
+    )
+    assert isinstance(debug_dict["debug_output"], pd.DataFrame)
