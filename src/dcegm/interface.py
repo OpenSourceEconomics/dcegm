@@ -217,7 +217,8 @@ def validate_exogenous_processes(model, params):
         # Check if all transitions to each state is non-negative
         if not (all_transitions >= 0).all():
             raise ValueError(
-                f"Exogenous process {exog_name} does not return non-negative transition probabilities. An example state choice combination is "
+                f"Exogenous process {exog_name} does not return non-negative transition probabilities. "
+                f"An example state choice combination is "
                 f"\n\n{pd.Series(state_choice_space_dict).iloc[0]}"
                 f"\n\nwith transitions {all_transitions[0]}"
             )
