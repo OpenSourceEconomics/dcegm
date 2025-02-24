@@ -210,7 +210,8 @@ def validate_exogenous_processes(model, params):
         # Check if summed transitions are floats
         if summed_transitions.dtype != jnp.float64:
             raise ValueError(
-                f"Exogenous process {exog_name} does not return float transition probabilities. Got {summed_transitions.dtype}"
+                f"Exogenous process {exog_name} does not return float transition probabilities. "
+                f"Got {summed_transitions.dtype}"
             )
 
         # Check if all transitions to each state is non-negative
