@@ -201,13 +201,42 @@ def validate_exogenous_processes(model, params):
 
     for exog_name, exog_func in processed_exog_funcs.items():
 
+        # sum transition probabilities for each state choice combination
         all_transitions = jax.vmap(exoc_vec, in_axes=(0, None, None))(
             state_choice_space_dict, exog_func, params
         )
         summed_transitions = jnp.sum(all_transitions, axis=1)
 
+        # Check if summed transitions are floats
         if summed_transitions.dtype != jnp.float64:
-            raise ValueError(f"Exogenous process {exog_name} does not return a float.")
+            raise ValueError(
+                f"Exogenous process {exog_name} does not return float transition probabilities. Got {summed_transitions.dtype}"
+            )
+
+        # Check if all transitions to each state is non-negative
+        if not (all_transitions >= 0).all():
+            raise ValueError(
+                f"Exogenous process {exog_name} does not return non-negative transition probabilities. An example state choice combination is "
+                f"\n\n{pd.Series(state_choice_space_dict).iloc[0]}"
+                f"\n\nwith transitions {all_transitions[0]}"
+            )
+
+        # Check if all transitions to each state is less or equal to 1
+        if not (all_transitions <= 1).all():
+            raise ValueError(
+                f"Exogenous process {exog_name} does not return transition probabilities less or equal to 1. An example state choice combination is "
+                f"\n\n{pd.Series(state_choice_space_dict).iloc[0]}"
+                f"\n\nwith transitions {all_transitions[0]}"
+            )
+
+        # Check if the number of transitions per state is correct
+        n_states = len(
+            model["options"]["state_space"]["exogenous_processes"][exog_name]["states"]
+        )
+        if all_transitions.shape[1] != n_states:
+            raise ValueError(
+                f"Exogenous process {exog_name} does not return the correct number of transitions. Expected {n_states}, got {all_transitions.shape[1]}."
+            )
 
         # Check where summed transitions equal 1
         bool_equal_1 = jnp.isclose(
@@ -223,9 +252,13 @@ def validate_exogenous_processes(model, params):
                 for key, value in state_choice_space_dict.items()
             }
             raise ValueError(
-                f"Exogenous process {exog_name} does not sum to 1. An example state choice combination is "
+                f"Exogenous process {exog_name} transition probabilities do not sum to 1. An example state choice combination is "
                 f"\n\n{pd.Series(example_state_choice)}"
+                f"\n\nwith summed transitions {summed_transitions[not_true]}"
+                f"\n\nand transitions {all_transitions[not_true]}"
             )
+
+    return True
 
 
 def exoc_vec(state_choice_vec_dict, exog_func, params):
