@@ -193,11 +193,12 @@ def validate_exogenous_processes(model, params):
         Tuple[bool, Dict]: Tuple with a boolean indicating if all exogenous processes are valid and a dictionary with the results for each exogenous process
 
     """
+    # Update to float64
+    jax.config.update("jax_enable_x64", True)
 
     processed_exog_funcs = model["model_funcs"]["processed_exog_funcs"]
     state_choice_space_dict = model["model_structure"]["state_choice_space_dict"]
 
-    results = {}
     for exog_name, exog_func in processed_exog_funcs.items():
 
         all_transitions = jax.vmap(exoc_vec, in_axes=(0, None, None))(
@@ -205,15 +206,26 @@ def validate_exogenous_processes(model, params):
         )
         summed_transitions = jnp.sum(all_transitions, axis=1)
 
-        if not jnp.allclose(summed_transitions, jnp.ones_like(summed_transitions)):
+        if summed_transitions.dtype != jnp.float64:
+            raise ValueError(f"Exogenous process {exog_name} does not return a float.")
 
-            print(
-                "transition probabilities for exogenous process: ",
-                exog_name,
-                " are invalid",
+        # Check where summed transitions equal 1
+        bool_equal_1 = jnp.isclose(
+            summed_transitions, jnp.ones_like(summed_transitions)
+        )
+
+        if not bool_equal_1.all():
+
+            # Raise value error with an example state choice combination
+            not_true = jnp.where(~bool_equal_1)[0][0]
+            example_state_choice = {
+                key: int(value[not_true])
+                for key, value in state_choice_space_dict.items()
+            }
+            raise ValueError(
+                f"Exogenous process {exog_name} does not sum to 1. An example state choice combination is "
+                f"\n\n{pd.Series(example_state_choice)}"
             )
-
-    return True
 
 
 def exoc_vec(state_choice_vec_dict, exog_func, params):
