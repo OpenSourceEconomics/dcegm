@@ -1,5 +1,6 @@
 """Test module for exogenous processes."""
 
+import copy
 from itertools import product
 
 import jax.numpy as jnp
@@ -7,6 +8,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_almost_equal as aaae
 
+from dcegm.interface import validate_exogenous_processes
 from dcegm.pre_processing.check_options import check_options_and_set_defaults
 from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.model_structure.exogenous_processes import (
@@ -75,15 +77,15 @@ def prob_exog_health_mother(health_father, params):
 
 
 def prob_exog_health_child(health_child, params):
-    prob_good_health = (health_child == 0) * 0.7 + (health_child == 1) * 0.3
-    prob_medium_health = (health_child == 0) * 0.2 + (health_child == 1) * 0.5
+    prob_good_health = (health_child == 0) * 0.7 + (health_child == 1) * 0.1
+    prob_medium_health = (health_child == 0) * 0.3 + (health_child == 1) * 0.9
 
     return jnp.array([prob_good_health, prob_medium_health])
 
 
 def prob_exog_health_grandma(health_grandma, params):
-    prob_good_health = (health_grandma == 0) * 0.7 + (health_grandma == 1) * 0.3
-    prob_medium_health = (health_grandma == 0) * 0.2 + (health_grandma == 1) * 0.5
+    prob_good_health = (health_grandma == 0) * 0.8 + (health_grandma == 1) * 0.15
+    prob_medium_health = (health_grandma == 0) * 0.2 + (health_grandma == 1) * 0.85
 
     return jnp.array([prob_good_health, prob_medium_health])
 
@@ -164,7 +166,51 @@ def test_exog_processes(
         model_structure["exog_state_space"].astype(np.int16),
         model_structure["exog_states_names"],
     )
-    # First check if mapping works
+
+    # Test the interface validation function for exogenous processes
+    invalid_model = copy.deepcopy(model)
+    with pytest.raises(
+        ValueError, match="does not return float transition probabilities"
+    ):
+        invalid_model["model_funcs"]["processed_exog_funcs"]["health_mother"] = (
+            lambda **kwargs: jnp.array([1, 3, 4])
+        )  # Returns an array instead of a float
+        validate_exogenous_processes(invalid_model, params)
+
+    with pytest.raises(
+        ValueError, match="does not return non-negative transition probabilities"
+    ):
+        invalid_model["model_funcs"]["processed_exog_funcs"]["health_mother"] = (
+            lambda **kwargs: jnp.array([0.7, -0.3, 0.6])
+        )  # Contains negative values
+        validate_exogenous_processes(invalid_model, params)
+
+    with pytest.raises(
+        ValueError, match="does not return transition probabilities less or equal to 1"
+    ):
+        invalid_model["model_funcs"]["processed_exog_funcs"]["health_mother"] = (
+            lambda **kwargs: jnp.array([0.7, 1.3, 0.6])
+        )  # Contains values geq 1
+        validate_exogenous_processes(invalid_model, params)
+
+    with pytest.raises(
+        ValueError, match="does not return the correct number of transitions"
+    ):
+        invalid_model["model_funcs"]["processed_exog_funcs"]["health_mother"] = (
+            lambda **kwargs: jnp.array([0.7, 0.3])
+        )  # Wrong number of states (only 2 instead of 3)
+        validate_exogenous_processes(invalid_model, params)
+
+    with pytest.raises(ValueError, match="transition probabilities do not sum to 1"):
+        invalid_model["model_funcs"]["processed_exog_funcs"]["health_mother"] = (
+            lambda **kwargs: jnp.array([0.6, 0.3, 0.2])
+        )  # Doesn't sum to 1
+        validate_exogenous_processes(invalid_model, params)
+
+    # Check if valid model passes
+    assert validate_exogenous_processes(model, params)
+
+    # Check if mapping works
     mother_bad_health = np.where(model_structure["exog_state_space"][:, 0] == 2)[0]
 
     for exog_state in mother_bad_health:
