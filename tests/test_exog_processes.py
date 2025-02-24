@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_almost_equal as aaae
 
+from dcegm.interface import validate_exogenous_processes
 from dcegm.pre_processing.check_options import check_options_and_set_defaults
 from dcegm.pre_processing.model_functions import process_model_functions
 from dcegm.pre_processing.model_structure.exogenous_processes import (
@@ -164,6 +165,17 @@ def test_exog_processes(
         model_structure["exog_state_space"].astype(np.int16),
         model_structure["exog_states_names"],
     )
+
+    # assert that the transition probabilities are checked correctly
+    validate_exogenous_processes_res = validate_exogenous_processes(model, params)
+    assert not validate_exogenous_processes_res[0]
+    assert validate_exogenous_processes_res[1] == {
+        "health_mother": True,
+        "health_father": True,
+        "health_child": False,
+        "health_grandma": False,
+    }
+
     # First check if mapping works
     mother_bad_health = np.where(model_structure["exog_state_space"][:, 0] == 2)[0]
 

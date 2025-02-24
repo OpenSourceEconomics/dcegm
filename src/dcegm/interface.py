@@ -1,3 +1,6 @@
+from functools import partial
+
+import jax
 import jax.numpy as jnp
 import pandas as pd
 
@@ -177,3 +180,41 @@ def get_state_choice_index_per_discrete_state(
     ]
     # As the code above generates a dummy dimension in the first we eliminate that
     return indexes[0]
+
+
+def validate_exogenous_processes(model, params):
+    """Validate exogenous processes.
+
+    Args:
+        model
+        params
+
+    Returns:
+        Tuple[bool, Dict]: Tuple with a boolean indicating if all exogenous processes are valid and a dictionary with the results for each exogenous process
+
+    """
+
+    processed_exog_funcs = model["model_funcs"]["processed_exog_funcs"]
+    state_choice_space_dict = model["model_structure"]["state_choice_space_dict"]
+
+    results = {}
+    for exog_name, exog_func in processed_exog_funcs.items():
+
+        all_transitions = jax.vmap(exoc_vec, in_axes=(0, None, None))(
+            state_choice_space_dict, exog_func, params
+        )
+        summed_transitions = jnp.sum(all_transitions, axis=1)
+
+        if not jnp.allclose(summed_transitions, jnp.ones_like(summed_transitions)):
+
+            print(
+                "transition probabilities for exogenous process: ",
+                exog_name,
+                " are invalid",
+            )
+
+    return True
+
+
+def exoc_vec(state_choice_vec_dict, exog_func, params):
+    return exog_func(**state_choice_vec_dict, params=params)
