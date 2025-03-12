@@ -33,7 +33,7 @@ def policy_and_value_for_state_choice_vec(
     state_choice_vec,
     wealth,
     compute_utility,
-    second_continous=None,
+    second_continuous=None,
 ):
     """Get policy and value for a given state and choice vector.
 
@@ -57,7 +57,7 @@ def policy_and_value_for_state_choice_vec(
 
     state_choice_index = map_state_choice_to_index[state_choice_tuple]
 
-    if second_continous is None:
+    if second_continuous is None:
         policy, value = interp1d_policy_and_value_on_wealth(
             wealth=wealth,
             endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
@@ -73,7 +73,7 @@ def policy_and_value_for_state_choice_vec(
             wealth_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
             value_grid=jnp.take(value_solved, state_choice_index, axis=0),
             policy_grid=jnp.take(policy_solved, state_choice_index, axis=0),
-            regular_point_to_interp=second_continous,
+            regular_point_to_interp=second_continuous,
             wealth_point_to_interp=wealth,
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
@@ -90,7 +90,7 @@ def value_for_state_choice_vec(
     model,
     state_choice_vec,
     wealth,
-    second_continous=None,
+    second_continuous=None,
 ):
     """Get policy and value for a given state and choice vector.
 
@@ -115,7 +115,7 @@ def value_for_state_choice_vec(
 
     state_choice_index = map_state_choice_to_index[state_choice_tuple]
 
-    if second_continous is None:
+    if second_continuous is None:
         value = interp_value_on_wealth(
             wealth=wealth,
             endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
@@ -129,7 +129,7 @@ def value_for_state_choice_vec(
             regular_grid=model["options"]["exog_grids"]["second_continuous"],
             wealth_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
             value_grid=jnp.take(value_solved, state_choice_index, axis=0),
-            regular_point_to_interp=second_continous,
+            regular_point_to_interp=second_continuous,
             wealth_point_to_interp=wealth,
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
