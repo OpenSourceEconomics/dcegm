@@ -9,6 +9,7 @@ def calc_cont_grids_next_period(
     model_funcs,
     has_second_continuous_state,
 ):
+    scaled_income_shocks = (income_shock_draws_unscaled - params["income_shock_mean"]) * params["sigma"]
     if has_second_continuous_state:
         continuous_state_next_period = calculate_continuous_state(
             discrete_states_beginning_of_period=state_space_dict,
@@ -22,7 +23,7 @@ def calc_cont_grids_next_period(
             discrete_states_beginning_of_next_period=state_space_dict,
             continuous_state_beginning_of_next_period=continuous_state_next_period,
             savings_grid=exog_grids["wealth"],
-            income_shocks=income_shock_draws_unscaled * params["sigma"],
+            income_shocks=scaled_income_shocks,
             params=params,
             compute_beginning_of_period_wealth=model_funcs[
                 "compute_beginning_of_period_wealth"
@@ -38,7 +39,7 @@ def calc_cont_grids_next_period(
         wealth_next_period = calculate_wealth(
             discrete_states_beginning_of_period=state_space_dict,
             savings_grid=exog_grids["wealth"],
-            income_shocks_current_period=income_shock_draws_unscaled * params["sigma"],
+            income_shocks_current_period=scaled_income_shocks,
             params=params,
             compute_beginning_of_period_wealth=model_funcs[
                 "compute_beginning_of_period_wealth"

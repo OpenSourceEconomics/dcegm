@@ -24,5 +24,7 @@ def process_params(params: Union[dict, pd.Series, pd.DataFrame]) -> Dict[str, fl
         params["sigma"] = 0
     if "beta" not in params:
         raise ValueError("beta must be provided in params.")
+    if "income_shock_mean" not in params:
+        params["income_shock_mean"] = 0
 
     return params
