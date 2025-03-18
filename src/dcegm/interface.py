@@ -197,6 +197,20 @@ def get_state_choice_index_per_discrete_state(
     return indexes[0]
 
 
+def get_state_choice_index_per_discrete_state_and_choice(model, state_choice_dict):
+
+    map_state_choice_to_index = model["model_structure"][
+        "map_state_choice_to_index_with_proxy"
+    ]
+    discrete_states_names = model["model_structure"]["discrete_states_names"]
+    state_choice_tuple = tuple(
+        state_choice_dict[st] for st in discrete_states_names + ["choice"]
+    )
+    state_choice_index = map_state_choice_to_index[state_choice_tuple]
+
+    return state_choice_index
+
+
 def validate_exogenous_processes(model, params):
     """Validate exogenous processes.
 
