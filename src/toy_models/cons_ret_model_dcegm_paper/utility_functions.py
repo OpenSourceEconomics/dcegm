@@ -1,5 +1,6 @@
 from typing import Any, Dict
 
+import jax
 import jax.numpy as jnp
 
 
@@ -40,8 +41,11 @@ def utility_crra(
             (n_quad_stochastic * n_grid_wealth,) or (n_grid_wealth,).
 
     """
-
-    utility_consumption = (consumption ** (1 - params["rho"]) - 1) / (1 - params["rho"])
+    utility_consumption = jax.lax.select(
+        jnp.allclose(params["rho"], 1),
+        jnp.log(consumption),
+        (consumption ** (1 - params["rho"]) - 1) / (1 - params["rho"]),
+    )
 
     utility = utility_consumption - (1 - choice) * params["delta"]
 
@@ -65,7 +69,9 @@ def marginal_utility_crra(
             function. Array of shape (n_quad_stochastic * n_grid_wealth,).
 
     """
-    marginal_utility = consumption ** (-params["rho"])
+    marginal_utility = jax.lax.select(
+        jnp.allclose(params["rho"], 1), 1 / consumption, consumption ** (-params["rho"])
+    )
 
     return marginal_utility
 
@@ -86,7 +92,11 @@ def inverse_marginal_utility_crra(
             a CRRA consumption function. Array of shape (n_grid_wealth,).
 
     """
-    inverse_marginal_utility = marginal_utility ** (-1 / params["rho"])
+    inverse_marginal_utility = jax.lax.select(
+        jnp.allclose(params["rho"], 1),
+        1 / marginal_utility,
+        marginal_utility ** (-1 / params["rho"]),
+    )
 
     return inverse_marginal_utility
 
@@ -110,7 +120,11 @@ def utility_final_consume_all(
     wealth: jnp.array,
     params: Dict[str, float],
 ):
-    util_consumption = (wealth ** (1 - params["rho"]) - 1) / (1 - params["rho"])
+    util_consumption = jax.lax.select(
+        jnp.allclose(params["rho"], 1),
+        jnp.log(wealth),
+        (wealth ** (1 - params["rho"]) - 1) / (1 - params["rho"]),
+    )
     util = util_consumption - (1 - choice) * params["delta"]
 
     return util
@@ -132,6 +146,8 @@ def marginal_utility_final_consume_all(
             function. Array of shape (n_quad_stochastic * n_grid_wealth,).
 
     """
-    marg_util = wealth ** (-params["rho"])
+    marg_util = jax.lax.select(
+        jnp.allclose(params["rho"], 1), 1 / wealth, wealth ** (-params["rho"])
+    )
 
     return marg_util
