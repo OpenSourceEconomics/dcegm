@@ -246,6 +246,8 @@ def create_upper_envelope_function(options, continuous_state=None):
         compute_upper_envelope = _return_policy_and_value
     else:
 
+        tuning_params = options["tuning_params"]
+
         if continuous_state:
 
             def compute_upper_envelope(
@@ -289,11 +291,10 @@ def create_upper_envelope_function(options, continuous_state=None):
                     expected_value_zero_savings=expected_value_zero_savings,
                     value_function=value_function,
                     value_function_kwargs=value_kwargs,
-                    n_constrained_points_to_add=options["tuning_params"][
+                    n_constrained_points_to_add=tuning_params[
                         "n_constrained_points_to_add"
                     ],
-                    n_final_wealth_grid=endog_grid.shape[0]
-                    * (1 + options["tuning_params"]["extra_wealth_grid_factor"]),
+                    n_final_wealth_grid=tuning_params["n_total_wealth_grid"],
                 )
 
         else:
@@ -333,11 +334,10 @@ def create_upper_envelope_function(options, continuous_state=None):
                     expected_value_zero_savings=expected_value_zero_savings,
                     value_function=value_function,
                     value_function_kwargs=value_kwargs,
-                    n_constrained_points_to_add=options["tuning_params"][
+                    n_constrained_points_to_add=tuning_params[
                         "n_constrained_points_to_add"
                     ],
-                    n_final_wealth_grid=endog_grid.shape[0]
-                    * (1 + options["tuning_params"]["extra_wealth_grid_factor"]),
+                    n_final_wealth_grid=tuning_params["n_total_wealth_grid"],
                 )
 
     return compute_upper_envelope

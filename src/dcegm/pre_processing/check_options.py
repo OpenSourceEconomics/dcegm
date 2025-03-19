@@ -87,6 +87,8 @@ def check_options_and_set_defaults(options):
         * (1 + options["tuning_params"]["extra_wealth_grid_factor"])
     )
 
+    # options["tuning_params"]["n_points_to_add"] = (
+
     exog_grids = options["state_space"]["continuous_states"].copy()
 
     if len(options["state_space"]["continuous_states"]) == 2:
