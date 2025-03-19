@@ -87,7 +87,19 @@ def check_options_and_set_defaults(options):
         * (1 + options["tuning_params"]["extra_wealth_grid_factor"])
     )
 
-    # options["tuning_params"]["n_points_to_add"] = (
+    # Set jump threshold to default 2 if it is not given
+    options["tuning_params"]["fues_jump_thresh"] = int(
+        options["tuning_params"]["fues_jump_thresh"]
+        if "fues_jump_thresh" in options["tuning_params"]
+        else 2
+    )
+
+    # Set fues_n_points_to_scan to 10 if not given
+    options["tuning_params"]["fues_n_points_to_scan"] = int(
+        options["tuning_params"]["fues_n_points_to_scan"]
+        if "fues_n_points_to_scan" in options["tuning_params"]
+        else 10
+    )
 
     exog_grids = options["state_space"]["continuous_states"].copy()
 

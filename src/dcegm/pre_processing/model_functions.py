@@ -295,6 +295,8 @@ def create_upper_envelope_function(options, continuous_state=None):
                         "n_constrained_points_to_add"
                     ],
                     n_final_wealth_grid=tuning_params["n_total_wealth_grid"],
+                    jump_thresh=tuning_params["fues_jump_thresh"],
+                    n_points_to_scan=tuning_params["fues_n_points_to_scan"],
                 )
 
         else:
@@ -338,6 +340,8 @@ def create_upper_envelope_function(options, continuous_state=None):
                         "n_constrained_points_to_add"
                     ],
                     n_final_wealth_grid=tuning_params["n_total_wealth_grid"],
+                    jump_thresh=tuning_params["fues_jump_thresh"],
+                    n_points_to_scan=tuning_params["fues_n_points_to_scan"],
                 )
 
     return compute_upper_envelope
