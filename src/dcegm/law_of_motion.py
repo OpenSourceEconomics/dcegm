@@ -10,8 +10,8 @@ def calc_cont_grids_next_period(
     has_second_continuous_state,
 ):
     scaled_income_shocks = (
-        income_shock_draws_unscaled + params["income_shock_mean"]
-    ) * params["sigma"]
+        income_shock_draws_unscaled * params["sigma"] + params["income_shock_mean"]
+    )
     if has_second_continuous_state:
         continuous_state_next_period = calculate_continuous_state(
             discrete_states_beginning_of_period=state_space_dict,
