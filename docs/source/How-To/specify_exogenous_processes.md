@@ -61,8 +61,8 @@ validate_exogenous_processes(model, params)
 This function checks for compliance with probability constraints and verifies that transition matrices align with the model's state space. Possible errors and their respective messages include:
 
 - **Non-float transition probabilities**: *"Exogenous process {exog_name} does not return float transition probabilities."*
-- **Negative transition probabilities**: *"Exogenous process {exog_name} does not return non-negative transition probabilities."*
-- **Probabilities greater than 1**: *"Exogenous process {exog_name} does not return transition probabilities less or equal to 1."*
+- **Negative transition probabilities**: *"Exogenous process {exog_name} returns one or more negative transition probabilities."*
+- **Probabilities greater than 1**: *"Exogenous process {exog_name} returns one or more transition probabilities > 1."*
 - **Incorrect number of transitions**: *"Exogenous process {exog_name} does not return the correct number of transitions. Expected {expected}, got {actual}."*
 - **Probabilities not summing to 1**: *"Exogenous process {exog_name} transition probabilities do not sum to 1."*
 
