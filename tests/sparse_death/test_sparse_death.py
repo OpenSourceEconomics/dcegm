@@ -45,7 +45,7 @@ def inputs():
     options = {
         "state_space": state_space_options,
         "model_params": {
-            "quadrature_points_stochastic": 5,
+            "n_quad_points_stochastic": 5,
             "n_periods": n_periods,
             "n_choices": 3,
             "min_ret_period": 5,

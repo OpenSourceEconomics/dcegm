@@ -6,8 +6,6 @@ from typing import Any, Callable, Dict, Tuple
 import jax.lax
 import jax.numpy as jnp
 import numpy as np
-import pandas as pd
-from jax import jit
 
 from dcegm.final_periods import solve_last_two_periods
 from dcegm.law_of_motion import calc_cont_grids_next_period
@@ -119,7 +117,7 @@ def get_solve_func_for_model(model):
     # ToDo: Make interface with several draw possibilities.
     # ToDo: Some day make user supplied draw function.
     income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
-        options["model_params"]["quadrature_points_stochastic"]
+        options["model_params"]["n_quad_points_stochastic"]
     )
 
     backward_jit = jax.jit(

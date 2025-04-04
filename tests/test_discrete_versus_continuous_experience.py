@@ -53,7 +53,7 @@ def test_setup():
 
     model_params = {
         "n_choices": N_DISCRETE_CHOICES,
-        "quadrature_points_stochastic": 5,
+        "n_quad_points_stochastic": 5,
         "n_periods": N_PERIODS,
         "max_init_experience": MAX_INIT_EXPERIENCE,
     }

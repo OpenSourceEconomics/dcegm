@@ -89,8 +89,8 @@ def check_options_and_set_defaults(options):
 
     # Set jump threshold to default 2 if it is not given
     options["tuning_params"]["fues_jump_thresh"] = int(
-        options["tuning_params"]["fues_jump_thresh"]
-        if "fues_jump_thresh" in options["tuning_params"]
+        options["tuning_params"]["fues_jump_threshold"]
+        if "fues_jump_threshold" in options["tuning_params"]
         else 2
     )
 
