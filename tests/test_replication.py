@@ -11,10 +11,6 @@ from tests.utils.interp1d_auxiliary import (
     interpolate_policy_and_value_on_wealth_grid,
     linear_interpolation_with_extrapolation,
 )
-from toy_models.cons_ret_model_dcegm_paper.utility_functions_log_crra import (
-    utiility_log_crra,
-    utiility_log_crra_final_consume_all,
-)
 from toy_models.load_example_model import load_example_models
 
 # Obtain the test directory of the package
@@ -53,10 +49,6 @@ def test_benchmark_models(model_name, load_replication_params_and_specs):
 
     if model_name == "deaton":
         model_funcs["state_space_functions"] = None
-        model_funcs["utility_functions"]["utility"] = utiility_log_crra
-        model_funcs["final_period_utility_functions"][
-            "utility"
-        ] = utiility_log_crra_final_consume_all
 
     model = setup_model(
         options=options,

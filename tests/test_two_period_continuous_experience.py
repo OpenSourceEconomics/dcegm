@@ -36,6 +36,7 @@ PARAMS = {
     "interest_rate": 0.04,
     "lambda": 1,  # taste shock (scale) parameter
     "sigma": 1,  # shock on labor income, standard deviation
+    "income_shock_mean": 0,  # shock on labor income, mean
     "constant": 0.75,
     "exp": 0.04,
     "exp_squared": -0.0002,
@@ -232,7 +233,7 @@ def create_test_inputs():
     options = {}
     _raw_options = {
         "n_discrete_choices": 2,
-        "quadrature_points_stochastic": 5,
+        "n_quad_points_stochastic": 5,
     }
     params = PARAMS
 
@@ -453,7 +454,7 @@ def _get_solve_last_two_periods_args(model, params, has_second_continuous_state)
 
     # Prepare income shock draws and scaling
     income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
-        options["model_params"]["quadrature_points_stochastic"]
+        options["model_params"]["n_quad_points_stochastic"]
     )
     taste_shock_scale = params["lambda"]
 

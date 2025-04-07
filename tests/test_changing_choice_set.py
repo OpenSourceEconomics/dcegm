@@ -102,7 +102,7 @@ def test_model():
         "model_params": {
             # "n_grid_points": 100,
             # "max_wealth": 500,
-            "quadrature_points_stochastic": 5,
+            "n_quad_points_stochastic": 5,
             "min_age": 0,
             "n_periods": 5,
             "n_choices": 3,

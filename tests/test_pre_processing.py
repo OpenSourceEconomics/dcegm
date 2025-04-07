@@ -19,9 +19,7 @@ from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
 from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
     create_final_period_utility_function_dict,
     create_utility_function_dict,
-)
-from toy_models.cons_ret_model_dcegm_paper.utility_functions_log_crra import (
-    utiility_log_crra,
+    utility_crra,
 )
 
 
@@ -81,7 +79,7 @@ def test_wrap_function(load_replication_params_and_specs):
     )
 
     util_processed = determine_function_arguments_and_partial_options(
-        utiility_log_crra,
+        utility_crra,
         options,
     )
 

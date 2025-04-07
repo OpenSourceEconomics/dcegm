@@ -54,7 +54,7 @@ def test_two_period(toy_model, euler_rhs, wealth_idx, state_idx, request):
     options = toy_model["options"]
 
     quad_points, quad_weights = roots_sh_legendre(
-        options["model_params"]["quadrature_points_stochastic"]
+        options["model_params"]["n_quad_points_stochastic"]
     )
     quad_draws = norm.ppf(quad_points) * params["sigma"]
 

@@ -4,9 +4,7 @@ import sys
 from pathlib import Path
 
 import jax
-import jax.numpy as jnp
 import numpy as np
-import pandas as pd
 import pytest
 import yaml
 
@@ -99,7 +97,7 @@ def params_and_options_exog_ltc():
 
     options = {
         "model_params": {
-            "quadrature_points_stochastic": 5,
+            "n_quad_points_stochastic": 5,
             "n_choices": 2,
         },
         "state_space": {
@@ -144,7 +142,7 @@ def params_and_options_exog_ltc_and_job_offer():
 
     options = {
         "model_params": {
-            "quadrature_points_stochastic": 5,
+            "n_quad_points_stochastic": 5,
             "n_choices": 2,
         },
         "state_space": {
