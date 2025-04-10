@@ -1,5 +1,9 @@
 from jax import vmap
 
+from dcegm.check_func_outputs import (
+    check_budget_equation_and_return_wealth_plus_optional_aux,
+)
+
 
 def calc_cont_grids_next_period(
     state_space_dict,
@@ -64,17 +68,18 @@ def calculate_wealth(
         vmap(
             vmap(
                 calc_wealth_for_each_savings_grid_point,
-                in_axes=(None, None, 0, None, None),  # income shocks
+                in_axes=(None, None, 0, None, None, None),  # income shocks
             ),
-            in_axes=(None, 0, None, None, None),  # savings
+            in_axes=(None, 0, None, None, None, None),  # savings
         ),
-        in_axes=(0, None, None, None, None),  # discrete states
+        in_axes=(0, None, None, None, None, None),  # discrete states
     )(
         discrete_states_beginning_of_period,
         savings_grid,
         income_shocks_current_period,
         params,
         compute_beginning_of_period_wealth,
+        False,
     )
     return wealth_beginning_of_period
 
@@ -85,14 +90,18 @@ def calc_wealth_for_each_savings_grid_point(
     income_shock_draw,
     params,
     compute_beginning_of_period_wealth,
+    aux_outs,
 ):
-    out = compute_beginning_of_period_wealth(
+    out_budget = compute_beginning_of_period_wealth(
         **state_vec,
         savings_end_of_previous_period=exog_savings_grid_point,
         income_shock_previous_period=income_shock_draw,
         params=params,
     )
-    return out
+    checked_out = check_budget_equation_and_return_wealth_plus_optional_aux(
+        out_budget, optional_aux=aux_outs
+    )
+    return checked_out
 
 
 # =====================================================================================
@@ -107,17 +116,20 @@ def calc_wealth_for_each_continuous_state_and_savings_grid_point(
     income_shock_draw,
     params,
     compute_beginning_of_period_wealth,
+    aux_outs,
 ):
 
-    out = compute_beginning_of_period_wealth(
+    out_budget = compute_beginning_of_period_wealth(
         **state_vec,
         continuous_state=continuous_state_beginning_of_period,
         savings_end_of_previous_period=exog_savings_grid_point,
         income_shock_previous_period=income_shock_draw,
         params=params,
     )
-
-    return out
+    checked_out = check_budget_equation_and_return_wealth_plus_optional_aux(
+        out_budget, optional_aux=aux_outs
+    )
+    return checked_out
 
 
 def calculate_continuous_state(
@@ -169,13 +181,13 @@ def calculate_wealth_for_second_continuous_state(
             vmap(
                 vmap(
                     calc_wealth_for_each_continuous_state_and_savings_grid_point,
-                    in_axes=(None, None, None, 0, None, None),  # income shocks
+                    in_axes=(None, None, None, 0, None, None, None),  # income shocks
                 ),
-                in_axes=(None, None, 0, None, None, None),  # savings
+                in_axes=(None, None, 0, None, None, None, None),  # savings
             ),
-            in_axes=(None, 0, None, None, None, None),  # continuous state
+            in_axes=(None, 0, None, None, None, None, None),  # continuous state
         ),
-        in_axes=(0, 0, None, None, None, None),  # discrete states
+        in_axes=(0, 0, None, None, None, None, None),  # discrete states
     )(
         discrete_states_beginning_of_next_period,
         continuous_state_beginning_of_next_period,
@@ -183,6 +195,7 @@ def calculate_wealth_for_second_continuous_state(
         income_shocks,
         params,
         compute_beginning_of_period_wealth,
+        False,
     )
     return wealth_beginning_of_period
 
@@ -201,13 +214,14 @@ def calculate_wealth_for_all_agents(
 ):
     wealth_beginning_of_next_period = vmap(
         calc_wealth_for_each_savings_grid_point,
-        in_axes=(0, 0, 0, None, None),
+        in_axes=(0, 0, 0, None, None, None),
     )(
         states_beginning_of_period,
         savings_end_of_previous_period,
         income_shocks_of_period,
         params,
         compute_beginning_of_period_wealth,
+        True,
     )
     return wealth_beginning_of_next_period
 
@@ -238,9 +252,9 @@ def calculate_wealth_given_second_continuous_state_for_all_agents(
     params,
     compute_beginning_of_period_wealth,
 ):
-    wealth_beginning_of_next_period = vmap(
+    wealth_beginning_of_next_period, aux_dict = vmap(
         calc_wealth_for_each_continuous_state_and_savings_grid_point,
-        in_axes=(0, 0, 0, 0, None, None),
+        in_axes=(0, 0, 0, 0, None, None, None),
     )(
         states_beginning_of_period,
         continuous_state_beginning_of_period,
@@ -248,5 +262,6 @@ def calculate_wealth_given_second_continuous_state_for_all_agents(
         income_shocks_of_period,
         params,
         compute_beginning_of_period_wealth,
+        True,
     )
-    return wealth_beginning_of_next_period
+    return wealth_beginning_of_next_period, aux_dict

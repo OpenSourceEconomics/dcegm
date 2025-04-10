@@ -171,7 +171,7 @@ def transition_to_next_period(
             compute_continuous_state=model_funcs_sim["next_period_continuous_state"],
         )
 
-        wealth_beginning_of_next_period = (
+        wealth_beginning_of_next_period, budget_aux = (
             calculate_wealth_given_second_continuous_state_for_all_agents(
                 states_beginning_of_period=discrete_states_next_period,
                 continuous_state_beginning_of_period=continuous_state_next_period,
@@ -184,7 +184,7 @@ def transition_to_next_period(
     else:
         continuous_state_next_period = None
 
-        wealth_beginning_of_next_period = calculate_wealth_for_all_agents(
+        wealth_beginning_of_next_period, budget_aux = calculate_wealth_for_all_agents(
             states_beginning_of_period=discrete_states_next_period,
             savings_end_of_previous_period=savings_current_period,
             income_shocks_of_period=income_shocks_next_period,
@@ -194,6 +194,7 @@ def transition_to_next_period(
 
     return (
         wealth_beginning_of_next_period,
+        budget_aux,
         discrete_states_next_period,
         continuous_state_next_period,
         income_shocks_next_period,

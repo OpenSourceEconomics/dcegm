@@ -207,6 +207,7 @@ def simulate_single_period(
 
     (
         wealth_beginning_of_next_period,
+        budget_aux,
         discrete_states_next_period,
         continuous_state_next_period,
         income_shocks_next_period,
@@ -235,6 +236,7 @@ def simulate_single_period(
         "value_max": value_max,
         "value_choice": values_across_choices,
         "wealth_beginning_of_period": wealth_beginning_of_period,
+        **budget_aux,
         "savings": savings_current_period,
         "income_shock": income_shocks_next_period,
         **states_beginning_of_period,
