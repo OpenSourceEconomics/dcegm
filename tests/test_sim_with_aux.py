@@ -27,7 +27,6 @@ def budget_with_aux(
         params,
     )
     aux_dict = {
-        "shock": shock,
         "income": income,
     }
     return wealth, aux_dict
@@ -178,10 +177,9 @@ def test_sim_and_sol_model(state_space_options, load_replication_params_and_spec
     output_dict_without_aux = sim_func_without_aux(params)
     df_without_aux = create_simulation_df(output_dict_without_aux["sim_dict"])
     #
-    # # First check that shock and income are in df_aux columns
-    assert "shock" in df_aux.columns
+    # # First check that income is in df_aux columns
     assert "income" in df_aux.columns
 
-    # Now drop the columns and check that the rest is exactn  the same
-    df_aux = df_aux.drop(columns=["shock", "income"])
+    # Now drop the column and check that the rest is exactly the same
+    df_aux = df_aux.drop(columns=["income"])
     assert df_aux.equals(df_without_aux)
