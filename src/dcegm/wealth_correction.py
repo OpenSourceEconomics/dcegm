@@ -35,7 +35,7 @@ def adjust_observed_wealth(observed_states_dict, params, model):
 
         adjusted_wealth = vmap(
             calc_wealth_for_each_continuous_state_and_savings_grid_point,
-            in_axes=(0, 0, 0, None, None, None),
+            in_axes=(0, 0, 0, None, None, None, None),
         )(
             observed_states_dict_int,
             second_cont_state_vars,
@@ -43,17 +43,20 @@ def adjust_observed_wealth(observed_states_dict, params, model):
             jnp.array(0.0, dtype=jnp.float64),
             params,
             model["model_funcs"]["compute_beginning_of_period_wealth"],
+            False,
         )
 
     else:
         adjusted_wealth = vmap(
-            calc_wealth_for_each_savings_grid_point, in_axes=(0, 0, None, None, None)
+            calc_wealth_for_each_savings_grid_point,
+            in_axes=(0, 0, None, None, None, None),
         )(
             observed_states_dict,
             savings_last_period,
             jnp.array(0.0, dtype=jnp.float64),
             params,
             model["model_funcs"]["compute_beginning_of_period_wealth"],
+            False,
         )
 
     return adjusted_wealth
