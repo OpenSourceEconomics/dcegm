@@ -106,17 +106,30 @@ def create_choice_prob_func_unobserved_states(
     for state_name in unobserved_state_names:
         weighting_vars[state_name + "_new"] = observed_states[state_name]
 
-    # Read out possible values for unobserved states
+    # Read out possible values for unobserved states. Two cases: Either they are explicitly defined
+    # by the user, in the case of only a subset of values. Or they are all possible values, then it is
+    # read out of the specification of the model.
+    any_custom_unobserved_states = "custom_unobserved_states" in unobserved_state_specs
+
     unobserved_state_values = {}
     for state_name in unobserved_state_specs["observed_bools_states"].keys():
-        if state_name in model["model_structure"]["exog_states_names"]:
-            state_values = model["options"]["state_space"]["exogenous_processes"][
-                state_name
-            ]["states"]
+        # Check if state is custom defined
+        if any_custom_unobserved_states:
+            state_custom_defined = state_name in unobserved_state_specs["custom_unobserved_states"]
         else:
-            state_values = model["options"]["state_space"]["endogenous_states"][
-                state_name
-            ]
+            state_custom_defined = False
+
+        if state_custom_defined:
+                state_values = unobserved_state_specs["custom_unobserved_states"][state_name]
+        else:
+            if state_name in model["model_structure"]["exog_states_names"]:
+                state_values = model["options"]["state_space"]["exogenous_processes"][
+                    state_name
+                ]["states"]
+            else:
+                state_values = model["options"]["state_space"]["endogenous_states"][
+                    state_name
+                ]
         unobserved_state_values[state_name] = state_values
 
     # Now create a list which contains dictionaries with ach dictionary
