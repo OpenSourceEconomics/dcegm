@@ -115,12 +115,16 @@ def create_choice_prob_func_unobserved_states(
     for state_name in unobserved_state_specs["observed_bools_states"].keys():
         # Check if state is custom defined
         if any_custom_unobserved_states:
-            state_custom_defined = state_name in unobserved_state_specs["custom_unobserved_states"]
+            state_custom_defined = (
+                state_name in unobserved_state_specs["custom_unobserved_states"]
+            )
         else:
             state_custom_defined = False
 
         if state_custom_defined:
-                state_values = unobserved_state_specs["custom_unobserved_states"][state_name]
+            state_values = unobserved_state_specs["custom_unobserved_states"][
+                state_name
+            ]
         else:
             if state_name in model["model_structure"]["exog_states_names"]:
                 state_values = model["options"]["state_space"]["exogenous_processes"][
