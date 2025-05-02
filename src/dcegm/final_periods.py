@@ -14,7 +14,6 @@ from dcegm.solve_single_period import solve_for_interpolated_values
 def solve_last_two_periods(
     cont_grids_next_period: Dict[str, jnp.ndarray],
     params: Dict[str, float],
-    taste_shock_scale,
     income_shock_weights: jnp.ndarray,
     exog_grids: Dict[str, jnp.ndarray],
     model_funcs: Dict[str, Callable],
@@ -86,7 +85,6 @@ def solve_last_two_periods(
             "state_to_choices_final_period"
         ],
         params=params,
-        taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,
         exog_grids=exog_grids,
         model_funcs=model_funcs,

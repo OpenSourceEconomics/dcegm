@@ -4,7 +4,9 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from dcegm.pre_processing.model_functions import process_sparsity_condition
+from dcegm.pre_processing.model_functions.process_model_functions import (
+    process_sparsity_condition,
+)
 from dcegm.pre_processing.model_structure.state_space import create_state_space
 from dcegm.pre_processing.setup_model import setup_model
 from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
