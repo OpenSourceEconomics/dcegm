@@ -234,13 +234,6 @@ def next_period_continuous_state_for_one_agent(
     )
 
 
-def draw_taste_shocks(n_agents, n_choices, taste_shock_scale, key):
-    taste_shocks = jax.random.gumbel(key=key, shape=(n_agents, n_choices))
-
-    taste_shocks = taste_shock_scale * (taste_shocks - jnp.euler_gamma)
-    return taste_shocks
-
-
 def vectorized_utility(consumption_period, state, choice, params, compute_utility):
     utility = compute_utility(
         consumption=consumption_period, params=params, choice=choice, **state

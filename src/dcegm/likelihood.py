@@ -332,7 +332,9 @@ def calc_choice_probs_for_states(
         )
 
     if model_funcs["taste_shock_function"]["taste_shock_scale_is_scalar"]:
-        taste_shock_scale = params["lambda"]
+        taste_shock_scale = model_funcs["taste_shock_function"][
+            "read_out_taste_shock_scale"
+        ](params)
     else:
         taste_shock_scale_per_state_func = model_funcs["taste_shock_function"][
             "taste_shock_scale_per_state"
@@ -342,7 +344,7 @@ def calc_choice_probs_for_states(
         )
     choice_prob_across_choices, _, _ = calculate_choice_probs_and_unsqueezed_logsum(
         choice_values_per_state=value_per_agent_interp,
-        taste_shock_scale=params["lambda"],
+        taste_shock_scale=taste_shock_scale,
     )
     return choice_prob_across_choices
 

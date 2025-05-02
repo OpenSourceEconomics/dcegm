@@ -10,11 +10,11 @@ from jax import vmap
 from dcegm.interface import get_state_choice_index_per_discrete_state
 from dcegm.simulation.sim_utils import (
     compute_final_utility_for_each_choice,
-    draw_taste_shocks,
     interpolate_policy_and_value_for_all_agents,
     transition_to_next_period,
     vectorized_utility,
 )
+from dcegm.simulation.taste_shocks import draw_taste_shocks
 
 
 def simulate_all_periods(
@@ -110,7 +110,7 @@ def simulate_all_periods(
         map_state_choice_to_index=jnp.asarray(
             model_structure_sol["map_state_choice_to_index_with_proxy"]
         ),
-        compute_utility_final_period=model_funcs_sim["compute_utility_final"],
+        model_funcs_sim=model_funcs_sim,
     )
 
     # Standard simulation output
@@ -146,7 +146,6 @@ def simulate_single_period(
     second_continuous_state_dict=None,
 ):
 
-    taste_shock_scale = params["lambda"]
     (
         states_beginning_of_period,
         wealth_beginning_of_period,
@@ -190,10 +189,11 @@ def simulate_single_period(
 
     # Draw taste shocks and calculate final value.
     taste_shocks = draw_taste_shocks(
-        n_agents=len(wealth_beginning_of_period),
+        params=params,
+        states_beginning_of_period=states_beginning_of_period,
         n_choices=len(choice_range),
-        taste_shock_scale=taste_shock_scale,
-        key=sim_specific_keys[0, :],
+        taste_shock_function=model_funcs_sim["taste_shock_function"],
+        random_key=sim_specific_keys[0, :],
     )
     values_across_choices = values_pre_taste_shock + taste_shocks
 
@@ -263,7 +263,7 @@ def simulate_final_period(
     discrete_states_names,
     choice_range,
     map_state_choice_to_index,
-    compute_utility_final_period,
+    model_funcs_sim,
 ):
     invalid_number = np.iinfo(map_state_choice_to_index.dtype).max
 
@@ -272,7 +272,6 @@ def simulate_final_period(
         wealth_beginning_of_final_period,
     ) = states_and_wealth_beginning_of_period
 
-    n_choices = len(choice_range)
     n_agents = len(wealth_beginning_of_final_period)
 
     utilities_pre_taste_shock = vmap(
@@ -286,7 +285,7 @@ def simulate_final_period(
         choice_range,
         wealth_beginning_of_final_period,
         params,
-        compute_utility_final_period,
+        model_funcs_sim["compute_utility_final"],
     )
     state_choice_indexes = get_state_choice_index_per_discrete_state(
         map_state_choice_to_index=map_state_choice_to_index,
@@ -299,10 +298,11 @@ def simulate_final_period(
 
     # Draw taste shocks and calculate final value.
     taste_shocks = draw_taste_shocks(
-        n_agents=n_agents,
-        n_choices=n_choices,
-        taste_shock_scale=params["lambda"],
-        key=sim_specific_keys[0, :],
+        params=params,
+        states_beginning_of_period=states_beginning_of_final_period,
+        n_choices=len(choice_range),
+        taste_shock_function=model_funcs_sim["taste_shock_function"],
+        random_key=sim_specific_keys[0, :],
     )
     values_across_choices = utilities_pre_taste_shock + taste_shocks
 
