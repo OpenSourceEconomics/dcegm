@@ -121,7 +121,7 @@ def test_setup():
     )
 
 
-def test_similate_discrete_versus_continuous_experience(test_setup):
+def test_simulate_discrete_versus_continuous_experience(test_setup):
     (
         model_disc,
         model_cont,

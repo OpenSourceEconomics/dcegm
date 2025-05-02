@@ -5,4 +5,3 @@ n_discrete_choices: 1
 n_grid_points: 100
 max_wealth: 75
 n_quad_points_stochastic: 10
-n_simulations: 10
