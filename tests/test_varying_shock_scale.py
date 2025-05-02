@@ -19,16 +19,8 @@ TEST_DIR = Path(__file__).parent
 REPLICATION_TEST_RESOURCES_DIR = TEST_DIR / "resources" / "replication_tests"
 
 
-@pytest.mark.parametrize(
-    "model_name",
-    [
-        "retirement_no_taste_shocks",
-        "retirement_taste_shocks",
-        "deaton",
-    ],
-)
-def test_benchmark_models(model_name, load_replication_params_and_specs):
-    params, model_specs = load_replication_params_and_specs(model_name)
+def test_benchmark_models(load_replication_params_and_specs):
+    params, model_specs = load_replication_params_and_specs("retirement_taste_shocks")
     options = {}
 
     options["model_params"] = model_specs
@@ -47,8 +39,7 @@ def test_benchmark_models(model_name, load_replication_params_and_specs):
 
     model_funcs = load_example_models("dcegm_paper")
 
-    if model_name == "deaton":
-        model_funcs["state_space_functions"] = None
+    shock_functions = {"taste_shock_scale_per_state": taste_shock_per_lagged_choice}
 
     model = setup_model(
         options=options,
@@ -56,15 +47,20 @@ def test_benchmark_models(model_name, load_replication_params_and_specs):
         utility_functions=model_funcs["utility_functions"],
         utility_functions_final_period=model_funcs["final_period_utility_functions"],
         budget_constraint=model_funcs["budget_constraint"],
+        shock_functions=shock_functions,
     )
 
     value, policy, endog_grid = get_solve_func_for_model(model)(params)
 
     policy_expected = pickle.load(
-        (REPLICATION_TEST_RESOURCES_DIR / f"{model_name}" / "policy.pkl").open("rb")
+        (REPLICATION_TEST_RESOURCES_DIR / "retirement_taste_shocks/policy.pkl").open(
+            "rb"
+        )
     )
     value_expected = pickle.load(
-        (REPLICATION_TEST_RESOURCES_DIR / f"{model_name}" / "value.pkl").open("rb")
+        (REPLICATION_TEST_RESOURCES_DIR / "retirement_taste_shocks/value.pkl").open(
+            "rb"
+        )
     )
     state_choice_space = model["model_structure"]["state_choice_space"]
     state_choice_space_to_test = state_choice_space[state_choice_space[:, 0] < 24]
@@ -72,12 +68,9 @@ def test_benchmark_models(model_name, load_replication_params_and_specs):
     for state_choice_idx in range(state_choice_space_to_test.shape[0] - 1, -1, -1):
         choice = state_choice_space_to_test[state_choice_idx, -1]
         period = state_choice_space_to_test[state_choice_idx, 0]
-        if model_name == "deaton":
-            policy_expec = policy_expected[period, choice]
-            value_expec = value_expected[period, choice]
-        else:
-            policy_expec = policy_expected[period][1 - choice].T
-            value_expec = value_expected[period][1 - choice].T
+
+        policy_expec = policy_expected[period][1 - choice].T
+        value_expec = value_expected[period][1 - choice].T
 
         wealth_grid_to_test = jnp.linspace(
             policy_expec[0][1], policy_expec[0][-1] + 10, 1000
@@ -102,3 +95,7 @@ def test_benchmark_models(model_name, load_replication_params_and_specs):
 
         aaae(policy_expec_interp, policy_calc_interp)
         aaae(value_expec_interp, value_calc_interp)
+
+
+def taste_shock_per_lagged_choice(lagged_choice, params):
+    return lagged_choice * 0.5 + (1 - lagged_choice) * params["lambda"]

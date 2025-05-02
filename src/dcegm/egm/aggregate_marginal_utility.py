@@ -9,6 +9,7 @@ def aggregate_marg_utils_and_exp_values(
     marg_util_state_choice_specific: jnp.ndarray,
     reshape_state_choice_vec_to_mat: np.ndarray,
     taste_shock_scale,
+    taste_shock_scale_is_scalar,
     income_shock_weights: jnp.ndarray,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Compute the aggregate marginal utilities and expected values.
@@ -46,6 +47,22 @@ def aggregate_marg_utils_and_exp_values(
         mode="fill",
         fill_value=jnp.nan,
     )
+    # If taste shock is not scalar, we select from the array,
+    # where we have for each choice a taste shock scale one. They are by construction
+    # the same for all choices in a state
+    if not taste_shock_scale_is_scalar:
+        one_choice_per_state = np.min(reshape_state_choice_vec_to_mat, axis=1)
+        taste_shock_scale = jnp.take(
+            taste_shock_scale,
+            one_choice_per_state,
+            axis=0,
+            mode="fill",
+            fill_value=jnp.nan,
+        )
+        # Then also expand the array to fit the existing structure.
+        n_dims = len(choice_values_per_state.shape)
+        new_dims = (...,) + (None,) * (n_dims - 1)
+        taste_shock_scale = taste_shock_scale[new_dims]
 
     (
         choice_probs,
@@ -81,7 +98,7 @@ def aggregate_marg_utils_and_exp_values(
 
 
 def calculate_choice_probs_and_unsqueezed_logsum(
-    choice_values_per_state: jnp.ndarray, taste_shock_scale: float
+    choice_values_per_state: jnp.ndarray, taste_shock_scale: jnp.ndarray
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     max_value_per_state = jnp.nanmax(choice_values_per_state, axis=1, keepdims=True)
 

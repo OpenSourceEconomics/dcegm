@@ -74,6 +74,19 @@ def solve_last_two_periods(
         has_second_continuous_state=has_second_continuous_state,
     )
 
+    # Check if we have a scalar taste shock scale or state specific. Extract in each of the cases.
+    if model_funcs["taste_shock_function"]["taste_shock_scale_is_scalar"]:
+        taste_shock_scale = model_funcs["taste_shock_function"][
+            "read_out_taste_shock_scale"
+        ](params)
+    else:
+        taste_shock_scale_per_state_func = model_funcs["taste_shock_function"][
+            "taste_shock_scale_per_state"
+        ]
+        taste_shock_scale = vmap(taste_shock_scale_per_state_func, in_axes=(0, None))(
+            last_two_period_batch_info["state_choice_mat_final_period"], params
+        )
+
     endog_grid, policy, value = solve_for_interpolated_values(
         value_interpolated=value_interp_final_period,
         marginal_utility_interpolated=marginal_utility_final_last_period,
@@ -83,6 +96,10 @@ def solve_last_two_periods(
         child_state_idxs=last_two_period_batch_info["child_states_second_last_period"],
         states_to_choices_child_states=last_two_period_batch_info[
             "state_to_choices_final_period"
+        ],
+        taste_shock_scale=taste_shock_scale,
+        taste_shock_scale_is_scalar=model_funcs["taste_shock_function"][
+            "taste_shock_scale_is_scalar"
         ],
         params=params,
         income_shock_weights=income_shock_weights,

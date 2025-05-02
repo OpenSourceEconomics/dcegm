@@ -271,7 +271,6 @@ def backward_induction(
             cont_grids_next_period=cont_grids_next_period,
             income_shock_weights=income_shock_weights,
             model_funcs=model_funcs,
-            taste_shock_scale=taste_shock_scale,
         )
 
     for id_segment in range(batch_info["n_segments"]):
