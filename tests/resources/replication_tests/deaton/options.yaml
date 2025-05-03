@@ -2,6 +2,6 @@
 n_periods: 25
 min_age: 20
 n_discrete_choices: 1
-^: 100
+n_grid_points: 100
 max_wealth: 75
 n_quad_points_stochastic: 10

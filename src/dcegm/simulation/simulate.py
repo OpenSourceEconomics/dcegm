@@ -8,6 +8,7 @@ import numpy as np
 from jax import vmap
 
 from dcegm.interface import get_state_choice_index_per_discrete_state
+from dcegm.simulation.random_keys import draw_random_keys_for_seed
 from dcegm.simulation.sim_utils import (
     compute_final_utility_for_each_choice,
     interpolate_policy_and_value_for_all_agents,
@@ -49,6 +50,7 @@ def simulate_all_periods(
 
     model_structure_sol = model["model_structure"]
     discrete_state_space = model_structure_sol["state_space_dict"]
+    model_funcs_sim = model_sim["model_funcs"]
 
     # Set initial states to internal dtype
     states_initial_dtype = {
@@ -69,44 +71,15 @@ def simulate_all_periods(
 
     n_agents = len(wealth_initial)
 
-    if model_sim["model_funcs"]["taste_shock_function"]["taste_shock_scale_is_scalar"]:
-        n_keys_taste_shock_per_period = 1
-    else:
-        n_keys_taste_shock_per_period = n_agents
-
-    n_keys_income_shock = 1
-    n_exog_processes_transition_keys = n_agents
-    # Prepare random seeds for taste shocks
-    n_keys_per_period = (
-        n_exog_processes_transition_keys
-        + n_keys_taste_shock_per_period
-        + n_keys_income_shock
+    # Draw the random keys
+    sim_keys, last_period_sim_keys = draw_random_keys_for_seed(
+        n_agents=n_agents,
+        n_periods=n_periods,
+        taste_shock_scale_is_scalar=model_funcs_sim["taste_shock_function"][
+            "taste_shock_scale_is_scalar"
+        ],
+        seed=seed,
     )
-    sim_keys_draw = jnp.array(
-        [
-            jax.random.split(jax.random.PRNGKey(seed + period), num=n_keys_per_period)
-            for period in range(n_periods)
-        ]
-    )
-    idx_1 = jnp.arange(n_exog_processes_transition_keys)
-    idx_2 = jnp.arange(
-        start=n_exog_processes_transition_keys,
-        stop=n_exog_processes_transition_keys + n_keys_taste_shock_per_period,
-    )
-    idx_3 = n_keys_per_period - 1
-    sim_keys = {
-        "exog_process_keys": sim_keys_draw[:-1, idx_1, :],
-        "taste_shock_keys": sim_keys_draw[:-1, idx_2, :],
-        "income_shock_keys": sim_keys_draw[:-1, idx_3, :],
-    }
-
-    last_period_sim_keys = {
-        # "exog_process_keys": sim_keys_draw[-1, idx_1, :],
-        "taste_shock_keys": sim_keys_draw[-1, idx_2, :],
-        # "income_shock_keys": sim_keys_draw[-1, idx_3, :],
-    }
-
-    model_funcs_sim = model_sim["model_funcs"]
 
     simulate_body = partial(
         simulate_single_period,
