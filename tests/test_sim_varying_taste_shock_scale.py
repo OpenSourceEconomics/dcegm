@@ -8,15 +8,22 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
-from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
+from dcegm.pre_processing.setup_model import setup_model
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import (
     simulate_all_periods,
-    simulate_final_period,
-    simulate_single_period,
 )
-from toy_models.cons_ret_model_with_cont_exp.state_space_objects import (
-    next_period_experience,
+from dcegm.solve import get_solve_func_for_model
+from tests.test_models.exog_ltc_model import OPTIONS, PARAMS
+from tests.test_models.two_period_models.model import (
+    budget_dcegm_exog_ltc,
+)
+from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
+    create_state_space_function_dict,
+)
+from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
+    create_final_period_utility_function_dict,
+    create_utility_function_dict,
 )
 
 
@@ -42,12 +49,29 @@ def _create_test_objects_from_df(df, params):
 
 
 @pytest.fixture()
-def model_setup(toy_model_exog_ltc):
-    options = toy_model_exog_ltc["options"]
+def model_setup():
+    shock_functions = {"taste_shock_scale_per_state": taste_shock_per_lagged_choice}
+
+    model = setup_model(
+        options=OPTIONS,
+        state_space_functions=create_state_space_function_dict(),
+        utility_functions=create_utility_function_dict(),
+        utility_functions_final_period=create_final_period_utility_function_dict(),
+        budget_constraint=budget_dcegm_exog_ltc,
+        shock_functions=shock_functions,
+    )
+
+    (
+        value,
+        policy,
+        endog_grid,
+    ) = get_solve_func_for_model(
+        model
+    )(PARAMS)
 
     seed = 111
     n_agents = 1_000
-    n_periods = options["state_space"]["n_periods"]
+    n_periods = OPTIONS["state_space"]["n_periods"]
 
     initial_states = {
         "period": np.zeros(n_agents),
@@ -67,18 +91,19 @@ def model_setup(toy_model_exog_ltc):
     )
 
     return {
-        **toy_model_exog_ltc,
         "initial_states": initial_states,
         "initial_wealth": initial_wealth,
         "initial_states_and_wealth": initial_states_and_wealth,
         "sim_specific_keys": sim_specific_keys,
         "seed": seed,
+        "value": value,
+        "policy": policy,
+        "endog_grid": endog_grid,
+        "model": model,
     }
 
 
 def test_simulate(model_setup):
-    params = model_setup["params"]
-    options = model_setup["options"]
 
     value = model_setup["value"]
     policy = model_setup["policy"]
@@ -97,8 +122,8 @@ def test_simulate(model_setup):
     result = simulate_all_periods(
         states_initial=discrete_initial_states,
         wealth_initial=wealth_initial,
-        n_periods=options["state_space"]["n_periods"],
-        params=params,
+        n_periods=OPTIONS["state_space"]["n_periods"],
+        params=PARAMS,
         seed=111,
         endog_grid_solved=endog_grid,
         value_solved=value,
@@ -108,7 +133,7 @@ def test_simulate(model_setup):
 
     df = create_simulation_df(result)
 
-    value_period_zero, expected = _create_test_objects_from_df(df, params)
+    value_period_zero, expected = _create_test_objects_from_df(df, PARAMS)
     ids_violating_absorbing_retirement = df.query(
         "(period == 0 and choice == 1) and (period == 1 and choice == 0)"
     )

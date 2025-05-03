@@ -128,14 +128,14 @@ def transition_to_next_period(
     choice,
     params,
     model_funcs_sim,
-    sim_specific_keys,
+    sim_keys,
 ):
     n_agents = savings_current_period.shape[0]
 
     exog_states_next_period = vmap(realize_exog_process, in_axes=(0, 0, 0, None, None))(
         discrete_states_beginning_of_period,
         choice,
-        sim_specific_keys[2:, :],
+        sim_keys["exog_process_keys"],
         params,
         model_funcs_sim["processed_exog_funcs"],
     )
@@ -158,7 +158,10 @@ def transition_to_next_period(
 
     # Draw income shocks.
     income_shocks_next_period = draw_normal_shocks(
-        key=sim_specific_keys[1, :], num_agents=n_agents, mean=0, std=params["sigma"]
+        key=sim_keys["income_shock_keys"],
+        num_agents=n_agents,
+        mean=0,
+        std=params["sigma"],
     )
 
     next_period_wealth = model_funcs_sim["compute_beginning_of_period_wealth"]

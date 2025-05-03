@@ -121,40 +121,6 @@ def params_and_options_exog_ltc_and_job_offer():
 
 
 @pytest.fixture(scope="session")
-def toy_model_exog_ltc(
-    params_and_options_exog_ltc,
-):
-    params, options = params_and_options_exog_ltc
-
-    out = {}
-    model = setup_model(
-        options=options,
-        state_space_functions=create_state_space_function_dict(),
-        utility_functions=create_utility_function_dict(),
-        utility_functions_final_period=create_final_period_utility_function_dict(),
-        budget_constraint=budget_dcegm_exog_ltc,
-    )
-
-    (
-        out["value"],
-        out["policy"],
-        out["endog_grid"],
-    ) = solve_dcegm(
-        params,
-        options,
-        state_space_functions=create_state_space_function_dict(),
-        utility_functions=create_utility_function_dict(),
-        utility_functions_final_period=create_final_period_utility_function_dict(),
-        budget_constraint=budget_dcegm_exog_ltc,
-    )
-
-    out["model"] = model
-    out["params"] = params
-    out["options"] = options
-    return out
-
-
-@pytest.fixture(scope="session")
 def toy_model_exog_ltc_and_job_offer(
     params_and_options_exog_ltc_and_job_offer,
 ):

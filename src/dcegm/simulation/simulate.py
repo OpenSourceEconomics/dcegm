@@ -68,14 +68,44 @@ def simulate_all_periods(
         ]
 
     n_agents = len(wealth_initial)
+
+    if model_sim["model_funcs"]["taste_shock_function"]["taste_shock_scale_is_scalar"]:
+        n_keys_taste_shock_per_period = 1
+    else:
+        n_keys_taste_shock_per_period = n_agents
+
+    n_keys_income_shock = 1
+    n_exog_processes_transition_keys = n_agents
     # Prepare random seeds for taste shocks
-    n_keys = n_agents + 2
-    sim_specific_keys = jnp.array(
+    n_keys_per_period = (
+        n_exog_processes_transition_keys
+        + n_keys_taste_shock_per_period
+        + n_keys_income_shock
+    )
+    sim_keys_draw = jnp.array(
         [
-            jax.random.split(jax.random.PRNGKey(seed + period), num=n_keys)
+            jax.random.split(jax.random.PRNGKey(seed + period), num=n_keys_per_period)
             for period in range(n_periods)
         ]
     )
+    idx_1 = jnp.arange(n_exog_processes_transition_keys)
+    idx_2 = jnp.arange(
+        start=n_exog_processes_transition_keys,
+        stop=n_exog_processes_transition_keys + n_keys_taste_shock_per_period,
+    )
+    idx_3 = n_keys_per_period - 1
+    sim_keys = {
+        "exog_process_keys": sim_keys_draw[:-1, idx_1, :],
+        "taste_shock_keys": sim_keys_draw[:-1, idx_2, :],
+        "income_shock_keys": sim_keys_draw[:-1, idx_3, :],
+    }
+
+    last_period_sim_keys = {
+        # "exog_process_keys": sim_keys_draw[-1, idx_1, :],
+        "taste_shock_keys": sim_keys_draw[-1, idx_2, :],
+        # "income_shock_keys": sim_keys_draw[-1, idx_3, :],
+    }
+
     model_funcs_sim = model_sim["model_funcs"]
 
     simulate_body = partial(
@@ -97,13 +127,12 @@ def simulate_all_periods(
     states_and_wealth_beginning_of_final_period, sim_dict = jax.lax.scan(
         f=simulate_body,
         init=states_and_wealth_beginning_of_first_period,
-        xs=sim_specific_keys[:-1],
-        unroll=1,
+        xs=sim_keys,
     )
 
     final_period_dict = simulate_final_period(
         states_and_wealth_beginning_of_final_period,
-        sim_specific_keys=sim_specific_keys[-1],
+        sim_keys=last_period_sim_keys,
         params=params,
         discrete_states_names=model_structure_sol["discrete_states_names"],
         choice_range=model_structure_sol["choice_range"],
@@ -136,7 +165,7 @@ def simulate_all_periods(
 
 def simulate_single_period(
     states_and_wealth_beginning_of_period,
-    sim_specific_keys,
+    sim_keys,
     params,
     endog_grid_solved,
     value_solved,
@@ -193,7 +222,7 @@ def simulate_single_period(
         states_beginning_of_period=states_beginning_of_period,
         n_choices=len(choice_range),
         taste_shock_function=model_funcs_sim["taste_shock_function"],
-        random_key=sim_specific_keys[0, :],
+        taste_shock_keys=sim_keys["taste_shock_keys"],
     )
     values_across_choices = values_pre_taste_shock + taste_shocks
 
@@ -229,7 +258,7 @@ def simulate_single_period(
         choice=choice,
         params=params,
         model_funcs_sim=model_funcs_sim,
-        sim_specific_keys=sim_specific_keys,
+        sim_keys=sim_keys,
     )
 
     states_next_period = discrete_states_next_period
@@ -258,7 +287,7 @@ def simulate_single_period(
 
 def simulate_final_period(
     states_and_wealth_beginning_of_period,
-    sim_specific_keys,
+    sim_keys,
     params,
     discrete_states_names,
     choice_range,
@@ -302,7 +331,7 @@ def simulate_final_period(
         states_beginning_of_period=states_beginning_of_final_period,
         n_choices=len(choice_range),
         taste_shock_function=model_funcs_sim["taste_shock_function"],
-        random_key=sim_specific_keys[0, :],
+        taste_shock_keys=sim_keys["taste_shock_keys"],
     )
     values_across_choices = utilities_pre_taste_shock + taste_shocks
 
