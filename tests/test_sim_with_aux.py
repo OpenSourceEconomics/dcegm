@@ -1,4 +1,3 @@
-import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -6,7 +5,6 @@ import pytest
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.sim_interface import get_sol_and_sim_func_for_model
 from dcegm.simulation.sim_utils import create_simulation_df
-from dcegm.simulation.simulate import simulate_all_periods
 from toy_models.load_example_model import load_example_models
 
 
@@ -18,7 +16,7 @@ def budget_with_aux(
     options,
     params,
 ):
-    wealth, shock, income = budget_constraint_raw(
+    wealth, _shock, income = budget_constraint_raw(
         period,
         lagged_choice,
         savings_end_of_previous_period,
@@ -75,8 +73,6 @@ def budget_constraint_raw(
         + (1 + params["interest_rate"]) * savings_end_of_previous_period
     )
 
-    # Retirement safety net, only in retirement model, but we require to have it always
-    # as a parameter
     wealth_beginning_of_period = jnp.maximum(
         wealth_beginning_of_period, params["consumption_floor"]
     )
@@ -176,7 +172,7 @@ def test_sim_and_sol_model(state_space_options, load_replication_params_and_spec
     )
     output_dict_without_aux = sim_func_without_aux(params)
     df_without_aux = create_simulation_df(output_dict_without_aux["sim_dict"])
-    #
+
     # # First check that income is in df_aux columns
     assert "income" in df_aux.columns
 
