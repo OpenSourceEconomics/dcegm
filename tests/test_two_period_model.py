@@ -29,9 +29,7 @@ from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
     marginal_utility_crra,
 )
 
-WEALTH_GRID_POINTS = 100
-ALL_WEALTH_GRIDS = list(range(WEALTH_GRID_POINTS))
-RANDOM_TEST_WEALTH = np.random.choice(ALL_WEALTH_GRIDS, size=10, replace=False)
+RANDOM_TEST_WEALTH = np.random.choice(list(range(100)), size=10, replace=False)
 
 
 @pytest.fixture(scope="session")
