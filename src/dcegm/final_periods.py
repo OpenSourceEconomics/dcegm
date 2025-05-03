@@ -449,6 +449,7 @@ def calc_value_and_budget_for_each_gridpoint(
         income_shock_draw=jnp.array(0.0),
         params=params,
         compute_beginning_of_period_wealth=compute_beginning_of_period_wealth,
+        aux_outs=False,
     )
 
     value = calc_value_for_each_gridpoint_second_continuous(

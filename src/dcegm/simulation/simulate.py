@@ -58,7 +58,7 @@ def simulate_all_periods(
     }
 
     if "dummy_exog" in model_structure_sol["exog_states_names"]:
-        states_initial_dtype["dummy_exog"] = np.zeros_like(
+        states_initial_dtype["dummy_exog"] = jnp.zeros_like(
             states_initial_dtype["period"]
         )
 
@@ -67,8 +67,9 @@ def simulate_all_periods(
             second_continuous_state_name
         ]
 
+    n_agents = len(wealth_initial)
     # Prepare random seeds for taste shocks
-    n_keys = len(wealth_initial) + 2
+    n_keys = n_agents + 2
     sim_specific_keys = jnp.array(
         [
             jax.random.split(jax.random.PRNGKey(seed + period), num=n_keys)
@@ -106,16 +107,26 @@ def simulate_all_periods(
         params=params,
         discrete_states_names=model_structure_sol["discrete_states_names"],
         choice_range=model_structure_sol["choice_range"],
-        map_state_choice_to_index=model_structure_sol[
-            "map_state_choice_to_index_with_proxy"
-        ],
+        map_state_choice_to_index=jnp.asarray(
+            model_structure_sol["map_state_choice_to_index_with_proxy"]
+        ),
         compute_utility_final_period=model_funcs_sim["compute_utility_final"],
     )
 
+    # Standard simulation output
+
     result = {
-        key: np.vstack([sim_dict[key], final_period_dict[key]])
+        key: jnp.vstack([sim_dict[key], final_period_dict[key]])
         for key in sim_dict.keys()
+        if key in final_period_dict.keys()
     }
+    n_array_agents = jnp.ones(n_agents, dtype=float) * jnp.nan
+    aux_results = {
+        key: jnp.vstack([n_array_agents, sim_dict[key]])
+        for key in sim_dict.keys()
+        if key not in final_period_dict.keys()
+    }
+    result = {**result, **aux_results}
     if "dummy_exog" in model_structure_sol["exog_states_names"]:
         if "dummy_exog" not in model_sim["model_structure"]["exog_states_names"]:
             result.pop("dummy_exog")
@@ -207,6 +218,7 @@ def simulate_single_period(
 
     (
         wealth_beginning_of_next_period,
+        budget_aux,
         discrete_states_next_period,
         continuous_state_next_period,
         income_shocks_next_period,
@@ -237,6 +249,7 @@ def simulate_single_period(
         "wealth_beginning_of_period": wealth_beginning_of_period,
         "savings": savings_current_period,
         "income_shock": income_shocks_next_period,
+        **budget_aux,
         **states_beginning_of_period,
     }
 
@@ -311,8 +324,8 @@ def simulate_final_period(
         "value_choice": values_across_choices[np.newaxis],
         "taste_shocks": taste_shocks[np.newaxis, :, :],
         "wealth_beginning_of_period": wealth_beginning_of_final_period,
-        "savings": np.zeros_like(utility_period),
-        "income_shock": np.zeros(n_agents),
+        "savings": jnp.zeros_like(utility_period),
+        "income_shock": jnp.zeros(n_agents),
         **states_beginning_of_final_period,
     }
 
