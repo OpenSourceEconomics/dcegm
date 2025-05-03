@@ -212,6 +212,7 @@ def calculate_wealth_for_all_agents(
     params,
     compute_beginning_of_period_wealth,
 ):
+    """Simulation."""
     wealth_beginning_of_next_period = vmap(
         calc_wealth_for_each_savings_grid_point,
         in_axes=(0, 0, 0, None, None, None),
@@ -232,6 +233,7 @@ def calculate_second_continuous_state_for_all_agents(
     params,
     compute_continuous_state,
 ):
+    """Simulation."""
     continuous_state_beginning_of_next_period = vmap(
         calc_continuous_state_for_each_grid_point,
         in_axes=(0, 0, None, None),
@@ -252,6 +254,8 @@ def calculate_wealth_given_second_continuous_state_for_all_agents(
     params,
     compute_beginning_of_period_wealth,
 ):
+    """Simulation."""
+
     wealth_beginning_of_next_period, aux_dict = vmap(
         calc_wealth_for_each_continuous_state_and_savings_grid_point,
         in_axes=(0, 0, 0, 0, None, None, None),

@@ -176,7 +176,6 @@ def test_sim_and_sol_model(state_space_options, load_replication_params_and_spec
     )
     output_dict_without_aux = sim_func_without_aux(params)
     df_without_aux = create_simulation_df(output_dict_without_aux["sim_dict"])
-    #
     # # First check that income is in df_aux columns
     assert "income" in df_aux.columns
 
