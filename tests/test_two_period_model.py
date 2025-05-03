@@ -12,10 +12,10 @@ from numpy.testing import assert_allclose
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 
+import tests.test_models.exog_ltc_and_job_offer as ltc_and_job_offer_file
+import tests.test_models.exog_ltc_model as ltc_file
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import get_solve_func_for_model
-from tests.test_models.exog_ltc_and_job_offer import budget_dcegm_exog_ltc_and_job_offer
-from tests.test_models.exog_ltc_model import budget_dcegm_exog_ltc
 from tests.test_models.two_period_models.euler_equation import (
     euler_rhs_exog_ltc,
     euler_rhs_exog_ltc_and_job_offer,
@@ -34,15 +34,14 @@ RANDOM_TEST_WEALTH = np.random.choice(list(range(100)), size=10, replace=False)
 
 @pytest.fixture(scope="session")
 def toy_model_exog_ltc_and_job_offer():
-    from tests.test_models.exog_ltc_and_job_offer import OPTIONS, PARAMS
 
     out = {}
     out["model"] = setup_model(
-        options=OPTIONS,
+        options=ltc_and_job_offer_file.OPTIONS,
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
-        budget_constraint=budget_dcegm_exog_ltc_and_job_offer,
+        budget_constraint=ltc_and_job_offer_file.budget_dcegm_exog_ltc_and_job_offer,
     )
 
     (
@@ -51,10 +50,10 @@ def toy_model_exog_ltc_and_job_offer():
         out["endog_grid"],
     ) = get_solve_func_for_model(
         out["model"]
-    )(PARAMS)
+    )(ltc_and_job_offer_file.PARAMS)
 
-    out["params"] = PARAMS
-    out["options"] = OPTIONS
+    out["params"] = ltc_and_job_offer_file.PARAMS
+    out["options"] = ltc_and_job_offer_file.OPTIONS
     out["euler"] = euler_rhs_exog_ltc_and_job_offer
 
     return out
@@ -62,15 +61,14 @@ def toy_model_exog_ltc_and_job_offer():
 
 @pytest.fixture(scope="session")
 def toy_model_exog_ltc():
-    from tests.test_models.exog_ltc_model import OPTIONS, PARAMS
 
     out = {}
     out["model"] = setup_model(
-        options=OPTIONS,
+        options=ltc_file.OPTIONS,
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
-        budget_constraint=budget_dcegm_exog_ltc,
+        budget_constraint=ltc_file.budget_dcegm_exog_ltc,
     )
 
     (
@@ -79,10 +77,10 @@ def toy_model_exog_ltc():
         out["endog_grid"],
     ) = get_solve_func_for_model(
         out["model"]
-    )(PARAMS)
+    )(ltc_file.PARAMS)
 
-    out["params"] = PARAMS
-    out["options"] = OPTIONS
+    out["params"] = ltc_file.PARAMS
+    out["options"] = ltc_file.OPTIONS
     out["euler"] = euler_rhs_exog_ltc
 
     return out
