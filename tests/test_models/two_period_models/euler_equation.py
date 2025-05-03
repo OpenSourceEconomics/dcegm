@@ -1,6 +1,9 @@
 import numpy as np
 
-from tests.test_models.two_period_models.model import flow_utility, marginal_utility
+from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
+    marginal_utility_crra,
+    utility_crra,
+)
 
 
 def prob_long_term_care_patient(params, lagged_bad_health, bad_health):
@@ -24,9 +27,9 @@ def wage(nu, params):
 
 
 def choice_prob_retirement(consumption, choice, params):
-    v = flow_utility(consumption=consumption, params=params, choice=choice)
-    v_0 = flow_utility(consumption=consumption, params=params, choice=0)
-    v_1 = flow_utility(consumption=consumption, params=params, choice=1)
+    v = utility_crra(consumption=consumption, params=params, choice=choice)
+    v_0 = utility_crra(consumption=consumption, params=params, choice=0)
+    v_1 = utility_crra(consumption=consumption, params=params, choice=1)
     choice_prob = np.exp(v) / (np.exp(v_0) + np.exp(v_1))
     return choice_prob
 
@@ -73,7 +76,7 @@ def marginal_utility_weighted_exog_ltc(
                 params,
             )
 
-            marginal_util = marginal_utility(consumption=budget_2, params=params)
+            marginal_util = marginal_utility_crra(consumption=budget_2, params=params)
             choice_prob = choice_prob_retirement(
                 consumption=budget_2, choice=retirement_choice_2, params=params
             )
@@ -161,7 +164,9 @@ def marginal_utility_weighted_exog_ltc_and_job_offer(
                     params,
                 )
 
-                marginal_util = marginal_utility(consumption=budget_2, params=params)
+                marginal_util = marginal_utility_crra(
+                    consumption=budget_2, params=params
+                )
                 choice_prob = choice_prob_retirement(
                     consumption=budget_2, choice=retirement_choice_2, params=params
                 )

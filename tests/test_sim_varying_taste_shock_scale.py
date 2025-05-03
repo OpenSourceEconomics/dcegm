@@ -14,10 +14,7 @@ from dcegm.simulation.simulate import (
     simulate_all_periods,
 )
 from dcegm.solve import get_solve_func_for_model
-from tests.test_models.exog_ltc_model import OPTIONS, PARAMS
-from tests.test_models.two_period_models.model import (
-    budget_dcegm_exog_ltc,
-)
+from tests.test_models.exog_ltc_model import OPTIONS, PARAMS, budget_dcegm_exog_ltc
 from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
     create_state_space_function_dict,
 )

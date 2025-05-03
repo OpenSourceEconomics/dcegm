@@ -10,6 +10,7 @@ from numpy.testing import assert_array_almost_equal as aaae
 
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
+from dcegm.simulation.random_keys import draw_random_keys_for_seed
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import (
     simulate_all_periods,
@@ -17,10 +18,7 @@ from dcegm.simulation.simulate import (
     simulate_single_period,
 )
 from dcegm.solve import get_solve_func_for_model
-from tests.test_models.exog_ltc_model import OPTIONS, PARAMS
-from tests.test_models.two_period_models.model import (
-    budget_dcegm_exog_ltc,
-)
+from tests.test_models.exog_ltc_model import OPTIONS, PARAMS, budget_dcegm_exog_ltc
 from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
     create_state_space_function_dict,
 )
@@ -86,19 +84,22 @@ def model_setup():
     initial_wealth = np.ones(n_agents) * 10
     initial_states_and_wealth = initial_states, initial_wealth
 
-    n_keys = len(initial_wealth) + 2
-    sim_specific_keys = jnp.array(
-        [
-            jax.random.split(jax.random.PRNGKey(seed + period), num=n_keys)
-            for period in range(n_periods)
-        ]
+    # Draw the random keys
+    sim_keys, last_period_sim_keys = draw_random_keys_for_seed(
+        n_agents=n_agents,
+        n_periods=n_periods,
+        taste_shock_scale_is_scalar=model["model_funcs"]["taste_shock_function"][
+            "taste_shock_scale_is_scalar"
+        ],
+        seed=seed,
     )
 
     return {
         "initial_states": initial_states,
         "initial_wealth": initial_wealth,
         "initial_states_and_wealth": initial_states_and_wealth,
-        "sim_specific_keys": sim_specific_keys,
+        "sim_keys": sim_keys,
+        "last_period_sim_keys": last_period_sim_keys,
         "seed": seed,
         "value": value,
         "policy": policy,
@@ -121,8 +122,6 @@ def test_simulate_lax_scan(model_setup):
 
     states_initial = model_setup["initial_states"]
     wealth_initial = model_setup["initial_wealth"]
-
-    sim_specific_keys = model_setup["sim_specific_keys"]
 
     state_space_dict = model_structure["state_space_dict"]
     states_initial = {
@@ -148,18 +147,23 @@ def test_simulate_lax_scan(model_setup):
     ) = jax.lax.scan(
         f=simulate_body,
         init=initial_states_and_wealth,
-        xs=sim_specific_keys[:-1],
+        xs=model_setup["sim_keys"],
     )
+
+    sim_keys_0 = {
+        key: model_setup["sim_keys"][key][0, ...]
+        for key in model_setup["sim_keys"].keys()
+    }
 
     # b) single call
     (
         states_and_wealth_beginning_of_final_period,
         sim_dict_zero,
-    ) = simulate_body(initial_states_and_wealth, sim_specific_keys=sim_specific_keys[0])
+    ) = simulate_body(initial_states_and_wealth, sim_keys=sim_keys_0)
 
     lax_final_period_dict = simulate_final_period(
         lax_states_and_wealth_beginning_of_final_period,
-        sim_specific_keys=sim_specific_keys[-1],
+        sim_keys=model_setup["last_period_sim_keys"],
         params=PARAMS,
         discrete_states_names=discrete_states_names,
         choice_range=choice_range,
@@ -168,7 +172,7 @@ def test_simulate_lax_scan(model_setup):
     )
     final_period_dict = simulate_final_period(
         states_and_wealth_beginning_of_final_period,
-        sim_specific_keys=sim_specific_keys[-1],
+        sim_keys=model_setup["last_period_sim_keys"],
         params=PARAMS,
         discrete_states_names=discrete_states_names,
         choice_range=choice_range,
