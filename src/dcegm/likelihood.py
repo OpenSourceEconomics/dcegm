@@ -359,6 +359,8 @@ def calc_choice_probs_for_states(
         taste_shock_scale = vmap(taste_shock_scale_per_state_func, in_axes=(0, None))(
             observed_states, params
         )
+        taste_shock_scale = taste_shock_scale[:, None]
+
     choice_prob_across_choices, _, _ = calculate_choice_probs_and_unsqueezed_logsum(
         choice_values_per_state=value_per_agent_interp,
         taste_shock_scale=taste_shock_scale,
