@@ -236,19 +236,21 @@ def test_simulate(model_setup):
 
 def test_simulate_second_continuous_choice(model_setup):
 
-    model = model_setup["model"].copy()
     params = model_setup["params"]
-    options = model["options"]
+    options_cont = copy.deepcopy(model_setup["options"])
 
-    options["state_space"]["continuous_states"]["experience"] = jnp.linspace(0, 1, 6)
-    options["model_params"]["max_init_experience"] = 1
-
-    model["model_funcs"]["next_period_continuous_state"] = (
-        determine_function_arguments_and_partial_options(
-            func=next_period_experience,
-            options=options["model_params"],
-            continuous_state_name="experience",
-        )
+    options_cont["state_space"]["continuous_states"]["experience"] = jnp.linspace(
+        0, 1, 6
+    )
+    options_cont["model_params"]["max_init_experience"] = 1
+    state_space_dict = create_state_space_function_dict()
+    state_space_dict["next_period_experience"] = next_period_experience
+    model_cont = setup_model(
+        options=options_cont,
+        state_space_functions=state_space_dict,
+        utility_functions=create_utility_function_dict(),
+        utility_functions_final_period=create_final_period_utility_function_dict(),
+        budget_constraint=budget_dcegm_exog_ltc,
     )
 
     key = jax.random.PRNGKey(0)
@@ -272,13 +274,13 @@ def test_simulate_second_continuous_choice(model_setup):
     result = simulate_all_periods(
         states_initial=states_initial,
         wealth_initial=wealth_initial,
-        n_periods=options["state_space"]["n_periods"],
+        n_periods=options_cont["state_space"]["n_periods"],
         params=params,
         seed=111,
         endog_grid_solved=endog_grid,
         value_solved=value,
         policy_solved=policy,
-        model=model,
+        model=model_cont,
     )
 
     df = create_simulation_df(result)
