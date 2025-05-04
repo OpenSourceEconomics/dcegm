@@ -1,5 +1,6 @@
 """Tests for simulation of consumption-retirement model with exogenous processes."""
 
+import copy
 from functools import partial
 
 import jax
@@ -105,11 +106,13 @@ def model_setup():
         "policy": policy,
         "endog_grid": endog_grid,
         "model": model,
+        "params": copy.deepcopy(PARAMS),
+        "options": copy.deepcopy(OPTIONS),
     }
 
 
 def test_simulate_lax_scan(model_setup):
-    choice_range = OPTIONS["state_space"]["choices"]
+    choice_range = model_setup["options"]["state_space"]["choices"]
     model_structure = model_setup["model"]["model_structure"]
     model_funcs = model_setup["model"]["model_funcs"]
 
@@ -132,7 +135,7 @@ def test_simulate_lax_scan(model_setup):
 
     simulate_body = partial(
         simulate_single_period,
-        params=PARAMS,
+        params=model_setup["params"],
         endog_grid_solved=endog_grid,
         value_solved=value,
         policy_solved=policy,
@@ -164,7 +167,7 @@ def test_simulate_lax_scan(model_setup):
     lax_final_period_dict = simulate_final_period(
         lax_states_and_wealth_beginning_of_final_period,
         sim_keys=model_setup["last_period_sim_keys"],
-        params=PARAMS,
+        params=model_setup["params"],
         discrete_states_names=discrete_states_names,
         choice_range=choice_range,
         map_state_choice_to_index=jnp.array(map_state_choice_to_index),
@@ -209,8 +212,8 @@ def test_simulate(model_setup):
     result = simulate_all_periods(
         states_initial=discrete_initial_states,
         wealth_initial=wealth_initial,
-        n_periods=OPTIONS["state_space"]["n_periods"],
-        params=PARAMS,
+        n_periods=model_setup["options"]["state_space"]["n_periods"],
+        params=model_setup["params"],
         seed=111,
         endog_grid_solved=endog_grid,
         value_solved=value,
@@ -220,7 +223,9 @@ def test_simulate(model_setup):
 
     df = create_simulation_df(result)
 
-    value_period_zero, expected = _create_test_objects_from_df(df, PARAMS)
+    value_period_zero, expected = _create_test_objects_from_df(
+        df, model_setup["params"]
+    )
     ids_violating_absorbing_retirement = df.query(
         "(period == 0 and choice == 1) and (period == 1 and choice == 0)"
     )
@@ -232,16 +237,19 @@ def test_simulate(model_setup):
 def test_simulate_second_continuous_choice(model_setup):
 
     model = model_setup["model"].copy()
-    OPTIONS["state_space"]["continuous_states"]["experience"] = jnp.linspace(0, 1, 6)
+    options_cont = model_setup["options"].copy()
+    options_cont["state_space"]["continuous_states"]["experience"] = jnp.linspace(
+        0, 1, 6
+    )
     model["model_funcs"]["next_period_continuous_state"] = (
         determine_function_arguments_and_partial_options(
             func=next_period_experience,
-            options=OPTIONS["model_params"],
+            options=options_cont["model_params"],
             continuous_state_name="experience",
         )
     )
 
-    OPTIONS["model_params"]["max_init_experience"] = 1
+    options_cont["model_params"]["max_init_experience"] = 1
 
     key = jax.random.PRNGKey(0)
     noise = jax.random.normal(key, shape=(24, 6, 120)) * 0
@@ -264,8 +272,8 @@ def test_simulate_second_continuous_choice(model_setup):
     result = simulate_all_periods(
         states_initial=states_initial,
         wealth_initial=wealth_initial,
-        n_periods=OPTIONS["state_space"]["n_periods"],
-        params=PARAMS,
+        n_periods=options_cont["state_space"]["n_periods"],
+        params=model_setup["params"],
         seed=111,
         endog_grid_solved=endog_grid,
         value_solved=value,
@@ -275,7 +283,9 @@ def test_simulate_second_continuous_choice(model_setup):
 
     df = create_simulation_df(result)
 
-    value_period_zero, expected = _create_test_objects_from_df(df, PARAMS)
+    value_period_zero, expected = _create_test_objects_from_df(
+        df, model_setup["params"]
+    )
     ids_violating_absorbing_retirement = df.query(
         "(period == 0 and choice == 1) and (period == 1 and choice == 0)"
     )

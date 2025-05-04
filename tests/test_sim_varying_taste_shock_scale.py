@@ -97,6 +97,8 @@ def model_setup():
         "policy": policy,
         "endog_grid": endog_grid,
         "model": model,
+        "params": PARAMS.copy(),
+        "options": OPTIONS.copy(),
     }
 
 
@@ -105,6 +107,8 @@ def test_simulate(model_setup):
     value = model_setup["value"]
     policy = model_setup["policy"]
     endog_grid = model_setup["endog_grid"]
+    params = model_setup["params"]
+    options = model_setup["options"]
 
     n_agents = 100_000
 
@@ -119,8 +123,8 @@ def test_simulate(model_setup):
     result = simulate_all_periods(
         states_initial=discrete_initial_states,
         wealth_initial=wealth_initial,
-        n_periods=OPTIONS["state_space"]["n_periods"],
-        params=PARAMS,
+        n_periods=options["state_space"]["n_periods"],
+        params=params,
         seed=111,
         endog_grid_solved=endog_grid,
         value_solved=value,
