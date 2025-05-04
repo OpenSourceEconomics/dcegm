@@ -237,19 +237,19 @@ def test_simulate(model_setup):
 def test_simulate_second_continuous_choice(model_setup):
 
     model = model_setup["model"].copy()
-    options_cont = model_setup["options"].copy()
-    options_cont["state_space"]["continuous_states"]["experience"] = jnp.linspace(
-        0, 1, 6
-    )
+    params = model_setup["params"]
+    options = model["options"]
+
+    options["state_space"]["continuous_states"]["experience"] = jnp.linspace(0, 1, 6)
+    options["model_params"]["max_init_experience"] = 1
+
     model["model_funcs"]["next_period_continuous_state"] = (
         determine_function_arguments_and_partial_options(
             func=next_period_experience,
-            options=options_cont["model_params"],
+            options=options["model_params"],
             continuous_state_name="experience",
         )
     )
-
-    options_cont["model_params"]["max_init_experience"] = 1
 
     key = jax.random.PRNGKey(0)
     noise = jax.random.normal(key, shape=(24, 6, 120)) * 0
@@ -272,8 +272,8 @@ def test_simulate_second_continuous_choice(model_setup):
     result = simulate_all_periods(
         states_initial=states_initial,
         wealth_initial=wealth_initial,
-        n_periods=options_cont["state_space"]["n_periods"],
-        params=model_setup["params"],
+        n_periods=options["state_space"]["n_periods"],
+        params=params,
         seed=111,
         endog_grid_solved=endog_grid,
         value_solved=value,
