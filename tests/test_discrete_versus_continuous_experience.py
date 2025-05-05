@@ -10,13 +10,13 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
+import dcegm.toy_models as toy_models
 from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
 from dcegm.interpolation.interp2d import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import get_solve_func_for_model
-from dcegm.toy_models.example_model_functions import load_example_model_functions
 
 # ====================================================================================
 # Test
@@ -30,7 +30,9 @@ def test_setup():
     # Discrete experience
     # =================================================================================
 
-    model_funcs_discr_exp = load_example_model_functions("with_exp")
+    model_funcs_discr_exp = toy_models.load_example_model_functions("with_exp")
+    # params are actually the same for both models. Just name them params.
+    params, options_discrete = toy_models.load_example_params_and_options("with_exp")
 
     model_disc = setup_model(
         options=options_discrete,
@@ -43,19 +45,14 @@ def test_setup():
     )
 
     solve_disc = get_solve_func_for_model(model_disc)
-    value_disc, policy_disc, endog_grid_disc = solve_disc(PARAMS)
+    value_disc, policy_disc, endog_grid_disc = solve_disc(params)
 
     # =================================================================================
     # Continuous experience
     # =================================================================================
 
-    experience_grid = jnp.linspace(0, 1, EXPERIENCE_GRID_POINTS)
-
-    options_cont = copy.deepcopy(options_discrete)
-    options_cont["state_space"]["continuous_states"]["experience"] = experience_grid
-    options_cont["state_space"].pop("endogenous_states")
-
-    model_funcs_cont_exp = load_example_model_functions("with_cont_exp")
+    model_funcs_cont_exp = toy_models.load_example_model_functions("with_cont_exp")
+    _, options_cont = toy_models.load_example_params_and_options("with_cont_exp")
 
     model_cont = setup_model(
         options=options_cont,
@@ -68,10 +65,12 @@ def test_setup():
     )
 
     solve_cont = get_solve_func_for_model(model_cont)
-    value_cont, policy_cont, endog_grid_cont = solve_cont(PARAMS)
+    value_cont, policy_cont, endog_grid_cont = solve_cont(params)
 
     return (
-        experience_grid,
+        params,
+        options_discrete,
+        options_cont,
         model_disc,
         model_cont,
         value_disc,
@@ -83,13 +82,18 @@ def test_setup():
     )
 
 
+N_PERIODS = 5
+N_CHOICES = 2
+MAX_INIT_EXPERIENCE = 1
+
+
 @pytest.mark.parametrize(
     "period, experience, lagged_choice, choice",
     product(
         np.arange(N_PERIODS),
         np.arange(N_PERIODS + MAX_INIT_EXPERIENCE),
-        np.arange(N_DISCRETE_CHOICES),
-        np.arange(N_DISCRETE_CHOICES),
+        np.arange(N_CHOICES),
+        np.arange(N_CHOICES),
     ),
 )
 def test_replication_discrete_versus_continuous_experience(
@@ -97,7 +101,9 @@ def test_replication_discrete_versus_continuous_experience(
 ):
 
     (
-        experience_grid,
+        params,
+        options_discrete,
+        options_cont,
         model_disc,
         model_cont,
         value_disc,
@@ -107,6 +113,8 @@ def test_replication_discrete_versus_continuous_experience(
         policy_cont,
         endog_grid_cont,
     ) = test_setup
+
+    experience_grid = options_cont["state_space"]["continuous_states"]["experience"]
 
     exp_share_to_test = experience / (period + MAX_INIT_EXPERIENCE)
 
@@ -171,7 +179,7 @@ def test_replication_discrete_versus_continuous_experience(
                     wealth_point_to_interp=jnp.array(wealth_to_test),
                     compute_utility=model_cont["model_funcs"]["compute_utility"],
                     state_choice_vec=state_choice_cont_dict,
-                    params=PARAMS,
+                    params=params,
                 )
             )
 
@@ -182,7 +190,7 @@ def test_replication_discrete_versus_continuous_experience(
                 value=value_disc[idx_state_choice_disc],
                 compute_utility=model_disc["model_funcs"]["compute_utility"],
                 state_choice_vec=state_choice_disc_dict,
-                params=PARAMS,
+                params=params,
             )
 
             aaae(value_cont_interp, value_disc_interp, decimal=3)

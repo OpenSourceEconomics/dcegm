@@ -16,15 +16,11 @@ def load_example_params_and_options(model_name):
         }
 
     elif model_name == "with_exp":
-        model_functions = {
-            "utility_functions": crm_paper.create_utility_function_dict(),
-            "state_space_functions": crm_exp.create_state_space_function_dict(),
-            "utility_functions_final_period": crm_paper.create_final_period_utility_function_dict(),
-            "budget_constraint": crm_exp.budget_constraint_exp,
-        }
-
+        params = crm_exp.example_params()
+        options = crm_exp.example_options()
     elif model_name == "with_cont_exp":
-        pass
+        params = crm_cont_exp.example_params()
+        options = crm_cont_exp.example_options()
     elif model_name == "with_exog_ltc":
         params = crm_exog_ltc.example_params()
         options = crm_exog_ltc.example_options()
