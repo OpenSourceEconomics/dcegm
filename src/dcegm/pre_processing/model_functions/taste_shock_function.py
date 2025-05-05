@@ -17,17 +17,19 @@ def process_shock_functions(shock_functions, options, continuous_state_name):
         )
         taste_shock_scale_is_scalar = False
     else:
-        if "lambda" in options["model_params"]:
+        if "taste_shock_scale" in options["model_params"]:
             # Check if lambda is a scalar
-            lambda_val = options["model_params"]["lambda"]
+            lambda_val = options["model_params"]["taste_shock_scale"]
             if not isinstance(lambda_val, (int, float)):
                 raise ValueError(
                     f"Lambda is not a scalar. If there is no draw function provided, "
                     f"lambda must be a scalar. Got {lambda_val}."
                 )
-            read_func = lambda params: jnp.asarray([options["model_params"]["lambda"]])
+            read_func = lambda params: jnp.asarray(
+                [options["model_params"]["taste_shock_scale"]]
+            )
         else:
-            read_func = lambda params: jnp.asarray([params["lambda"]])
+            read_func = lambda params: jnp.asarray([params["taste_shock_scale"]])
 
         taste_shock_function_processed["read_out_taste_shock_scale"] = read_func
 

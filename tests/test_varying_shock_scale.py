@@ -98,4 +98,4 @@ def test_benchmark_models(load_replication_params_and_specs):
 
 
 def taste_shock_per_lagged_choice(lagged_choice, params):
-    return lagged_choice * 0.5 + (1 - lagged_choice) * params["lambda"]
+    return lagged_choice * 0.5 + (1 - lagged_choice) * params["taste_shock_scale"]

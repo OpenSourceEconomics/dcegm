@@ -34,7 +34,7 @@ PARAMS = {
     "delta": 0.35,
     "rho": 1.95,
     "interest_rate": 0.04,
-    "lambda": 1,  # taste shock (scale) parameter
+    "taste_shock_scale": 1,  # taste shock (scale) parameter
     "sigma": 1,  # shock on labor income, standard deviation
     "income_shock_mean": 0,  # shock on labor income, mean
     "constant": 0.75,
@@ -138,9 +138,9 @@ def choice_prob(consumption, choice, params):
     v_other = utility_crra(consumption=consumption, params=params, choice=1 - choice)
     max_v = jnp.maximum(v, v_other)
 
-    return np.exp((v - max_v) / params["lambda"]) / (
-        np.exp((v_other - max_v) / params["lambda"])
-        + np.exp((v - max_v) / params["lambda"])
+    return np.exp((v - max_v) / params["taste_shock_scale"]) / (
+        np.exp((v_other - max_v) / params["taste_shock_scale"])
+        + np.exp((v - max_v) / params["taste_shock_scale"])
     )
 
 
@@ -457,7 +457,7 @@ def _get_solve_last_two_periods_args(model, params, has_second_continuous_state)
     income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
         options["model_params"]["n_quad_points_stochastic"]
     )
-    taste_shock_scale = params["lambda"]
+    taste_shock_scale = params["taste_shock_scale"]
 
     # Get state space dictionary and model functions
     state_space_dict = model["model_structure"]["state_space_dict"]

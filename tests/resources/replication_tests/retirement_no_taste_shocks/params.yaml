@@ -6,7 +6,7 @@ constant: 0.75  # age-independent labor income
 exp: 0.04  # return to experience
 exp_squared: -0.0002  # return to experience squared
 sigma: 0.00  # shock on labor income sigma parameter/standard deviation
-lambda: 2.2204e-16  # taste shock (scale) parameter
+taste_shock_scale: 2.2204e-16  # taste shock (scale) parameter
 interest_rate: 0.05  # interest rate on capital
 initial_wealth_low: 0  # lowest level of initial wealth (relevant for simulation)
 initial_wealth_high: 30  # highest level of initial wealth (relevant for simulation)

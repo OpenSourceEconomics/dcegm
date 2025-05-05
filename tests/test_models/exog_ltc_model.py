@@ -22,7 +22,7 @@ PARAMS = {
     "ltc_cost": 5,
     "wage_avg": 8,
     "sigma": 1,
-    "lambda": 10,
+    "taste_shock_scale": 10,
     "beta": 0.95,
     # Exogenous parameters
     "ltc_prob_constant": 0.3,

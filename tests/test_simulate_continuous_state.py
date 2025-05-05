@@ -25,7 +25,7 @@ PARAMS = {
     "delta": 0.35,
     "rho": 1.95,
     "interest_rate": 0.04,
-    "lambda": 1,  # taste shock (scale) parameter
+    "taste_shock_scale": 1,  # taste shock (scale) parameter
     "sigma": 1,  # shock on labor income, standard deviation
     "constant": 0.75,
     "exp": 0.04,

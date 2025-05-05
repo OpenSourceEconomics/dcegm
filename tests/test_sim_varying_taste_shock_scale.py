@@ -144,4 +144,4 @@ def test_simulate(model_setup):
 
 
 def taste_shock_per_lagged_choice(lagged_choice, params):
-    return lagged_choice * 0.5 + (1 - lagged_choice) * params["lambda"]
+    return lagged_choice * 0.5 + (1 - lagged_choice) * params["taste_shock_scale"]
