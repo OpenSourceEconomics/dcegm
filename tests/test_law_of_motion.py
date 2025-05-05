@@ -12,7 +12,7 @@ from scipy.stats import norm
 
 from dcegm.law_of_motion import calculate_continuous_state
 from dcegm.pre_processing.check_params import process_params
-from toy_models.cons_ret_model_dcegm_paper.budget_constraint import budget_constraint
+from dcegm.toy_models.cons_ret_model_dcegm_paper import budget_constraint
 
 # =====================================================================================
 # Auxiliary functions

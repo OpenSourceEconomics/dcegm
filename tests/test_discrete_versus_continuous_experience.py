@@ -1,6 +1,5 @@
 import copy
 from itertools import product
-from typing import Any, Dict
 
 import jax.numpy as jnp
 import numpy as np
@@ -13,7 +12,7 @@ from dcegm.interpolation.interp2d import (
 )
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import get_solve_func_for_model
-from toy_models.load_example_model import load_example_models
+from dcegm.toy_models.example_model_functions import load_example_models
 
 N_PERIODS = 5
 N_DISCRETE_CHOICES = 2

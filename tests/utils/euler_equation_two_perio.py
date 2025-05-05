@@ -1,6 +1,6 @@
 import numpy as np
 
-from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
+from dcegm.toy_models.cons_ret_model_dcegm_paper import (
     marginal_utility_crra,
     utility_crra,
 )

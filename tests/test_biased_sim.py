@@ -1,4 +1,3 @@
-import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -7,7 +6,7 @@ from dcegm.pre_processing.setup_model import setup_model
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
 from dcegm.solve import get_solve_func_for_model
-from toy_models.load_example_model import load_example_models
+from dcegm.toy_models.example_model_functions import load_example_models
 
 
 def utility_crra(

@@ -13,7 +13,7 @@ from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import create_solution_container, solve_dcegm
 from dcegm.solve_single_period import solve_for_interpolated_values
-from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
+from dcegm.toy_models.cons_ret_model_dcegm_paper import (
     create_final_period_utility_function_dict,
     create_utility_function_dict,
     utility_crra,

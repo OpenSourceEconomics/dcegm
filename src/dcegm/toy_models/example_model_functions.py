@@ -1,6 +1,6 @@
-import toy_models.cons_ret_model_dcegm_paper as crm_paper
-import toy_models.cons_ret_model_with_cont_exp as crm_cont_exp
-import toy_models.cons_ret_model_with_exp as crm_exp
+import dcegm.toy_models.cons_ret_model_dcegm_paper as crm_paper
+import dcegm.toy_models.cons_ret_model_with_cont_exp as crm_cont_exp
+import dcegm.toy_models.cons_ret_model_with_exp as crm_exp
 
 
 def load_example_models(model_name):

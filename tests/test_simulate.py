@@ -10,7 +10,6 @@ import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
 from dcegm.pre_processing.setup_model import setup_model
-from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
 from dcegm.simulation.random_keys import draw_random_keys_for_seed
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import (
@@ -19,17 +18,16 @@ from dcegm.simulation.simulate import (
     simulate_single_period,
 )
 from dcegm.solve import get_solve_func_for_model
-from tests.test_models.exog_ltc_model import OPTIONS, PARAMS, budget_dcegm_exog_ltc
-from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
-    create_state_space_function_dict,
-)
-from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
+from dcegm.toy_models.cons_ret_model_dcegm_paper import (
     create_final_period_utility_function_dict,
+    create_state_space_function_dict,
     create_utility_function_dict,
 )
-from toy_models.cons_ret_model_with_cont_exp.state_space_objects import (
+from dcegm.toy_models.cons_ret_model_with_cont_exp.state_space_objects import (
     next_period_experience,
 )
+from dcegm.toy_models.exogenous_ltc.budget_equation import budget_equation_with_ltc
+from dcegm.toy_models.exogenous_ltc.params_and_options import OPTIONS, PARAMS
 
 
 def _create_test_objects_from_df(df, params):
@@ -61,7 +59,7 @@ def model_setup():
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
-        budget_constraint=budget_dcegm_exog_ltc,
+        budget_constraint=budget_equation_with_ltc,
     )
 
     (
@@ -250,7 +248,7 @@ def test_simulate_second_continuous_choice(model_setup):
         state_space_functions=state_space_dict,
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
-        budget_constraint=budget_dcegm_exog_ltc,
+        budget_constraint=budget_equation_with_ltc,
     )
 
     key = jax.random.PRNGKey(0)

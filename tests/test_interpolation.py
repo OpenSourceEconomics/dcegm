@@ -22,6 +22,7 @@ from dcegm.interpolation.interp2d import (
     interp2d_value_on_wealth_and_regular_grid,
 )
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
+from dcegm.toy_models.cons_ret_model_dcegm_paper import utility_crra
 from tests.utils.interp1d_auxiliary import (
     linear_interpolation_with_extrapolation,
     linear_interpolation_with_inserting_missing_values,
@@ -30,7 +31,6 @@ from tests.utils.interp2d_auxiliary import (
     custom_interp2d_quad,
     custom_interp2d_quad_value_function,
 )
-from toy_models.cons_ret_model_dcegm_paper.utility_functions import utility_crra
 
 PARAMS = {
     "beta": 0.95,

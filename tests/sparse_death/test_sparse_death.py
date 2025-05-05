@@ -5,10 +5,10 @@ import pytest
 
 from dcegm.pre_processing.setup_model import process_debug_string, setup_model
 from dcegm.solve import get_solve_func_for_model
-from tests.test_models.sparse_death.budget import budget_constraint_exp
-from tests.test_models.sparse_death.exog_processes import job_offer, prob_survival
-from tests.test_models.sparse_death.state_space import create_state_space_functions
-from tests.test_models.sparse_death.utility import (
+from tests.sparse_death.budget import budget_constraint_exp
+from tests.sparse_death.exog_processes import job_offer, prob_survival
+from tests.sparse_death.state_space import create_state_space_functions
+from tests.sparse_death.utility import (
     create_final_period_utility_function_dict,
     create_utility_function_dict,
 )

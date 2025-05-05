@@ -2,16 +2,15 @@ import pickle
 from pathlib import Path
 
 import jax.numpy as jnp
-import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import get_solve_func_for_model
+from dcegm.toy_models.example_model_functions import load_example_models
 from tests.utils.interp1d_auxiliary import (
     interpolate_policy_and_value_on_wealth_grid,
     linear_interpolation_with_extrapolation,
 )
-from toy_models.load_example_model import load_example_models
 
 # Obtain the test directory of the package
 TEST_DIR = Path(__file__).parent

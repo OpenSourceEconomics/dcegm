@@ -1,7 +1,5 @@
 """Tests for simulation of consumption-retirement model with exogenous processes."""
 
-from functools import partial
-
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -14,14 +12,13 @@ from dcegm.simulation.simulate import (
     simulate_all_periods,
 )
 from dcegm.solve import get_solve_func_for_model
-from tests.test_models.exog_ltc_model import OPTIONS, PARAMS, budget_dcegm_exog_ltc
-from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
-    create_state_space_function_dict,
-)
-from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
+from dcegm.toy_models.cons_ret_model_dcegm_paper import (
     create_final_period_utility_function_dict,
+    create_state_space_function_dict,
     create_utility_function_dict,
 )
+from dcegm.toy_models.exogenous_ltc.budget_equation import budget_equation_with_ltc
+from dcegm.toy_models.exogenous_ltc.params_and_options import OPTIONS, PARAMS
 
 
 def _create_test_objects_from_df(df, params):
@@ -54,7 +51,7 @@ def model_setup():
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
-        budget_constraint=budget_dcegm_exog_ltc,
+        budget_constraint=budget_equation_with_ltc,
         shock_functions=shock_functions,
     )
 
