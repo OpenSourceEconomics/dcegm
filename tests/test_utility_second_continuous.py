@@ -7,21 +7,18 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
+import dcegm.toy_models as toy_models
 from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
 from dcegm.interpolation.interp2d import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import get_solve_func_for_model
-from dcegm.toy_models.example_model_functions import load_example_model_functions
 
 N_PERIODS = 5
 N_DISCRETE_CHOICES = 2
 MAX_WEALTH = 50
 WEALTH_GRID_POINTS = 100
-# Grid needs to be set very fine. Interpolation on state variables which determine
-# utility might not be the smartest way, but still want the package to do it.
-EXPERIENCE_GRID_POINTS = 61
 MAX_INIT_EXPERIENCE = 1
 
 PARAMS = {
@@ -210,35 +207,9 @@ def test_setup():
     # Discrete experience
     # =================================================================================
 
-    model_funcs_discr_exp = load_example_model_functions("with_exp")
-
-    model_params = {
-        "n_choices": N_DISCRETE_CHOICES,
-        "n_quad_points_stochastic": 5,
-        "n_periods": N_PERIODS,
-        "max_init_experience": MAX_INIT_EXPERIENCE,
-    }
-
-    state_space_options = {
-        "n_periods": N_PERIODS,
-        "choices": np.arange(
-            N_DISCRETE_CHOICES,
-        ),
-        "endogenous_states": {
-            "experience": np.arange(N_PERIODS + MAX_INIT_EXPERIENCE),
-        },
-        "continuous_states": {
-            "wealth": jnp.linspace(
-                0,
-                MAX_WEALTH,
-                WEALTH_GRID_POINTS,
-            )
-        },
-    }
-    options_discrete = {
-        "model_params": model_params,
-        "state_space": state_space_options,
-    }
+    model_funcs_discr_exp = toy_models.load_example_model_functions("with_exp")
+    # params are actually the same for both models. Just name them params.
+    params, options_discrete = toy_models.load_example_params_and_options("with_exp")
 
     utility_functions_discrete = {
         "utility": utility_exp,
@@ -266,13 +237,15 @@ def test_setup():
     # Continuous experience
     # =================================================================================
 
-    experience_grid = jnp.linspace(0, 1, EXPERIENCE_GRID_POINTS)
+    model_funcs_cont_exp = toy_models.load_example_model_functions("with_cont_exp")
+    _, options_cont = toy_models.load_example_params_and_options("with_cont_exp")
 
-    options_cont = copy.deepcopy(options_discrete)
+    # Grid needs to be set very fine. Interpolation on state variables which determine
+    # utility might not be the smartest way, but still want the package to do it.
+    exp_grid_points = 61
+
+    experience_grid = jnp.linspace(0, 1, exp_grid_points)
     options_cont["state_space"]["continuous_states"]["experience"] = experience_grid
-    options_cont["state_space"].pop("endogenous_states")
-
-    model_funcs_cont_exp = load_example_model_functions("with_cont_exp")
 
     utility_functions_cont_exp = {
         "utility": utility_cont_exp,
