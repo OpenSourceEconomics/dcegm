@@ -104,7 +104,7 @@ def process_model_functions(
         options=options["model_params"],
         continuous_state_name=continuous_state_name,
     )
-    final_period_utility_functions_processed = {
+    utility_functions_final_period_processed = {
         "compute_utility_final": compute_utility_final,
     }
     if not sim_model:
@@ -115,7 +115,7 @@ def process_model_functions(
                 continuous_state_name=continuous_state_name,
             )
         )
-        final_period_utility_functions_processed["compute_marginal_utility_final"] = (
+        utility_functions_final_period_processed["compute_marginal_utility_final"] = (
             compute_marginal_utility_final
         )
 
@@ -158,7 +158,7 @@ def process_model_functions(
 
     model_funcs = {
         **utility_functions_processed,
-        **final_period_utility_functions_processed,
+        **utility_functions_final_period_processed,
         "compute_beginning_of_period_wealth": compute_beginning_of_period_wealth,
         "next_period_continuous_state": next_period_continuous_state,
         "sparsity_condition": sparsity_condition,

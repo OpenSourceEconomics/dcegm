@@ -7,7 +7,7 @@ from numpy.testing import assert_array_almost_equal as aaae
 
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import get_solve_func_for_model
-from dcegm.toy_models.example_model_functions import load_example_models
+from dcegm.toy_models.example_model_functions import load_example_model_functions
 from tests.utils.interp1d_auxiliary import (
     interpolate_policy_and_value_on_wealth_grid,
     linear_interpolation_with_extrapolation,
@@ -45,7 +45,7 @@ def test_benchmark_models(model_name, load_replication_params_and_specs):
         },
     }
 
-    model_funcs = load_example_models("dcegm_paper")
+    model_funcs = load_example_model_functions("dcegm_paper")
 
     if model_name == "deaton":
         model_funcs["state_space_functions"] = None
@@ -54,7 +54,7 @@ def test_benchmark_models(model_name, load_replication_params_and_specs):
         options=options,
         state_space_functions=model_funcs["state_space_functions"],
         utility_functions=model_funcs["utility_functions"],
-        utility_functions_final_period=model_funcs["final_period_utility_functions"],
+        utility_functions_final_period=model_funcs["utility_functions_final_period"],
         budget_constraint=model_funcs["budget_constraint"],
     )
 

@@ -12,7 +12,7 @@ from dcegm.interpolation.interp2d import (
 )
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import get_solve_func_for_model
-from dcegm.toy_models.example_model_functions import load_example_models
+from dcegm.toy_models.example_model_functions import load_example_model_functions
 
 N_PERIODS = 5
 N_DISCRETE_CHOICES = 2
@@ -48,7 +48,7 @@ def test_setup():
     # Discrete experience
     # =================================================================================
 
-    model_funcs_discr_exp = load_example_models("with_exp")
+    model_funcs_discr_exp = load_example_model_functions("with_exp")
 
     model_params = {
         "n_choices": N_DISCRETE_CHOICES,
@@ -83,7 +83,7 @@ def test_setup():
         state_space_functions=model_funcs_discr_exp["state_space_functions"],
         utility_functions=model_funcs_discr_exp["utility_functions"],
         utility_functions_final_period=model_funcs_discr_exp[
-            "final_period_utility_functions"
+            "utility_functions_final_period"
         ],
         budget_constraint=model_funcs_discr_exp["budget_constraint"],
     )
@@ -101,14 +101,14 @@ def test_setup():
     options_cont["state_space"]["continuous_states"]["experience"] = experience_grid
     options_cont["state_space"].pop("endogenous_states")
 
-    model_funcs_cont_exp = load_example_models("with_cont_exp")
+    model_funcs_cont_exp = load_example_model_functions("with_cont_exp")
 
     model_cont = setup_model(
         options=options_cont,
         state_space_functions=model_funcs_cont_exp["state_space_functions"],
         utility_functions=model_funcs_cont_exp["utility_functions"],
         utility_functions_final_period=model_funcs_cont_exp[
-            "final_period_utility_functions"
+            "utility_functions_final_period"
         ],
         budget_constraint=model_funcs_cont_exp["budget_constraint"],
     )

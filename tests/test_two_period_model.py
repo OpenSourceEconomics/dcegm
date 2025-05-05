@@ -12,18 +12,10 @@ from numpy.testing import assert_allclose
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 
-import dcegm.toy_models.exogenous_ltc.budget_equation
-import dcegm.toy_models.exogenous_ltc.params_and_options
-import dcegm.toy_models.exogenous_ltc_and_job_offer.params_and_options
+import dcegm.toy_models as toy_models
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import get_solve_func_for_model
-from dcegm.toy_models.cons_ret_model_dcegm_paper import (
-    create_final_period_utility_function_dict,
-    create_state_space_function_dict,
-    create_utility_function_dict,
-    marginal_utility_crra,
-)
-from tests.utils.euler_equation_two_perio import (
+from tests.utils.euler_equation_two_period import (
     euler_rhs_exog_ltc,
     euler_rhs_exog_ltc_and_job_offer,
 )
@@ -34,14 +26,21 @@ RANDOM_TEST_WEALTH = np.random.choice(list(range(100)), size=10, replace=False)
 @pytest.fixture(scope="session")
 def toy_model_exog_ltc_and_job_offer():
 
+    model_funcs = toy_models.load_example_model_functions("with_exog_ltc_and_job_offer")
+    params, options = toy_models.load_example_params_and_options(
+        "with_exog_ltc_and_job_offer"
+    )
+
     out = {}
     out["model"] = setup_model(
-        options=dcegm.toy_models.exogenous_ltc_and_job_offer.params_and_options.OPTIONS,
-        state_space_functions=create_state_space_function_dict(),
-        utility_functions=create_utility_function_dict(),
-        utility_functions_final_period=create_final_period_utility_function_dict(),
-        budget_constraint=ltc_and_job_offer_file.budget_dcegm_exog_ltc_and_job_offer,
+        options=options,
+        state_space_functions=model_funcs["state_space_functions"],
+        utility_functions=model_funcs["utility_functions"],
+        utility_functions_final_period=model_funcs["utility_functions_final_period"],
+        budget_constraint=model_funcs["budget_constraint"],
     )
+
+    out["marginal_utility"] = model_funcs["utility_functions"]["marginal_utility"]
 
     (
         out["value"],
@@ -49,14 +48,10 @@ def toy_model_exog_ltc_and_job_offer():
         out["endog_grid"],
     ) = get_solve_func_for_model(
         out["model"]
-    )(dcegm.toy_models.exogenous_ltc_and_job_offer.params_and_options.PARAMS)
+    )(params)
 
-    out["params"] = (
-        dcegm.toy_models.exogenous_ltc_and_job_offer.params_and_options.PARAMS
-    )
-    out["options"] = (
-        dcegm.toy_models.exogenous_ltc_and_job_offer.params_and_options.OPTIONS
-    )
+    out["params"] = params
+    out["options"] = options
     out["euler"] = euler_rhs_exog_ltc_and_job_offer
 
     return out
@@ -65,14 +60,18 @@ def toy_model_exog_ltc_and_job_offer():
 @pytest.fixture(scope="session")
 def toy_model_exog_ltc():
 
+    model_funcs = toy_models.load_example_model_functions("with_exog_ltc")
+    params, options = toy_models.load_example_params_and_options("with_exog_ltc")
+
     out = {}
     out["model"] = setup_model(
-        options=dcegm.toy_models.exogenous_ltc.params_and_options.OPTIONS,
-        state_space_functions=create_state_space_function_dict(),
-        utility_functions=create_utility_function_dict(),
-        utility_functions_final_period=create_final_period_utility_function_dict(),
-        budget_constraint=dcegm.toy_models.exogenous_ltc.budget_equation.budget_equation_with_ltc,
+        options=options,
+        state_space_functions=model_funcs["state_space_functions"],
+        utility_functions=model_funcs["utility_functions"],
+        utility_functions_final_period=model_funcs["utility_functions_final_period"],
+        budget_constraint=model_funcs["budget_constraint"],
     )
+    out["marginal_utility"] = model_funcs["utility_functions"]["marginal_utility"]
 
     (
         out["value"],
@@ -80,10 +79,10 @@ def toy_model_exog_ltc():
         out["endog_grid"],
     ) = get_solve_func_for_model(
         out["model"]
-    )(dcegm.toy_models.exogenous_ltc.params_and_options.PARAMS)
+    )(params)
 
-    out["params"] = dcegm.toy_models.exogenous_ltc.params_and_options.PARAMS
-    out["options"] = dcegm.toy_models.exogenous_ltc.params_and_options.OPTIONS
+    out["params"] = params
+    out["options"] = options
     out["euler"] = euler_rhs_exog_ltc
 
     return out
@@ -154,6 +153,6 @@ def test_two_period(
                 quad_weights,
                 choice,
                 cons_calc,
-            ) - marginal_utility_crra(consumption=cons_calc, params=params)
+            ) - toy_model["marginal_utility"](consumption=cons_calc, params=params)
 
             assert_allclose(diff, 0, atol=1e-6)

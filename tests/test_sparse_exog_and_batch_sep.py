@@ -5,7 +5,7 @@ from numpy.testing import assert_array_almost_equal as aaae
 
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import get_solve_func_for_model, solve_dcegm
-from dcegm.toy_models.example_model_functions import load_example_models
+from dcegm.toy_models.example_model_functions import load_example_model_functions
 
 
 def utility_with_exog(consumption, health, partner, params):
@@ -100,13 +100,13 @@ def test_benchmark_models(load_replication_params_and_specs):
         },
     }
 
-    model_funcs = load_example_models("dcegm_paper")
+    model_funcs = load_example_model_functions("dcegm_paper")
 
     model_full = setup_model(
         options=options,
         state_space_functions=model_funcs["state_space_functions"],
         utility_functions=model_funcs["utility_functions"],
-        utility_functions_final_period=model_funcs["final_period_utility_functions"],
+        utility_functions_final_period=model_funcs["utility_functions_final_period"],
         budget_constraint=model_funcs["budget_constraint"],
     )
 
@@ -117,7 +117,7 @@ def test_benchmark_models(load_replication_params_and_specs):
         options=options,
         state_space_functions=model_funcs_sparse["state_space_functions"],
         utility_functions=model_funcs["utility_functions"],
-        utility_functions_final_period=model_funcs["final_period_utility_functions"],
+        utility_functions_final_period=model_funcs["utility_functions_final_period"],
         budget_constraint=model_funcs["budget_constraint"],
     )
 
@@ -148,7 +148,7 @@ def test_benchmark_models(load_replication_params_and_specs):
         options=options_sep_once,
         state_space_functions=model_funcs_sparse["state_space_functions"],
         utility_functions=model_funcs["utility_functions"],
-        utility_functions_final_period=model_funcs["final_period_utility_functions"],
+        utility_functions_final_period=model_funcs["utility_functions_final_period"],
         budget_constraint=model_funcs["budget_constraint"],
     )
 
@@ -164,7 +164,7 @@ def test_benchmark_models(load_replication_params_and_specs):
         options=options_sep_twice,
         state_space_functions=model_funcs_sparse["state_space_functions"],
         utility_functions=model_funcs["utility_functions"],
-        utility_functions_final_period=model_funcs["final_period_utility_functions"],
+        utility_functions_final_period=model_funcs["utility_functions_final_period"],
         budget_constraint=model_funcs["budget_constraint"],
     )
 

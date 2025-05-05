@@ -23,11 +23,13 @@ from dcegm.toy_models.cons_ret_model_dcegm_paper import (
     create_state_space_function_dict,
     create_utility_function_dict,
 )
+from dcegm.toy_models.cons_ret_model_exog_ltc.budget_equation import (
+    budget_equation_with_ltc,
+)
+from dcegm.toy_models.cons_ret_model_exog_ltc.params_and_options import OPTIONS, PARAMS
 from dcegm.toy_models.cons_ret_model_with_cont_exp.state_space_objects import (
     next_period_experience,
 )
-from dcegm.toy_models.exogenous_ltc.budget_equation import budget_equation_with_ltc
-from dcegm.toy_models.exogenous_ltc.params_and_options import OPTIONS, PARAMS
 
 
 def _create_test_objects_from_df(df, params):

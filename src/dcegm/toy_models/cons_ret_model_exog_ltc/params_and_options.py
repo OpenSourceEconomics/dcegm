@@ -1,6 +1,6 @@
 import numpy as np
 
-from dcegm.toy_models.exogenous_ltc.ltc import prob_exog_ltc
+from dcegm.toy_models.cons_ret_model_exog_ltc.ltc import prob_exog_ltc
 
 
 def example_params():
