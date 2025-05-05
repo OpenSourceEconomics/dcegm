@@ -1,3 +1,7 @@
+# If we set grid points to 61 (5 * 4 * 3 * 2 * 1), the test will pass
+# on complete precise numbers. Look it example options for current number
+
+
 import copy
 from itertools import product
 
@@ -14,28 +18,6 @@ from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import get_solve_func_for_model
 from dcegm.toy_models.example_model_functions import load_example_model_functions
 
-N_PERIODS = 5
-N_DISCRETE_CHOICES = 2
-MAX_WEALTH = 50
-WEALTH_GRID_POINTS = 100
-# If I set GRID points to 61 (5 * 4 * 3 *2 * 1), the test will pass
-# on complete precise numbers
-EXPERIENCE_GRID_POINTS = 5
-MAX_INIT_EXPERIENCE = 1
-
-PARAMS = {
-    "beta": 0.95,
-    "delta": 0.35,
-    "rho": 1.95,
-    "interest_rate": 0.04,
-    "taste_shock_scale": 1,  # taste shock (scale) parameter
-    "sigma": 1,  # shock on labor income, standard deviation
-    "constant": 0.75,
-    "exp": 0.04,
-    "exp_squared": -0.0002,
-    "consumption_floor": 0.001,
-}
-
 # ====================================================================================
 # Test
 # ====================================================================================
@@ -49,34 +31,6 @@ def test_setup():
     # =================================================================================
 
     model_funcs_discr_exp = load_example_model_functions("with_exp")
-
-    model_params = {
-        "n_choices": N_DISCRETE_CHOICES,
-        "n_quad_points_stochastic": 5,
-        "n_periods": N_PERIODS,
-        "max_init_experience": MAX_INIT_EXPERIENCE,
-    }
-
-    state_space_options = {
-        "n_periods": N_PERIODS,
-        "choices": np.arange(
-            N_DISCRETE_CHOICES,
-        ),
-        "endogenous_states": {
-            "experience": np.arange(N_PERIODS + MAX_INIT_EXPERIENCE),
-        },
-        "continuous_states": {
-            "wealth": jnp.linspace(
-                0,
-                MAX_WEALTH,
-                WEALTH_GRID_POINTS,
-            )
-        },
-    }
-    options_discrete = {
-        "model_params": model_params,
-        "state_space": state_space_options,
-    }
 
     model_disc = setup_model(
         options=options_discrete,
