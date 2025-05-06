@@ -19,7 +19,7 @@ REPLICATION_TEST_RESOURCES_DIR = TEST_DIR / "resources" / "replication_tests"
 
 
 def test_benchmark_models(load_replication_params_and_specs):
-    params, model_specs = load_replication_params_and_specs("retirement_taste_shocks")
+    params, model_specs = load_replication_params_and_specs("retirement_with_shocks")
     options = {}
 
     options["model_params"] = model_specs
@@ -52,14 +52,12 @@ def test_benchmark_models(load_replication_params_and_specs):
     value, policy, endog_grid = get_solve_func_for_model(model)(params)
 
     policy_expected = pickle.load(
-        (REPLICATION_TEST_RESOURCES_DIR / "retirement_taste_shocks/policy.pkl").open(
+        (REPLICATION_TEST_RESOURCES_DIR / "retirement_with_shocks/policy.pkl").open(
             "rb"
         )
     )
     value_expected = pickle.load(
-        (REPLICATION_TEST_RESOURCES_DIR / "retirement_taste_shocks/value.pkl").open(
-            "rb"
-        )
+        (REPLICATION_TEST_RESOURCES_DIR / "retirement_with_shocks/value.pkl").open("rb")
     )
     state_choice_space = model["model_structure"]["state_choice_space"]
     state_choice_space_to_test = state_choice_space[state_choice_space[:, 0] < 24]

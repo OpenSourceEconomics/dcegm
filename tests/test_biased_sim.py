@@ -68,7 +68,7 @@ def state_space_options():
 
 
 def test_sim_and_sol_model(state_space_options, load_replication_params_and_specs):
-    params, model_specs = load_replication_params_and_specs("retirement_taste_shocks")
+    params, model_specs = load_replication_params_and_specs("retirement_with_shocks")
     params["married_util"] = 0.5
 
     model_funcs = load_example_model_functions("dcegm_paper")

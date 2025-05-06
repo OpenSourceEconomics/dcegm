@@ -61,7 +61,7 @@ def sparsity_condition(period, lagged_choice, health, education, partner):
 
 
 def test_benchmark_models(load_replication_params_and_specs):
-    params, model_specs = load_replication_params_and_specs("retirement_taste_shocks")
+    params, model_specs = load_replication_params_and_specs("retirement_with_shocks")
     params_update = {
         "health_disutil": 0.1,
         "good_to_good": 0.8,

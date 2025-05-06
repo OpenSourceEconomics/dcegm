@@ -87,7 +87,7 @@ def _next_period_continuous_state(period, lagged_choice, continuous_state, param
 # =====================================================================================
 
 
-model = ["deaton", "retirement_taste_shocks", "retirement_no_taste_shocks"]
+model = ["deaton", "retirement_with_shocks", "retirement_no_shocks"]
 period = [0, 5, 7]
 labor_choice = [0, 1]
 max_wealth = [11, 33, 50]

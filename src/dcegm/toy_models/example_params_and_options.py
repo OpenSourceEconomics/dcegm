@@ -7,14 +7,17 @@ import dcegm.toy_models.cons_ret_model_with_exp as crm_exp
 
 def load_example_params_and_options(model_name):
 
-    if model_name == "dcegm_paper":
-        model_functions = {
-            "utility_functions": crm_paper.create_utility_function_dict(),
-            "state_space_functions": crm_paper.create_state_space_function_dict(),
-            "utility_functions_final_period": crm_paper.create_final_period_utility_function_dict(),
-            "budget_constraint": crm_paper.budget_constraint,
-        }
-
+    if (model_name == "dcegm_paper") or (
+        model_name == "dcegm_paper_retirement_with_shocks"
+    ):
+        params = crm_paper.example_params_ret_model_with_shocks()
+        options = crm_paper.example_options_ret_model_with_shocks()
+    elif model_name == "dcegm_paper_retirement_no_shocks":
+        params = crm_paper.example_params_retirement_no_shocks()
+        options = crm_paper.example_options_retirement_no_shocks()
+    elif model_name == "dcegm_paper_deaton":
+        params = crm_paper.example_params_deaton()
+        options = crm_paper.example_options_deaton()
     elif model_name == "with_exp":
         params = crm_exp.example_params()
         options = crm_exp.example_options()

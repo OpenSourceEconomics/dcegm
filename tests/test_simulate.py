@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
+import dcegm.toy_models as toy_models
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.simulation.random_keys import draw_random_keys_for_seed
 from dcegm.simulation.sim_utils import create_simulation_df
@@ -18,18 +19,6 @@ from dcegm.simulation.simulate import (
     simulate_single_period,
 )
 from dcegm.solve import get_solve_func_for_model
-from dcegm.toy_models.cons_ret_model_dcegm_paper import (
-    create_final_period_utility_function_dict,
-    create_state_space_function_dict,
-    create_utility_function_dict,
-)
-from dcegm.toy_models.cons_ret_model_exog_ltc.budget_equation import (
-    budget_equation_with_ltc,
-)
-from dcegm.toy_models.cons_ret_model_exog_ltc.params_and_options import OPTIONS, PARAMS
-from dcegm.toy_models.cons_ret_model_with_cont_exp.state_space_objects import (
-    next_period_experience,
-)
 
 
 def _create_test_objects_from_df(df, params):
@@ -56,12 +45,13 @@ def _create_test_objects_from_df(df, params):
 @pytest.fixture()
 def model_setup():
 
+    model_functions = toy_models.load_example_model_functions("with_exog_ltc")
+
+    params, options = toy_models.load_example_params_and_options("with_exog_ltc")
+
     model = setup_model(
-        options=OPTIONS,
-        state_space_functions=create_state_space_function_dict(),
-        utility_functions=create_utility_function_dict(),
-        utility_functions_final_period=create_final_period_utility_function_dict(),
-        budget_constraint=budget_equation_with_ltc,
+        options=options,
+        **model_functions,
     )
 
     (
@@ -70,11 +60,11 @@ def model_setup():
         endog_grid,
     ) = get_solve_func_for_model(
         model
-    )(PARAMS)
+    )(params)
 
     seed = 111
     n_agents = 1_000
-    n_periods = OPTIONS["state_space"]["n_periods"]
+    n_periods = options["state_space"]["n_periods"]
 
     initial_states = {
         "period": np.zeros(n_agents),
@@ -106,8 +96,8 @@ def model_setup():
         "policy": policy,
         "endog_grid": endog_grid,
         "model": model,
-        "params": copy.deepcopy(PARAMS),
-        "options": copy.deepcopy(OPTIONS),
+        "params": params,
+        "options": options,
     }
 
 
@@ -176,7 +166,7 @@ def test_simulate_lax_scan(model_setup):
     final_period_dict = simulate_final_period(
         states_and_wealth_beginning_of_final_period,
         sim_keys=model_setup["last_period_sim_keys"],
-        params=PARAMS,
+        params=model_setup["params"],
         discrete_states_names=discrete_states_names,
         choice_range=choice_range,
         map_state_choice_to_index=jnp.array(map_state_choice_to_index),
@@ -235,22 +225,24 @@ def test_simulate(model_setup):
 
 
 def test_simulate_second_continuous_choice(model_setup):
+    model_functions_cont = toy_models.load_example_model_functions("with_cont_exp")
+    model_functions_ltc = toy_models.load_example_model_functions("with_exog_ltc")
 
-    params = model_setup["params"]
-    options_cont = copy.deepcopy(model_setup["options"])
+    options_cont = model_setup["options"].copy()
 
     options_cont["state_space"]["continuous_states"]["experience"] = jnp.linspace(
         0, 1, 6
     )
     options_cont["model_params"]["max_init_experience"] = 1
-    state_space_dict = create_state_space_function_dict()
-    state_space_dict["next_period_experience"] = next_period_experience
+
     model_cont = setup_model(
         options=options_cont,
-        state_space_functions=state_space_dict,
-        utility_functions=create_utility_function_dict(),
-        utility_functions_final_period=create_final_period_utility_function_dict(),
-        budget_constraint=budget_equation_with_ltc,
+        state_space_functions=model_functions_cont["state_space_functions"],
+        utility_functions=model_functions_cont["utility_functions"],
+        utility_functions_final_period=model_functions_cont[
+            "utility_functions_final_period"
+        ],
+        budget_constraint=model_functions_ltc["budget_constraint"],
     )
 
     key = jax.random.PRNGKey(0)
@@ -275,7 +267,7 @@ def test_simulate_second_continuous_choice(model_setup):
         states_initial=states_initial,
         wealth_initial=wealth_initial,
         n_periods=options_cont["state_space"]["n_periods"],
-        params=params,
+        params=model_setup["params"],
         seed=111,
         endog_grid_solved=endog_grid,
         value_solved=value,

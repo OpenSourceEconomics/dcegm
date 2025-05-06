@@ -92,8 +92,8 @@ def test_wrap_function(load_replication_params_and_specs):
 @pytest.mark.parametrize(
     "model_name",
     [
-        ("retirement_no_taste_shocks"),
-        ("retirement_taste_shocks"),
+        ("retirement_no_shocks"),
+        ("retirement_with_shocks"),
         ("deaton"),
     ],
 )
@@ -119,8 +119,8 @@ def test_missing_parameter(
 @pytest.mark.parametrize(
     "model_name",
     [
-        ("retirement_no_taste_shocks"),
-        ("retirement_taste_shocks"),
+        ("retirement_no_shocks"),
+        ("retirement_with_shocks"),
         ("deaton"),
     ],
 )
