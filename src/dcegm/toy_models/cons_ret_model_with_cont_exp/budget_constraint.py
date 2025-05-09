@@ -1,4 +1,4 @@
-from toy_models.cons_ret_model_with_exp.budget_constraint_with_exp import (
+from dcegm.toy_models.cons_ret_model_with_exp.budget_constraint_with_exp import (
     budget_constraint_exp,
 )
 

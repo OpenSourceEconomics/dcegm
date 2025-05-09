@@ -5,7 +5,7 @@ import jax
 
 from dcegm.pre_processing.batches.batch_creation import create_batches_and_information
 from dcegm.pre_processing.check_options import check_options_and_set_defaults
-from dcegm.pre_processing.model_functions import (
+from dcegm.pre_processing.model_functions.process_model_functions import (
     process_model_functions,
     process_sparsity_condition,
 )
@@ -23,6 +23,7 @@ def setup_model(
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable] = None,
+    shock_functions: Dict[str, Callable] = None,
     debug_info: str = None,
     sim_model=False,
 ):
@@ -65,6 +66,7 @@ def setup_model(
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
         sim_model=sim_model,
+        shock_functions=shock_functions,
     )
 
     model_structure = create_model_structure(
@@ -104,6 +106,7 @@ def setup_and_save_model(
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable] = None,
+    shock_functions: Dict[str, Callable] = None,
     path: str = "model.pkl",
     sim_model=False,
 ):
@@ -120,6 +123,7 @@ def setup_and_save_model(
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
+        shock_functions=shock_functions,
         sim_model=sim_model,
     )
 
@@ -138,6 +142,7 @@ def load_and_setup_model(
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable] = None,
+    shock_functions: Dict[str, Callable] = None,
     path: str = "model.pkl",
     sim_model=False,
 ):
@@ -153,6 +158,7 @@ def load_and_setup_model(
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
+        shock_functions=shock_functions,
         sim_model=sim_model,
     )
 

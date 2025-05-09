@@ -5,13 +5,13 @@ import jax.numpy as jnp
 import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
+import dcegm.toy_models as toy_models
 from dcegm.pre_processing.setup_model import setup_model
-from dcegm.solve import solve_dcegm
+from dcegm.solve import get_solve_func_for_model
 from tests.utils.interp1d_auxiliary import (
     interpolate_policy_and_value_on_wealth_grid,
     linear_interpolation_with_extrapolation,
 )
-from toy_models.load_example_model import load_example_models
 
 # Obtain the test directory of the package
 TEST_DIR = Path(__file__).parent
@@ -22,50 +22,27 @@ REPLICATION_TEST_RESOURCES_DIR = TEST_DIR / "resources" / "replication_tests"
 @pytest.mark.parametrize(
     "model_name",
     [
-        "retirement_no_taste_shocks",
-        "retirement_taste_shocks",
+        "retirement_no_shocks",
+        "retirement_with_shocks",
         "deaton",
     ],
 )
 def test_benchmark_models(model_name, load_replication_params_and_specs):
-    params, model_specs = load_replication_params_and_specs(model_name)
-    options = {}
-
-    options["model_params"] = model_specs
-    options["model_params"]["n_choices"] = model_specs["n_discrete_choices"]
-    options["state_space"] = {
-        "n_periods": 25,
-        "choices": [i for i in range(model_specs["n_discrete_choices"])],
-        "continuous_states": {
-            "wealth": jnp.linspace(
-                0,
-                options["model_params"]["max_wealth"],
-                options["model_params"]["n_grid_points"],
-            )
-        },
-    }
-
-    model_funcs = load_example_models("dcegm_paper")
-
     if model_name == "deaton":
-        model_funcs["state_space_functions"] = None
+        model_funcs = toy_models.load_example_model_functions("dcegm_paper_deaton")
+    else:
+        model_funcs = toy_models.load_example_model_functions("dcegm_paper")
+
+    params, options = toy_models.load_example_params_and_options(
+        "dcegm_paper_" + model_name
+    )
 
     model = setup_model(
         options=options,
-        state_space_functions=model_funcs["state_space_functions"],
-        utility_functions=model_funcs["utility_functions"],
-        utility_functions_final_period=model_funcs["final_period_utility_functions"],
-        budget_constraint=model_funcs["budget_constraint"],
+        **model_funcs,
     )
 
-    value, policy, endog_grid = solve_dcegm(
-        params=params,
-        options=options,
-        state_space_functions=model_funcs["state_space_functions"],
-        utility_functions=model_funcs["utility_functions"],
-        utility_functions_final_period=model_funcs["final_period_utility_functions"],
-        budget_constraint=model_funcs["budget_constraint"],
-    )
+    value, policy, endog_grid = get_solve_func_for_model(model)(params)
 
     policy_expected = pickle.load(
         (REPLICATION_TEST_RESOURCES_DIR / f"{model_name}" / "policy.pkl").open("rb")

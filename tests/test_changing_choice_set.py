@@ -25,9 +25,10 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
+import dcegm.toy_models as toy_models
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import get_solve_function
-from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
+from dcegm.toy_models.cons_ret_model_dcegm_paper import (
     inverse_marginal_utility_crra,
     marginal_utility_crra,
     marginal_utility_final_consume_all,
@@ -77,7 +78,7 @@ def test_model():
     params = {
         # utility
         "beta": 0.95,
-        "lambda": 1,
+        "taste_shock_scale": 1,
         "sigma": 1,
         "rho": 0.5,  # CRRA coefficient
         "delta": 1,  # disutility of work

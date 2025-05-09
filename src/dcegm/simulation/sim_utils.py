@@ -128,14 +128,14 @@ def transition_to_next_period(
     choice,
     params,
     model_funcs_sim,
-    sim_specific_keys,
+    sim_keys,
 ):
     n_agents = savings_current_period.shape[0]
 
     exog_states_next_period = vmap(realize_exog_process, in_axes=(0, 0, 0, None, None))(
         discrete_states_beginning_of_period,
         choice,
-        sim_specific_keys[2:, :],
+        sim_keys["exog_process_keys"],
         params,
         model_funcs_sim["processed_exog_funcs"],
     )
@@ -158,7 +158,10 @@ def transition_to_next_period(
 
     # Draw income shocks.
     income_shocks_next_period = draw_normal_shocks(
-        key=sim_specific_keys[1, :], num_agents=n_agents, mean=0, std=params["sigma"]
+        key=sim_keys["income_shock_keys"],
+        num_agents=n_agents,
+        mean=0,
+        std=params["sigma"],
     )
 
     next_period_wealth = model_funcs_sim["compute_beginning_of_period_wealth"]
@@ -232,13 +235,6 @@ def next_period_continuous_state_for_one_agent(
         choice=choice,
         params=params,
     )
-
-
-def draw_taste_shocks(n_agents, n_choices, taste_shock_scale, key):
-    taste_shocks = jax.random.gumbel(key=key, shape=(n_agents, n_choices))
-
-    taste_shocks = taste_shock_scale * (taste_shocks - jnp.euler_gamma)
-    return taste_shocks
 
 
 def vectorized_utility(consumption_period, state, choice, params, compute_utility):

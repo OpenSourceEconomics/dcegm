@@ -10,6 +10,7 @@ from typing import Any, Dict
 import jax
 import jax.numpy as jnp
 import numpy as np
+from jax import vmap
 
 from dcegm.egm.aggregate_marginal_utility import (
     calculate_choice_probs_and_unsqueezed_logsum,
@@ -303,7 +304,8 @@ def calc_choice_probs_for_states(
     # Read out relevant model objects
     options = model["options"]
     choice_range = options["state_space"]["choices"]
-    compute_utility = model["model_funcs"]["compute_utility"]
+    model_funcs = model["model_funcs"]
+    compute_utility = model_funcs["compute_utility"]
 
     if len(options["exog_grids"]) == 2:
         vectorized_interp2d = jax.vmap(
@@ -346,9 +348,22 @@ def calc_choice_probs_for_states(
             compute_utility,
         )
 
+    if model_funcs["taste_shock_function"]["taste_shock_scale_is_scalar"]:
+        taste_shock_scale = model_funcs["taste_shock_function"][
+            "read_out_taste_shock_scale"
+        ](params)
+    else:
+        taste_shock_scale_per_state_func = model_funcs["taste_shock_function"][
+            "taste_shock_scale_per_state"
+        ]
+        taste_shock_scale = vmap(taste_shock_scale_per_state_func, in_axes=(0, None))(
+            observed_states, params
+        )
+        taste_shock_scale = taste_shock_scale[:, None]
+
     choice_prob_across_choices, _, _ = calculate_choice_probs_and_unsqueezed_logsum(
         choice_values_per_state=value_per_agent_interp,
-        taste_shock_scale=params["lambda"],
+        taste_shock_scale=taste_shock_scale,
     )
     return choice_prob_across_choices
 

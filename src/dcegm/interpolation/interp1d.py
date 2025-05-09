@@ -97,7 +97,7 @@ def interp_value_on_wealth(
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
     params: Dict[str, float],
-) -> float:
+) -> jnp.ndarray | float:
     """Interpolate value function on a single wealth point.
 
     Args:
@@ -108,7 +108,7 @@ def interp_value_on_wealth(
         params (Dict): Dictionary containing the model parameters.
 
     Returns:
-        float: Interpolated value for wealth.
+        jnp.ndarray | float: Interpolated value for wealth.
 
     """
 

@@ -12,7 +12,7 @@ from scipy.stats import norm
 
 from dcegm.law_of_motion import calculate_continuous_state
 from dcegm.pre_processing.check_params import process_params
-from toy_models.cons_ret_model_dcegm_paper.budget_constraint import budget_constraint
+from dcegm.toy_models.cons_ret_model_dcegm_paper import budget_constraint
 
 # =====================================================================================
 # Auxiliary functions
@@ -87,7 +87,7 @@ def _next_period_continuous_state(period, lagged_choice, continuous_state, param
 # =====================================================================================
 
 
-model = ["deaton", "retirement_taste_shocks", "retirement_no_taste_shocks"]
+model = ["deaton", "retirement_with_shocks", "retirement_no_shocks"]
 period = [0, 5, 7]
 labor_choice = [0, 1]
 max_wealth = [11, 33, 50]

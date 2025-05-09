@@ -7,17 +7,13 @@ import pytest
 from numpy.testing import assert_allclose
 from numpy.testing import assert_array_almost_equal as aaae
 
+import dcegm.toy_models as toy_models
 from dcegm.final_periods import solve_final_period
 from dcegm.law_of_motion import calc_cont_grids_next_period
 from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import create_solution_container, solve_dcegm
 from dcegm.solve_single_period import solve_for_interpolated_values
-from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
-    create_final_period_utility_function_dict,
-    create_utility_function_dict,
-    utility_crra,
-)
 
 N_PERIODS = 2
 MAX_WEALTH = 50
@@ -34,7 +30,7 @@ PARAMS = {
     "delta": 0.35,
     "rho": 1.95,
     "interest_rate": 0.04,
-    "lambda": 1,  # taste shock (scale) parameter
+    "taste_shock_scale": 1,  # taste shock (scale) parameter
     "sigma": 1,  # shock on labor income, standard deviation
     "income_shock_mean": 0,  # shock on labor income, mean
     "constant": 0.75,
@@ -42,32 +38,6 @@ PARAMS = {
     "exp_squared": -0.0002,
     "consumption_floor": 0.001,
 }
-
-
-# ====================================================================================
-# Model functions
-# ====================================================================================
-
-
-def marginal_utility_crra(
-    consumption: jnp.array, params: Dict[str, float]
-) -> jnp.array:
-    """Computes marginal utility of CRRA utility function.
-
-    Args:
-        consumption (jnp.array): Level of the agent's consumption.
-            Array of shape (n_quad_stochastic * n_grid_wealth,).
-        params (dict): Dictionary containing model parameters.
-            Relevant here is the CRRA coefficient theta.
-
-    Returns:
-        marginal_utility (jnp.array): Marginal utility of CRRA consumption
-            function. Array of shape (n_quad_stochastic * n_grid_wealth,).
-
-    """
-    marginal_utility = consumption ** (-params["rho"])
-
-    return marginal_utility
 
 
 def euler_rhs(
@@ -120,27 +90,39 @@ def marginal_utility_weighted(
         options={},
         params=params,
     )
+    model_functions = toy_models.load_example_model_functions("dcegm_paper")
+    utility_functions = model_functions["utility_functions"]
 
     marginal_utility_weighted = 0
     for choice_next in (0, 1):
-        marginal_utility = marginal_utility_crra(consumption=budget_next, params=params)
+        marginal_utility = utility_functions["marginal_utility"](
+            consumption=budget_next, params=params
+        )
 
         marginal_utility_weighted += (
-            choice_prob(consumption=budget_next, choice=choice_next, params=params)
+            choice_prob(
+                consumption=budget_next,
+                choice=choice_next,
+                params=params,
+                utility_function=utility_functions["utility"],
+            )
             * marginal_utility
         )
 
     return marginal_utility_weighted
 
 
-def choice_prob(consumption, choice, params):
-    v = utility_crra(consumption=consumption, params=params, choice=choice)
-    v_other = utility_crra(consumption=consumption, params=params, choice=1 - choice)
+def choice_prob(consumption, choice, params, utility_function):
+
+    v = utility_function(consumption=consumption, params=params, choice=choice)
+    v_other = utility_function(
+        consumption=consumption, params=params, choice=1 - choice
+    )
     max_v = jnp.maximum(v, v_other)
 
-    return np.exp((v - max_v) / params["lambda"]) / (
-        np.exp((v_other - max_v) / params["lambda"])
-        + np.exp((v - max_v) / params["lambda"])
+    return np.exp((v - max_v) / params["taste_shock_scale"]) / (
+        np.exp((v_other - max_v) / params["taste_shock_scale"])
+        + np.exp((v - max_v) / params["taste_shock_scale"])
     )
 
 
@@ -256,8 +238,10 @@ def create_test_inputs():
         },
     }
 
-    utility_functions = create_utility_function_dict()
-    utility_functions_final_period = create_final_period_utility_function_dict()
+    model_functions = toy_models.load_example_model_functions("dcegm_paper")
+    utility_functions = model_functions["utility_functions"]
+
+    utility_functions_final_period = model_functions["utility_functions_final_period"]
 
     # =================================================================================
     # Continuous experience
@@ -330,6 +314,7 @@ def create_test_inputs():
         ],
         params=params,
         taste_shock_scale=jnp.array([taste_shock_scale]),
+        taste_shock_scale_is_scalar=True,
         income_shock_weights=income_shock_weights,
         exog_grids=exog_grids_cont,
         model_funcs=model_funcs_cont,
@@ -414,6 +399,9 @@ def test_euler_equation(wealth_idx, state_idx, create_test_inputs):
         model_structure["map_state_choice_to_parent_state"] == state_idx
     )[0]
 
+    model_functions = toy_models.load_example_model_functions("dcegm_paper")
+    utility_functions = model_functions["utility_functions"]
+
     for state_choice_idx in parent_states_of_current_state:
         for exp_idx, exp in enumerate(range(EXPERIENCE_GRID_POINTS)):
             endog_grid_period_0 = endog_grid_solved[
@@ -434,7 +422,7 @@ def test_euler_equation(wealth_idx, state_idx, create_test_inputs):
                     params=params,
                 )
 
-                marg_util_current = marginal_utility_crra(
+                marg_util_current = utility_functions["marginal_utility"](
                     consumption=policy_period_0, params=params
                 )
 
@@ -456,7 +444,7 @@ def _get_solve_last_two_periods_args(model, params, has_second_continuous_state)
     income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
         options["model_params"]["n_quad_points_stochastic"]
     )
-    taste_shock_scale = params["lambda"]
+    taste_shock_scale = params["taste_shock_scale"]
 
     # Get state space dictionary and model functions
     state_space_dict = model["model_structure"]["state_space_dict"]

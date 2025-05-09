@@ -255,6 +255,7 @@ def calculate_wealth_given_second_continuous_state_for_all_agents(
     compute_beginning_of_period_wealth,
 ):
     """Simulation."""
+
     wealth_beginning_of_next_period, aux_dict = vmap(
         calc_wealth_for_each_continuous_state_and_savings_grid_point,
         in_axes=(0, 0, 0, 0, None, None, None),

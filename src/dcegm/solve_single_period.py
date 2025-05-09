@@ -16,7 +16,6 @@ def solve_single_period(
     income_shock_weights,
     cont_grids_next_period,
     model_funcs,
-    taste_shock_scale,
 ):
     """Solve a single period of the model using DCEGM."""
     (value_solved, policy_solved, endog_grid_solved) = carry
@@ -48,6 +47,22 @@ def solve_single_period(
         params=params,
     )
 
+    # Check if we have a scalar taste shock scale or state specific. Extract in each of the cases.
+    taste_shock_scale_is_scalar = model_funcs["taste_shock_function"][
+        "taste_shock_scale_is_scalar"
+    ]
+    if taste_shock_scale_is_scalar:
+        taste_shock_scale = model_funcs["taste_shock_function"][
+            "read_out_taste_shock_scale"
+        ](params)
+    else:
+        taste_shock_scale_per_state_func = model_funcs["taste_shock_function"][
+            "taste_shock_scale_per_state"
+        ]
+        taste_shock_scale = vmap(taste_shock_scale_per_state_func, in_axes=(0, None))(
+            state_choice_mat_child, params
+        )
+
     endog_grid_state_choice, policy_state_choice, value_state_choice = (
         solve_for_interpolated_values(
             value_interpolated=value_interpolated,
@@ -57,6 +72,7 @@ def solve_single_period(
             states_to_choices_child_states=child_state_choices_to_aggr_choice,
             params=params,
             taste_shock_scale=taste_shock_scale,
+            taste_shock_scale_is_scalar=taste_shock_scale_is_scalar,
             income_shock_weights=income_shock_weights,
             exog_grids=exog_grids,
             model_funcs=model_funcs,
@@ -83,6 +99,7 @@ def solve_for_interpolated_values(
     states_to_choices_child_states,
     params,
     taste_shock_scale,
+    taste_shock_scale_is_scalar,
     income_shock_weights,
     exog_grids,
     model_funcs,
@@ -96,6 +113,7 @@ def solve_for_interpolated_values(
         marg_util_state_choice_specific=marginal_utility_interpolated,
         reshape_state_choice_vec_to_mat=states_to_choices_child_states,
         taste_shock_scale=taste_shock_scale,
+        taste_shock_scale_is_scalar=taste_shock_scale_is_scalar,
         income_shock_weights=income_shock_weights,
     )
 

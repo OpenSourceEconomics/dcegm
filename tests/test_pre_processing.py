@@ -5,19 +5,19 @@ from jax import vmap
 
 from dcegm.pre_processing.check_options import check_options_and_set_defaults
 from dcegm.pre_processing.check_params import process_params
-from dcegm.pre_processing.model_functions import process_model_functions
+from dcegm.pre_processing.model_functions.process_model_functions import (
+    process_model_functions,
+)
 from dcegm.pre_processing.setup_model import (
     load_and_setup_model,
     setup_and_save_model,
     setup_model,
 )
 from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
-from toy_models.cons_ret_model_dcegm_paper.budget_constraint import budget_constraint
-from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
-    create_state_space_function_dict,
-)
-from toy_models.cons_ret_model_dcegm_paper.utility_functions import (
+from dcegm.toy_models.cons_ret_model_dcegm_paper import (
+    budget_constraint,
     create_final_period_utility_function_dict,
+    create_state_space_function_dict,
     create_utility_function_dict,
     utility_crra,
 )
@@ -92,8 +92,8 @@ def test_wrap_function(load_replication_params_and_specs):
 @pytest.mark.parametrize(
     "model_name",
     [
-        ("retirement_no_taste_shocks"),
-        ("retirement_taste_shocks"),
+        ("retirement_no_shocks"),
+        ("retirement_with_shocks"),
         ("deaton"),
     ],
 )
@@ -119,8 +119,8 @@ def test_missing_parameter(
 @pytest.mark.parametrize(
     "model_name",
     [
-        ("retirement_no_taste_shocks"),
-        ("retirement_taste_shocks"),
+        ("retirement_no_shocks"),
+        ("retirement_with_shocks"),
         ("deaton"),
     ],
 )
