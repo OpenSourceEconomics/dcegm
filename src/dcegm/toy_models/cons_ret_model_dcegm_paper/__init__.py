@@ -15,8 +15,14 @@ from dcegm.toy_models.cons_ret_model_dcegm_paper.params_options_deaton import (
 )
 from dcegm.toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
     create_state_space_function_dict,
+    get_state_specific_feasible_choice_set,
 )
 from dcegm.toy_models.cons_ret_model_dcegm_paper.utility_functions import (
     create_final_period_utility_function_dict,
     create_utility_function_dict,
+    inverse_marginal_utility_crra,
+    marginal_utility_crra,
+    marginal_utility_final_consume_all,
+    utility_crra,
+    utility_final_consume_all,
 )

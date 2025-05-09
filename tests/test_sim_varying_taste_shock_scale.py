@@ -6,21 +6,13 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
+import dcegm.toy_models as toy_models
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import (
     simulate_all_periods,
 )
 from dcegm.solve import get_solve_func_for_model
-from dcegm.toy_models.cons_ret_model_dcegm_paper import (
-    create_final_period_utility_function_dict,
-    create_state_space_function_dict,
-    create_utility_function_dict,
-)
-from dcegm.toy_models.cons_ret_model_exog_ltc.budget_equation import (
-    budget_equation_with_ltc,
-)
-from dcegm.toy_models.cons_ret_model_exog_ltc.params_and_options import OPTIONS, PARAMS
 
 
 def _create_test_objects_from_df(df, params):
@@ -46,16 +38,13 @@ def _create_test_objects_from_df(df, params):
 
 @pytest.fixture()
 def model_setup():
-    shock_functions = {"taste_shock_scale_per_state": taste_shock_per_lagged_choice}
+    ltc_model_functions = toy_models.load_example_model_functions("with_exog_ltc")
+    params, options = toy_models.load_example_params_and_options("with_exog_ltc")
 
-    model = setup_model(
-        options=OPTIONS,
-        state_space_functions=create_state_space_function_dict(),
-        utility_functions=create_utility_function_dict(),
-        utility_functions_final_period=create_final_period_utility_function_dict(),
-        budget_constraint=budget_equation_with_ltc,
-        shock_functions=shock_functions,
-    )
+    shock_functions = {"taste_shock_scale_per_state": taste_shock_per_lagged_choice}
+    ltc_model_functions["shock_functions"] = shock_functions
+
+    model = setup_model(options=options, **ltc_model_functions)
 
     (
         value,
@@ -63,11 +52,11 @@ def model_setup():
         endog_grid,
     ) = get_solve_func_for_model(
         model
-    )(PARAMS)
+    )(params)
 
     seed = 111
     n_agents = 1_000
-    n_periods = OPTIONS["state_space"]["n_periods"]
+    n_periods = options["state_space"]["n_periods"]
 
     initial_states = {
         "period": np.zeros(n_agents),
@@ -96,8 +85,8 @@ def model_setup():
         "policy": policy,
         "endog_grid": endog_grid,
         "model": model,
-        "params": PARAMS.copy(),
-        "options": OPTIONS.copy(),
+        "params": params,
+        "options": options,
     }
 
 
@@ -133,7 +122,9 @@ def test_simulate(model_setup):
 
     df = create_simulation_df(result)
 
-    value_period_zero, expected = _create_test_objects_from_df(df, PARAMS)
+    value_period_zero, expected = _create_test_objects_from_df(
+        df, model_setup["params"]
+    )
     ids_violating_absorbing_retirement = df.query(
         "(period == 0 and choice == 1) and (period == 1 and choice == 0)"
     )

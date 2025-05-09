@@ -25,6 +25,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
+import dcegm.toy_models as toy_models
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import get_solve_function
 from dcegm.toy_models.cons_ret_model_dcegm_paper import (
