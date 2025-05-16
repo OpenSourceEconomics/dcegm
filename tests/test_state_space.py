@@ -4,10 +4,12 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from dcegm.pre_processing.model_functions import process_sparsity_condition
+from dcegm.pre_processing.model_functions.process_model_functions import (
+    process_sparsity_condition,
+)
 from dcegm.pre_processing.model_structure.state_space import create_state_space
 from dcegm.pre_processing.setup_model import setup_model
-from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
+from dcegm.toy_models.cons_ret_model_dcegm_paper import (
     get_state_specific_feasible_choice_set,
 )
 
@@ -15,7 +17,7 @@ from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
 @pytest.fixture()
 def options(load_replication_params_and_specs):
     """Return options dictionary."""
-    _, _raw_options = load_replication_params_and_specs("retirement_no_taste_shocks")
+    _, _raw_options = load_replication_params_and_specs("retirement_no_shocks")
     _raw_options["n_choices"] = 2
     options = {}
 

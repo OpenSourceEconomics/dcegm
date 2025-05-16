@@ -1,4 +1,4 @@
-from toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
+from dcegm.toy_models.cons_ret_model_dcegm_paper.state_space_objects import (
     get_state_specific_feasible_choice_set,
 )
 

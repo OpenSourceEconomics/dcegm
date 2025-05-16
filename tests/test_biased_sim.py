@@ -1,4 +1,3 @@
-import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -7,7 +6,7 @@ from dcegm.pre_processing.setup_model import setup_model
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
 from dcegm.solve import get_solve_func_for_model
-from toy_models.load_example_model import load_example_models
+from dcegm.toy_models.example_model_functions import load_example_model_functions
 
 
 def utility_crra(
@@ -69,10 +68,10 @@ def state_space_options():
 
 
 def test_sim_and_sol_model(state_space_options, load_replication_params_and_specs):
-    params, model_specs = load_replication_params_and_specs("retirement_taste_shocks")
+    params, model_specs = load_replication_params_and_specs("retirement_with_shocks")
     params["married_util"] = 0.5
 
-    model_funcs = load_example_models("dcegm_paper")
+    model_funcs = load_example_model_functions("dcegm_paper")
     utility_functions = model_funcs["utility_functions"]
     utility_functions["utility"] = utility_crra
 
@@ -85,7 +84,7 @@ def test_sim_and_sol_model(state_space_options, load_replication_params_and_spec
         options=options_sol,
         state_space_functions=model_funcs["state_space_functions"],
         utility_functions=utility_functions,
-        utility_functions_final_period=model_funcs["final_period_utility_functions"],
+        utility_functions_final_period=model_funcs["utility_functions_final_period"],
         budget_constraint=model_funcs["budget_constraint"],
     )
     solve_func = get_solve_func_for_model(model_sol)
@@ -103,7 +102,7 @@ def test_sim_and_sol_model(state_space_options, load_replication_params_and_spec
         options=options_sim,
         state_space_functions=model_funcs["state_space_functions"],
         utility_functions=utility_functions,
-        utility_functions_final_period=model_funcs["final_period_utility_functions"],
+        utility_functions_final_period=model_funcs["utility_functions_final_period"],
         budget_constraint=model_funcs["budget_constraint"],
     )
 

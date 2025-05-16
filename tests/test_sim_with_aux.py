@@ -5,7 +5,7 @@ import pytest
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.sim_interface import get_sol_and_sim_func_for_model
 from dcegm.simulation.sim_utils import create_simulation_df
-from toy_models.load_example_model import load_example_models
+from dcegm.toy_models.example_model_functions import load_example_model_functions
 
 
 def budget_with_aux(
@@ -16,7 +16,7 @@ def budget_with_aux(
     options,
     params,
 ):
-    wealth, _shock, income = budget_constraint_raw(
+    wealth, shock, income = budget_constraint_raw(
         period,
         lagged_choice,
         savings_end_of_previous_period,
@@ -73,6 +73,8 @@ def budget_constraint_raw(
         + (1 + params["interest_rate"]) * savings_end_of_previous_period
     )
 
+    # Retirement safety net, only in retirement model, but we require to have it always
+    # as a parameter
     wealth_beginning_of_period = jnp.maximum(
         wealth_beginning_of_period, params["consumption_floor"]
     )
@@ -119,9 +121,9 @@ def state_space_options():
 
 
 def test_sim_and_sol_model(state_space_options, load_replication_params_and_specs):
-    params, model_specs = load_replication_params_and_specs("retirement_taste_shocks")
+    params, model_specs = load_replication_params_and_specs("retirement_with_shocks")
 
-    model_funcs = load_example_models("dcegm_paper")
+    model_funcs = load_example_model_functions("dcegm_paper")
 
     options_sol = {
         "state_space": state_space_options,
@@ -132,7 +134,7 @@ def test_sim_and_sol_model(state_space_options, load_replication_params_and_spec
         options=options_sol,
         state_space_functions=model_funcs["state_space_functions"],
         utility_functions=model_funcs["utility_functions"],
-        utility_functions_final_period=model_funcs["final_period_utility_functions"],
+        utility_functions_final_period=model_funcs["utility_functions_final_period"],
         budget_constraint=budget_with_aux,
     )
 
@@ -140,7 +142,7 @@ def test_sim_and_sol_model(state_space_options, load_replication_params_and_spec
         options=options_sol,
         state_space_functions=model_funcs["state_space_functions"],
         utility_functions=model_funcs["utility_functions"],
-        utility_functions_final_period=model_funcs["final_period_utility_functions"],
+        utility_functions_final_period=model_funcs["utility_functions_final_period"],
         budget_constraint=budget_without_aux,
     )
 
@@ -172,7 +174,6 @@ def test_sim_and_sol_model(state_space_options, load_replication_params_and_spec
     )
     output_dict_without_aux = sim_func_without_aux(params)
     df_without_aux = create_simulation_df(output_dict_without_aux["sim_dict"])
-
     # # First check that income is in df_aux columns
     assert "income" in df_aux.columns
 
