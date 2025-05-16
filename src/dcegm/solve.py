@@ -68,7 +68,6 @@ def get_solve_function(
     budget_constraint: Callable,
     utility_functions_final_period: Dict[str, Callable],
     state_space_functions: Dict[str, Callable] = None,
-    sim_model: bool = False,
 ) -> Callable:
     """Create a solve function, which only takes params as input.
 
@@ -100,7 +99,6 @@ def get_solve_function(
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
-        sim_model=sim_model,
     )
 
     return get_solve_func_for_model(model=model)
