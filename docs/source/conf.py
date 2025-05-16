@@ -14,7 +14,7 @@
 # -- Project information -----------------------------------------------------
 
 project = "dc-egm"
-copyright = "2023, Max Blesch, Sebastian Gsell"
+copyright = "2025, Max Blesch, Sebastian Gsell"
 author = "Max Blesch, Sebastian Gsell"
 
 # The full version, including alpha/beta/rc tags
@@ -86,8 +86,8 @@ html_static_path = ["_static"]
 
 # Linking to external pages.
 extlinks = {
-    "ghuser": ("https://github.com/OpenSourceEconomics/dc-egm/%s", "@"),
-    "gh": ("https://github.com/OpenSourceEconomics/dc-egm/pull/%s", "#"),
+    "ghuser": ("https://github.com/OpenSourceEconomics/dc-egm/%s", "@%s"),
+    "gh": ("https://github.com/OpenSourceEconomics/dc-egm/pull/%s", "#%s"),
 }
 
 # Path for sphinx-autoapi
