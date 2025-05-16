@@ -1,7 +1,7 @@
 import pickle
 from typing import Callable, Dict
 
-from dcegm.pre_processing.check_options import check_options_and_set_defaults
+from dcegm.pre_processing.check_options import check_model_config_and_process
 from dcegm.pre_processing.model_functions.process_model_functions import (
     process_second_continuous_update_function,
     process_state_space_functions,
@@ -46,7 +46,7 @@ def generate_alternative_sim_functions(
 
     """
 
-    options = check_options_and_set_defaults(options)
+    options = check_model_config_and_process(options)
 
     model_funcs = process_alternative_sim_functions(
         options,

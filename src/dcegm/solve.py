@@ -17,7 +17,8 @@ from dcegm.solve_single_period import solve_single_period
 
 def solve_dcegm(
     params: Dict,
-    options: Dict,
+    model_specs: Dict,
+    model_config: Dict,
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
@@ -49,50 +50,6 @@ def solve_dcegm(
 
     """
 
-    backward_jit = get_solve_function(
-        options=options,
-        state_space_functions=state_space_functions,
-        utility_functions=utility_functions,
-        budget_constraint=budget_constraint,
-        utility_functions_final_period=utility_functions_final_period,
-    )
-
-    results = backward_jit(params=params)
-
-    return results
-
-
-def get_solve_function(
-    options: Dict[str, Any],
-    utility_functions: Dict[str, Callable],
-    budget_constraint: Callable,
-    utility_functions_final_period: Dict[str, Callable],
-    state_space_functions: Dict[str, Callable] = None,
-) -> Callable:
-    """Create a solve function, which only takes params as input.
-
-    Args:
-        options (dict): Options dictionary.
-        utility_functions (Dict[str, callable]): Dictionary of three user-supplied
-            functions for computation of:
-            (i) utility
-            (ii) inverse marginal utility
-            (iii) next period marginal utility
-        budget_constraint (callable): Callable budget constraint.
-        state_space_functions (Dict[str, callable]): Dictionary of two user-supplied
-            functions to:
-            (i) create the state space
-            (ii) get the state specific feasible choice set
-            (iii) update the endogenous part of the state by the choice
-        utility_functions_final_period (Dict[str, callable]): Dictionary of two
-            user-supplied utility functions for the last period:
-            (i) utility
-            (ii) marginal utility
-    Returns:
-        callable: The partial solve function that only takes ```params``` as input.
-
-    """
-
     model = setup_model(
         options=options,
         state_space_functions=state_space_functions,
@@ -101,7 +58,11 @@ def get_solve_function(
         budget_constraint=budget_constraint,
     )
 
-    return get_solve_func_for_model(model=model)
+    backward_jit = get_solve_func_for_model(model=model)
+
+    results = backward_jit(params=params)
+
+    return results
 
 
 def get_solve_func_for_model(model):
@@ -223,6 +184,13 @@ def backward_induction(
         has_second_continuous_state=has_second_continuous_state,
     )
 
+    n_total_wealth_grid = options["tuning_params"]["n_total_wealth_grid"]
+
+    if has_second_continuous_state:
+        n_second_continuous_grid = options["tuning_params"]["n_second_continuous_grid"]
+    else:
+        n_second_continuous_grid = None
+
     # Create solution containers. The 20 percent extra in wealth grid needs to go
     # into tuning parameters
     (
@@ -231,7 +199,8 @@ def backward_induction(
         endog_grid_solved,
     ) = create_solution_container(
         n_state_choices=n_state_choices,
-        options=options,
+        n_total_wealth_grid=n_total_wealth_grid,
+        n_second_continuous_grid=n_second_continuous_grid,
         has_second_continuous_state=has_second_continuous_state,
     )
 
@@ -328,13 +297,15 @@ def backward_induction(
     )
 
 
-def create_solution_container(n_state_choices, options, has_second_continuous_state):
+def create_solution_container(
+    n_state_choices,
+    n_total_wealth_grid,
+    n_second_continuous_grid,
+    has_second_continuous_state,
+):
     """Create solution containers for value, policy, and endog_grid."""
 
-    n_total_wealth_grid = options["tuning_params"]["n_total_wealth_grid"]
-
     if has_second_continuous_state:
-        n_second_continuous_grid = options["tuning_params"]["n_second_continuous_grid"]
 
         value_solved = jnp.full(
             (n_state_choices, n_second_continuous_grid, n_total_wealth_grid),

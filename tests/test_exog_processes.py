@@ -293,7 +293,7 @@ import pytest
 from numpy.testing import assert_almost_equal as aaae
 
 from dcegm.interface import validate_exogenous_processes
-from dcegm.pre_processing.check_options import check_options_and_set_defaults
+from dcegm.pre_processing.check_options import check_model_config_and_process
 from dcegm.pre_processing.model_structure.exogenous_processes import (
     create_exog_state_mapping,
 )
@@ -483,7 +483,7 @@ def test_exog_processes(
         },
     }
 
-    options = check_options_and_set_defaults(options)
+    options = check_model_config_and_process(options)
 
     model = setup_model(
         options,

@@ -15,7 +15,8 @@ from dcegm.pre_processing.shared import determine_function_arguments_and_partial
 
 
 def process_model_functions(
-    options: Dict,
+    model_specs: Dict,
+    processed_model_config: Dict,
     state_space_functions: Dict[str, Callable],
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
@@ -62,12 +63,7 @@ def process_model_functions(
 
     """
     # First check if we have a second continuous state
-    has_second_continuous_state = len(options["exog_grids"]) == 2
-    # Assign name
-    if has_second_continuous_state:
-        continuous_state_name = options["second_continuous_state_name"]
-    else:
-        continuous_state_name = None
+    has_second_continuous_state = processed_model_config[""]
 
     # Process mandatory functions. Start with utility functions
     compute_utility = determine_function_arguments_and_partial_options(

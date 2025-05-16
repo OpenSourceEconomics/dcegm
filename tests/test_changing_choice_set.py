@@ -27,7 +27,7 @@ from numpy.testing import assert_allclose
 
 import dcegm.toy_models as toy_models
 from dcegm.pre_processing.setup_model import setup_model
-from dcegm.solve import get_solve_function
+from dcegm.solve import get_solve_func_for_model
 from dcegm.toy_models.cons_ret_model_dcegm_paper import (
     inverse_marginal_utility_crra,
     marginal_utility_crra,
@@ -221,20 +221,6 @@ def test_extended_choice_set_model(
 ):
     params, options = test_model
 
-    solve_func = get_solve_function(
-        options=options,
-        state_space_functions=state_space_functions,
-        utility_functions=utility_functions,
-        budget_constraint=budget,
-        utility_functions_final_period=utility_functions_final_period,
-    )
-    sol = solve_func(params)
-    value, _policy, _endog_grid, *_ = sol
-
-    value_expec = pickle.load(
-        open(TEST_DIR / "resources" / "extended_choice_set" / "value.pkl", "rb")
-    )
-
     model = setup_model(
         options=options,
         state_space_functions=state_space_functions,
@@ -242,6 +228,16 @@ def test_extended_choice_set_model(
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget,
     )
+
+    solve_func = get_solve_func_for_model(model)
+
+    sol = solve_func(params)
+    value, _policy, _endog_grid, *_ = sol
+
+    value_expec = pickle.load(
+        open(TEST_DIR / "resources" / "extended_choice_set" / "value.pkl", "rb")
+    )
+
     indexer = pickle.load(
         open(
             TEST_DIR

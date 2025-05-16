@@ -4,7 +4,7 @@ from typing import Callable, Dict
 import jax
 
 from dcegm.pre_processing.batches.batch_creation import create_batches_and_information
-from dcegm.pre_processing.check_options import check_options_and_set_defaults
+from dcegm.pre_processing.check_options import check_model_config_and_process
 from dcegm.pre_processing.model_functions.process_model_functions import (
     process_model_functions,
     process_sparsity_condition,
@@ -18,7 +18,8 @@ from dcegm.pre_processing.shared import create_array_with_smallest_int_dtype
 
 
 def setup_model(
-    options: Dict,
+    model_specs: Dict,
+    model_config: Dict,
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
@@ -56,7 +57,7 @@ def setup_model(
         if debug_dict["return_output"]:
             return debug_dict["debug_output"]
 
-    options = check_options_and_set_defaults(options)
+    process_model_config = check_model_config_and_process(model_config)
 
     model_funcs = process_model_functions(
         options,
@@ -145,7 +146,7 @@ def load_and_setup_model(
 
     model = pickle.load(open(path, "rb"))
 
-    model["options"] = check_options_and_set_defaults(options)
+    model["options"] = check_model_config_and_process(options)
 
     model["model_funcs"] = process_model_functions(
         options=model["options"],

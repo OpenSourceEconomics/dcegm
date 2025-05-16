@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 from jax import vmap
 
-from dcegm.pre_processing.check_options import check_options_and_set_defaults
+from dcegm.pre_processing.check_options import check_model_config_and_process
 from dcegm.pre_processing.check_params import process_params
 from dcegm.pre_processing.model_functions.process_model_functions import (
     process_model_functions,
@@ -251,7 +251,7 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
     state_space_functions = create_state_space_function_dict()
     state_space_functions["next_period_experience"] = get_next_experience
 
-    options = check_options_and_set_defaults(options)
+    options = check_model_config_and_process(options)
 
     model_funcs = process_model_functions(
         options,
