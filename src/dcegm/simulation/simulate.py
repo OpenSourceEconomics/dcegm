@@ -28,9 +28,11 @@ def simulate_all_periods(
     policy_solved,
     value_solved,
     model,
-    model_sim=None,
+    alt_model_funcs_sim=None,
 ):
-    model_sim = model if model_sim is None else model_sim
+    alt_model_funcs_sim = (
+        model["model_funcs"] if alt_model_funcs_sim is None else alt_model_funcs_sim
+    )
 
     second_continuous_state_dict = next(
         (
@@ -50,7 +52,7 @@ def simulate_all_periods(
 
     model_structure_sol = model["model_structure"]
     discrete_state_space = model_structure_sol["state_space_dict"]
-    model_funcs_sim = model_sim["model_funcs"]
+    model_funcs_sol = model["model_funcs"]
 
     # Set initial states to internal dtype
     states_initial_dtype = {
@@ -75,7 +77,7 @@ def simulate_all_periods(
     sim_keys, last_period_sim_keys = draw_random_keys_for_seed(
         n_agents=n_agents,
         n_periods=n_periods,
-        taste_shock_scale_is_scalar=model_funcs_sim["taste_shock_function"][
+        taste_shock_scale_is_scalar=alt_model_funcs_sim["taste_shock_function"][
             "taste_shock_scale_is_scalar"
         ],
         seed=seed,
@@ -88,7 +90,8 @@ def simulate_all_periods(
         value_solved=value_solved,
         policy_solved=policy_solved,
         model_structure_sol=model_structure_sol,
-        model_funcs_sim=model_funcs_sim,
+        model_funcs_sim=alt_model_funcs_sim,
+        compute_utility=model_funcs_sol["compute_utility"],
         second_continuous_state_dict=second_continuous_state_dict,
     )
 
@@ -112,7 +115,8 @@ def simulate_all_periods(
         map_state_choice_to_index=jnp.asarray(
             model_structure_sol["map_state_choice_to_index_with_proxy"]
         ),
-        model_funcs_sim=model_funcs_sim,
+        taste_shock_function=alt_model_funcs_sim["taste_shock_function"],
+        compute_utility_final=model_funcs_sol["compute_utility_final"],
     )
 
     # Standard simulation output
@@ -129,10 +133,6 @@ def simulate_all_periods(
         if key not in final_period_dict.keys()
     }
     result = {**result, **aux_results}
-    if "dummy_exog" in model_structure_sol["exog_states_names"]:
-        if "dummy_exog" not in model_sim["model_structure"]["exog_states_names"]:
-            result.pop("dummy_exog")
-
     return result
 
 
@@ -145,6 +145,7 @@ def simulate_single_period(
     policy_solved,
     model_structure_sol,
     model_funcs_sim,
+    compute_utility,
     second_continuous_state_dict=None,
 ):
 
@@ -185,7 +186,7 @@ def simulate_single_period(
         choice_range=model_structure_sol["choice_range"],
         params=params,
         discrete_states_names=model_structure_sol["discrete_states_names"],
-        compute_utility=model_funcs_sim["compute_utility"],
+        compute_utility=compute_utility,
         continuous_grid=continuous_grid,
     )
 
@@ -214,7 +215,7 @@ def simulate_single_period(
         states_beginning_of_period,
         choice,
         params,
-        model_funcs_sim["compute_utility"],
+        compute_utility,
     )
     savings_current_period = wealth_beginning_of_period - consumption
 
@@ -265,7 +266,8 @@ def simulate_final_period(
     discrete_states_names,
     choice_range,
     map_state_choice_to_index,
-    model_funcs_sim,
+    taste_shock_function,
+    compute_utility_final,
 ):
     invalid_number = np.iinfo(map_state_choice_to_index.dtype).max
 
@@ -287,7 +289,7 @@ def simulate_final_period(
         choice_range,
         wealth_beginning_of_final_period,
         params,
-        model_funcs_sim["compute_utility_final"],
+        compute_utility_final,
     )
     state_choice_indexes = get_state_choice_index_per_discrete_state(
         map_state_choice_to_index=map_state_choice_to_index,
@@ -303,7 +305,7 @@ def simulate_final_period(
         params=params,
         states_beginning_of_period=states_beginning_of_final_period,
         n_choices=len(choice_range),
-        taste_shock_function=model_funcs_sim["taste_shock_function"],
+        taste_shock_function=taste_shock_function,
         taste_shock_keys=sim_keys["taste_shock_keys"],
     )
     values_across_choices = utilities_pre_taste_shock + taste_shocks

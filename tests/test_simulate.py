@@ -130,6 +130,7 @@ def test_simulate_lax_scan(model_setup):
         value_solved=value,
         policy_solved=policy,
         model_funcs_sim=model_funcs,
+        compute_utility=model_funcs["compute_utility"],
         model_structure_sol=model_structure,
     )
 
@@ -161,7 +162,8 @@ def test_simulate_lax_scan(model_setup):
         discrete_states_names=discrete_states_names,
         choice_range=choice_range,
         map_state_choice_to_index=jnp.array(map_state_choice_to_index),
-        model_funcs_sim=model_funcs,
+        taste_shock_function=model_funcs["taste_shock_function"],
+        compute_utility_final=model_funcs["compute_utility_final"],
     )
     final_period_dict = simulate_final_period(
         states_and_wealth_beginning_of_final_period,
@@ -170,7 +172,8 @@ def test_simulate_lax_scan(model_setup):
         discrete_states_names=discrete_states_names,
         choice_range=choice_range,
         map_state_choice_to_index=jnp.array(map_state_choice_to_index),
-        model_funcs_sim=model_funcs,
+        taste_shock_function=model_funcs["taste_shock_function"],
+        compute_utility_final=model_funcs["compute_utility_final"],
     )
 
     aaae(np.squeeze(lax_sim_dict_zero["taste_shocks"]), sim_dict_zero["taste_shocks"])

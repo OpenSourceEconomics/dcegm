@@ -2,6 +2,9 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from dcegm.pre_processing.alternative_sim_functions import (
+    generate_alternative_sim_functions,
+)
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
@@ -98,11 +101,9 @@ def test_sim_and_sol_model(state_space_options, load_replication_params_and_spec
     marriage_trans_mat = jnp.array([[0.3, 0.7], [0.1, 0.9]])
     options_sim["model_params"]["marriage_trans_mat"] = marriage_trans_mat
 
-    model_sim = setup_model(
+    alt_model_funcs_sim = generate_alternative_sim_functions(
         options=options_sim,
         state_space_functions=model_funcs["state_space_functions"],
-        utility_functions=utility_functions,
-        utility_functions_final_period=model_funcs["utility_functions_final_period"],
         budget_constraint=model_funcs["budget_constraint"],
     )
 
@@ -129,7 +130,7 @@ def test_sim_and_sol_model(state_space_options, load_replication_params_and_spec
         policy_solved=policy,
         value_solved=value,
         model=model_sol,
-        model_sim=model_sim,
+        alt_model_funcs_sim=alt_model_funcs_sim,
     )
     df = create_simulation_df(sim_dict)
 

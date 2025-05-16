@@ -21,7 +21,6 @@ def process_model_functions(
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
     shock_functions: Dict[str, Callable] = None,
-    sim_model=False,
 ):
     """Create wrapped functions from user supplied functions.
 
@@ -76,48 +75,41 @@ def process_model_functions(
         options=options["model_params"],
         continuous_state_name=continuous_state_name,
     )
+
+    compute_marginal_utility = determine_function_arguments_and_partial_options(
+        func=utility_functions["marginal_utility"],
+        options=options["model_params"],
+        continuous_state_name=continuous_state_name,
+    )
+
+    compute_inverse_marginal_utility = determine_function_arguments_and_partial_options(
+        func=utility_functions["inverse_marginal_utility"],
+        options=options["model_params"],
+        continuous_state_name=continuous_state_name,
+    )
+
     utility_functions_processed = {
         "compute_utility": compute_utility,
+        "compute_marginal_utility": compute_marginal_utility,
+        "compute_inverse_marginal_utility": compute_inverse_marginal_utility,
     }
-    if not sim_model:
-        compute_marginal_utility = determine_function_arguments_and_partial_options(
-            func=utility_functions["marginal_utility"],
-            options=options["model_params"],
-            continuous_state_name=continuous_state_name,
-        )
-        utility_functions_processed["compute_marginal_utility"] = (
-            compute_marginal_utility
-        )
-        compute_inverse_marginal_utility = (
-            determine_function_arguments_and_partial_options(
-                func=utility_functions["inverse_marginal_utility"],
-                options=options["model_params"],
-                continuous_state_name=continuous_state_name,
-            )
-        )
-        utility_functions_processed["compute_inverse_marginal_utility"] = (
-            compute_inverse_marginal_utility
-        )
     # Final period utility functions
     compute_utility_final = determine_function_arguments_and_partial_options(
         func=utility_functions_final_period["utility"],
         options=options["model_params"],
         continuous_state_name=continuous_state_name,
     )
+
+    compute_marginal_utility_final = determine_function_arguments_and_partial_options(
+        func=utility_functions_final_period["marginal_utility"],
+        options=options["model_params"],
+        continuous_state_name=continuous_state_name,
+    )
+
     utility_functions_final_period_processed = {
         "compute_utility_final": compute_utility_final,
+        "compute_marginal_utility_final": compute_marginal_utility_final,
     }
-    if not sim_model:
-        compute_marginal_utility_final = (
-            determine_function_arguments_and_partial_options(
-                func=utility_functions_final_period["marginal_utility"],
-                options=options["model_params"],
-                continuous_state_name=continuous_state_name,
-            )
-        )
-        utility_functions_final_period_processed["compute_marginal_utility_final"] = (
-            compute_marginal_utility_final
-        )
 
     # Now exogenous transition function if present
     compute_exog_transition_vec, processed_exog_funcs_dict = (

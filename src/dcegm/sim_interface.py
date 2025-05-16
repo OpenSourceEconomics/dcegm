@@ -5,7 +5,7 @@ from dcegm.solve import get_solve_func_for_model
 
 
 def get_sol_and_sim_func_for_model(
-    model, states_initial, wealth_initial, n_periods, seed, model_sim=None
+    model, states_initial, wealth_initial, n_periods, seed, alt_model_funcs_sim=None
 ):
 
     solve_func = get_solve_func_for_model(model)
@@ -20,7 +20,7 @@ def get_sol_and_sim_func_for_model(
         policy_solved=policy,
         value_solved=value,
         model=model,
-        model_sim=model_sim,
+        alt_model_funcs_sim=alt_model_funcs_sim,
     )
 
     def solve_sim_func(params):
