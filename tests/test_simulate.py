@@ -1,5 +1,6 @@
 """Tests for simulation of consumption-retirement model with exogenous processes."""
 
+import copy
 from functools import partial
 
 import jax
@@ -8,16 +9,16 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
-from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
+import dcegm.toy_models as toy_models
+from dcegm.pre_processing.setup_model import setup_model
+from dcegm.simulation.random_keys import draw_random_keys_for_seed
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import (
     simulate_all_periods,
     simulate_final_period,
     simulate_single_period,
 )
-from toy_models.cons_ret_model_with_cont_exp.state_space_objects import (
-    next_period_experience,
-)
+from dcegm.solve import get_solve_func_for_model
 
 
 def _create_test_objects_from_df(df, params):
@@ -42,8 +43,24 @@ def _create_test_objects_from_df(df, params):
 
 
 @pytest.fixture()
-def model_setup(toy_model_exog_ltc):
-    options = toy_model_exog_ltc["options"]
+def model_setup():
+
+    model_functions = toy_models.load_example_model_functions("with_exog_ltc")
+
+    params, options = toy_models.load_example_params_and_options("with_exog_ltc")
+
+    model = setup_model(
+        options=options,
+        **model_functions,
+    )
+
+    (
+        value,
+        policy,
+        endog_grid,
+    ) = get_solve_func_for_model(
+        model
+    )(params)
 
     seed = 111
     n_agents = 1_000
@@ -58,36 +75,39 @@ def model_setup(toy_model_exog_ltc):
     initial_wealth = np.ones(n_agents) * 10
     initial_states_and_wealth = initial_states, initial_wealth
 
-    n_keys = len(initial_wealth) + 2
-    sim_specific_keys = jnp.array(
-        [
-            jax.random.split(jax.random.PRNGKey(seed + period), num=n_keys)
-            for period in range(n_periods)
-        ]
+    # Draw the random keys
+    sim_keys, last_period_sim_keys = draw_random_keys_for_seed(
+        n_agents=n_agents,
+        n_periods=n_periods,
+        taste_shock_scale_is_scalar=model["model_funcs"]["taste_shock_function"][
+            "taste_shock_scale_is_scalar"
+        ],
+        seed=seed,
     )
 
     return {
-        **toy_model_exog_ltc,
         "initial_states": initial_states,
         "initial_wealth": initial_wealth,
         "initial_states_and_wealth": initial_states_and_wealth,
-        "sim_specific_keys": sim_specific_keys,
+        "sim_keys": sim_keys,
+        "last_period_sim_keys": last_period_sim_keys,
         "seed": seed,
+        "value": value,
+        "policy": policy,
+        "endog_grid": endog_grid,
+        "model": model,
+        "params": params,
+        "options": options,
     }
 
 
 def test_simulate_lax_scan(model_setup):
-    params = model_setup["params"]
-    options = model_setup["options"]
-    choice_range = options["state_space"]["choices"]
+    choice_range = model_setup["options"]["state_space"]["choices"]
     model_structure = model_setup["model"]["model_structure"]
     model_funcs = model_setup["model"]["model_funcs"]
 
     discrete_states_names = model_structure["discrete_states_names"]
     map_state_choice_to_index = model_structure["map_state_choice_to_index_with_proxy"]
-
-    exog_state_mapping = model_funcs["exog_state_mapping"]
-    next_period_endogenous_state = model_funcs["next_period_endogenous_state"]
 
     value = model_setup["value"]
     policy = model_setup["policy"]
@@ -95,8 +115,6 @@ def test_simulate_lax_scan(model_setup):
 
     states_initial = model_setup["initial_states"]
     wealth_initial = model_setup["initial_wealth"]
-
-    sim_specific_keys = model_setup["sim_specific_keys"]
 
     state_space_dict = model_structure["state_space_dict"]
     states_initial = {
@@ -107,7 +125,7 @@ def test_simulate_lax_scan(model_setup):
 
     simulate_body = partial(
         simulate_single_period,
-        params=params,
+        params=model_setup["params"],
         endog_grid_solved=endog_grid,
         value_solved=value,
         policy_solved=policy,
@@ -122,32 +140,37 @@ def test_simulate_lax_scan(model_setup):
     ) = jax.lax.scan(
         f=simulate_body,
         init=initial_states_and_wealth,
-        xs=sim_specific_keys[:-1],
+        xs=model_setup["sim_keys"],
     )
+
+    sim_keys_0 = {
+        key: model_setup["sim_keys"][key][0, ...]
+        for key in model_setup["sim_keys"].keys()
+    }
 
     # b) single call
     (
         states_and_wealth_beginning_of_final_period,
         sim_dict_zero,
-    ) = simulate_body(initial_states_and_wealth, sim_specific_keys=sim_specific_keys[0])
+    ) = simulate_body(initial_states_and_wealth, sim_keys=sim_keys_0)
 
     lax_final_period_dict = simulate_final_period(
         lax_states_and_wealth_beginning_of_final_period,
-        sim_specific_keys=sim_specific_keys[-1],
-        params=params,
+        sim_keys=model_setup["last_period_sim_keys"],
+        params=model_setup["params"],
         discrete_states_names=discrete_states_names,
         choice_range=choice_range,
         map_state_choice_to_index=jnp.array(map_state_choice_to_index),
-        compute_utility_final_period=model_funcs["compute_utility_final"],
+        model_funcs_sim=model_funcs,
     )
     final_period_dict = simulate_final_period(
         states_and_wealth_beginning_of_final_period,
-        sim_specific_keys=sim_specific_keys[-1],
-        params=params,
+        sim_keys=model_setup["last_period_sim_keys"],
+        params=model_setup["params"],
         discrete_states_names=discrete_states_names,
         choice_range=choice_range,
         map_state_choice_to_index=jnp.array(map_state_choice_to_index),
-        compute_utility_final_period=model_funcs["compute_utility_final"],
+        model_funcs_sim=model_funcs,
     )
 
     aaae(np.squeeze(lax_sim_dict_zero["taste_shocks"]), sim_dict_zero["taste_shocks"])
@@ -161,8 +184,6 @@ def test_simulate_lax_scan(model_setup):
 
 
 def test_simulate(model_setup):
-    params = model_setup["params"]
-    options = model_setup["options"]
 
     value = model_setup["value"]
     policy = model_setup["policy"]
@@ -181,8 +202,8 @@ def test_simulate(model_setup):
     result = simulate_all_periods(
         states_initial=discrete_initial_states,
         wealth_initial=wealth_initial,
-        n_periods=options["state_space"]["n_periods"],
-        params=params,
+        n_periods=model_setup["options"]["state_space"]["n_periods"],
+        params=model_setup["params"],
         seed=111,
         endog_grid_solved=endog_grid,
         value_solved=value,
@@ -192,7 +213,9 @@ def test_simulate(model_setup):
 
     df = create_simulation_df(result)
 
-    value_period_zero, expected = _create_test_objects_from_df(df, params)
+    value_period_zero, expected = _create_test_objects_from_df(
+        df, model_setup["params"]
+    )
     ids_violating_absorbing_retirement = df.query(
         "(period == 0 and choice == 1) and (period == 1 and choice == 0)"
     )
@@ -202,22 +225,25 @@ def test_simulate(model_setup):
 
 
 def test_simulate_second_continuous_choice(model_setup):
+    model_functions_cont = toy_models.load_example_model_functions("with_cont_exp")
+    model_functions_ltc = toy_models.load_example_model_functions("with_exog_ltc")
 
-    model = model_setup["model"].copy()
-    model["options"]["state_space"]["continuous_states"]["experience"] = jnp.linspace(
+    options_cont = model_setup["options"].copy()
+
+    options_cont["state_space"]["continuous_states"]["experience"] = jnp.linspace(
         0, 1, 6
     )
-    model["model_funcs"]["next_period_continuous_state"] = (
-        determine_function_arguments_and_partial_options(
-            func=next_period_experience,
-            options=model["options"]["model_params"],
-            continuous_state_name="experience",
-        )
-    )
+    options_cont["model_params"]["max_init_experience"] = 1
 
-    params = model_setup["params"]
-    options = model_setup["options"]
-    options["model_params"]["max_init_experience"] = 1
+    model_cont = setup_model(
+        options=options_cont,
+        state_space_functions=model_functions_cont["state_space_functions"],
+        utility_functions=model_functions_cont["utility_functions"],
+        utility_functions_final_period=model_functions_cont[
+            "utility_functions_final_period"
+        ],
+        budget_constraint=model_functions_ltc["budget_constraint"],
+    )
 
     key = jax.random.PRNGKey(0)
     noise = jax.random.normal(key, shape=(24, 6, 120)) * 0
@@ -240,18 +266,20 @@ def test_simulate_second_continuous_choice(model_setup):
     result = simulate_all_periods(
         states_initial=states_initial,
         wealth_initial=wealth_initial,
-        n_periods=options["state_space"]["n_periods"],
-        params=params,
+        n_periods=options_cont["state_space"]["n_periods"],
+        params=model_setup["params"],
         seed=111,
         endog_grid_solved=endog_grid,
         value_solved=value,
         policy_solved=policy,
-        model=model,
+        model=model_cont,
     )
 
     df = create_simulation_df(result)
 
-    value_period_zero, expected = _create_test_objects_from_df(df, params)
+    value_period_zero, expected = _create_test_objects_from_df(
+        df, model_setup["params"]
+    )
     ids_violating_absorbing_retirement = df.query(
         "(period == 0 and choice == 1) and (period == 1 and choice == 0)"
     )

@@ -214,7 +214,7 @@ def backward_induction(
             from the backward induction.
 
     """
-    taste_shock_scale = params["lambda"]
+    # taste_shock_scale = model_funcs["taste_shock_function"]["taste_shock_scale_per_state"](params=params, state_dict_vec={})
 
     cont_grids_next_period = calc_cont_grids_next_period(
         state_space_dict=state_space_dict,
@@ -247,7 +247,6 @@ def backward_induction(
     ) = solve_last_two_periods(
         cont_grids_next_period=cont_grids_next_period,
         params=params,
-        taste_shock_scale=taste_shock_scale,
         income_shock_weights=income_shock_weights,
         exog_grids=exog_grids,
         model_funcs=model_funcs,
@@ -272,7 +271,6 @@ def backward_induction(
             cont_grids_next_period=cont_grids_next_period,
             income_shock_weights=income_shock_weights,
             model_funcs=model_funcs,
-            taste_shock_scale=taste_shock_scale,
         )
 
     for id_segment in range(batch_info["n_segments"]):
