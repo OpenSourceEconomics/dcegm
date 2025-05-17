@@ -20,10 +20,12 @@ def determine_optimal_batch_size(
     ]
     # Order by child index to solve state choices in the same child states together
     # Use first child state of the n_exog_states of each child states, because
-    # rows are the same in the child states mapping array
-    sort_index_by_child_states = np.argsort(
-        child_states_of_state_choices_to_batch[:, 0]
+    # rows are the same in the child states mapping array. Making this more robust
+    # by selecting the minimum in each row (because of sparsity)
+    min_child_states_per_state_choice = np.min(
+        child_states_of_state_choices_to_batch, axis=1
     )
+    sort_index_by_child_states = np.argsort(min_child_states_per_state_choice)
 
     idx_state_choice_raw = np.where(bool_state_choices_to_batch)[0]
     state_choice_index_back = np.take(
