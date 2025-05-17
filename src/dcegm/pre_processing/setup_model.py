@@ -25,6 +25,7 @@ def setup_model(
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable] = None,
     shock_functions: Dict[str, Callable] = None,
+    exogenous_states_transition: Dict[str, Callable] = None,
     debug_info: str = None,
 ):
     """Set up the model for dcegm.
@@ -52,10 +53,10 @@ def setup_model(
         budget_constraint (Callable): User supplied budget constraint.
 
     """
-    if debug_info is not None:
-        debug_dict = process_debug_string(debug_info, state_space_functions, options)
-        if debug_dict["return_output"]:
-            return debug_dict["debug_output"]
+    # if debug_info is not None:
+    #     debug_dict = process_debug_string(debug_info, state_space_functions, options)
+    #     if debug_dict["return_output"]:
+    #         return debug_dict["debug_output"]
 
     process_model_config = check_model_config_and_process(model_config)
 

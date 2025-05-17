@@ -19,7 +19,7 @@ from dcegm.pre_processing.model_structure.exogenous_processes import (
 )
 from dcegm.pre_processing.shared import (
     create_array_with_smallest_int_dtype,
-    determine_function_arguments_and_partial_options,
+    determine_function_arguments_and_partial_model_specs,
 )
 
 
@@ -144,9 +144,9 @@ def process_alternative_sim_functions(
 
     # Budget equation
     compute_beginning_of_period_wealth = (
-        determine_function_arguments_and_partial_options(
+        determine_function_arguments_and_partial_model_specs(
             func=budget_constraint,
-            options=options["model_params"],
+            model_specs=options["model_params"],
             continuous_state_name=continuous_state_name,
         )
     )

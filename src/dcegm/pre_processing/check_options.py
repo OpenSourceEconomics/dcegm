@@ -85,6 +85,7 @@ def check_model_config_and_process(model_config):
         second_continuous_state_grid = continuous_state_grids[
             second_continuous_state_name
         ]
+        # ToDo: Check if grid is array or list and monotonic increasing
 
         continuous_states_info["n_second_continuous_grid"] = len(
             second_continuous_state_grid
@@ -97,6 +98,8 @@ def check_model_config_and_process(model_config):
 
     processed_model_config["continuous_states_info"] = continuous_states_info
 
+    if "exogenous_states" not in model_config:
+
     if "tuning_params" not in model_config:
         tuning_params = {}
     else:
@@ -104,7 +107,7 @@ def check_model_config_and_process(model_config):
 
     tuning_params["extra_wealth_grid_factor"] = (
         tuning_params["extra_wealth_grid_factor"]
-        if "extra_wealth_grid_factor" in tuning_params
+        if "extra_wealth_grid_factor" in tunin = Noneg_params
         else 0.2
     )
     tuning_params["n_constrained_points_to_add"] = (

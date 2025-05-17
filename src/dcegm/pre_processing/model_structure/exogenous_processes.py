@@ -5,17 +5,19 @@ import numpy as np
 from jax import numpy as jnp
 
 from dcegm.pre_processing.model_structure.shared import span_subspace
-from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
+from dcegm.pre_processing.shared import (
+    determine_function_arguments_and_partial_model_specs,
+)
 
 
-def create_exog_transition_function(options, continuous_state_name):
+def create_exog_transition_function(model_config, model_specs, continuous_state_name):
     """Create the exogenous process transition function.
 
-    The output function takes a state vector(also choice?), params and options as input.
+    The output function takes a state-choice vector, params and model_specs as input.
     It creates a transition vector over cartesian product of exogenous states.
 
     """
-    if "exogenous_processes" not in options["state_space"]:
+    if "exogenous_processes" not in model_config:
         options["state_space"]["exogenous_states"] = {"exog_state": [0]}
         compute_exog_transition_vec = return_dummy_exog_transition
         processed_exog_funcs_dict = {}
@@ -30,7 +32,7 @@ def create_exog_transition_function(options, continuous_state_name):
     return compute_exog_transition_vec, processed_exog_funcs_dict
 
 
-def process_exog_funcs(options, continuous_state_name):
+def process_exog_funcs(modeL_config, model_specs, continuous_state_name):
     """Process exogenous functions.
 
     Args:
@@ -48,9 +50,9 @@ def process_exog_funcs(options, continuous_state_name):
     # What about vectors instead of callables supplied?
     for exog_name, exog_dict in exog_processes.items():
         if isinstance(exog_dict["transition"], Callable):
-            processed_exog_func = determine_function_arguments_and_partial_options(
+            processed_exog_func = determine_function_arguments_and_partial_model_specs(
                 func=exog_dict["transition"],
-                options=options["model_params"],
+                model_specs=options["model_params"],
                 continuous_state_name=continuous_state_name,
             )
             exog_funcs += [processed_exog_func]

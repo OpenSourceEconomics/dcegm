@@ -13,7 +13,9 @@ from dcegm.pre_processing.setup_model import (
     setup_and_save_model,
     setup_model,
 )
-from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
+from dcegm.pre_processing.shared import (
+    determine_function_arguments_and_partial_model_specs,
+)
 from dcegm.toy_models.cons_ret_model_dcegm_paper import (
     budget_constraint,
     create_final_period_utility_function_dict,
@@ -78,7 +80,7 @@ def test_wrap_function(load_replication_params_and_specs):
         [0.0, 0.69314718, 1.09861229, 1.38629436, 1.60943791, 1.79175947], dtype=float
     )
 
-    util_processed = determine_function_arguments_and_partial_options(
+    util_processed = determine_function_arguments_and_partial_model_specs(
         utility_crra,
         options,
     )
