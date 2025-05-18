@@ -187,7 +187,7 @@ def process_debug_string(
 ):
     if debug_output == "state_space_df":
         sparsity_condition = process_sparsity_condition(
-            state_space_functions, model_specs=model_specs
+            state_space_functions=state_space_functions, model_specs=model_specs
         )
         out = create_state_space(model_config, sparsity_condition, debugging=True)
         debug_info = {"debug_output": out, "return_output": True}

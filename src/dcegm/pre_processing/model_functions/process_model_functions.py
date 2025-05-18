@@ -225,15 +225,17 @@ def process_state_space_functions(
             )
         )
 
-    sparsity_condition = process_sparsity_condition(state_space_functions, model_specs)
+    sparsity_condition = process_sparsity_condition(
+        state_space_functions=state_space_functions, model_specs=model_specs
+    )
 
     return state_specific_choice_set, next_period_endogenous_state, sparsity_condition
 
 
-def process_sparsity_condition(model_config, model_specs):
-    if "sparsity_condition" in model_config.keys():
+def process_sparsity_condition(state_space_functions, model_specs):
+    if "sparsity_condition" in state_space_functions.keys():
         sparsity_condition = determine_function_arguments_and_partial_model_specs(
-            func=model_config["sparsity_condition"], model_specs=model_specs
+            func=state_space_functions["sparsity_condition"], model_specs=model_specs
         )
         # ToDo: Error if sparsity condition takes second continuous state as input
     else:
