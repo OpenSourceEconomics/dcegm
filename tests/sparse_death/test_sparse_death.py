@@ -165,6 +165,6 @@ def test_sparse_debugging_output(inputs):
     debug_dict = process_debug_string(
         debug_output="state_space_df",
         state_space_functions=state_space_functions,
-        options=options,
+        model_config=options,
     )
     assert isinstance(debug_dict["debug_output"], pd.DataFrame)

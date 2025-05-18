@@ -162,7 +162,7 @@ def test_load_and_save_model(
     )
 
     model_after_loading = load_and_setup_model(
-        options=options,
+        model_config=options,
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),

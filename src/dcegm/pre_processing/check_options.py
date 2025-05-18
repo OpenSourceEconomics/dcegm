@@ -98,7 +98,7 @@ def check_model_config_and_process(model_config):
 
     processed_model_config["continuous_states_info"] = continuous_states_info
 
-    if "exogenous_states" not in model_config:
+    # if "exogenous_states" not in model_config:
 
     if "tuning_params" not in model_config:
         tuning_params = {}
@@ -107,7 +107,7 @@ def check_model_config_and_process(model_config):
 
     tuning_params["extra_wealth_grid_factor"] = (
         tuning_params["extra_wealth_grid_factor"]
-        if "extra_wealth_grid_factor" in tunin = Noneg_params
+        if "extra_wealth_grid_factor" in tuning_params
         else 0.2
     )
     tuning_params["n_constrained_points_to_add"] = (
@@ -147,4 +147,5 @@ def check_model_config_and_process(model_config):
     )
 
     processed_model_config["tuning_params"] = (tuning_params,)
+
     return processed_model_config

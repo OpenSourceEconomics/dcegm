@@ -13,7 +13,7 @@ from dcegm.pre_processing.model_structure.shared import create_indexer_for_space
 from dcegm.pre_processing.shared import create_array_with_smallest_int_dtype
 
 
-def create_state_space(state_space_options, sparsity_condition, debugging=False):
+def create_state_space(model_config, sparsity_condition, debugging=False):
     """Create state space object and indexer.
 
     We need to add the convention for the state space objects.
@@ -38,19 +38,19 @@ def create_state_space(state_space_options, sparsity_condition, debugging=False)
             (n_poss_states_state_var_1, n_poss_states_state_var_2, ....).
 
     """
-    n_periods = state_space_options["n_periods"]
-    n_choices = len(state_space_options["choices"])
+    n_periods = model_config["n_periods"]
+    n_choices = len(model_config["choices"])
 
     (
         endog_state_space,
         endog_states_names,
-    ) = process_endog_state_specifications(state_space_options=state_space_options)
+    ) = process_endog_state_specifications(state_space_options=model_config)
     state_names_without_exog = ["period", "lagged_choice"] + endog_states_names
 
     (
         exog_states_names,
         exog_state_space_raw,
-    ) = process_exog_model_specifications(state_space_options=state_space_options)
+    ) = process_exog_model_specifications(model_config=model_config)
     discrete_states_names = state_names_without_exog + exog_states_names
 
     n_exog_states = exog_state_space_raw.shape[0]

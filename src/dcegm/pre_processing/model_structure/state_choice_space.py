@@ -5,7 +5,7 @@ from dcegm.pre_processing.shared import get_smallest_int_type
 
 
 def create_state_choice_space_and_child_state_mapping(
-    state_space_options,
+    model_config,
     state_specific_choice_set,
     next_period_endogenous_state,
     state_space_arrays,
@@ -67,9 +67,9 @@ def create_state_choice_space_and_child_state_mapping(
 
     n_states, n_state_and_exog_variables = state_space.shape
     n_exog_states, n_exog_vars = exog_state_space.shape
-    n_choices = len(state_space_options["choices"])
+    n_choices = len(model_config["choices"])
     discrete_states_names = states_names_without_exog + exog_state_names
-    n_periods = state_space_options["n_periods"]
+    n_periods = model_config["n_periods"]
 
     dtype_exog_state_space = get_smallest_int_type(n_exog_states)
 
@@ -210,7 +210,7 @@ def create_state_choice_space_and_child_state_mapping(
     }
 
     test_child_state_mapping(
-        state_space_options=state_space_options,
+        model_config=model_config,
         state_choice_space=state_choice_space,
         state_space=state_space,
         map_state_choice_to_child_states=map_state_choice_to_child_states,
@@ -230,14 +230,14 @@ def create_state_choice_space_and_child_state_mapping(
 
 
 def test_child_state_mapping(
-    state_space_options,
+    model_config,
     state_choice_space,
     state_space,
     map_state_choice_to_child_states,
     discrete_states_names,
 ):
     """Test state space objects for consistency."""
-    n_periods = state_space_options["n_periods"]
+    n_periods = model_config["n_periods"]
     state_choices_idxs_wo_last = np.where(state_choice_space[:, 0] < n_periods - 1)[0]
 
     # Check if all feasible state choice combinations have a valid child state

@@ -18,12 +18,12 @@ def create_exog_transition_function(model_config, model_specs, continuous_state_
 
     """
     if "exogenous_processes" not in model_config:
-        options["state_space"]["exogenous_states"] = {"exog_state": [0]}
+        model_config["exogenous_states"] = {"exog_state": [0]}
         compute_exog_transition_vec = return_dummy_exog_transition
         processed_exog_funcs_dict = {}
     else:
         exog_funcs, processed_exog_funcs_dict = process_exog_funcs(
-            options, continuous_state_name
+            model_config, model_specs, continuous_state_name
         )
 
         compute_exog_transition_vec = partial(
@@ -32,7 +32,7 @@ def create_exog_transition_function(model_config, model_specs, continuous_state_
     return compute_exog_transition_vec, processed_exog_funcs_dict
 
 
-def process_exog_funcs(modeL_config, model_specs, continuous_state_name):
+def process_exog_funcs(model_config, model_specs, continuous_state_name):
     """Process exogenous functions.
 
     Args:
@@ -42,7 +42,7 @@ def process_exog_funcs(modeL_config, model_specs, continuous_state_name):
         tuple: Tuple of exogenous processes.
 
     """
-    exog_processes = options["state_space"]["exogenous_processes"]
+    exog_processes = model_config["exogenous_processes"]
 
     exog_funcs = []
     processed_exog_funcs = {}
@@ -52,7 +52,7 @@ def process_exog_funcs(modeL_config, model_specs, continuous_state_name):
         if isinstance(exog_dict["transition"], Callable):
             processed_exog_func = determine_function_arguments_and_partial_model_specs(
                 func=exog_dict["transition"],
-                model_specs=options["model_params"],
+                model_specs=model_specs,
                 continuous_state_name=continuous_state_name,
             )
             exog_funcs += [processed_exog_func]
@@ -89,11 +89,11 @@ def create_exog_state_mapping(exog_state_space, exog_names):
     return exog_state_mapping
 
 
-def process_exog_model_specifications(state_space_options):
-    if "exogenous_processes" in state_space_options:
-        exog_state_names = list(state_space_options["exogenous_processes"].keys())
+def process_exog_model_specifications(model_config):
+    if "exogenous_processes" in model_config:
+        exog_state_names = list(model_config["exogenous_processes"].keys())
         dict_of_only_states = {
-            key: state_space_options["exogenous_processes"][key]["states"]
+            key: model_config["exogenous_processes"][key]["states"]
             for key in exog_state_names
         }
 

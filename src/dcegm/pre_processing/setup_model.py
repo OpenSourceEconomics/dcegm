@@ -58,10 +58,11 @@ def setup_model(
     #     if debug_dict["return_output"]:
     #         return debug_dict["debug_output"]
 
-    process_model_config = check_model_config_and_process(model_config)
+    model_config_processed = check_model_config_and_process(model_config)
 
     model_funcs = process_model_functions(
-        options,
+        model_config=model_config_processed,
+        model_specs=model_specs,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
@@ -70,7 +71,7 @@ def setup_model(
     )
 
     model_structure = create_model_structure(
-        options=options,
+        model_config=model_config_processed,
         model_funcs=model_funcs,
     )
 
@@ -84,7 +85,7 @@ def setup_model(
 
     batch_info = create_batches_and_information(
         model_structure=model_structure,
-        state_space_options=options["state_space"],
+        model_config=model_config_processed,
     )
     if not debug_info == "all":
         # Delete large array which is not needed. Not if all is requested
@@ -93,7 +94,7 @@ def setup_model(
 
     print("Model setup complete.\n")
     return {
-        "options": options,
+        "model_config": model_config_processed,
         "model_funcs": model_funcs,
         "model_structure": model_structure,
         "batch_info": jax.tree.map(create_array_with_smallest_int_dtype, batch_info),
@@ -101,7 +102,7 @@ def setup_model(
 
 
 def setup_and_save_model(
-    options: Dict,
+    model_config: Dict,
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
@@ -117,7 +118,7 @@ def setup_and_save_model(
 
     """
     model = setup_model(
-        options=options,
+        model_config=model_config,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
@@ -135,7 +136,7 @@ def setup_and_save_model(
 
 
 def load_and_setup_model(
-    options: Dict,
+    model_config: Dict,
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
@@ -147,7 +148,7 @@ def load_and_setup_model(
 
     model = pickle.load(open(path, "rb"))
 
-    model["options"] = check_model_config_and_process(options)
+    model["model_config"] = check_model_config_and_process(model_config)
 
     model["model_funcs"] = process_model_functions(
         options=model["options"],
@@ -166,12 +167,12 @@ def load_and_setup_model(
     return model
 
 
-def process_debug_string(debug_output, state_space_functions, options):
+def process_debug_string(debug_output, state_space_functions, model_config):
     if debug_output == "state_space_df":
-        sparsity_condition = process_sparsity_condition(state_space_functions, options)
-        out = create_state_space(
-            options["state_space"], sparsity_condition, debugging=True
+        sparsity_condition = process_sparsity_condition(
+            state_space_functions, model_config
         )
+        out = create_state_space(model_config, sparsity_condition, debugging=True)
         debug_info = {"debug_output": out, "return_output": True}
         return debug_info
     elif debug_output == "all":

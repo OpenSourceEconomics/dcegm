@@ -58,7 +58,7 @@ def generate_alternative_sim_functions(
     (
         exog_states_names,
         exog_state_space_raw,
-    ) = process_exog_model_specifications(state_space_options=options["state_space"])
+    ) = process_exog_model_specifications(model_config=options["state_space"])
 
     exog_state_space = create_array_with_smallest_int_dtype(exog_state_space_raw)
 

@@ -17,6 +17,7 @@ from dcegm.pre_processing.shared import (
 
 
 def process_model_functions(
+    model_config: Dict,
     model_specs: Dict,
     processed_model_config: Dict,
     state_space_functions: Dict[str, Callable],
@@ -119,38 +120,46 @@ def process_model_functions(
     # Now exogenous transition function if present
     compute_exog_transition_vec, processed_exog_funcs_dict = (
         create_exog_transition_function(
-            options, continuous_state_name=second_continuous_state_name
+            model_config=model_config,
+            model_specs=model_specs,
+            continuous_state_name=second_continuous_state_name,
         )
     )
 
     # Now state space functions
     state_specific_choice_set, next_period_endogenous_state, sparsity_condition = (
         process_state_space_functions(
-            state_space_functions, options, second_continuous_state_name
+            state_space_functions,
+            model_config=model_config,
+            model_specs=model_specs,
+            continuous_state_name=second_continuous_state_name,
         )
     )
 
     next_period_continuous_state = process_second_continuous_update_function(
-        second_continuous_state_name, state_space_functions, options
+        second_continuous_state_name, state_space_functions, model_specs=model_specs
     )
 
     # Budget equation
     compute_beginning_of_period_wealth = (
         determine_function_arguments_and_partial_model_specs(
             func=budget_constraint,
-            model_specs=model_specs,
             continuous_state_name=second_continuous_state_name,
+            model_specs=model_specs,
         )
     )
 
     # Upper envelope function
     compute_upper_envelope = create_upper_envelope_function(
-        options,
+        model_config=model_config,
+        model_specs=model_specs,
         continuous_state=second_continuous_state_name,
     )
 
     taste_shock_function_processed = process_shock_functions(
-        shock_functions, options, second_continuous_state_name
+        shock_functions,
+        model_specs,
+        continuous_state_name=second_continuous_state_name,
     )
 
     model_funcs = {
@@ -171,7 +180,10 @@ def process_model_functions(
 
 
 def process_state_space_functions(
-    state_space_functions, options, continuous_state_name
+    state_space_functions,
+    model_config,
+    model_specs,
+    continuous_state_name,
 ):
 
     state_space_functions = (
@@ -185,7 +197,7 @@ def process_state_space_functions(
         )
 
         def state_specific_choice_set(**kwargs):
-            return jnp.array(options["state_space"]["choices"])
+            return jnp.array(model_config["choices"])
 
     else:
         state_specific_choice_set = (
@@ -214,16 +226,15 @@ def process_state_space_functions(
             )
         )
 
-    sparsity_condition = process_sparsity_condition(state_space_functions, options)
+    sparsity_condition = process_sparsity_condition(state_space_functions, model_specs)
 
     return state_specific_choice_set, next_period_endogenous_state, sparsity_condition
 
 
-def process_sparsity_condition(state_space_functions, options):
-    if "sparsity_condition" in state_space_functions.keys():
+def process_sparsity_condition(model_config, model_specs):
+    if "sparsity_condition" in model_config.keys():
         sparsity_condition = determine_function_arguments_and_partial_model_specs(
-            func=state_space_functions["sparsity_condition"],
-            model_specs=model_specs,
+            func=model_config["sparsity_condition"], model_specs=model_specs
         )
         # ToDo: Error if sparsity condition takes second continuous state as input
     else:
@@ -236,7 +247,7 @@ def process_sparsity_condition(state_space_functions, options):
 
 
 def process_second_continuous_update_function(
-    continuous_state_name, state_space_functions, options
+    continuous_state_name, state_space_functions, model_specs
 ):
     if continuous_state_name is not None:
         func_name = f"next_period_{continuous_state_name}"

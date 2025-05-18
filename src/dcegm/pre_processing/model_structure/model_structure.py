@@ -9,7 +9,7 @@ from dcegm.pre_processing.shared import create_array_with_smallest_int_dtype
 
 
 def create_model_structure(
-    options,
+    model_config,
     model_funcs,
 ):
     """Create dictionary of discrete state and state-choice objects for each period.
@@ -28,7 +28,7 @@ def create_model_structure(
     """
     print("Starting state space creation")
     state_space_objects = create_state_space(
-        state_space_options=options["state_space"],
+        model_config=model_config,
         sparsity_condition=model_funcs["sparsity_condition"],
         debugging=False,
     )
@@ -37,7 +37,7 @@ def create_model_structure(
 
     state_choice_and_child_state_objects = (
         create_state_choice_space_and_child_state_mapping(
-            state_space_options=options["state_space"],
+            model_config=model_config,
             state_specific_choice_set=model_funcs["state_specific_choice_set"],
             next_period_endogenous_state=model_funcs["next_period_endogenous_state"],
             state_space_arrays=state_space_objects,
@@ -49,6 +49,6 @@ def create_model_structure(
     model_structure = {
         **state_space_objects,
         **state_choice_and_child_state_objects,
-        "choice_range": jnp.asarray(options["state_space"]["choices"]),
+        "choice_range": jnp.asarray(model_config["choices"]),
     }
     return jax.tree.map(create_array_with_smallest_int_dtype, model_structure)

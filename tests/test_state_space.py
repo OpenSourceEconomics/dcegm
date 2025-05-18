@@ -233,12 +233,12 @@ def test_state_space():
     }
 
     processed_sparsity_condition = process_sparsity_condition(
-        options=options_sparse, state_space_functions=state_space_functions
+        options=options_sparse, model_config=state_space_functions
     )
 
     state_space_test, _ = create_state_space_test(options_sparse["model_params"])
     dict_of_state_space_objects = create_state_space(
-        state_space_options=options_sparse["state_space"],
+        model_config=options_sparse["state_space"],
         sparsity_condition=processed_sparsity_condition,
     )
 
