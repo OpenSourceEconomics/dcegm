@@ -152,7 +152,6 @@ def process_model_functions(
     # Upper envelope function
     compute_upper_envelope = create_upper_envelope_function(
         model_config=model_config,
-        model_specs=model_specs,
         continuous_state=second_continuous_state_name,
     )
 

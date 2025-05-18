@@ -9,7 +9,7 @@ def budget_constraint(
     lagged_choice: int,
     savings_end_of_previous_period: float,
     income_shock_previous_period: float,
-    options: Dict[str, Any],
+    model_specs: Dict[str, Any],
     params: Dict[str, float],
 ) -> float:
     """Compute possible current beginning of period resources.
@@ -27,7 +27,7 @@ def budget_constraint(
             particular realization of the income_shock_draws carried over from the
             previous period.
         params (dict): Dictionary containing model parameters.
-        options (dict): Options dictionary.
+        model_specs (dict): model_specs dictionary.
 
     Returns:
         (float): The beginning of period wealth in t.
@@ -38,7 +38,7 @@ def budget_constraint(
         period=period,
         lagged_choice=lagged_choice,
         wage_shock=income_shock_previous_period,
-        min_age=options["min_age"],
+        min_age=model_specs["min_age"],
         constant=params["constant"],
         exp=params["exp"],
         exp_squared=params["exp_squared"],
@@ -89,7 +89,7 @@ def _calc_stochastic_income(
             the previous period.
         params (dict): Dictionary containing model parameters.
             Relevant here are the coefficients of the wage equation.
-        options (dict): Options dictionary.
+        model_specs (dict): model_specs dictionary.
 
     Returns:
         stochastic_income (float): The potential end of period income. It consists of a

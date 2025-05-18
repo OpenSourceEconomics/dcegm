@@ -32,10 +32,10 @@ def sparsity_condition(
     period,
     experience,
     lagged_choice,
-    options,
+    model_specs,
 ):
-    max_exp_period = period + options["max_init_experience"]
-    max_total_experience = options["n_periods"] + options["max_init_experience"]
+    max_exp_period = period + model_specs["max_init_experience"]
+    max_total_experience = model_specs["n_periods"] + model_specs["max_init_experience"]
 
     # Experience must be smaller than the maximum experience in a period
     if max_exp_period < experience:

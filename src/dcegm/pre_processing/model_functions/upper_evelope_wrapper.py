@@ -2,12 +2,12 @@ from jax import numpy as jnp
 from upper_envelope import fues_jax
 
 
-def create_upper_envelope_function(model_config, model_specs, continuous_state=None):
+def create_upper_envelope_function(model_config, continuous_state=None):
     if len(model_config["choices"]) < 2:
         compute_upper_envelope = no_upper_envelope_dummy_function
     else:
 
-        tuning_params = model_specs["tuning_params"]
+        tuning_params = model_config["tuning_params"]
 
         if continuous_state:
 

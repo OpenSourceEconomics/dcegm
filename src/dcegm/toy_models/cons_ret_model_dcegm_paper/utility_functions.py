@@ -131,7 +131,7 @@ def utility_final_consume_all(
 
 
 def marginal_utility_final_consume_all(
-    choice, wealth: jnp.array, params: Dict[str, float], options: Dict[str, Any]
+    choice, wealth: jnp.array, params: Dict[str, float], model_specs: Dict[str, Any]
 ) -> jnp.array:
     """Computes marginal utility of CRRA utility function.
 

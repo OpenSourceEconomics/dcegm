@@ -19,7 +19,7 @@ def create_state_space_function_dict():
 
 def get_state_specific_feasible_choice_set(
     lagged_choice: int,
-    options: Dict,
+    model_specs: Dict,
 ) -> np.ndarray:
     """Select state-specific feasible choice set such that retirement is absorbing.
 
@@ -45,9 +45,9 @@ def get_state_specific_feasible_choice_set(
 
     """
     # lagged_choice is a state variable
-    n_choices = options["n_choices"]
+    n_choices = model_specs["n_choices"]
 
-    # n_choices = len(options["state_space"]["choices"])
+    # n_choices = len(model_specs["state_space"]["choices"])
 
     # Once the agent choses retirement, she can only choose retirement thereafter.
     # Hence, retirement is an absorbing state.

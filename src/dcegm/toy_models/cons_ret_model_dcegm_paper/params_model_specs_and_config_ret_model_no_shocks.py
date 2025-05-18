@@ -39,9 +39,10 @@ def example_model_config_retirement_no_shocks():
 
 
 def example_model_specs_retirement_no_shocks():
-    model_sprecs = {
+    model_specs = {
         "n_periods": 25,
         "min_age": 20,
         "n_choices": 2,
         "n_quad_points_stochastic": 5,
     }
+    return model_specs
