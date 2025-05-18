@@ -38,8 +38,8 @@ def inputs():
     }
 
     exogenous_states_transition = {
-        "transition_job_offer": job_offer,
-        "transition_survival": prob_survival,
+        "job_offer": job_offer,
+        "survival": prob_survival,
     }
 
     model_specs = {
@@ -156,14 +156,13 @@ def test_child_states(inputs):
 
 
 def test_sparse_debugging_output(inputs):
-    model_config = inputs["model_config"]
 
     state_space_functions = create_state_space_functions()
-    # state_space_functions=options["state_space"], sparsity_condition, debugging=True
 
     debug_dict = process_debug_string(
         debug_output="state_space_df",
         state_space_functions=state_space_functions,
-        model_config=model_config,
+        model_config=inputs["model_config"],
+        model_specs=inputs["model_specs"],
     )
     assert isinstance(debug_dict["debug_output"], pd.DataFrame)
