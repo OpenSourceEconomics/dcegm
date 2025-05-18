@@ -102,7 +102,6 @@ def test_model():
     model_specs = {
         # "n_grid_points": 100,
         # "max_wealth": 500,
-        "n_quad_points_stochastic": 5,
         "min_age": 0,
         "n_periods": 5,
         "n_choices": 3,
@@ -123,6 +122,7 @@ def test_model():
             "health": [0, 1],
             "partner": [0, 1],
         },
+        "n_quad_points": 5,
     }
 
     return params, model_specs, model_config

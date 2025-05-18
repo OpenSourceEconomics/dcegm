@@ -116,7 +116,7 @@ def test_two_period(
     options = toy_model["options"]
 
     quad_points, quad_weights = roots_sh_legendre(
-        options["model_params"]["n_quad_points_stochastic"]
+        options["model_params"]["n_quad_points"]
     )
     quad_draws = norm.ppf(quad_points) * params["sigma"]
 

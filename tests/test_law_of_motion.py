@@ -115,7 +115,7 @@ def test_get_beginning_of_period_wealth(
     r = params["interest_rate"]
     consump_floor = params["consumption_floor"]
 
-    n_quad_points = options["n_quad_points_stochastic"]
+    n_quad_points = options["n_quad_points"]
 
     child_state_dict = {"period": period, "lagged_choice": labor_choice}
     savings_grid = np.linspace(0, max_wealth, n_grid_points)
