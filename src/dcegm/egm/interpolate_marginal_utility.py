@@ -1,4 +1,4 @@
-from typing import Callable, Dict, Tuple
+from typing import Any, Callable, Dict, Tuple
 
 from jax import numpy as jnp
 from jax import vmap
@@ -13,7 +13,7 @@ def interpolate_value_and_marg_util(
     compute_marginal_utility: Callable,
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
-    exog_grids: Tuple[jnp.ndarray, jnp.ndarray],
+    continuous_grids_info: Dict[str, Any],
     cont_grids_next_period: Dict[str, jnp.ndarray],
     endog_grid_child_state_choice: jnp.ndarray,
     policy_child_state_choice: jnp.ndarray,
@@ -61,7 +61,7 @@ def interpolate_value_and_marg_util(
         continuous_state_child_states = cont_grids_next_period["second_continuous"][
             child_state_idxs
         ]
-        regular_grid = exog_grids["second_continuous"]
+        regular_grid = continuous_grids_info["second_continuous_grid"]
 
         interp_for_single_state_choice = vmap(
             interp2d_value_and_marg_util_for_state_choice,

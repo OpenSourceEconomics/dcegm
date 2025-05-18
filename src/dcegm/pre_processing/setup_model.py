@@ -18,8 +18,8 @@ from dcegm.pre_processing.shared import create_array_with_smallest_int_dtype
 
 
 def setup_model(
-    model_specs: Dict,
     model_config: Dict,
+    model_specs: Dict,
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,

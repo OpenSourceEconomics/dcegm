@@ -51,7 +51,8 @@ def solve_dcegm(
     """
 
     model = setup_model(
-        options=options,
+        model_config=model_config,
+        model_specs=model_specs,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
@@ -68,22 +69,22 @@ def solve_dcegm(
 def get_solve_func_for_model(model):
     """Create a solve function, which only takes params as input."""
 
-    options = model["options"]
+    model_config = model["model_config"]
 
-    exog_grids = options["exog_grids"]
-    has_second_continuous_state = len(exog_grids) == 2
+    has_second_continuous_state = model_config["continuous_states_info"][
+        "second_continuous_exists"
+    ]
 
     # ToDo: Make interface with several draw possibilities.
     # ToDo: Some day make user supplied draw function.
     income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
-        options["model_params"]["n_quad_points_stochastic"]
+        model_config["n_quad_points"]
     )
 
     backward_jit = jax.jit(
         partial(
             backward_induction,
-            options=options,
-            exog_grids=exog_grids,
+            model_config=model_config,
             has_second_continuous_state=has_second_continuous_state,
             state_space_dict=model["model_structure"]["state_space_dict"],
             n_state_choices=model["model_structure"]["state_choice_space"].shape[0],
@@ -103,9 +104,8 @@ def get_solve_func_for_model(model):
 
 def backward_induction(
     params: Dict[str, float],
-    options: Dict[str, Any],
+    model_config: Dict[str, Any],
     has_second_continuous_state: bool,
-    exog_grids: Dict[str, jnp.ndarray],
     state_space_dict: np.ndarray,
     n_state_choices: int,
     batch_info: Dict[str, np.ndarray],
@@ -177,22 +177,23 @@ def backward_induction(
 
     cont_grids_next_period = calc_cont_grids_next_period(
         state_space_dict=state_space_dict,
-        exog_grids=exog_grids,
+        model_config=model_config,
         income_shock_draws_unscaled=income_shock_draws_unscaled,
         params=params,
         model_funcs=model_funcs,
         has_second_continuous_state=has_second_continuous_state,
     )
 
-    n_total_wealth_grid = options["tuning_params"]["n_total_wealth_grid"]
-
     if has_second_continuous_state:
-        n_second_continuous_grid = options["tuning_params"]["n_second_continuous_grid"]
+        n_second_continuous_grid = model_config["tuning_params"][
+            "n_second_continuous_grid"
+        ]
     else:
         n_second_continuous_grid = None
 
     # Create solution containers. The 20 percent extra in wealth grid needs to go
     # into tuning parameters
+    n_total_wealth_grid = model_config["tuning_params"]["n_total_wealth_grid"]
     (
         value_solved,
         policy_solved,
@@ -212,10 +213,10 @@ def backward_induction(
         policy_solved,
         endog_grid_solved,
     ) = solve_last_two_periods(
-        cont_grids_next_period=cont_grids_next_period,
         params=params,
+        continuous_grids_info=model_config["continuous_states_info"],
+        cont_grids_next_period=cont_grids_next_period,
         income_shock_weights=income_shock_weights,
-        exog_grids=exog_grids,
         model_funcs=model_funcs,
         last_two_period_batch_info=batch_info["last_two_period_info"],
         value_solved=value_solved,

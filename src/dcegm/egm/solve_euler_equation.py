@@ -8,7 +8,7 @@ from jax import vmap
 
 
 def calculate_candidate_solutions_from_euler_equation(
-    exog_grids: np.ndarray,
+    continuous_grids_info: np.ndarray,
     marg_util_next: jnp.ndarray,
     emax_next: jnp.ndarray,
     state_choice_mat: np.ndarray,
@@ -42,8 +42,8 @@ def calculate_candidate_solutions_from_euler_equation(
         )(
             feasible_marg_utils_child,
             feasible_emax_child,
-            exog_grids["second_continuous"],
-            exog_grids["wealth"],
+            continuous_grids_info["second_continuous_grid"],
+            continuous_grids_info["wealth_grid"],
             state_choice_mat,
             model_funcs,
             params,
@@ -63,7 +63,7 @@ def calculate_candidate_solutions_from_euler_equation(
         )(
             feasible_marg_utils_child,
             feasible_emax_child,
-            exog_grids["wealth"],
+            continuous_grids_info["wealth_grid"],
             state_choice_mat,
             model_funcs,
             params,

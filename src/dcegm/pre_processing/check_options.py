@@ -19,6 +19,12 @@ def check_model_config_and_process(model_config):
     if not model_config["n_periods"] > 1:
         raise ValueError("Number of periods must be greater than 1.")
 
+    if "n_quad_points" not in model_config:
+        raise ValueError("model_config must contain the n_quad_points.")
+
+    if not isinstance(model_config["n_quad_points"], int):
+        raise ValueError("Number of quadrature points must be an integer.")
+
     processed_model_config["n_periods"] = model_config["n_periods"]
 
     # This checks if choices is a list or an integer
@@ -42,19 +48,18 @@ def check_model_config_and_process(model_config):
     if "continuous_states" not in model_config:
         raise ValueError("model_config must contain continuous_states as key.")
 
-    continuous_state_grids = model_config["continuous_states"].copy()
+    continuous_states_grids = model_config["continuous_states"].copy()
 
-    if not isinstance(continuous_state_grids, dict):
+    if not isinstance(continuous_states_grids, dict):
         raise ValueError("model_config['continuous_states'] must be a dictionary.")
 
-    if "wealth" not in continuous_state_grids:
+    if "wealth" not in continuous_states_grids:
         raise ValueError(
             "model_config['continuous_states'] must contain wealth as key."
         )
     # Check if it is an array
-    if not isinstance(
-        continuous_state_grids["wealth"], (list, np.ndarray, jnp.ndarray)
-    ):
+    wealth_grid = continuous_states_grids["wealth"]
+    if not isinstance(wealth_grid, (list, np.ndarray, jnp.ndarray)):
         raise ValueError(
             "model_config['continuous_states']['wealth'] must be a list or an array."
         )
@@ -62,18 +67,19 @@ def check_model_config_and_process(model_config):
     # ToDo: Check if it is monotonic increasing
 
     continuous_states_info = {}
-    n_savings_grid_points = len(continuous_state_grids)
-    continuous_states_info["n_wealth_grid"] = n_savings_grid_points
+    n_savings_grid_points = len(wealth_grid)
+    continuous_states_info["n_savings_grid"] = n_savings_grid_points
+    continuous_states_info["savings_grid"] = continuous_states_grids["wealth"]
 
-    if len(continuous_state_grids) > 2:
+    if len(continuous_states_grids) > 2:
         raise ValueError("At most two continuous states are supported.")
 
-    elif len(continuous_state_grids) == 2:
+    elif len(continuous_states_grids) == 2:
         second_continuous_state = next(
             (
                 {key: value}
                 for key, value in model_config["continuous_states"].items()
-                if key != "wealth"
+                if key != "savings"
             ),
             None,
         )
@@ -85,9 +91,10 @@ def check_model_config_and_process(model_config):
             second_continuous_state_name
         )
 
-        second_continuous_state_grid = continuous_state_grids[
+        second_continuous_state_grid = continuous_states_grids[
             second_continuous_state_name
         ]
+        continuous_states_info["second_continuous_grid"] = second_continuous_state_grid
         # ToDo: Check if grid is array or list and monotonic increasing
 
         continuous_states_info["n_second_continuous_grid"] = len(

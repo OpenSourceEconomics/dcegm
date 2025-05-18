@@ -1,6 +1,6 @@
 """Wrapper to solve the final period of the model."""
 
-from typing import Callable, Dict, Tuple
+from typing import Any, Callable, Dict, Tuple
 
 import jax.numpy as jnp
 from jax import vmap
@@ -12,10 +12,10 @@ from dcegm.solve_single_period import solve_for_interpolated_values
 
 
 def solve_last_two_periods(
-    cont_grids_next_period: Dict[str, jnp.ndarray],
     params: Dict[str, float],
+    continuous_grids_info: Dict[str, Any],
+    cont_grids_next_period: Dict[str, jnp.ndarray],
     income_shock_weights: jnp.ndarray,
-    exog_grids: Dict[str, jnp.ndarray],
     model_funcs: Dict[str, Callable],
     last_two_period_batch_info,
     value_solved,
@@ -48,6 +48,7 @@ def solve_last_two_periods(
             for all states, end of period assets, and income shocks.
 
     """
+
     (
         value_solved,
         policy_solved,
@@ -65,7 +66,7 @@ def solve_last_two_periods(
             "state_choice_mat_final_period"
         ],
         cont_grids_next_period=cont_grids_next_period,
-        exog_grids=exog_grids,
+        n_savings_grid=continuous_grids_info["n_savings_grid"],
         params=params,
         model_funcs=model_funcs,
         value_solved=value_solved,
@@ -103,7 +104,7 @@ def solve_last_two_periods(
         ],
         params=params,
         income_shock_weights=income_shock_weights,
-        exog_grids=exog_grids,
+        continuous_grids_info=continuous_grids_info,
         model_funcs=model_funcs,
         has_second_continuous_state=has_second_continuous_state,
     )
@@ -125,8 +126,8 @@ def solve_final_period(
     idx_state_choices_final_period,
     idx_parent_states_final_period,
     state_choice_mat_final_period,
+    n_savings_grid: int,
     cont_grids_next_period: Dict[str, jnp.ndarray],
-    exog_grids: Dict[str, jnp.ndarray],
     params: Dict[str, float],
     model_funcs: Dict[str, Callable],
     value_solved,
@@ -156,6 +157,7 @@ def solve_final_period(
             income shocks.
 
     """
+
     if has_second_continuous_state:
         (
             value_solved,
@@ -168,7 +170,7 @@ def solve_final_period(
             idx_parent_states_final_period=idx_parent_states_final_period,
             state_choice_mat_final_period=state_choice_mat_final_period,
             cont_grids_next_period=cont_grids_next_period,
-            exog_grids=exog_grids,
+            n_savings_grid=n_savings_grid,
             params=params,
             model_funcs=model_funcs,
             value_solved=value_solved,
@@ -187,7 +189,7 @@ def solve_final_period(
             idx_parent_states_final_period=idx_parent_states_final_period,
             state_choice_mat_final_period=state_choice_mat_final_period,
             cont_grids_next_period=cont_grids_next_period,
-            exog_grids=exog_grids,
+            n_savings_grid=n_savings_grid,
             params=params,
             compute_utility=model_funcs["compute_utility_final"],
             compute_marginal_utility=model_funcs["compute_marginal_utility_final"],
@@ -215,7 +217,7 @@ def solve_final_period_discrete(
     idx_parent_states_final_period,
     state_choice_mat_final_period,
     cont_grids_next_period: Dict[str, jnp.ndarray],
-    exog_grids: Dict[str, jnp.ndarray],
+    n_savings_grid: int,
     params: Dict[str, float],
     compute_utility: Callable,
     compute_marginal_utility: Callable,
@@ -233,7 +235,7 @@ def solve_final_period_discrete(
     wealth_child_states_final_period = cont_grids_next_period["wealth"][
         idx_parent_states_final_period
     ]
-    n_wealth = exog_grids["wealth"].shape[0]
+    # n_wealth = model_config["wealth"].shape[0]
 
     value, marg_util = vmap(
         vmap(
@@ -272,14 +274,14 @@ def solve_final_period_discrete(
     values_with_zeros = jnp.column_stack((zeros_to_append, values_sorted))
     wealth_with_zeros = jnp.column_stack((zeros_to_append, wealth_sorted))
 
-    value_solved = value_solved.at[idx_state_choices_final_period, : n_wealth + 1].set(
-        values_with_zeros
-    )
+    value_solved = value_solved.at[
+        idx_state_choices_final_period, : n_savings_grid + 1
+    ].set(values_with_zeros)
     policy_solved = policy_solved.at[
-        idx_state_choices_final_period, : n_wealth + 1
+        idx_state_choices_final_period, : n_savings_grid + 1
     ].set(wealth_with_zeros)
     endog_grid_solved = endog_grid_solved.at[
-        idx_state_choices_final_period, : n_wealth + 1
+        idx_state_choices_final_period, : n_savings_grid + 1
     ].set(wealth_with_zeros)
 
     return (
@@ -301,7 +303,7 @@ def solve_final_period_second_continuous(
     idx_parent_states_final_period,
     state_choice_mat_final_period,
     cont_grids_next_period: Dict[str, jnp.ndarray],
-    exog_grids: Dict[str, jnp.ndarray],
+    continuous_states_info: Dict[str, Any],
     params: Dict[str, float],
     model_funcs: Dict[str, Callable],
     value_solved,
@@ -316,10 +318,10 @@ def solve_final_period_second_continuous(
     of the second continuous state.
 
     """
-    wealth_child_states_final_period = cont_grids_next_period["wealth"][
+    wealth_child_states_final_period = cont_grids_next_period["savings_grid"][
         idx_parent_states_final_period
     ]
-    n_wealth = exog_grids["wealth"].shape[0]
+    n_wealth = continuous_states_info["n_savings_grid"]
 
     continuous_state_final = cont_grids_next_period["second_continuous"][
         idx_parent_states_final_period
@@ -359,8 +361,8 @@ def solve_final_period_second_continuous(
         in_axes=(0, None, None, None, None, None),  # discrete state choices
     )(
         state_choice_mat_final_period,
-        exog_grids["wealth"],
-        exog_grids["second_continuous"],
+        continuous_states_info["savings_grid"],
+        continuous_states_info["second_continuous_grid"],
         params,
         model_funcs["compute_utility_final"],
         model_funcs["compute_beginning_of_period_wealth"],
