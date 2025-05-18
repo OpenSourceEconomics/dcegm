@@ -98,8 +98,7 @@ def process_exog_model_specifications(model_config):
     if "exogenous_processes" in model_config:
         exog_state_names = list(model_config["exogenous_processes"].keys())
         dict_of_only_states = {
-            key: model_config["exogenous_processes"][key]["states"]
-            for key in exog_state_names
+            key: model_config["exogenous_processes"][key] for key in exog_state_names
         }
 
         exog_state_space = span_subspace(

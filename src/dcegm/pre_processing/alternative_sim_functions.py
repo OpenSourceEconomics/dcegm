@@ -124,7 +124,7 @@ def process_alternative_sim_functions(
     """
     continuous_states_info = model_config["continuous_states_info"]
     # Assign name
-    if model_config["second_continuous_exists"]:
+    if continuous_states_info["second_continuous_exists"]:
         second_continuous_state_name = continuous_states_info[
             "second_continuous_state_name"
         ]

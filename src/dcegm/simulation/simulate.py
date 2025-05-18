@@ -37,9 +37,7 @@ def simulate_all_periods(
     second_continuous_state_dict = next(
         (
             {key: value}
-            for key, value in model["options"]["state_space"][
-                "continuous_states"
-            ].items()
+            for key, value in model["model_config"]["continuous_states"].items()
             if key != "wealth"
         ),
         None,
