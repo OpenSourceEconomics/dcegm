@@ -26,7 +26,6 @@ def budget_constraint_based_on_experience(
     continuous_state_beginning_of_period: float,
     savings_end_of_previous_period: float,
     income_shock_previous_period: float,
-    options: Dict[str, Any],
     params: Dict[str, float],
 ) -> float:
 

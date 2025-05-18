@@ -47,12 +47,13 @@ def model_setup():
 
     model_functions = toy_models.load_example_model_functions("with_exog_ltc")
 
-    params, options = toy_models.load_example_params_model_specs_and_config(
-        "with_exog_ltc"
+    params, model_specs, model_config = (
+        toy_models.load_example_params_model_specs_and_config("with_exog_ltc")
     )
 
     model = setup_model(
-        options=options,
+        model_config=model_config,
+        model_specs=model_specs,
         **model_functions,
     )
 
@@ -66,7 +67,7 @@ def model_setup():
 
     seed = 111
     n_agents = 1_000
-    n_periods = options["state_space"]["n_periods"]
+    n_periods = model_config["n_periods"]
 
     initial_states = {
         "period": np.zeros(n_agents),
@@ -99,12 +100,13 @@ def model_setup():
         "endog_grid": endog_grid,
         "model": model,
         "params": params,
-        "options": options,
+        "model_config": model_config,
+        "model_specs": model_specs,
     }
 
 
 def test_simulate_lax_scan(model_setup):
-    choice_range = model_setup["options"]["state_space"]["choices"]
+    choice_range = model_setup["model_config"]["choices"]
     model_structure = model_setup["model"]["model_structure"]
     model_funcs = model_setup["model"]["model_funcs"]
 
@@ -207,7 +209,7 @@ def test_simulate(model_setup):
     result = simulate_all_periods(
         states_initial=discrete_initial_states,
         wealth_initial=wealth_initial,
-        n_periods=model_setup["options"]["state_space"]["n_periods"],
+        n_periods=model_setup["model_config"]["n_periods"],
         params=model_setup["params"],
         seed=111,
         endog_grid_solved=endog_grid,
@@ -233,15 +235,15 @@ def test_simulate_second_continuous_choice(model_setup):
     model_functions_cont = toy_models.load_example_model_functions("with_cont_exp")
     model_functions_ltc = toy_models.load_example_model_functions("with_exog_ltc")
 
-    options_cont = model_setup["options"].copy()
+    model_config_cont = model_setup["model_config"].copy()
+    model_specs_cont = model_setup["model_specs"].copy()
 
-    options_cont["state_space"]["continuous_states"]["experience"] = jnp.linspace(
-        0, 1, 6
-    )
-    options_cont["model_params"]["max_init_experience"] = 1
+    model_config_cont["continuous_states"]["experience"] = jnp.linspace(0, 1, 6)
+    model_specs_cont["max_init_experience"] = 1
 
     model_cont = setup_model(
-        options=options_cont,
+        model_config=model_config_cont,
+        model_specs=model_specs_cont,
         state_space_functions=model_functions_cont["state_space_functions"],
         utility_functions=model_functions_cont["utility_functions"],
         utility_functions_final_period=model_functions_cont[
@@ -271,7 +273,7 @@ def test_simulate_second_continuous_choice(model_setup):
     result = simulate_all_periods(
         states_initial=states_initial,
         wealth_initial=wealth_initial,
-        n_periods=options_cont["state_space"]["n_periods"],
+        n_periods=model_config_cont["n_periods"],
         params=model_setup["params"],
         seed=111,
         endog_grid_solved=endog_grid,

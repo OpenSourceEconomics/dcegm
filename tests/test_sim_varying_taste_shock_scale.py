@@ -39,14 +39,16 @@ def _create_test_objects_from_df(df, params):
 @pytest.fixture()
 def model_setup():
     ltc_model_functions = toy_models.load_example_model_functions("with_exog_ltc")
-    params, options = toy_models.load_example_params_model_specs_and_config(
-        "with_exog_ltc"
+    params, model_specs, model_config = (
+        toy_models.load_example_params_model_specs_and_config("with_exog_ltc")
     )
 
     shock_functions = {"taste_shock_scale_per_state": taste_shock_per_lagged_choice}
     ltc_model_functions["shock_functions"] = shock_functions
 
-    model = setup_model(options=options, **ltc_model_functions)
+    model = setup_model(
+        model_specs=model_specs, model_config=model_config, **ltc_model_functions
+    )
 
     (
         value,
@@ -58,7 +60,7 @@ def model_setup():
 
     seed = 111
     n_agents = 1_000
-    n_periods = options["state_space"]["n_periods"]
+    n_periods = model_config["n_periods"]
 
     initial_states = {
         "period": np.zeros(n_agents),
@@ -88,7 +90,7 @@ def model_setup():
         "endog_grid": endog_grid,
         "model": model,
         "params": params,
-        "options": options,
+        "model_config": model_config,
     }
 
 
@@ -98,7 +100,7 @@ def test_simulate(model_setup):
     policy = model_setup["policy"]
     endog_grid = model_setup["endog_grid"]
     params = model_setup["params"]
-    options = model_setup["options"]
+    model_config = model_setup["model_config"]
 
     n_agents = 100_000
 
@@ -113,7 +115,7 @@ def test_simulate(model_setup):
     result = simulate_all_periods(
         states_initial=discrete_initial_states,
         wealth_initial=wealth_initial,
-        n_periods=options["state_space"]["n_periods"],
+        n_periods=model_config["n_periods"],
         params=params,
         seed=111,
         endog_grid_solved=endog_grid,
