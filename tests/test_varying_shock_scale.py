@@ -4,9 +4,9 @@ from pathlib import Path
 import jax.numpy as jnp
 from numpy.testing import assert_array_almost_equal as aaae
 
+import dcegm.toy_models as toy_models
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import get_solve_func_for_model
-from dcegm.toy_models.example_model_functions import load_example_model_functions
 from tests.utils.interp1d_auxiliary import (
     interpolate_policy_and_value_on_wealth_grid,
     linear_interpolation_with_extrapolation,
@@ -18,30 +18,20 @@ TEST_DIR = Path(__file__).parent
 REPLICATION_TEST_RESOURCES_DIR = TEST_DIR / "resources" / "replication_tests"
 
 
-def test_benchmark_models(load_replication_params_and_specs):
-    params, model_specs = load_replication_params_and_specs("retirement_with_shocks")
-    options = {}
+def test_benchmark_models():
+    params, model_specs, model_config = (
+        toy_models.load_example_params_model_specs_and_config(
+            "dcegm_paper_retirement_with_shocks"
+        )
+    )
 
-    options["model_params"] = model_specs
-    options["model_params"]["n_choices"] = model_specs["n_discrete_choices"]
-    options["state_space"] = {
-        "n_periods": 25,
-        "choices": [i for i in range(model_specs["n_discrete_choices"])],
-        "continuous_states": {
-            "wealth": jnp.linspace(
-                0,
-                options["model_params"]["max_wealth"],
-                options["model_params"]["n_grid_points"],
-            )
-        },
-    }
-
-    model_funcs = load_example_model_functions("dcegm_paper")
+    model_funcs = toy_models.load_example_model_functions("dcegm_paper")
 
     shock_functions = {"taste_shock_scale_per_state": taste_shock_per_lagged_choice}
 
     model = setup_model(
-        options=options,
+        model_config=model_config,
+        model_specs=model_specs,
         state_space_functions=model_funcs["state_space_functions"],
         utility_functions=model_funcs["utility_functions"],
         utility_functions_final_period=model_funcs["utility_functions_final_period"],
