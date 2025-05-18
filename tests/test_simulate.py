@@ -10,6 +10,7 @@ import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
 import dcegm.toy_models as toy_models
+from dcegm.pre_processing.check_options import check_model_config_and_process
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.simulation.random_keys import draw_random_keys_for_seed
 from dcegm.simulation.sim_utils import create_simulation_df
@@ -106,7 +107,6 @@ def model_setup():
 
 
 def test_simulate_lax_scan(model_setup):
-    choice_range = model_setup["model_config"]["choices"]
     model_structure = model_setup["model"]["model_structure"]
     model_funcs = model_setup["model"]["model_funcs"]
 
@@ -127,6 +127,9 @@ def test_simulate_lax_scan(model_setup):
     }
     initial_states_and_wealth = states_initial, wealth_initial
 
+    model_config_processed = check_model_config_and_process(model_setup["model_config"])
+    choice_range = model_config_processed["choices"]
+
     simulate_body = partial(
         simulate_single_period,
         params=model_setup["params"],
@@ -136,6 +139,7 @@ def test_simulate_lax_scan(model_setup):
         model_funcs_sim=model_funcs,
         compute_utility=model_funcs["compute_utility"],
         model_structure_sol=model_structure,
+        model_config=model_config_processed,
     )
 
     # a) lax.scan
@@ -250,6 +254,7 @@ def test_simulate_second_continuous_choice(model_setup):
             "utility_functions_final_period"
         ],
         budget_constraint=model_functions_ltc["budget_constraint"],
+        exogenous_states_transition=model_functions_ltc["exogenous_states_transition"],
     )
 
     key = jax.random.PRNGKey(0)
