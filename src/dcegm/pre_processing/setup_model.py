@@ -85,7 +85,8 @@ def setup_model(
 
     batch_info = create_batches_and_information(
         model_structure=model_structure,
-        model_config=model_config_processed,
+        n_periods=model_config_processed["n_periods"],
+        min_period_batch_segments=model_config_processed["min_period_batch_segments"],
     )
     if not debug_info == "all":
         # Delete large array which is not needed. Not if all is requested

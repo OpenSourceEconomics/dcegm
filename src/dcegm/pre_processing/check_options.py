@@ -146,6 +146,13 @@ def check_model_config_and_process(model_config):
         else 10
     )
 
-    processed_model_config["tuning_params"] = (tuning_params,)
+    processed_model_config["tuning_params"] = tuning_params
+
+    if "min_period_batch_segments" in model_config.keys():
+        processed_model_config["min_period_batch_segments"] = model_config[
+            "min_period_batch_segments"
+        ]
+    else:
+        processed_model_config["min_period_batch_segments"] = None
 
     return processed_model_config
