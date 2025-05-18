@@ -33,7 +33,7 @@ def example_model_config():
             "married": [0, 1],
         },
         "exogenous_states": {
-            "ltc": {"transition": prob_exog_ltc, "states": [0, 1]},
+            "ltc": [0, 1],
         },
     }
     return model_config

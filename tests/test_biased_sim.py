@@ -51,12 +51,7 @@ def model_configs():
     model_config_sim = {
         "n_periods": 5,
         "choices": np.arange(2),
-        "exogenous_processes": {
-            "married": {
-                "states": np.arange(2, dtype=int),
-                "transition": marriage_transition,
-            },
-        },
+        "exogenous_processes": {"married": np.arange(2, dtype=int)},
         "continuous_states": {
             "wealth": np.arange(0, 100, 5, dtype=float),
         },
@@ -91,12 +86,16 @@ def test_sim_and_sol_model(model_configs, load_replication_params_and_specs):
     value, policy, endog_grid = solve_func(params)
 
     marriage_trans_mat = jnp.array([[0.3, 0.7], [0.1, 0.9]])
-    options_sim["model_params"]["marriage_trans_mat"] = marriage_trans_mat
+    model_specs["marriage_trans_mat"] = marriage_trans_mat
+
+    exogenous_states_transitions = {"marriage_transition": marriage_transition}
 
     alt_model_funcs_sim = generate_alternative_sim_functions(
-        options=options_sim,
+        model_config=model_configs["simulation"],
+        model_specs=model_specs,
         state_space_functions=model_funcs["state_space_functions"],
         budget_constraint=model_funcs["budget_constraint"],
+        exogenous_states_transitions=exogenous_states_transitions,
     )
 
     n_agents = 100_000

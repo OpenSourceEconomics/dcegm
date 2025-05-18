@@ -1,7 +1,7 @@
 import numpy as np
 
 from dcegm.toy_models.cons_ret_model_exog_ltc.ltc import prob_exog_ltc
-from dcegm.toy_models.cons_ret_model_exog_ltc_and_job_offer.job_offer import (
+from dcegm.toy_models.cons_ret_model_exog_ltc_and_job_offer.ltc_and_job_offer import (
     prob_exog_job_offer,
 )
 

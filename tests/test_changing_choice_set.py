@@ -53,7 +53,7 @@ def prob_partner(partner, params):
     return jnp.array([1 - p_marriage, p_marriage])
 
 
-def sparsity_condition(period, lagged_choice, experience, options):
+def sparsity_condition(period, lagged_choice, experience, model_specs):
     # Lagged_choice is dummy in first period
     if period == 0 and lagged_choice != 0:
         return False
@@ -61,7 +61,7 @@ def sparsity_condition(period, lagged_choice, experience, options):
     elif (period > 0) and lagged_choice not in choice_set(period - 1, 1):
         return False
     # Filter states with too high experience
-    elif (experience > period) or (experience > options["max_experience"]):
+    elif (experience > period) or (experience > model_specs["max_experience"]):
         return False
     # If experience is 0 you can not have been working last period
     elif (experience == 0) and (lagged_choice == 1):
@@ -99,35 +99,33 @@ def test_model():
         "p_partner_given_partner": 0.9,
     }
 
-    options = {
-        "model_params": {
-            # "n_grid_points": 100,
-            # "max_wealth": 500,
-            "n_quad_points_stochastic": 5,
-            "min_age": 0,
-            "n_periods": 5,
-            "n_choices": 3,
-            "n_health_states": 2,
-            "n_partner_states": 2,
-            "max_experience": 4,
+    model_specs = {
+        # "n_grid_points": 100,
+        # "max_wealth": 500,
+        "n_quad_points_stochastic": 5,
+        "min_age": 0,
+        "n_periods": 5,
+        "n_choices": 3,
+        "n_health_states": 2,
+        "n_partner_states": 2,
+        "max_experience": 4,
+    }
+    model_config = {
+        "n_periods": 5,
+        "choices": np.arange(3),
+        "endogenous_states": {
+            "experience": np.arange(5),
         },
-        "state_space": {
-            "n_periods": 5,
-            "choices": np.arange(3),
-            "endogenous_states": {
-                "experience": np.arange(5),
-            },
-            "continuous_states": {
-                "wealth": np.linspace(0, 500, 100),
-            },
-            "exogenous_processes": {
-                "health": {"transition": prob_health, "states": [0, 1]},
-                "partner": {"transition": prob_partner, "states": [0, 1]},
-            },
+        "continuous_states": {
+            "wealth": np.linspace(0, 500, 100),
+        },
+        "exogenous_processes": {
+            "health": [0, 1],
+            "partner": [0, 1],
         },
     }
 
-    return params, options
+    return params, model_specs, model_config
 
 
 def choice_set(period, lagged_choice):
@@ -190,9 +188,7 @@ def utility_functions_final_period():
     }
 
 
-def budget(
-    lagged_choice, experience, savings_end_of_previous_period, health, options, params
-):
+def budget(lagged_choice, experience, savings_end_of_previous_period, health, params):
     unemployed = lagged_choice == 0
     working = lagged_choice == 1
     retired = lagged_choice == 2
@@ -219,14 +215,21 @@ def budget(
 def test_extended_choice_set_model(
     test_model, state_space_functions, utility_functions, utility_functions_final_period
 ):
-    params, options = test_model
+    params, model_specs, model_config = test_model
+
+    exogenous_states_transition = {
+        "transition_health": prob_health,
+        "transition_partner": prob_partner,
+    }
 
     model = setup_model(
-        options=options,
+        model_config=model_config,
+        model_specs=model_specs,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget,
+        exogenous_states_transition=exogenous_states_transition,
     )
 
     solve_func = get_solve_func_for_model(model)
