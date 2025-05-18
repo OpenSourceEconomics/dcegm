@@ -13,7 +13,7 @@ def budget_with_aux(
     lagged_choice,
     savings_end_of_previous_period,
     income_shock_previous_period,
-    options,
+    model_specs,
     params,
 ):
     wealth, shock, income = budget_constraint_raw(
@@ -21,7 +21,7 @@ def budget_with_aux(
         lagged_choice,
         savings_end_of_previous_period,
         income_shock_previous_period,
-        options,
+        model_specs,
         params,
     )
     aux_dict = {
@@ -35,7 +35,7 @@ def budget_without_aux(
     lagged_choice,
     savings_end_of_previous_period,
     income_shock_previous_period,
-    options,
+    model_specs,
     params,
 ):
     wealth, _, _ = budget_constraint_raw(
@@ -43,7 +43,7 @@ def budget_without_aux(
         lagged_choice,
         savings_end_of_previous_period,
         income_shock_previous_period,
-        options,
+        model_specs,
         params,
     )
     return wealth
@@ -54,7 +54,7 @@ def budget_constraint_raw(
     lagged_choice,
     savings_end_of_previous_period,
     income_shock_previous_period,
-    options,
+    model_specs,
     params,
 ):
     # Calculate stochastic labor income
@@ -62,7 +62,7 @@ def budget_constraint_raw(
         period=period,
         lagged_choice=lagged_choice,
         wage_shock=income_shock_previous_period,
-        min_age=options["min_age"],
+        min_age=model_specs["min_age"],
         constant=params["constant"],
         exp=params["exp"],
         exp_squared=params["exp_squared"],
@@ -115,6 +115,7 @@ def model_config():
         "continuous_states": {
             "wealth": np.arange(0, 100, 5, dtype=float),
         },
+        "n_quad_points": 5,
     }
 
     return model_config
@@ -122,7 +123,7 @@ def model_config():
 
 def test_sim_and_sol_model(model_config):
     params, model_specs, _ = toy_models.load_example_params_model_specs_and_config(
-        "retirement_with_shocks"
+        "dcegm_paper_retirement_with_shocks"
     )
 
     model_funcs = toy_models.load_example_model_functions("dcegm_paper")
