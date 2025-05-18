@@ -32,7 +32,9 @@ def test_setup():
 
     model_funcs_discr_exp = toy_models.load_example_model_functions("with_exp")
     # params are actually the same for both models. Just name them params.
-    params, options_discrete = toy_models.load_example_params_and_options("with_exp")
+    params, options_discrete = toy_models.load_example_params_model_specs_and_config(
+        "with_exp"
+    )
 
     model_disc = setup_model(
         options=options_discrete,
@@ -52,7 +54,9 @@ def test_setup():
     # =================================================================================
 
     model_funcs_cont_exp = toy_models.load_example_model_functions("with_cont_exp")
-    _, options_cont = toy_models.load_example_params_and_options("with_cont_exp")
+    _, options_cont = toy_models.load_example_params_model_specs_and_config(
+        "with_cont_exp"
+    )
 
     model_cont = setup_model(
         options=options_cont,

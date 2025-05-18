@@ -209,7 +209,9 @@ def test_setup():
 
     model_funcs_discr_exp = toy_models.load_example_model_functions("with_exp")
     # params are actually the same for both models. Just name them params.
-    params, options_discrete = toy_models.load_example_params_and_options("with_exp")
+    params, options_discrete = toy_models.load_example_params_model_specs_and_config(
+        "with_exp"
+    )
 
     utility_functions_discrete = {
         "utility": utility_exp,
@@ -238,7 +240,9 @@ def test_setup():
     # =================================================================================
 
     model_funcs_cont_exp = toy_models.load_example_model_functions("with_cont_exp")
-    _, options_cont = toy_models.load_example_params_and_options("with_cont_exp")
+    _, options_cont = toy_models.load_example_params_model_specs_and_config(
+        "with_cont_exp"
+    )
 
     # Grid needs to be set very fine. Interpolation on state variables which determine
     # utility might not be the smartest way, but still want the package to do it.

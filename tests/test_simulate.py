@@ -47,7 +47,9 @@ def model_setup():
 
     model_functions = toy_models.load_example_model_functions("with_exog_ltc")
 
-    params, options = toy_models.load_example_params_and_options("with_exog_ltc")
+    params, options = toy_models.load_example_params_model_specs_and_config(
+        "with_exog_ltc"
+    )
 
     model = setup_model(
         options=options,

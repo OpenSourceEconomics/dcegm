@@ -1,3 +1,4 @@
+import jax.numpy as jnp
 import numpy as np
 
 
@@ -51,7 +52,9 @@ def check_model_config_and_process(model_config):
             "model_config['continuous_states'] must contain wealth as key."
         )
     # Check if it is an array
-    if not isinstance(continuous_state_grids["wealth"], (list, np.ndarray)):
+    if not isinstance(
+        continuous_state_grids["wealth"], (list, np.ndarray, jnp.ndarray)
+    ):
         raise ValueError(
             "model_config['continuous_states']['wealth'] must be a list or an array."
         )

@@ -27,7 +27,7 @@ RANDOM_TEST_WEALTH = np.random.choice(list(range(100)), size=10, replace=False)
 def toy_model_exog_ltc_and_job_offer():
 
     model_funcs = toy_models.load_example_model_functions("with_exog_ltc_and_job_offer")
-    params, options = toy_models.load_example_params_and_options(
+    params, options = toy_models.load_example_params_model_specs_and_config(
         "with_exog_ltc_and_job_offer"
     )
 
@@ -61,7 +61,9 @@ def toy_model_exog_ltc_and_job_offer():
 def toy_model_exog_ltc():
 
     model_funcs = toy_models.load_example_model_functions("with_exog_ltc")
-    params, options = toy_models.load_example_params_and_options("with_exog_ltc")
+    params, options = toy_models.load_example_params_model_specs_and_config(
+        "with_exog_ltc"
+    )
 
     out = {}
     out["model"] = setup_model(

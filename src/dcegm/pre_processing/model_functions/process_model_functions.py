@@ -19,7 +19,6 @@ from dcegm.pre_processing.shared import (
 def process_model_functions(
     model_config: Dict,
     model_specs: Dict,
-    processed_model_config: Dict,
     state_space_functions: Dict[str, Callable],
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
@@ -67,7 +66,7 @@ def process_model_functions(
 
     """
     # Assign continuous state name
-    second_continuous_state_name = processed_model_config["continuous_states_info"][
+    second_continuous_state_name = model_config["continuous_states_info"][
         "second_continuous_state_name"
     ]
 

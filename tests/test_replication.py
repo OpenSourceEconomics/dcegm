@@ -33,12 +33,15 @@ def test_benchmark_models(model_name, load_replication_params_and_specs):
     else:
         model_funcs = toy_models.load_example_model_functions("dcegm_paper")
 
-    params, options = toy_models.load_example_params_and_options(
-        "dcegm_paper_" + model_name
+    params, model_specs, model_config = (
+        toy_models.load_example_params_model_specs_and_config(
+            "dcegm_paper_" + model_name
+        )
     )
 
     model = setup_model(
-        options=options,
+        model_config=model_config,
+        model_specs=model_specs,
         **model_funcs,
     )
 
