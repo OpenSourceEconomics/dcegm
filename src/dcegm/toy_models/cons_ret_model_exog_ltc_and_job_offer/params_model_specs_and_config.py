@@ -40,7 +40,7 @@ def example_model_config():
             "ltc": {"transition": prob_exog_ltc, "states": [0, 1]},
             "job_offer": {"transition": prob_exog_job_offer, "states": [0, 1]},
         },
-        "n_quad_points_stochastic": 5,
+        "n_quad_points": 5,
     }
     return model_config
 

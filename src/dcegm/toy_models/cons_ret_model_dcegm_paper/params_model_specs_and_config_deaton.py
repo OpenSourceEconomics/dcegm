@@ -34,7 +34,7 @@ def example_model_config_deaton():
                 100,
             )
         },
-        "n_quad_points_stochastic": 10,
+        "n_quad_points": 10,
     }
     return model_config
 

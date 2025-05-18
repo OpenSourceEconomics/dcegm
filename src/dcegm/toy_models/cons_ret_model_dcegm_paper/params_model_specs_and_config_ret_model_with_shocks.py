@@ -33,7 +33,7 @@ def example_model_config_ret_model_with_shocks():
                 500,
             )
         },
-        "n_quad_points_stochastic": 5,
+        "n_quad_points": 5,
     }
     return model_config
 

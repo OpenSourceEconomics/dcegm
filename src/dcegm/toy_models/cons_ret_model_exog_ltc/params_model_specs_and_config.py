@@ -35,7 +35,7 @@ def example_model_config():
         "exogenous_states": {
             "ltc": [0, 1],
         },
-        "n_quad_points_stochastic": 5,
+        "n_quad_points": 5,
     }
     return model_config
 
