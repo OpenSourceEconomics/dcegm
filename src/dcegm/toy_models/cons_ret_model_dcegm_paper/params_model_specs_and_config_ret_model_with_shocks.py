@@ -33,6 +33,7 @@ def example_model_config_ret_model_with_shocks():
                 500,
             )
         },
+        "n_quad_points": 5,
     }
     return model_config
 
@@ -42,6 +43,5 @@ def example_model_specs_ret_model_with_shocks():
         "n_periods": 25,
         "min_age": 20,
         "n_choices": 2,
-        "n_quad_points_stochastic": 5,
     }
     return model_specs

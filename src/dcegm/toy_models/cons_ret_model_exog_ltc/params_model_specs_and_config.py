@@ -33,15 +33,15 @@ def example_model_config():
             "married": [0, 1],
         },
         "exogenous_states": {
-            "ltc": {"transition": prob_exog_ltc, "states": [0, 1]},
+            "ltc": [0, 1],
         },
+        "n_quad_points": 5,
     }
     return model_config
 
 
 def example_model_specs():
     model_specs = {
-        "n_quad_points_stochastic": 5,
         "n_choices": 2,
     }
     return model_specs

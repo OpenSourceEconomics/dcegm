@@ -2,6 +2,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+import dcegm.toy_models as toy_models
 from dcegm.pre_processing.alternative_sim_functions import (
     generate_alternative_sim_functions,
 )
@@ -9,7 +10,6 @@ from dcegm.pre_processing.setup_model import setup_model
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
 from dcegm.solve import get_solve_func_for_model
-from dcegm.toy_models.example_model_functions import load_example_model_functions
 
 
 def utility_crra(
@@ -36,8 +36,8 @@ def marriage_transition(married, options):
 
 
 @pytest.fixture
-def state_space_options():
-    state_space_options_sol = {
+def model_configs():
+    model_config_sol = {
         "n_periods": 5,
         "choices": np.arange(2),
         "endogenous_states": {
@@ -48,43 +48,36 @@ def state_space_options():
         },
     }
 
-    state_space_options_sim = {
+    model_config_sim = {
         "n_periods": 5,
         "choices": np.arange(2),
-        "exogenous_processes": {
-            "married": {
-                "states": np.arange(2, dtype=int),
-                "transition": marriage_transition,
-            },
-        },
+        "exogenous_processes": {"married": np.arange(2, dtype=int)},
         "continuous_states": {
             "wealth": np.arange(0, 100, 5, dtype=float),
         },
     }
 
-    state_space_options = {
-        "solution": state_space_options_sol,
-        "simulation": state_space_options_sim,
+    model_configs = {
+        "solution": model_config_sol,
+        "simulation": model_config_sim,
     }
 
-    return state_space_options
+    return model_configs
 
 
-def test_sim_and_sol_model(state_space_options, load_replication_params_and_specs):
-    params, model_specs = load_replication_params_and_specs("retirement_with_shocks")
+def test_sim_and_sol_model(model_configs):
+    params, model_specs, _ = toy_models.load_example_params_model_specs_and_config(
+        "dcegm_paper_retirement_with_shocks"
+    )
     params["married_util"] = 0.5
 
-    model_funcs = load_example_model_functions("dcegm_paper")
+    model_funcs = toy_models.load_example_model_functions("dcegm_paper")
     utility_functions = model_funcs["utility_functions"]
     utility_functions["utility"] = utility_crra
 
-    options_sol = {
-        "state_space": state_space_options["solution"],
-        "model_params": model_specs,
-    }
-
     model_sol = setup_model(
-        options=options_sol,
+        model_config=model_configs["solution"],
+        model_specs=model_specs,
         state_space_functions=model_funcs["state_space_functions"],
         utility_functions=utility_functions,
         utility_functions_final_period=model_funcs["utility_functions_final_period"],
@@ -94,17 +87,17 @@ def test_sim_and_sol_model(state_space_options, load_replication_params_and_spec
 
     value, policy, endog_grid = solve_func(params)
 
-    options_sim = {
-        "state_space": state_space_options["simulation"],
-        "model_params": model_specs,
-    }
     marriage_trans_mat = jnp.array([[0.3, 0.7], [0.1, 0.9]])
-    options_sim["model_params"]["marriage_trans_mat"] = marriage_trans_mat
+    model_specs["marriage_trans_mat"] = marriage_trans_mat
+
+    exogenous_states_transitions = {"marriage_transition": marriage_transition}
 
     alt_model_funcs_sim = generate_alternative_sim_functions(
-        options=options_sim,
+        model_config=model_configs["simulation"],
+        model_specs=model_specs,
         state_space_functions=model_funcs["state_space_functions"],
         budget_constraint=model_funcs["budget_constraint"],
+        exogenous_states_transitions=exogenous_states_transitions,
     )
 
     n_agents = 100_000

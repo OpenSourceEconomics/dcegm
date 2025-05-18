@@ -1,7 +1,7 @@
 import numpy as np
 
 from dcegm.toy_models.cons_ret_model_exog_ltc.ltc import prob_exog_ltc
-from dcegm.toy_models.cons_ret_model_exog_ltc_and_job_offer.job_offer import (
+from dcegm.toy_models.cons_ret_model_exog_ltc_and_job_offer.ltc_and_job_offer import (
     prob_exog_job_offer,
 )
 
@@ -40,13 +40,13 @@ def example_model_config():
             "ltc": {"transition": prob_exog_ltc, "states": [0, 1]},
             "job_offer": {"transition": prob_exog_job_offer, "states": [0, 1]},
         },
+        "n_quad_points": 5,
     }
     return model_config
 
 
 def example_model_specs():
     model_specs = {
-        "n_quad_points_stochastic": 5,
         "n_choices": 2,
     }
     return model_specs

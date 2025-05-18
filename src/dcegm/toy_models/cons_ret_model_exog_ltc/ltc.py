@@ -1,6 +1,10 @@
 from jax import numpy as jnp
 
 
+def create_exogenous_states_transition():
+    return {"transition_ltc": prob_exog_ltc}
+
+
 def prob_exog_ltc(
     period,
     ltc,
