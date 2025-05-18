@@ -28,11 +28,13 @@ def example_model_config():
     model_config = {
         "n_periods": 2,
         "choices": [0, 1],
-        "continuous_states": {
-            "wealth": np.linspace(0, 50, 100),
+        "endogenous_states": {
             "married": [0, 1],
         },
-        "exogenous_states": {
+        "continuous_states": {
+            "wealth": np.linspace(0, 50, 100),
+        },
+        "exogenous_processes": {
             "ltc": [0, 1],
         },
         "n_quad_points": 5,
