@@ -46,6 +46,7 @@ def model_configs():
         "continuous_states": {
             "wealth": np.arange(0, 100, 5, dtype=float),
         },
+        "n_quad_points": 5,
     }
 
     model_config_sim = {
@@ -55,6 +56,7 @@ def model_configs():
         "continuous_states": {
             "wealth": np.arange(0, 100, 5, dtype=float),
         },
+        "n_quad_points": 5,
     }
 
     model_configs = {
@@ -90,7 +92,7 @@ def test_sim_and_sol_model(model_configs):
     marriage_trans_mat = jnp.array([[0.3, 0.7], [0.1, 0.9]])
     model_specs["marriage_trans_mat"] = marriage_trans_mat
 
-    exogenous_states_transitions = {"marriage_transition": marriage_transition}
+    exogenous_states_transitions = {"married_transition": marriage_transition}
 
     alt_model_funcs_sim = generate_alternative_sim_functions(
         model_config=model_configs["simulation"],
