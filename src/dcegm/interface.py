@@ -75,6 +75,7 @@ def policy_and_value_for_state_choice_vec(
         state_choice_vec[st] for st in discrete_states_names + ["choice"]
     )
     state_choice_index = map_state_choice_to_index[state_choice_tuple]
+    continuous_states_info = model["model_config"]["continuous_states_info"]
 
     if second_continuous is None:
         policy, value = interp1d_policy_and_value_on_wealth(
@@ -88,7 +89,7 @@ def policy_and_value_for_state_choice_vec(
         )
     else:
         policy, value = interp2d_policy_and_value_on_wealth_and_regular_grid(
-            regular_grid=model["options"]["exog_grids"]["second_continuous"],
+            regular_grid=continuous_states_info["second_continuous_grid"],
             wealth_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
             value_grid=jnp.take(value_solved, state_choice_index, axis=0),
             policy_grid=jnp.take(policy_solved, state_choice_index, axis=0),

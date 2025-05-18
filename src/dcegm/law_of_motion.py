@@ -214,7 +214,7 @@ def calculate_wealth_for_all_agents(
     savings_end_of_previous_period,
     income_shocks_of_period,
     params,
-    compute_beginning_of_period_savings,
+    compute_beginning_of_period_wealth,
 ):
     """Simulation."""
     savings_beginning_of_next_period = vmap(
@@ -225,7 +225,7 @@ def calculate_wealth_for_all_agents(
         savings_end_of_previous_period,
         income_shocks_of_period,
         params,
-        compute_beginning_of_period_savings,
+        compute_beginning_of_period_wealth,
         True,
     )
     return savings_beginning_of_next_period
@@ -256,7 +256,7 @@ def calculate_wealth_given_second_continuous_state_for_all_agents(
     savings_end_of_previous_period,
     income_shocks_of_period,
     params,
-    compute_beginning_of_period_savings,
+    compute_beginning_of_period_wealth,
 ):
     """Simulation."""
 
@@ -269,7 +269,7 @@ def calculate_wealth_given_second_continuous_state_for_all_agents(
         savings_end_of_previous_period,
         income_shocks_of_period,
         params,
-        compute_beginning_of_period_savings,
+        compute_beginning_of_period_wealth,
         True,
     )
     return savings_beginning_of_next_period, aux_dict

@@ -50,7 +50,6 @@ def process_exog_funcs(exog_processes, model_specs, continuous_state_name):
 
     exog_funcs = []
     processed_exog_funcs = {}
-
     # What about vectors instead of callables supplied?
     for exog_name, exog_func in exog_processes.items():
         if isinstance(exog_func, Callable):

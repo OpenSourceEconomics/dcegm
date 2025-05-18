@@ -106,6 +106,7 @@ def check_model_config_and_process(model_config):
         continuous_states_info["second_continuous_exists"] = False
         continuous_states_info["second_continuous_state_name"] = None
         continuous_states_info["n_second_continuous_grid"] = None
+        continuous_states_info["second_continuous_grid"] = None
 
     processed_model_config["continuous_states_info"] = continuous_states_info
 

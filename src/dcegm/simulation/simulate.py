@@ -34,23 +34,10 @@ def simulate_all_periods(
         model["model_funcs"] if alt_model_funcs_sim is None else alt_model_funcs_sim
     )
 
-    second_continuous_state_dict = next(
-        (
-            {key: value}
-            for key, value in model["model_config"]["continuous_states"].items()
-            if key != "wealth"
-        ),
-        None,
-    )
-    second_continuous_state_name = (
-        next(iter(second_continuous_state_dict.keys()))
-        if second_continuous_state_dict
-        else None
-    )
-
     model_structure_sol = model["model_structure"]
     discrete_state_space = model_structure_sol["state_space_dict"]
     model_funcs_sol = model["model_funcs"]
+    model_config_sol = model["model_config"]
 
     # Set initial states to internal dtype
     states_initial_dtype = {
@@ -64,10 +51,12 @@ def simulate_all_periods(
             states_initial_dtype["period"]
         )
 
-    if second_continuous_state_dict:
-        states_initial_dtype[second_continuous_state_name] = states_initial[
-            second_continuous_state_name
-        ]
+    continuous_states_info = model_config_sol["continuous_states_info"]
+
+    if continuous_states_info["second_continuous_exists"]:
+        states_initial_dtype[continuous_states_info["second_continuous_state_name"]] = (
+            states_initial[continuous_states_info["second_continuous_state_name"]]
+        )
 
     n_agents = len(wealth_initial)
 
@@ -90,7 +79,7 @@ def simulate_all_periods(
         model_structure_sol=model_structure_sol,
         model_funcs_sim=alt_model_funcs_sim,
         compute_utility=model_funcs_sol["compute_utility"],
-        second_continuous_state_dict=second_continuous_state_dict,
+        model_config=model_config_sol,
     )
 
     states_and_wealth_beginning_of_first_period = (
@@ -144,7 +133,7 @@ def simulate_single_period(
     model_structure_sol,
     model_funcs_sim,
     compute_utility,
-    second_continuous_state_dict=None,
+    model_config,
 ):
 
     (
@@ -152,9 +141,11 @@ def simulate_single_period(
         wealth_beginning_of_period,
     ) = states_and_wealth_beginning_of_period
 
-    if second_continuous_state_dict:
-        continuous_state_name = list(second_continuous_state_dict.keys())[0]
-        continuous_grid = second_continuous_state_dict[continuous_state_name]
+    continuous_states_info = model_config["continuous_states_info"]
+
+    if continuous_states_info["second_continuous_exists"]:
+        continuous_state_name = continuous_states_info["second_continuous_state_name"]
+        continuous_grid = continuous_states_info["second_continuous_grid"]
 
         continuous_state_beginning_of_period = states_beginning_of_period[
             continuous_state_name
@@ -235,7 +226,7 @@ def simulate_single_period(
 
     states_next_period = discrete_states_next_period
 
-    if second_continuous_state_dict:
+    if continuous_states_info["second_continuous_exists"]:
         states_next_period[continuous_state_name] = continuous_state_next_period
 
     carry = states_next_period, wealth_beginning_of_next_period
