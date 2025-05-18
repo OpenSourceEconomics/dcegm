@@ -53,10 +53,15 @@ def setup_model(
         budget_constraint (Callable): User supplied budget constraint.
 
     """
-    # if debug_info is not None:
-    #     debug_dict = process_debug_string(debug_info, state_space_functions, options)
-    #     if debug_dict["return_output"]:
-    #         return debug_dict["debug_output"]
+    if debug_info is not None:
+        debug_dict = process_debug_string(
+            debug_output=debug_info,
+            state_space_functions=state_space_functions,
+            model_specs=model_specs,
+            model_config=model_config,
+        )
+        if debug_dict["return_output"]:
+            return debug_dict["debug_output"]
 
     model_config_processed = check_model_config_and_process(model_config)
 
