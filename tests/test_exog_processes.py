@@ -448,10 +448,10 @@ def test_exog_processes(
     }
 
     model_specs = {
-        "quadrature_points_stochastic": 5,
         "n_choices": 2,
     }
     model_config = {
+        "n_quad_points": 5,
         "n_periods": 2,
         "choices": np.arange(2),
         "endogenous_states": {
@@ -469,10 +469,10 @@ def test_exog_processes(
     }
 
     exogenous_states_transition = {
-        "transition_health_mother": prob_exog_health_mother,
-        "transition_health_father": prob_exog_health_father,
-        "transition_health_child": prob_exog_health_child,
-        "transition_health_grandma": prob_exog_health_grandma,
+        "health_mother": prob_exog_health_mother,
+        "health_father": prob_exog_health_father,
+        "health_child": prob_exog_health_child,
+        "health_grandma": prob_exog_health_grandma,
     }
 
     model = setup_model(

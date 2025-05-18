@@ -152,7 +152,9 @@ def value_for_state_choice_vec(
         )
     else:
         value = interp2d_value_on_wealth_and_regular_grid(
-            regular_grid=model["options"]["exog_grids"]["second_continuous"],
+            regular_grid=model["model_config"]["continuous_states_info"][
+                "second_continuous_grid"
+            ],
             wealth_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
             value_grid=jnp.take(value_solved, state_choice_index, axis=0),
             regular_point_to_interp=second_continuous,
@@ -206,7 +208,9 @@ def policy_for_state_choice_vec(
         )
     else:
         policy = interp2d_policy_on_wealth_and_regular_grid(
-            regular_grid=model["options"]["exog_grids"]["second_continuous"],
+            regular_grid=model["model_config"]["continuous_states_info"][
+                "second_continuous_grid"
+            ],
             wealth_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
             policy_grid=jnp.take(policy_solved, state_choice_index, axis=0),
             regular_point_to_interp=second_continuous,
@@ -290,7 +294,7 @@ def validate_exogenous_processes(model, params):
 
     for exog_name, exog_func in processed_exog_funcs.items():
         # Sum transition probabilities for each state-choice combination
-        all_transitions = jax.vmap(exoc_vec, in_axes=(0, None, None))(
+        all_transitions = jax.vmap(exog_vec, in_axes=(0, None, None))(
             state_choice_space_dict, exog_func, params
         )
         summed_transitions = jnp.sum(all_transitions, axis=1)
@@ -321,9 +325,7 @@ def validate_exogenous_processes(model, params):
             )
 
         # Check the number of transitions
-        n_states = len(
-            model["options"]["state_space"]["exogenous_processes"][exog_name]["states"]
-        )
+        n_states = len(model["model_config"]["exogenous_processes"][exog_name])
         if all_transitions.shape[1] != n_states:
             raise ValueError(
                 f"Exogenous process {exog_name} does not return the correct "
@@ -352,7 +354,7 @@ def validate_exogenous_processes(model, params):
     return True
 
 
-def exoc_vec(state_choice_vec_dict, exog_func, params):
+def exog_vec(state_choice_vec_dict, exog_func, params):
     """
     Evaluate the exogenous function for a given state-choice vector and params.
 
