@@ -19,7 +19,7 @@ def inputs():
     n_periods = 20
     n_choices = 3
 
-    state_space_options = {
+    model_config = {
         "min_period_batch_segments": [5, 12],
         "n_periods": n_periods,
         "choices": np.arange(n_choices, dtype=int),
@@ -31,28 +31,24 @@ def inputs():
             "experience": jnp.linspace(0, 1, 7, dtype=float),
         },
         "exogenous_processes": {
-            "job_offer": {
-                "transition": job_offer,
-                "states": [0, 1],
-            },
-            "survival": {
-                "transition": prob_survival,
-                "states": [0, 1],
-            },
+            "job_offer": [0, 1],
+            "survival": [0, 1],
         },
     }
 
-    options = {
-        "state_space": state_space_options,
-        "model_params": {
-            "n_quad_points_stochastic": 5,
-            "n_periods": n_periods,
-            "n_choices": 3,
-            "min_ret_period": 5,
-            "max_ret_period": 10,
-            "fresh_bonus": 0.1,
-            "exp_scale": 20,
-        },
+    exogenous_states_transition = {
+        "transition_job_offer": job_offer,
+        "transition_survival": prob_survival,
+    }
+
+    model_specs = {
+        "n_quad_points_stochastic": 5,
+        "n_periods": n_periods,
+        "n_choices": 3,
+        "min_ret_period": 5,
+        "max_ret_period": 10,
+        "fresh_bonus": 0.1,
+        "exp_scale": 20,
     }
 
     params = {
@@ -68,11 +64,13 @@ def inputs():
     }
 
     model = setup_model(
-        options=options,
+        model_specs=model_specs,
+        model_config=model_config,
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
         state_space_functions=create_state_space_functions(),
         budget_constraint=budget_constraint_exp,
+        exogenous_states_transition=exogenous_states_transition,
         debug_info="all",
     )
     solve_func = get_solve_func_for_model(model)
@@ -82,7 +80,8 @@ def inputs():
     return {
         "model": model,
         "params": params,
-        "options": options,
+        "model_specs": model_specs,
+        "model_config": model_config,
         "solution": solution,
     }
 
@@ -157,7 +156,7 @@ def test_child_states(inputs):
 
 
 def test_sparse_debugging_output(inputs):
-    options = inputs["options"]
+    model_config = inputs["model_config"]
 
     state_space_functions = create_state_space_functions()
     # state_space_functions=options["state_space"], sparsity_condition, debugging=True
@@ -165,6 +164,6 @@ def test_sparse_debugging_output(inputs):
     debug_dict = process_debug_string(
         debug_output="state_space_df",
         state_space_functions=state_space_functions,
-        model_config=options,
+        model_config=model_config,
     )
     assert isinstance(debug_dict["debug_output"], pd.DataFrame)

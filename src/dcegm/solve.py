@@ -16,13 +16,15 @@ from dcegm.solve_single_period import solve_single_period
 
 
 def solve_dcegm(
-    params: Dict,
+    params,
     model_specs: Dict,
     model_config: Dict,
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable] = None,
+    exogenous_states_transition: Dict[str, Callable] = None,
+    shock_functions: Dict[str, Callable] = None,
 ) -> Dict[int, np.ndarray]:
     """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
@@ -51,11 +53,14 @@ def solve_dcegm(
     """
 
     model = setup_model(
-        options=options,
+        model_config=model_config,
+        model_specs=model_specs,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
+        exogenous_states_transition=exogenous_states_transition,
+        shock_functions=shock_functions,
     )
 
     backward_jit = get_solve_func_for_model(model=model)

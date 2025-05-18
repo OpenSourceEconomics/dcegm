@@ -36,8 +36,8 @@ def marriage_transition(married, options):
 
 
 @pytest.fixture
-def state_space_options():
-    state_space_options_sol = {
+def model_configs():
+    model_config_sol = {
         "n_periods": 5,
         "choices": np.arange(2),
         "endogenous_states": {
@@ -48,7 +48,7 @@ def state_space_options():
         },
     }
 
-    state_space_options_sim = {
+    model_config_sim = {
         "n_periods": 5,
         "choices": np.arange(2),
         "exogenous_processes": {
@@ -62,15 +62,15 @@ def state_space_options():
         },
     }
 
-    state_space_options = {
-        "solution": state_space_options_sol,
-        "simulation": state_space_options_sim,
+    model_configs = {
+        "solution": model_config_sol,
+        "simulation": model_config_sim,
     }
 
-    return state_space_options
+    return model_configs
 
 
-def test_sim_and_sol_model(state_space_options, load_replication_params_and_specs):
+def test_sim_and_sol_model(model_configs, load_replication_params_and_specs):
     params, model_specs = load_replication_params_and_specs("retirement_with_shocks")
     params["married_util"] = 0.5
 
@@ -78,13 +78,9 @@ def test_sim_and_sol_model(state_space_options, load_replication_params_and_spec
     utility_functions = model_funcs["utility_functions"]
     utility_functions["utility"] = utility_crra
 
-    options_sol = {
-        "state_space": state_space_options["solution"],
-        "model_params": model_specs,
-    }
-
     model_sol = setup_model(
-        options=options_sol,
+        model_config=model_configs["solution"],
+        model_specs=model_specs,
         state_space_functions=model_funcs["state_space_functions"],
         utility_functions=utility_functions,
         utility_functions_final_period=model_funcs["utility_functions_final_period"],
@@ -94,10 +90,6 @@ def test_sim_and_sol_model(state_space_options, load_replication_params_and_spec
 
     value, policy, endog_grid = solve_func(params)
 
-    options_sim = {
-        "state_space": state_space_options["simulation"],
-        "model_params": model_specs,
-    }
     marriage_trans_mat = jnp.array([[0.3, 0.7], [0.1, 0.9]])
     options_sim["model_params"]["marriage_trans_mat"] = marriage_trans_mat
 
