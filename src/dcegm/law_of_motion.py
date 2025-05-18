@@ -28,26 +28,24 @@ def calc_cont_grids_next_period(
         )
 
         # Extra dimension for continuous state
-        savings_beginning_of_next_period = (
-            calculate_savings_for_second_continuous_state(
-                discrete_states_beginning_of_next_period=state_space_dict,
-                continuous_state_beginning_of_next_period=continuous_state_next_period,
-                savings_grid=continuous_grids["savings_grid"],
-                income_shocks=income_shocks_scaled,
-                params=params,
-                compute_beginning_of_period_wealth=model_funcs[
-                    "compute_beginning_of_period_wealth"
-                ],
-            )
+        wealth_beginning_of_next_period = calculate_wealth_for_second_continuous_state(
+            discrete_states_beginning_of_next_period=state_space_dict,
+            continuous_state_beginning_of_next_period=continuous_state_next_period,
+            savings_grid=continuous_grids["savings_grid"],
+            income_shocks=income_shocks_scaled,
+            params=params,
+            compute_beginning_of_period_wealth=model_funcs[
+                "compute_beginning_of_period_wealth"
+            ],
         )
 
         cont_grids_next_period = {
-            "wealth": savings_beginning_of_next_period,
+            "wealth": wealth_beginning_of_next_period,
             "second_continuous": continuous_state_next_period,
         }
 
     else:
-        savings_next_period = calculate_savings(
+        savings_next_period = calculate_wealth(
             discrete_states_beginning_of_period=state_space_dict,
             savings_grid=continuous_grids["savings_grid"],
             income_shocks_current_period=income_shocks_scaled,
@@ -63,7 +61,7 @@ def calc_cont_grids_next_period(
     return cont_grids_next_period
 
 
-def calculate_savings(
+def calculate_wealth(
     discrete_states_beginning_of_period,
     savings_grid,
     income_shocks_current_period,
@@ -73,7 +71,7 @@ def calculate_savings(
     savings_beginning_of_period = vmap(
         vmap(
             vmap(
-                calc_savings_for_each_savings_grid_point,
+                calc_wealth_for_each_savings_grid_point,
                 in_axes=(None, None, 0, None, None, None),  # income shocks
             ),
             in_axes=(None, 0, None, None, None, None),  # savings
@@ -90,7 +88,7 @@ def calculate_savings(
     return savings_beginning_of_period
 
 
-def calc_savings_for_each_savings_grid_point(
+def calc_wealth_for_each_savings_grid_point(
     state_vec,
     exog_savings_grid_point,
     income_shock_draw,
@@ -173,7 +171,7 @@ def calc_continuous_state_for_each_grid_point(
     return out
 
 
-def calculate_savings_for_second_continuous_state(
+def calculate_wealth_for_second_continuous_state(
     discrete_states_beginning_of_next_period,
     continuous_state_beginning_of_next_period,
     savings_grid,
@@ -211,7 +209,7 @@ def calculate_savings_for_second_continuous_state(
 # =====================================================================================
 
 
-def calculate_savings_for_all_agents(
+def calculate_wealth_for_all_agents(
     states_beginning_of_period,
     savings_end_of_previous_period,
     income_shocks_of_period,
@@ -220,7 +218,7 @@ def calculate_savings_for_all_agents(
 ):
     """Simulation."""
     savings_beginning_of_next_period = vmap(
-        calc_savings_for_each_savings_grid_point,
+        calc_wealth_for_each_savings_grid_point,
         in_axes=(0, 0, 0, None, None, None),
     )(
         states_beginning_of_period,
@@ -252,7 +250,7 @@ def calculate_second_continuous_state_for_all_agents(
     return continuous_state_beginning_of_next_period
 
 
-def calculate_savings_given_second_continuous_state_for_all_agents(
+def calculate_wealth_given_second_continuous_state_for_all_agents(
     states_beginning_of_period,
     continuous_state_beginning_of_period,
     savings_end_of_previous_period,
