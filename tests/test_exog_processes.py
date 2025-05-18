@@ -293,7 +293,6 @@ import pytest
 from numpy.testing import assert_almost_equal as aaae
 
 from dcegm.interface import validate_exogenous_processes
-from dcegm.pre_processing.check_options import check_model_config_and_process
 from dcegm.pre_processing.model_structure.exogenous_processes import (
     create_exog_state_mapping,
 )
@@ -448,49 +447,42 @@ def test_exog_processes(
         "beta": 0.95,
     }
 
-    options = {
-        "model_params": {
-            "quadrature_points_stochastic": 5,
-            "n_choices": 2,
+    model_specs = {
+        "quadrature_points_stochastic": 5,
+        "n_choices": 2,
+    }
+    model_config = {
+        "n_periods": 2,
+        "choices": np.arange(2),
+        "endogenous_states": {
+            "married": [0, 1],
         },
-        "state_space": {
-            "n_periods": 2,
-            "choices": np.arange(2),
-            "endogenous_states": {
-                "married": [0, 1],
-            },
-            "continuous_states": {
-                "wealth": np.linspace(0, 50, 100),
-            },
-            "exogenous_processes": {
-                "health_mother": {
-                    "transition": prob_exog_health_mother,
-                    "states": [0, 1, 2],
-                },
-                "health_father": {
-                    "transition": prob_exog_health_father,
-                    "states": [0, 1, 2],
-                },
-                "health_child": {
-                    "transition": prob_exog_health_child,
-                    "states": [0, 1],
-                },
-                "health_grandma": {
-                    "transition": prob_exog_health_grandma,
-                    "states": [0, 1],
-                },
-            },
+        "continuous_states": {
+            "wealth": np.linspace(0, 50, 100),
+        },
+        "exogenous_processes": {
+            "health_mother": [0, 1, 2],
+            "health_father": [0, 1, 2],
+            "health_child": [0, 1],
+            "health_grandma": [0, 1],
         },
     }
 
-    options = check_model_config_and_process(options)
+    exogenous_states_transition = {
+        "transition_health_mother": prob_exog_health_mother,
+        "transition_health_father": prob_exog_health_father,
+        "transition_health_child": prob_exog_health_child,
+        "transition_health_grandma": prob_exog_health_grandma,
+    }
 
     model = setup_model(
-        options,
+        model_config=model_config,
+        model_specs=model_specs,
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
         budget_constraint=budget_constraint,
+        exogenous_states_transition=exogenous_states_transition,
     )
     model_funcs = model["model_funcs"]
     model_structure = model["model_structure"]

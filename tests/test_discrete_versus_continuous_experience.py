@@ -1,5 +1,5 @@
 # If we set grid points to 61 (5 * 4 * 3 * 2 * 1), the test will pass
-# on complete precise numbers. Look it example options for current number
+# on complete precise numbers. Look it example model_config for current number
 
 
 import copy
@@ -32,13 +32,13 @@ def test_setup():
 
     model_funcs_discr_exp = toy_models.load_example_model_functions("with_exp")
     # params are actually the same for both models. Just name them params.
-    params, model_specs, model_config = (
+    params, model_specs_disc, model_config_disc = (
         toy_models.load_example_params_model_specs_and_config("with_exp")
     )
 
     model_disc = setup_model(
-        model_specs=model_specs,
-        model_config=model_config,
+        model_specs=model_specs_disc,
+        model_config=model_config_disc,
         state_space_functions=model_funcs_discr_exp["state_space_functions"],
         utility_functions=model_funcs_discr_exp["utility_functions"],
         utility_functions_final_period=model_funcs_discr_exp[
@@ -55,12 +55,13 @@ def test_setup():
     # =================================================================================
 
     model_funcs_cont_exp = toy_models.load_example_model_functions("with_cont_exp")
-    _, options_cont = toy_models.load_example_params_model_specs_and_config(
-        "with_cont_exp"
+    _, model_specs_cont, model_config_cont = (
+        toy_models.load_example_params_model_specs_and_config("with_cont_exp")
     )
 
     model_cont = setup_model(
-        options=options_cont,
+        model_config=model_config_cont,
+        model_specs=model_specs_cont,
         state_space_functions=model_funcs_cont_exp["state_space_functions"],
         utility_functions=model_funcs_cont_exp["utility_functions"],
         utility_functions_final_period=model_funcs_cont_exp[
@@ -74,8 +75,7 @@ def test_setup():
 
     return (
         params,
-        options_discrete,
-        options_cont,
+        model_config_cont,
         model_disc,
         model_cont,
         value_disc,
@@ -107,8 +107,7 @@ def test_replication_discrete_versus_continuous_experience(
 
     (
         params,
-        options_discrete,
-        options_cont,
+        model_config_cont,
         model_disc,
         model_cont,
         value_disc,
@@ -119,7 +118,7 @@ def test_replication_discrete_versus_continuous_experience(
         endog_grid_cont,
     ) = test_setup
 
-    experience_grid = options_cont["state_space"]["continuous_states"]["experience"]
+    experience_grid = model_config_cont["continuous_states"]["experience"]
 
     exp_share_to_test = experience / (period + MAX_INIT_EXPERIENCE)
 

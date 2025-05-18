@@ -30,6 +30,7 @@ def example_model_config():
             "experience": np.arange(n_periods + max_init_experience),
         },
         "continuous_states": {"wealth": jnp.linspace(0, 50, 100)},
+        "n_quad_points_stochastic": 5,
     }
     return model_config
 
@@ -41,7 +42,6 @@ def example_model_specs():
 
     model_specs = {
         "n_choices": n_choices,
-        "n_quad_points_stochastic": 5,
         "n_periods": n_periods,
         "max_init_experience": max_init_experience,
     }

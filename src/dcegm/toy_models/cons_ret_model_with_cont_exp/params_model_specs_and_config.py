@@ -29,6 +29,7 @@ def example_model_config():
             "wealth": jnp.linspace(0, 50, 100),
             "experience": jnp.linspace(0, 1, 5),
         },
+        "n_quad_points_stochastic": 5,
     }
     return model_config
 
@@ -40,7 +41,6 @@ def example_model_specs():
 
     model_specs = {
         "n_choices": n_choices,
-        "n_quad_points_stochastic": 5,
         "n_periods": n_periods,
         "max_init_experience": max_init_experience,
     }

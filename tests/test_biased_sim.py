@@ -2,6 +2,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+import dcegm.toy_models as toy_models
 from dcegm.pre_processing.alternative_sim_functions import (
     generate_alternative_sim_functions,
 )
@@ -9,7 +10,6 @@ from dcegm.pre_processing.setup_model import setup_model
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
 from dcegm.solve import get_solve_func_for_model
-from dcegm.toy_models.example_model_functions import load_example_model_functions
 
 
 def utility_crra(
@@ -65,11 +65,13 @@ def model_configs():
     return model_configs
 
 
-def test_sim_and_sol_model(model_configs, load_replication_params_and_specs):
-    params, model_specs = load_replication_params_and_specs("retirement_with_shocks")
+def test_sim_and_sol_model(model_configs):
+    params, model_specs, _ = toy_models.load_example_params_model_specs_and_config(
+        "dcegm_paper_retirement_with_shocks"
+    )
     params["married_util"] = 0.5
 
-    model_funcs = load_example_model_functions("dcegm_paper")
+    model_funcs = toy_models.load_example_model_functions("dcegm_paper")
     utility_functions = model_funcs["utility_functions"]
     utility_functions["utility"] = utility_crra
 

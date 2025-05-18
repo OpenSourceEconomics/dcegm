@@ -105,7 +105,6 @@ def test_get_beginning_of_period_wealth(
     labor_choice,
     max_wealth,
     n_grid_points,
-    load_replication_params_and_specs,
 ):
     params, options = load_replication_params_and_specs(f"{model}")
     params["part_time"] = -1

@@ -34,6 +34,7 @@ def example_model_config_deaton():
                 100,
             )
         },
+        "n_quad_points_stochastic": 10,
     }
     return model_config
 
@@ -44,6 +45,5 @@ def example_model_specs_deaton():
         "n_periods": 25,
         "min_age": 20,
         "n_choices": 1,
-        "n_quad_points_stochastic": 10,
     }
     return model_specs
