@@ -291,7 +291,7 @@ def create_test_inputs():
             "state_choice_mat_final_period"
         ],
         cont_grids_next_period=cont_grids_next_period,
-        exog_grids=exog_grids_cont,
+        continuous_states_info=exog_grids_cont,
         params=params,
         model_funcs=model_funcs_cont,
         value_solved=value_solved,

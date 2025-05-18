@@ -66,7 +66,7 @@ def solve_last_two_periods(
             "state_choice_mat_final_period"
         ],
         cont_grids_next_period=cont_grids_next_period,
-        n_savings_grid=continuous_grids_info["n_savings_grid"],
+        continuous_states_info=continuous_grids_info,
         params=params,
         model_funcs=model_funcs,
         value_solved=value_solved,
@@ -125,7 +125,7 @@ def solve_final_period(
     idx_state_choices_final_period,
     idx_parent_states_final_period,
     state_choice_mat_final_period,
-    n_savings_grid: int,
+    continuous_states_info: Dict[str, Any],
     cont_grids_next_period: Dict[str, jnp.ndarray],
     params: Dict[str, float],
     model_funcs: Dict[str, Callable],
@@ -169,7 +169,7 @@ def solve_final_period(
             idx_parent_states_final_period=idx_parent_states_final_period,
             state_choice_mat_final_period=state_choice_mat_final_period,
             cont_grids_next_period=cont_grids_next_period,
-            n_savings_grid=n_savings_grid,
+            continuous_states_info=continuous_states_info,
             params=params,
             model_funcs=model_funcs,
             value_solved=value_solved,
@@ -188,7 +188,7 @@ def solve_final_period(
             idx_parent_states_final_period=idx_parent_states_final_period,
             state_choice_mat_final_period=state_choice_mat_final_period,
             cont_grids_next_period=cont_grids_next_period,
-            n_savings_grid=n_savings_grid,
+            n_savings_grid=continuous_states_info["n_savings_grid"],
             params=params,
             compute_utility=model_funcs["compute_utility_final"],
             compute_marginal_utility=model_funcs["compute_marginal_utility_final"],
@@ -317,7 +317,7 @@ def solve_final_period_second_continuous(
     of the second continuous state.
 
     """
-    wealth_child_states_final_period = cont_grids_next_period["savings_grid"][
+    wealth_child_states_final_period = cont_grids_next_period["wealth"][
         idx_parent_states_final_period
     ]
     n_wealth = continuous_states_info["n_savings_grid"]

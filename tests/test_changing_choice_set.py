@@ -218,8 +218,8 @@ def test_extended_choice_set_model(
     params, model_specs, model_config = test_model
 
     exogenous_states_transition = {
-        "transition_health": prob_health,
-        "transition_partner": prob_partner,
+        "health": prob_health,
+        "partner": prob_partner,
     }
 
     model = setup_model(
