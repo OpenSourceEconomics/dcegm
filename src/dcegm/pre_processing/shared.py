@@ -43,7 +43,7 @@ def partial_model_specs_and_update_signature(func, signature, model_specs):
     """Partial in model_specs and update signature."""
     if "model_specs" in signature:
         func = partial(func, model_specs=model_specs)
-        signature = signature - {"model_specsf"}
+        signature = signature - {"model_specs"}
 
     return func, signature
 
