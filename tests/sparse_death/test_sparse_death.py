@@ -34,6 +34,7 @@ def inputs():
             "job_offer": [0, 1],
             "survival": [0, 1],
         },
+        "n_quad_points": 5,
     }
 
     exogenous_states_transition = {
@@ -42,7 +43,6 @@ def inputs():
     }
 
     model_specs = {
-        "n_quad_points_stochastic": 5,
         "n_periods": n_periods,
         "n_choices": 3,
         "min_ret_period": 5,

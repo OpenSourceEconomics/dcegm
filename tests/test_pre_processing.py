@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 from jax import vmap
 
+import dcegm.toy_models as toy_models
 from dcegm.pre_processing.check_options import check_model_config_and_process
 from dcegm.pre_processing.check_params import process_params
 from dcegm.pre_processing.model_functions.process_model_functions import (
@@ -128,7 +129,6 @@ def test_missing_parameter(
 )
 def test_load_and_save_model(
     model_name,
-    load_replication_params_and_specs,
 ):
     options = {}
     _params, _raw_options = load_replication_params_and_specs(f"{model_name}")

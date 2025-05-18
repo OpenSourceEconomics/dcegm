@@ -2,10 +2,10 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+import dcegm.toy_models as toy_models
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.sim_interface import get_sol_and_sim_func_for_model
 from dcegm.simulation.sim_utils import create_simulation_df
-from dcegm.toy_models.example_model_functions import load_example_model_functions
 
 
 def budget_with_aux(
@@ -108,8 +108,8 @@ def _calc_stochastic_income(
 
 
 @pytest.fixture
-def state_space_options():
-    state_space_options = {
+def model_config():
+    model_config = {
         "n_periods": 5,
         "choices": np.arange(2),
         "continuous_states": {
@@ -117,21 +117,19 @@ def state_space_options():
         },
     }
 
-    return state_space_options
+    return model_config
 
 
-def test_sim_and_sol_model(state_space_options, load_replication_params_and_specs):
-    params, model_specs = load_replication_params_and_specs("retirement_with_shocks")
+def test_sim_and_sol_model(model_config):
+    params, model_specs, _ = toy_models.load_example_params_model_specs_and_config(
+        "retirement_with_shocks"
+    )
 
-    model_funcs = load_example_model_functions("dcegm_paper")
-
-    options_sol = {
-        "state_space": state_space_options,
-        "model_params": model_specs,
-    }
+    model_funcs = toy_models.load_example_model_functions("dcegm_paper")
 
     model_with_aux = setup_model(
-        options=options_sol,
+        model_config=model_config,
+        model_specs=model_specs,
         state_space_functions=model_funcs["state_space_functions"],
         utility_functions=model_funcs["utility_functions"],
         utility_functions_final_period=model_funcs["utility_functions_final_period"],
@@ -139,7 +137,8 @@ def test_sim_and_sol_model(state_space_options, load_replication_params_and_spec
     )
 
     model_without_aux = setup_model(
-        options=options_sol,
+        model_config=model_config,
+        model_specs=model_specs,
         state_space_functions=model_funcs["state_space_functions"],
         utility_functions=model_funcs["utility_functions"],
         utility_functions_final_period=model_funcs["utility_functions_final_period"],
@@ -152,7 +151,7 @@ def test_sim_and_sol_model(state_space_options, load_replication_params_and_spec
         "period": jnp.zeros(n_agents, dtype=int),
         "lagged_choice": jnp.zeros(n_agents, dtype=int),
     }
-    n_periods = options_sol["state_space"]["n_periods"]
+    n_periods = model_config["n_periods"]
     seed = 132
 
     sim_func_aux = get_sol_and_sim_func_for_model(

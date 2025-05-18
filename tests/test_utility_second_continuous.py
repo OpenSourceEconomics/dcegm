@@ -116,9 +116,9 @@ def utility_cont_exp(
     period: int,
     choice: int,
     params: Dict[str, float],
-    options: Dict[str, float],
+    model_specs: Dict[str, float],
 ):
-    max_init_experience_period = period + options["max_init_experience"]
+    max_init_experience_period = period + model_specs["max_init_experience"]
     experience_years = experience * max_init_experience_period
 
     return utility_exp(
@@ -134,9 +134,9 @@ def marginal_utility_cont_exp(
     experience: float,
     period: int,
     params: Dict[str, float],
-    options: Dict[str, float],
+    model_specs: Dict[str, float],
 ):
-    max_init_experience_period = period + options["max_init_experience"]
+    max_init_experience_period = period + model_specs["max_init_experience"]
     experience_years = experience * max_init_experience_period
 
     return marg_utility_exp(
@@ -151,9 +151,9 @@ def inverse_marginal_utility_cont_exp(
     experience: float,
     period: int,
     params: Dict[str, float],
-    options: Dict[str, float],
+    model_specs: Dict[str, float],
 ):
-    max_init_experience_period = period + options["max_init_experience"]
+    max_init_experience_period = period + model_specs["max_init_experience"]
     experience_years = experience * max_init_experience_period
 
     return inverse_marg_utility_exp(
@@ -169,9 +169,9 @@ def utility_final_consume_all_with_cont_exp(
     experience: float,
     period: int,
     params: Dict[str, float],
-    options: Dict[str, float],
+    model_specs: Dict[str, float],
 ):
-    max_init_experience_period = period + options["max_init_experience"]
+    max_init_experience_period = period + model_specs["max_init_experience"]
     experience_years = experience * max_init_experience_period
 
     return utility_final_consume_all_with_exp(
@@ -183,9 +183,9 @@ def utility_final_consume_all_with_cont_exp(
 
 
 def marginal_utility_final_consume_all_with_cont_exp(
-    wealth, experience, period, params, options
+    wealth, experience, period, params, model_specs
 ):
-    max_init_experience_period = period + options["max_init_experience"]
+    max_init_experience_period = period + model_specs["max_init_experience"]
     experience_years = experience * max_init_experience_period
 
     return marginal_utility_final_consume_all_with_exp(
@@ -209,8 +209,8 @@ def test_setup():
 
     model_funcs_discr_exp = toy_models.load_example_model_functions("with_exp")
     # params are actually the same for both models. Just name them params.
-    params, options_discrete = toy_models.load_example_params_model_specs_and_config(
-        "with_exp"
+    params, model_specs_disc, model_config_disc = (
+        toy_models.load_example_params_model_specs_and_config("with_exp")
     )
 
     utility_functions_discrete = {
@@ -225,7 +225,8 @@ def test_setup():
     }
 
     model_disc = setup_model(
-        options=options_discrete,
+        model_config=model_config_disc,
+        model_specs=model_specs_disc,
         state_space_functions=model_funcs_discr_exp["state_space_functions"],
         utility_functions=utility_functions_discrete,
         utility_functions_final_period=utility_functions_final_period_discrete,
@@ -240,8 +241,8 @@ def test_setup():
     # =================================================================================
 
     model_funcs_cont_exp = toy_models.load_example_model_functions("with_cont_exp")
-    _, options_cont = toy_models.load_example_params_model_specs_and_config(
-        "with_cont_exp"
+    _, model_specs_cont, model_config_cont = (
+        toy_models.load_example_params_model_specs_and_config("with_cont_exp")
     )
 
     # Grid needs to be set very fine. Interpolation on state variables which determine
@@ -249,7 +250,7 @@ def test_setup():
     exp_grid_points = 61
 
     experience_grid = jnp.linspace(0, 1, exp_grid_points)
-    options_cont["state_space"]["continuous_states"]["experience"] = experience_grid
+    model_config_cont["continuous_states"]["experience"] = experience_grid
 
     utility_functions_cont_exp = {
         "utility": utility_cont_exp,
@@ -263,7 +264,8 @@ def test_setup():
     }
 
     model_cont = setup_model(
-        options=options_cont,
+        model_specs=model_specs_cont,
+        model_config=model_config_cont,
         state_space_functions=model_funcs_cont_exp["state_space_functions"],
         utility_functions=utility_functions_cont_exp,
         utility_functions_final_period=utility_functions_final_period_cont_exp,

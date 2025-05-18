@@ -30,8 +30,8 @@ def utility_crra(
     return utility
 
 
-def marriage_transition(married, options):
-    trans_mat = options["marriage_trans_mat"]
+def marriage_transition(married, model_specs):
+    trans_mat = model_specs["marriage_trans_mat"]
     return trans_mat[married, :]
 
 
@@ -111,7 +111,7 @@ def test_sim_and_sol_model(model_configs):
         "lagged_choice": np.zeros(n_agents, dtype=int),
         "married": initial_marriage_states,
     }
-    n_periods = options_sim["state_space"]["n_periods"]
+    n_periods = model_configs["simulation"]["n_periods"]
 
     sim_dict = simulate_all_periods(
         states_initial=states_initial,
