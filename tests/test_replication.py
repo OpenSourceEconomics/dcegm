@@ -27,7 +27,7 @@ REPLICATION_TEST_RESOURCES_DIR = TEST_DIR / "resources" / "replication_tests"
         "deaton",
     ],
 )
-def test_benchmark_models(model_name, load_replication_params_and_specs):
+def test_benchmark_models(model_name):
     if model_name == "deaton":
         model_funcs = toy_models.load_example_model_functions("dcegm_paper_deaton")
     else:

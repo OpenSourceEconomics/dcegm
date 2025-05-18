@@ -10,6 +10,7 @@ from numpy.testing import assert_array_almost_equal as aaae
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 
+import dcegm.toy_models as toy_models
 from dcegm.law_of_motion import calculate_continuous_state
 from dcegm.pre_processing.check_params import process_params
 from dcegm.toy_models.cons_ret_model_dcegm_paper import budget_constraint
@@ -96,25 +97,31 @@ TEST_CASES = list(product(model, period, labor_choice, max_wealth, n_grid_points
 
 
 @pytest.mark.parametrize(
-    "model, period, labor_choice, max_wealth, n_grid_points", TEST_CASES
+    "model_name, period, labor_choice, max_wealth, n_grid_points", TEST_CASES
 )
 def test_get_beginning_of_period_wealth(
-    model,
+    model_name,
     period,
     labor_choice,
     max_wealth,
     n_grid_points,
 ):
-    params, options = load_replication_params_and_specs(f"{model}")
+
+    params, model_specs, model_config = (
+        toy_models.load_example_params_model_specs_and_config(
+            "dcegm_paper_" + model_name
+        )
+    )
+
     params["part_time"] = -1
 
     params = process_params(params)
 
+    n_quad_points = model_config["n_quad_points"]
+
     sigma = params["sigma"]
     r = params["interest_rate"]
     consump_floor = params["consumption_floor"]
-
-    n_quad_points = options["n_quad_points"]
 
     child_state_dict = {"period": period, "lagged_choice": labor_choice}
     savings_grid = np.linspace(0, max_wealth, n_grid_points)
@@ -129,12 +136,12 @@ def test_get_beginning_of_period_wealth(
         **child_state_dict,
         savings_end_of_previous_period=savings_grid[random_saving_scalar],
         income_shock_previous_period=quad_points[random_shock_scalar],
-        options=options,
+        model_specs=model_specs,
         params=params,
     )
 
     if labor_choice == 0:
-        age = options["min_age"] + period
+        age = model_specs["min_age"] + period
         exp_income = (
             params["constant"] + params["exp"] * age + params["exp_squared"] * age**2
         )
@@ -153,18 +160,20 @@ TEST_CASES_SECOND_CONTINUOUS = list(product(model, max_wealth, n_grid_points))
 
 
 @pytest.mark.parametrize(
-    "model, max_wealth, n_grid_points", TEST_CASES_SECOND_CONTINUOUS
+    "model_name, max_wealth, n_grid_points", TEST_CASES_SECOND_CONTINUOUS
 )
-def test_wealth_and_second_continuous_state(
-    model, max_wealth, n_grid_points, load_replication_params_and_specs
-):
+def test_wealth_and_second_continuous_state(model_name, max_wealth, n_grid_points):
 
     # parametrize over number of experience points
     n_exp_points = 10
 
-    params, options = load_replication_params_and_specs(f"{model}")
+    params, model_specs, model_config = (
+        toy_models.load_example_params_model_specs_and_config(
+            "dcegm_paper_" + model_name
+        )
+    )
 
-    options["working_hours_max"] = 3000
+    model_specs["working_hours_max"] = 3000
     params["part_time"] = -1
     params = process_params(params)
 
@@ -177,7 +186,7 @@ def test_wealth_and_second_continuous_state(
 
     update_experience_vectorized = vmap(
         lambda period, lagged_choice: _next_period_continuous_state(
-            period, lagged_choice, experience_grid, options
+            period, lagged_choice, experience_grid, params
         )
     )
     experience_next = update_experience_vectorized(
