@@ -120,6 +120,7 @@ def process_model_functions(
     # Now exogenous transition function if present
     compute_exog_transition_vec, processed_exog_funcs_dict = (
         create_exog_transition_function(
+            exogenous_states_transitions,
             model_config=model_config,
             model_specs=model_specs,
             continuous_state_name=second_continuous_state_name,

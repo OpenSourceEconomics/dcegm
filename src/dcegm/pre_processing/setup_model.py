@@ -24,8 +24,8 @@ def setup_model(
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable] = None,
-    shock_functions: Dict[str, Callable] = None,
     exogenous_states_transition: Dict[str, Callable] = None,
+    shock_functions: Dict[str, Callable] = None,
     debug_info: str = None,
 ):
     """Set up the model for dcegm.
@@ -67,6 +67,7 @@ def setup_model(
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
+        exogenous_states_transitions=exogenous_states_transition,
         shock_functions=shock_functions,
     )
 
@@ -108,6 +109,7 @@ def setup_and_save_model(
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable] = None,
+    exogenous_states_transition: Dict[str, Callable] = None,
     shock_functions: Dict[str, Callable] = None,
     path: str = "model.pkl",
 ):
@@ -124,6 +126,7 @@ def setup_and_save_model(
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
+        exogenous_states_transition=exogenous_states_transition,
         shock_functions=shock_functions,
     )
 
@@ -142,6 +145,7 @@ def load_and_setup_model(
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable] = None,
+    exogenous_states_transition: Dict[str, Callable] = None,
     shock_functions: Dict[str, Callable] = None,
     path: str = "model.pkl",
 ):
@@ -157,6 +161,7 @@ def load_and_setup_model(
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
+        exogenous_states_transitions=exogenous_states_transition,
         shock_functions=shock_functions,
     )
 

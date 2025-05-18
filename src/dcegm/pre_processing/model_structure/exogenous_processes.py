@@ -10,7 +10,9 @@ from dcegm.pre_processing.shared import (
 )
 
 
-def create_exog_transition_function(model_config, model_specs, continuous_state_name):
+def create_exog_transition_function(
+    exogenous_states_transitions, model_config, model_specs, continuous_state_name
+):
     """Create the exogenous process transition function.
 
     The output function takes a state-choice vector, params and model_specs as input.
@@ -23,16 +25,19 @@ def create_exog_transition_function(model_config, model_specs, continuous_state_
         processed_exog_funcs_dict = {}
     else:
         exog_funcs, processed_exog_funcs_dict = process_exog_funcs(
-            model_config, model_specs, continuous_state_name
+            exogenous_states_transitions,
+            model_specs=model_specs,
+            continuous_state_name=continuous_state_name,
         )
 
         compute_exog_transition_vec = partial(
             get_exog_transition_vec, exog_funcs=exog_funcs
         )
+
     return compute_exog_transition_vec, processed_exog_funcs_dict
 
 
-def process_exog_funcs(model_config, model_specs, continuous_state_name):
+def process_exog_funcs(exog_processes, model_specs, continuous_state_name):
     """Process exogenous functions.
 
     Args:
@@ -42,21 +47,21 @@ def process_exog_funcs(model_config, model_specs, continuous_state_name):
         tuple: Tuple of exogenous processes.
 
     """
-    exog_processes = model_config["exogenous_processes"]
 
     exog_funcs = []
     processed_exog_funcs = {}
 
     # What about vectors instead of callables supplied?
-    for exog_name, exog_dict in exog_processes.items():
-        if isinstance(exog_dict["transition"], Callable):
+    for exog_name, exog_func in exog_processes.items():
+        if isinstance(exog_func, Callable):
             processed_exog_func = determine_function_arguments_and_partial_model_specs(
-                func=exog_dict["transition"],
+                func=exog_func,
                 model_specs=model_specs,
                 continuous_state_name=continuous_state_name,
             )
             exog_funcs += [processed_exog_func]
             processed_exog_funcs[exog_name] = processed_exog_func
+
     return exog_funcs, processed_exog_funcs
 
 
