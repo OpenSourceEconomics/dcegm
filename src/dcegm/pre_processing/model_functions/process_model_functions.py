@@ -1,4 +1,4 @@
-from typing import Callable, Dict
+from typing import Callable, Dict, Optional
 
 import jax.numpy as jnp
 
@@ -23,8 +23,8 @@ def process_model_functions(
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
-    exogenous_states_transitions: Dict[str, Callable],
-    shock_functions: Dict[str, Callable],
+    exogenous_states_transitions: Optional[Dict[str, Callable]] = None,
+    shock_functions: Optional[Dict[str, Callable]] = None,
 ):
     """Create wrapped functions from user supplied functions.
 

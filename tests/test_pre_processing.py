@@ -26,7 +26,7 @@ from dcegm.toy_models.cons_ret_model_dcegm_paper import (
 )
 
 
-def get_next_experience(period, lagged_choice, experience, options, params):
+def get_next_experience(period, lagged_choice, experience, model_specs, params):
 
     working_hours = _transform_lagged_choice_to_working_hours(lagged_choice)
 
@@ -130,22 +130,15 @@ def test_missing_parameter(
 def test_load_and_save_model(
     model_name,
 ):
-    options = {}
-    _params, _raw_options = load_replication_params_and_specs(f"{model_name}")
-
-    options["model_params"] = _raw_options
-    options["model_params"]["n_choices"] = _raw_options["n_discrete_choices"]
-    options["state_space"] = {
-        "n_periods": 25,
-        "choices": [i for i in range(_raw_options["n_discrete_choices"])],
-        "continuous_states": {
-            "wealth": np.linspace(0, 500, 100),
-        },
-    }
-    options["exog_grids"] = options["state_space"]["continuous_states"]["wealth"].copy()
+    _params, model_specs, model_config = (
+        toy_models.load_example_params_model_specs_and_config(
+            "dcegm_paper_" + model_name
+        )
+    )
 
     model_setup = setup_model(
-        options=options,
+        model_config=model_config,
+        model_specs=model_specs,
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -153,7 +146,8 @@ def test_load_and_save_model(
     )
 
     model_after_saving = setup_and_save_model(
-        options=options,
+        model_config=model_config,
+        model_specs=model_specs,
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -162,11 +156,12 @@ def test_load_and_save_model(
     )
 
     model_after_loading = load_and_setup_model(
-        model_config=options,
-        state_space_functions=create_state_space_function_dict(),
+        model_config=model_config,
+        model_specs=model_specs,
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
         budget_constraint=budget_constraint,
+        state_space_functions=create_state_space_function_dict(),
         path="model.pkl",
     )
 
@@ -194,16 +189,14 @@ def test_load_and_save_model(
 
 
 def test_grid_parameters():
-    options = {
-        "model_params": {
-            "saving_rate": 0.04,
-        },
-        "state_space": {
-            "n_periods": 25,
-            "choices": [0, 1],
-            "continuous_states": {
-                "wealth": np.linspace(0, 10, 100),
-            },
+    model_specs = {
+        "saving_rate": 0.04,
+    }
+    model_config = {
+        "n_periods": 25,
+        "choices": [0, 1],
+        "continuous_states": {
+            "wealth": np.linspace(0, 10, 100),
         },
         "tuning_params": {
             "extra_wealth_grid_factor": 0.2,
@@ -213,7 +206,8 @@ def test_grid_parameters():
 
     with pytest.raises(ValueError) as e:
         setup_model(
-            options=options,
+            model_config=model_config,
+            model_specs=model_specs,
             state_space_functions=create_state_space_function_dict(),
             utility_functions=create_utility_function_dict(),
             utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -232,31 +226,31 @@ TEST_INPUT = [
 @pytest.mark.parametrize("period, lagged_choice, continuous_state", TEST_INPUT)
 def test_second_continuous_state(period, lagged_choice, continuous_state):
 
-    options = {
-        "state_space": {
-            "n_periods": 25,
-            "choices": np.arange(3),
-            # discrete states
-            "endogenous_states": {
-                "married": [0, 1],
-                "n_children": np.arange(3),
-            },
-            "continuous_states": {
-                "wealth": np.linspace(0, 10_000, 100),
-                "experience": np.linspace(0, 1, 6),
-            },
+    model_config = {
+        "n_periods": 25,
+        "n_quad_points": 5,
+        "choices": np.arange(3),
+        # discrete states
+        "endogenous_states": {
+            "married": [0, 1],
+            "n_children": np.arange(3),
         },
-        "model_params": {"savings_rate": 0.04},
+        "continuous_states": {
+            "wealth": np.linspace(0, 10_000, 100),
+            "experience": np.linspace(0, 1, 6),
+        },
     }
+    model_specs = {"savings_rate": 0.04}
     params = {}
 
     state_space_functions = create_state_space_function_dict()
     state_space_functions["next_period_experience"] = get_next_experience
 
-    options = check_model_config_and_process(options)
+    model_config = check_model_config_and_process(model_config)
 
     model_funcs = process_model_functions(
-        options,
+        model_config=model_config,
+        model_specs=model_specs,
         state_space_functions=state_space_functions,
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
@@ -269,14 +263,14 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
         period=period,
         lagged_choice=lagged_choice,
         continuous_state=continuous_state,
-        options=options,
+        model_config=model_config,
         params=params,
     )
     expected = get_next_experience(
         period=period,
         lagged_choice=lagged_choice,
         experience=continuous_state,
-        options=options,
+        model_specs=model_specs,
         params=params,
     )
 

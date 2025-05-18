@@ -104,8 +104,8 @@ def setup_model(
 
 
 def setup_and_save_model(
-    model_specs: Dict,
     model_config: Dict,
+    model_specs: Dict,
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
@@ -142,8 +142,8 @@ def setup_and_save_model(
 
 
 def load_and_setup_model(
-    model_specs: Dict,
     model_config: Dict,
+    model_specs: Dict,
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
@@ -159,7 +159,7 @@ def load_and_setup_model(
     model["model_config"] = check_model_config_and_process(model_config)
 
     model["model_funcs"] = process_model_functions(
-        model_config=model_config,
+        model_config=model["model_config"],
         model_specs=model_specs,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
