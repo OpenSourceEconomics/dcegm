@@ -9,16 +9,16 @@ def create_state_space_functions():
     return out
 
 
-def state_specific_choice_set(period, lagged_choice, job_offer, options):
+def state_specific_choice_set(period, lagged_choice, job_offer, model_specs):
 
     # Retirement is absorbing
     if lagged_choice == 0:
         return [0]
     # If period equal or larger max ret age you have to choose retirement
-    elif period >= options["max_ret_period"]:
+    elif period >= model_specs["max_ret_period"]:
         return [0]
     # If above minimum retirement period, retirement is possible
-    elif period >= options["min_ret_period"]:
+    elif period >= model_specs["min_ret_period"]:
         if job_offer == 1:
             return [0, 1, 2]
         else:
@@ -32,25 +32,29 @@ def state_specific_choice_set(period, lagged_choice, job_offer, options):
 
 
 def sparsity_condition(
-    period, lagged_choice, job_offer, already_retired, survival, options
+    period, lagged_choice, job_offer, already_retired, survival, model_specs
 ):
-    last_period = options["n_periods"] - 1
+    last_period = model_specs["n_periods"] - 1
 
     # If above minimum retirement period, retirement is possible
-    if (period <= options["min_ret_period"]) & (lagged_choice == 0):
+    if (period <= model_specs["min_ret_period"]) & (lagged_choice == 0):
         return False
     elif (lagged_choice != 0) & (already_retired == 1):
         return False
-    elif (period <= options["min_ret_period"] + 1) & (already_retired == 1):
+    elif (period <= model_specs["min_ret_period"] + 1) & (already_retired == 1):
         return False
     # If period equal or larger max ret age you have to choose retirement
     elif (
-        (period > options["max_ret_period"] + 1)
+        (period > model_specs["max_ret_period"] + 1)
         & (already_retired != 1)
         & (survival != 0)
     ):
         return False
-    elif (period > options["max_ret_period"]) & (lagged_choice != 0) & (survival != 0):
+    elif (
+        (period > model_specs["max_ret_period"])
+        & (lagged_choice != 0)
+        & (survival != 0)
+    ):
         return False
     else:
         if survival == 0:
@@ -95,7 +99,7 @@ def next_period_endogenous_state(period, choice, lagged_choice):
         }
 
 
-def next_period_experience(lagged_choice, experience, options):
+def next_period_experience(lagged_choice, experience, model_specs):
     """If working add one year of experience years (1/exp_scale)"""
     working = lagged_choice == 2
-    return experience + working * (1 / options["exp_scale"])
+    return experience + working * (1 / model_specs["exp_scale"])

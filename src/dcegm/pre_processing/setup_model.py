@@ -53,10 +53,15 @@ def setup_model(
         budget_constraint (Callable): User supplied budget constraint.
 
     """
-    # if debug_info is not None:
-    #     debug_dict = process_debug_string(debug_info, state_space_functions, options)
-    #     if debug_dict["return_output"]:
-    #         return debug_dict["debug_output"]
+    if debug_info is not None:
+        debug_dict = process_debug_string(
+            debug_output=debug_info,
+            state_space_functions=state_space_functions,
+            model_specs=model_specs,
+            model_config=model_config,
+        )
+        if debug_dict["return_output"]:
+            return debug_dict["debug_output"]
 
     model_config_processed = check_model_config_and_process(model_config)
 
@@ -177,10 +182,12 @@ def load_and_setup_model(
     return model
 
 
-def process_debug_string(debug_output, state_space_functions, model_config):
+def process_debug_string(
+    debug_output, state_space_functions, model_specs, model_config
+):
     if debug_output == "state_space_df":
         sparsity_condition = process_sparsity_condition(
-            state_space_functions, model_config
+            state_space_functions=state_space_functions, model_specs=model_specs
         )
         out = create_state_space(model_config, sparsity_condition, debugging=True)
         debug_info = {"debug_output": out, "return_output": True}

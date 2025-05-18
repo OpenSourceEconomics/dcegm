@@ -4,6 +4,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+import dcegm.toy_models as toy_models
 from dcegm.pre_processing.model_functions.process_model_functions import (
     process_sparsity_condition,
 )
@@ -15,33 +16,31 @@ from dcegm.toy_models.cons_ret_model_dcegm_paper import (
 
 
 @pytest.fixture()
-def options(load_replication_params_and_specs):
+def specs_and_config():
     """Return options dictionary."""
-    _, _raw_options = load_replication_params_and_specs("retirement_no_shocks")
-    _raw_options["n_choices"] = 2
-    options = {}
+    _, model_specs, model_config = (
+        toy_models.load_example_params_model_specs_and_config(
+            "dcegm_paper_retirement_no_shocks"
+        )
+    )
+    model_specs["n_choices"] = 2
 
-    options["model_params"] = _raw_options
-    options.update(
+    model_config.update(
         {
-            "state_space": {
-                "n_periods": 25,
-                "choices": np.arange(2),
-                "endogenous_states": {
-                    "thus": np.arange(25),
-                    "that": [0, 1],
-                },
-                "continuous_states": {
-                    "wealth": np.linspace(0, 50, 100),
-                },
-                "exogenous_processes": {
-                    "ltc": {"states": np.array([0]), "transition": jnp.array([0])}
-                },
+            "n_periods": 25,
+            "choices": np.arange(2),
+            "endogenous_states": {
+                "thus": np.arange(25),
+                "that": [0, 1],
             },
+            "continuous_states": {
+                "wealth": np.linspace(0, 50, 100),
+            },
+            "exogenous_processes": {"ltc": jnp.array([0])},
         }
     )
 
-    return options
+    return model_specs, model_config
 
 
 def expected_state_space_and_indexer(n_periods, n_choices, n_exog_states):
@@ -75,7 +74,7 @@ TEST_CASES = list(product(lagged_choices, n_periods, n_choices, n_exog_processes
 )
 def test_state_choice_set(lagged_choice, n_periods, n_choices, n_exog_states):
     choice_set = get_state_specific_feasible_choice_set(
-        lagged_choice=lagged_choice, options={"n_choices": n_choices}
+        lagged_choice=lagged_choice, model_specs={"n_choices": n_choices}
     )
 
     # retirement (lagged_choice == 1) is absorbing
@@ -84,20 +83,20 @@ def test_state_choice_set(lagged_choice, n_periods, n_choices, n_exog_states):
     assert np.allclose(choice_set, expected_choice_set)
 
 
-def create_state_space_test(options):
-    n_periods = options["n_periods"]
-    n_choices = options["n_discrete_choices"]
-    resolution_age = options["resolution_age"]
-    start_age = options["start_age"]
+def create_state_space_test(model_specs):
+    n_periods = model_specs["n_periods"]
+    n_choices = model_specs["n_discrete_choices"]
+    resolution_age = model_specs["resolution_age"]
+    start_age = model_specs["start_age"]
 
     # The highest policy state, we consider belongs to the expectation of the youngest.
     n_policy_states = (resolution_age - start_age) + 1
 
     # minimum retirement age is 4 years before the lowest statutory ret age
-    min_ret_age = options["minimum_SRA"] - 4
+    min_ret_age = model_specs["minimum_SRA"] - 4
     # maximum (conceivable) retirement age is given by lowest SRA plus the projection
     # of the youngest
-    max_ret_age = options["maximum_retirement_age"]
+    max_ret_age = model_specs["maximum_retirement_age"]
     # number of possible actual retirement ages
     n_ret_ages = max_ret_age - min_ret_age + 1
 
@@ -166,12 +165,12 @@ def create_state_space_test(options):
 
 
 def sparsity_condition(
-    period, lagged_choice, policy_state, retirement_age_id, experience, options
+    period, lagged_choice, policy_state, retirement_age_id, experience, model_specs
 ):
-    min_ret_age = options["minimum_SRA"] - 4
-    start_age = options["start_age"]
-    resolution_age = options["resolution_age"]
-    max_ret_age = options["maximum_retirement_age"]
+    min_ret_age = model_specs["minimum_SRA"] - 4
+    start_age = model_specs["start_age"]
+    resolution_age = model_specs["resolution_age"]
+    max_ret_age = model_specs["maximum_retirement_age"]
 
     n_policy_states = (resolution_age - start_age) + 1
     age = start_age + period
@@ -207,25 +206,23 @@ def sparsity_condition(
 
 def test_state_space():
     n_periods = 50
-    options_sparse = {
-        "state_space": {
-            "n_periods": n_periods,  # 25 + 50 = 75
-            "choices": np.arange(3, dtype=np.int64),
-            "endogenous_states": {
-                "experience": np.arange(n_periods, dtype=int),
-                "policy_state": np.arange(36, dtype=int),
-                "retirement_age_id": np.arange(10, dtype=int),
-            },
-            "continuous_states": {"wealth": np.linspace(0, 50, 100)},
+    model_config_sparse = {
+        "n_periods": n_periods,  # 25 + 50 = 75
+        "choices": np.arange(3, dtype=np.int64),
+        "endogenous_states": {
+            "experience": np.arange(n_periods, dtype=int),
+            "policy_state": np.arange(36, dtype=int),
+            "retirement_age_id": np.arange(10, dtype=int),
         },
-        "model_params": {
-            "n_periods": n_periods,  # 25 + 50 = 75
-            "n_discrete_choices": 3,
-            "start_age": 25,
-            "resolution_age": 60,
-            "minimum_SRA": 67,
-            "maximum_retirement_age": 72,
-        },
+        "continuous_states": {"wealth": np.linspace(0, 50, 100)},
+    }
+    model_specs_sparse = {
+        "n_periods": n_periods,  # 25 + 50 = 75
+        "n_discrete_choices": 3,
+        "start_age": 25,
+        "resolution_age": 60,
+        "minimum_SRA": 67,
+        "maximum_retirement_age": 72,
     }
 
     state_space_functions = {
@@ -233,12 +230,13 @@ def test_state_space():
     }
 
     processed_sparsity_condition = process_sparsity_condition(
-        options=options_sparse, model_config=state_space_functions
+        model_specs=model_specs_sparse,
+        state_space_functions=state_space_functions,
     )
 
-    state_space_test, _ = create_state_space_test(options_sparse["model_params"])
+    state_space_test, _ = create_state_space_test(model_specs_sparse)
     dict_of_state_space_objects = create_state_space(
-        model_config=options_sparse["state_space"],
+        model_config=model_config_sparse,
         sparsity_condition=processed_sparsity_condition,
     )
 
@@ -272,7 +270,8 @@ def test_state_space():
 
     ### Now test the inspection function.
     state_space_df = setup_model(
-        options=options_sparse,
+        model_config=model_config_sparse,
+        model_specs=model_specs_sparse,
         utility_functions=None,
         utility_functions_final_period=None,
         budget_constraint=None,
