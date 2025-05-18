@@ -21,24 +21,27 @@ def example_params_ret_model_with_shocks():
     return params
 
 
-def example_options_ret_model_with_shocks():
-    options = {
-        "state_space": {
-            "n_periods": 25,
-            "choices": [0, 1],
-            "continuous_states": {
-                "wealth": jnp.linspace(
-                    0,
-                    50,
-                    500,
-                )
-            },
-        },
-        "model_params": {
-            "n_periods": 25,
-            "min_age": 20,
-            "n_choices": 2,
-            "n_quad_points_stochastic": 5,
+def example_model_config_ret_model_with_shocks():
+
+    model_config = {
+        "n_periods": 25,
+        "choices": [0, 1],
+        "continuous_states": {
+            "wealth": jnp.linspace(
+                0,
+                50,
+                500,
+            )
         },
     }
-    return options
+    return model_config
+
+
+def example_model_specs_ret_model_with_shocks():
+    model_specs = {
+        "n_periods": 25,
+        "min_age": 20,
+        "n_choices": 2,
+        "n_quad_points_stochastic": 5,
+    }
+    return model_specs

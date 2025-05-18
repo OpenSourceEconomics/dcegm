@@ -18,25 +18,30 @@ def example_params():
     return params
 
 
-def example_options():
+def example_model_config():
+    n_periods = 5
+    n_choices = 2
+
+    model_config = {
+        "n_periods": n_periods,
+        "choices": np.arange(n_choices),
+        "continuous_states": {
+            "wealth": jnp.linspace(0, 50, 100),
+            "experience": jnp.linspace(0, 1, 5),
+        },
+    }
+    return model_config
+
+
+def example_model_specs():
     n_periods = 5
     n_choices = 2
     max_init_experience = 1
 
-    options = {
-        "model_params": {
-            "n_choices": n_choices,
-            "n_quad_points_stochastic": 5,
-            "n_periods": n_periods,
-            "max_init_experience": max_init_experience,
-        },
-        "state_space": {
-            "n_periods": n_periods,
-            "choices": np.arange(n_choices),
-            "continuous_states": {
-                "wealth": jnp.linspace(0, 50, 100),
-                "experience": jnp.linspace(0, 1, 5),
-            },
-        },
+    model_specs = {
+        "n_choices": n_choices,
+        "n_quad_points_stochastic": 5,
+        "n_periods": n_periods,
+        "max_init_experience": max_init_experience,
     }
-    return options
+    return model_specs

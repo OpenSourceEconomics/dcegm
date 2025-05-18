@@ -6,7 +6,8 @@ from dcegm.pre_processing.batches.single_segment import create_single_segment_of
 
 def create_batches_and_information(
     model_structure,
-    state_space_options,
+    n_periods,
+    min_period_batch_segments=None,
 ):
     """Batches are used instead of periods to have chunks of equal sized state choices.
     The batch information dictionary contains the following arrays reflecting the.
@@ -42,8 +43,6 @@ def create_batches_and_information(
 
     """
 
-    n_periods = state_space_options["n_periods"]
-
     last_two_period_info = add_last_two_period_information(
         n_periods=n_periods,
         model_structure=model_structure,
@@ -62,7 +61,7 @@ def create_batches_and_information(
     state_choice_space = model_structure["state_choice_space"]
     bool_state_choices_to_batch = state_choice_space[:, 0] < n_periods - 2
 
-    if "min_period_batch_segments" not in state_space_options.keys():
+    if min_period_batch_segments is None:
 
         single_batch_segment_info = create_single_segment_of_batches(
             bool_state_choices_to_batch, model_structure
@@ -74,20 +73,19 @@ def create_batches_and_information(
 
     else:
 
-        if isinstance(state_space_options["min_period_batch_segments"], int):
+        if isinstance(min_period_batch_segments, int):
             n_segments = 2
-            min_periods_to_split = [state_space_options["min_period_batch_segments"]]
-        elif isinstance(state_space_options["min_period_batch_segments"], list):
-            n_segments = len(state_space_options["min_period_batch_segments"]) + 1
-            min_periods_to_split = state_space_options["min_period_batch_segments"]
+            min_periods_to_split = [min_period_batch_segments]
+        elif isinstance(min_period_batch_segments, list):
+            n_segments = len(min_period_batch_segments) + 1
             # Check if periods are increasing and at least two periods apart.
             # Also that they are at least two periods smaller than n_periods - 2
             if not all(
-                min_periods_to_split[i] < min_periods_to_split[i + 1]
-                for i in range(len(min_periods_to_split) - 1)
+                min_period_batch_segments[i] < min_period_batch_segments[i + 1]
+                for i in range(len(min_period_batch_segments) - 1)
             ) or not all(
-                min_periods_to_split[i] < n_periods - 2 - 2
-                for i in range(len(min_periods_to_split))
+                min_period_batch_segments[i] < n_periods - 2 - 2
+                for i in range(len(min_period_batch_segments))
             ):
                 raise ValueError(
                     "The periods to split the batches have to be increasing and at least two periods apart."
@@ -103,7 +101,7 @@ def create_batches_and_information(
 
             # Start from the end and assign segments, i.e. segment 0 starts at
             # min_periods_to_split[-1] and ends at n_periods - 2
-            period_to_split = min_periods_to_split[-id_segment - 1]
+            period_to_split = min_period_batch_segments[-id_segment - 1]
 
             split_cond = state_choice_space[:, 0] < period_to_split
             bool_state_choices_segment = bool_state_choices_to_batch & (~split_cond)

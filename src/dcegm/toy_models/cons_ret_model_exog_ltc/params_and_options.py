@@ -24,24 +24,24 @@ def example_params():
     return params
 
 
-def example_options():
-    options = {
-        "model_params": {
-            "n_quad_points_stochastic": 5,
-            "n_choices": 2,
+def example_model_config():
+    model_config = {
+        "n_periods": 2,
+        "choices": [0, 1],
+        "continuous_states": {
+            "wealth": np.linspace(0, 50, 100),
+            "married": [0, 1],
         },
-        "state_space": {
-            "n_periods": 2,
-            "choices": np.arange(2),
-            "endogenous_states": {
-                "married": [0, 1],
-            },
-            "continuous_states": {
-                "wealth": np.linspace(0, 50, 100),
-            },
-            "exogenous_processes": {
-                "ltc": {"transition": prob_exog_ltc, "states": [0, 1]},
-            },
+        "exogenous_states": {
+            "ltc": {"transition": prob_exog_ltc, "states": [0, 1]},
         },
     }
-    return options
+    return model_config
+
+
+def example_model_specs():
+    model_specs = {
+        "n_quad_points_stochastic": 5,
+        "n_choices": 2,
+    }
+    return model_specs

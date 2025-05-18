@@ -23,25 +23,27 @@ def example_params_deaton():
     return params
 
 
-def example_options_deaton():
-
-    options = {
-        "state_space": {
-            "n_periods": 25,
-            "choices": [0],
-            "continuous_states": {
-                "wealth": jnp.linspace(
-                    0,
-                    75,
-                    100,
-                )
-            },
-        },
-        "model_params": {
-            "n_periods": 25,
-            "min_age": 20,
-            "n_choices": 1,
-            "n_quad_points_stochastic": 10,
+def example_model_config_deaton():
+    model_config = {
+        "n_periods": 25,
+        "choices": [0],
+        "continuous_states": {
+            "wealth": jnp.linspace(
+                0,
+                75,
+                100,
+            )
         },
     }
-    return options
+    return model_config
+
+
+def example_model_specs_deaton():
+
+    model_specs = {
+        "n_periods": 25,
+        "min_age": 20,
+        "n_choices": 1,
+        "n_quad_points_stochastic": 10,
+    }
+    return model_specs
