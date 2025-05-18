@@ -35,14 +35,14 @@ def calc_cont_grids_next_period(
                 savings_grid=continuous_grids["savings_grid"],
                 income_shocks=income_shocks_scaled,
                 params=params,
-                compute_beginning_of_period_savings=model_funcs[
-                    "compute_beginning_of_period_savings"
+                compute_beginning_of_period_wealth=model_funcs[
+                    "compute_beginning_of_period_wealth"
                 ],
             )
         )
 
         cont_grids_next_period = {
-            "savings": savings_beginning_of_next_period,
+            "wealth": savings_beginning_of_next_period,
             "second_continuous": continuous_state_next_period,
         }
 
@@ -52,13 +52,14 @@ def calc_cont_grids_next_period(
             savings_grid=continuous_grids["savings_grid"],
             income_shocks_current_period=income_shocks_scaled,
             params=params,
-            compute_beginning_of_period_savings=model_funcs[
-                "compute_beginning_of_period_savings"
+            compute_beginning_of_period_wealth=model_funcs[
+                "compute_beginning_of_period_wealth"
             ],
         )
         cont_grids_next_period = {
-            "savings": savings_next_period,
+            "wealth": savings_next_period,
         }
+
     return cont_grids_next_period
 
 
@@ -67,7 +68,7 @@ def calculate_savings(
     savings_grid,
     income_shocks_current_period,
     params,
-    compute_beginning_of_period_savings,
+    compute_beginning_of_period_wealth,
 ):
     savings_beginning_of_period = vmap(
         vmap(
@@ -83,7 +84,7 @@ def calculate_savings(
         savings_grid,
         income_shocks_current_period,
         params,
-        compute_beginning_of_period_savings,
+        compute_beginning_of_period_wealth,
         False,
     )
     return savings_beginning_of_period
@@ -94,10 +95,10 @@ def calc_savings_for_each_savings_grid_point(
     exog_savings_grid_point,
     income_shock_draw,
     params,
-    compute_beginning_of_period_savings,
+    compute_beginning_of_period_wealth,
     aux_outs,
 ):
-    out_budget = compute_beginning_of_period_savings(
+    out_budget = compute_beginning_of_period_wealth(
         **state_vec,
         savings_end_of_previous_period=exog_savings_grid_point,
         income_shock_previous_period=income_shock_draw,
@@ -120,11 +121,11 @@ def calc_wealth_for_each_continuous_state_and_savings_grid_point(
     exog_savings_grid_point,
     income_shock_draw,
     params,
-    compute_beginning_of_period_savings,
+    compute_beginning_of_period_wealth,
     aux_outs,
 ):
 
-    out_budget = compute_beginning_of_period_savings(
+    out_budget = compute_beginning_of_period_wealth(
         **state_vec,
         continuous_state=continuous_state_beginning_of_period,
         savings_end_of_previous_period=exog_savings_grid_point,
@@ -178,14 +179,14 @@ def calculate_savings_for_second_continuous_state(
     savings_grid,
     income_shocks,
     params,
-    compute_beginning_of_period_savings,
+    compute_beginning_of_period_wealth,
 ):
 
     savings_beginning_of_period = vmap(
         vmap(
             vmap(
                 vmap(
-                    calc_savings_for_each_continuous_state_and_savings_grid_point,
+                    calc_wealth_for_each_continuous_state_and_savings_grid_point,
                     in_axes=(None, None, None, 0, None, None, None),  # income shocks
                 ),
                 in_axes=(None, None, 0, None, None, None, None),  # savings
@@ -199,7 +200,7 @@ def calculate_savings_for_second_continuous_state(
         savings_grid,
         income_shocks,
         params,
-        compute_beginning_of_period_savings,
+        compute_beginning_of_period_wealth,
         False,
     )
     return savings_beginning_of_period
@@ -262,7 +263,7 @@ def calculate_savings_given_second_continuous_state_for_all_agents(
     """Simulation."""
 
     savings_beginning_of_next_period, aux_dict = vmap(
-        calc_savings_for_each_continuous_state_and_savings_grid_point,
+        calc_wealth_for_each_continuous_state_and_savings_grid_point,
         in_axes=(0, 0, 0, 0, None, None, None),
     )(
         states_beginning_of_period,

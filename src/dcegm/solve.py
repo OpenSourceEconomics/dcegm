@@ -179,6 +179,8 @@ def backward_induction(
     """
     # taste_shock_scale = model_funcs["taste_shock_function"]["taste_shock_scale_per_state"](params=params, state_dict_vec={})
 
+    continuous_states_info = model_config["continuous_states_info"]
+
     cont_grids_next_period = calc_cont_grids_next_period(
         state_space_dict=state_space_dict,
         model_config=model_config,
@@ -189,9 +191,7 @@ def backward_induction(
     )
 
     if has_second_continuous_state:
-        n_second_continuous_grid = model_config["tuning_params"][
-            "n_second_continuous_grid"
-        ]
+        n_second_continuous_grid = continuous_states_info["n_second_continuous_grid"]
     else:
         n_second_continuous_grid = None
 
@@ -218,7 +218,7 @@ def backward_induction(
         endog_grid_solved,
     ) = solve_last_two_periods(
         params=params,
-        continuous_grids_info=model_config["continuous_states_info"],
+        continuous_grids_info=continuous_states_info,
         cont_grids_next_period=cont_grids_next_period,
         income_shock_weights=income_shock_weights,
         model_funcs=model_funcs,
@@ -237,12 +237,11 @@ def backward_induction(
         return solve_single_period(
             carry=carry,
             xs=xs,
-            has_second_continuous_state=has_second_continuous_state,
             params=params,
-            exog_grids=exog_grids,
+            continuous_grids_info=continuous_states_info,
             cont_grids_next_period=cont_grids_next_period,
-            income_shock_weights=income_shock_weights,
             model_funcs=model_funcs,
+            income_shock_weights=income_shock_weights,
         )
 
     for id_segment in range(batch_info["n_segments"]):

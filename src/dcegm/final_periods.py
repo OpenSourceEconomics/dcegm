@@ -106,7 +106,6 @@ def solve_last_two_periods(
         income_shock_weights=income_shock_weights,
         continuous_grids_info=continuous_grids_info,
         model_funcs=model_funcs,
-        has_second_continuous_state=has_second_continuous_state,
     )
 
     idx_second_last = last_two_period_batch_info["idx_state_choices_second_last_period"]

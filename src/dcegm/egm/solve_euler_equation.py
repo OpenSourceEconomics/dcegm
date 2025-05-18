@@ -43,7 +43,7 @@ def calculate_candidate_solutions_from_euler_equation(
             feasible_marg_utils_child,
             feasible_emax_child,
             continuous_grids_info["second_continuous_grid"],
-            continuous_grids_info["wealth_grid"],
+            continuous_grids_info["savings_grid"],
             state_choice_mat,
             model_funcs,
             params,
@@ -63,7 +63,7 @@ def calculate_candidate_solutions_from_euler_equation(
         )(
             feasible_marg_utils_child,
             feasible_emax_child,
-            continuous_grids_info["wealth_grid"],
+            continuous_grids_info["savings_grid"],
             state_choice_mat,
             model_funcs,
             params,

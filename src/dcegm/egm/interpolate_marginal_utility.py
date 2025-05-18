@@ -19,7 +19,6 @@ def interpolate_value_and_marg_util(
     policy_child_state_choice: jnp.ndarray,
     value_child_state_choice: jnp.ndarray,
     child_state_idxs: jnp.ndarray,
-    has_second_continuous_state: bool,
     params: Dict[str, float],
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Interpolate value and policy for all child states and compute marginal utility.
@@ -57,7 +56,7 @@ def interpolate_value_and_marg_util(
     """
     wealth_child_states = cont_grids_next_period["wealth"][child_state_idxs]
 
-    if has_second_continuous_state:
+    if continuous_grids_info["second_continuous_exists"]:
         continuous_state_child_states = cont_grids_next_period["second_continuous"][
             child_state_idxs
         ]

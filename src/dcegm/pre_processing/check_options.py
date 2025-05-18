@@ -26,6 +26,7 @@ def check_model_config_and_process(model_config):
         raise ValueError("Number of quadrature points must be an integer.")
 
     processed_model_config["n_periods"] = model_config["n_periods"]
+    processed_model_config["n_quad_points"] = model_config["n_quad_points"]
 
     # This checks if choices is a list or an integer
     if "choices" in model_config:
