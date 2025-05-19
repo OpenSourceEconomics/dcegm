@@ -33,7 +33,6 @@ def toy_model_exog_ltc_and_job_offer():
             "with_stochastic_ltc_and_job_offer"
         )
     )
-
     out = {}
     model = dcegm.setup_model(
         model_config=model_config,
@@ -68,7 +67,7 @@ def toy_model_exog_ltc():
         **model_funcs,
     )
 
-    out["solved_model"] = model.solve(params)
+    out["model_solved"] = model.solve(params)
     out["marginal_utility"] = model_funcs["utility_functions"]["marginal_utility"]
 
     out["params"] = params
@@ -107,8 +106,8 @@ def test_two_period(
     )
     quad_draws = norm.ppf(quad_points) * params["sigma"]
 
-    endog_grid_period = toy_model["model_solved"].endog_gird
-    policy_period = toy_model["model_solved"].endog_grid
+    endog_grid_period = toy_model["model_solved"].endog_grid
+    policy_period = toy_model["model_solved"].policy
 
     model_structure = toy_model["model_solved"].model_structure
     state_space_dict = model_structure["state_space_dict"]
