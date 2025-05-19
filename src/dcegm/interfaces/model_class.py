@@ -162,13 +162,11 @@ class setup_model:
     def get_solve_and_simulate_func(
         self,
         states_initial,
-        wealth_initial,
         seed,
     ):
 
         sim_func = lambda params, value, policy, endog_gid: simulate_all_periods(
             states_initial=states_initial,
-            wealth_initial=wealth_initial,
             n_periods=self.model_config["n_periods"],
             params=params,
             seed=seed,
