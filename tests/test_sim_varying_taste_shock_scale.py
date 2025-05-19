@@ -38,9 +38,9 @@ def _create_test_objects_from_df(df, params):
 
 @pytest.fixture()
 def model_setup():
-    ltc_model_functions = toy_models.load_example_model_functions("with_exog_ltc")
+    ltc_model_functions = toy_models.load_example_model_functions("with_stochastic_ltc")
     params, model_specs, model_config = (
-        toy_models.load_example_params_model_specs_and_config("with_exog_ltc")
+        toy_models.load_example_params_model_specs_and_config("with_stochastic_ltc")
     )
 
     shock_functions = {"taste_shock_scale_per_state": taste_shock_per_lagged_choice}

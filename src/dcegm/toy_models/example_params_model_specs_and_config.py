@@ -29,11 +29,11 @@ def load_example_params_model_specs_and_config(model_name):
         params = crm_cont_exp.example_params()
         model_specs = crm_cont_exp.example_model_specs()
         model_config = crm_cont_exp.example_model_config()
-    elif model_name == "with_exog_ltc":
+    elif model_name == "with_stochastic_ltc":
         params = crm_exog_ltc.example_params()
         model_specs = crm_exog_ltc.example_model_specs()
         model_config = crm_exog_ltc.example_model_config()
-    elif model_name == "with_exog_ltc_and_job_offer":
+    elif model_name == "with_stochastic_ltc_and_job_offer":
         params = crm_exog_ltc_job_offer.example_params()
         model_specs = crm_exog_ltc_job_offer.example_model_specs()
         model_config = crm_exog_ltc_job_offer.example_model_config()

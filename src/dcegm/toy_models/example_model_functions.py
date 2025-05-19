@@ -34,7 +34,7 @@ def load_example_model_functions(model_name):
             "utility_functions_final_period": crm_paper.create_final_period_utility_function_dict(),
             "budget_constraint": crm_cont_exp.budget_constraint_cont_exp,
         }
-    elif model_name == "with_exog_ltc":
+    elif model_name == "with_stochastic_ltc":
         model_functions = {
             "utility_functions": crm_paper.create_utility_function_dict(),
             "state_space_functions": crm_paper.create_state_space_function_dict(),
@@ -42,7 +42,7 @@ def load_example_model_functions(model_name):
             "budget_constraint": crm_exog_ltc.budget_equation_with_ltc,
             "stochastic_states_transitions": crm_exog_ltc.create_stochastic_states_transition(),
         }
-    elif model_name == "with_exog_ltc_and_job_offer":
+    elif model_name == "with_stochastic_ltc_and_job_offer":
         model_functions = {
             "utility_functions": crm_paper.create_utility_function_dict(),
             "state_space_functions": crm_paper.create_state_space_function_dict(),

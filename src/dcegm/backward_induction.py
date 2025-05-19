@@ -180,7 +180,7 @@ def backward_induction(
                 xs=(
                     last_batch_info["state_choice_idx"],
                     last_batch_info["child_state_choices_to_aggr_choice"],
-                    last_batch_info["child_states_to_integrate_exog"],
+                    last_batch_info["child_states_to_integrate_stochastic"],
                     last_batch_info["child_state_choice_idxs_to_interp"],
                     last_batch_info["child_states_idxs"],
                     last_batch_info["state_choices"],

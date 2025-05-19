@@ -2,7 +2,6 @@ import numpy as np
 
 from dcegm.pre_processing.model_structure.shared import create_indexer_for_space
 from dcegm.pre_processing.shared import get_smallest_int_type
-from tests.test_state_space import n_stochastic_states
 
 
 def create_state_choice_space_and_child_state_mapping(

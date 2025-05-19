@@ -26,9 +26,11 @@ RANDOM_TEST_WEALTH = np.random.choice(list(range(100)), size=10, replace=False)
 @pytest.fixture(scope="session")
 def toy_model_exog_ltc_and_job_offer():
 
-    model_funcs = toy_models.load_example_model_functions("with_exog_ltc_and_job_offer")
+    model_funcs = toy_models.load_example_model_functions(
+        "with_stochastic_ltc_and_job_offer"
+    )
     params, options = toy_models.load_example_params_model_specs_and_config(
-        "with_exog_ltc_and_job_offer"
+        "with_stochastic_ltc_and_job_offer"
     )
 
     out = {}
@@ -60,9 +62,9 @@ def toy_model_exog_ltc_and_job_offer():
 @pytest.fixture(scope="session")
 def toy_model_exog_ltc():
 
-    model_funcs = toy_models.load_example_model_functions("with_exog_ltc")
+    model_funcs = toy_models.load_example_model_functions("with_stochastic_ltc")
     params, options = toy_models.load_example_params_model_specs_and_config(
-        "with_exog_ltc"
+        "with_stochastic_ltc"
     )
 
     out = {}

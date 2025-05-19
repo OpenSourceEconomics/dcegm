@@ -25,7 +25,7 @@ def create_single_segment_of_batches(bool_state_choices_to_batch, model_structur
         batches_list,
         child_state_choice_idxs_to_interp_list,
         child_state_choices_to_aggr_choice_list,
-        child_states_to_integrate_exog_list,
+        child_states_to_integrate_stochastic_list,
     ) = determine_optimal_batch_size(
         bool_state_choices_to_batch=bool_state_choices_to_batch,
         state_choice_space=state_choice_space,
@@ -36,14 +36,14 @@ def create_single_segment_of_batches(bool_state_choices_to_batch, model_structur
 
     (
         batches_list,
-        child_states_to_integrate_exog_list,
+        child_states_to_integrate_stochastic_list,
         child_state_choices_to_aggr_choice_list,
         child_state_choice_idxs_to_interp_list,
         batches_cover_all,
         last_batch_info,
     ) = correct_for_uneven_last_batch(
         batches_list,
-        child_states_to_integrate_exog_list,
+        child_states_to_integrate_stochastic_list,
         child_state_choices_to_aggr_choice_list,
         child_state_choice_idxs_to_interp_list,
         state_choice_space,
@@ -53,7 +53,7 @@ def create_single_segment_of_batches(bool_state_choices_to_batch, model_structur
 
     single_batch_segment_info = prepare_and_align_batch_arrays(
         batches_list,
-        child_states_to_integrate_exog_list,
+        child_states_to_integrate_stochastic_list,
         child_state_choices_to_aggr_choice_list,
         child_state_choice_idxs_to_interp_list,
         state_choice_space,
@@ -69,7 +69,7 @@ def create_single_segment_of_batches(bool_state_choices_to_batch, model_structur
 
 def correct_for_uneven_last_batch(
     batches_list,
-    child_states_to_integrate_exog_list,
+    child_states_to_integrate_stochastic_list,
     child_state_choices_to_aggr_choice_list,
     child_state_choice_idxs_to_interp_list,
     state_choice_space,
@@ -97,7 +97,9 @@ def correct_for_uneven_last_batch(
         # separately. Delete the last element from the relevant lists and save it in
         # an extra dictionary
         last_batch = batches_list[-1]
-        last_child_states_to_integrate_exog = child_states_to_integrate_exog_list[-1]
+        last_child_states_to_integrate_exog = child_states_to_integrate_stochastic_list[
+            -1
+        ]
         last_idx_to_aggregate_choice = child_state_choices_to_aggr_choice_list[-1]
         last_child_state_idx_interp = child_state_choice_idxs_to_interp_list[-1]
 
@@ -124,7 +126,9 @@ def correct_for_uneven_last_batch(
             "state_choices_childs": last_state_choices_childs,
         }
         batches_list = batches_list[:-1]
-        child_states_to_integrate_exog_list = child_states_to_integrate_exog_list[:-1]
+        child_states_to_integrate_stochastic_list = (
+            child_states_to_integrate_stochastic_list[:-1]
+        )
         child_state_choices_to_aggr_choice_list = (
             child_state_choices_to_aggr_choice_list[:-1]
         )
@@ -133,7 +137,7 @@ def correct_for_uneven_last_batch(
         ]
     return (
         batches_list,
-        child_states_to_integrate_exog_list,
+        child_states_to_integrate_stochastic_list,
         child_state_choices_to_aggr_choice_list,
         child_state_choice_idxs_to_interp_list,
         batches_cover_all,
@@ -143,7 +147,7 @@ def correct_for_uneven_last_batch(
 
 def prepare_and_align_batch_arrays(
     batches_list,
-    child_states_to_integrate_exog_list,
+    child_states_to_integrate_stochastic_list,
     child_state_choices_to_aggr_choice_list,
     child_state_choice_idxs_to_interp_list,
     state_choice_space,
@@ -157,7 +161,7 @@ def prepare_and_align_batch_arrays(
 
     # First convert batch information
     batch_array = np.array(batches_list)
-    child_states_to_integrate_exog = np.array(child_states_to_integrate_exog_list)
+    child_states_to_integrate_exog = np.array(child_states_to_integrate_stochastic_list)
 
     state_choices_batches = {
         key: state_choice_space[:, i][batch_array]

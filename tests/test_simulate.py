@@ -46,10 +46,10 @@ def _create_test_objects_from_df(df, params):
 @pytest.fixture()
 def model_setup():
 
-    model_functions = toy_models.load_example_model_functions("with_exog_ltc")
+    model_functions = toy_models.load_example_model_functions("with_stochastic_ltc")
 
     params, model_specs, model_config = (
-        toy_models.load_example_params_model_specs_and_config("with_exog_ltc")
+        toy_models.load_example_params_model_specs_and_config("with_stochastic_ltc")
     )
 
     model = create_model_dict(
@@ -237,7 +237,7 @@ def test_simulate(model_setup):
 
 def test_simulate_second_continuous_choice(model_setup):
     model_functions_cont = toy_models.load_example_model_functions("with_cont_exp")
-    model_functions_ltc = toy_models.load_example_model_functions("with_exog_ltc")
+    model_functions_ltc = toy_models.load_example_model_functions("with_stochastic_ltc")
 
     model_config_cont = model_setup["model_config"].copy()
     model_specs_cont = model_setup["model_specs"].copy()
