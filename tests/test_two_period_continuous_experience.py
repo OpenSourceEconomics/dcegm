@@ -217,7 +217,7 @@ def create_test_inputs():
         "n_periods": 2,
         "choices": np.arange(2),
         "continuous_states": {
-            "wealth": jnp.linspace(
+            "assets_end_of_period": jnp.linspace(
                 0,
                 50,
                 100,

@@ -115,7 +115,7 @@ def test_model():
             "experience": np.arange(5),
         },
         "continuous_states": {
-            "wealth": np.linspace(0, 500, 100),
+            "assets_end_of_period": np.linspace(0, 500, 100),
         },
         "stochastic_states": {
             "health": [0, 1],

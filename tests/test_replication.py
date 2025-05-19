@@ -78,7 +78,7 @@ def test_benchmark_models(model_name):
         state = {
             "period": period,
             "lagged_choice": state_choice_space_to_test[state_choice_idx, 1],
-            "wealth": wealth_grid_to_test,
+            "assets_end_of_period": wealth_grid_to_test,
         }
         policy_calc_interp, value_calc_interp = (
             model_solved.value_and_policy_for_state_and_choice(

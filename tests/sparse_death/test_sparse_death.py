@@ -27,7 +27,7 @@ def inputs():
             "already_retired": np.arange(2, dtype=int),
         },
         "continuous_states": {
-            "wealth": jnp.arange(0, 100, 5, dtype=float),
+            "assets_end_of_period": jnp.arange(0, 100, 5, dtype=float),
             "experience": jnp.linspace(0, 1, 7, dtype=float),
         },
         "stochastic_states": {

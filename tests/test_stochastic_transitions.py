@@ -127,7 +127,7 @@
 #                 "married": [0, 1],
 #             },
 #             "continuous_states": {
-#                 "wealth": np.linspace(0, 50, 100),
+#                 "assets_end_of_period": np.linspace(0, 50, 100),
 #             },
 #             "stochastic_states": {
 #                 "health_mother": {
@@ -458,7 +458,7 @@ def test_exog_processes(
             "married": [0, 1],
         },
         "continuous_states": {
-            "wealth": np.linspace(0, 50, 100),
+            "assets_end_of_period": np.linspace(0, 50, 100),
         },
         "stochastic_states": {
             "health_mother": [0, 1, 2],

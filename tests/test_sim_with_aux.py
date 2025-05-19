@@ -113,7 +113,7 @@ def model_config():
         "n_periods": 5,
         "choices": np.arange(2),
         "continuous_states": {
-            "wealth": np.arange(0, 100, 5, dtype=float),
+            "assets_end_of_period": np.arange(0, 100, 5, dtype=float),
         },
         "n_quad_points": 5,
     }

@@ -34,7 +34,7 @@ def specs_and_config():
                 "that": [0, 1],
             },
             "continuous_states": {
-                "wealth": np.linspace(0, 50, 100),
+                "assets_end_of_period": np.linspace(0, 50, 100),
             },
             "stochastic_states": {"ltc": jnp.array([0])},
         }
@@ -214,7 +214,7 @@ def test_state_space():
             "policy_state": np.arange(36, dtype=int),
             "retirement_age_id": np.arange(10, dtype=int),
         },
-        "continuous_states": {"wealth": np.linspace(0, 50, 100)},
+        "continuous_states": {"assets_end_of_period": np.linspace(0, 50, 100)},
     }
     model_specs_sparse = {
         "n_periods": n_periods,  # 25 + 50 = 75

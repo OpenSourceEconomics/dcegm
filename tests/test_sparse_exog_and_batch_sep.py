@@ -92,7 +92,7 @@ def test_benchmark_models(load_replication_params_and_specs):
             },
         },
         "continuous_states": {
-            "wealth": jnp.linspace(
+            "assets_end_of_period": jnp.linspace(
                 0,
                 options["model_params"]["max_wealth"],
                 options["model_params"]["n_grid_points"],

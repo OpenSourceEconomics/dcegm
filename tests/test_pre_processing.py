@@ -61,7 +61,7 @@ def test_wrap_function(load_replication_params_and_specs):
                     "that": [0, 1],
                 },
                 "continuous_states": {
-                    "wealth": np.linspace(0, 500, 100),
+                    "assets_end_of_period": np.linspace(0, 500, 100),
                 },
                 "stochastic_states": {
                     "ltc": {"states": np.array([0]), "transition": jnp.array([0])}
@@ -196,7 +196,7 @@ def test_grid_parameters():
         "n_periods": 25,
         "choices": [0, 1],
         "continuous_states": {
-            "wealth": np.linspace(0, 10, 100),
+            "assets_end_of_period": np.linspace(0, 10, 100),
         },
         "tuning_params": {
             "extra_wealth_grid_factor": 0.2,
@@ -236,7 +236,7 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
             "n_children": np.arange(3),
         },
         "continuous_states": {
-            "wealth": np.linspace(0, 10_000, 100),
+            "assets_end_of_period": np.linspace(0, 10_000, 100),
             "experience": np.linspace(0, 1, 6),
         },
     }

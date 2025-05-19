@@ -148,7 +148,7 @@ def test_two_period(
         choice = state_choice_space_0[state_choice_idx, -1]
 
         if ~np.isnan(endog_grid) and endog_grid > 0:
-            initial_conditions["wealth"] = endog_grid
+            initial_conditions["assets_end_of_period"] = endog_grid
 
             diff = toy_model["euler"](
                 initial_conditions,

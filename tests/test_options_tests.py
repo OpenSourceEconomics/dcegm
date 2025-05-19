@@ -16,7 +16,7 @@ def valid_options():
                 "education": np.arange(2, dtype=int),
             },
             "continuous_states": {
-                "wealth": np.linspace(0, 10, 11),
+                "assets_end_of_period": np.linspace(0, 10, 11),
                 "experience": np.linspace(0, 5, 6),
             },
             "stochastic_states": {
