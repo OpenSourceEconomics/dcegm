@@ -39,8 +39,7 @@ where = ["src"]
 [tool.setuptools.include-package-data]
 value = true
 
-[tool.setuptools.zip-safe]
-value = false
+tool.setuptools.zip-safe = false
 
 [tool.setuptools_scm]
 write_to = "src/dcegm/_version.py"
