@@ -3,8 +3,8 @@ import jax.numpy as jnp
 import numpy as np
 from numpy.testing import assert_array_almost_equal as aaae
 
+from dcegm.backward_induction import get_solve_func_for_model, solve_dcegm
 from dcegm.pre_processing.setup_model import create_model_dict
-from dcegm.solve import get_solve_func_for_model, solve_dcegm
 from dcegm.toy_models.example_model_functions import load_example_model_functions
 
 

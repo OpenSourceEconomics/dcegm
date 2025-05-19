@@ -9,10 +9,10 @@ from numpy.testing import assert_array_almost_equal as aaae
 
 import dcegm
 import dcegm.toy_models as toy_models
+from dcegm.backward_induction import create_solution_container, get_solve_func_for_model
 from dcegm.final_periods import solve_final_period
 from dcegm.law_of_motion import calc_cont_grids_next_period
 from dcegm.numerical_integration import quadrature_legendre
-from dcegm.solve import create_solution_container, get_solve_func_for_model
 from dcegm.solve_single_period import solve_for_interpolated_values
 
 MAX_WEALTH = 50

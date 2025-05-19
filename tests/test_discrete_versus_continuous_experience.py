@@ -11,12 +11,12 @@ import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
 import dcegm.toy_models as toy_models
+from dcegm.backward_induction import get_solve_func_for_model
 from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
 from dcegm.interpolation.interp2d import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
 from dcegm.pre_processing.setup_model import create_model_dict
-from dcegm.solve import get_solve_func_for_model
 
 # ====================================================================================
 # Test

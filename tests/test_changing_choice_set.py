@@ -26,8 +26,8 @@ import pytest
 from numpy.testing import assert_allclose
 
 import dcegm.toy_models as toy_models
+from dcegm.backward_induction import get_solve_func_for_model
 from dcegm.pre_processing.setup_model import create_model_dict
-from dcegm.solve import get_solve_func_for_model
 from dcegm.toy_models.cons_ret_model_dcegm_paper import (
     inverse_marginal_utility_crra,
     marginal_utility_crra,

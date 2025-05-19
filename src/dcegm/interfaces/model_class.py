@@ -3,6 +3,7 @@ from typing import Callable, Dict
 
 import jax
 
+from dcegm.backward_induction import backward_induction
 from dcegm.interfaces.sol_interface import model_solved
 from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.alternative_sim_functions import (
@@ -12,7 +13,6 @@ from dcegm.pre_processing.check_params import process_params
 from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
-from dcegm.solve import backward_induction
 
 
 class setup_model:
@@ -79,14 +79,30 @@ class setup_model:
             )
 
     def solve(self, params):
-        """
-        Solve the model using backward induction.
+        """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
         Args:
-            params: The parameters for the model.
+            params (pd.DataFrame): Params DataFrame.
+            options (dict): Options dictionary.
+            utility_functions (Dict[str, callable]): Dictionary of three user-supplied
+                functions for computation of:
+                (i) utility
+                (ii) inverse marginal utility
+                (iii) next period marginal utility
+            budget_constraint (callable): Callable budget constraint.
+            state_space_functions (Dict[str, callable]): Dictionary of two user-supplied
+                functions to:
+                (i) get the state specific feasible choice set
+                (ii) update the endogenous part of the state by the choice
+            final_period_solution (callable): User-supplied function for solving the agent's
+                last period.
+            transition_function (callable): User-supplied function returning for each
+                state a transition matrix vector.
 
         Returns:
-            A dictionary containing the solution of the model.
+            dict: Dictionary containing the period-specific endog_grid, policy, and value
+                from the backward induction.
+
         """
         params_processed = process_params(params)
         # Solve the model

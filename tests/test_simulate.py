@@ -10,6 +10,7 @@ import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
 import dcegm.toy_models as toy_models
+from dcegm.backward_induction import get_solve_func_for_model
 from dcegm.pre_processing.check_options import check_model_config_and_process
 from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.simulation.random_keys import draw_random_keys_for_seed
@@ -19,7 +20,6 @@ from dcegm.simulation.simulate import (
     simulate_final_period,
     simulate_single_period,
 )
-from dcegm.solve import get_solve_func_for_model
 
 
 def _create_test_objects_from_df(df, params):
