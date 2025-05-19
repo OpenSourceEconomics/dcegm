@@ -119,7 +119,6 @@ class setup_model:
         self,
         params,
         states_initial,
-        wealth_initial,
         seed,
     ):
         """
@@ -142,7 +141,6 @@ class setup_model:
 
         sim_dict = simulate_all_periods(
             states_initial=states_initial,
-            wealth_initial=wealth_initial,
             n_periods=self.model_config["n_periods"],
             params=params,
             seed=seed,
