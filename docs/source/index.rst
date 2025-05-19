@@ -26,6 +26,7 @@ savings, including additional discrete choices.
    genindex
    autoapi/index
 
+
 .. toctree::
    :maxdepth: 2
    :caption: Background
