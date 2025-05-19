@@ -66,7 +66,7 @@ def generate_alternative_sim_functions(
 
     exog_state_space = create_array_with_smallest_int_dtype(exog_state_space_raw)
 
-    model_funcs["exog_state_mapping"] = create_stochastic_state_mapping(
+    model_funcs["stochastic_state_mapping"] = create_stochastic_state_mapping(
         exog_state_space,
         exog_states_names,
     )
@@ -132,7 +132,7 @@ def process_alternative_sim_functions(
         second_continuous_state_name = None
 
     # Now exogenous transition function if present
-    compute_stochastic_transition_vec, processed_exog_funcs_dict = (
+    compute_stochastic_transition_vec, processed_stochastic_funcs_dict = (
         create_stochastic_transition_function(
             stochastic_states_transition,
             model_config=model_config,
@@ -181,7 +181,7 @@ def process_alternative_sim_functions(
         "next_period_continuous_state": next_period_continuous_state,
         "sparsity_condition": sparsity_condition,
         "compute_stochastic_transition_vec": compute_stochastic_transition_vec,
-        "processed_exog_funcs": processed_exog_funcs_dict,
+        "processed_stochastic_funcs": processed_stochastic_funcs_dict,
         "state_specific_choice_set": state_specific_choice_set,
         "next_period_endogenous_state": next_period_endogenous_state,
         "compute_upper_envelope": compute_upper_envelope,

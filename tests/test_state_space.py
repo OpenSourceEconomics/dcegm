@@ -63,10 +63,10 @@ def expected_state_space_and_indexer(n_periods, n_choices, n_exog_states):
 
 n_periods = [15, 25, 63, 100]
 n_choices = [2, 3, 20, 50]
-n_exog_processes = [2, 3, 5]
+n_stochastic_states = [2, 3, 5]
 lagged_choices = [0, 1]
 
-TEST_CASES = list(product(lagged_choices, n_periods, n_choices, n_exog_processes))
+TEST_CASES = list(product(lagged_choices, n_periods, n_choices, n_stochastic_states))
 
 
 @pytest.mark.parametrize(

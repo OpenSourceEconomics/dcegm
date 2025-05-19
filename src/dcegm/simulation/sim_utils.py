@@ -137,7 +137,7 @@ def transition_to_next_period(
         choice,
         sim_keys["exog_process_keys"],
         params,
-        model_funcs_sim["processed_exog_funcs"],
+        model_funcs_sim["processed_stochastic_funcs"],
     )
 
     discrete_endog_states_next_period = vmap(
@@ -244,10 +244,10 @@ def vectorized_utility(consumption_period, state, choice, params, compute_utilit
     return utility
 
 
-def realize_exog_process(state, choice, key, params, processed_exog_funcs):
+def realize_exog_process(state, choice, key, params, processed_stochastic_funcs):
     exog_states_next_period = {}
-    for exog_state_name in processed_exog_funcs.keys():
-        exog_state_vec = processed_exog_funcs[exog_state_name](
+    for exog_state_name in processed_stochastic_funcs.keys():
+        exog_state_vec = processed_stochastic_funcs[exog_state_name](
             params=params, **state, choice=choice
         )
         exog_states_next_period[exog_state_name] = jax.random.choice(

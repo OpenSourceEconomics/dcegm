@@ -316,7 +316,7 @@ def validate_stochastic_transition(model, params):
 
     Args:
         model (dict): A dictionary representing the model. Must contain
-            'model_funcs' with 'processed_exog_funcs', 'model_structure'
+            'model_funcs' with 'processed_stochastic_funcs', 'model_structure'
             with 'state_choice_space_dict', and relevant 'options' keys.
         params (dict): Dictionary containing the model parameters.
 
@@ -328,7 +328,7 @@ def validate_stochastic_transition(model, params):
     # Update to float64
     jax.config.update("jax_enable_x64", True)
 
-    transition_funcs_processed = model["model_funcs"]["processed_exog_funcs"]
+    transition_funcs_processed = model["model_funcs"]["processed_stochastic_funcs"]
     state_choice_space_dict = model["model_structure"]["state_choice_space_dict"]
 
     for name, exog_func in transition_funcs_processed.items():

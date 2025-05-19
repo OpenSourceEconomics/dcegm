@@ -81,7 +81,7 @@ def create_model_dict(
         model_funcs=model_funcs,
     )
 
-    model_funcs["exog_state_mapping"] = create_stochastic_state_mapping(
+    model_funcs["stochastic_state_mapping"] = create_stochastic_state_mapping(
         model_structure["stochastic_state_space"],
         model_structure["stochastic_states_names"],
     )
@@ -174,7 +174,7 @@ def load_and_setup_model(
         shock_functions=shock_functions,
     )
 
-    model["model_funcs"]["exog_state_mapping"] = create_stochastic_state_mapping(
+    model["model_funcs"]["stochastic_state_mapping"] = create_stochastic_state_mapping(
         exog_state_space=model["model_structure"]["stochastic_state_space"],
         exog_names=model["model_structure"]["stochastic_states_names"],
     )

@@ -168,7 +168,7 @@ def process_model_functions(
         "next_period_continuous_state": next_period_continuous_state,
         "sparsity_condition": sparsity_condition,
         "compute_stochastic_transition_vec": compute_stochastic_transition_vec,
-        "processed_exog_funcs": stochastic_transitions_dict,
+        "processed_stochastic_funcs": stochastic_transitions_dict,
         "state_specific_choice_set": state_specific_choice_set,
         "next_period_endogenous_state": next_period_endogenous_state,
         "compute_upper_envelope": compute_upper_envelope,
