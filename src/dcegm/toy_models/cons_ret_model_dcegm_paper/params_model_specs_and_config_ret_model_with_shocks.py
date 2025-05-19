@@ -40,7 +40,6 @@ def example_model_config_ret_model_with_shocks():
 
 def example_model_specs_ret_model_with_shocks():
     model_specs = {
-        "n_periods": 25,
         "min_age": 20,
         "n_choices": 2,
     }

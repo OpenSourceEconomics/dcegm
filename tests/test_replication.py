@@ -5,6 +5,7 @@ import jax.numpy as jnp
 import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
+import dcegm
 import dcegm.toy_models as toy_models
 from dcegm.pre_processing.setup_model import setup_model
 from dcegm.solve import get_solve_func_for_model
@@ -39,13 +40,13 @@ def test_benchmark_models(model_name):
         )
     )
 
-    model = setup_model(
+    model = dcegm.setup_model(
         model_config=model_config,
         model_specs=model_specs,
         **model_funcs,
     )
 
-    value, policy, endog_grid = get_solve_func_for_model(model)(params)
+    value, policy, endog_grid = model.solve(params)
 
     policy_expected = pickle.load(
         (REPLICATION_TEST_RESOURCES_DIR / f"{model_name}" / "policy.pkl").open("rb")
@@ -53,7 +54,7 @@ def test_benchmark_models(model_name):
     value_expected = pickle.load(
         (REPLICATION_TEST_RESOURCES_DIR / f"{model_name}" / "value.pkl").open("rb")
     )
-    state_choice_space = model["model_structure"]["state_choice_space"]
+    state_choice_space = model.model_structure["state_choice_space"]
     state_choice_space_to_test = state_choice_space[state_choice_space[:, 0] < 24]
 
     for state_choice_idx in range(state_choice_space_to_test.shape[0] - 1, -1, -1):
