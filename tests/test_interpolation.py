@@ -21,7 +21,9 @@ from dcegm.interpolation.interp2d import (
     interp2d_policy_on_wealth_and_regular_grid,
     interp2d_value_on_wealth_and_regular_grid,
 )
-from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
+from dcegm.pre_processing.shared import (
+    determine_function_arguments_and_partial_model_specs,
+)
 from dcegm.toy_models.cons_ret_model_dcegm_paper import utility_crra
 from tests.utils.interp1d_auxiliary import (
     linear_interpolation_with_extrapolation,
@@ -114,9 +116,9 @@ def test_cases():
         )
         griddata_true_values = policy.flatten()
 
-        compute_utility = determine_function_arguments_and_partial_options(
+        compute_utility = determine_function_arguments_and_partial_model_specs(
             utility_crra,
-            options={},
+            model_specs={},
             continuous_state_name="continuous_state",
         )
 

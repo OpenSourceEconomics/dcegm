@@ -7,13 +7,13 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
+import dcegm
 import dcegm.toy_models as toy_models
 from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
 from dcegm.interpolation.interp2d import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
-from dcegm.pre_processing.setup_model import setup_model
-from dcegm.solve import get_solve_func_for_model
+from dcegm.pre_processing.setup_model import create_model_dict
 
 N_PERIODS = 5
 N_DISCRETE_CHOICES = 2
@@ -116,9 +116,9 @@ def utility_cont_exp(
     period: int,
     choice: int,
     params: Dict[str, float],
-    options: Dict[str, float],
+    model_specs: Dict[str, float],
 ):
-    max_init_experience_period = period + options["max_init_experience"]
+    max_init_experience_period = period + model_specs["max_init_experience"]
     experience_years = experience * max_init_experience_period
 
     return utility_exp(
@@ -134,9 +134,9 @@ def marginal_utility_cont_exp(
     experience: float,
     period: int,
     params: Dict[str, float],
-    options: Dict[str, float],
+    model_specs: Dict[str, float],
 ):
-    max_init_experience_period = period + options["max_init_experience"]
+    max_init_experience_period = period + model_specs["max_init_experience"]
     experience_years = experience * max_init_experience_period
 
     return marg_utility_exp(
@@ -151,9 +151,9 @@ def inverse_marginal_utility_cont_exp(
     experience: float,
     period: int,
     params: Dict[str, float],
-    options: Dict[str, float],
+    model_specs: Dict[str, float],
 ):
-    max_init_experience_period = period + options["max_init_experience"]
+    max_init_experience_period = period + model_specs["max_init_experience"]
     experience_years = experience * max_init_experience_period
 
     return inverse_marg_utility_exp(
@@ -169,9 +169,9 @@ def utility_final_consume_all_with_cont_exp(
     experience: float,
     period: int,
     params: Dict[str, float],
-    options: Dict[str, float],
+    model_specs: Dict[str, float],
 ):
-    max_init_experience_period = period + options["max_init_experience"]
+    max_init_experience_period = period + model_specs["max_init_experience"]
     experience_years = experience * max_init_experience_period
 
     return utility_final_consume_all_with_exp(
@@ -183,9 +183,9 @@ def utility_final_consume_all_with_cont_exp(
 
 
 def marginal_utility_final_consume_all_with_cont_exp(
-    wealth, experience, period, params, options
+    wealth, experience, period, params, model_specs
 ):
-    max_init_experience_period = period + options["max_init_experience"]
+    max_init_experience_period = period + model_specs["max_init_experience"]
     experience_years = experience * max_init_experience_period
 
     return marginal_utility_final_consume_all_with_exp(
@@ -208,77 +208,79 @@ def test_setup():
     # =================================================================================
 
     model_funcs_discr_exp = toy_models.load_example_model_functions("with_exp")
+
     # params are actually the same for both models. Just name them params.
-    params, options_discrete = toy_models.load_example_params_and_options("with_exp")
-
-    utility_functions_discrete = {
-        "utility": utility_exp,
-        "marginal_utility": marg_utility_exp,
-        "inverse_marginal_utility": inverse_marg_utility_exp,
-    }
-
-    utility_functions_final_period_discrete = {
-        "utility": utility_final_consume_all_with_exp,
-        "marginal_utility": marginal_utility_final_consume_all_with_exp,
-    }
-
-    model_disc = setup_model(
-        options=options_discrete,
-        state_space_functions=model_funcs_discr_exp["state_space_functions"],
-        utility_functions=utility_functions_discrete,
-        utility_functions_final_period=utility_functions_final_period_discrete,
-        budget_constraint=model_funcs_discr_exp["budget_constraint"],
+    _params, model_specs_disc, model_config_disc = (
+        toy_models.load_example_params_model_specs_and_config("with_exp")
     )
 
-    solve_disc = get_solve_func_for_model(model_disc)
-    value_disc, policy_disc, endog_grid_disc = solve_disc(PARAMS)
+    # utility_functions_discrete = {
+    #     "utility": utility_exp,
+    #     "marginal_utility": marg_utility_exp,
+    #     "inverse_marginal_utility": inverse_marg_utility_exp,
+    # }
+
+    # utility_functions_final_period_discrete = {
+    #     "utility": utility_final_consume_all_with_exp,
+    #     "marginal_utility": marginal_utility_final_consume_all_with_exp,
+    # }
+
+    model_disc = dcegm.setup_model(
+        model_config=model_config_disc,
+        model_specs=model_specs_disc,
+        **model_funcs_discr_exp,
+    )
+    model_disc_solved = model_disc.solve(PARAMS)
 
     # =================================================================================
     # Continuous experience
     # =================================================================================
 
     model_funcs_cont_exp = toy_models.load_example_model_functions("with_cont_exp")
-    _, options_cont = toy_models.load_example_params_and_options("with_cont_exp")
+    _, model_specs_cont, model_config_cont = (
+        toy_models.load_example_params_model_specs_and_config("with_cont_exp")
+    )
 
     # Grid needs to be set very fine. Interpolation on state variables which determine
     # utility might not be the smartest way, but still want the package to do it.
     exp_grid_points = 61
 
     experience_grid = jnp.linspace(0, 1, exp_grid_points)
-    options_cont["state_space"]["continuous_states"]["experience"] = experience_grid
+    model_config_cont["continuous_states"]["experience"] = experience_grid
 
-    utility_functions_cont_exp = {
-        "utility": utility_cont_exp,
-        "marginal_utility": marginal_utility_cont_exp,
-        "inverse_marginal_utility": inverse_marginal_utility_cont_exp,
-    }
+    # utility_functions_cont_exp = {
+    #     "utility": utility_cont_exp,
+    #     "marginal_utility": marginal_utility_cont_exp,
+    #     "inverse_marginal_utility": inverse_marginal_utility_cont_exp,
+    # }
 
-    utility_functions_final_period_cont_exp = {
-        "utility": utility_final_consume_all_with_cont_exp,
-        "marginal_utility": marginal_utility_final_consume_all_with_cont_exp,
-    }
+    # utility_functions_final_period_cont_exp = {
+    #     "utility": utility_final_consume_all_with_cont_exp,
+    #     "marginal_utility": marginal_utility_final_consume_all_with_cont_exp,
+    # }
 
-    model_cont = setup_model(
-        options=options_cont,
-        state_space_functions=model_funcs_cont_exp["state_space_functions"],
-        utility_functions=utility_functions_cont_exp,
-        utility_functions_final_period=utility_functions_final_period_cont_exp,
-        budget_constraint=model_funcs_cont_exp["budget_constraint"],
+    # model_cont = create_model_dict(
+    #     model_specs=model_specs_cont,
+    #     model_config=model_config_cont,
+    #     state_space_functions=model_funcs_cont_exp["state_space_functions"],
+    #     utility_functions=utility_functions_cont_exp,
+    #     utility_functions_final_period=utility_functions_final_period_cont_exp,
+    #     budget_constraint=model_funcs_cont_exp["budget_constraint"],
+    # )
+
+    model_cont = dcegm.setup_model(
+        model_config=model_config_cont,
+        model_specs=model_specs_cont,
+        **model_funcs_cont_exp,
     )
-
-    solve_cont = get_solve_func_for_model(model_cont)
-    value_cont, policy_cont, endog_grid_cont = solve_cont(PARAMS)
+    model_cont_solved = model_cont.solve(PARAMS)
 
     return (
         experience_grid,
         model_disc,
         model_cont,
-        value_disc,
-        policy_disc,
-        endog_grid_disc,
-        value_cont,
-        policy_cont,
-        endog_grid_cont,
+        model_disc_solved,
+        model_cont_solved,
     )
 
 
@@ -299,12 +301,8 @@ def test_replication_discrete_versus_continuous_experience(
         experience_grid,
         model_disc,
         model_cont,
-        value_disc,
-        policy_disc,
-        endog_grid_disc,
-        value_cont,
-        policy_cont,
-        endog_grid_cont,
+        model_disc_solved,
+        model_cont_solved,
     ) = test_setup
     max_period_exp = period + MAX_INIT_EXPERIENCE
 
@@ -314,40 +312,40 @@ def test_replication_discrete_versus_continuous_experience(
         "period": period,
         "lagged_choice": lagged_choice,
         "experience": experience,
-        "dummy_exog": 0,
+        "dummy_stochastic": 0,
         "choice": choice,
     }
     state_choice_cont_dict = {
         "period": period,
         "lagged_choice": lagged_choice,
-        "dummy_exog": 0,
+        "dummy_stochastic": 0,
         "choice": choice,
     }
 
-    idx_state_choice_disc = model_disc["model_structure"][
+    idx_state_choice_disc = model_disc.model_structure[
         "map_state_choice_to_index_with_proxy"
     ][
         state_choice_disc_dict["period"],
         state_choice_disc_dict["lagged_choice"],
         state_choice_disc_dict["experience"],
-        state_choice_disc_dict["dummy_exog"],
+        state_choice_disc_dict["dummy_stochastic"],
         state_choice_disc_dict["choice"],
     ]
-    idx_state_choice_cont = model_cont["model_structure"][
+    idx_state_choice_cont = model_cont.model_structure[
         "map_state_choice_to_index_with_proxy"
     ][
         state_choice_cont_dict["period"],
         state_choice_cont_dict["lagged_choice"],
-        state_choice_cont_dict["dummy_exog"],
+        state_choice_cont_dict["dummy_stochastic"],
         state_choice_cont_dict["choice"],
     ]
 
-    state_specific_choice_set = model_disc["model_funcs"]["state_specific_choice_set"](
+    state_specific_choice_set = model_disc.model_funcs["state_specific_choice_set"](
         **state_choice_disc_dict
     )
     choice_valid = choice in state_specific_choice_set
 
-    sparsity_condition = model_disc["model_funcs"]["sparsity_condition"]
+    sparsity_condition = model_disc.model_funcs["sparsity_condition"]
     state_valid = sparsity_condition(
         period=period,
         experience=experience,
@@ -357,6 +355,16 @@ def test_replication_discrete_versus_continuous_experience(
     # ================================================================================
     # Interpolate
     # ================================================================================
+
+    # Unpack for discrete case
+    endog_grid_disc = model_disc_solved.endog_grid
+    policy_disc = model_disc_solved.policy
+    value_disc = model_disc_solved.value
+
+    # Unpack for continuous case
+    endog_grid_cont = model_cont_solved.endog_grid
+    policy_cont = model_cont_solved.policy
+    value_cont = model_cont_solved.value
 
     if state_valid & choice_valid:
 
@@ -370,7 +378,7 @@ def test_replication_discrete_versus_continuous_experience(
                     value_grid=value_cont[idx_state_choice_cont],
                     regular_point_to_interp=exp_share_to_test,
                     wealth_point_to_interp=jnp.array(wealth_to_test),
-                    compute_utility=model_cont["model_funcs"]["compute_utility"],
+                    compute_utility=model_cont.model_funcs["compute_utility"],
                     state_choice_vec=state_choice_cont_dict,
                     params=PARAMS,
                 )
@@ -381,7 +389,7 @@ def test_replication_discrete_versus_continuous_experience(
                 endog_grid=endog_grid_disc[idx_state_choice_disc],
                 policy=policy_disc[idx_state_choice_disc],
                 value=value_disc[idx_state_choice_disc],
-                compute_utility=model_disc["model_funcs"]["compute_utility"],
+                compute_utility=model_disc.model_funcs["compute_utility"],
                 state_choice_vec=state_choice_disc_dict,
                 params=PARAMS,
             )

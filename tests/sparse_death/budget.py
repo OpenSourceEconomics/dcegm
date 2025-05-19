@@ -5,10 +5,10 @@ def budget_constraint_exp(
     lagged_choice,
     experience,
     already_retired,
-    savings_end_of_previous_period,
+    asset_end_of_previous_period,
     income_shock_previous_period,
     params,
-    options,
+    model_specs,
 ):
 
     # If unemployed, then it will just be the consumption floor
@@ -17,10 +17,10 @@ def budget_constraint_exp(
 
     # Check if fresh retired. If so we give a bonus
     fresh_retired = retired * (1 - already_retired)
-    replacement_rate = 0.48 + fresh_retired * options["fresh_bonus"]
+    replacement_rate = 0.48 + fresh_retired * model_specs["fresh_bonus"]
 
     # Scale experience
-    exp_years = experience * options["exp_scale"]
+    exp_years = experience * model_specs["exp_scale"]
 
     income_from_previous_period = _calc_stochastic_income(
         experience=exp_years,
@@ -33,7 +33,7 @@ def budget_constraint_exp(
         + income_from_previous_period
         * replacement_rate
         * retired  # 0.48 is the replacement rate
-        + (1 + params["interest_rate"]) * savings_end_of_previous_period
+        + (1 + params["interest_rate"]) * asset_end_of_previous_period
     )
 
     # Retirement safety net, only in retirement model, but we require to have it always

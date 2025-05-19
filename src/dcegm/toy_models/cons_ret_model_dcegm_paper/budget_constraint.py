@@ -7,9 +7,9 @@ import jax.numpy as jnp
 def budget_constraint(
     period: int,
     lagged_choice: int,
-    savings_end_of_previous_period: float,
+    asset_end_of_previous_period: float,
     income_shock_previous_period: float,
-    options: Dict[str, Any],
+    model_specs: Dict[str, Any],
     params: Dict[str, float],
 ) -> float:
     """Compute possible current beginning of period resources.
@@ -20,14 +20,14 @@ def budget_constraint(
     Args:
         state_beginning_of_period (np.ndarray): 1d array of shape (n_state_variables,)
             denoting the current child state.
-        savings_end_of_previous_period (float): One point on the exogenous savings grid
+        asset_end_of_previous_period (float): One point on the exogenous savings grid
             carried over from the previous period.
         income_shock_pervious_period (float): Stochastic shock on labor income;
             may or may not be normally distributed. This float represents one
             particular realization of the income_shock_draws carried over from the
             previous period.
         params (dict): Dictionary containing model parameters.
-        options (dict): Options dictionary.
+        model_specs (dict): model_specs dictionary.
 
     Returns:
         (float): The beginning of period wealth in t.
@@ -38,7 +38,7 @@ def budget_constraint(
         period=period,
         lagged_choice=lagged_choice,
         wage_shock=income_shock_previous_period,
-        min_age=options["min_age"],
+        min_age=model_specs["min_age"],
         constant=params["constant"],
         exp=params["exp"],
         exp_squared=params["exp_squared"],
@@ -46,7 +46,7 @@ def budget_constraint(
 
     wealth_beginning_of_period = (
         income_from_previous_period
-        + (1 + params["interest_rate"]) * savings_end_of_previous_period
+        + (1 + params["interest_rate"]) * asset_end_of_previous_period
     )
 
     # Retirement safety net, only in retirement model, but we require to have it always
@@ -89,7 +89,7 @@ def _calc_stochastic_income(
             the previous period.
         params (dict): Dictionary containing model parameters.
             Relevant here are the coefficients of the wage equation.
-        options (dict): Options dictionary.
+        model_specs (dict): model_specs dictionary.
 
     Returns:
         stochastic_income (float): The potential end of period income. It consists of a

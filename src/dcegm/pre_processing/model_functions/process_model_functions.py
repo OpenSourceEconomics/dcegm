@@ -1,4 +1,4 @@
-from typing import Callable, Dict
+from typing import Callable, Dict, Optional
 
 import jax.numpy as jnp
 
@@ -8,20 +8,23 @@ from dcegm.pre_processing.model_functions.taste_shock_function import (
 from dcegm.pre_processing.model_functions.upper_evelope_wrapper import (
     create_upper_envelope_function,
 )
-from dcegm.pre_processing.model_structure.exogenous_processes import (
-    create_exog_transition_function,
+from dcegm.pre_processing.model_structure.stochastic_states import (
+    create_stochastic_transition_function,
 )
-from dcegm.pre_processing.shared import determine_function_arguments_and_partial_options
+from dcegm.pre_processing.shared import (
+    determine_function_arguments_and_partial_model_specs,
+)
 
 
 def process_model_functions(
-    options: Dict,
+    model_config: Dict,
+    model_specs: Dict,
     state_space_functions: Dict[str, Callable],
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
-    shock_functions: Dict[str, Callable] = None,
-    sim_model=False,
+    stochastic_states_transitions: Optional[Dict[str, Callable]] = None,
+    shock_functions: Optional[Dict[str, Callable]] = None,
 ):
     """Create wrapped functions from user supplied functions.
 
@@ -62,110 +65,112 @@ def process_model_functions(
             transition probabilities for each state.
 
     """
-    # First check if we have a second continuous state
-    has_second_continuous_state = len(options["exog_grids"]) == 2
-    # Assign name
-    if has_second_continuous_state:
-        continuous_state_name = options["second_continuous_state_name"]
-    else:
-        continuous_state_name = None
+    # Assign continuous state name
+    second_continuous_state_name = model_config["continuous_states_info"][
+        "second_continuous_state_name"
+    ]
 
     # Process mandatory functions. Start with utility functions
-    compute_utility = determine_function_arguments_and_partial_options(
+    compute_utility = determine_function_arguments_and_partial_model_specs(
         func=utility_functions["utility"],
-        options=options["model_params"],
-        continuous_state_name=continuous_state_name,
+        model_specs=model_specs,
+        continuous_state_name=second_continuous_state_name,
     )
+
+    compute_marginal_utility = determine_function_arguments_and_partial_model_specs(
+        func=utility_functions["marginal_utility"],
+        model_specs=model_specs,
+        continuous_state_name=second_continuous_state_name,
+    )
+
+    compute_inverse_marginal_utility = (
+        determine_function_arguments_and_partial_model_specs(
+            func=utility_functions["inverse_marginal_utility"],
+            model_specs=model_specs,
+            continuous_state_name=second_continuous_state_name,
+        )
+    )
+
     utility_functions_processed = {
         "compute_utility": compute_utility,
+        "compute_marginal_utility": compute_marginal_utility,
+        "compute_inverse_marginal_utility": compute_inverse_marginal_utility,
     }
-    if not sim_model:
-        compute_marginal_utility = determine_function_arguments_and_partial_options(
-            func=utility_functions["marginal_utility"],
-            options=options["model_params"],
-            continuous_state_name=continuous_state_name,
-        )
-        utility_functions_processed["compute_marginal_utility"] = (
-            compute_marginal_utility
-        )
-        compute_inverse_marginal_utility = (
-            determine_function_arguments_and_partial_options(
-                func=utility_functions["inverse_marginal_utility"],
-                options=options["model_params"],
-                continuous_state_name=continuous_state_name,
-            )
-        )
-        utility_functions_processed["compute_inverse_marginal_utility"] = (
-            compute_inverse_marginal_utility
-        )
     # Final period utility functions
-    compute_utility_final = determine_function_arguments_and_partial_options(
+    compute_utility_final = determine_function_arguments_and_partial_model_specs(
         func=utility_functions_final_period["utility"],
-        options=options["model_params"],
-        continuous_state_name=continuous_state_name,
+        model_specs=model_specs,
+        continuous_state_name=second_continuous_state_name,
     )
+
+    compute_marginal_utility_final = (
+        determine_function_arguments_and_partial_model_specs(
+            func=utility_functions_final_period["marginal_utility"],
+            model_specs=model_specs,
+            continuous_state_name=second_continuous_state_name,
+        )
+    )
+
     utility_functions_final_period_processed = {
         "compute_utility_final": compute_utility_final,
+        "compute_marginal_utility_final": compute_marginal_utility_final,
     }
-    if not sim_model:
-        compute_marginal_utility_final = (
-            determine_function_arguments_and_partial_options(
-                func=utility_functions_final_period["marginal_utility"],
-                options=options["model_params"],
-                continuous_state_name=continuous_state_name,
-            )
-        )
-        utility_functions_final_period_processed["compute_marginal_utility_final"] = (
-            compute_marginal_utility_final
-        )
 
     # Now exogenous transition function if present
-    compute_exog_transition_vec, processed_exog_funcs_dict = (
-        create_exog_transition_function(
-            options, continuous_state_name=continuous_state_name
+    compute_stochastic_transition_vec, stochastic_transitions_dict = (
+        create_stochastic_transition_function(
+            stochastic_states_transitions,
+            model_config=model_config,
+            model_specs=model_specs,
+            continuous_state_name=second_continuous_state_name,
         )
     )
 
     # Now state space functions
-    state_specific_choice_set, next_period_endogenous_state, sparsity_condition = (
+    state_specific_choice_set, next_period_deterministic_state, sparsity_condition = (
         process_state_space_functions(
-            state_space_functions, options, continuous_state_name
+            state_space_functions,
+            model_config=model_config,
+            model_specs=model_specs,
+            continuous_state_name=second_continuous_state_name,
         )
     )
 
     next_period_continuous_state = process_second_continuous_update_function(
-        continuous_state_name, state_space_functions, options
+        second_continuous_state_name, state_space_functions, model_specs=model_specs
     )
 
     # Budget equation
-    compute_beginning_of_period_wealth = (
-        determine_function_arguments_and_partial_options(
+    compute_assets_begin_of_period = (
+        determine_function_arguments_and_partial_model_specs(
             func=budget_constraint,
-            options=options["model_params"],
-            continuous_state_name=continuous_state_name,
+            continuous_state_name=second_continuous_state_name,
+            model_specs=model_specs,
         )
     )
 
     # Upper envelope function
     compute_upper_envelope = create_upper_envelope_function(
-        options,
-        continuous_state=continuous_state_name,
+        model_config=model_config,
+        continuous_state=second_continuous_state_name,
     )
 
     taste_shock_function_processed = process_shock_functions(
-        shock_functions, options, continuous_state_name
+        shock_functions,
+        model_specs,
+        continuous_state_name=second_continuous_state_name,
     )
 
     model_funcs = {
         **utility_functions_processed,
         **utility_functions_final_period_processed,
-        "compute_beginning_of_period_wealth": compute_beginning_of_period_wealth,
+        "compute_assets_begin_of_period": compute_assets_begin_of_period,
         "next_period_continuous_state": next_period_continuous_state,
         "sparsity_condition": sparsity_condition,
-        "compute_exog_transition_vec": compute_exog_transition_vec,
-        "processed_exog_funcs": processed_exog_funcs_dict,
+        "compute_stochastic_transition_vec": compute_stochastic_transition_vec,
+        "processed_stochastic_funcs": stochastic_transitions_dict,
         "state_specific_choice_set": state_specific_choice_set,
-        "next_period_endogenous_state": next_period_endogenous_state,
+        "next_period_deterministic_state": next_period_deterministic_state,
         "compute_upper_envelope": compute_upper_envelope,
         "taste_shock_function": taste_shock_function_processed,
     }
@@ -174,7 +179,10 @@ def process_model_functions(
 
 
 def process_state_space_functions(
-    state_space_functions, options, continuous_state_name
+    state_space_functions,
+    model_config,
+    model_specs,
+    continuous_state_name,
 ):
 
     state_space_functions = (
@@ -188,41 +196,50 @@ def process_state_space_functions(
         )
 
         def state_specific_choice_set(**kwargs):
-            return jnp.array(options["state_space"]["choices"])
+            return jnp.array(model_config["choices"])
 
     else:
-        state_specific_choice_set = determine_function_arguments_and_partial_options(
-            func=state_space_functions["state_specific_choice_set"],
-            options=options["model_params"],
-            continuous_state_name=continuous_state_name,
+        state_specific_choice_set = (
+            determine_function_arguments_and_partial_model_specs(
+                func=state_space_functions["state_specific_choice_set"],
+                model_specs=model_specs,
+                continuous_state_name=continuous_state_name,
+            )
         )
 
-    if "next_period_endogenous_state" not in state_space_functions:
+    if "next_period_deterministic_state" not in state_space_functions:
         print(
             "Update function for state space not given. Assume states only change "
             "with an increase of the period and lagged choice."
         )
 
-        def next_period_endogenous_state(**kwargs):
+        def next_period_deterministic_state(**kwargs):
             return {"period": kwargs["period"] + 1, "lagged_choice": kwargs["choice"]}
 
     else:
-        next_period_endogenous_state = determine_function_arguments_and_partial_options(
-            func=state_space_functions["next_period_endogenous_state"],
-            options=options["model_params"],
-            continuous_state_name=continuous_state_name,
+        next_period_deterministic_state = (
+            determine_function_arguments_and_partial_model_specs(
+                func=state_space_functions["next_period_deterministic_state"],
+                model_specs=model_specs,
+                continuous_state_name=continuous_state_name,
+            )
         )
 
-    sparsity_condition = process_sparsity_condition(state_space_functions, options)
+    sparsity_condition = process_sparsity_condition(
+        state_space_functions=state_space_functions, model_specs=model_specs
+    )
 
-    return state_specific_choice_set, next_period_endogenous_state, sparsity_condition
+    return (
+        state_specific_choice_set,
+        next_period_deterministic_state,
+        sparsity_condition,
+    )
 
 
-def process_sparsity_condition(state_space_functions, options):
+def process_sparsity_condition(state_space_functions, model_specs):
     if "sparsity_condition" in state_space_functions.keys():
-        sparsity_condition = determine_function_arguments_and_partial_options(
-            func=state_space_functions["sparsity_condition"],
-            options=options["model_params"],
+        sparsity_condition = determine_function_arguments_and_partial_model_specs(
+            func=state_space_functions["sparsity_condition"], model_specs=model_specs
         )
         # ToDo: Error if sparsity condition takes second continuous state as input
     else:
@@ -235,15 +252,17 @@ def process_sparsity_condition(state_space_functions, options):
 
 
 def process_second_continuous_update_function(
-    continuous_state_name, state_space_functions, options
+    continuous_state_name, state_space_functions, model_specs
 ):
     if continuous_state_name is not None:
         func_name = f"next_period_{continuous_state_name}"
 
-        next_period_continuous_state = determine_function_arguments_and_partial_options(
-            func=state_space_functions[func_name],
-            options=options["model_params"],
-            continuous_state_name=continuous_state_name,
+        next_period_continuous_state = (
+            determine_function_arguments_and_partial_model_specs(
+                func=state_space_functions[func_name],
+                model_specs=model_specs,
+                continuous_state_name=continuous_state_name,
+            )
         )
     else:
         next_period_continuous_state = None

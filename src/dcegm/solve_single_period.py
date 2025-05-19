@@ -10,12 +10,11 @@ from dcegm.egm.solve_euler_equation import (
 def solve_single_period(
     carry,
     xs,
-    has_second_continuous_state,
     params,
-    exog_grids,
-    income_shock_weights,
+    continuous_grids_info,
     cont_grids_next_period,
     model_funcs,
+    income_shock_weights,
 ):
     """Solve a single period of the model using DCEGM."""
     (value_solved, policy_solved, endog_grid_solved) = carry
@@ -23,7 +22,7 @@ def solve_single_period(
     (
         state_choices_idxs,
         child_state_choices_to_aggr_choice,
-        child_states_to_integrate_exog,
+        child_states_to_integrate_stochastic,
         child_state_choice_idxs_to_interp,
         child_state_idxs,
         state_choice_mat,
@@ -35,7 +34,7 @@ def solve_single_period(
         compute_marginal_utility=model_funcs["compute_marginal_utility"],
         compute_utility=model_funcs["compute_utility"],
         state_choice_vec=state_choice_mat_child,
-        exog_grids=exog_grids,
+        continuous_grids_info=continuous_grids_info,
         cont_grids_next_period=cont_grids_next_period,
         endog_grid_child_state_choice=endog_grid_solved[
             child_state_choice_idxs_to_interp
@@ -43,7 +42,6 @@ def solve_single_period(
         policy_child_state_choice=policy_solved[child_state_choice_idxs_to_interp],
         value_child_state_choice=value_solved[child_state_choice_idxs_to_interp],
         child_state_idxs=child_state_idxs,
-        has_second_continuous_state=has_second_continuous_state,
         params=params,
     )
 
@@ -68,15 +66,14 @@ def solve_single_period(
             value_interpolated=value_interpolated,
             marginal_utility_interpolated=marginal_utility_interpolated,
             state_choice_mat=state_choice_mat,
-            child_state_idxs=child_states_to_integrate_exog,
+            child_state_idxs=child_states_to_integrate_stochastic,
             states_to_choices_child_states=child_state_choices_to_aggr_choice,
             params=params,
             taste_shock_scale=taste_shock_scale,
             taste_shock_scale_is_scalar=taste_shock_scale_is_scalar,
             income_shock_weights=income_shock_weights,
-            exog_grids=exog_grids,
+            continuous_grids_info=continuous_grids_info,
             model_funcs=model_funcs,
-            has_second_continuous_state=has_second_continuous_state,
         )
     )
 
@@ -101,9 +98,8 @@ def solve_for_interpolated_values(
     taste_shock_scale,
     taste_shock_scale_is_scalar,
     income_shock_weights,
-    exog_grids,
+    continuous_grids_info,
     model_funcs,
-    has_second_continuous_state,
 ):
     # EGM step 2)
     # Aggregate the marginal utilities and expected values over all state-choice
@@ -124,13 +120,13 @@ def solve_for_interpolated_values(
         policy_candidate,
         expected_values,
     ) = calculate_candidate_solutions_from_euler_equation(
-        exog_grids=exog_grids,
+        continuous_grids_info=continuous_grids_info,
         marg_util_next=marg_util,
         emax_next=emax,
         state_choice_mat=state_choice_mat,
         idx_post_decision_child_states=child_state_idxs,
         model_funcs=model_funcs,
-        has_second_continuous_state=has_second_continuous_state,
+        has_second_continuous_state=continuous_grids_info["second_continuous_exists"],
         params=params,
     )
 
@@ -145,11 +141,11 @@ def solve_for_interpolated_values(
         policy_candidate=policy_candidate,
         value_candidate=value_candidate,
         expected_values=expected_values,
-        exog_grids=exog_grids,
+        continuous_grid_info=continuous_grids_info,
         state_choice_mat=state_choice_mat,
         compute_utility=model_funcs["compute_utility"],
         params=params,
-        has_second_continuous_state=has_second_continuous_state,
+        has_second_continuous_state=continuous_grids_info["second_continuous_exists"],
         compute_upper_envelope_for_state_choice=model_funcs["compute_upper_envelope"],
     )
 
@@ -165,7 +161,7 @@ def run_upper_envelope(
     policy_candidate,
     value_candidate,
     expected_values,
-    exog_grids,
+    continuous_grid_info,
     state_choice_mat,
     compute_utility,
     params,
@@ -190,7 +186,7 @@ def run_upper_envelope(
             policy_candidate,
             value_candidate,
             expected_values[:, :, 0],
-            exog_grids["second_continuous"],
+            continuous_grid_info["second_continuous_grid"],
             state_choice_mat,
             compute_utility,
             params,
