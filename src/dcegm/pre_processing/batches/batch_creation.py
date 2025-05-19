@@ -80,7 +80,6 @@ def create_batches_and_information(
             min_period_batch_segments = [min_period_batch_segments]
         elif isinstance(min_period_batch_segments, list):
             n_segments = len(min_period_batch_segments) + 1
-            min_period_batch_segments = min_period_batch_segments.tolist()
         else:
             raise ValueError("So far only int or list separation is supported.")
 
