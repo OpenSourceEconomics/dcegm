@@ -72,14 +72,14 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                 params,
             ):
                 value_kwargs = {
-                    "expected_value_zero_savings": expected_value_zero_assets,
+                    "expected_value_zero_assets": expected_value_zero_assets,
                     "params": params,
                     **state_choice_dict,
                 }
 
                 def value_function(
                     consumption,
-                    expected_value_zero_savings,
+                    expected_value_zero_assets,
                     params,
                     **state_choice_dict,
                 ):
