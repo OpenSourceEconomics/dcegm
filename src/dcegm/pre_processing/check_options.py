@@ -45,7 +45,7 @@ def check_model_config_and_process(model_config):
             raise ValueError("Choices must be a list or an integer.")
 
     else:
-        raise ValueError("Choices must be given in model_config")
+        raise ValueError("Choices must be given in model_config.")
 
     if "continuous_states" not in model_config:
         raise ValueError("model_config must contain continuous_states as key.")

@@ -68,8 +68,8 @@ def test_valid_choices_conversion(valid_model_config, choices, expected_array):
 
 def test_missing_sinlge_choice(valid_model_config):
     del valid_model_config["choices"]
-    model_config = check_model_config_and_process(valid_model_config)
-    assert_array_equal(model_config["choices"], np.array([0], dtype=np.uint8))
+    with pytest.raises(ValueError, match="Choices must be given in model_config."):
+        check_model_config_and_process(valid_model_config)
 
 
 def test_invalid_choices_type(valid_model_config):
@@ -80,7 +80,9 @@ def test_invalid_choices_type(valid_model_config):
 
 def test_missing_continuous_states(valid_model_config):
     del valid_model_config["continuous_states"]
-    with pytest.raises(KeyError):
+    with pytest.raises(
+        ValueError, match="model_config must contain continuous_states as key."
+    ):
         check_model_config_and_process(valid_model_config)
 
 
@@ -101,8 +103,10 @@ def test_tuning_params_invalid_grid_factors(valid_model_config):
 
 
 def test_second_continuous_state_handling(valid_model_config):
-    options = check_model_config_and_process(valid_model_config)
-    assert options["second_continuous_state_name"] == "experience"
-    assert options["tuning_params"]["n_second_continuous_grid"] == len(
+    processed_model_config = check_model_config_and_process(valid_model_config)
+    continuous_states_info = processed_model_config["continuous_states_info"]
+
+    assert continuous_states_info["second_continuous_state_name"] == "experience"
+    assert continuous_states_info["n_second_continuous_grid"] == len(
         valid_model_config["continuous_states"]["experience"]
     )
