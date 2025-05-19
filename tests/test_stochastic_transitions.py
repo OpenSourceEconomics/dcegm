@@ -442,13 +442,13 @@ def test_exog_processes(
         "ltc_cost": 5,
         "wage_avg": 8,
         "sigma": 1,
-        "taste_shock_scale": 1,
         "ltc_prob": 0.3,
         "beta": 0.95,
     }
 
     model_specs = {
         "n_choices": 2,
+        "taste_shock_scale": 1,
     }
     model_config = {
         "n_quad_points": 5,
