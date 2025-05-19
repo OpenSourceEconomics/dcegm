@@ -9,10 +9,10 @@ from numpy.testing import assert_array_almost_equal as aaae
 
 import dcegm
 import dcegm.toy_models as toy_models
+from dcegm.backward_induction import create_solution_container, get_solve_func_for_model
 from dcegm.final_periods import solve_final_period
 from dcegm.law_of_motion import calc_cont_grids_next_period
 from dcegm.numerical_integration import quadrature_legendre
-from dcegm.solve import create_solution_container, get_solve_func_for_model
 from dcegm.solve_single_period import solve_for_interpolated_values
 
 MAX_WEALTH = 50
@@ -141,7 +141,7 @@ def budget_constraint_continuous(
 
 def budget_constraint_continuous_dcegm(
     period: int,
-    savings_end_of_previous_period: float,
+    assets_end_of_previous_period: float,
     lagged_choice: int,
     experience: float,
     income_shock_previous_period: float,
@@ -160,7 +160,7 @@ def budget_constraint_continuous_dcegm(
 
     wealth_beginning_of_period = (
         income_from_previous_period * working
-        + (1 + params["interest_rate"]) * savings_end_of_previous_period
+        + (1 + params["interest_rate"]) * assets_end_of_previous_period
     )
 
     # Retirement safety net, only in retirement model, but we require to have it always

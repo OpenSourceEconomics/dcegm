@@ -114,15 +114,15 @@ def compute_optimal_policy_and_value(
     and using the optimal consumption level in the bellman equation.
 
     Args:
-        marg_utils (np.ndarray): 1d array of shape (n_exog_processes,) containing
+        marg_utils (np.ndarray): 1d array of shape (n_stochastic_states,) containing
             the state-choice specific marginal utilities for a given point on
             the savings grid.
-        emax (np.ndarray): 1d array of shape (n_exog_processes,) containing
+        emax (np.ndarray): 1d array of shape (n_stochastic_states,) containing
             the state-choice specific expected maximum value for a given point on
             the savings grid.
         exogenous_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
             containing the exogenous savings grid.
-        trans_vec_state (np.ndarray): 1d array of shape (n_exog_processes,) containing
+        trans_vec_state (np.ndarray): 1d array of shape (n_stochastic_states,) containing
             for each exogenous process state the corresponding transition probability.
         state_choice_vec (np.ndarray): A dictionary containing the states and a
         corresponding admissible choice of a particular state choice vector.
@@ -148,14 +148,14 @@ def compute_optimal_policy_and_value(
     """
     compute_inverse_marginal_utility = model_funcs["compute_inverse_marginal_utility"]
     compute_utility = model_funcs["compute_utility"]
-    compute_exog_transition_vec = model_funcs["compute_exog_transition_vec"]
+    compute_stochastic_transition_vec = model_funcs["compute_stochastic_transition_vec"]
 
     policy, expected_value = solve_euler_equation(
         state_choice_vec=state_choice_vec,
         marg_util_next=marg_util_next,
         emax_next=emax_next,
         compute_inverse_marginal_utility=compute_inverse_marginal_utility,
-        compute_exog_transition_vec=compute_exog_transition_vec,
+        compute_stochastic_transition_vec=compute_stochastic_transition_vec,
         params=params,
     )
     endog_grid = exogenous_savings_grid + policy
@@ -171,7 +171,7 @@ def solve_euler_equation(
     marg_util_next: np.ndarray,
     emax_next: np.ndarray,
     compute_inverse_marginal_utility: Callable,
-    compute_exog_transition_vec: Callable,
+    compute_stochastic_transition_vec: Callable,
     params: Dict[str, float],
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Solve the Euler equation for given discrete choice and child states.
@@ -180,17 +180,17 @@ def solve_euler_equation(
     then apply the inverese marginal utility function.
 
     Args:
-        marg_utils (np.ndarray): 1d array of shape (n_exog_processes,) containing
+        marg_utils (np.ndarray): 1d array of shape (n_stochastic_states,) containing
             the state-choice specific marginal utilities for a given point on
             the savings grid.
-        emax (np.ndarray): 1d array of shape (n_exog_processes,) containing
+        emax (np.ndarray): 1d array of shape (n_stochastic_states,) containing
             the state-choice specific expected maximum value for a given point on
             the savings grid.
-        trans_vec_state (np.ndarray): 1d array of shape (n_exog_processes,) containing
+        trans_vec_state (np.ndarray): 1d array of shape (n_stochastic_states,) containing
             for each exogenous process state the corresponding transition probability.
         compute_inverse_marginal_utility (callable): Function for calculating the
             inverse marginal utility, which takes the marginal utility as only input.
-            (n_exog_processes, n_grid_wealth) with the maximum values.
+            (n_stochastic_states, n_grid_wealth) with the maximum values.
         params (dict): Dictionary of model parameters.
 
     Returns:
@@ -203,7 +203,9 @@ def solve_euler_equation(
 
     """
 
-    transition_vec = compute_exog_transition_vec(params=params, **state_choice_vec)
+    transition_vec = compute_stochastic_transition_vec(
+        params=params, **state_choice_vec
+    )
 
     # Integrate out uncertainty over exogenous processes
     marginal_utility_next = jnp.nansum(transition_vec * marg_util_next)

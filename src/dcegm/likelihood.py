@@ -12,13 +12,13 @@ import jax.numpy as jnp
 import numpy as np
 from jax import vmap
 
+from dcegm.backward_induction import get_solve_func_for_model
 from dcegm.egm.aggregate_marginal_utility import (
     calculate_choice_probs_and_unsqueezed_logsum,
 )
 from dcegm.interfaces.interface import get_state_choice_index_per_discrete_state
 from dcegm.interpolation.interp1d import interp_value_on_wealth
 from dcegm.interpolation.interp2d import interp2d_value_on_wealth_and_regular_grid
-from dcegm.solve import get_solve_func_for_model
 
 
 def create_individual_likelihood_function_for_model(
@@ -127,12 +127,12 @@ def create_choice_prob_func_unobserved_states(
                 state_name
             ]
         else:
-            if state_name in model["model_structure"]["exog_states_names"]:
-                state_values = model["options"]["state_space"]["exogenous_processes"][
+            if state_name in model["model_structure"]["stochastic_states_names"]:
+                state_values = model["options"]["state_space"]["stochastic_states"][
                     state_name
                 ]["states"]
             else:
-                state_values = model["options"]["state_space"]["endogenous_states"][
+                state_values = model["options"]["state_space"]["deterministic_states"][
                     state_name
                 ]
         unobserved_state_values[state_name] = state_values

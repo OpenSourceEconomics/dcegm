@@ -43,7 +43,7 @@ def test_benchmark_models(model_name):
         **model_funcs,
     )
 
-    solved_model = model.solve(params)
+    model_solved = model.solve(params)
 
     policy_expected = pickle.load(
         (REPLICATION_TEST_RESOURCES_DIR / f"{model_name}" / "policy.pkl").open("rb")
@@ -80,9 +80,8 @@ def test_benchmark_models(model_name):
             "lagged_choice": state_choice_space_to_test[state_choice_idx, 1],
             "wealth": wealth_grid_to_test,
         }
-
         policy_calc_interp, value_calc_interp = (
-            solved_model.value_and_policy_for_state_and_choice(
+            model_solved.value_and_policy_for_state_and_choice(
                 state=state,
                 choice=choice,
             )

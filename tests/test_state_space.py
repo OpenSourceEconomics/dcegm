@@ -29,14 +29,14 @@ def specs_and_config():
         {
             "n_periods": 25,
             "choices": np.arange(2),
-            "endogenous_states": {
+            "deterministic_states": {
                 "thus": np.arange(25),
                 "that": [0, 1],
             },
             "continuous_states": {
                 "wealth": np.linspace(0, 50, 100),
             },
-            "exogenous_processes": {"ltc": jnp.array([0])},
+            "stochastic_states": {"ltc": jnp.array([0])},
         }
     )
 
@@ -63,10 +63,10 @@ def expected_state_space_and_indexer(n_periods, n_choices, n_exog_states):
 
 n_periods = [15, 25, 63, 100]
 n_choices = [2, 3, 20, 50]
-n_exog_processes = [2, 3, 5]
+n_stochastic_states = [2, 3, 5]
 lagged_choices = [0, 1]
 
-TEST_CASES = list(product(lagged_choices, n_periods, n_choices, n_exog_processes))
+TEST_CASES = list(product(lagged_choices, n_periods, n_choices, n_stochastic_states))
 
 
 @pytest.mark.parametrize(
@@ -209,7 +209,7 @@ def test_state_space():
     model_config_sparse = {
         "n_periods": n_periods,  # 25 + 50 = 75
         "choices": np.arange(3, dtype=np.int64),
-        "endogenous_states": {
+        "deterministic_states": {
             "experience": np.arange(n_periods, dtype=int),
             "policy_state": np.arange(36, dtype=int),
             "retirement_age_id": np.arange(10, dtype=int),
@@ -265,7 +265,7 @@ def test_state_space():
         state_space_sum_dict["retirement_age_id"], state_space_sums_test[4]
     )
     np.testing.assert_allclose(
-        state_space_sum_dict["dummy_exog"], state_space_sums_test[5]
+        state_space_sum_dict["dummy_stochastic"], state_space_sums_test[5]
     )
 
     ### Now test the inspection function.

@@ -25,9 +25,8 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-import dcegm.toy_models as toy_models
+import dcegm
 from dcegm.pre_processing.setup_model import create_model_dict
-from dcegm.solve import get_solve_func_for_model
 from dcegm.toy_models.cons_ret_model_dcegm_paper import (
     inverse_marginal_utility_crra,
     marginal_utility_crra,
@@ -112,13 +111,13 @@ def test_model():
     model_config = {
         "n_periods": 5,
         "choices": np.arange(3),
-        "endogenous_states": {
+        "deterministic_states": {
             "experience": np.arange(5),
         },
         "continuous_states": {
             "wealth": np.linspace(0, 500, 100),
         },
-        "exogenous_processes": {
+        "stochastic_states": {
             "health": [0, 1],
             "partner": [0, 1],
         },
@@ -152,7 +151,7 @@ def state_space_functions():
     """Return dict with state space functions."""
     out = {
         "state_specific_choice_set": choice_set,
-        "next_period_endogenous_state": next_period_state,
+        "next_period_deterministic_state": next_period_state,
         "sparsity_condition": sparsity_condition,
     }
     return out
@@ -188,7 +187,7 @@ def utility_functions_final_period():
     }
 
 
-def budget(lagged_choice, experience, savings_end_of_previous_period, health, params):
+def budget(lagged_choice, experience, assets_end_of_previous_period, health, params):
     unemployed = lagged_choice == 0
     working = lagged_choice == 1
     retired = lagged_choice == 2
@@ -207,7 +206,7 @@ def budget(lagged_choice, experience, savings_end_of_previous_period, health, pa
     )
 
     return jnp.maximum(
-        income + (1 + params["interest_rate"]) * savings_end_of_previous_period,
+        income + (1 + params["interest_rate"]) * assets_end_of_previous_period,
         params["consumption_floor"],
     )
 
@@ -222,20 +221,18 @@ def test_extended_choice_set_model(
         "partner": prob_partner,
     }
 
-    model = create_model_dict(
+    model = dcegm.setup_model(
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget,
-        exogenous_states_transition=exogenous_states_transition,
+        stochastic_states_transition=exogenous_states_transition,
     )
 
-    solve_func = get_solve_func_for_model(model)
-
-    sol = solve_func(params)
-    value, _policy, _endog_grid, *_ = sol
+    model_solved = model.solve(params)
+    value = model_solved.value
 
     value_expec = pickle.load(
         open(TEST_DIR / "resources" / "extended_choice_set" / "value.pkl", "rb")
@@ -250,7 +247,7 @@ def test_extended_choice_set_model(
             "rb",
         )
     )
-    state_choice_space = model["model_structure"]["state_choice_space"]
+    state_choice_space = model.model_structure["state_choice_space"]
     tuple_state_choice = tuple(
         state_choice_space[:, i] for i in range(state_choice_space.shape[1])
     )

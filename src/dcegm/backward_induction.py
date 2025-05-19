@@ -9,101 +9,7 @@ import numpy as np
 
 from dcegm.final_periods import solve_last_two_periods
 from dcegm.law_of_motion import calc_cont_grids_next_period
-from dcegm.numerical_integration import quadrature_legendre
-from dcegm.pre_processing.check_params import process_params
-from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.solve_single_period import solve_single_period
-
-
-def solve_dcegm(
-    params,
-    model_specs: Dict,
-    model_config: Dict,
-    utility_functions: Dict[str, Callable],
-    utility_functions_final_period: Dict[str, Callable],
-    budget_constraint: Callable,
-    state_space_functions: Dict[str, Callable] = None,
-    exogenous_states_transition: Dict[str, Callable] = None,
-    shock_functions: Dict[str, Callable] = None,
-) -> Dict[int, np.ndarray]:
-    """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
-
-    Args:
-        params (pd.DataFrame): Params DataFrame.
-        options (dict): Options dictionary.
-        utility_functions (Dict[str, callable]): Dictionary of three user-supplied
-            functions for computation of:
-            (i) utility
-            (ii) inverse marginal utility
-            (iii) next period marginal utility
-        budget_constraint (callable): Callable budget constraint.
-        state_space_functions (Dict[str, callable]): Dictionary of two user-supplied
-            functions to:
-            (i) get the state specific feasible choice set
-            (ii) update the endogenous part of the state by the choice
-        final_period_solution (callable): User-supplied function for solving the agent's
-            last period.
-        transition_function (callable): User-supplied function returning for each
-            state a transition matrix vector.
-
-    Returns:
-        dict: Dictionary containing the period-specific endog_grid, policy, and value
-            from the backward induction.
-
-    """
-
-    model = create_model_dict(
-        model_config=model_config,
-        model_specs=model_specs,
-        state_space_functions=state_space_functions,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
-        budget_constraint=budget_constraint,
-        exogenous_states_transition=exogenous_states_transition,
-        shock_functions=shock_functions,
-    )
-
-    backward_jit = get_solve_func_for_model(model=model)
-
-    results = backward_jit(params=params)
-
-    return results
-
-
-def get_solve_func_for_model(model):
-    """Create a solve function, which only takes params as input."""
-
-    model_config = model["model_config"]
-
-    has_second_continuous_state = model_config["continuous_states_info"][
-        "second_continuous_exists"
-    ]
-
-    # ToDo: Make interface with several draw possibilities.
-    # ToDo: Some day make user supplied draw function.
-    income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
-        model_config["n_quad_points"]
-    )
-
-    backward_jit = jax.jit(
-        partial(
-            backward_induction,
-            model_config=model_config,
-            has_second_continuous_state=has_second_continuous_state,
-            state_space_dict=model["model_structure"]["state_space_dict"],
-            n_state_choices=model["model_structure"]["state_choice_space"].shape[0],
-            batch_info=model["batch_info"],
-            income_shock_draws_unscaled=income_shock_draws_unscaled,
-            income_shock_weights=income_shock_weights,
-            model_funcs=model["model_funcs"],
-        )
-    )
-
-    def solve_func(params):
-        params_initial = process_params(params)
-        return backward_jit(params=params_initial)
-
-    return solve_func
 
 
 def backward_induction(
@@ -259,7 +165,7 @@ def backward_induction(
             xs=(
                 segment_info["batches_state_choice_idx"],
                 segment_info["child_state_choices_to_aggr_choice"],
-                segment_info["child_states_to_integrate_exog"],
+                segment_info["child_states_to_integrate_stochastic"],
                 segment_info["child_state_choice_idxs_to_interp"],
                 segment_info["child_states_idxs"],
                 segment_info["state_choices"],
@@ -274,7 +180,7 @@ def backward_induction(
                 xs=(
                     last_batch_info["state_choice_idx"],
                     last_batch_info["child_state_choices_to_aggr_choice"],
-                    last_batch_info["child_states_to_integrate_exog"],
+                    last_batch_info["child_states_to_integrate_stochastic"],
                     last_batch_info["child_state_choice_idxs_to_interp"],
                     last_batch_info["child_states_idxs"],
                     last_batch_info["state_choices"],

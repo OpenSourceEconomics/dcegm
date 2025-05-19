@@ -1,6 +1,6 @@
 import numpy as np
 
-from dcegm.toy_models.cons_ret_model_exog_ltc.ltc import prob_exog_ltc
+from dcegm.toy_models.cons_ret_model_stochastic_ltc.ltc import prob_exog_ltc
 
 
 def example_params():
@@ -28,11 +28,11 @@ def example_model_config():
     model_config = {
         "n_periods": 2,
         "choices": [0, 1],
-        "endogenous_states": {
+        "deterministic_states": {
             "married": [0, 1],
         },
         "continuous_states": {
-            "wealth": np.linspace(0, 50, 100),
+            "end_of_period_assets": np.linspace(0, 50, 100),
         },
         "stochastic_states": {
             "ltc": [0, 1],

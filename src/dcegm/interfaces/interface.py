@@ -70,11 +70,11 @@ def policy_and_value_for_state_choice_vec(
     map_state_choice_to_index = model_structure["map_state_choice_to_index_with_proxy"]
     discrete_states_names = model_structure["discrete_states_names"]
 
-    if "dummy_exog" in discrete_states_names:
+    if "dummy_stochastic" in discrete_states_names:
         state_choice_vec = {
             **states,
             "choice": choice,
-            "dummy_exog": 0,
+            "dummy_stochastic": 0,
         }
 
     else:
@@ -153,11 +153,11 @@ def value_for_state_choice_vec(
     map_state_choice_to_index = model_structure["map_state_choice_to_index_with_proxy"]
     discrete_states_names = model_structure["discrete_states_names"]
 
-    if "dummy_exog" in discrete_states_names:
+    if "dummy_stochastic" in discrete_states_names:
         state_choice_vec = {
             **states,
             "choice": choice,
-            "dummy_exog": 0,
+            "dummy_stochastic": 0,
         }
 
     else:
@@ -316,7 +316,7 @@ def validate_stochastic_transition(model, params):
 
     Args:
         model (dict): A dictionary representing the model. Must contain
-            'model_funcs' with 'processed_exog_funcs', 'model_structure'
+            'model_funcs' with 'processed_stochastic_funcs', 'model_structure'
             with 'state_choice_space_dict', and relevant 'options' keys.
         params (dict): Dictionary containing the model parameters.
 
@@ -328,13 +328,13 @@ def validate_stochastic_transition(model, params):
     # Update to float64
     jax.config.update("jax_enable_x64", True)
 
-    transition_funcs_processed = model["model_funcs"]["processed_exog_funcs"]
+    transition_funcs_processed = model["model_funcs"]["processed_stochastic_funcs"]
     state_choice_space_dict = model["model_structure"]["state_choice_space_dict"]
 
-    for name, exog_func in transition_funcs_processed.items():
+    for name, func in transition_funcs_processed.items():
         # Sum transition probabilities for each state-choice combination
         all_transitions = jax.vmap(stochastic_transition_vec, in_axes=(0, None, None))(
-            state_choice_space_dict, exog_func, params
+            state_choice_space_dict, func, params
         )
         summed_transitions = jnp.sum(all_transitions, axis=1)
 

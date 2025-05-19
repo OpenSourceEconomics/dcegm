@@ -9,11 +9,11 @@ from dcegm.pre_processing.shared import (
 def process_endog_state_specifications(state_space_options):
     """Get number of endog states which we loop over when creating the state space."""
 
-    if state_space_options.get("endogenous_states"):
+    if state_space_options.get("deterministic_states"):
 
-        endog_states_names = list(state_space_options["endogenous_states"].keys())
+        endog_states_names = list(state_space_options["deterministic_states"].keys())
         endog_state_space = span_subspace(
-            subdict_of_space=state_space_options["endogenous_states"],
+            subdict_of_space=state_space_options["deterministic_states"],
             states_names=endog_states_names,
         )
 

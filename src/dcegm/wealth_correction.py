@@ -42,7 +42,7 @@ def adjust_observed_wealth(observed_states_dict, params, model):
             savings_last_period,
             jnp.array(0.0, dtype=jnp.float64),
             params,
-            model["model_funcs"]["compute_beginning_of_period_wealth"],
+            model["model_funcs"]["compute_assets_begin_of_period"],
             False,
         )
 
@@ -55,7 +55,7 @@ def adjust_observed_wealth(observed_states_dict, params, model):
             savings_last_period,
             jnp.array(0.0, dtype=jnp.float64),
             params,
-            model["model_funcs"]["compute_beginning_of_period_wealth"],
+            model["model_funcs"]["compute_assets_begin_of_period"],
             False,
         )
 

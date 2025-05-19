@@ -1,7 +1,7 @@
 from jax import numpy as jnp
 
 
-def create_exogenous_states_transition():
+def create_stochastic_states_transition():
     return {"ltc": prob_exog_ltc}
 
 

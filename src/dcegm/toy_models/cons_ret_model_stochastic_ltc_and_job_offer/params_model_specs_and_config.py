@@ -1,7 +1,7 @@
 import numpy as np
 
-from dcegm.toy_models.cons_ret_model_exog_ltc.ltc import prob_exog_ltc
-from dcegm.toy_models.cons_ret_model_exog_ltc_and_job_offer.ltc_and_job_offer import (
+from dcegm.toy_models.cons_ret_model_stochastic_ltc.ltc import prob_exog_ltc
+from dcegm.toy_models.cons_ret_model_stochastic_ltc_and_job_offer.ltc_and_job_offer import (
     prob_exog_job_offer,
 )
 
@@ -33,12 +33,12 @@ def example_model_config():
         "n_periods": 2,
         "choices": [0, 1],
         "continuous_states": {
-            "wealth": np.linspace(0, 50, 100),
+            "end_of_period_assets": np.linspace(0, 50, 100),
             "married": [0, 1],
         },
         "stochastic_states": {
-            "ltc": {"transition": prob_exog_ltc, "states": [0, 1]},
-            "job_offer": {"transition": prob_exog_job_offer, "states": [0, 1]},
+            "ltc": [0, 1],
+            "job_offer": [0, 1],
         },
         "n_quad_points": 5,
     }

@@ -39,7 +39,9 @@ def create_model_structure(
         create_state_choice_space_and_child_state_mapping(
             model_config=model_config,
             state_specific_choice_set=model_funcs["state_specific_choice_set"],
-            next_period_endogenous_state=model_funcs["next_period_endogenous_state"],
+            next_period_deterministic_state=model_funcs[
+                "next_period_deterministic_state"
+            ],
             state_space_arrays=state_space_objects,
         )
     )

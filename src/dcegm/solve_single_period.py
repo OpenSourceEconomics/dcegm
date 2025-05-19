@@ -22,7 +22,7 @@ def solve_single_period(
     (
         state_choices_idxs,
         child_state_choices_to_aggr_choice,
-        child_states_to_integrate_exog,
+        child_states_to_integrate_stochastic,
         child_state_choice_idxs_to_interp,
         child_state_idxs,
         state_choice_mat,
@@ -66,7 +66,7 @@ def solve_single_period(
             value_interpolated=value_interpolated,
             marginal_utility_interpolated=marginal_utility_interpolated,
             state_choice_mat=state_choice_mat,
-            child_state_idxs=child_states_to_integrate_exog,
+            child_state_idxs=child_states_to_integrate_stochastic,
             states_to_choices_child_states=child_state_choices_to_aggr_choice,
             params=params,
             taste_shock_scale=taste_shock_scale,

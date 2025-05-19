@@ -20,7 +20,6 @@ from dcegm.simulation.taste_shocks import draw_taste_shocks
 
 def simulate_all_periods(
     states_initial,
-    wealth_initial,
     n_periods,
     params,
     seed,
@@ -44,9 +43,12 @@ def simulate_all_periods(
         for key, value in states_initial.items()
         if key in discrete_state_space
     }
+    states_initial_dtype["assets_begin_of_period"] = states_initial[
+        "assets_begin_of_period"
+    ]
 
-    if "dummy_exog" in model_structure["exog_states_names"]:
-        states_initial_dtype["dummy_exog"] = jnp.zeros_like(
+    if "dummy_stochastic" in model_structure["stochastic_states_names"]:
+        states_initial_dtype["dummy_stochastic"] = jnp.zeros_like(
             states_initial_dtype["period"]
         )
 
@@ -57,7 +59,7 @@ def simulate_all_periods(
             states_initial[continuous_states_info["second_continuous_state_name"]]
         )
 
-    n_agents = len(wealth_initial)
+    n_agents = len(states_initial["wealth"])
 
     # Draw the random keys
     sim_keys, last_period_sim_keys = draw_random_keys_for_seed(
@@ -81,19 +83,14 @@ def simulate_all_periods(
         model_config=model_config,
     )
 
-    states_and_wealth_beginning_of_first_period = (
-        states_initial_dtype,
-        wealth_initial,
-    )
-
-    states_and_wealth_beginning_of_final_period, sim_dict = jax.lax.scan(
+    states_and_assets_beginning_of_final_period, sim_dict = jax.lax.scan(
         f=simulate_body,
-        init=states_and_wealth_beginning_of_first_period,
+        init=states_initial_dtype,
         xs=sim_keys,
     )
 
     final_period_dict = simulate_final_period(
-        states_and_wealth_beginning_of_final_period,
+        states_and_assets_beginning_of_final_period,
         sim_keys=last_period_sim_keys,
         params=params,
         discrete_states_names=model_structure["discrete_states_names"],
@@ -123,7 +120,7 @@ def simulate_all_periods(
 
 
 def simulate_single_period(
-    states_and_wealth_beginning_of_period,
+    states_beginning_of_period,
     sim_keys,
     params,
     endog_grid_solved,
@@ -134,11 +131,6 @@ def simulate_single_period(
     compute_utility,
     model_config,
 ):
-
-    (
-        states_beginning_of_period,
-        wealth_beginning_of_period,
-    ) = states_and_wealth_beginning_of_period
 
     continuous_states_info = model_config["continuous_states_info"]
 
@@ -152,19 +144,21 @@ def simulate_single_period(
         discrete_states_beginning_of_period = {
             key: value
             for key, value in states_beginning_of_period.items()
-            if key != continuous_state_name
+            if key in model_structure_sol["discrete_states_names"]
         }
     else:
         discrete_states_beginning_of_period = states_beginning_of_period
         continuous_state_beginning_of_period = None
         continuous_grid = None
 
+    assets_begin_of_period = states_beginning_of_period["assets_begin_of_period"]
+
     choice_range = model_structure_sol["choice_range"]
     # Interpolate policy and value function for all agents.
     policy, values_pre_taste_shock = interpolate_policy_and_value_for_all_agents(
         discrete_states_beginning_of_period=discrete_states_beginning_of_period,
         continuous_state_beginning_of_period=continuous_state_beginning_of_period,
-        wealth_beginning_of_period=wealth_beginning_of_period,
+        assets_begin_of_period=assets_begin_of_period,
         value_solved=value_solved,
         policy_solved=policy_solved,
         endog_grid_solved=endog_grid_solved,
@@ -205,10 +199,10 @@ def simulate_single_period(
         params,
         compute_utility,
     )
-    savings_current_period = wealth_beginning_of_period - consumption
+    savings_current_period = assets_begin_of_period - consumption
 
     (
-        wealth_beginning_of_next_period,
+        assets_beginning_of_next_period,
         budget_aux,
         discrete_states_next_period,
         continuous_state_next_period,
@@ -228,7 +222,7 @@ def simulate_single_period(
     if continuous_states_info["second_continuous_exists"]:
         states_next_period[continuous_state_name] = continuous_state_next_period
 
-    carry = states_next_period, wealth_beginning_of_next_period
+    states_next_period["assets_begin_of_period"] = assets_beginning_of_next_period
 
     result = {
         "choice": choice,
@@ -237,14 +231,14 @@ def simulate_single_period(
         "taste_shocks": taste_shocks,
         "value_max": value_max,
         "value_choice": values_across_choices,
-        "wealth_beginning_of_period": wealth_beginning_of_period,
+        "assets_begin_of_period": assets_begin_of_period,
         "savings": savings_current_period,
         "income_shock": income_shocks_next_period,
         **budget_aux,
         **states_beginning_of_period,
     }
 
-    return carry, result
+    return states_next_period, result
 
 
 def simulate_final_period(

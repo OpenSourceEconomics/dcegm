@@ -13,8 +13,8 @@ from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 
 import dcegm.toy_models as toy_models
+from dcegm.backward_induction import get_solve_func_for_model
 from dcegm.pre_processing.setup_model import create_model_dict
-from dcegm.solve import get_solve_func_for_model
 from tests.utils.euler_equation_two_period import (
     euler_rhs_exog_ltc,
     euler_rhs_exog_ltc_and_job_offer,
@@ -26,9 +26,11 @@ RANDOM_TEST_WEALTH = np.random.choice(list(range(100)), size=10, replace=False)
 @pytest.fixture(scope="session")
 def toy_model_exog_ltc_and_job_offer():
 
-    model_funcs = toy_models.load_example_model_functions("with_exog_ltc_and_job_offer")
+    model_funcs = toy_models.load_example_model_functions(
+        "with_stochastic_ltc_and_job_offer"
+    )
     params, options = toy_models.load_example_params_model_specs_and_config(
-        "with_exog_ltc_and_job_offer"
+        "with_stochastic_ltc_and_job_offer"
     )
 
     out = {}
@@ -60,9 +62,9 @@ def toy_model_exog_ltc_and_job_offer():
 @pytest.fixture(scope="session")
 def toy_model_exog_ltc():
 
-    model_funcs = toy_models.load_example_model_functions("with_exog_ltc")
+    model_funcs = toy_models.load_example_model_functions("with_stochastic_ltc")
     params, options = toy_models.load_example_params_model_specs_and_config(
-        "with_exog_ltc"
+        "with_stochastic_ltc"
     )
 
     out = {}
@@ -132,7 +134,7 @@ def test_two_period(
         model_structure["map_state_choice_to_parent_state"] == state_idx
     )[0]
 
-    if len(options["state_space"]["exogenous_processes"]) == 2:
+    if len(options["state_space"]["stochastic_states"]) == 2:
         initial_conditions = {}
         initial_conditions["bad_health"] = state_space_dict["ltc"][state_idx] == 1
         initial_conditions["job_offer"] = 1
