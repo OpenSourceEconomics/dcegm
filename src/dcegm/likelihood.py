@@ -127,7 +127,7 @@ def create_choice_prob_func_unobserved_states(
                 state_name
             ]
         else:
-            if state_name in model["model_structure"]["exog_states_names"]:
+            if state_name in model["model_structure"]["stochastic_states_names"]:
                 state_values = model["options"]["state_space"]["exogenous_processes"][
                     state_name
                 ]["states"]

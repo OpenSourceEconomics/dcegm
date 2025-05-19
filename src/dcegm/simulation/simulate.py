@@ -45,7 +45,7 @@ def simulate_all_periods(
         if key in discrete_state_space
     }
 
-    if "dummy_stochastic" in model_structure["exog_states_names"]:
+    if "dummy_stochastic" in model_structure["stochastic_states_names"]:
         states_initial_dtype["dummy_stochastic"] = jnp.zeros_like(
             states_initial_dtype["period"]
         )

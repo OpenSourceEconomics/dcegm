@@ -254,7 +254,7 @@ def test_simulate_second_continuous_choice(model_setup):
             "utility_functions_final_period"
         ],
         budget_constraint=model_functions_ltc["budget_constraint"],
-        exogenous_states_transition=model_functions_ltc["exogenous_states_transition"],
+        stochastic_states_transition=model_functions_ltc["exogenous_states_transition"],
     )
 
     key = jax.random.PRNGKey(0)

@@ -163,8 +163,8 @@
 #     model_structure = model["model_structure"]
 
 #     exog_state_mapping = create_stochastic_states_mapping(
-#         model_structure["exog_state_space"].astype(np.int16),
-#         model_structure["exog_states_names"],
+#         model_structure["stochastic_state_space"].astype(np.int16),
+#         model_structure["stochastic_states_names"],
 #     )
 
 #     # Test the interface validation function for exogenous processes
@@ -211,7 +211,7 @@
 #     assert validate_exogenous_processes(model, params)
 
 #     # Check if mapping works
-#     mother_bad_health = np.where(model_structure["exog_state_space"][:, 0] == 2)[0]
+#     mother_bad_health = np.where(model_structure["stochastic_state_space"][:, 0] == 2)[0]
 
 #     for exog_state in mother_bad_health:
 #         assert exog_state_mapping(exog_proc_state=exog_state)["health_mother"] == 2
@@ -227,7 +227,7 @@
 #         "health_grandma": health_state_grandma,
 #         "choice": 0,
 #     }
-#     prob_vector = model_funcs["compute_exog_transition_vec"](
+#     prob_vector = model_funcs["compute_stochastic_transition_vec"](
 #         params=params, **state_choices_test
 #     )
 #     prob_mother_health = model_funcs["processed_exog_funcs"]["health_mother"](
@@ -482,14 +482,14 @@ def test_exog_processes(
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
         budget_constraint=budget_constraint,
-        exogenous_states_transition=stochastic_state_transitions,
+        stochastic_states_transition=stochastic_state_transitions,
     )
     model_funcs = model["model_funcs"]
     model_structure = model["model_structure"]
 
     stochastic_state_mapping = create_stochastic_state_mapping(
-        model_structure["exog_state_space"].astype(np.int16),
-        model_structure["exog_states_names"],
+        model_structure["stochastic_state_space"].astype(np.int16),
+        model_structure["stochastic_states_names"],
     )
 
     # Test the interface validation function for exogenous processes
@@ -536,7 +536,9 @@ def test_exog_processes(
     assert validate_stochastic_transition(model, params)
 
     # Check if mapping works
-    mother_bad_health = np.where(model_structure["exog_state_space"][:, 0] == 2)[0]
+    mother_bad_health = np.where(model_structure["stochastic_state_space"][:, 0] == 2)[
+        0
+    ]
     for idx in mother_bad_health:
         assert stochastic_state_mapping(state_idx=idx)["health_mother"] == 2
 
@@ -552,7 +554,7 @@ def test_exog_processes(
         "choice": 0,
     }
 
-    prob_vector = model_funcs["compute_exog_transition_vec"](
+    prob_vector = model_funcs["compute_stochastic_transition_vec"](
         params=params, **state_choices_test
     )
     prob_mother_health = model_funcs["processed_exog_funcs"]["health_mother"](

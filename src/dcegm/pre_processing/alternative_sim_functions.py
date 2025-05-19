@@ -132,7 +132,7 @@ def process_alternative_sim_functions(
         second_continuous_state_name = None
 
     # Now exogenous transition function if present
-    compute_exog_transition_vec, processed_exog_funcs_dict = (
+    compute_stochastic_transition_vec, processed_exog_funcs_dict = (
         create_stochastic_transition_function(
             stochastic_states_transition,
             model_config=model_config,
@@ -180,7 +180,7 @@ def process_alternative_sim_functions(
         "compute_beginning_of_period_wealth": compute_beginning_of_period_wealth,
         "next_period_continuous_state": next_period_continuous_state,
         "sparsity_condition": sparsity_condition,
-        "compute_exog_transition_vec": compute_exog_transition_vec,
+        "compute_stochastic_transition_vec": compute_stochastic_transition_vec,
         "processed_exog_funcs": processed_exog_funcs_dict,
         "state_specific_choice_set": state_specific_choice_set,
         "next_period_endogenous_state": next_period_endogenous_state,

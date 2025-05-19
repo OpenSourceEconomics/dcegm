@@ -110,8 +110,6 @@ def check_model_config_and_process(model_config):
 
     processed_model_config["continuous_states_info"] = continuous_states_info
 
-    # if "exogenous_states" not in model_config:
-
     if "tuning_params" not in model_config:
         tuning_params = {}
     else:

@@ -229,7 +229,7 @@ def test_extended_choice_set_model(
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget,
-        exogenous_states_transition=exogenous_states_transition,
+        stochastic_states_transition=exogenous_states_transition,
     )
 
     solve_func = get_solve_func_for_model(model)

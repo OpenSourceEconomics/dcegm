@@ -24,7 +24,7 @@ class setup_model:
         utility_functions_final_period: Dict[str, Callable],
         budget_constraint: Callable,
         state_space_functions: Dict[str, Callable] = None,
-        exogenous_states_transition: Dict[str, Callable] = None,
+        stochastic_states_transition: Dict[str, Callable] = None,
         shock_functions: Dict[str, Callable] = None,
         alternative_sim_specifications: Dict[str, Callable] = None,
         debug_info: str = None,
@@ -36,7 +36,7 @@ class setup_model:
             utility_functions_final_period=utility_functions_final_period,
             budget_constraint=budget_constraint,
             state_space_functions=state_space_functions,
-            exogenous_states_transition=exogenous_states_transition,
+            stochastic_states_transition=stochastic_states_transition,
             shock_functions=shock_functions,
             debug_info=debug_info,
         )

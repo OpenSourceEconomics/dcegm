@@ -148,14 +148,14 @@ def compute_optimal_policy_and_value(
     """
     compute_inverse_marginal_utility = model_funcs["compute_inverse_marginal_utility"]
     compute_utility = model_funcs["compute_utility"]
-    compute_exog_transition_vec = model_funcs["compute_exog_transition_vec"]
+    compute_stochastic_transition_vec = model_funcs["compute_stochastic_transition_vec"]
 
     policy, expected_value = solve_euler_equation(
         state_choice_vec=state_choice_vec,
         marg_util_next=marg_util_next,
         emax_next=emax_next,
         compute_inverse_marginal_utility=compute_inverse_marginal_utility,
-        compute_exog_transition_vec=compute_exog_transition_vec,
+        compute_stochastic_transition_vec=compute_stochastic_transition_vec,
         params=params,
     )
     endog_grid = exogenous_savings_grid + policy
@@ -171,7 +171,7 @@ def solve_euler_equation(
     marg_util_next: np.ndarray,
     emax_next: np.ndarray,
     compute_inverse_marginal_utility: Callable,
-    compute_exog_transition_vec: Callable,
+    compute_stochastic_transition_vec: Callable,
     params: Dict[str, float],
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Solve the Euler equation for given discrete choice and child states.
@@ -203,7 +203,9 @@ def solve_euler_equation(
 
     """
 
-    transition_vec = compute_exog_transition_vec(params=params, **state_choice_vec)
+    transition_vec = compute_stochastic_transition_vec(
+        params=params, **state_choice_vec
+    )
 
     # Integrate out uncertainty over exogenous processes
     marginal_utility_next = jnp.nansum(transition_vec * marg_util_next)

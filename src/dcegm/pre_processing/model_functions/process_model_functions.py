@@ -23,7 +23,7 @@ def process_model_functions(
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
-    exogenous_states_transitions: Optional[Dict[str, Callable]] = None,
+    stochastic_states_transitions: Optional[Dict[str, Callable]] = None,
     shock_functions: Optional[Dict[str, Callable]] = None,
 ):
     """Create wrapped functions from user supplied functions.
@@ -119,7 +119,7 @@ def process_model_functions(
     # Now exogenous transition function if present
     compute_stochastic_transition_vec, stochastic_transitions_dict = (
         create_stochastic_transition_function(
-            exogenous_states_transitions,
+            stochastic_states_transitions,
             model_config=model_config,
             model_specs=model_specs,
             continuous_state_name=second_continuous_state_name,
@@ -167,7 +167,7 @@ def process_model_functions(
         "compute_beginning_of_period_wealth": compute_beginning_of_period_wealth,
         "next_period_continuous_state": next_period_continuous_state,
         "sparsity_condition": sparsity_condition,
-        "compute_exog_transition_vec": compute_stochastic_transition_vec,
+        "compute_stochastic_transition_vec": compute_stochastic_transition_vec,
         "processed_exog_funcs": stochastic_transitions_dict,
         "state_specific_choice_set": state_specific_choice_set,
         "next_period_endogenous_state": next_period_endogenous_state,

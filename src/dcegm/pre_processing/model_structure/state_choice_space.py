@@ -59,8 +59,8 @@ def create_state_choice_space_and_child_state_mapping(
     """
 
     states_names_without_exog = state_space_arrays["state_names_without_exog"]
-    exog_state_names = state_space_arrays["exog_states_names"]
-    exog_state_space = state_space_arrays["exog_state_space"]
+    exog_state_names = state_space_arrays["stochastic_states_names"]
+    exog_state_space = state_space_arrays["stochastic_state_space"]
     map_state_to_index_with_proxy = state_space_arrays["map_state_to_index_with_proxy"]
     map_state_to_index = state_space_arrays["map_state_to_index"]
     state_space = state_space_arrays["state_space"]
