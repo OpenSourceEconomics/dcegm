@@ -20,7 +20,7 @@ def create_stochastic_transition_function(
 
     """
     if "stochastic_states" not in model_config:
-        model_config["stochastic_states"] = {"stochastic_state": [0]}
+        model_config["stochastic_states"] = {"dummy_stochastic": [0]}
         compute_stochastic_transition_vec = return_dummy_stochastic_transition
         func_dict = {}
     else:

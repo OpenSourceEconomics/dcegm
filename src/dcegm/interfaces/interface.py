@@ -70,11 +70,11 @@ def policy_and_value_for_state_choice_vec(
     map_state_choice_to_index = model_structure["map_state_choice_to_index_with_proxy"]
     discrete_states_names = model_structure["discrete_states_names"]
 
-    if "dummy_exog" in discrete_states_names:
+    if "dummy_stochastic" in discrete_states_names:
         state_choice_vec = {
             **states,
             "choice": choice,
-            "dummy_exog": 0,
+            "dummy_stochastic": 0,
         }
 
     else:
@@ -153,11 +153,11 @@ def value_for_state_choice_vec(
     map_state_choice_to_index = model_structure["map_state_choice_to_index_with_proxy"]
     discrete_states_names = model_structure["discrete_states_names"]
 
-    if "dummy_exog" in discrete_states_names:
+    if "dummy_stochastic" in discrete_states_names:
         state_choice_vec = {
             **states,
             "choice": choice,
-            "dummy_exog": 0,
+            "dummy_stochastic": 0,
         }
 
     else:

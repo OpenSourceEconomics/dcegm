@@ -320,13 +320,13 @@ def test_replication_discrete_versus_continuous_experience(
         "period": period,
         "lagged_choice": lagged_choice,
         "experience": experience,
-        "dummy_exog": 0,
+        "dummy_stochastic": 0,
         "choice": choice,
     }
     state_choice_cont_dict = {
         "period": period,
         "lagged_choice": lagged_choice,
-        "dummy_exog": 0,
+        "dummy_stochastic": 0,
         "choice": choice,
     }
 
@@ -336,7 +336,7 @@ def test_replication_discrete_versus_continuous_experience(
         state_choice_disc_dict["period"],
         state_choice_disc_dict["lagged_choice"],
         state_choice_disc_dict["experience"],
-        state_choice_disc_dict["dummy_exog"],
+        state_choice_disc_dict["dummy_stochastic"],
         state_choice_disc_dict["choice"],
     ]
     idx_state_choice_cont = model_cont["model_structure"][
@@ -344,7 +344,7 @@ def test_replication_discrete_versus_continuous_experience(
     ][
         state_choice_cont_dict["period"],
         state_choice_cont_dict["lagged_choice"],
-        state_choice_cont_dict["dummy_exog"],
+        state_choice_cont_dict["dummy_stochastic"],
         state_choice_cont_dict["choice"],
     ]
 

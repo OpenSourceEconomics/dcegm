@@ -29,7 +29,7 @@ def generate_alternative_sim_functions(
     state_space_functions: Dict[str, Callable],
     budget_constraint: Callable,
     shock_functions: Dict[str, Callable] = None,
-    exogenous_states_transitions: Dict[str, Callable] = None,
+    stochastic_states_transitions: Dict[str, Callable] = None,
 ):
     """Set up the model for dcegm.
 
@@ -56,7 +56,7 @@ def generate_alternative_sim_functions(
         state_space_functions=state_space_functions,
         budget_constraint=budget_constraint,
         shock_functions=shock_functions,
-        exogenous_states_transitions=exogenous_states_transitions,
+        stochastic_states_transition=stochastic_states_transitions,
     )
 
     (
@@ -78,7 +78,7 @@ def generate_alternative_sim_functions(
 def process_alternative_sim_functions(
     model_config: Dict,
     model_specs: Dict,
-    exogenous_states_transitions,
+    stochastic_states_transition,
     state_space_functions: Dict[str, Callable],
     budget_constraint: Callable,
     shock_functions: Dict[str, Callable] = None,
@@ -134,7 +134,7 @@ def process_alternative_sim_functions(
     # Now exogenous transition function if present
     compute_exog_transition_vec, processed_exog_funcs_dict = (
         create_stochastic_transition_function(
-            exogenous_states_transitions,
+            stochastic_states_transition,
             model_config=model_config,
             model_specs=model_specs,
             continuous_state_name=second_continuous_state_name,

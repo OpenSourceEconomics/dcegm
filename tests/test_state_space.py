@@ -265,7 +265,7 @@ def test_state_space():
         state_space_sum_dict["retirement_age_id"], state_space_sums_test[4]
     )
     np.testing.assert_allclose(
-        state_space_sum_dict["dummy_exog"], state_space_sums_test[5]
+        state_space_sum_dict["dummy_stochastic"], state_space_sums_test[5]
     )
 
     ### Now test the inspection function.
