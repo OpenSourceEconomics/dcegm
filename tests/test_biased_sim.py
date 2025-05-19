@@ -94,13 +94,13 @@ def test_sim_and_sol_model(model_configs):
 
     exogenous_states_transitions = {"married": marriage_transition}
 
-    alt_model_funcs_sim = generate_alternative_sim_functions(
-        model_config=model_configs["simulation"],
-        model_specs=model_specs,
-        state_space_functions=model_funcs["state_space_functions"],
-        budget_constraint=model_funcs["budget_constraint"],
-        exogenous_states_transitions=exogenous_states_transitions,
-    )
+    alt_model_specs = {
+        "model_config": model_configs["simulation"],
+        "model_specs": model_specs,
+        "state_space_functions": model_funcs["state_space_functions"],
+        "budget_constraint": model_funcs["budget_constraint"],
+        "exogenous_states_transitions": exogenous_states_transitions,
+    }
 
     n_agents = 100_000
     initial_marriage_dist = np.array([0.5, 0.5])

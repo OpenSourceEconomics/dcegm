@@ -66,8 +66,7 @@ def generate_alternative_sim_functions(
 
     exog_state_space = create_array_with_smallest_int_dtype(exog_state_space_raw)
 
-    model_funcs["exog_state_mapping"] = create_stochastic_state_mapping
-    (
+    model_funcs["exog_state_mapping"] = create_stochastic_state_mapping(
         exog_state_space,
         exog_states_names,
     )
