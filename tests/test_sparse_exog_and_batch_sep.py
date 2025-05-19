@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import numpy as np
 from numpy.testing import assert_array_almost_equal as aaae
 
-from dcegm.pre_processing.setup_model import setup_model
+from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.solve import get_solve_func_for_model, solve_dcegm
 from dcegm.toy_models.example_model_functions import load_example_model_functions
 
@@ -102,7 +102,7 @@ def test_benchmark_models(load_replication_params_and_specs):
 
     model_funcs = load_example_model_functions("dcegm_paper")
 
-    model_full = setup_model(
+    model_full = create_model_dict(
         options=options,
         state_space_functions=model_funcs["state_space_functions"],
         utility_functions=model_funcs["utility_functions"],
@@ -113,7 +113,7 @@ def test_benchmark_models(load_replication_params_and_specs):
     model_funcs_sparse = model_funcs.copy()
     model_funcs_sparse["sparsity_condition"] = sparsity_condition
 
-    model_sparse = setup_model(
+    model_sparse = create_model_dict(
         options=options,
         state_space_functions=model_funcs_sparse["state_space_functions"],
         utility_functions=model_funcs["utility_functions"],

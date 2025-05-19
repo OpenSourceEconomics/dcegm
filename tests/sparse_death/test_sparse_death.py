@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from dcegm.pre_processing.setup_model import process_debug_string, setup_model
+from dcegm.pre_processing.setup_model import create_model_dict, process_debug_string
 from dcegm.solve import get_solve_func_for_model
 from tests.sparse_death.budget import budget_constraint_exp
 from tests.sparse_death.exog_processes import job_offer, prob_survival
@@ -63,7 +63,7 @@ def inputs():
         "consumption_floor": 0.5,
     }
 
-    model = setup_model(
+    model = create_model_dict(
         model_specs=model_specs,
         model_config=model_config,
         utility_functions=create_utility_function_dict(),

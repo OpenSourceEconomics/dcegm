@@ -7,7 +7,7 @@ import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
 import dcegm.toy_models as toy_models
-from dcegm.pre_processing.setup_model import setup_model
+from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import (
     simulate_all_periods,
@@ -46,7 +46,7 @@ def model_setup():
     shock_functions = {"taste_shock_scale_per_state": taste_shock_per_lagged_choice}
     ltc_model_functions["shock_functions"] = shock_functions
 
-    model = setup_model(
+    model = create_model_dict(
         model_specs=model_specs, model_config=model_config, **ltc_model_functions
     )
 

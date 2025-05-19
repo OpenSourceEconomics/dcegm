@@ -11,7 +11,7 @@ from numpy.testing import assert_array_almost_equal as aaae
 
 import dcegm.toy_models as toy_models
 from dcegm.pre_processing.check_options import check_model_config_and_process
-from dcegm.pre_processing.setup_model import setup_model
+from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.simulation.random_keys import draw_random_keys_for_seed
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import (
@@ -52,7 +52,7 @@ def model_setup():
         toy_models.load_example_params_model_specs_and_config("with_exog_ltc")
     )
 
-    model = setup_model(
+    model = create_model_dict(
         model_config=model_config,
         model_specs=model_specs,
         **model_functions,
@@ -245,7 +245,7 @@ def test_simulate_second_continuous_choice(model_setup):
     model_config_cont["continuous_states"]["experience"] = jnp.linspace(0, 1, 6)
     model_specs_cont["max_init_experience"] = 1
 
-    model_cont = setup_model(
+    model_cont = create_model_dict(
         model_config=model_config_cont,
         model_specs=model_specs_cont,
         state_space_functions=model_functions_cont["state_space_functions"],

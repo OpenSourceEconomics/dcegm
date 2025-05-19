@@ -26,7 +26,7 @@ import pytest
 from numpy.testing import assert_allclose
 
 import dcegm.toy_models as toy_models
-from dcegm.pre_processing.setup_model import setup_model
+from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.solve import get_solve_func_for_model
 from dcegm.toy_models.cons_ret_model_dcegm_paper import (
     inverse_marginal_utility_crra,
@@ -222,7 +222,7 @@ def test_extended_choice_set_model(
         "partner": prob_partner,
     }
 
-    model = setup_model(
+    model = create_model_dict(
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=state_space_functions,

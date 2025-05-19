@@ -13,7 +13,7 @@ from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 
 import dcegm.toy_models as toy_models
-from dcegm.pre_processing.setup_model import setup_model
+from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.solve import get_solve_func_for_model
 from tests.utils.euler_equation_two_period import (
     euler_rhs_exog_ltc,
@@ -32,7 +32,7 @@ def toy_model_exog_ltc_and_job_offer():
     )
 
     out = {}
-    out["model"] = setup_model(
+    out["model"] = create_model_dict(
         options=options,
         state_space_functions=model_funcs["state_space_functions"],
         utility_functions=model_funcs["utility_functions"],
@@ -66,7 +66,7 @@ def toy_model_exog_ltc():
     )
 
     out = {}
-    out["model"] = setup_model(
+    out["model"] = create_model_dict(
         options=options,
         state_space_functions=model_funcs["state_space_functions"],
         utility_functions=model_funcs["utility_functions"],

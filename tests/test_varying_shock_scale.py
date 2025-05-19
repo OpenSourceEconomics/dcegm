@@ -5,7 +5,7 @@ import jax.numpy as jnp
 from numpy.testing import assert_array_almost_equal as aaae
 
 import dcegm.toy_models as toy_models
-from dcegm.pre_processing.setup_model import setup_model
+from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.solve import get_solve_func_for_model
 from tests.utils.interp1d_auxiliary import (
     interpolate_policy_and_value_on_wealth_grid,
@@ -29,7 +29,7 @@ def test_benchmark_models():
 
     shock_functions = {"taste_shock_scale_per_state": taste_shock_per_lagged_choice}
 
-    model = setup_model(
+    model = create_model_dict(
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=model_funcs["state_space_functions"],
