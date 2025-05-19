@@ -6,7 +6,7 @@ import dcegm.toy_models as toy_models
 from dcegm.pre_processing.alternative_sim_functions import (
     generate_alternative_sim_functions,
 )
-from dcegm.pre_processing.setup_model import setup_model
+from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
 from dcegm.solve import get_solve_func_for_model
@@ -77,7 +77,7 @@ def test_sim_and_sol_model(model_configs):
     utility_functions = model_funcs["utility_functions"]
     utility_functions["utility"] = utility_crra
 
-    model_sol = setup_model(
+    model_sol = create_model_dict(
         model_config=model_configs["solution"],
         model_specs=model_specs,
         state_space_functions=model_funcs["state_space_functions"],

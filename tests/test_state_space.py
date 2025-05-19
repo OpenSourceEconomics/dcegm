@@ -9,7 +9,7 @@ from dcegm.pre_processing.model_functions.process_model_functions import (
     process_sparsity_condition,
 )
 from dcegm.pre_processing.model_structure.state_space import create_state_space
-from dcegm.pre_processing.setup_model import setup_model
+from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.toy_models.cons_ret_model_dcegm_paper import (
     get_state_specific_feasible_choice_set,
 )
@@ -269,7 +269,7 @@ def test_state_space():
     )
 
     ### Now test the inspection function.
-    state_space_df = setup_model(
+    state_space_df = create_model_dict(
         model_config=model_config_sparse,
         model_specs=model_specs_sparse,
         utility_functions=None,

@@ -11,7 +11,7 @@ import dcegm.toy_models as toy_models
 from dcegm.final_periods import solve_final_period
 from dcegm.law_of_motion import calc_cont_grids_next_period
 from dcegm.numerical_integration import quadrature_legendre
-from dcegm.pre_processing.setup_model import setup_model
+from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.solve import create_solution_container, solve_dcegm
 from dcegm.solve_single_period import solve_for_interpolated_values
 
@@ -251,7 +251,7 @@ def create_test_inputs():
         "next_period_experience": next_period_experience,
     }
 
-    model = setup_model(
+    model = create_model_dict(
         options=options,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,

@@ -12,7 +12,7 @@ from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
 from dcegm.interpolation.interp2d import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
-from dcegm.pre_processing.setup_model import setup_model
+from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.solve import get_solve_func_for_model
 
 N_PERIODS = 5
@@ -224,7 +224,7 @@ def test_setup():
         "marginal_utility": marginal_utility_final_consume_all_with_exp,
     }
 
-    model_disc = setup_model(
+    model_disc = create_model_dict(
         model_config=model_config_disc,
         model_specs=model_specs_disc,
         state_space_functions=model_funcs_discr_exp["state_space_functions"],
@@ -263,7 +263,7 @@ def test_setup():
         "marginal_utility": marginal_utility_final_consume_all_with_cont_exp,
     }
 
-    model_cont = setup_model(
+    model_cont = create_model_dict(
         model_specs=model_specs_cont,
         model_config=model_config_cont,
         state_space_functions=model_funcs_cont_exp["state_space_functions"],

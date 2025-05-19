@@ -292,11 +292,11 @@ import numpy as np
 import pytest
 from numpy.testing import assert_almost_equal as aaae
 
-from dcegm.interface import validate_exogenous_processes
+from dcegm.interfaces.interface import validate_exogenous_processes
 from dcegm.pre_processing.model_structure.exogenous_processes import (
     create_exog_state_mapping,
 )
-from dcegm.pre_processing.setup_model import setup_model
+from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.toy_models.cons_ret_model_dcegm_paper import (
     budget_constraint,
     create_final_period_utility_function_dict,
@@ -475,7 +475,7 @@ def test_exog_processes(
         "health_grandma": prob_exog_health_grandma,
     }
 
-    model = setup_model(
+    model = create_model_dict(
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=create_state_space_function_dict(),

@@ -11,7 +11,7 @@ from dcegm.final_periods import solve_last_two_periods
 from dcegm.law_of_motion import calc_cont_grids_next_period
 from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.check_params import process_params
-from dcegm.pre_processing.setup_model import setup_model
+from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.solve_single_period import solve_single_period
 
 
@@ -52,7 +52,7 @@ def solve_dcegm(
 
     """
 
-    model = setup_model(
+    model = create_model_dict(
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=state_space_functions,

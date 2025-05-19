@@ -6,7 +6,7 @@ import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
 import dcegm.toy_models as toy_models
-from dcegm.pre_processing.setup_model import setup_model
+from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
 from dcegm.solve import get_solve_func_for_model
@@ -25,7 +25,7 @@ def test_setup():
         "with_exp"
     )
 
-    model_disc = setup_model(
+    model_disc = create_model_dict(
         options=options_discrete,
         state_space_functions=model_funcs_discrete["state_space_functions"],
         utility_functions=model_funcs_discrete["utility_functions"],
@@ -47,7 +47,7 @@ def test_setup():
         "with_cont_exp"
     )
 
-    model_cont = setup_model(
+    model_cont = create_model_dict(
         options=options_cont,
         state_space_functions=model_funcs_cont_exp["state_space_functions"],
         utility_functions=model_funcs_cont_exp["utility_functions"],

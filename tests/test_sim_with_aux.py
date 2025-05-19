@@ -3,8 +3,8 @@ import numpy as np
 import pytest
 
 import dcegm.toy_models as toy_models
-from dcegm.pre_processing.setup_model import setup_model
-from dcegm.sim_interface import get_sol_and_sim_func_for_model
+from dcegm.interfaces.sim_interface import get_sol_and_sim_func_for_model
+from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.simulation.sim_utils import create_simulation_df
 
 
@@ -128,7 +128,7 @@ def test_sim_and_sol_model(model_config):
 
     model_funcs = toy_models.load_example_model_functions("dcegm_paper")
 
-    model_with_aux = setup_model(
+    model_with_aux = create_model_dict(
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=model_funcs["state_space_functions"],
@@ -137,7 +137,7 @@ def test_sim_and_sol_model(model_config):
         budget_constraint=budget_with_aux,
     )
 
-    model_without_aux = setup_model(
+    model_without_aux = create_model_dict(
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=model_funcs["state_space_functions"],

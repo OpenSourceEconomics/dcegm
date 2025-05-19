@@ -53,7 +53,7 @@ options = {
 To ensure correctness, the validation function can be used as implemented in the ```dcegm``` module:
 
 ```python
-from dcegm.interface import validate_exogenous_processes
+from dcegm.interfaces.interface import validate_exogenous_processes
 
 validate_exogenous_processes(model, params)
 ```

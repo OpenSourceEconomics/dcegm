@@ -17,7 +17,7 @@ from dcegm.pre_processing.model_structure.state_space import create_state_space
 from dcegm.pre_processing.shared import create_array_with_smallest_int_dtype
 
 
-def setup_model(
+def create_model_dict(
     model_config: Dict,
     model_specs: Dict,
     utility_functions: Dict[str, Callable],
@@ -126,7 +126,7 @@ def setup_and_save_model(
     than recreating the model from scratch.
 
     """
-    model = setup_model(
+    model = create_model_dict(
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=state_space_functions,

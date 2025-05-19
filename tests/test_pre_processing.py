@@ -10,9 +10,9 @@ from dcegm.pre_processing.model_functions.process_model_functions import (
     process_model_functions,
 )
 from dcegm.pre_processing.setup_model import (
+    create_model_dict,
     load_and_setup_model,
     setup_and_save_model,
-    setup_model,
 )
 from dcegm.pre_processing.shared import (
     determine_function_arguments_and_partial_model_specs,
@@ -136,7 +136,7 @@ def test_load_and_save_model(
         )
     )
 
-    model_setup = setup_model(
+    model_setup = create_model_dict(
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=create_state_space_function_dict(),
@@ -205,7 +205,7 @@ def test_grid_parameters():
     }
 
     with pytest.raises(ValueError) as e:
-        setup_model(
+        create_model_dict(
             model_config=model_config,
             model_specs=model_specs,
             state_space_functions=create_state_space_function_dict(),

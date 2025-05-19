@@ -37,7 +37,7 @@ def test_benchmark_models(model_name):
         )
     )
 
-    model = dcegm.setup_model(
+    model = dcegm.create_model_dict(
         model_config=model_config,
         model_specs=model_specs,
         **model_funcs,
