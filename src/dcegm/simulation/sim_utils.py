@@ -4,7 +4,7 @@ import pandas as pd
 from jax import numpy as jnp
 from jax import vmap
 
-from dcegm.interface import get_state_choice_index_per_discrete_state
+from dcegm.interfaces.interface import get_state_choice_index_per_discrete_state
 from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
 from dcegm.interpolation.interp2d import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,

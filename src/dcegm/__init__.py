@@ -1,1 +1,1 @@
-from dcegm.model_class import create_model_dict
+from dcegm.interfaces.model_class import create_model_dict

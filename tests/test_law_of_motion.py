@@ -1,5 +1,5 @@
 from itertools import product
-from typing import Any, Dict
+from typing import Dict
 
 import jax
 import jax.numpy as jnp

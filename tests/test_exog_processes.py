@@ -292,7 +292,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_almost_equal as aaae
 
-from dcegm.interface import validate_exogenous_processes
+from dcegm.interfaces.interface import validate_exogenous_processes
 from dcegm.pre_processing.model_structure.exogenous_processes import (
     create_exog_state_mapping,
 )

@@ -3,8 +3,8 @@ import numpy as np
 import pytest
 
 import dcegm.toy_models as toy_models
+from dcegm.interfaces.sim_interface import get_sol_and_sim_func_for_model
 from dcegm.pre_processing.setup_model import create_model_dict
-from dcegm.sim_interface import get_sol_and_sim_func_for_model
 from dcegm.simulation.sim_utils import create_simulation_df
 
 

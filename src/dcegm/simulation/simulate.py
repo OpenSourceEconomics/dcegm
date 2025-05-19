@@ -7,7 +7,7 @@ import jax.numpy as jnp
 import numpy as np
 from jax import vmap
 
-from dcegm.interface import get_state_choice_index_per_discrete_state
+from dcegm.interfaces.interface import get_state_choice_index_per_discrete_state
 from dcegm.simulation.random_keys import draw_random_keys_for_seed
 from dcegm.simulation.sim_utils import (
     compute_final_utility_for_each_choice,
