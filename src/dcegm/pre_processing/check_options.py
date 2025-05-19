@@ -82,7 +82,7 @@ def check_model_config_and_process(model_config):
             (
                 {key: value}
                 for key, value in model_config["continuous_states"].items()
-                if key != "wealth"
+                if key != "assets_end_of_period"
             ),
             None,
         )

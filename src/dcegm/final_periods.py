@@ -318,7 +318,8 @@ def solve_final_period_second_continuous(
     wealth_child_states_final_period = cont_grids_next_period["assets_begin_of_period"][
         idx_parent_states_final_period
     ]
-    n_wealth = continuous_states_info["n_savings_grid"]
+
+    n_assets = wealth_child_states_final_period.shape[-2]
 
     continuous_state_final = cont_grids_next_period["second_continuous"][
         idx_parent_states_final_period
@@ -381,13 +382,13 @@ def solve_final_period_second_continuous(
     )
 
     value_solved = value_solved.at[
-        idx_state_choices_final_period, :, : n_wealth + 1
+        idx_state_choices_final_period, :, : n_assets + 1
     ].set(values_with_zeros)
     policy_solved = policy_solved.at[
-        idx_state_choices_final_period, :, : n_wealth + 1
+        idx_state_choices_final_period, :, : n_assets + 1
     ].set(wealth_with_zeros)
     endog_grid_solved = endog_grid_solved.at[
-        idx_state_choices_final_period, :, : n_wealth + 1
+        idx_state_choices_final_period, :, : n_assets + 1
     ].set(wealth_with_zeros)
 
     return (

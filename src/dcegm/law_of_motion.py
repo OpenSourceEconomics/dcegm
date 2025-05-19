@@ -40,7 +40,7 @@ def calc_cont_grids_next_period(
         )
 
         cont_grids_next_period = {
-            "wealth": assets_beginning_of_next_period,
+            "assets_begin_of_period": assets_beginning_of_next_period,
             "second_continuous": continuous_state_next_period,
         }
 
