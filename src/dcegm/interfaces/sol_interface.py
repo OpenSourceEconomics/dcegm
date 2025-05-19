@@ -1,4 +1,7 @@
-from dcegm.interfaces.interface import policy_and_value_for_state_choice_vec
+from dcegm.interfaces.interface import (
+    policy_and_value_for_state_choice_vec,
+    value_for_state_choice_vec,
+)
 
 
 class model_solved:
@@ -41,4 +44,26 @@ class model_solved:
             endog_grid_solved=self.endog_grid,
             value_solved=self.value,
             policy_solved=self.policy,
+        )
+
+    def value_for_state_and_choice(self, state, choice):
+        """
+        Get the value for a given state and choice.
+
+        Args:
+            state: The state for which to get the value.
+            choice: The choice for which to get the value.
+
+        Returns:
+            The value for the given state and choice.
+        """
+        return value_for_state_choice_vec(
+            states=state,
+            choice=choice,
+            model_config=self.model_config,
+            model_structure=self.model_structure,
+            model_funcs=self.model_funcs,
+            params=self.params,
+            endog_grid_solved=self.endog_grid,
+            value_solved=self.value,
         )
