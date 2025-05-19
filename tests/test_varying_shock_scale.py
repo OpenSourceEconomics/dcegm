@@ -26,18 +26,6 @@ def test_benchmark_models():
 
     model_funcs = toy_models.load_example_model_functions("dcegm_paper")
 
-    shock_functions = {"taste_shock_scale_per_state": taste_shock_per_lagged_choice}
-
-    model = create_model_dict(
-        model_config=model_config,
-        model_specs=model_specs,
-        state_space_functions=model_funcs["state_space_functions"],
-        utility_functions=model_funcs["utility_functions"],
-        utility_functions_final_period=model_funcs["utility_functions_final_period"],
-        budget_constraint=model_funcs["budget_constraint"],
-        shock_functions=shock_functions,
-    )
-
     model = dcegm.setup_model(
         model_config=model_config,
         model_specs=model_specs,
@@ -77,7 +65,7 @@ def test_benchmark_models():
         state = {
             "period": period,
             "lagged_choice": state_choice_space_to_test[state_choice_idx, 1],
-            "assets_end_of_period": wealth_grid_to_test,
+            "assets_begin_of_period": wealth_grid_to_test,
         }
         (
             policy_calc_interp,
