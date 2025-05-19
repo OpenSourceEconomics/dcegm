@@ -1,3 +1,5 @@
+import numpy as np
+
 from dcegm.pre_processing.batches.last_two_periods import (
     add_last_two_period_information,
 )
@@ -75,23 +77,27 @@ def create_batches_and_information(
 
         if isinstance(min_period_batch_segments, int):
             n_segments = 2
-            min_periods_to_split = [min_period_batch_segments]
+            min_period_batch_segments = [min_period_batch_segments]
         elif isinstance(min_period_batch_segments, list):
             n_segments = len(min_period_batch_segments) + 1
-            # Check if periods are increasing and at least two periods apart.
-            # Also that they are at least two periods smaller than n_periods - 2
-            if not all(
-                min_period_batch_segments[i] < min_period_batch_segments[i + 1]
-                for i in range(len(min_period_batch_segments) - 1)
-            ) or not all(
-                min_period_batch_segments[i] < n_periods - 2 - 2
-                for i in range(len(min_period_batch_segments))
-            ):
-                raise ValueError(
-                    "The periods to split the batches have to be increasing and at least two periods apart."
-                )
+        elif isinstance(min_period_batch_segments, np.ndarray):
+            n_segments = len(min_period_batch_segments) + 1
+            min_period_batch_segments = min_period_batch_segments.tolist()
         else:
             raise ValueError("So far only int or list separation is supported.")
+
+        # Check if periods are increasing and at least two periods apart.
+        # Also that they are at least two periods smaller than n_periods - 2
+        if not all(
+            min_period_batch_segments[i] < min_period_batch_segments[i + 1]
+            for i in range(len(min_period_batch_segments) - 1)
+        ) or not all(
+            min_period_batch_segments[i] < n_periods - 2 - 2
+            for i in range(len(min_period_batch_segments))
+        ):
+            raise ValueError(
+                "The periods to split the batches have to be increasing and at least two periods apart."
+            )
 
         segment_infos = {
             "n_segments": n_segments,
