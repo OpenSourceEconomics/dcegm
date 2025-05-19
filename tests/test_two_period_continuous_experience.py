@@ -7,11 +7,11 @@ import pytest
 from numpy.testing import assert_allclose
 from numpy.testing import assert_array_almost_equal as aaae
 
+import dcegm
 import dcegm.toy_models as toy_models
 from dcegm.final_periods import solve_final_period
 from dcegm.law_of_motion import calc_cont_grids_next_period
 from dcegm.numerical_integration import quadrature_legendre
-from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.solve import create_solution_container, get_solve_func_for_model
 from dcegm.solve_single_period import solve_for_interpolated_values
 
@@ -72,7 +72,6 @@ def marginal_utility_weighted(
         lagged_choice=lagged_choice,
         experience=exp_new,
         income_shock_previous_period=income_shock,
-        options={},
         params=params,
     )
     model_functions = toy_models.load_example_model_functions("dcegm_paper")
@@ -241,7 +240,7 @@ def create_test_inputs():
         "next_period_experience": next_period_experience,
     }
 
-    model = create_model_dict(
+    model = dcegm.setup_model(
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=state_space_functions,
@@ -249,7 +248,7 @@ def create_test_inputs():
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint_continuous_dcegm,
     )
-    model_config = model["model_config"]
+    model_config = model.model_config
 
     (
         cont_grids_next_period,
@@ -353,13 +352,11 @@ def test_solution(create_test_inputs):
         state_space_functions,
     ) = create_test_inputs
 
-    value_dcegm, policy_dcegm, endog_grid_dcegm = get_solve_func_for_model(model)(
-        params
-    )
+    model_solved = model.solve(params)
 
-    aaae(value_dcegm, value_solved)
-    aaae(policy_dcegm, policy_solved)
-    aaae(endog_grid_dcegm, endog_grid_solved)
+    aaae(model_solved.value, value_solved)
+    aaae(model_solved.policy, policy_solved)
+    aaae(model_solved.endog_grid, endog_grid_solved)
 
 
 @pytest.mark.parametrize("wealth_idx, state_idx", WEALTH_AND_STATE_IDX)
@@ -376,8 +373,8 @@ def test_euler_equation(wealth_idx, state_idx, create_test_inputs):
         *_,
     ) = create_test_inputs
 
-    model_structure = model["model_structure"]
-    state_choice_space = model["model_structure"]["state_choice_space"]
+    model_structure = model.model_structure
+    state_choice_space = model_structure["state_choice_space"]
     state_choice_space_period_0 = state_choice_space[state_choice_space[:, 0] == 0]
 
     parent_states_of_current_state = np.where(
@@ -420,8 +417,9 @@ def test_euler_equation(wealth_idx, state_idx, create_test_inputs):
 
 
 def _get_solve_last_two_periods_args(model, params, has_second_continuous_state):
-    model_config = model["model_config"]
-    batch_info_last_two_periods = model["batch_info"]["last_two_period_info"]
+    model_config = model.model_config
+    batch_info = model.batch_info
+    batch_info_last_two_periods = batch_info["last_two_period_info"]
 
     # Prepare income shock draws and scaling
     income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
@@ -430,8 +428,9 @@ def _get_solve_last_two_periods_args(model, params, has_second_continuous_state)
     taste_shock_scale = params["taste_shock_scale"]
 
     # Get state space dictionary and model functions
-    state_space_dict = model["model_structure"]["state_space_dict"]
-    model_funcs = model["model_funcs"]
+    model_structure = model.model_structure
+    state_space_dict = model_structure["state_space_dict"]
+    model_funcs = model.model_funcs
 
     cont_grids_next_period = calc_cont_grids_next_period(
         state_space_dict=state_space_dict,
@@ -453,7 +452,7 @@ def _get_solve_last_two_periods_args(model, params, has_second_continuous_state)
 
     # Create solution containers for value, policy, and endogenous grids
     value_solved, policy_solved, endog_grid_solved = create_solution_container(
-        n_state_choices=model["model_structure"]["state_choice_space"].shape[0],
+        n_state_choices=model_structure["state_choice_space"].shape[0],
         n_total_wealth_grid=n_total_wealth_grid,
         n_second_continuous_grid=n_second_continuous_grid,
         has_second_continuous_state=has_second_continuous_state,

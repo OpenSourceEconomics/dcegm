@@ -45,7 +45,7 @@ class setup_model:
         self.income_shock_draws_unscaled = income_shock_draws_unscaled
         self.income_shock_weights = income_shock_weights
 
-        has_second_continuous_state = model_config["continuous_states_info"][
+        has_second_continuous_state = self.model_config["continuous_states_info"][
             "second_continuous_exists"
         ]
 
