@@ -21,13 +21,30 @@ savings, including additional discrete choices.
    :hidden:
 
    guides/installation
+   guides/two_period_model_tutorial.ipynb
+   guides/practitioner_guides/parameters.ipynb
+   guides/practitioner_guides/model_config.ipynb
    genindex
    autoapi/index
+
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Background
+   :hidden:
+
+   background/limitations
+   background/literature
+   background/interface_plots.ipynb
+   background/specify_exogenous_processes.ipynb
+   background/timing_benchmarks.ipynb
+
 
 .. toctree::
    :maxdepth: 2
    :caption: Development
    :hidden:
 
+   development/team
    development/changes
    development/roadmap
