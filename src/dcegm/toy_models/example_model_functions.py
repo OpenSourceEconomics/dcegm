@@ -1,6 +1,6 @@
 import dcegm.toy_models.cons_ret_model_dcegm_paper as crm_paper
-import dcegm.toy_models.cons_ret_model_exog_ltc as crm_exog_ltc
-import dcegm.toy_models.cons_ret_model_exog_ltc_and_job_offer as crm_exog_ltc_and_job_offer
+import dcegm.toy_models.cons_ret_model_stochastic_ltc as crm_exog_ltc
+import dcegm.toy_models.cons_ret_model_stochastic_ltc_and_job_offer as crm_exog_ltc_and_job_offer
 import dcegm.toy_models.cons_ret_model_with_cont_exp as crm_cont_exp
 import dcegm.toy_models.cons_ret_model_with_exp as crm_exp
 

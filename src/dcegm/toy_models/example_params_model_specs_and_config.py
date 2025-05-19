@@ -1,6 +1,6 @@
 import dcegm.toy_models.cons_ret_model_dcegm_paper as crm_paper
-import dcegm.toy_models.cons_ret_model_exog_ltc as crm_exog_ltc
-import dcegm.toy_models.cons_ret_model_exog_ltc_and_job_offer as crm_exog_ltc_job_offer
+import dcegm.toy_models.cons_ret_model_stochastic_ltc as crm_stochastic_ltc
+import dcegm.toy_models.cons_ret_model_stochastic_ltc_and_job_offer as crm_stochastic_ltc_job_offer
 import dcegm.toy_models.cons_ret_model_with_cont_exp as crm_cont_exp
 import dcegm.toy_models.cons_ret_model_with_exp as crm_exp
 
@@ -30,13 +30,13 @@ def load_example_params_model_specs_and_config(model_name):
         model_specs = crm_cont_exp.example_model_specs()
         model_config = crm_cont_exp.example_model_config()
     elif model_name == "with_stochastic_ltc":
-        params = crm_exog_ltc.example_params()
-        model_specs = crm_exog_ltc.example_model_specs()
-        model_config = crm_exog_ltc.example_model_config()
+        params = crm_stochastic_ltc.example_params()
+        model_specs = crm_stochastic_ltc.example_model_specs()
+        model_config = crm_stochastic_ltc.example_model_config()
     elif model_name == "with_stochastic_ltc_and_job_offer":
-        params = crm_exog_ltc_job_offer.example_params()
-        model_specs = crm_exog_ltc_job_offer.example_model_specs()
-        model_config = crm_exog_ltc_job_offer.example_model_config()
+        params = crm_stochastic_ltc_job_offer.example_params()
+        model_specs = crm_stochastic_ltc_job_offer.example_model_specs()
+        model_config = crm_stochastic_ltc_job_offer.example_model_config()
     else:
         raise ValueError(f"Model {model_name} not recognized.")
 

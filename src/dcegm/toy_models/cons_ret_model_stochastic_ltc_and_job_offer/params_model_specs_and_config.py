@@ -1,6 +1,9 @@
 import numpy as np
 
-from dcegm.toy_models.cons_ret_model_exog_ltc.ltc import prob_exog_ltc
+from dcegm.toy_models.cons_ret_model_stochastic_ltc.ltc import prob_exog_ltc
+from dcegm.toy_models.cons_ret_model_stochastic_ltc_and_job_offer.ltc_and_job_offer import (
+    prob_exog_job_offer,
+)
 
 
 def example_params():
@@ -11,7 +14,8 @@ def example_params():
         "ltc_cost": 5,
         "wage_avg": 8,
         "sigma": 1,
-        "taste_shock_scale": 10,
+        "taste_shock_scale": 1,
+        "ltc_prob": 0.3,
         "beta": 0.95,
         # Exogenous parameters
         "ltc_prob_constant": 0.3,
@@ -28,14 +32,13 @@ def example_model_config():
     model_config = {
         "n_periods": 2,
         "choices": [0, 1],
-        "endogenous_states": {
-            "married": [0, 1],
-        },
         "continuous_states": {
             "wealth": np.linspace(0, 50, 100),
+            "married": [0, 1],
         },
         "stochastic_states": {
             "ltc": [0, 1],
+            "job_offer": [0, 1],
         },
         "n_quad_points": 5,
     }
