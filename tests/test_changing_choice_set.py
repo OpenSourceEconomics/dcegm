@@ -25,7 +25,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-import dcegm.toy_models as toy_models
+import dcegm
 from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.toy_models.cons_ret_model_dcegm_paper import (
     inverse_marginal_utility_crra,
@@ -221,7 +221,7 @@ def test_extended_choice_set_model(
         "partner": prob_partner,
     }
 
-    model = create_model_dict(
+    model = dcegm.setup_model(
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=state_space_functions,
@@ -231,10 +231,8 @@ def test_extended_choice_set_model(
         stochastic_states_transition=exogenous_states_transition,
     )
 
-    solve_func = get_solve_func_for_model(model)
-
-    sol = solve_func(params)
-    value, _policy, _endog_grid, *_ = sol
+    model_solved = model.solve(params)
+    value = model_solved.value
 
     value_expec = pickle.load(
         open(TEST_DIR / "resources" / "extended_choice_set" / "value.pkl", "rb")
@@ -249,7 +247,7 @@ def test_extended_choice_set_model(
             "rb",
         )
     )
-    state_choice_space = model["model_structure"]["state_choice_space"]
+    state_choice_space = model.model_structure["state_choice_space"]
     tuple_state_choice = tuple(
         state_choice_space[:, i] for i in range(state_choice_space.shape[1])
     )
