@@ -36,8 +36,7 @@ where = ["src"]
 [tool.setuptools.package-data]
 "dcegm" = ["templates/**/*"]
 
-[tool.setuptools.include-package-data]
-value = true
+tool.setuptools.include-package-data = true
 
 tool.setuptools.zip-safe = false
 
