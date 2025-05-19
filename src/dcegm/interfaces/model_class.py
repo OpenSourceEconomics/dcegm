@@ -99,10 +99,6 @@ class setup_model:
             transition_function (callable): User-supplied function returning for each
                 state a transition matrix vector.
 
-        Returns:
-            dict: Dictionary containing the period-specific endog_grid, policy, and value
-                from the backward induction.
-
         """
         params_processed = process_params(params)
         # Solve the model
