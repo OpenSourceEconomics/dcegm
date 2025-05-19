@@ -1,9 +1,9 @@
 .. _limitations:
 
-Limutations
+Limitations
 ===========
 
-`dc-egm` is a veristle Python package capable of solving and simulating a large class of economic models flexibly and efficiently..
+`dc-egm` is a versatile Python package capable of solving and simulating a large class of economic models flexibly and efficiently..
 
 However, there are limitations to what kind of features can be implemented and how complex models can become to be feasible to solve.
 
