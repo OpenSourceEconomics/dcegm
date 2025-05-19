@@ -33,6 +33,7 @@ extensions = [
     "sphinx.ext.doctest",
     "sphinx.ext.extlinks",  # link to websites using abbreviations
     "sphinx.ext.napoleon",
+    'nbsphinx',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
