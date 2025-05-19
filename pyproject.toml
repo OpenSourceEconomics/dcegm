@@ -27,6 +27,16 @@ classifiers = [
 keywords = ["economics", "DC-EGM", "dynamic programming", "python"]
 urls = { "Github" = "https://github.com/OpenSourceEconomics/dcegm" }
 
+dependencies = [
+  "numpy",
+  "scipy",
+  "numba",
+  "pandas",
+  "jax",
+  "blackcellmagic",
+  "furo"
+]
+
 [project.scripts]
 dcegm = "dcegm.cli:cli"
 
