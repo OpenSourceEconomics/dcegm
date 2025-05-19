@@ -33,22 +33,3 @@ def pytest_sessionfinish(session, exitstatus):  # noqa: ARG001
     # Delete the matching .npy files
     for file in npy_files:
         os.remove(file)
-
-
-@pytest.fixture(scope="session")
-def load_replication_params_and_specs():
-    def load_options_and_params(model_name):
-        """Return parameters and options of an example model."""
-        params = yaml.safe_load(
-            (
-                REPLICATION_TEST_RESOURCES_DIR / f"{model_name}" / "params.yaml"
-            ).read_text()
-        )
-        model_specs = yaml.safe_load(
-            (
-                REPLICATION_TEST_RESOURCES_DIR / f"{model_name}" / "options.yaml"
-            ).read_text()
-        )
-        return params, model_specs
-
-    return load_options_and_params
