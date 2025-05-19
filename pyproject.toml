@@ -12,3 +12,6 @@ fix = true
 line_length = 88
 sequence_style = "block_style"
 none_representation = "null"
+
+[project.scripts]
+dcegm = "dcegm.cli:main"
