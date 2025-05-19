@@ -41,7 +41,7 @@ def model_configs():
             "married": np.arange(2, dtype=int),
         },
         "continuous_states": {
-            "wealth": np.arange(0, 100, 5, dtype=float),
+            "assets_end_of_period": np.arange(0, 100, 5, dtype=float),
         },
         "n_quad_points": 5,
     }
@@ -51,7 +51,7 @@ def model_configs():
         "choices": np.arange(2),
         "stochastic_states": {"married": np.arange(2, dtype=int)},
         "continuous_states": {
-            "wealth": np.arange(0, 100, 5, dtype=float),
+            "assets_end_of_period": np.arange(0, 100, 5, dtype=float),
         },
         "n_quad_points": 5,
     }
@@ -107,12 +107,12 @@ def test_sim_and_sol_model(model_configs):
         "period": np.zeros(n_agents, dtype=int),
         "lagged_choice": np.zeros(n_agents, dtype=int),
         "married": initial_marriage_states,
+        "assets_begin_of_period": np.ones(n_agents, dtype=float) * 10,
     }
 
     df = model_sol.solve_and_simulate(
         params=params,
         states_initial=states_initial,
-        wealth_initial=np.ones(n_agents, dtype=float) * 10,
         seed=123,
     )
 
