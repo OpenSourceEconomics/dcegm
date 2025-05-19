@@ -103,14 +103,14 @@ def policy_and_value_for_state_choice_vec(
             value_grid=jnp.take(value_solved, state_choice_index, axis=0),
             policy_grid=jnp.take(policy_solved, state_choice_index, axis=0),
             regular_point_to_interp=second_continuous,
-            wealth_point_to_interp=state_choice_vec["wealth"],
+            wealth_point_to_interp=state_choice_vec["assets_begin_of_period"],
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
         )
     else:
         policy, value = interp1d_policy_and_value_on_wealth(
-            wealth=state_choice_vec["wealth"],
+            wealth=state_choice_vec["assets_begin_of_period"],
             endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
             policy=jnp.take(policy_solved, state_choice_index, axis=0),
             value=jnp.take(value_solved, state_choice_index, axis=0),

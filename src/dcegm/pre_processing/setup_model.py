@@ -24,7 +24,7 @@ def create_model_dict(
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
     state_space_functions: Dict[str, Callable] = None,
-    stochastic_states_transition: Dict[str, Callable] = None,
+    stochastic_states_transitions: Dict[str, Callable] = None,
     shock_functions: Dict[str, Callable] = None,
     debug_info: str = None,
 ):
@@ -72,7 +72,7 @@ def create_model_dict(
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
-        stochastic_states_transitions=stochastic_states_transition,
+        stochastic_states_transitions=stochastic_states_transitions,
         shock_functions=shock_functions,
     )
 
@@ -133,7 +133,7 @@ def setup_and_save_model(
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
-        stochastic_states_transition=stochastic_states_transitions,
+        stochastic_states_transitions=stochastic_states_transitions,
         shock_functions=shock_functions,
     )
 

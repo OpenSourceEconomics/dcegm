@@ -482,7 +482,7 @@ def test_exog_processes(
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
         budget_constraint=budget_constraint,
-        stochastic_states_transition=stochastic_state_transitions,
+        stochastic_states_transitions=stochastic_state_transitions,
     )
     model_funcs = model["model_funcs"]
     model_structure = model["model_structure"]

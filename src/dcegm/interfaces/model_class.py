@@ -24,7 +24,7 @@ class setup_model:
         utility_functions_final_period: Dict[str, Callable],
         budget_constraint: Callable,
         state_space_functions: Dict[str, Callable] = None,
-        stochastic_states_transition: Dict[str, Callable] = None,
+        stochastic_states_transitions: Dict[str, Callable] = None,
         shock_functions: Dict[str, Callable] = None,
         alternative_sim_specifications: Dict[str, Callable] = None,
         debug_info: str = None,
@@ -36,7 +36,7 @@ class setup_model:
             utility_functions_final_period=utility_functions_final_period,
             budget_constraint=budget_constraint,
             state_space_functions=state_space_functions,
-            stochastic_states_transition=stochastic_states_transition,
+            stochastic_states_transitions=stochastic_states_transitions,
             shock_functions=shock_functions,
             debug_info=debug_info,
         )
@@ -77,6 +77,8 @@ class setup_model:
             self.alternative_sim_funcs = generate_alternative_sim_functions(
                 **alternative_sim_specifications
             )
+        else:
+            self.alternative_sim_funcs = None
 
     def solve(self, params):
         """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
