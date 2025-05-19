@@ -109,7 +109,7 @@ def process_stochastic_model_specifications(model_config):
             states_names=stochastic_state_names,
         )
     else:
-        stochastic_state_names = ["dummy_state_stochastic"]
+        stochastic_state_names = ["dummy_stochastic"]
         stochastic_state_space = np.array([[0]], dtype=np.uint8)
 
     return stochastic_state_names, stochastic_state_space
