@@ -12,7 +12,7 @@ def check_model_config_and_process(model_config):
         raise ValueError("model_config must be a dictionary.")
 
     if "n_periods" not in model_config:
-        raise ValueError("model_config must contain the n_periods.")
+        raise ValueError("model_config must contain n_periods.")
 
     if not isinstance(model_config["n_periods"], int):
         raise ValueError("Number of periods must be an integer.")
@@ -21,7 +21,7 @@ def check_model_config_and_process(model_config):
         raise ValueError("Number of periods must be greater than 1.")
 
     if "n_quad_points" not in model_config:
-        raise ValueError("model_config must contain the n_quad_points.")
+        raise ValueError("model_config must contain n_quad_points.")
 
     if not isinstance(model_config["n_quad_points"], int):
         raise ValueError("Number of quadrature points must be an integer.")
