@@ -45,23 +45,23 @@ model_specs = {
     "n_choices": 2,
 }
 model_functions = {
-    "utility_functions": create_final_period_utility_function_dict(),
-    "utility_functions_final_period": create_utility_function_dict(),
+    "utility_functions": create_utility_function_dict(),
+    "utility_functions_final_period": create_final_period_utility_function_dict(),
     "state_space_functions": create_state_space_function_dict(),
     "budget_constraint": budget_constraint,
 }
 
-# set up the model
+# Set up the model
 model = dcegm.setup_model(
     model_config=model_config,
     model_specs=model_specs,
     **model_functions,
 )
-# solve the model
-model.solve_model()
-# simulate the model
-model.simulate_model(
-    n_agents=1000,
-    n_periods=10,
+
+# Solve the model
+model_solved = model.solve(params)
+
+# Simulate the model
+model_solved.simulate(
     seed=42,
 )

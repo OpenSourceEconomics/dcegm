@@ -44,10 +44,8 @@ def get_state_specific_feasible_choice_set(
             agent's (restricted) feasible choice set in the given state.
 
     """
-    # lagged_choice is a state variable
+    # Lagged_choice is a state variable
     n_choices = model_specs["n_choices"]
-
-    # n_choices = len(model_specs["state_space"]["choices"])
 
     # Once the agent choses retirement, she can only choose retirement thereafter.
     # Hence, retirement is an absorbing state.

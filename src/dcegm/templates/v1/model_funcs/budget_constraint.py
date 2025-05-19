@@ -7,7 +7,7 @@ import jax.numpy as jnp
 def budget_constraint(
     period: int,
     lagged_choice: int,
-    savings_end_of_previous_period: float,
+    asset_end_of_previous_period: float,
     income_shock_previous_period: float,
     model_specs: Dict[str, Any],
     params: Dict[str, float],
@@ -46,7 +46,7 @@ def budget_constraint(
 
     wealth_beginning_of_period = (
         income_from_previous_period
-        + (1 + params["interest_rate"]) * savings_end_of_previous_period
+        + (1 + params["interest_rate"]) * asset_end_of_previous_period
     )
 
     # Retirement safety net, only in retirement model, but we require to have it always
