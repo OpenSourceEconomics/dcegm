@@ -4,11 +4,10 @@ from pathlib import Path
 import jax.numpy as jnp
 from numpy.testing import assert_array_almost_equal as aaae
 
+import dcegm
 import dcegm.toy_models as toy_models
-from dcegm.backward_induction import get_solve_func_for_model
 from dcegm.pre_processing.setup_model import create_model_dict
 from tests.utils.interp1d_auxiliary import (
-    interpolate_policy_and_value_on_wealth_grid,
     linear_interpolation_with_extrapolation,
 )
 
@@ -39,7 +38,12 @@ def test_benchmark_models():
         shock_functions=shock_functions,
     )
 
-    value, policy, endog_grid = get_solve_func_for_model(model)(params)
+    model = dcegm.setup_model(
+        model_config=model_config,
+        model_specs=model_specs,
+        **model_funcs,
+    )
+    model_solved = model.solve(params)
 
     policy_expected = pickle.load(
         (REPLICATION_TEST_RESOURCES_DIR / "retirement_with_shocks/policy.pkl").open(
@@ -49,7 +53,7 @@ def test_benchmark_models():
     value_expected = pickle.load(
         (REPLICATION_TEST_RESOURCES_DIR / "retirement_with_shocks/value.pkl").open("rb")
     )
-    state_choice_space = model["model_structure"]["state_choice_space"]
+    state_choice_space = model.model_structure["state_choice_space"]
     state_choice_space_to_test = state_choice_space[state_choice_space[:, 0] < 24]
 
     for state_choice_idx in range(state_choice_space_to_test.shape[0] - 1, -1, -1):
@@ -70,14 +74,17 @@ def test_benchmark_models():
             x_new=wealth_grid_to_test, x=policy_expec[0], y=policy_expec[1]
         )
 
+        state = {
+            "period": period,
+            "lagged_choice": state_choice_space_to_test[state_choice_idx, 1],
+            "wealth": wealth_grid_to_test,
+        }
         (
             policy_calc_interp,
             value_calc_interp,
-        ) = interpolate_policy_and_value_on_wealth_grid(
-            wealth_beginning_of_period=wealth_grid_to_test,
-            endog_wealth_grid=endog_grid[state_choice_idx],
-            policy=policy[state_choice_idx],
-            value=value[state_choice_idx],
+        ) = model_solved.value_and_policy_for_state_and_choice(
+            state=state,
+            choice=choice,
         )
 
         aaae(policy_expec_interp, policy_calc_interp)
