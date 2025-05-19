@@ -1,18 +1,11 @@
 """Tests for simulation of consumption-retirement model with exogenous processes."""
 
-import jax
-import jax.numpy as jnp
 import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
 import dcegm
 import dcegm.toy_models as toy_models
-from dcegm.pre_processing.setup_model import create_model_dict
-from dcegm.simulation.sim_utils import create_simulation_df
-from dcegm.simulation.simulate import (
-    simulate_all_periods,
-)
 
 
 def _create_test_objects_from_df(df, params):
