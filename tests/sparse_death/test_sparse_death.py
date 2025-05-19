@@ -3,56 +3,52 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from dcegm.pre_processing.setup_model import process_debug_string, setup_model
-from dcegm.solve import get_solve_func_for_model
+import dcegm
+from dcegm.pre_processing.setup_model import process_debug_string
 from tests.sparse_death.budget import budget_constraint_exp
-from tests.sparse_death.exog_processes import job_offer, prob_survival
 from tests.sparse_death.state_space import create_state_space_functions
+from tests.sparse_death.stochastic_processes import job_offer, prob_survival
 from tests.sparse_death.utility import (
     create_final_period_utility_function_dict,
     create_utility_function_dict,
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def inputs():
     n_periods = 20
     n_choices = 3
 
-    state_space_options = {
+    model_config = {
         "min_period_batch_segments": [5, 12],
         "n_periods": n_periods,
         "choices": np.arange(n_choices, dtype=int),
-        "endogenous_states": {
+        "deterministic_states": {
             "already_retired": np.arange(2, dtype=int),
         },
         "continuous_states": {
-            "wealth": jnp.arange(0, 100, 5, dtype=float),
+            "assets_end_of_period": jnp.arange(0, 100, 5, dtype=float),
             "experience": jnp.linspace(0, 1, 7, dtype=float),
         },
-        "exogenous_processes": {
-            "job_offer": {
-                "transition": job_offer,
-                "states": [0, 1],
-            },
-            "survival": {
-                "transition": prob_survival,
-                "states": [0, 1],
-            },
+        "stochastic_states": {
+            "job_offer": [0, 1],
+            "survival": [0, 1],
         },
+        "n_quad_points": 5,
     }
 
-    options = {
-        "state_space": state_space_options,
-        "model_params": {
-            "n_quad_points_stochastic": 5,
-            "n_periods": n_periods,
-            "n_choices": 3,
-            "min_ret_period": 5,
-            "max_ret_period": 10,
-            "fresh_bonus": 0.1,
-            "exp_scale": 20,
-        },
+    stochastic_state_transitions = {
+        "job_offer": job_offer,
+        "survival": prob_survival,
+    }
+
+    model_specs = {
+        "n_periods": n_periods,
+        "n_choices": 3,
+        "min_ret_period": 5,
+        "max_ret_period": 10,
+        "fresh_bonus": 0.1,
+        "exp_scale": 20,
     }
 
     params = {
@@ -67,28 +63,30 @@ def inputs():
         "consumption_floor": 0.5,
     }
 
-    model = setup_model(
-        options=options,
+    model = dcegm.setup_model(
+        model_specs=model_specs,
+        model_config=model_config,
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
         state_space_functions=create_state_space_functions(),
         budget_constraint=budget_constraint_exp,
+        stochastic_states_transitions=stochastic_state_transitions,
         debug_info="all",
     )
-    solve_func = get_solve_func_for_model(model)
-
-    solution = solve_func(params=params)
+    #
+    # model_solved = model.solve(params=params)
 
     return {
         "model": model,
         "params": params,
-        "options": options,
-        "solution": solution,
+        "model_specs": model_specs,
+        "model_config": model_config,
+        # "model_solved": model_solved,
     }
 
 
 def test_child_states(inputs):
-    model_structure = inputs["model"]["model_structure"]
+    model_structure = inputs["model"].model_structure
     state_names = model_structure["discrete_states_names"]
     state_choice_names = state_names + ["choice"]
 
@@ -157,14 +155,13 @@ def test_child_states(inputs):
 
 
 def test_sparse_debugging_output(inputs):
-    options = inputs["options"]
 
     state_space_functions = create_state_space_functions()
-    # state_space_functions=options["state_space"], sparsity_condition, debugging=True
 
     debug_dict = process_debug_string(
         debug_output="state_space_df",
         state_space_functions=state_space_functions,
-        options=options,
+        model_config=inputs["model_config"],
+        model_specs=inputs["model_specs"],
     )
     assert isinstance(debug_dict["debug_output"], pd.DataFrame)

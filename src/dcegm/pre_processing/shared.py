@@ -6,18 +6,18 @@ import numpy as np
 from jax import numpy as jnp
 
 
-def determine_function_arguments_and_partial_options(
-    func, options, not_allowed_state_choices=None, continuous_state_name=None
+def determine_function_arguments_and_partial_model_specs(
+    func, model_specs, not_allowed_state_choices=None, continuous_state_name=None
 ):
     signature = set(inspect.signature(func).parameters)
     not_allowed_state_choices = (
         [] if not_allowed_state_choices is None else not_allowed_state_choices
     )
 
-    partialed_func, signature = partial_options_and_update_signature(
+    partialed_func, signature = partial_model_specs_and_update_signature(
         func=func,
         signature=signature,
-        options=options,
+        model_specs=model_specs,
     )
     if len(not_allowed_state_choices) > 0:
         for var in signature:
@@ -39,11 +39,11 @@ def determine_function_arguments_and_partial_options(
     return processed_func
 
 
-def partial_options_and_update_signature(func, signature, options):
-    """Partial in options and update signature."""
-    if "options" in signature:
-        func = partial(func, options=options)
-        signature = signature - {"options"}
+def partial_model_specs_and_update_signature(func, signature, model_specs):
+    """Partial in model_specs and update signature."""
+    if "model_specs" in signature:
+        func = partial(func, model_specs=model_specs)
+        signature = signature - {"model_specs"}
 
     return func, signature
 

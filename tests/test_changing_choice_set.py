@@ -25,9 +25,8 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-import dcegm.toy_models as toy_models
-from dcegm.pre_processing.setup_model import setup_model
-from dcegm.solve import get_solve_function
+import dcegm
+from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.toy_models.cons_ret_model_dcegm_paper import (
     inverse_marginal_utility_crra,
     marginal_utility_crra,
@@ -53,7 +52,7 @@ def prob_partner(partner, params):
     return jnp.array([1 - p_marriage, p_marriage])
 
 
-def sparsity_condition(period, lagged_choice, experience, options):
+def sparsity_condition(period, lagged_choice, experience, model_specs):
     # Lagged_choice is dummy in first period
     if period == 0 and lagged_choice != 0:
         return False
@@ -61,7 +60,7 @@ def sparsity_condition(period, lagged_choice, experience, options):
     elif (period > 0) and lagged_choice not in choice_set(period - 1, 1):
         return False
     # Filter states with too high experience
-    elif (experience > period) or (experience > options["max_experience"]):
+    elif (experience > period) or (experience > model_specs["max_experience"]):
         return False
     # If experience is 0 you can not have been working last period
     elif (experience == 0) and (lagged_choice == 1):
@@ -99,35 +98,33 @@ def test_model():
         "p_partner_given_partner": 0.9,
     }
 
-    options = {
-        "model_params": {
-            # "n_grid_points": 100,
-            # "max_wealth": 500,
-            "n_quad_points_stochastic": 5,
-            "min_age": 0,
-            "n_periods": 5,
-            "n_choices": 3,
-            "n_health_states": 2,
-            "n_partner_states": 2,
-            "max_experience": 4,
+    model_specs = {
+        # "n_grid_points": 100,
+        # "max_wealth": 500,
+        "min_age": 0,
+        "n_periods": 5,
+        "n_choices": 3,
+        "n_health_states": 2,
+        "n_partner_states": 2,
+        "max_experience": 4,
+    }
+    model_config = {
+        "n_periods": 5,
+        "choices": np.arange(3),
+        "deterministic_states": {
+            "experience": np.arange(5),
         },
-        "state_space": {
-            "n_periods": 5,
-            "choices": np.arange(3),
-            "endogenous_states": {
-                "experience": np.arange(5),
-            },
-            "continuous_states": {
-                "wealth": np.linspace(0, 500, 100),
-            },
-            "exogenous_processes": {
-                "health": {"transition": prob_health, "states": [0, 1]},
-                "partner": {"transition": prob_partner, "states": [0, 1]},
-            },
+        "continuous_states": {
+            "assets_end_of_period": np.linspace(0, 500, 100),
         },
+        "stochastic_states": {
+            "health": [0, 1],
+            "partner": [0, 1],
+        },
+        "n_quad_points": 5,
     }
 
-    return params, options
+    return params, model_specs, model_config
 
 
 def choice_set(period, lagged_choice):
@@ -154,7 +151,7 @@ def state_space_functions():
     """Return dict with state space functions."""
     out = {
         "state_specific_choice_set": choice_set,
-        "next_period_endogenous_state": next_period_state,
+        "next_period_deterministic_state": next_period_state,
         "sparsity_condition": sparsity_condition,
     }
     return out
@@ -190,9 +187,7 @@ def utility_functions_final_period():
     }
 
 
-def budget(
-    lagged_choice, experience, savings_end_of_previous_period, health, options, params
-):
+def budget(lagged_choice, experience, asset_end_of_previous_period, health, params):
     unemployed = lagged_choice == 0
     working = lagged_choice == 1
     retired = lagged_choice == 2
@@ -211,7 +206,7 @@ def budget(
     )
 
     return jnp.maximum(
-        income + (1 + params["interest_rate"]) * savings_end_of_previous_period,
+        income + (1 + params["interest_rate"]) * asset_end_of_previous_period,
         params["consumption_floor"],
     )
 
@@ -219,29 +214,30 @@ def budget(
 def test_extended_choice_set_model(
     test_model, state_space_functions, utility_functions, utility_functions_final_period
 ):
-    params, options = test_model
+    params, model_specs, model_config = test_model
 
-    solve_func = get_solve_function(
-        options=options,
+    exogenous_states_transition = {
+        "health": prob_health,
+        "partner": prob_partner,
+    }
+
+    model = dcegm.setup_model(
+        model_config=model_config,
+        model_specs=model_specs,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
-        budget_constraint=budget,
         utility_functions_final_period=utility_functions_final_period,
+        budget_constraint=budget,
+        stochastic_states_transitions=exogenous_states_transition,
     )
-    sol = solve_func(params)
-    value, _policy, _endog_grid, *_ = sol
+
+    model_solved = model.solve(params)
+    value = model_solved.value
 
     value_expec = pickle.load(
         open(TEST_DIR / "resources" / "extended_choice_set" / "value.pkl", "rb")
     )
 
-    model = setup_model(
-        options=options,
-        state_space_functions=state_space_functions,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
-        budget_constraint=budget,
-    )
     indexer = pickle.load(
         open(
             TEST_DIR
@@ -251,7 +247,7 @@ def test_extended_choice_set_model(
             "rb",
         )
     )
-    state_choice_space = model["model_structure"]["state_choice_space"]
+    state_choice_space = model.model_structure["state_choice_space"]
     tuple_state_choice = tuple(
         state_choice_space[:, i] for i in range(state_choice_space.shape[1])
     )

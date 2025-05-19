@@ -1,4 +1,4 @@
-from typing import Callable, Dict, Tuple
+from typing import Any, Callable, Dict, Tuple
 
 from jax import numpy as jnp
 from jax import vmap
@@ -13,13 +13,12 @@ def interpolate_value_and_marg_util(
     compute_marginal_utility: Callable,
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
-    exog_grids: Tuple[jnp.ndarray, jnp.ndarray],
+    continuous_grids_info: Dict[str, Any],
     cont_grids_next_period: Dict[str, jnp.ndarray],
     endog_grid_child_state_choice: jnp.ndarray,
     policy_child_state_choice: jnp.ndarray,
     value_child_state_choice: jnp.ndarray,
     child_state_idxs: jnp.ndarray,
-    has_second_continuous_state: bool,
     params: Dict[str, float],
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Interpolate value and policy for all child states and compute marginal utility.
@@ -29,7 +28,7 @@ def interpolate_value_and_marg_util(
             agent's marginal utility of consumption.
         compute_utility (callable): Function for calculating the utility of consumption.
         state_choice_vec (dict): Dictionary containing the state and choice of the agent.
-        wealth_beginning_of_next_period (jnp.ndarray): 2d array of shape
+        assets_beginning_of_next_period (jnp.ndarray): 2d array of shape
             (n_quad_stochastic, n_grid_wealth,) containing the agent's beginning of
             period wealth.
         endog_grid_child_state_choice (jnp.ndarray): 1d array containing the endogenous
@@ -55,13 +54,15 @@ def interpolate_value_and_marg_util(
             income shock.
 
     """
-    wealth_child_states = cont_grids_next_period["wealth"][child_state_idxs]
+    wealth_child_states = cont_grids_next_period["assets_begin_of_period"][
+        child_state_idxs
+    ]
 
-    if has_second_continuous_state:
+    if continuous_grids_info["second_continuous_exists"]:
         continuous_state_child_states = cont_grids_next_period["second_continuous"][
             child_state_idxs
         ]
-        regular_grid = exog_grids["second_continuous"]
+        regular_grid = continuous_grids_info["second_continuous_grid"]
 
         interp_for_single_state_choice = vmap(
             interp2d_value_and_marg_util_for_state_choice,
@@ -103,7 +104,7 @@ def interp1d_value_and_marg_util_for_state_choice(
     compute_marginal_utility: Callable,
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
-    wealth_beginning_of_next_period: jnp.ndarray,
+    assets_beginning_of_next_period: jnp.ndarray,
     endog_grid_child_state_choice: jnp.ndarray,
     policy_child_state_choice: jnp.ndarray,
     value_child_state_choice: jnp.ndarray,
@@ -116,7 +117,7 @@ def interp1d_value_and_marg_util_for_state_choice(
             agent's marginal utility of consumption.
         compute_utility (callable): Function for calculating the utility of consumption.
         state_choice_vec (dict): Dictionary containing the state and choice of the agent.
-        wealth_beginning_of_next_period (jnp.ndarray): 2d array of shape
+        assets_beginning_of_next_period (jnp.ndarray): 2d array of shape
             (n_quad_stochastic, n_grid_wealth,) containing the agent's beginning of
             period wealth.
         endog_grid_child_state_choice (jnp.ndarray): 1d array containing the endogenous
@@ -164,7 +165,7 @@ def interp1d_value_and_marg_util_for_state_choice(
     )  # wealth grid
 
     value_interp, marg_util_interp = interp_over_single_wealth_and_income_shock_draw(
-        wealth_beginning_of_next_period
+        assets_beginning_of_next_period
     )
 
     return value_interp, marg_util_interp
@@ -175,7 +176,7 @@ def interp2d_value_and_marg_util_for_state_choice(
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
     regular_grid: jnp.ndarray,
-    wealth_beginning_of_next_period: jnp.ndarray,
+    assets_beginning_of_next_period: jnp.ndarray,
     continuous_state_beginning_of_next_period: jnp.ndarray,
     endog_grid_child_state_choice: jnp.ndarray,
     policy_child_state_choice: jnp.ndarray,
@@ -189,7 +190,7 @@ def interp2d_value_and_marg_util_for_state_choice(
             agent's marginal utility of consumption.
         compute_utility (callable): Function for calculating the utility of consumption.
         state_choice_vec (dict): Dictionary containing the state and choice of the agent.
-        wealth_beginning_of_next_period (jnp.ndarray): 2d array of shape
+        assets_beginning_of_next_period (jnp.ndarray): 2d array of shape
             (n_quad_stochastic, n_grid_wealth,) containing the agent's beginning of
             period wealth.
         endog_grid_child_state_choice (jnp.ndarray): 1d array containing the endogenous
@@ -235,7 +236,7 @@ def interp2d_value_and_marg_util_for_state_choice(
             consumption=policy_interp,
             continuous_state=second_cont_grid_point,
             params=params,
-            **state_choice_vec
+            **state_choice_vec,
         )
 
         return value_interp, marg_util_interp
@@ -254,7 +255,7 @@ def interp2d_value_and_marg_util_for_state_choice(
     # Old points: regular grid and endog grid
     # New points: continuous state next period and wealth next period
     value_interp, marg_util_interp = interp_over_single_wealth_and_income_shock_draw(
-        wealth_beginning_of_next_period, continuous_state_beginning_of_next_period
+        assets_beginning_of_next_period, continuous_state_beginning_of_next_period
     )
 
     return value_interp, marg_util_interp

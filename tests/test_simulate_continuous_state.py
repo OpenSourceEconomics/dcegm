@@ -5,11 +5,10 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
+import dcegm
 import dcegm.toy_models as toy_models
-from dcegm.pre_processing.setup_model import setup_model
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
-from dcegm.solve import get_solve_func_for_model
 
 
 @pytest.fixture(scope="module")
@@ -21,10 +20,13 @@ def test_setup():
 
     model_funcs_discrete = toy_models.load_example_model_functions("with_exp")
     # params are actually the same for both models. Just name them params.
-    params, options_discrete = toy_models.load_example_params_and_options("with_exp")
+    params, model_specs, model_config = (
+        toy_models.load_example_params_model_specs_and_config("with_exp")
+    )
 
-    model_disc = setup_model(
-        options=options_discrete,
+    model_disc = dcegm.setup_model(
+        model_specs=model_specs,
+        model_config=model_config,
         state_space_functions=model_funcs_discrete["state_space_functions"],
         utility_functions=model_funcs_discrete["utility_functions"],
         utility_functions_final_period=model_funcs_discrete[
@@ -33,18 +35,22 @@ def test_setup():
         budget_constraint=model_funcs_discrete["budget_constraint"],
     )
 
-    solve_disc = get_solve_func_for_model(model_disc)
-    value_disc, policy_disc, endog_grid_disc = solve_disc(params)
+    model_solved_disc = model_disc.solve(params)
 
     # =================================================================================
     # Continuous experience
     # =================================================================================
 
     model_funcs_cont_exp = toy_models.load_example_model_functions("with_cont_exp")
-    _, options_cont = toy_models.load_example_params_and_options("with_cont_exp")
+    _, model_specs_cont, model_config_cont = (
+        toy_models.load_example_params_model_specs_and_config("with_cont_exp")
+    )
 
-    model_cont = setup_model(
-        options=options_cont,
+    max_init_exp = model_specs_cont["max_init_experience"]
+
+    model_cont = dcegm.setup_model(
+        model_config=model_config_cont,
+        model_specs=model_specs_cont,
         state_space_functions=model_funcs_cont_exp["state_space_functions"],
         utility_functions=model_funcs_cont_exp["utility_functions"],
         utility_functions_final_period=model_funcs_cont_exp[
@@ -53,74 +59,35 @@ def test_setup():
         budget_constraint=model_funcs_cont_exp["budget_constraint"],
     )
 
-    solve_cont = get_solve_func_for_model(model_cont)
-    value_cont, policy_cont, endog_grid_cont = solve_cont(params)
+    model_solved_cont = model_cont.solve(params)
 
-    return (
-        options_discrete,
-        params,
-        model_disc,
-        model_cont,
-        value_disc,
-        policy_disc,
-        endog_grid_disc,
-        value_cont,
-        policy_cont,
-        endog_grid_cont,
-    )
+    return {
+        "model_solved_disc": model_solved_disc,
+        "model_solved_cont": model_solved_cont,
+        "max_init_exp": max_init_exp,
+    }
 
 
 def test_simulate_discrete_versus_continuous_experience(test_setup):
-    (
-        options_discrete,
-        params,
-        model_disc,
-        model_cont,
-        value_disc,
-        policy_disc,
-        endog_grid_disc,
-        value_cont,
-        policy_cont,
-        endog_grid_cont,
-    ) = test_setup
 
-    max_init_exp = options_discrete["model_params"]["max_init_experience"]
     n_agents = 100_000
 
     states_initial = {
         "period": np.zeros(n_agents),
         "lagged_choice": np.zeros(n_agents),  # all agents start as workers
         "experience": np.ones(n_agents),
+        "assets_begin_of_period": np.ones(n_agents) * 10,
     }
-    wealth_initial = np.ones(n_agents) * 10
 
-    result_disc = simulate_all_periods(
+    df_disc = test_setup["model_solved_disc"].simulate(
         states_initial=states_initial,
-        wealth_initial=wealth_initial,
-        n_periods=model_disc["options"]["state_space"]["n_periods"],
-        params=params,
         seed=111,
-        endog_grid_solved=endog_grid_disc,
-        value_solved=value_disc,
-        policy_solved=policy_disc,
-        model=model_disc,
     )
 
-    df_disc = create_simulation_df(result_disc)
-
-    result_cont = simulate_all_periods(
+    df_cont = test_setup["model_solved_cont"].simulate(
         states_initial=states_initial,
-        wealth_initial=wealth_initial,
-        n_periods=model_cont["options"]["state_space"]["n_periods"],
-        params=params,
         seed=111,
-        endog_grid_solved=endog_grid_cont,
-        value_solved=value_cont,
-        policy_solved=policy_cont,
-        model=model_cont,
     )
-
-    df_cont = create_simulation_df(result_cont)
 
     # Check if taste shocks are the same
     aaae(df_disc["taste_shocks_0"], df_cont["taste_shocks_0"])
@@ -131,7 +98,7 @@ def test_simulate_discrete_versus_continuous_experience(test_setup):
 
     # Check if experience is the same
     df_cont["experience_years"] = (
-        df_cont.index.get_level_values("period") + max_init_exp
+        df_cont.index.get_level_values("period") + test_setup["max_init_exp"]
     ) * df_cont["experience"]
     aaae(df_disc["experience"], df_cont["experience_years"])
 

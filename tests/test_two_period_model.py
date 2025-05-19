@@ -12,9 +12,8 @@ from numpy.testing import assert_allclose
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 
+import dcegm
 import dcegm.toy_models as toy_models
-from dcegm.pre_processing.setup_model import setup_model
-from dcegm.solve import get_solve_func_for_model
 from tests.utils.euler_equation_two_period import (
     euler_rhs_exog_ltc,
     euler_rhs_exog_ltc_and_job_offer,
@@ -26,32 +25,28 @@ RANDOM_TEST_WEALTH = np.random.choice(list(range(100)), size=10, replace=False)
 @pytest.fixture(scope="session")
 def toy_model_exog_ltc_and_job_offer():
 
-    model_funcs = toy_models.load_example_model_functions("with_exog_ltc_and_job_offer")
-    params, options = toy_models.load_example_params_and_options(
-        "with_exog_ltc_and_job_offer"
+    model_funcs = toy_models.load_example_model_functions(
+        "with_stochastic_ltc_and_job_offer"
     )
-
+    params, model_specs, model_config = (
+        toy_models.load_example_params_model_specs_and_config(
+            "with_stochastic_ltc_and_job_offer"
+        )
+    )
     out = {}
-    out["model"] = setup_model(
-        options=options,
-        state_space_functions=model_funcs["state_space_functions"],
-        utility_functions=model_funcs["utility_functions"],
-        utility_functions_final_period=model_funcs["utility_functions_final_period"],
-        budget_constraint=model_funcs["budget_constraint"],
+    model = dcegm.setup_model(
+        model_config=model_config,
+        model_specs=model_specs,
+        **model_funcs,
     )
 
     out["marginal_utility"] = model_funcs["utility_functions"]["marginal_utility"]
 
-    (
-        out["value"],
-        out["policy"],
-        out["endog_grid"],
-    ) = get_solve_func_for_model(
-        out["model"]
-    )(params)
+    out["model_solved"] = model.solve(params)
 
     out["params"] = params
-    out["options"] = options
+    out["model_specs"] = model_specs
+    out["model_config"] = model_config
     out["euler"] = euler_rhs_exog_ltc_and_job_offer
 
     return out
@@ -60,29 +55,23 @@ def toy_model_exog_ltc_and_job_offer():
 @pytest.fixture(scope="session")
 def toy_model_exog_ltc():
 
-    model_funcs = toy_models.load_example_model_functions("with_exog_ltc")
-    params, options = toy_models.load_example_params_and_options("with_exog_ltc")
+    model_funcs = toy_models.load_example_model_functions("with_stochastic_ltc")
+    params, model_specs, model_config = (
+        toy_models.load_example_params_model_specs_and_config("with_stochastic_ltc")
+    )
 
     out = {}
-    out["model"] = setup_model(
-        options=options,
-        state_space_functions=model_funcs["state_space_functions"],
-        utility_functions=model_funcs["utility_functions"],
-        utility_functions_final_period=model_funcs["utility_functions_final_period"],
-        budget_constraint=model_funcs["budget_constraint"],
+    model = dcegm.setup_model(
+        model_config=model_config,
+        model_specs=model_specs,
+        **model_funcs,
     )
+
+    out["model_solved"] = model.solve(params)
     out["marginal_utility"] = model_funcs["utility_functions"]["marginal_utility"]
 
-    (
-        out["value"],
-        out["policy"],
-        out["endog_grid"],
-    ) = get_solve_func_for_model(
-        out["model"]
-    )(params)
-
     out["params"] = params
-    out["options"] = options
+    out["model_config"] = model_config
     out["euler"] = euler_rhs_exog_ltc
 
     return out
@@ -111,17 +100,16 @@ def test_two_period(
     else:
         raise ValueError("Model not implemented")
     params = toy_model["params"]
-    options = toy_model["options"]
 
     quad_points, quad_weights = roots_sh_legendre(
-        options["model_params"]["n_quad_points_stochastic"]
+        toy_model["model_config"]["n_quad_points"]
     )
     quad_draws = norm.ppf(quad_points) * params["sigma"]
 
-    endog_grid_period = toy_model["endog_grid"]
-    policy_period = toy_model["policy"]
+    endog_grid_period = toy_model["model_solved"].endog_grid
+    policy_period = toy_model["model_solved"].policy
 
-    model_structure = toy_model["model"]["model_structure"]
+    model_structure = toy_model["model_solved"].model_structure
     state_space_dict = model_structure["state_space_dict"]
 
     state_choice_space = model_structure["state_choice_space"]
@@ -130,7 +118,7 @@ def test_two_period(
         model_structure["map_state_choice_to_parent_state"] == state_idx
     )[0]
 
-    if len(options["state_space"]["exogenous_processes"]) == 2:
+    if len(toy_model["model_config"]["stochastic_states"]) == 2:
         initial_conditions = {}
         initial_conditions["bad_health"] = state_space_dict["ltc"][state_idx] == 1
         initial_conditions["job_offer"] = 1
@@ -144,7 +132,7 @@ def test_two_period(
         choice = state_choice_space_0[state_choice_idx, -1]
 
         if ~np.isnan(endog_grid) and endog_grid > 0:
-            initial_conditions["wealth"] = endog_grid
+            initial_conditions["assets_end_of_period"] = endog_grid
 
             diff = toy_model["euler"](
                 initial_conditions,

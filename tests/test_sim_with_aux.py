@@ -2,26 +2,24 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from dcegm.pre_processing.setup_model import setup_model
-from dcegm.sim_interface import get_sol_and_sim_func_for_model
-from dcegm.simulation.sim_utils import create_simulation_df
-from dcegm.toy_models.example_model_functions import load_example_model_functions
+import dcegm
+import dcegm.toy_models as toy_models
 
 
 def budget_with_aux(
     period,
     lagged_choice,
-    savings_end_of_previous_period,
+    asset_end_of_previous_period,
     income_shock_previous_period,
-    options,
+    model_specs,
     params,
 ):
     wealth, shock, income = budget_constraint_raw(
         period,
         lagged_choice,
-        savings_end_of_previous_period,
+        asset_end_of_previous_period,
         income_shock_previous_period,
-        options,
+        model_specs,
         params,
     )
     aux_dict = {
@@ -33,17 +31,17 @@ def budget_with_aux(
 def budget_without_aux(
     period,
     lagged_choice,
-    savings_end_of_previous_period,
+    asset_end_of_previous_period,
     income_shock_previous_period,
-    options,
+    model_specs,
     params,
 ):
     wealth, _, _ = budget_constraint_raw(
         period,
         lagged_choice,
-        savings_end_of_previous_period,
+        asset_end_of_previous_period,
         income_shock_previous_period,
-        options,
+        model_specs,
         params,
     )
     return wealth
@@ -52,9 +50,9 @@ def budget_without_aux(
 def budget_constraint_raw(
     period,
     lagged_choice,
-    savings_end_of_previous_period,
+    asset_end_of_previous_period,
     income_shock_previous_period,
-    options,
+    model_specs,
     params,
 ):
     # Calculate stochastic labor income
@@ -62,7 +60,7 @@ def budget_constraint_raw(
         period=period,
         lagged_choice=lagged_choice,
         wage_shock=income_shock_previous_period,
-        min_age=options["min_age"],
+        min_age=model_specs["min_age"],
         constant=params["constant"],
         exp=params["exp"],
         exp_squared=params["exp_squared"],
@@ -70,7 +68,7 @@ def budget_constraint_raw(
 
     wealth_beginning_of_period = (
         income_from_previous_period
-        + (1 + params["interest_rate"]) * savings_end_of_previous_period
+        + (1 + params["interest_rate"]) * asset_end_of_previous_period
     )
 
     # Retirement safety net, only in retirement model, but we require to have it always
@@ -108,38 +106,38 @@ def _calc_stochastic_income(
 
 
 @pytest.fixture
-def state_space_options():
-    state_space_options = {
+def model_config():
+    model_config = {
         "n_periods": 5,
         "choices": np.arange(2),
         "continuous_states": {
-            "wealth": np.arange(0, 100, 5, dtype=float),
+            "assets_end_of_period": np.arange(0, 100, 5, dtype=float),
         },
+        "n_quad_points": 5,
     }
 
-    return state_space_options
+    return model_config
 
 
-def test_sim_and_sol_model(state_space_options, load_replication_params_and_specs):
-    params, model_specs = load_replication_params_and_specs("retirement_with_shocks")
+def test_sim_and_sol_model(model_config):
+    params, model_specs, _ = toy_models.load_example_params_model_specs_and_config(
+        "dcegm_paper_retirement_with_shocks"
+    )
 
-    model_funcs = load_example_model_functions("dcegm_paper")
+    model_funcs = toy_models.load_example_model_functions("dcegm_paper")
 
-    options_sol = {
-        "state_space": state_space_options,
-        "model_params": model_specs,
-    }
-
-    model_with_aux = setup_model(
-        options=options_sol,
+    model_with_aux = dcegm.setup_model(
+        model_config=model_config,
+        model_specs=model_specs,
         state_space_functions=model_funcs["state_space_functions"],
         utility_functions=model_funcs["utility_functions"],
         utility_functions_final_period=model_funcs["utility_functions_final_period"],
         budget_constraint=budget_with_aux,
     )
 
-    model_without_aux = setup_model(
-        options=options_sol,
+    model_without_aux = dcegm.setup_model(
+        model_config=model_config,
+        model_specs=model_specs,
         state_space_functions=model_funcs["state_space_functions"],
         utility_functions=model_funcs["utility_functions"],
         utility_functions_final_period=model_funcs["utility_functions_final_period"],
@@ -151,29 +149,22 @@ def test_sim_and_sol_model(state_space_options, load_replication_params_and_spec
     states_initial = {
         "period": jnp.zeros(n_agents, dtype=int),
         "lagged_choice": jnp.zeros(n_agents, dtype=int),
+        "assets_begin_of_period": jnp.ones(n_agents, dtype=float) * 10,
     }
-    n_periods = options_sol["state_space"]["n_periods"]
+    n_periods = model_config["n_periods"]
     seed = 132
 
-    sim_func_aux = get_sol_and_sim_func_for_model(
-        model=model_with_aux,
+    df_aux = model_with_aux.solve_and_simulate(
+        params=params,
         states_initial=states_initial,
-        wealth_initial=jnp.ones(n_agents, dtype=float) * 10,
-        n_periods=n_periods,
         seed=seed,
     )
-    output_dict_aux = sim_func_aux(params)
-    df_aux = create_simulation_df(output_dict_aux["sim_dict"])
 
-    sim_func_without_aux = get_sol_and_sim_func_for_model(
-        model=model_without_aux,
+    df_without_aux = model_without_aux.solve_and_simulate(
+        params=params,
         states_initial=states_initial,
-        wealth_initial=np.ones(n_agents, dtype=float) * 10,
-        n_periods=n_periods,
         seed=seed,
     )
-    output_dict_without_aux = sim_func_without_aux(params)
-    df_without_aux = create_simulation_df(output_dict_without_aux["sim_dict"])
     # # First check that income is in df_aux columns
     assert "income" in df_aux.columns
 

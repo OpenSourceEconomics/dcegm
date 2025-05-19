@@ -1,7 +1,7 @@
 import pickle
 from typing import Callable, Dict
 
-from dcegm.pre_processing.check_options import check_options_and_set_defaults
+from dcegm.pre_processing.check_options import check_model_config_and_process
 from dcegm.pre_processing.model_functions.process_model_functions import (
     process_second_continuous_update_function,
     process_state_space_functions,
@@ -12,22 +12,24 @@ from dcegm.pre_processing.model_functions.taste_shock_function import (
 from dcegm.pre_processing.model_functions.upper_evelope_wrapper import (
     create_upper_envelope_function,
 )
-from dcegm.pre_processing.model_structure.exogenous_processes import (
-    create_exog_state_mapping,
-    create_exog_transition_function,
-    process_exog_model_specifications,
+from dcegm.pre_processing.model_structure.stochastic_states import (
+    create_stochastic_state_mapping,
+    create_stochastic_transition_function,
+    process_stochastic_model_specifications,
 )
 from dcegm.pre_processing.shared import (
     create_array_with_smallest_int_dtype,
-    determine_function_arguments_and_partial_options,
+    determine_function_arguments_and_partial_model_specs,
 )
 
 
 def generate_alternative_sim_functions(
-    options: Dict,
+    model_config: Dict,
+    model_specs: Dict,
+    state_space_functions: Dict[str, Callable],
     budget_constraint: Callable,
-    state_space_functions: Dict[str, Callable] = None,
     shock_functions: Dict[str, Callable] = None,
+    stochastic_states_transitions: Dict[str, Callable] = None,
 ):
     """Set up the model for dcegm.
 
@@ -46,25 +48,29 @@ def generate_alternative_sim_functions(
 
     """
 
-    options = check_options_and_set_defaults(options)
+    model_config = check_model_config_and_process(model_config)
 
     model_funcs = process_alternative_sim_functions(
-        options,
+        model_config=model_config,
+        model_specs=model_specs,
         state_space_functions=state_space_functions,
         budget_constraint=budget_constraint,
         shock_functions=shock_functions,
+        stochastic_states_transition=stochastic_states_transitions,
     )
 
     (
-        exog_states_names,
-        exog_state_space_raw,
-    ) = process_exog_model_specifications(state_space_options=options["state_space"])
+        stochastic_state_names,
+        stochastic_state_space_raw,
+    ) = process_stochastic_model_specifications(model_config=model_config)
 
-    exog_state_space = create_array_with_smallest_int_dtype(exog_state_space_raw)
+    stochastic_state_space = create_array_with_smallest_int_dtype(
+        stochastic_state_space_raw
+    )
 
-    model_funcs["exog_state_mapping"] = create_exog_state_mapping(
-        exog_state_space,
-        exog_states_names,
+    model_funcs["stochastic_state_mapping"] = create_stochastic_state_mapping(
+        stochastic_state_space,
+        stochastic_state_names,
     )
 
     print("Model setup complete.\n")
@@ -72,7 +78,9 @@ def generate_alternative_sim_functions(
 
 
 def process_alternative_sim_functions(
-    options: Dict,
+    model_config: Dict,
+    model_specs: Dict,
+    stochastic_states_transition,
     state_space_functions: Dict[str, Callable],
     budget_constraint: Callable,
     shock_functions: Dict[str, Callable] = None,
@@ -116,59 +124,68 @@ def process_alternative_sim_functions(
             transition probabilities for each state.
 
     """
-    # First check if we have a second continuous state
-    has_second_continuous_state = len(options["exog_grids"]) == 2
+    continuous_states_info = model_config["continuous_states_info"]
     # Assign name
-    if has_second_continuous_state:
-        continuous_state_name = options["second_continuous_state_name"]
+    if continuous_states_info["second_continuous_exists"]:
+        second_continuous_state_name = continuous_states_info[
+            "second_continuous_state_name"
+        ]
     else:
-        continuous_state_name = None
+        second_continuous_state_name = None
 
     # Now exogenous transition function if present
-    compute_exog_transition_vec, processed_exog_funcs_dict = (
-        create_exog_transition_function(
-            options, continuous_state_name=continuous_state_name
+    compute_stochastic_transition_vec, processed_stochastic_funcs_dict = (
+        create_stochastic_transition_function(
+            stochastic_states_transition,
+            model_config=model_config,
+            model_specs=model_specs,
+            continuous_state_name=second_continuous_state_name,
         )
     )
 
     # Now state space functions
-    state_specific_choice_set, next_period_endogenous_state, sparsity_condition = (
+    state_specific_choice_set, next_period_deterministic_state, sparsity_condition = (
         process_state_space_functions(
-            state_space_functions, options, continuous_state_name
+            state_space_functions,
+            model_config=model_config,
+            model_specs=model_specs,
+            continuous_state_name=second_continuous_state_name,
         )
     )
 
     next_period_continuous_state = process_second_continuous_update_function(
-        continuous_state_name, state_space_functions, options
+        second_continuous_state_name, state_space_functions, model_specs=model_specs
     )
 
     # Budget equation
-    compute_beginning_of_period_wealth = (
-        determine_function_arguments_and_partial_options(
+    compute_assets_begin_of_period = (
+        determine_function_arguments_and_partial_model_specs(
             func=budget_constraint,
-            options=options["model_params"],
-            continuous_state_name=continuous_state_name,
+            continuous_state_name=second_continuous_state_name,
+            model_specs=model_specs,
         )
     )
 
     # Upper envelope function
     compute_upper_envelope = create_upper_envelope_function(
-        options,
-        continuous_state=continuous_state_name,
+        model_config=model_config,
+        continuous_state=second_continuous_state_name,
     )
 
     taste_shock_function_processed = process_shock_functions(
-        shock_functions, options, continuous_state_name
+        shock_functions,
+        model_specs,
+        continuous_state_name=second_continuous_state_name,
     )
 
     alt_model_funcs = {
-        "compute_beginning_of_period_wealth": compute_beginning_of_period_wealth,
+        "compute_assets_begin_of_period": compute_assets_begin_of_period,
         "next_period_continuous_state": next_period_continuous_state,
         "sparsity_condition": sparsity_condition,
-        "compute_exog_transition_vec": compute_exog_transition_vec,
-        "processed_exog_funcs": processed_exog_funcs_dict,
+        "compute_stochastic_transition_vec": compute_stochastic_transition_vec,
+        "processed_stochastic_funcs": processed_stochastic_funcs_dict,
         "state_specific_choice_set": state_specific_choice_set,
-        "next_period_endogenous_state": next_period_endogenous_state,
+        "next_period_deterministic_state": next_period_deterministic_state,
         "compute_upper_envelope": compute_upper_envelope,
         "taste_shock_function": taste_shock_function_processed,
     }

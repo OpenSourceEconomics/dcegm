@@ -5,11 +5,9 @@ import jax.numpy as jnp
 import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
+import dcegm
 import dcegm.toy_models as toy_models
-from dcegm.pre_processing.setup_model import setup_model
-from dcegm.solve import get_solve_func_for_model
 from tests.utils.interp1d_auxiliary import (
-    interpolate_policy_and_value_on_wealth_grid,
     linear_interpolation_with_extrapolation,
 )
 
@@ -27,22 +25,25 @@ REPLICATION_TEST_RESOURCES_DIR = TEST_DIR / "resources" / "replication_tests"
         "deaton",
     ],
 )
-def test_benchmark_models(model_name, load_replication_params_and_specs):
+def test_benchmark_models(model_name):
     if model_name == "deaton":
         model_funcs = toy_models.load_example_model_functions("dcegm_paper_deaton")
     else:
         model_funcs = toy_models.load_example_model_functions("dcegm_paper")
 
-    params, options = toy_models.load_example_params_and_options(
-        "dcegm_paper_" + model_name
+    params, model_specs, model_config = (
+        toy_models.load_example_params_model_specs_and_config(
+            "dcegm_paper_" + model_name
+        )
     )
 
-    model = setup_model(
-        options=options,
+    model = dcegm.setup_model(
+        model_config=model_config,
+        model_specs=model_specs,
         **model_funcs,
     )
 
-    value, policy, endog_grid = get_solve_func_for_model(model)(params)
+    model_solved = model.solve(params)
 
     policy_expected = pickle.load(
         (REPLICATION_TEST_RESOURCES_DIR / f"{model_name}" / "policy.pkl").open("rb")
@@ -50,7 +51,7 @@ def test_benchmark_models(model_name, load_replication_params_and_specs):
     value_expected = pickle.load(
         (REPLICATION_TEST_RESOURCES_DIR / f"{model_name}" / "value.pkl").open("rb")
     )
-    state_choice_space = model["model_structure"]["state_choice_space"]
+    state_choice_space = model.model_structure["state_choice_space"]
     state_choice_space_to_test = state_choice_space[state_choice_space[:, 0] < 24]
 
     for state_choice_idx in range(state_choice_space_to_test.shape[0] - 1, -1, -1):
@@ -74,14 +75,16 @@ def test_benchmark_models(model_name, load_replication_params_and_specs):
             x_new=wealth_grid_to_test, x=policy_expec[0], y=policy_expec[1]
         )
 
-        (
-            policy_calc_interp,
-            value_calc_interp,
-        ) = interpolate_policy_and_value_on_wealth_grid(
-            wealth_beginning_of_period=wealth_grid_to_test,
-            endog_wealth_grid=endog_grid[state_choice_idx],
-            policy=policy[state_choice_idx],
-            value=value[state_choice_idx],
+        state = {
+            "period": period,
+            "lagged_choice": state_choice_space_to_test[state_choice_idx, 1],
+            "assets_begin_of_period": wealth_grid_to_test,
+        }
+        policy_calc_interp, value_calc_interp = (
+            model_solved.value_and_policy_for_state_and_choice(
+                state=state,
+                choice=choice,
+            )
         )
 
         aaae(policy_expec_interp, policy_calc_interp)

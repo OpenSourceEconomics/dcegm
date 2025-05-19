@@ -12,12 +12,12 @@ def create_state_space_function_dict():
     """
     return {
         "state_specific_choice_set": get_state_specific_feasible_choice_set,
-        "next_period_endogenous_state": next_period_endogenous_state,
+        "next_period_deterministic_state": next_period_deterministic_state,
         "sparsity_condition": sparsity_condition,
     }
 
 
-def next_period_endogenous_state(period, choice, experience):
+def next_period_deterministic_state(period, choice, experience):
     """Update state with experience."""
     next_state = {}
 
@@ -32,10 +32,10 @@ def sparsity_condition(
     period,
     experience,
     lagged_choice,
-    options,
+    model_specs,
 ):
-    max_exp_period = period + options["max_init_experience"]
-    max_total_experience = options["n_periods"] + options["max_init_experience"]
+    max_exp_period = period + model_specs["max_init_experience"]
+    max_total_experience = model_specs["n_periods"] + model_specs["max_init_experience"]
 
     # Experience must be smaller than the maximum experience in a period
     if max_exp_period < experience:

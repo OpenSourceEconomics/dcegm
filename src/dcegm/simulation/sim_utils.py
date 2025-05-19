@@ -4,22 +4,22 @@ import pandas as pd
 from jax import numpy as jnp
 from jax import vmap
 
-from dcegm.interface import get_state_choice_index_per_discrete_state
+from dcegm.interfaces.interface import get_state_choice_index_per_discrete_state
 from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
 from dcegm.interpolation.interp2d import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
 from dcegm.law_of_motion import (
+    calc_assets_begin_of_period_for_all_agents,
+    calculate_assets_begin_of_period_for_all_agents,
     calculate_second_continuous_state_for_all_agents,
-    calculate_wealth_for_all_agents,
-    calculate_wealth_given_second_continuous_state_for_all_agents,
 )
 
 
 def interpolate_policy_and_value_for_all_agents(
     discrete_states_beginning_of_period,
     continuous_state_beginning_of_period,
-    wealth_beginning_of_period,
+    assets_begin_of_period,
     value_solved,
     policy_solved,
     endog_grid_solved,
@@ -64,7 +64,7 @@ def interpolate_policy_and_value_for_all_agents(
         # =================================================================================
 
         policy_agent, value_agent = vectorized_interp(
-            wealth_beginning_of_period,
+            assets_begin_of_period,
             continuous_state_beginning_of_period,
             discrete_states_beginning_of_period,
             continuous_grid,
@@ -108,7 +108,7 @@ def interpolate_policy_and_value_for_all_agents(
         )
 
         policy_agent, value_agent = vectorized_interp(
-            wealth_beginning_of_period,
+            assets_begin_of_period,
             discrete_states_beginning_of_period,
             endog_grid_agent,
             value_grid_agent,
@@ -124,26 +124,28 @@ def interpolate_policy_and_value_for_all_agents(
 def transition_to_next_period(
     discrete_states_beginning_of_period,
     continuous_state_beginning_of_period,
-    savings_current_period,
+    assets_end_of_period,
     choice,
     params,
     model_funcs_sim,
     sim_keys,
 ):
-    n_agents = savings_current_period.shape[0]
+    n_agents = assets_end_of_period.shape[0]
 
-    exog_states_next_period = vmap(realize_exog_process, in_axes=(0, 0, 0, None, None))(
+    stochastic_states_next_period = vmap(
+        realize_stochastic_states, in_axes=(0, 0, 0, None, None)
+    )(
         discrete_states_beginning_of_period,
         choice,
-        sim_keys["exog_process_keys"],
+        sim_keys["stochastic_state_keys"],
         params,
-        model_funcs_sim["processed_exog_funcs"],
+        model_funcs_sim["processed_stochastic_funcs"],
     )
 
     discrete_endog_states_next_period = vmap(
         update_discrete_states_for_one_agent, in_axes=(None, 0, 0, None)  # choice
     )(
-        model_funcs_sim["next_period_endogenous_state"],
+        model_funcs_sim["next_period_deterministic_state"],
         discrete_states_beginning_of_period,
         choice,
         params,
@@ -153,7 +155,10 @@ def transition_to_next_period(
     # beginning of next period.
     # Initialize states by copying
     discrete_states_next_period = discrete_states_beginning_of_period.copy()
-    states_to_update = {**discrete_endog_states_next_period, **exog_states_next_period}
+    states_to_update = {
+        **discrete_endog_states_next_period,
+        **stochastic_states_next_period,
+    }
     discrete_states_next_period.update(states_to_update)
 
     # Draw income shocks.
@@ -164,7 +169,7 @@ def transition_to_next_period(
         std=params["sigma"],
     )
 
-    next_period_wealth = model_funcs_sim["compute_beginning_of_period_wealth"]
+    next_period_wealth = model_funcs_sim["compute_assets_begin_of_period"]
     if continuous_state_beginning_of_period is not None:
 
         continuous_state_next_period = calculate_second_continuous_state_for_all_agents(
@@ -174,29 +179,31 @@ def transition_to_next_period(
             compute_continuous_state=model_funcs_sim["next_period_continuous_state"],
         )
 
-        wealth_beginning_of_next_period, budget_aux = (
-            calculate_wealth_given_second_continuous_state_for_all_agents(
+        assets_beginning_of_next_period, budget_aux = (
+            calc_assets_begin_of_period_for_all_agents(
                 states_beginning_of_period=discrete_states_next_period,
                 continuous_state_beginning_of_period=continuous_state_next_period,
-                savings_end_of_previous_period=savings_current_period,
+                assets_end_of_period=assets_end_of_period,
                 income_shocks_of_period=income_shocks_next_period,
                 params=params,
-                compute_beginning_of_period_wealth=next_period_wealth,
+                compute_assets_begin_of_period=next_period_wealth,
             )
         )
     else:
         continuous_state_next_period = None
 
-        wealth_beginning_of_next_period, budget_aux = calculate_wealth_for_all_agents(
-            states_beginning_of_period=discrete_states_next_period,
-            savings_end_of_previous_period=savings_current_period,
-            income_shocks_of_period=income_shocks_next_period,
-            params=params,
-            compute_beginning_of_period_wealth=next_period_wealth,
+        assets_beginning_of_next_period, budget_aux = (
+            calculate_assets_begin_of_period_for_all_agents(
+                states_beginning_of_period=discrete_states_next_period,
+                asset_grid_point_end_of_previous_period=assets_end_of_period,
+                income_shocks_of_period=income_shocks_next_period,
+                params=params,
+                compute_assets_begin_of_period=next_period_wealth,
+            )
         )
 
     return (
-        wealth_beginning_of_next_period,
+        assets_beginning_of_next_period,
         budget_aux,
         discrete_states_next_period,
         continuous_state_next_period,
@@ -244,16 +251,16 @@ def vectorized_utility(consumption_period, state, choice, params, compute_utilit
     return utility
 
 
-def realize_exog_process(state, choice, key, params, processed_exog_funcs):
-    exog_states_next_period = {}
-    for exog_state_name in processed_exog_funcs.keys():
-        exog_state_vec = processed_exog_funcs[exog_state_name](
+def realize_stochastic_states(state, choice, key, params, processed_stochastic_funcs):
+    stochastic_states_next_period = {}
+    for state_name in processed_stochastic_funcs.keys():
+        state_vec = processed_stochastic_funcs[state_name](
             params=params, **state, choice=choice
         )
-        exog_states_next_period[exog_state_name] = jax.random.choice(
-            key=key, a=exog_state_vec.shape[0], p=exog_state_vec
-        ).astype(state[exog_state_name].dtype)
-    return exog_states_next_period
+        stochastic_states_next_period[state_name] = jax.random.choice(
+            key=key, a=state_vec.shape[0], p=state_vec
+        ).astype(state[state_name].dtype)
+    return stochastic_states_next_period
 
 
 def interp1d_policy_and_value_function(
