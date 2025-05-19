@@ -2,11 +2,8 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+import dcegm
 import dcegm.toy_models as toy_models
-from dcegm.backward_induction import get_solve_func_for_model
-from dcegm.pre_processing.alternative_sim_functions import (
-    generate_alternative_sim_functions,
-)
 from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
@@ -77,30 +74,28 @@ def test_sim_and_sol_model(model_configs):
     utility_functions = model_funcs["utility_functions"]
     utility_functions["utility"] = utility_crra
 
-    model_sol = create_model_dict(
-        model_config=model_configs["solution"],
-        model_specs=model_specs,
-        state_space_functions=model_funcs["state_space_functions"],
-        utility_functions=utility_functions,
-        utility_functions_final_period=model_funcs["utility_functions_final_period"],
-        budget_constraint=model_funcs["budget_constraint"],
-    )
-    solve_func = get_solve_func_for_model(model_sol)
-
-    value, policy, endog_grid = solve_func(params)
+    stochastic_states_transitions = {"married": marriage_transition}
 
     marriage_trans_mat = jnp.array([[0.3, 0.7], [0.1, 0.9]])
     model_specs["marriage_trans_mat"] = marriage_trans_mat
-
-    exogenous_states_transitions = {"married": marriage_transition}
 
     alt_model_specs = {
         "model_config": model_configs["simulation"],
         "model_specs": model_specs,
         "state_space_functions": model_funcs["state_space_functions"],
         "budget_constraint": model_funcs["budget_constraint"],
-        "exogenous_states_transitions": exogenous_states_transitions,
+        "stochastic_states_transitions": stochastic_states_transitions,
     }
+
+    model_sol = dcegm.setup_model(
+        model_config=model_configs["solution"],
+        model_specs=model_specs,
+        state_space_functions=model_funcs["state_space_functions"],
+        utility_functions=utility_functions,
+        utility_functions_final_period=model_funcs["utility_functions_final_period"],
+        budget_constraint=model_funcs["budget_constraint"],
+        alternative_sim_specifications=alt_model_specs,
+    )
 
     n_agents = 100_000
     initial_marriage_dist = np.array([0.5, 0.5])
@@ -113,21 +108,13 @@ def test_sim_and_sol_model(model_configs):
         "lagged_choice": np.zeros(n_agents, dtype=int),
         "married": initial_marriage_states,
     }
-    n_periods = model_configs["simulation"]["n_periods"]
 
-    sim_dict = simulate_all_periods(
+    df = model_sol.solve_and_simulate(
+        params=params,
         states_initial=states_initial,
         wealth_initial=np.ones(n_agents, dtype=float) * 10,
-        n_periods=n_periods,
-        params=params,
         seed=123,
-        endog_grid_solved=endog_grid,
-        policy_solved=policy,
-        value_solved=value,
-        model=model_sol,
-        alt_model_funcs_sim=alt_model_funcs_sim,
     )
-    df = create_simulation_df(sim_dict)
 
     ###########################################
     # Compare marriage shares as they must be governed
@@ -144,7 +131,7 @@ def test_sim_and_sol_model(model_configs):
         atol=atol_marriage,
     )
 
-    for period in range(1, n_periods):
+    for period in range(1, model_configs["solution"]["n_periods"]):
         last_period_marriage_shares = marriage_shares_sim.loc[
             (period - 1, [0, 1])
         ].values
