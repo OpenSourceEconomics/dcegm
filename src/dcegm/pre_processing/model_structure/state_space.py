@@ -6,10 +6,10 @@ import pandas as pd
 from dcegm.pre_processing.model_structure.endogenous_states import (
     process_endog_state_specifications,
 )
-from dcegm.pre_processing.model_structure.exogenous_processes import (
-    process_exog_model_specifications,
-)
 from dcegm.pre_processing.model_structure.shared import create_indexer_for_space
+from dcegm.pre_processing.model_structure.stochastic_states import (
+    process_stochastic_model_specifications,
+)
 from dcegm.pre_processing.shared import create_array_with_smallest_int_dtype
 
 
@@ -50,7 +50,7 @@ def create_state_space(model_config, sparsity_condition, debugging=False):
     (
         exog_states_names,
         exog_state_space_raw,
-    ) = process_exog_model_specifications(model_config=model_config)
+    ) = process_stochastic_model_specifications(model_config=model_config)
     discrete_states_names = state_names_without_exog + exog_states_names
 
     n_exog_states = exog_state_space_raw.shape[0]

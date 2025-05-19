@@ -12,7 +12,7 @@ from dcegm.pre_processing.model_functions.taste_shock_function import (
 from dcegm.pre_processing.model_functions.upper_evelope_wrapper import (
     create_upper_envelope_function,
 )
-from dcegm.pre_processing.model_structure.exogenous_processes import (
+from dcegm.pre_processing.model_structure.stochastic_states import (
     create_exog_state_mapping,
     create_stochastic_transition_function,
     process_exog_model_specifications,

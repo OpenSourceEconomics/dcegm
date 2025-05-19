@@ -8,7 +8,7 @@ from dcegm.pre_processing.model_functions.taste_shock_function import (
 from dcegm.pre_processing.model_functions.upper_evelope_wrapper import (
     create_upper_envelope_function,
 )
-from dcegm.pre_processing.model_structure.exogenous_processes import (
+from dcegm.pre_processing.model_structure.stochastic_states import (
     create_stochastic_transition_function,
 )
 from dcegm.pre_processing.shared import (
@@ -117,7 +117,7 @@ def process_model_functions(
     }
 
     # Now exogenous transition function if present
-    compute_exog_transition_vec, processed_exog_funcs_dict = (
+    compute_stochastic_transition_vec, stochastic_transitions_dict = (
         create_stochastic_transition_function(
             exogenous_states_transitions,
             model_config=model_config,
@@ -167,8 +167,8 @@ def process_model_functions(
         "compute_beginning_of_period_wealth": compute_beginning_of_period_wealth,
         "next_period_continuous_state": next_period_continuous_state,
         "sparsity_condition": sparsity_condition,
-        "compute_exog_transition_vec": compute_exog_transition_vec,
-        "processed_exog_funcs": processed_exog_funcs_dict,
+        "compute_exog_transition_vec": compute_stochastic_transition_vec,
+        "processed_exog_funcs": stochastic_transitions_dict,
         "state_specific_choice_set": state_specific_choice_set,
         "next_period_endogenous_state": next_period_endogenous_state,
         "compute_upper_envelope": compute_upper_envelope,

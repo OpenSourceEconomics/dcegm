@@ -12,7 +12,7 @@
 # from dcegm.pre_processing.check_options import check_options_and_set_defaults
 # from dcegm.pre_processing.model_functions import process_model_functions
 # from dcegm.pre_processing.model_structure.exogenous_processes import (
-#     create_exog_state_mapping,
+#     create_stochastic_states_mapping,
 # )
 # from dcegm.pre_processing.model_structure.model_structure import create_model_structure
 # from dcegm.pre_processing.setup_model import setup_model
@@ -162,7 +162,7 @@
 #     model_funcs = model["model_funcs"]
 #     model_structure = model["model_structure"]
 
-#     exog_state_mapping = create_exog_state_mapping(
+#     exog_state_mapping = create_stochastic_states_mapping(
 #         model_structure["exog_state_space"].astype(np.int16),
 #         model_structure["exog_states_names"],
 #     )
@@ -292,9 +292,9 @@ import numpy as np
 import pytest
 from numpy.testing import assert_almost_equal as aaae
 
-from dcegm.interfaces.interface import validate_exogenous_processes
-from dcegm.pre_processing.model_structure.exogenous_processes import (
-    create_exog_state_mapping,
+from dcegm.interfaces.interface import validate_stochastic_transition
+from dcegm.pre_processing.model_structure.stochastic_states import (
+    create_stochastic_state_mapping,
 )
 from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.toy_models.cons_ret_model_dcegm_paper import (
@@ -460,7 +460,7 @@ def test_exog_processes(
         "continuous_states": {
             "wealth": np.linspace(0, 50, 100),
         },
-        "exogenous_processes": {
+        "stochastic_states": {
             "health_mother": [0, 1, 2],
             "health_father": [0, 1, 2],
             "health_child": [0, 1],
@@ -468,7 +468,7 @@ def test_exog_processes(
         },
     }
 
-    exogenous_states_transition = {
+    stochastic_state_transitions = {
         "health_mother": prob_exog_health_mother,
         "health_father": prob_exog_health_father,
         "health_child": prob_exog_health_child,
@@ -482,12 +482,12 @@ def test_exog_processes(
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
         budget_constraint=budget_constraint,
-        exogenous_states_transition=exogenous_states_transition,
+        exogenous_states_transition=stochastic_state_transitions,
     )
     model_funcs = model["model_funcs"]
     model_structure = model["model_structure"]
 
-    exog_state_mapping = create_exog_state_mapping(
+    stochastic_state_mapping = create_stochastic_state_mapping(
         model_structure["exog_state_space"].astype(np.int16),
         model_structure["exog_states_names"],
     )
@@ -500,7 +500,7 @@ def test_exog_processes(
         invalid_model["model_funcs"]["processed_exog_funcs"]["health_mother"] = (
             lambda **kwargs: jnp.array([1, 3, 4])
         )
-        validate_exogenous_processes(invalid_model, params)
+        validate_stochastic_transition(invalid_model, params)
 
     with pytest.raises(
         ValueError, match="returns one or more negative transition probabilities"
@@ -508,7 +508,7 @@ def test_exog_processes(
         invalid_model["model_funcs"]["processed_exog_funcs"]["health_mother"] = (
             lambda **kwargs: jnp.array([0.7, -0.3, 0.6])
         )
-        validate_exogenous_processes(invalid_model, params)
+        validate_stochastic_transition(invalid_model, params)
 
     with pytest.raises(
         ValueError, match="returns one or more transition probabilities > 1"
@@ -516,7 +516,7 @@ def test_exog_processes(
         invalid_model["model_funcs"]["processed_exog_funcs"]["health_mother"] = (
             lambda **kwargs: jnp.array([0.7, 1.3, 0.6])
         )
-        validate_exogenous_processes(invalid_model, params)
+        validate_stochastic_transition(invalid_model, params)
 
     with pytest.raises(
         ValueError, match="does not return the correct number of transitions"
@@ -524,21 +524,21 @@ def test_exog_processes(
         invalid_model["model_funcs"]["processed_exog_funcs"]["health_mother"] = (
             lambda **kwargs: jnp.array([0.7, 0.3])
         )
-        validate_exogenous_processes(invalid_model, params)
+        validate_stochastic_transition(invalid_model, params)
 
     with pytest.raises(ValueError, match="transition probabilities do not sum to 1"):
         invalid_model["model_funcs"]["processed_exog_funcs"]["health_mother"] = (
             lambda **kwargs: jnp.array([0.6, 0.3, 0.2])
         )
-        validate_exogenous_processes(invalid_model, params)
+        validate_stochastic_transition(invalid_model, params)
 
     # Check if valid model passes
-    assert validate_exogenous_processes(model, params)
+    assert validate_stochastic_transition(model, params)
 
     # Check if mapping works
     mother_bad_health = np.where(model_structure["exog_state_space"][:, 0] == 2)[0]
-    for exog_state in mother_bad_health:
-        assert exog_state_mapping(exog_proc_state=exog_state)["health_mother"] == 2
+    for idx in mother_bad_health:
+        assert stochastic_state_mapping(state_idx=idx)["health_mother"] == 2
 
     # Now check probabilities
     state_choices_test = {
@@ -569,12 +569,13 @@ def test_exog_processes(
     )
 
     for exog_val, prob in enumerate(prob_vector):
-        child_prob_states = exog_state_mapping(exog_val)
+        child_prob_states = stochastic_state_mapping(exog_val)
         prob_mother = prob_mother_health[child_prob_states["health_mother"]]
         prob_father = prob_father_health[child_prob_states["health_father"]]
         prob_child = prob_child_health[child_prob_states["health_child"]]
         prob_grandma = prob_grandma_health[child_prob_states["health_grandma"]]
         prob_expec = prob_mother * prob_father * prob_child * prob_grandma
+
         aaae(prob, prob_expec)
 
 

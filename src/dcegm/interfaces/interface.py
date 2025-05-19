@@ -287,7 +287,7 @@ def get_state_choice_index_per_discrete_state_and_choice(model, state_choice_dic
     return state_choice_index
 
 
-def validate_exogenous_processes(model, params):
+def validate_stochastic_transition(model, params):
     """Validate the exogenous processes in the model.
 
     This function checks that transition probabilities for each exogenous
@@ -308,12 +308,12 @@ def validate_exogenous_processes(model, params):
     # Update to float64
     jax.config.update("jax_enable_x64", True)
 
-    processed_exog_funcs = model["model_funcs"]["processed_exog_funcs"]
+    transition_funcs_processed = model["model_funcs"]["processed_exog_funcs"]
     state_choice_space_dict = model["model_structure"]["state_choice_space_dict"]
 
-    for exog_name, exog_func in processed_exog_funcs.items():
+    for name, exog_func in transition_funcs_processed.items():
         # Sum transition probabilities for each state-choice combination
-        all_transitions = jax.vmap(exog_vec, in_axes=(0, None, None))(
+        all_transitions = jax.vmap(stochastic_transition_vec, in_axes=(0, None, None))(
             state_choice_space_dict, exog_func, params
         )
         summed_transitions = jnp.sum(all_transitions, axis=1)
@@ -321,14 +321,14 @@ def validate_exogenous_processes(model, params):
         # Check dtype
         if summed_transitions.dtype != jnp.float64:
             raise ValueError(
-                f"Exogenous process {exog_name} does not return float "
+                f"Stochastic state {name} does not return float "
                 f"transition probabilities. Got {summed_transitions.dtype}"
             )
 
         # Check non-negativity
         if not (all_transitions >= 0).all():
             raise ValueError(
-                f"Exogenous process {exog_name} returns one or more negative "
+                f"Stochastic state {name} returns one or more negative "
                 f"transition probabilities. An example state choice "
                 f"combination is \n\n{pd.Series(state_choice_space_dict).iloc[0]}"
                 f"\n\nwith transitions {all_transitions[0]}"
@@ -337,17 +337,17 @@ def validate_exogenous_processes(model, params):
         # Check <= 1
         if not (all_transitions <= 1).all():
             raise ValueError(
-                f"Exogenous process {exog_name} returns one or more transition "
+                f"Stochastic state {name} returns one or more transition "
                 f"probabilities > 1. An example state choice combination is "
                 f"\n\n{pd.Series(state_choice_space_dict).iloc[0]}"
                 f"\n\nwith transitions {all_transitions[0]}"
             )
 
         # Check the number of transitions
-        n_states = len(model["model_config"]["exogenous_processes"][exog_name])
+        n_states = len(model["model_config"]["stochastic_states"][name])
         if all_transitions.shape[1] != n_states:
             raise ValueError(
-                f"Exogenous process {exog_name} does not return the correct "
+                f"Stochastic state {name} does not return the correct "
                 f"number of transitions. Expected {n_states}, got "
                 f"{all_transitions.shape[1]}."
             )
@@ -363,7 +363,7 @@ def validate_exogenous_processes(model, params):
                 for key, value in state_choice_space_dict.items()
             }
             raise ValueError(
-                f"Exogenous process {exog_name} transition probabilities "
+                f"Stochastic state {name} transition probabilities "
                 f"do not sum to 1. An example state choice combination is "
                 f"\n\n{pd.Series(example_state_choice)}"
                 f"\n\nwith summed transitions {summed_transitions[not_true]}"
@@ -373,17 +373,17 @@ def validate_exogenous_processes(model, params):
     return True
 
 
-def exog_vec(state_choice_vec_dict, exog_func, params):
+def stochastic_transition_vec(state_choice_vec_dict, func, params):
     """
     Evaluate the exogenous function for a given state-choice vector and params.
 
     Args:
         state_choice_vec_dict (dict): Dictionary containing state-choice values.
-        exog_func (Callable): Exogenous process function to be evaluated.
+        func (Callable): Stochastic state transition function to be evaluated.
         params (dict): Dictionary of model parameters.
 
     Returns:
         jnp.ndarray or float: The exogenous process outcomes for the given
         state-choice combination and parameters.
     """
-    return exog_func(**state_choice_vec_dict, params=params)
+    return func(**state_choice_vec_dict, params=params)

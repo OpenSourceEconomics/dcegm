@@ -9,11 +9,11 @@ from dcegm.pre_processing.model_functions.process_model_functions import (
     process_model_functions,
     process_sparsity_condition,
 )
-from dcegm.pre_processing.model_structure.exogenous_processes import (
-    create_exog_state_mapping,
-)
 from dcegm.pre_processing.model_structure.model_structure import create_model_structure
 from dcegm.pre_processing.model_structure.state_space import create_state_space
+from dcegm.pre_processing.model_structure.stochastic_states import (
+    create_stochastic_state_mapping,
+)
 from dcegm.pre_processing.shared import create_array_with_smallest_int_dtype
 
 
@@ -81,7 +81,7 @@ def create_model_dict(
         model_funcs=model_funcs,
     )
 
-    model_funcs["exog_state_mapping"] = create_exog_state_mapping(
+    model_funcs["exog_state_mapping"] = create_stochastic_state_mapping(
         model_structure["exog_state_space"],
         model_structure["exog_states_names"],
     )
@@ -174,7 +174,7 @@ def load_and_setup_model(
         shock_functions=shock_functions,
     )
 
-    model["model_funcs"]["exog_state_mapping"] = create_exog_state_mapping(
+    model["model_funcs"]["exog_state_mapping"] = create_stochastic_state_mapping(
         exog_state_space=model["model_structure"]["exog_state_space"],
         exog_names=model["model_structure"]["exog_states_names"],
     )

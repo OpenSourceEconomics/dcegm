@@ -31,7 +31,7 @@ def create_stochastic_transition_function(
         )
 
         compute_stochastic_transition_vec = partial(
-            get_stochastic_transition_vec, stochastic_funcs=func_list
+            get_stochastic_transition_vec, transition_funcs=func_list
         )
 
     return compute_stochastic_transition_vec, func_dict
@@ -71,11 +71,9 @@ def get_stochastic_transition_vec(transition_funcs, params, **state_choice_vars)
     """Return Kron product of stochastic transition functions."""
     trans_vector = transition_funcs[0](**state_choice_vars, params=params)
 
-    for exog_func in transition_funcs[1:]:
+    for func in transition_funcs[1:]:
         # options already partialled in
-        trans_vector = jnp.kron(
-            trans_vector, exog_func(**state_choice_vars, params=params)
-        )
+        trans_vector = jnp.kron(trans_vector, func(**state_choice_vars, params=params))
 
     return trans_vector
 
@@ -84,9 +82,9 @@ def return_dummy_stochastic_transition(*args, **kwargs):
     return jnp.array([1])
 
 
-def create_stochastic_states_mapping(state_space, names):
-    def stochastic_states_mapping(state_idx):
-        # Caution: JAX does not throw an error if the exog_proc_state is out of bounds
+def create_stochastic_state_mapping(state_space, names):
+    def stochastic_state_mapping(state_idx):
+        # Caution: JAX does not throw an error if the state_idx is out of bounds
         # If the index is out of bounds, the last element of the array is returned.
         stochastic_state = jnp.take(state_space, state_idx, axis=0)
         stochastic_states_dict = {
@@ -94,7 +92,7 @@ def create_stochastic_states_mapping(state_space, names):
         }
         return stochastic_states_dict
 
-    return stochastic_states_mapping
+    return stochastic_state_mapping
 
 
 def process_stochastic_model_specifications(model_config):

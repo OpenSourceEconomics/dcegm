@@ -30,14 +30,14 @@ def inputs():
             "wealth": jnp.arange(0, 100, 5, dtype=float),
             "experience": jnp.linspace(0, 1, 7, dtype=float),
         },
-        "exogenous_processes": {
+        "stochastic_states": {
             "job_offer": [0, 1],
             "survival": [0, 1],
         },
         "n_quad_points": 5,
     }
 
-    exogenous_states_transition = {
+    stochastic_state_transitions = {
         "job_offer": job_offer,
         "survival": prob_survival,
     }
@@ -70,7 +70,7 @@ def inputs():
         utility_functions_final_period=create_final_period_utility_function_dict(),
         state_space_functions=create_state_space_functions(),
         budget_constraint=budget_constraint_exp,
-        exogenous_states_transition=exogenous_states_transition,
+        exogenous_states_transition=stochastic_state_transitions,
         debug_info="all",
     )
     solve_func = get_solve_func_for_model(model)
