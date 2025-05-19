@@ -40,7 +40,7 @@ def model_configs():
     model_config_sol = {
         "n_periods": 5,
         "choices": np.arange(2),
-        "endogenous_states": {
+        "deterministic_states": {
             "married": np.arange(2, dtype=int),
         },
         "continuous_states": {
@@ -52,7 +52,7 @@ def model_configs():
     model_config_sim = {
         "n_periods": 5,
         "choices": np.arange(2),
-        "exogenous_processes": {"married": np.arange(2, dtype=int)},
+        "stochastic_states": {"married": np.arange(2, dtype=int)},
         "continuous_states": {
             "wealth": np.arange(0, 100, 5, dtype=float),
         },

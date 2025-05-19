@@ -26,7 +26,7 @@ def example_model_config():
     model_config = {
         "n_periods": n_periods,
         "choices": np.arange(n_choices),
-        "endogenous_states": {
+        "deterministic_states": {
             "experience": np.arange(n_periods + max_init_experience),
         },
         "continuous_states": {"wealth": jnp.linspace(0, 50, 100)},

@@ -168,7 +168,9 @@ def check_model_config_and_process(model_config):
     if "stochastic_states" in model_config.keys():
         processed_model_config["stochastic_states"] = model_config["stochastic_states"]
 
-    if "endogenous_states" in model_config.keys():
-        processed_model_config["endogenous_states"] = model_config["endogenous_states"]
+    if "deterministic_states" in model_config.keys():
+        processed_model_config["deterministic_states"] = model_config[
+            "deterministic_states"
+        ]
 
     return processed_model_config

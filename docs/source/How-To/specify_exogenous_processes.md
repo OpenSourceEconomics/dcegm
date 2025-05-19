@@ -34,7 +34,7 @@ Each exogenous process should be defined in the `state_space` section of the mod
 ```python
 options = {
     "state_space": {
-        "exogenous_processes": {
+        "stochastic_states": {
             "health_mother": {
                 "transition": prob_exog_health_mother,
                 "states": [0, 1, 2],
@@ -53,9 +53,9 @@ options = {
 To ensure correctness, the validation function can be used as implemented in the ```dcegm``` module:
 
 ```python
-from dcegm.interfaces.interface import validate_exogenous_processes
+from dcegm.interfaces.interface import validate_stochastic_states
 
-validate_exogenous_processes(model, params)
+validate_stochastic_states(model, params)
 ```
 
 This function checks for compliance with probability constraints and verifies that transition matrices align with the model's state space. Possible errors and their respective messages include:

@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 
-from dcegm.pre_processing.model_structure.endogenous_states import (
+from dcegm.pre_processing.model_structure.deterministic_states import (
     process_endog_state_specifications,
 )
 from dcegm.pre_processing.model_structure.shared import create_indexer_for_space

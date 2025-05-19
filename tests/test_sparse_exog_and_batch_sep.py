@@ -78,10 +78,10 @@ def test_benchmark_models(load_replication_params_and_specs):
     options["state_space"] = {
         "n_periods": 25,
         "choices": np.arange(2, dtype=int),
-        "endogenous_states": {
+        "deterministic_states": {
             "education": np.arange(2, dtype=int),
         },
-        "exogenous_processes": {
+        "stochastic_states": {
             "health": {
                 "states": np.arange(2, dtype=int),
                 "transition": health_transition,

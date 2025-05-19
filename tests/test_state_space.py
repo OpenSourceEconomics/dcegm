@@ -29,14 +29,14 @@ def specs_and_config():
         {
             "n_periods": 25,
             "choices": np.arange(2),
-            "endogenous_states": {
+            "deterministic_states": {
                 "thus": np.arange(25),
                 "that": [0, 1],
             },
             "continuous_states": {
                 "wealth": np.linspace(0, 50, 100),
             },
-            "exogenous_processes": {"ltc": jnp.array([0])},
+            "stochastic_states": {"ltc": jnp.array([0])},
         }
     )
 
@@ -209,7 +209,7 @@ def test_state_space():
     model_config_sparse = {
         "n_periods": n_periods,  # 25 + 50 = 75
         "choices": np.arange(3, dtype=np.int64),
-        "endogenous_states": {
+        "deterministic_states": {
             "experience": np.arange(n_periods, dtype=int),
             "policy_state": np.arange(36, dtype=int),
             "retirement_age_id": np.arange(10, dtype=int),

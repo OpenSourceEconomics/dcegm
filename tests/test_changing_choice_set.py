@@ -112,13 +112,13 @@ def test_model():
     model_config = {
         "n_periods": 5,
         "choices": np.arange(3),
-        "endogenous_states": {
+        "deterministic_states": {
             "experience": np.arange(5),
         },
         "continuous_states": {
             "wealth": np.linspace(0, 500, 100),
         },
-        "exogenous_processes": {
+        "stochastic_states": {
             "health": [0, 1],
             "partner": [0, 1],
         },

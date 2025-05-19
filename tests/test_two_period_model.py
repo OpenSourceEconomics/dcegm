@@ -134,7 +134,7 @@ def test_two_period(
         model_structure["map_state_choice_to_parent_state"] == state_idx
     )[0]
 
-    if len(options["state_space"]["exogenous_processes"]) == 2:
+    if len(options["state_space"]["stochastic_states"]) == 2:
         initial_conditions = {}
         initial_conditions["bad_health"] = state_space_dict["ltc"][state_idx] == 1
         initial_conditions["job_offer"] = 1

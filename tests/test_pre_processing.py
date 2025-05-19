@@ -56,14 +56,14 @@ def test_wrap_function(load_replication_params_and_specs):
             "state_space": {
                 "n_periods": 25,
                 "choices": np.arange(2),
-                "endogenous_states": {
+                "deterministic_states": {
                     "thus": np.arange(25),
                     "that": [0, 1],
                 },
                 "continuous_states": {
                     "wealth": np.linspace(0, 500, 100),
                 },
-                "exogenous_processes": {
+                "stochastic_states": {
                     "ltc": {"states": np.array([0]), "transition": jnp.array([0])}
                 },
             },
@@ -231,7 +231,7 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
         "n_quad_points": 5,
         "choices": np.arange(3),
         # discrete states
-        "endogenous_states": {
+        "deterministic_states": {
             "married": [0, 1],
             "n_children": np.arange(3),
         },

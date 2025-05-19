@@ -23,7 +23,7 @@ def inputs():
         "min_period_batch_segments": [5, 12],
         "n_periods": n_periods,
         "choices": np.arange(n_choices, dtype=int),
-        "endogenous_states": {
+        "deterministic_states": {
             "already_retired": np.arange(2, dtype=int),
         },
         "continuous_states": {

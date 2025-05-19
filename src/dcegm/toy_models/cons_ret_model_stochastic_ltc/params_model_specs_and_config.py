@@ -28,7 +28,7 @@ def example_model_config():
     model_config = {
         "n_periods": 2,
         "choices": [0, 1],
-        "endogenous_states": {
+        "deterministic_states": {
             "married": [0, 1],
         },
         "continuous_states": {
