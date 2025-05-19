@@ -37,8 +37,8 @@ def example_model_config():
             "married": [0, 1],
         },
         "stochastic_states": {
-            "ltc": {"transition": prob_exog_ltc, "states": [0, 1]},
-            "job_offer": {"transition": prob_exog_job_offer, "states": [0, 1]},
+            "ltc": [0, 1],
+            "job_offer": [0, 1],
         },
         "n_quad_points": 5,
     }

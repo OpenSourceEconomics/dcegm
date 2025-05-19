@@ -40,7 +40,7 @@ def load_example_model_functions(model_name):
             "state_space_functions": crm_paper.create_state_space_function_dict(),
             "utility_functions_final_period": crm_paper.create_final_period_utility_function_dict(),
             "budget_constraint": crm_exog_ltc.budget_equation_with_ltc,
-            "exogenous_states_transition": crm_exog_ltc.create_exogenous_states_transition(),
+            "exogenous_states_transition": crm_exog_ltc.create_stochastic_states_transition(),
         }
     elif model_name == "with_exog_ltc_and_job_offer":
         model_functions = {
@@ -48,7 +48,7 @@ def load_example_model_functions(model_name):
             "state_space_functions": crm_paper.create_state_space_function_dict(),
             "utility_functions_final_period": crm_paper.create_final_period_utility_function_dict(),
             "budget_constraint": crm_exog_ltc.budget_equation_with_ltc,
-            "exogenous_states_transition": crm_exog_ltc_and_job_offer.create_exogenous_states_transition(),
+            "exogenous_states_transition": crm_exog_ltc_and_job_offer.create_stochastic_states_transition(),
         }
     else:
         raise ValueError(f"Model {model_name} not recognized.")

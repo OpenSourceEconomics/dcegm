@@ -27,6 +27,7 @@ class setup_model:
         exogenous_states_transition: Dict[str, Callable] = None,
         shock_functions: Dict[str, Callable] = None,
         alternative_sim_specifications: Dict[str, Callable] = None,
+        debug_info: str = None,
     ):
         model_dict = create_model_dict(
             model_config=model_config,
@@ -37,6 +38,7 @@ class setup_model:
             state_space_functions=state_space_functions,
             exogenous_states_transition=exogenous_states_transition,
             shock_functions=shock_functions,
+            debug_info=debug_info,
         )
 
         self.model_config = model_dict["model_config"]
@@ -106,7 +108,6 @@ class setup_model:
         params,
         states_initial,
         wealth_initial,
-        n_periods,
         seed,
     ):
         """
@@ -130,7 +131,7 @@ class setup_model:
         sim_dict = simulate_all_periods(
             states_initial=states_initial,
             wealth_initial=wealth_initial,
-            n_periods=n_periods,
+            n_periods=self.model_config["n_periods"],
             params=params,
             seed=seed,
             endog_grid_solved=endog_grid,
@@ -144,3 +145,48 @@ class setup_model:
 
         sim_df = create_simulation_df(sim_dict)
         return sim_df
+
+    def get_solve_and_simulate_func(
+        self,
+        states_initial,
+        wealth_initial,
+        seed,
+    ):
+
+        sim_func = lambda params, value, policy, endog_gid: simulate_all_periods(
+            states_initial=states_initial,
+            wealth_initial=wealth_initial,
+            n_periods=self.model_config["n_periods"],
+            params=params,
+            seed=seed,
+            endog_grid_solved=endog_gid,
+            policy_solved=policy,
+            value_solved=value,
+            model_config=self.model_config,
+            model_structure=self.model_structure,
+            model_funcs=self.model_funcs,
+            alt_model_funcs_sim=self.alternative_sim_funcs,
+        )
+
+        def solve_and_simulate_function_to_jit(params):
+            params_processed = process_params(params)
+            # Solve the model
+            value, policy, endog_grid = self.backward_induction_jit(params_processed)
+
+            sim_dict = sim_func(
+                params=params_processed,
+                value=value,
+                policy=policy,
+                endog_gid=endog_grid,
+            )
+
+            return sim_dict
+
+        jit_solve_simulate = jax.jit(solve_and_simulate_function_to_jit)
+
+        def solve_and_simulate_function(params):
+            sim_dict = jit_solve_simulate(params)
+            df = create_simulation_df(sim_dict)
+            return df
+
+        return solve_and_simulate_function
