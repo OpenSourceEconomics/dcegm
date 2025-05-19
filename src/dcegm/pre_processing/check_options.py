@@ -57,13 +57,13 @@ def check_model_config_and_process(model_config):
 
     if "assets_end_of_period" not in continuous_states_grids:
         raise ValueError(
-            "model_config['continuous_states'] must contain wealth as key."
+            "model_config['assets_end_of_period'] must contain wealth as key."
         )
     # Check if it is an array
     asset_grid = continuous_states_grids["assets_end_of_period"]
     if not isinstance(asset_grid, (list, np.ndarray, jnp.ndarray)):
         raise ValueError(
-            "model_config['continuous_states']['wealth'] must be a list or an array."
+            "model_config['continuous_states']['assets_end_of_period'] must be a list or an array."
         )
 
     # ToDo: Check if it is monotonic increasing

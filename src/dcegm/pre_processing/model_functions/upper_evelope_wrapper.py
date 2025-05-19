@@ -15,7 +15,7 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                 endog_grid,
                 policy,
                 value,
-                expected_value_zero_savings,
+                expected_value_zero_assets,
                 second_continuous_state,
                 state_choice_dict,
                 utility_function,
@@ -23,7 +23,7 @@ def create_upper_envelope_function(model_config, continuous_state=None):
             ):
                 value_kwargs = {
                     "second_continuous_state": second_continuous_state,
-                    "expected_value_zero_savings": expected_value_zero_savings,
+                    "expected_value_zero_savings": expected_value_zero_assets,
                     "params": params,
                     **state_choice_dict,
                 }
@@ -31,7 +31,7 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                 def value_function(
                     consumption,
                     second_continuous_state,
-                    expected_value_zero_savings,
+                    expected_value_zero_assets,
                     params,
                     **state_choice_dict,
                 ):
@@ -42,14 +42,14 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                             params=params,
                             **state_choice_dict,
                         )
-                        + params["beta"] * expected_value_zero_savings
+                        + params["beta"] * expected_value_zero_assets
                     )
 
                 return fues_jax(
                     endog_grid=endog_grid,
                     policy=policy,
                     value=value,
-                    expected_value_zero_savings=expected_value_zero_savings,
+                    expected_value_zero_savings=expected_value_zero_assets,
                     value_function=value_function,
                     value_function_kwargs=value_kwargs,
                     n_constrained_points_to_add=tuning_params[
@@ -66,13 +66,13 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                 endog_grid,
                 policy,
                 value,
-                expected_value_zero_savings,
+                expected_value_zero_assets,
                 state_choice_dict,
                 utility_function,
                 params,
             ):
                 value_kwargs = {
-                    "expected_value_zero_savings": expected_value_zero_savings,
+                    "expected_value_zero_savings": expected_value_zero_assets,
                     "params": params,
                     **state_choice_dict,
                 }
@@ -87,14 +87,14 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                         utility_function(
                             consumption=consumption, params=params, **state_choice_dict
                         )
-                        + params["beta"] * expected_value_zero_savings
+                        + params["beta"] * expected_value_zero_assets
                     )
 
                 return fues_jax(
                     endog_grid=endog_grid,
                     policy=policy,
                     value=value,
-                    expected_value_zero_savings=expected_value_zero_savings,
+                    expected_value_zero_savings=expected_value_zero_assets,
                     value_function=value_function,
                     value_function_kwargs=value_kwargs,
                     n_constrained_points_to_add=tuning_params[

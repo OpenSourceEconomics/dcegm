@@ -5,7 +5,7 @@ def budget_constraint_exp(
     lagged_choice,
     experience,
     already_retired,
-    assets_end_of_previous_period,
+    asset_end_of_previous_period,
     income_shock_previous_period,
     params,
     model_specs,
@@ -33,7 +33,7 @@ def budget_constraint_exp(
         + income_from_previous_period
         * replacement_rate
         * retired  # 0.48 is the replacement rate
-        + (1 + params["interest_rate"]) * assets_end_of_previous_period
+        + (1 + params["interest_rate"]) * asset_end_of_previous_period
     )
 
     # Retirement safety net, only in retirement model, but we require to have it always

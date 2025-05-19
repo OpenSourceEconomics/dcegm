@@ -54,7 +54,9 @@ def interpolate_value_and_marg_util(
             income shock.
 
     """
-    wealth_child_states = cont_grids_next_period["wealth"][child_state_idxs]
+    wealth_child_states = cont_grids_next_period["assets_begin_of_period"][
+        child_state_idxs
+    ]
 
     if continuous_grids_info["second_continuous_exists"]:
         continuous_state_child_states = cont_grids_next_period["second_continuous"][
