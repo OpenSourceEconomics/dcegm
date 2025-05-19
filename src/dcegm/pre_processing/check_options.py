@@ -1,5 +1,6 @@
 import jax.numpy as jnp
 import numpy as np
+from typing_extensions import assert_type
 
 
 def check_model_config_and_process(model_config):
@@ -54,23 +55,24 @@ def check_model_config_and_process(model_config):
     if not isinstance(continuous_states_grids, dict):
         raise ValueError("model_config['continuous_states'] must be a dictionary.")
 
-    if "wealth" not in continuous_states_grids:
+    if "assets_end_of_period" not in continuous_states_grids:
         raise ValueError(
-            "model_config['continuous_states'] must contain wealth as key."
+            "model_config['assets_end_of_period'] must contain wealth as key."
         )
     # Check if it is an array
-    wealth_grid = continuous_states_grids["wealth"]
-    if not isinstance(wealth_grid, (list, np.ndarray, jnp.ndarray)):
+    asset_grid = continuous_states_grids["assets_end_of_period"]
+    if not isinstance(asset_grid, (list, np.ndarray, jnp.ndarray)):
         raise ValueError(
-            "model_config['continuous_states']['wealth'] must be a list or an array."
+            "model_config['continuous_states']['assets_end_of_period'] must be a list or an array."
         )
 
     # ToDo: Check if it is monotonic increasing
 
     continuous_states_info = {}
-    n_savings_grid_points = len(wealth_grid)
-    continuous_states_info["n_savings_grid"] = n_savings_grid_points
-    continuous_states_info["savings_grid"] = continuous_states_grids["wealth"]
+    n_assets_end_of_period = len(asset_grid)
+    continuous_states_info["assets_grid_end_of_period"] = continuous_states_grids[
+        "assets_end_of_period"
+    ]
 
     if len(continuous_states_grids) > 2:
         raise ValueError("At most two continuous states are supported.")
@@ -80,7 +82,7 @@ def check_model_config_and_process(model_config):
             (
                 {key: value}
                 for key, value in model_config["continuous_states"].items()
-                if key != "wealth"
+                if key != "assets_end_of_period"
             ),
             None,
         )
@@ -110,8 +112,6 @@ def check_model_config_and_process(model_config):
 
     processed_model_config["continuous_states_info"] = continuous_states_info
 
-    # if "exogenous_states" not in model_config:
-
     if "tuning_params" not in model_config:
         tuning_params = {}
     else:
@@ -125,12 +125,12 @@ def check_model_config_and_process(model_config):
     tuning_params["n_constrained_points_to_add"] = (
         tuning_params["n_constrained_points_to_add"]
         if "n_constrained_points_to_add" in tuning_params
-        else n_savings_grid_points // 10
+        else n_assets_end_of_period // 10
     )
 
     if (
-        n_savings_grid_points * (1 + tuning_params["extra_wealth_grid_factor"])
-        < n_savings_grid_points + tuning_params["n_constrained_points_to_add"]
+        n_assets_end_of_period * (1 + tuning_params["extra_wealth_grid_factor"])
+        < n_assets_end_of_period + tuning_params["n_constrained_points_to_add"]
     ):
         raise ValueError(
             f"""\n\n
@@ -141,7 +141,7 @@ def check_model_config_and_process(model_config):
             the credit constrained part of the wealth grid. \n\n"""
         )
     tuning_params["n_total_wealth_grid"] = int(
-        n_savings_grid_points * (1 + tuning_params["extra_wealth_grid_factor"])
+        n_assets_end_of_period * (1 + tuning_params["extra_wealth_grid_factor"])
     )
 
     # Set jump threshold to default 2 if it is not given
@@ -167,12 +167,12 @@ def check_model_config_and_process(model_config):
     else:
         processed_model_config["min_period_batch_segments"] = None
 
-    if "exogenous_processes" in model_config.keys():
-        processed_model_config["exogenous_processes"] = model_config[
-            "exogenous_processes"
-        ]
+    if "stochastic_states" in model_config.keys():
+        processed_model_config["stochastic_states"] = model_config["stochastic_states"]
 
-    if "endogenous_states" in model_config.keys():
-        processed_model_config["endogenous_states"] = model_config["endogenous_states"]
+    if "deterministic_states" in model_config.keys():
+        processed_model_config["deterministic_states"] = model_config[
+            "deterministic_states"
+        ]
 
     return processed_model_config

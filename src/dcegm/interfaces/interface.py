@@ -70,11 +70,11 @@ def policy_and_value_for_state_choice_vec(
     map_state_choice_to_index = model_structure["map_state_choice_to_index_with_proxy"]
     discrete_states_names = model_structure["discrete_states_names"]
 
-    if "dummy_exog" in discrete_states_names:
+    if "dummy_stochastic" in discrete_states_names:
         state_choice_vec = {
             **states,
             "choice": choice,
-            "dummy_exog": 0,
+            "dummy_stochastic": 0,
         }
 
     else:
@@ -103,14 +103,14 @@ def policy_and_value_for_state_choice_vec(
             value_grid=jnp.take(value_solved, state_choice_index, axis=0),
             policy_grid=jnp.take(policy_solved, state_choice_index, axis=0),
             regular_point_to_interp=second_continuous,
-            wealth_point_to_interp=state_choice_vec["wealth"],
+            wealth_point_to_interp=state_choice_vec["assets_begin_of_period"],
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
         )
     else:
         policy, value = interp1d_policy_and_value_on_wealth(
-            wealth=state_choice_vec["wealth"],
+            wealth=state_choice_vec["assets_begin_of_period"],
             endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
             policy=jnp.take(policy_solved, state_choice_index, axis=0),
             value=jnp.take(value_solved, state_choice_index, axis=0),
@@ -123,13 +123,14 @@ def policy_and_value_for_state_choice_vec(
 
 
 def value_for_state_choice_vec(
+    states,
+    choice,
+    params,
     endog_grid_solved,
     value_solved,
-    params,
-    model,
-    state_choice_vec,
-    wealth,
-    second_continuous=None,
+    model_config,
+    model_structure,
+    model_funcs,
 ):
     """
     Get the value function for a given state and choice vector.
@@ -149,39 +150,58 @@ def value_for_state_choice_vec(
         float: The value at the given state and choice.
 
     """
-    map_state_choice_to_index = model["model_structure"][
-        "map_state_choice_to_index_with_proxy"
-    ]
-    discrete_states_names = model["model_structure"]["discrete_states_names"]
-    compute_utility = model["model_funcs"]["compute_utility"]
+    map_state_choice_to_index = model_structure["map_state_choice_to_index_with_proxy"]
+    discrete_states_names = model_structure["discrete_states_names"]
+
+    if "dummy_stochastic" in discrete_states_names:
+        state_choice_vec = {
+            **states,
+            "choice": choice,
+            "dummy_stochastic": 0,
+        }
+
+    else:
+        state_choice_vec = {
+            **states,
+            "choice": choice,
+        }
 
     state_choice_tuple = tuple(
         state_choice_vec[st] for st in discrete_states_names + ["choice"]
     )
     state_choice_index = map_state_choice_to_index[state_choice_tuple]
+    continuous_states_info = model_config["continuous_states_info"]
 
-    if second_continuous is None:
+    compute_utility = model_funcs["compute_utility"]
+
+    if continuous_states_info["second_continuous_exists"]:
+        second_continuous = state_choice_vec[
+            continuous_states_info["second_continuous_state_name"]
+        ]
+
+        value = interp2d_value_on_wealth_and_regular_grid(
+            regular_grid=model_config["continuous_states_info"][
+                "second_continuous_grid"
+            ],
+            wealth_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
+            value_grid=jnp.take(value_solved, state_choice_index, axis=0),
+            regular_point_to_interp=second_continuous,
+            wealth_point_to_interp=state_choice_vec["wealth"],
+            compute_utility=compute_utility,
+            state_choice_vec=state_choice_vec,
+            params=params,
+        )
+    else:
+
         value = interp_value_on_wealth(
-            wealth=wealth,
+            wealth=state_choice_vec["wealth"],
             endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
             value=jnp.take(value_solved, state_choice_index, axis=0),
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
         )
-    else:
-        value = interp2d_value_on_wealth_and_regular_grid(
-            regular_grid=model["model_config"]["continuous_states_info"][
-                "second_continuous_grid"
-            ],
-            wealth_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
-            value_grid=jnp.take(value_solved, state_choice_index, axis=0),
-            regular_point_to_interp=second_continuous,
-            wealth_point_to_interp=wealth,
-            compute_utility=compute_utility,
-            state_choice_vec=state_choice_vec,
-            params=params,
-        )
+
     return value
 
 
@@ -287,7 +307,7 @@ def get_state_choice_index_per_discrete_state_and_choice(model, state_choice_dic
     return state_choice_index
 
 
-def validate_exogenous_processes(model, params):
+def validate_stochastic_transition(model, params):
     """Validate the exogenous processes in the model.
 
     This function checks that transition probabilities for each exogenous
@@ -296,7 +316,7 @@ def validate_exogenous_processes(model, params):
 
     Args:
         model (dict): A dictionary representing the model. Must contain
-            'model_funcs' with 'processed_exog_funcs', 'model_structure'
+            'model_funcs' with 'processed_stochastic_funcs', 'model_structure'
             with 'state_choice_space_dict', and relevant 'options' keys.
         params (dict): Dictionary containing the model parameters.
 
@@ -308,27 +328,27 @@ def validate_exogenous_processes(model, params):
     # Update to float64
     jax.config.update("jax_enable_x64", True)
 
-    processed_exog_funcs = model["model_funcs"]["processed_exog_funcs"]
+    transition_funcs_processed = model["model_funcs"]["processed_stochastic_funcs"]
     state_choice_space_dict = model["model_structure"]["state_choice_space_dict"]
 
-    for exog_name, exog_func in processed_exog_funcs.items():
+    for name, func in transition_funcs_processed.items():
         # Sum transition probabilities for each state-choice combination
-        all_transitions = jax.vmap(exog_vec, in_axes=(0, None, None))(
-            state_choice_space_dict, exog_func, params
+        all_transitions = jax.vmap(stochastic_transition_vec, in_axes=(0, None, None))(
+            state_choice_space_dict, func, params
         )
         summed_transitions = jnp.sum(all_transitions, axis=1)
 
         # Check dtype
         if summed_transitions.dtype != jnp.float64:
             raise ValueError(
-                f"Exogenous process {exog_name} does not return float "
+                f"Stochastic state {name} does not return float "
                 f"transition probabilities. Got {summed_transitions.dtype}"
             )
 
         # Check non-negativity
         if not (all_transitions >= 0).all():
             raise ValueError(
-                f"Exogenous process {exog_name} returns one or more negative "
+                f"Stochastic state {name} returns one or more negative "
                 f"transition probabilities. An example state choice "
                 f"combination is \n\n{pd.Series(state_choice_space_dict).iloc[0]}"
                 f"\n\nwith transitions {all_transitions[0]}"
@@ -337,17 +357,17 @@ def validate_exogenous_processes(model, params):
         # Check <= 1
         if not (all_transitions <= 1).all():
             raise ValueError(
-                f"Exogenous process {exog_name} returns one or more transition "
+                f"Stochastic state {name} returns one or more transition "
                 f"probabilities > 1. An example state choice combination is "
                 f"\n\n{pd.Series(state_choice_space_dict).iloc[0]}"
                 f"\n\nwith transitions {all_transitions[0]}"
             )
 
         # Check the number of transitions
-        n_states = len(model["model_config"]["exogenous_processes"][exog_name])
+        n_states = len(model["model_config"]["stochastic_states"][name])
         if all_transitions.shape[1] != n_states:
             raise ValueError(
-                f"Exogenous process {exog_name} does not return the correct "
+                f"Stochastic state {name} does not return the correct "
                 f"number of transitions. Expected {n_states}, got "
                 f"{all_transitions.shape[1]}."
             )
@@ -363,7 +383,7 @@ def validate_exogenous_processes(model, params):
                 for key, value in state_choice_space_dict.items()
             }
             raise ValueError(
-                f"Exogenous process {exog_name} transition probabilities "
+                f"Stochastic state {name} transition probabilities "
                 f"do not sum to 1. An example state choice combination is "
                 f"\n\n{pd.Series(example_state_choice)}"
                 f"\n\nwith summed transitions {summed_transitions[not_true]}"
@@ -373,17 +393,17 @@ def validate_exogenous_processes(model, params):
     return True
 
 
-def exog_vec(state_choice_vec_dict, exog_func, params):
+def stochastic_transition_vec(state_choice_vec_dict, func, params):
     """
     Evaluate the exogenous function for a given state-choice vector and params.
 
     Args:
         state_choice_vec_dict (dict): Dictionary containing state-choice values.
-        exog_func (Callable): Exogenous process function to be evaluated.
+        func (Callable): Stochastic state transition function to be evaluated.
         params (dict): Dictionary of model parameters.
 
     Returns:
         jnp.ndarray or float: The exogenous process outcomes for the given
         state-choice combination and parameters.
     """
-    return exog_func(**state_choice_vec_dict, params=params)
+    return func(**state_choice_vec_dict, params=params)

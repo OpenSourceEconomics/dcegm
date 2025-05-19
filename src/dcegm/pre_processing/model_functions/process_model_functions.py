@@ -8,8 +8,8 @@ from dcegm.pre_processing.model_functions.taste_shock_function import (
 from dcegm.pre_processing.model_functions.upper_evelope_wrapper import (
     create_upper_envelope_function,
 )
-from dcegm.pre_processing.model_structure.exogenous_processes import (
-    create_exog_transition_function,
+from dcegm.pre_processing.model_structure.stochastic_states import (
+    create_stochastic_transition_function,
 )
 from dcegm.pre_processing.shared import (
     determine_function_arguments_and_partial_model_specs,
@@ -23,7 +23,7 @@ def process_model_functions(
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
-    exogenous_states_transitions: Optional[Dict[str, Callable]] = None,
+    stochastic_states_transitions: Optional[Dict[str, Callable]] = None,
     shock_functions: Optional[Dict[str, Callable]] = None,
 ):
     """Create wrapped functions from user supplied functions.
@@ -117,9 +117,9 @@ def process_model_functions(
     }
 
     # Now exogenous transition function if present
-    compute_exog_transition_vec, processed_exog_funcs_dict = (
-        create_exog_transition_function(
-            exogenous_states_transitions,
+    compute_stochastic_transition_vec, stochastic_transitions_dict = (
+        create_stochastic_transition_function(
+            stochastic_states_transitions,
             model_config=model_config,
             model_specs=model_specs,
             continuous_state_name=second_continuous_state_name,
@@ -127,7 +127,7 @@ def process_model_functions(
     )
 
     # Now state space functions
-    state_specific_choice_set, next_period_endogenous_state, sparsity_condition = (
+    state_specific_choice_set, next_period_deterministic_state, sparsity_condition = (
         process_state_space_functions(
             state_space_functions,
             model_config=model_config,
@@ -141,7 +141,7 @@ def process_model_functions(
     )
 
     # Budget equation
-    compute_beginning_of_period_wealth = (
+    compute_assets_begin_of_period = (
         determine_function_arguments_and_partial_model_specs(
             func=budget_constraint,
             continuous_state_name=second_continuous_state_name,
@@ -164,13 +164,13 @@ def process_model_functions(
     model_funcs = {
         **utility_functions_processed,
         **utility_functions_final_period_processed,
-        "compute_beginning_of_period_wealth": compute_beginning_of_period_wealth,
+        "compute_assets_begin_of_period": compute_assets_begin_of_period,
         "next_period_continuous_state": next_period_continuous_state,
         "sparsity_condition": sparsity_condition,
-        "compute_exog_transition_vec": compute_exog_transition_vec,
-        "processed_exog_funcs": processed_exog_funcs_dict,
+        "compute_stochastic_transition_vec": compute_stochastic_transition_vec,
+        "processed_stochastic_funcs": stochastic_transitions_dict,
         "state_specific_choice_set": state_specific_choice_set,
-        "next_period_endogenous_state": next_period_endogenous_state,
+        "next_period_deterministic_state": next_period_deterministic_state,
         "compute_upper_envelope": compute_upper_envelope,
         "taste_shock_function": taste_shock_function_processed,
     }
@@ -207,19 +207,19 @@ def process_state_space_functions(
             )
         )
 
-    if "next_period_endogenous_state" not in state_space_functions:
+    if "next_period_deterministic_state" not in state_space_functions:
         print(
             "Update function for state space not given. Assume states only change "
             "with an increase of the period and lagged choice."
         )
 
-        def next_period_endogenous_state(**kwargs):
+        def next_period_deterministic_state(**kwargs):
             return {"period": kwargs["period"] + 1, "lagged_choice": kwargs["choice"]}
 
     else:
-        next_period_endogenous_state = (
+        next_period_deterministic_state = (
             determine_function_arguments_and_partial_model_specs(
-                func=state_space_functions["next_period_endogenous_state"],
+                func=state_space_functions["next_period_deterministic_state"],
                 model_specs=model_specs,
                 continuous_state_name=continuous_state_name,
             )
@@ -229,7 +229,11 @@ def process_state_space_functions(
         state_space_functions=state_space_functions, model_specs=model_specs
     )
 
-    return state_specific_choice_set, next_period_endogenous_state, sparsity_condition
+    return (
+        state_specific_choice_set,
+        next_period_deterministic_state,
+        sparsity_condition,
+    )
 
 
 def process_sparsity_condition(state_space_functions, model_specs):

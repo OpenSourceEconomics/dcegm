@@ -3,13 +3,13 @@
 import numpy as np
 import pandas as pd
 
-from dcegm.pre_processing.model_structure.endogenous_states import (
+from dcegm.pre_processing.model_structure.deterministic_states import (
     process_endog_state_specifications,
 )
-from dcegm.pre_processing.model_structure.exogenous_processes import (
-    process_exog_model_specifications,
-)
 from dcegm.pre_processing.model_structure.shared import create_indexer_for_space
+from dcegm.pre_processing.model_structure.stochastic_states import (
+    process_stochastic_model_specifications,
+)
 from dcegm.pre_processing.shared import create_array_with_smallest_int_dtype
 
 
@@ -45,15 +45,15 @@ def create_state_space(model_config, sparsity_condition, debugging=False):
         endog_state_space,
         endog_states_names,
     ) = process_endog_state_specifications(state_space_options=model_config)
-    state_names_without_exog = ["period", "lagged_choice"] + endog_states_names
+    state_names_without_stochastic = ["period", "lagged_choice"] + endog_states_names
 
     (
-        exog_states_names,
-        exog_state_space_raw,
-    ) = process_exog_model_specifications(model_config=model_config)
-    discrete_states_names = state_names_without_exog + exog_states_names
+        stochastic_state_names,
+        stochastic_state_space_raw,
+    ) = process_stochastic_model_specifications(model_config=model_config)
+    discrete_states_names = state_names_without_stochastic + stochastic_state_names
 
-    n_exog_states = exog_state_space_raw.shape[0]
+    n_stochastic_states = stochastic_state_space_raw.shape[0]
 
     state_space_list = []
     list_of_states_proxied_from = []
@@ -74,11 +74,15 @@ def create_state_space(model_config, sparsity_condition, debugging=False):
                 else:
                     endog_states = list(endog_state_space[endog_state_id])
 
-                for exog_state_id in range(n_exog_states):
-                    exog_states = exog_state_space_raw[exog_state_id, :]
+                for stochastic_state_id in range(n_stochastic_states):
+                    stochastic_states = stochastic_state_space_raw[
+                        stochastic_state_id, :
+                    ]
 
                     # Create the state vector
-                    state = [period, lagged_choice] + endog_states + list(exog_states)
+                    state = (
+                        [period, lagged_choice] + endog_states + list(stochastic_states)
+                    )
 
                     full_state_space_list += [state]
 
@@ -94,8 +98,8 @@ def create_state_space(model_config, sparsity_condition, debugging=False):
                     # The sparsity condition can either return a boolean indicating if the state
                     # is valid or not, or a dictionary which contains the valid state which is used
                     # instead as a child state for other states. If a state is invalid because of the
-                    # exogenous state component, the user must specify a valid state to use instead, as
-                    # we assume a state choice combination has n_exog_states children.
+                    # stochastic state component, the user must specify a valid state to use instead, as
+                    # we assume a state choice combination has n_stochastic_states children.
                     # We do check later if the user correctly specified the proxy state. Here we just check
                     # the format of the output. To simplify this specification the user can also return the same
                     # state as used as input. Then the state is just valid. This allows to easier define a proxy
@@ -185,7 +189,9 @@ def create_state_space(model_config, sparsity_condition, debugging=False):
         for i, key in enumerate(discrete_states_names)
     }
 
-    exog_state_space = create_array_with_smallest_int_dtype(exog_state_space_raw)
+    stochastic_state_space = create_array_with_smallest_int_dtype(
+        stochastic_state_space_raw
+    )
 
     dict_of_state_space_objects = {
         "state_space_incl_proxies": state_space_incl_proxies,
@@ -193,9 +199,9 @@ def create_state_space(model_config, sparsity_condition, debugging=False):
         "state_space_dict": state_space_dict,
         "map_state_to_index": map_state_to_index,
         "map_state_to_index_with_proxy": map_state_to_index_with_proxy,
-        "exog_state_space": exog_state_space,
-        "exog_states_names": exog_states_names,
-        "state_names_without_exog": state_names_without_exog,
+        "stochastic_state_space": stochastic_state_space,
+        "stochastic_states_names": stochastic_state_names,
+        "state_names_without_stochastic": state_names_without_stochastic,
         "discrete_states_names": discrete_states_names,
     }
 

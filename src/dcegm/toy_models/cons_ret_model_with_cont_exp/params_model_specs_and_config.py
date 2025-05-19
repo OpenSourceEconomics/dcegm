@@ -26,7 +26,7 @@ def example_model_config():
         "n_periods": n_periods,
         "choices": np.arange(n_choices),
         "continuous_states": {
-            "wealth": jnp.linspace(0, 50, 100),
+            "assets_end_of_period": jnp.linspace(0, 50, 100),
             "experience": jnp.linspace(0, 1, 5),
         },
         "n_quad_points": 5,

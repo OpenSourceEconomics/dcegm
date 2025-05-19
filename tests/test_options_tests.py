@@ -12,14 +12,14 @@ def valid_options():
         "state_space": {
             "n_periods": 5,
             "choices": [1, 2, 3],
-            "endogenous_states": {
+            "deterministic_states": {
                 "education": np.arange(2, dtype=int),
             },
             "continuous_states": {
-                "wealth": np.linspace(0, 10, 11),
+                "assets_end_of_period": np.linspace(0, 10, 11),
                 "experience": np.linspace(0, 5, 6),
             },
-            "exogenous_processes": {
+            "stochastic_states": {
                 "health": {
                     "transition": lambda x: x,
                     "states": np.arange(3, dtype=int),
