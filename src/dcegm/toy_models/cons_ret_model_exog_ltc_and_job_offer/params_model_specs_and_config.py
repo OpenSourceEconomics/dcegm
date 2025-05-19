@@ -36,7 +36,7 @@ def example_model_config():
             "wealth": np.linspace(0, 50, 100),
             "married": [0, 1],
         },
-        "exogenous_states": {
+        "stochastic_states": {
             "ltc": {"transition": prob_exog_ltc, "states": [0, 1]},
             "job_offer": {"transition": prob_exog_job_offer, "states": [0, 1]},
         },

@@ -13,9 +13,9 @@ from dcegm.pre_processing.model_functions.upper_evelope_wrapper import (
     create_upper_envelope_function,
 )
 from dcegm.pre_processing.model_structure.stochastic_states import (
-    create_exog_state_mapping,
+    create_stochastic_state_mapping,
     create_stochastic_transition_function,
-    process_exog_model_specifications,
+    process_stochastic_model_specifications,
 )
 from dcegm.pre_processing.shared import (
     create_array_with_smallest_int_dtype,
@@ -62,11 +62,12 @@ def generate_alternative_sim_functions(
     (
         exog_states_names,
         exog_state_space_raw,
-    ) = process_exog_model_specifications(model_config=model_config)
+    ) = process_stochastic_model_specifications(model_config=model_config)
 
     exog_state_space = create_array_with_smallest_int_dtype(exog_state_space_raw)
 
-    model_funcs["exog_state_mapping"] = create_exog_state_mapping(
+    model_funcs["exog_state_mapping"] = create_stochastic_state_mapping
+    (
         exog_state_space,
         exog_states_names,
     )

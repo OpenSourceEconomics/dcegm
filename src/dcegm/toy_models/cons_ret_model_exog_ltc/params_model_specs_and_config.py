@@ -34,7 +34,7 @@ def example_model_config():
         "continuous_states": {
             "wealth": np.linspace(0, 50, 100),
         },
-        "exogenous_processes": {
+        "stochastic_states": {
             "ltc": [0, 1],
         },
         "n_quad_points": 5,
