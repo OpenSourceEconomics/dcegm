@@ -53,8 +53,8 @@ def model_setup():
         "assets_begin_of_period": np.ones(n_agents) * 10,
     }
 
-    df = model.solve_and_simulate(
-        params=params, states_initial=initial_states, seed=seed
+    df = model.get_solve_and_simulate_func(states_initial=initial_states, seed=seed)(
+        params=params
     )
 
     return {
