@@ -19,7 +19,7 @@ from dcegm.law_of_motion import (
 def interpolate_policy_and_value_for_all_agents(
     discrete_states_beginning_of_period,
     continuous_state_beginning_of_period,
-    wealth_beginning_of_period,
+    assets_begin_of_period,
     value_solved,
     policy_solved,
     endog_grid_solved,
@@ -64,7 +64,7 @@ def interpolate_policy_and_value_for_all_agents(
         # =================================================================================
 
         policy_agent, value_agent = vectorized_interp(
-            wealth_beginning_of_period,
+            assets_begin_of_period,
             continuous_state_beginning_of_period,
             discrete_states_beginning_of_period,
             continuous_grid,
@@ -108,7 +108,7 @@ def interpolate_policy_and_value_for_all_agents(
         )
 
         policy_agent, value_agent = vectorized_interp(
-            wealth_beginning_of_period,
+            assets_begin_of_period,
             discrete_states_beginning_of_period,
             endog_grid_agent,
             value_grid_agent,
@@ -169,7 +169,7 @@ def transition_to_next_period(
         std=params["sigma"],
     )
 
-    next_period_wealth = model_funcs_sim["compute_beginning_of_period_wealth"]
+    next_period_wealth = model_funcs_sim["compute_assets_begin_of_period"]
     if continuous_state_beginning_of_period is not None:
 
         continuous_state_next_period = calculate_second_continuous_state_for_all_agents(
@@ -179,29 +179,29 @@ def transition_to_next_period(
             compute_continuous_state=model_funcs_sim["next_period_continuous_state"],
         )
 
-        wealth_beginning_of_next_period, budget_aux = (
+        assets_beginning_of_next_period, budget_aux = (
             calculate_wealth_given_second_continuous_state_for_all_agents(
                 states_beginning_of_period=discrete_states_next_period,
                 continuous_state_beginning_of_period=continuous_state_next_period,
-                savings_end_of_previous_period=savings_current_period,
+                assets_end_of_previous_period=savings_current_period,
                 income_shocks_of_period=income_shocks_next_period,
                 params=params,
-                compute_beginning_of_period_wealth=next_period_wealth,
+                compute_assets_begin_of_period=next_period_wealth,
             )
         )
     else:
         continuous_state_next_period = None
 
-        wealth_beginning_of_next_period, budget_aux = calculate_wealth_for_all_agents(
+        assets_beginning_of_next_period, budget_aux = calculate_wealth_for_all_agents(
             states_beginning_of_period=discrete_states_next_period,
-            savings_end_of_previous_period=savings_current_period,
+            assets_end_of_previous_period=savings_current_period,
             income_shocks_of_period=income_shocks_next_period,
             params=params,
-            compute_beginning_of_period_wealth=next_period_wealth,
+            compute_assets_begin_of_period=next_period_wealth,
         )
 
     return (
-        wealth_beginning_of_next_period,
+        assets_beginning_of_next_period,
         budget_aux,
         discrete_states_next_period,
         continuous_state_next_period,

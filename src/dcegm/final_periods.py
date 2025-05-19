@@ -364,7 +364,7 @@ def solve_final_period_second_continuous(
         continuous_states_info["second_continuous_grid"],
         params,
         model_funcs["compute_utility_final"],
-        model_funcs["compute_beginning_of_period_wealth"],
+        model_funcs["compute_assets_begin_of_period"],
     )
 
     sort_idx = jnp.argsort(wealth_at_regular, axis=2)
@@ -453,7 +453,7 @@ def calc_value_and_budget_for_each_gridpoint(
     second_continuous_state,
     params,
     compute_utility,
-    compute_beginning_of_period_wealth,
+    compute_assets_begin_of_period,
 ):
     state_vec = state_choice_vec.copy()
     state_vec.pop("choice")
@@ -464,7 +464,7 @@ def calc_value_and_budget_for_each_gridpoint(
         exog_savings_grid_point=savings_grid_point,
         income_shock_draw=jnp.array(0.0),
         params=params,
-        compute_beginning_of_period_wealth=compute_beginning_of_period_wealth,
+        compute_assets_begin_of_period=compute_assets_begin_of_period,
         aux_outs=False,
     )
 

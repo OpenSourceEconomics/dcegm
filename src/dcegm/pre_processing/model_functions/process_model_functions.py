@@ -141,7 +141,7 @@ def process_model_functions(
     )
 
     # Budget equation
-    compute_beginning_of_period_wealth = (
+    compute_assets_begin_of_period = (
         determine_function_arguments_and_partial_model_specs(
             func=budget_constraint,
             continuous_state_name=second_continuous_state_name,
@@ -164,7 +164,7 @@ def process_model_functions(
     model_funcs = {
         **utility_functions_processed,
         **utility_functions_final_period_processed,
-        "compute_beginning_of_period_wealth": compute_beginning_of_period_wealth,
+        "compute_assets_begin_of_period": compute_assets_begin_of_period,
         "next_period_continuous_state": next_period_continuous_state,
         "sparsity_condition": sparsity_condition,
         "compute_stochastic_transition_vec": compute_stochastic_transition_vec,

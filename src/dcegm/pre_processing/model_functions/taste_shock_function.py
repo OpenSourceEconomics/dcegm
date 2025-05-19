@@ -45,7 +45,7 @@ def process_shock_functions(shock_functions, model_specs, continuous_state_name)
 def get_taste_shock_function_for_state(
     draw_function_taste_shocks, continuous_state_name, model_specs
 ):
-    not_allowed_states = ["wealth", "choice"]
+    not_allowed_states = ["assets_begin_of_period", "choice"]
     if continuous_state_name is not None:
         not_allowed_states += [continuous_state_name]
     taste_shock_scale_per_state_function = (

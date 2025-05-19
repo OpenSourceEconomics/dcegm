@@ -1,5 +1,6 @@
 import jax.numpy as jnp
 import numpy as np
+from typing_extensions import assert_type
 
 
 def check_model_config_and_process(model_config):
@@ -54,13 +55,13 @@ def check_model_config_and_process(model_config):
     if not isinstance(continuous_states_grids, dict):
         raise ValueError("model_config['continuous_states'] must be a dictionary.")
 
-    if "wealth" not in continuous_states_grids:
+    if "assets_end_of_period" not in continuous_states_grids:
         raise ValueError(
             "model_config['continuous_states'] must contain wealth as key."
         )
     # Check if it is an array
-    wealth_grid = continuous_states_grids["wealth"]
-    if not isinstance(wealth_grid, (list, np.ndarray, jnp.ndarray)):
+    asset_grid = continuous_states_grids["assets_end_of_period"]
+    if not isinstance(asset_grid, (list, np.ndarray, jnp.ndarray)):
         raise ValueError(
             "model_config['continuous_states']['wealth'] must be a list or an array."
         )
@@ -68,9 +69,11 @@ def check_model_config_and_process(model_config):
     # ToDo: Check if it is monotonic increasing
 
     continuous_states_info = {}
-    n_savings_grid_points = len(wealth_grid)
+    n_savings_grid_points = len(asset_grid)
     continuous_states_info["n_savings_grid"] = n_savings_grid_points
-    continuous_states_info["savings_grid"] = continuous_states_grids["wealth"]
+    continuous_states_info["asset_grid"] = continuous_states_grids[
+        "assets_end_of_period"
+    ]
 
     if len(continuous_states_grids) > 2:
         raise ValueError("At most two continuous states are supported.")

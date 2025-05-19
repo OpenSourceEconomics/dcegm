@@ -7,7 +7,7 @@ def budget_constraint_cont_exp(
     period,
     lagged_choice,
     experience,
-    savings_end_of_previous_period,
+    assets_end_of_previous_period,
     income_shock_previous_period,
     params,
     model_specs,
@@ -18,7 +18,7 @@ def budget_constraint_cont_exp(
     return budget_constraint_exp(
         lagged_choice=lagged_choice,
         experience=experience_years,
-        savings_end_of_previous_period=savings_end_of_previous_period,
+        assets_end_of_previous_period=assets_end_of_previous_period,
         income_shock_previous_period=income_shock_previous_period,
         params=params,
     )
