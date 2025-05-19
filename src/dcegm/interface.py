@@ -35,15 +35,15 @@ def get_n_state_choice_period(model):
 
 
 def policy_and_value_for_state_choice_vec(
+    states,
+    choice,
+    params,
     endog_grid_solved,
     value_solved,
     policy_solved,
-    params,
-    model,
-    state_choice_vec,
-    wealth,
-    compute_utility,
-    second_continuous=None,
+    model_config,
+    model_structure,
+    model_funcs,
 ):
     """Get policy and value for a given state and choice vector.
 
@@ -66,35 +66,54 @@ def policy_and_value_for_state_choice_vec(
         choice.
 
     """
-    map_state_choice_to_index = model["model_structure"][
-        "map_state_choice_to_index_with_proxy"
-    ]
-    discrete_states_names = model["model_structure"]["discrete_states_names"]
+    # ToDo: Check if states contains relevant structure
+    map_state_choice_to_index = model_structure["map_state_choice_to_index_with_proxy"]
+    discrete_states_names = model_structure["discrete_states_names"]
+
+    if "dummy_exog" in discrete_states_names:
+        state_choice_vec = {
+            **states,
+            "choice": choice,
+            "dummy_exog": 0,
+        }
+
+    else:
+        state_choice_vec = {
+            **states,
+            "choice": choice,
+        }
 
     state_choice_tuple = tuple(
         state_choice_vec[st] for st in discrete_states_names + ["choice"]
     )
     state_choice_index = map_state_choice_to_index[state_choice_tuple]
-    continuous_states_info = model["model_config"]["continuous_states_info"]
+    continuous_states_info = model_config["continuous_states_info"]
 
-    if second_continuous is None:
-        policy, value = interp1d_policy_and_value_on_wealth(
-            wealth=wealth,
-            endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
-            policy=jnp.take(policy_solved, state_choice_index, axis=0),
-            value=jnp.take(value_solved, state_choice_index, axis=0),
-            compute_utility=compute_utility,
-            state_choice_vec=state_choice_vec,
-            params=params,
-        )
-    else:
+    compute_utility = model_funcs["compute_utility"]
+
+    if continuous_states_info["second_continuous_exists"]:
+
+        second_continuous = state_choice_vec[
+            continuous_states_info["second_continuous_state_name"]
+        ]
+
         policy, value = interp2d_policy_and_value_on_wealth_and_regular_grid(
             regular_grid=continuous_states_info["second_continuous_grid"],
             wealth_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
             value_grid=jnp.take(value_solved, state_choice_index, axis=0),
             policy_grid=jnp.take(policy_solved, state_choice_index, axis=0),
             regular_point_to_interp=second_continuous,
-            wealth_point_to_interp=wealth,
+            wealth_point_to_interp=state_choice_vec["wealth"],
+            compute_utility=compute_utility,
+            state_choice_vec=state_choice_vec,
+            params=params,
+        )
+    else:
+        policy, value = interp1d_policy_and_value_on_wealth(
+            wealth=state_choice_vec["wealth"],
+            endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
+            policy=jnp.take(policy_solved, state_choice_index, axis=0),
+            value=jnp.take(value_solved, state_choice_index, axis=0),
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,

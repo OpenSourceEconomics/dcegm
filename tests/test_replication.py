@@ -46,7 +46,7 @@ def test_benchmark_models(model_name):
         **model_funcs,
     )
 
-    value, policy, endog_grid = model.solve(params)
+    solved_model = model.solve(params)
 
     policy_expected = pickle.load(
         (REPLICATION_TEST_RESOURCES_DIR / f"{model_name}" / "policy.pkl").open("rb")
@@ -78,14 +78,17 @@ def test_benchmark_models(model_name):
             x_new=wealth_grid_to_test, x=policy_expec[0], y=policy_expec[1]
         )
 
-        (
-            policy_calc_interp,
-            value_calc_interp,
-        ) = interpolate_policy_and_value_on_wealth_grid(
-            wealth_beginning_of_period=wealth_grid_to_test,
-            endog_wealth_grid=endog_grid[state_choice_idx],
-            policy=policy[state_choice_idx],
-            value=value[state_choice_idx],
+        state = {
+            "period": period,
+            "lagged_choice": state_choice_space_to_test[state_choice_idx, 1],
+            "wealth": wealth_grid_to_test,
+        }
+
+        policy_calc_interp, value_calc_interp = (
+            solved_model.value_and_policy_for_state_and_choice(
+                state=state,
+                choice=choice,
+            )
         )
 
         aaae(policy_expec_interp, policy_calc_interp)
