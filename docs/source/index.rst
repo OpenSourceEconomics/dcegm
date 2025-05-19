@@ -21,7 +21,7 @@ savings, including additional discrete choices.
    :hidden:
 
    guides/installation
-   guides/two_period_model_tutorial.ipynb   
+   guides/two_period_model_tutorial.ipynb
    guides/practitioner_guides/parameters.ipynb
    guides/practitioner_guides/model_config.ipynb
    genindex
