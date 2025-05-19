@@ -27,17 +27,16 @@ def simulate_all_periods(
     endog_grid_solved,
     policy_solved,
     value_solved,
-    model,
+    model_structure,
+    model_funcs,
+    model_config,
     alt_model_funcs_sim=None,
 ):
     alt_model_funcs_sim = (
-        model["model_funcs"] if alt_model_funcs_sim is None else alt_model_funcs_sim
+        model_funcs if alt_model_funcs_sim is None else alt_model_funcs_sim
     )
 
-    model_structure_sol = model["model_structure"]
-    discrete_state_space = model_structure_sol["state_space_dict"]
-    model_funcs_sol = model["model_funcs"]
-    model_config_sol = model["model_config"]
+    discrete_state_space = model_structure["state_space_dict"]
 
     # Set initial states to internal dtype
     states_initial_dtype = {
@@ -46,12 +45,12 @@ def simulate_all_periods(
         if key in discrete_state_space
     }
 
-    if "dummy_exog" in model_structure_sol["exog_states_names"]:
+    if "dummy_exog" in model_structure["exog_states_names"]:
         states_initial_dtype["dummy_exog"] = jnp.zeros_like(
             states_initial_dtype["period"]
         )
 
-    continuous_states_info = model_config_sol["continuous_states_info"]
+    continuous_states_info = model_config["continuous_states_info"]
 
     if continuous_states_info["second_continuous_exists"]:
         states_initial_dtype[continuous_states_info["second_continuous_state_name"]] = (
@@ -76,10 +75,10 @@ def simulate_all_periods(
         endog_grid_solved=endog_grid_solved,
         value_solved=value_solved,
         policy_solved=policy_solved,
-        model_structure_sol=model_structure_sol,
+        model_structure_sol=model_structure,
         model_funcs_sim=alt_model_funcs_sim,
-        compute_utility=model_funcs_sol["compute_utility"],
-        model_config=model_config_sol,
+        compute_utility=model_funcs["compute_utility"],
+        model_config=model_config,
     )
 
     states_and_wealth_beginning_of_first_period = (
@@ -97,13 +96,13 @@ def simulate_all_periods(
         states_and_wealth_beginning_of_final_period,
         sim_keys=last_period_sim_keys,
         params=params,
-        discrete_states_names=model_structure_sol["discrete_states_names"],
-        choice_range=model_structure_sol["choice_range"],
+        discrete_states_names=model_structure["discrete_states_names"],
+        choice_range=model_structure["choice_range"],
         map_state_choice_to_index=jnp.asarray(
-            model_structure_sol["map_state_choice_to_index_with_proxy"]
+            model_structure["map_state_choice_to_index_with_proxy"]
         ),
         taste_shock_function=alt_model_funcs_sim["taste_shock_function"],
-        compute_utility_final=model_funcs_sol["compute_utility_final"],
+        compute_utility_final=model_funcs["compute_utility_final"],
     )
 
     # Standard simulation output
