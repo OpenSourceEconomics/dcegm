@@ -28,7 +28,7 @@ def example_model_config_deaton():
         "n_periods": 25,
         "choices": [0],
         "continuous_states": {
-            "end_of_period_assets": jnp.linspace(
+            "assets_end_of_period": jnp.linspace(
                 0,
                 75,
                 100,

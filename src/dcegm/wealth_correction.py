@@ -2,12 +2,12 @@ import jax.numpy as jnp
 from jax import vmap
 
 from dcegm.law_of_motion import (
-    calc_wealth_for_each_continuous_state_and_savings_grid_point,
-    calc_wealth_for_each_savings_grid_point,
+    calc_assets_beginning_of_period_2cont_vec,
+    calc_beginning_of_period_assets_1cont_vec,
 )
 
 
-def adjust_observed_wealth(observed_states_dict, params, model):
+def adjust_observed_assets(observed_states_dict, params, model):
     """Correct observed beginning of period wealth data for likelihood estimation.
 
     Wealth in empirical survey data is observed without the income of last period's
@@ -25,7 +25,7 @@ def adjust_observed_wealth(observed_states_dict, params, model):
     observed_states_dict_int = observed_states_dict.copy()
 
     wealth_int = observed_states_dict["wealth"]
-    savings_last_period = jnp.asarray(wealth_int / (1 + params["interest_rate"]))
+    assets_end_last_period = jnp.asarray(wealth_int / (1 + params["interest_rate"]))
 
     if len(model["options"]["exog_grids"]) == 2:
         # If there are two continuous states, we need to read out the second var
@@ -34,12 +34,12 @@ def adjust_observed_wealth(observed_states_dict, params, model):
         observed_states_dict_int.pop(second_cont_state_name)
 
         adjusted_wealth = vmap(
-            calc_wealth_for_each_continuous_state_and_savings_grid_point,
+            calc_assets_beginning_of_period_2cont_vec,
             in_axes=(0, 0, 0, None, None, None, None),
         )(
             observed_states_dict_int,
             second_cont_state_vars,
-            savings_last_period,
+            assets_end_last_period,
             jnp.array(0.0, dtype=jnp.float64),
             params,
             model["model_funcs"]["compute_assets_begin_of_period"],
@@ -48,11 +48,11 @@ def adjust_observed_wealth(observed_states_dict, params, model):
 
     else:
         adjusted_wealth = vmap(
-            calc_wealth_for_each_savings_grid_point,
+            calc_beginning_of_period_assets_1cont_vec,
             in_axes=(0, 0, None, None, None, None),
         )(
             observed_states_dict,
-            savings_last_period,
+            assets_end_last_period,
             jnp.array(0.0, dtype=jnp.float64),
             params,
             model["model_funcs"]["compute_assets_begin_of_period"],

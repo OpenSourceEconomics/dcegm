@@ -6,7 +6,7 @@ import jax.numpy as jnp
 from jax import vmap
 
 from dcegm.law_of_motion import (
-    calc_wealth_for_each_continuous_state_and_savings_grid_point,
+    calc_assets_beginning_of_period_2cont_vec,
 )
 from dcegm.solve_single_period import solve_for_interpolated_values
 
@@ -229,7 +229,7 @@ def solve_final_period_discrete(
     shock draws.
 
     """
-    wealth_child_states_final_period = cont_grids_next_period["wealth"][
+    wealth_child_states_final_period = cont_grids_next_period["assets_begin_of_period"][
         idx_parent_states_final_period
     ]
     # n_wealth = model_config["wealth"].shape[0]
@@ -272,13 +272,13 @@ def solve_final_period_discrete(
     wealth_with_zeros = jnp.column_stack((zeros_to_append, wealth_sorted))
 
     value_solved = value_solved.at[
-        idx_state_choices_final_period, : values_with_zeros.shape[0]
+        idx_state_choices_final_period, : values_with_zeros.shape[1]
     ].set(values_with_zeros)
     policy_solved = policy_solved.at[
-        idx_state_choices_final_period, : values_with_zeros.shape[0]
+        idx_state_choices_final_period, : values_with_zeros.shape[1]
     ].set(wealth_with_zeros)
     endog_grid_solved = endog_grid_solved.at[
-        idx_state_choices_final_period, : values_with_zeros.shape[0]
+        idx_state_choices_final_period, : values_with_zeros.shape[1]
     ].set(wealth_with_zeros)
 
     return (
@@ -315,7 +315,7 @@ def solve_final_period_second_continuous(
     of the second continuous state.
 
     """
-    wealth_child_states_final_period = cont_grids_next_period["wealth"][
+    wealth_child_states_final_period = cont_grids_next_period["assets_begin_of_period"][
         idx_parent_states_final_period
     ]
     n_wealth = continuous_states_info["n_savings_grid"]
@@ -358,7 +358,7 @@ def solve_final_period_second_continuous(
         in_axes=(0, None, None, None, None, None),  # discrete state choices
     )(
         state_choice_mat_final_period,
-        continuous_states_info["savings_grid"],
+        continuous_states_info["assets_grid_end_of_period"],
         continuous_states_info["second_continuous_grid"],
         params,
         model_funcs["compute_utility_final"],
@@ -447,7 +447,7 @@ def calc_value_and_marg_util_for_each_gridpoint_second_continuous(
 
 def calc_value_and_budget_for_each_gridpoint(
     state_choice_vec,
-    savings_grid_point,
+    asset_grid_point_end_of_previous_period,
     second_continuous_state,
     params,
     compute_utility,
@@ -456,10 +456,10 @@ def calc_value_and_budget_for_each_gridpoint(
     state_vec = state_choice_vec.copy()
     state_vec.pop("choice")
 
-    wealth_final_period = calc_wealth_for_each_continuous_state_and_savings_grid_point(
+    wealth_final_period = calc_assets_beginning_of_period_2cont_vec(
         state_vec=state_vec,
         continuous_state_beginning_of_period=second_continuous_state,
-        exog_savings_grid_point=savings_grid_point,
+        asset_grid_point_end_of_previous_period=asset_grid_point_end_of_previous_period,
         income_shock_draw=jnp.array(0.0),
         params=params,
         compute_assets_begin_of_period=compute_assets_begin_of_period,

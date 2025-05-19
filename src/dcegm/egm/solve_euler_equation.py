@@ -34,7 +34,7 @@ def calculate_candidate_solutions_from_euler_equation(
             vmap(
                 vmap(
                     compute_optimal_policy_and_value_wrapper,
-                    in_axes=(1, 1, None, 0, None, None, None),  # savings
+                    in_axes=(1, 1, None, 0, None, None, None),  # assets
                 ),
                 in_axes=(1, 1, 0, None, None, None, None),  # second continuous state
             ),
@@ -43,7 +43,7 @@ def calculate_candidate_solutions_from_euler_equation(
             feasible_marg_utils_child,
             feasible_emax_child,
             continuous_grids_info["second_continuous_grid"],
-            continuous_grids_info["savings_grid"],
+            continuous_grids_info["assets_grid_end_of_period"],
             state_choice_mat,
             model_funcs,
             params,
@@ -57,13 +57,13 @@ def calculate_candidate_solutions_from_euler_equation(
         ) = vmap(
             vmap(
                 compute_optimal_policy_and_value,
-                in_axes=(1, 1, 0, None, None, None),  # savings grid
+                in_axes=(1, 1, 0, None, None, None),  # assets grid
             ),
             in_axes=(0, 0, None, 0, None, None),  # states and choices
         )(
             feasible_marg_utils_child,
             feasible_emax_child,
-            continuous_grids_info["savings_grid"],
+            continuous_grids_info["assets_grid_end_of_period"],
             state_choice_mat,
             model_funcs,
             params,
@@ -81,7 +81,7 @@ def compute_optimal_policy_and_value_wrapper(
     marg_util_next: np.ndarray,
     emax_next: np.ndarray,
     second_continuous_grid: np.ndarray,
-    exogenous_savings_grid: np.ndarray,
+    assets_grid_end_of_period: np.ndarray,
     state_choice_vec: Dict,
     model_funcs: Dict[str, Callable],
     params: Dict[str, float],
@@ -92,7 +92,7 @@ def compute_optimal_policy_and_value_wrapper(
     return compute_optimal_policy_and_value(
         marg_util_next,
         emax_next,
-        exogenous_savings_grid,
+        assets_grid_end_of_period,
         state_choice_vec,
         model_funcs,
         params,
@@ -102,7 +102,7 @@ def compute_optimal_policy_and_value_wrapper(
 def compute_optimal_policy_and_value(
     marg_util_next: np.ndarray,
     emax_next: np.ndarray,
-    exogenous_savings_grid: np.ndarray,
+    assets_grid_end_of_period: np.ndarray,
     state_choice_vec: Dict,
     model_funcs: Dict[str, Callable],
     params: Dict[str, float],
@@ -120,7 +120,7 @@ def compute_optimal_policy_and_value(
         emax (np.ndarray): 1d array of shape (n_stochastic_states,) containing
             the state-choice specific expected maximum value for a given point on
             the savings grid.
-        exogenous_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
+        assets_grid_end_of_period (np.ndarray): 1d array of shape (n_grid_wealth,)
             containing the exogenous savings grid.
         trans_vec_state (np.ndarray): 1d array of shape (n_stochastic_states,) containing
             for each exogenous process state the corresponding transition probability.
@@ -158,7 +158,7 @@ def compute_optimal_policy_and_value(
         compute_stochastic_transition_vec=compute_stochastic_transition_vec,
         params=params,
     )
-    endog_grid = exogenous_savings_grid + policy
+    endog_grid = assets_grid_end_of_period + policy
 
     utility = compute_utility(consumption=policy, params=params, **state_choice_vec)
     value = utility + params["beta"] * expected_value

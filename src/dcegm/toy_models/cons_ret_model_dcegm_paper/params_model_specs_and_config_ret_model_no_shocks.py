@@ -28,7 +28,7 @@ def example_model_config_retirement_no_shocks():
         "n_periods": 25,
         "choices": [0, 1],
         "continuous_states": {
-            "end_of_period_assets": jnp.linspace(
+            "assets_end_of_period": jnp.linspace(
                 0,
                 50,
                 500,

@@ -32,7 +32,7 @@ def example_model_config():
             "married": [0, 1],
         },
         "continuous_states": {
-            "end_of_period_assets": np.linspace(0, 50, 100),
+            "assets_end_of_period": np.linspace(0, 50, 100),
         },
         "stochastic_states": {
             "ltc": [0, 1],
