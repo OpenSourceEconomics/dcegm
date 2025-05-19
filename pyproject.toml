@@ -1,5 +1,54 @@
 [build-system]
 requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dcegm"
+version = "0.1.0"
+description = "Python implementation of the DC-EGM algorithm from Iskhakov, Jorgensen, Rust, and Schjerning (QE, 2017)."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [
+  { name = "Sebastian Gsell", email = "sebastian.gsell@econ.lmu.de" }
+]
+classifiers = [
+  "Development Status :: 1 - Planning",
+  "Environment :: Console",
+  "Intended Audience :: Science/Research",
+  "Operating System :: MacOS :: MacOS X",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Software Development :: Build Tools"
+]
+keywords = ["economics", "DC-EGM", "dynamic programming", "python"]
+urls = { "Github" = "https://github.com/OpenSourceEconomics/dcegm" }
+
+dependencies = [
+  "numpy",
+  "scipy",
+  "numba",
+  "pandas",
+  "jax",
+  "blackcellmagic",
+  "furo"
+]
+
+[project.scripts]
+dcegm = "dcegm.cli:cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"dcegm" = ["templates/**/*"]
+
+[tool.setuptools]
+include-package-data = true
+zip-safe = false
 
 [tool.setuptools_scm]
 write_to = "src/dcegm/_version.py"
