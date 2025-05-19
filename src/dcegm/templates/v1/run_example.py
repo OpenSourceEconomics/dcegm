@@ -1,5 +1,6 @@
 # packages needed
 import jax.numpy as jnp
+from jax import config
 
 # import model_funcs
 from model_funcs import (
@@ -10,6 +11,8 @@ from model_funcs import (
 )
 
 import dcegm
+
+config.update("jax_enable_x64", True)
 
 ## set up
 params = {
@@ -62,6 +65,14 @@ model = dcegm.setup_model(
 model_solved = model.solve(params)
 
 # Simulate the model
-model_solved.simulate(
-    seed=42,
-)
+n_agents = 1_000
+states_initial = {
+    "period": jnp.zeros(n_agents),
+    "lagged_choice": jnp.zeros(n_agents),  # all agents start as workers
+    "married": jnp.zeros(n_agents),
+    "ltc": jnp.zeros(n_agents),
+    "experience": jnp.ones(n_agents),
+    "assets_begin_of_period": jnp.ones(n_agents) * 10,
+}
+
+model_solved.simulate(states_initial=states_initial, seed=42)

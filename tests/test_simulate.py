@@ -1,8 +1,5 @@
 """Tests for simulation of consumption-retirement model with exogenous processes."""
 
-import copy
-from functools import partial
-
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -11,13 +8,9 @@ from numpy.testing import assert_array_almost_equal as aaae
 
 import dcegm
 import dcegm.toy_models as toy_models
-from dcegm.pre_processing.check_options import check_model_config_and_process
-from dcegm.simulation.random_keys import draw_random_keys_for_seed
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import (
     simulate_all_periods,
-    simulate_final_period,
-    simulate_single_period,
 )
 
 
