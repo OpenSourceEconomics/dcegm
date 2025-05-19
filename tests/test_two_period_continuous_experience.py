@@ -12,10 +12,9 @@ from dcegm.final_periods import solve_final_period
 from dcegm.law_of_motion import calc_cont_grids_next_period
 from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.setup_model import create_model_dict
-from dcegm.solve import create_solution_container, solve_dcegm
+from dcegm.solve import create_solution_container, get_solve_func_for_model
 from dcegm.solve_single_period import solve_for_interpolated_values
 
-N_PERIODS = 2
 MAX_WEALTH = 50
 WEALTH_GRID_POINTS = 100
 EXPERIENCE_GRID_POINTS = 6
@@ -24,20 +23,6 @@ ALL_WEALTH_GRIDS = list(range(WEALTH_GRID_POINTS))
 RANDOM_TEST_SET = np.random.choice(ALL_WEALTH_GRIDS, size=10, replace=False)
 PRODUCT = list(product(RANDOM_TEST_SET, list(range(2))))
 WEALTH_AND_STATE_IDX = [tup for tup in PRODUCT]
-
-PARAMS = {
-    "beta": 0.95,
-    "delta": 0.35,
-    "rho": 1.95,
-    "interest_rate": 0.04,
-    "taste_shock_scale": 1,  # taste shock (scale) parameter
-    "sigma": 1,  # shock on labor income, standard deviation
-    "income_shock_mean": 0,  # shock on labor income, mean
-    "constant": 0.75,
-    "exp": 0.04,
-    "exp_squared": -0.0002,
-    "consumption_floor": 0.001,
-}
 
 
 def euler_rhs(
@@ -133,7 +118,6 @@ def budget_constraint_continuous(
     lagged_choice: int,
     experience: float,
     income_shock_previous_period: float,
-    options: Dict[str, Any],
     params: Dict[str, float],
 ) -> float:
 
@@ -162,7 +146,6 @@ def budget_constraint_continuous_dcegm(
     lagged_choice: int,
     experience: float,
     income_shock_previous_period: float,
-    options: Dict[str, Any],
     params: Dict[str, float],
 ) -> float:
 
@@ -212,30 +195,37 @@ def next_period_experience(period, lagged_choice, experience, params):
 
 @pytest.fixture(scope="module")
 def create_test_inputs():
-    options = {}
-    _raw_options = {
-        "n_discrete_choices": 2,
-        "n_quad_points": 5,
+    params = {
+        "beta": 0.95,
+        "delta": 0.35,
+        "rho": 1.95,
+        "interest_rate": 0.04,
+        "taste_shock_scale": 1,  # taste shock (scale) parameter
+        "sigma": 1,  # shock on labor income, standard deviation
+        "income_shock_mean": 0,  # shock on labor income, mean
+        "constant": 0.75,
+        "exp": 0.04,
+        "exp_squared": -0.0002,
+        "consumption_floor": 0.001,
     }
-    params = PARAMS
 
-    options["model_params"] = _raw_options
-    options["model_params"]["n_periods"] = N_PERIODS
-    options["model_params"]["max_wealth"] = MAX_WEALTH
-    options["model_params"]["n_grid_points"] = WEALTH_GRID_POINTS
-    options["model_params"]["n_choices"] = _raw_options["n_discrete_choices"]
+    model_specs = {
+        "n_periods": 2,
+        "n_discrete_choices": 2,
+    }
 
-    options["state_space"] = {
-        "n_periods": N_PERIODS,
+    model_config = {
+        "n_periods": 2,
         "choices": np.arange(2),
         "continuous_states": {
             "wealth": jnp.linspace(
                 0,
-                MAX_WEALTH,
-                WEALTH_GRID_POINTS,
+                50,
+                100,
             ),
             "experience": jnp.linspace(0, 1, EXPERIENCE_GRID_POINTS),
         },
+        "n_quad_points": 5,
     }
 
     model_functions = toy_models.load_example_model_functions("dcegm_paper")
@@ -252,19 +242,20 @@ def create_test_inputs():
     }
 
     model = create_model_dict(
-        options=options,
+        model_config=model_config,
+        model_specs=model_specs,
         state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint_continuous_dcegm,
     )
+    model_config = model["model_config"]
 
     (
         cont_grids_next_period,
         income_shock_draws_unscaled,
         income_shock_weights,
         taste_shock_scale,
-        exog_grids_cont,
         model_funcs_cont,
         last_two_period_batch_info_cont,
         value_solved,
@@ -291,7 +282,7 @@ def create_test_inputs():
             "state_choice_mat_final_period"
         ],
         cont_grids_next_period=cont_grids_next_period,
-        continuous_states_info=exog_grids_cont,
+        continuous_states_info=model_config["continuous_states_info"],
         params=params,
         model_funcs=model_funcs_cont,
         value_solved=value_solved,
@@ -316,9 +307,8 @@ def create_test_inputs():
         taste_shock_scale=jnp.array([taste_shock_scale]),
         taste_shock_scale_is_scalar=True,
         income_shock_weights=income_shock_weights,
-        exog_grids=exog_grids_cont,
+        continuous_grids_info=model_config["continuous_states_info"],
         model_funcs=model_funcs_cont,
-        has_second_continuous_state=True,
     )
 
     idx_second_last = last_two_period_batch_info_cont[
@@ -363,13 +353,8 @@ def test_solution(create_test_inputs):
         state_space_functions,
     ) = create_test_inputs
 
-    value_dcegm, policy_dcegm, endog_grid_dcegm = solve_dcegm(
-        params,
-        model["options"],
-        state_space_functions=state_space_functions,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
-        budget_constraint=budget_constraint_continuous_dcegm,
+    value_dcegm, policy_dcegm, endog_grid_dcegm = get_solve_func_for_model(model)(
+        params
     )
 
     aaae(value_dcegm, value_solved)
@@ -435,14 +420,12 @@ def test_euler_equation(wealth_idx, state_idx, create_test_inputs):
 
 
 def _get_solve_last_two_periods_args(model, params, has_second_continuous_state):
-    options = model["options"]
+    model_config = model["model_config"]
     batch_info_last_two_periods = model["batch_info"]["last_two_period_info"]
-
-    exog_grids = options["exog_grids"]
 
     # Prepare income shock draws and scaling
     income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
-        options["model_params"]["n_quad_points"]
+        model_config["n_quad_points"]
     )
     taste_shock_scale = params["taste_shock_scale"]
 
@@ -452,17 +435,19 @@ def _get_solve_last_two_periods_args(model, params, has_second_continuous_state)
 
     cont_grids_next_period = calc_cont_grids_next_period(
         state_space_dict=state_space_dict,
-        exog_grids=exog_grids,
+        model_config=model_config,
         income_shock_draws_unscaled=income_shock_draws_unscaled,
         params=params,
         model_funcs=model_funcs,
         has_second_continuous_state=has_second_continuous_state,
     )
 
-    n_total_wealth_grid = options["tuning_params"]["n_total_wealth_grid"]
+    n_total_wealth_grid = model_config["tuning_params"]["n_total_wealth_grid"]
 
     if has_second_continuous_state:
-        n_second_continuous_grid = options["tuning_params"]["n_second_continuous_grid"]
+        n_second_continuous_grid = model_config["continuous_states_info"][
+            "n_second_continuous_grid"
+        ]
     else:
         n_second_continuous_grid = None
 
@@ -479,7 +464,6 @@ def _get_solve_last_two_periods_args(model, params, has_second_continuous_state)
         income_shock_draws_unscaled,
         income_shock_weights,
         taste_shock_scale,
-        exog_grids,
         model_funcs,
         batch_info_last_two_periods,
         value_solved,
