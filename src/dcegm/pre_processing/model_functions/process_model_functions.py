@@ -127,7 +127,7 @@ def process_model_functions(
     )
 
     # Now state space functions
-    state_specific_choice_set, next_period_endogenous_state, sparsity_condition = (
+    state_specific_choice_set, next_period_deterministic_state, sparsity_condition = (
         process_state_space_functions(
             state_space_functions,
             model_config=model_config,
@@ -170,7 +170,7 @@ def process_model_functions(
         "compute_stochastic_transition_vec": compute_stochastic_transition_vec,
         "processed_stochastic_funcs": stochastic_transitions_dict,
         "state_specific_choice_set": state_specific_choice_set,
-        "next_period_endogenous_state": next_period_endogenous_state,
+        "next_period_deterministic_state": next_period_deterministic_state,
         "compute_upper_envelope": compute_upper_envelope,
         "taste_shock_function": taste_shock_function_processed,
     }
@@ -207,19 +207,19 @@ def process_state_space_functions(
             )
         )
 
-    if "next_period_endogenous_state" not in state_space_functions:
+    if "next_period_deterministic_state" not in state_space_functions:
         print(
             "Update function for state space not given. Assume states only change "
             "with an increase of the period and lagged choice."
         )
 
-        def next_period_endogenous_state(**kwargs):
+        def next_period_deterministic_state(**kwargs):
             return {"period": kwargs["period"] + 1, "lagged_choice": kwargs["choice"]}
 
     else:
-        next_period_endogenous_state = (
+        next_period_deterministic_state = (
             determine_function_arguments_and_partial_model_specs(
-                func=state_space_functions["next_period_endogenous_state"],
+                func=state_space_functions["next_period_deterministic_state"],
                 model_specs=model_specs,
                 continuous_state_name=continuous_state_name,
             )
@@ -229,7 +229,11 @@ def process_state_space_functions(
         state_space_functions=state_space_functions, model_specs=model_specs
     )
 
-    return state_specific_choice_set, next_period_endogenous_state, sparsity_condition
+    return (
+        state_specific_choice_set,
+        next_period_deterministic_state,
+        sparsity_condition,
+    )
 
 
 def process_sparsity_condition(state_space_functions, model_specs):

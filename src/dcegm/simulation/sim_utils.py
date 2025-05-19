@@ -145,7 +145,7 @@ def transition_to_next_period(
     discrete_endog_states_next_period = vmap(
         update_discrete_states_for_one_agent, in_axes=(None, 0, 0, None)  # choice
     )(
-        model_funcs_sim["next_period_endogenous_state"],
+        model_funcs_sim["next_period_deterministic_state"],
         discrete_states_beginning_of_period,
         choice,
         params,

@@ -7,7 +7,7 @@ from dcegm.pre_processing.shared import get_smallest_int_type
 def create_state_choice_space_and_child_state_mapping(
     model_config,
     state_specific_choice_set,
-    next_period_endogenous_state,
+    next_period_deterministic_state,
     state_space_arrays,
 ):
     """Create state choice space of all feasible state-choice combinations.
@@ -128,7 +128,7 @@ def create_state_choice_space_and_child_state_mapping(
 
             if state_vec[0] < n_periods - 1:
 
-                endog_state_update = next_period_endogenous_state(
+                endog_state_update = next_period_deterministic_state(
                     **this_period_state, choice=choice
                 )
 
@@ -181,7 +181,7 @@ def create_state_choice_space_and_child_state_mapping(
                         f"the state \n\n{this_period_state}\n\n with choice: {choice}.\n\n "
                         f"It is also declared invalid by the sparsity condition. Please "
                         f"remember, that if a state is invalid because it can't be reached by the deterministic"
-                        f"update of states, this has to be reflected in the state space function next_period_endogenous_state."
+                        f"update of states, this has to be reflected in the state space function next_period_deterministic_state."
                         f"If its stochastic state realization is invalid, this state has to be proxied to another state"
                         f"by the sparsity condition."
                     )

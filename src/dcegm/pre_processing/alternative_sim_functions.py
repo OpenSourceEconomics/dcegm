@@ -144,7 +144,7 @@ def process_alternative_sim_functions(
     )
 
     # Now state space functions
-    state_specific_choice_set, next_period_endogenous_state, sparsity_condition = (
+    state_specific_choice_set, next_period_deterministic_state, sparsity_condition = (
         process_state_space_functions(
             state_space_functions,
             model_config=model_config,
@@ -185,7 +185,7 @@ def process_alternative_sim_functions(
         "compute_stochastic_transition_vec": compute_stochastic_transition_vec,
         "processed_stochastic_funcs": processed_stochastic_funcs_dict,
         "state_specific_choice_set": state_specific_choice_set,
-        "next_period_endogenous_state": next_period_endogenous_state,
+        "next_period_deterministic_state": next_period_deterministic_state,
         "compute_upper_envelope": compute_upper_envelope,
         "taste_shock_function": taste_shock_function_processed,
     }

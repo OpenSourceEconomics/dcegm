@@ -152,7 +152,7 @@ def state_space_functions():
     """Return dict with state space functions."""
     out = {
         "state_specific_choice_set": choice_set,
-        "next_period_endogenous_state": next_period_state,
+        "next_period_deterministic_state": next_period_state,
         "sparsity_condition": sparsity_condition,
     }
     return out

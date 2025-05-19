@@ -4,7 +4,7 @@ def create_state_space_functions():
         "state_specific_choice_set": state_specific_choice_set,
         "next_period_experience": next_period_experience,
         "sparsity_condition": sparsity_condition,
-        "next_period_endogenous_state": next_period_endogenous_state,
+        "next_period_deterministic_state": next_period_deterministic_state,
     }
     return out
 
@@ -84,7 +84,7 @@ def sparsity_condition(
                 }
 
 
-def next_period_endogenous_state(period, choice, lagged_choice):
+def next_period_deterministic_state(period, choice, lagged_choice):
     if (lagged_choice == 0) & (choice == 0):
         return {
             "period": period + 1,
