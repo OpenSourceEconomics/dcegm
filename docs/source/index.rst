@@ -21,13 +21,28 @@ savings, including additional discrete choices.
    :hidden:
 
    guides/installation
+   guides/two_period_model_tutorial
+   guides/practitioner_guides
    genindex
    autoapi/index
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Background
+   :hidden:
+
+   background/limitations
+   background/literature
+   background/interface_plots
+   background/specify_exogenous_processes
+   background/timing_benchmarks
+
 
 .. toctree::
    :maxdepth: 2
    :caption: Development
    :hidden:
 
+   development/team
    development/changes
    development/roadmap
