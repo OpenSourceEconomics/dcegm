@@ -114,6 +114,7 @@ class setup_model:
             model_structure=self.model_structure,
             model_funcs=self.model_funcs,
             params=params_processed,
+            alternative_sim_funcs=self.alternative_sim_funcs,
         )
         return model_solved_class
 
