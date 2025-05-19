@@ -32,7 +32,7 @@ model_config = {
     "n_periods": 25,
     "choices": [0, 1],
     "continuous_states": {
-        "wealth": jnp.linspace(
+        "assets_end_of_period": jnp.linspace(
             0,
             50,
             500,
