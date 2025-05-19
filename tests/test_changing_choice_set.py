@@ -187,7 +187,7 @@ def utility_functions_final_period():
     }
 
 
-def budget(lagged_choice, experience, savings_end_of_previous_period, health, params):
+def budget(lagged_choice, experience, assets_end_of_previous_period, health, params):
     unemployed = lagged_choice == 0
     working = lagged_choice == 1
     retired = lagged_choice == 2
@@ -206,7 +206,7 @@ def budget(lagged_choice, experience, savings_end_of_previous_period, health, pa
     )
 
     return jnp.maximum(
-        income + (1 + params["interest_rate"]) * savings_end_of_previous_period,
+        income + (1 + params["interest_rate"]) * assets_end_of_previous_period,
         params["consumption_floor"],
     )
 

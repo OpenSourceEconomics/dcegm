@@ -69,9 +69,8 @@ def check_model_config_and_process(model_config):
     # ToDo: Check if it is monotonic increasing
 
     continuous_states_info = {}
-    n_savings_grid_points = len(asset_grid)
-    continuous_states_info["n_savings_grid"] = n_savings_grid_points
-    continuous_states_info["asset_grid"] = continuous_states_grids[
+    n_assets_end_of_period = len(asset_grid)
+    continuous_states_info["assets_grid_end_of_period"] = continuous_states_grids[
         "assets_end_of_period"
     ]
 
@@ -126,12 +125,12 @@ def check_model_config_and_process(model_config):
     tuning_params["n_constrained_points_to_add"] = (
         tuning_params["n_constrained_points_to_add"]
         if "n_constrained_points_to_add" in tuning_params
-        else n_savings_grid_points // 10
+        else n_assets_end_of_period // 10
     )
 
     if (
-        n_savings_grid_points * (1 + tuning_params["extra_wealth_grid_factor"])
-        < n_savings_grid_points + tuning_params["n_constrained_points_to_add"]
+        n_assets_end_of_period * (1 + tuning_params["extra_wealth_grid_factor"])
+        < n_assets_end_of_period + tuning_params["n_constrained_points_to_add"]
     ):
         raise ValueError(
             f"""\n\n
@@ -142,7 +141,7 @@ def check_model_config_and_process(model_config):
             the credit constrained part of the wealth grid. \n\n"""
         )
     tuning_params["n_total_wealth_grid"] = int(
-        n_savings_grid_points * (1 + tuning_params["extra_wealth_grid_factor"])
+        n_assets_end_of_period * (1 + tuning_params["extra_wealth_grid_factor"])
     )
 
     # Set jump threshold to default 2 if it is not given

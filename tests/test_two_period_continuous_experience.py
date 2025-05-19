@@ -141,7 +141,7 @@ def budget_constraint_continuous(
 
 def budget_constraint_continuous_dcegm(
     period: int,
-    savings_end_of_previous_period: float,
+    assets_end_of_previous_period: float,
     lagged_choice: int,
     experience: float,
     income_shock_previous_period: float,
@@ -160,7 +160,7 @@ def budget_constraint_continuous_dcegm(
 
     wealth_beginning_of_period = (
         income_from_previous_period * working
-        + (1 + params["interest_rate"]) * savings_end_of_previous_period
+        + (1 + params["interest_rate"]) * assets_end_of_previous_period
     )
 
     # Retirement safety net, only in retirement model, but we require to have it always

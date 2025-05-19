@@ -188,7 +188,6 @@ def solve_final_period(
             idx_parent_states_final_period=idx_parent_states_final_period,
             state_choice_mat_final_period=state_choice_mat_final_period,
             cont_grids_next_period=cont_grids_next_period,
-            n_savings_grid=continuous_states_info["n_savings_grid"],
             params=params,
             compute_utility=model_funcs["compute_utility_final"],
             compute_marginal_utility=model_funcs["compute_marginal_utility_final"],
@@ -216,7 +215,6 @@ def solve_final_period_discrete(
     idx_parent_states_final_period,
     state_choice_mat_final_period,
     cont_grids_next_period: Dict[str, jnp.ndarray],
-    n_savings_grid: int,
     params: Dict[str, float],
     compute_utility: Callable,
     compute_marginal_utility: Callable,
@@ -274,13 +272,13 @@ def solve_final_period_discrete(
     wealth_with_zeros = jnp.column_stack((zeros_to_append, wealth_sorted))
 
     value_solved = value_solved.at[
-        idx_state_choices_final_period, : n_savings_grid + 1
+        idx_state_choices_final_period, : values_with_zeros.shape[0]
     ].set(values_with_zeros)
     policy_solved = policy_solved.at[
-        idx_state_choices_final_period, : n_savings_grid + 1
+        idx_state_choices_final_period, : values_with_zeros.shape[0]
     ].set(wealth_with_zeros)
     endog_grid_solved = endog_grid_solved.at[
-        idx_state_choices_final_period, : n_savings_grid + 1
+        idx_state_choices_final_period, : values_with_zeros.shape[0]
     ].set(wealth_with_zeros)
 
     return (

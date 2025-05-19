@@ -25,7 +25,7 @@ def budget_constraint_based_on_experience(
     period: int,
     lagged_choice: int,
     continuous_state_beginning_of_period: float,
-    savings_end_of_previous_period: float,
+    assets_end_of_previous_period: float,
     income_shock_previous_period: float,
     params: Dict[str, float],
 ) -> float:
@@ -42,7 +42,7 @@ def budget_constraint_based_on_experience(
 
     wealth_beginning_of_period = (
         wage * working_hours * (lagged_choice > 0)
-        + (1 + params["interest_rate"]) * savings_end_of_previous_period
+        + (1 + params["interest_rate"]) * assets_end_of_previous_period
     )
 
     return jnp.maximum(wealth_beginning_of_period, params["consumption_floor"])
@@ -134,7 +134,7 @@ def test_get_beginning_of_period_wealth(
 
     wealth_beginning_of_period = budget_constraint(
         **child_state_dict,
-        savings_end_of_previous_period=savings_grid[random_saving_scalar],
+        assets_end_of_previous_period=savings_grid[random_saving_scalar],
         income_shock_previous_period=quad_points[random_shock_scalar],
         model_specs=model_specs,
         params=params,

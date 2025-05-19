@@ -11,7 +11,7 @@ from dcegm.simulation.sim_utils import create_simulation_df
 def budget_with_aux(
     period,
     lagged_choice,
-    savings_end_of_previous_period,
+    assets_end_of_previous_period,
     income_shock_previous_period,
     model_specs,
     params,
@@ -19,7 +19,7 @@ def budget_with_aux(
     wealth, shock, income = budget_constraint_raw(
         period,
         lagged_choice,
-        savings_end_of_previous_period,
+        assets_end_of_previous_period,
         income_shock_previous_period,
         model_specs,
         params,
@@ -33,7 +33,7 @@ def budget_with_aux(
 def budget_without_aux(
     period,
     lagged_choice,
-    savings_end_of_previous_period,
+    assets_end_of_previous_period,
     income_shock_previous_period,
     model_specs,
     params,
@@ -41,7 +41,7 @@ def budget_without_aux(
     wealth, _, _ = budget_constraint_raw(
         period,
         lagged_choice,
-        savings_end_of_previous_period,
+        assets_end_of_previous_period,
         income_shock_previous_period,
         model_specs,
         params,
@@ -52,7 +52,7 @@ def budget_without_aux(
 def budget_constraint_raw(
     period,
     lagged_choice,
-    savings_end_of_previous_period,
+    assets_end_of_previous_period,
     income_shock_previous_period,
     model_specs,
     params,
@@ -70,7 +70,7 @@ def budget_constraint_raw(
 
     wealth_beginning_of_period = (
         income_from_previous_period
-        + (1 + params["interest_rate"]) * savings_end_of_previous_period
+        + (1 + params["interest_rate"]) * assets_end_of_previous_period
     )
 
     # Retirement safety net, only in retirement model, but we require to have it always
