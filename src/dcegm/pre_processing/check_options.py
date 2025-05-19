@@ -167,10 +167,8 @@ def check_model_config_and_process(model_config):
     else:
         processed_model_config["min_period_batch_segments"] = None
 
-    if "exogenous_processes" in model_config.keys():
-        processed_model_config["exogenous_processes"] = model_config[
-            "exogenous_processes"
-        ]
+    if "stochastic_states" in model_config.keys():
+        processed_model_config["stochastic_states"] = model_config["stochastic_states"]
 
     if "endogenous_states" in model_config.keys():
         processed_model_config["endogenous_states"] = model_config["endogenous_states"]

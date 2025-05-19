@@ -10,35 +10,37 @@ from dcegm.pre_processing.shared import (
 )
 
 
-def create_exog_transition_function(
-    exogenous_states_transitions, model_config, model_specs, continuous_state_name
+def create_stochastic_transition_function(
+    stochastic_states_transitions, model_config, model_specs, continuous_state_name
 ):
-    """Create the exogenous process transition function.
+    """Create the stochastic process transition function.
 
     The output function takes a state-choice vector, params and model_specs as input.
     It creates a transition vector over cartesian product of exogenous states.
 
     """
-    if "exogenous_processes" not in model_config:
-        model_config["exogenous_states"] = {"exog_state": [0]}
-        compute_exog_transition_vec = return_dummy_exog_transition
-        processed_exog_funcs_dict = {}
+    if "stochastic_states" not in model_config:
+        model_config["stochastic_states"] = {"stochastic_state": [0]}
+        compute_stochastic_transition_vec = return_dummy_stochastic_transition
+        func_dict = {}
     else:
-        exog_funcs, processed_exog_funcs_dict = process_exog_funcs(
-            exogenous_states_transitions,
+        func_list, func_dict = process_stochastic_transitions(
+            stochastic_states_transitions,
             model_specs=model_specs,
             continuous_state_name=continuous_state_name,
         )
 
-        compute_exog_transition_vec = partial(
-            get_exog_transition_vec, exog_funcs=exog_funcs
+        compute_stochastic_transition_vec = partial(
+            get_stochastic_transition_vec, stochastic_funcs=func_list
         )
 
-    return compute_exog_transition_vec, processed_exog_funcs_dict
+    return compute_stochastic_transition_vec, func_dict
 
 
-def process_exog_funcs(exog_processes, model_specs, continuous_state_name):
-    """Process exogenous functions.
+def process_stochastic_transitions(
+    stochastic_states_transitions, model_specs, continuous_state_name
+):
+    """Process stochastic functions.
 
     Args:
         options (dict): Options dictionary.
@@ -48,26 +50,28 @@ def process_exog_funcs(exog_processes, model_specs, continuous_state_name):
 
     """
 
-    exog_funcs = []
-    processed_exog_funcs = {}
+    func_list = []
+    func_dict = {}
+
     # What about vectors instead of callables supplied?
-    for exog_name, exog_func in exog_processes.items():
-        if isinstance(exog_func, Callable):
+    for name, func in stochastic_states_transitions.items():
+        if isinstance(func, Callable):
             processed_exog_func = determine_function_arguments_and_partial_model_specs(
-                func=exog_func,
+                func=func,
                 model_specs=model_specs,
                 continuous_state_name=continuous_state_name,
             )
-            exog_funcs += [processed_exog_func]
-            processed_exog_funcs[exog_name] = processed_exog_func
+            func_list += [processed_exog_func]
+            func_dict[name] = processed_exog_func
 
-    return exog_funcs, processed_exog_funcs
+    return func_list, func_dict
 
 
-def get_exog_transition_vec(exog_funcs, params, **state_choice_vars):
-    trans_vector = exog_funcs[0](**state_choice_vars, params=params)
+def get_stochastic_transition_vec(transition_funcs, params, **state_choice_vars):
+    """Return Kron product of stochastic transition functions."""
+    trans_vector = transition_funcs[0](**state_choice_vars, params=params)
 
-    for exog_func in exog_funcs[1:]:
+    for exog_func in transition_funcs[1:]:
         # options already partialled in
         trans_vector = jnp.kron(
             trans_vector, exog_func(**state_choice_vars, params=params)
@@ -76,36 +80,36 @@ def get_exog_transition_vec(exog_funcs, params, **state_choice_vars):
     return trans_vector
 
 
-def return_dummy_exog_transition(*args, **kwargs):
+def return_dummy_stochastic_transition(*args, **kwargs):
     return jnp.array([1])
 
 
-def create_exog_state_mapping(exog_state_space, exog_names):
-    def exog_state_mapping(exog_proc_state):
+def create_stochastic_states_mapping(state_space, names):
+    def stochastic_states_mapping(state_idx):
         # Caution: JAX does not throw an error if the exog_proc_state is out of bounds
         # If the index is out of bounds, the last element of the array is returned.
-        exog_state = jnp.take(exog_state_space, exog_proc_state, axis=0)
-        exog_state_dict = {
-            key: jnp.take(exog_state, i) for i, key in enumerate(exog_names)
+        stochastic_state = jnp.take(state_space, state_idx, axis=0)
+        stochastic_states_dict = {
+            key: jnp.take(stochastic_state, i) for i, key in enumerate(names)
         }
-        return exog_state_dict
+        return stochastic_states_dict
 
-    return exog_state_mapping
+    return stochastic_states_mapping
 
 
-def process_exog_model_specifications(model_config):
-    if "exogenous_processes" in model_config:
-        exog_state_names = list(model_config["exogenous_processes"].keys())
+def process_stochastic_model_specifications(model_config):
+    if "stochastic_states" in model_config:
+        state_name = list(model_config["stochastic_states"].keys())
         dict_of_only_states = {
-            key: model_config["exogenous_processes"][key] for key in exog_state_names
+            key: model_config["stochastic_states"][key] for key in state_name
         }
 
-        exog_state_space = span_subspace(
+        state_space_with_stochastic = span_subspace(
             subdict_of_space=dict_of_only_states,
-            states_names=exog_state_names,
+            states_names=state_name,
         )
     else:
-        exog_state_names = ["dummy_exog"]
-        exog_state_space = np.array([[0]], dtype=np.uint8)
+        state_name = ["dummy_state_stochastic"]
+        state_space_with_stochastic = np.array([[0]], dtype=np.uint8)
 
-    return exog_state_names, exog_state_space
+    return state_name, state_space_with_stochastic

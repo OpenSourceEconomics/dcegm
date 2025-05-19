@@ -14,7 +14,7 @@ from tests.sparse_death.utility import (
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def inputs():
     n_periods = 20
     n_choices = 3

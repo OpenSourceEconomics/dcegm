@@ -9,7 +9,7 @@ from dcegm.pre_processing.model_functions.upper_evelope_wrapper import (
     create_upper_envelope_function,
 )
 from dcegm.pre_processing.model_structure.exogenous_processes import (
-    create_exog_transition_function,
+    create_stochastic_transition_function,
 )
 from dcegm.pre_processing.shared import (
     determine_function_arguments_and_partial_model_specs,
@@ -118,7 +118,7 @@ def process_model_functions(
 
     # Now exogenous transition function if present
     compute_exog_transition_vec, processed_exog_funcs_dict = (
-        create_exog_transition_function(
+        create_stochastic_transition_function(
             exogenous_states_transitions,
             model_config=model_config,
             model_specs=model_specs,
