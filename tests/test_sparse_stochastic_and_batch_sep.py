@@ -137,7 +137,7 @@ def test_benchmark_models():
     model_split = dcegm.setup_model(
         model_config=model_config_sep_once,
         model_specs=model_specs,
-        **model_funcs_sparse
+        **model_funcs_sparse,
     )
 
     model_solved_split_once = model_split.solve(params)
@@ -152,7 +152,7 @@ def test_benchmark_models():
     model_split_twice = dcegm.setup_model(
         model_config=model_config_split_twice,
         model_specs=model_specs,
-        **model_funcs_sparse
+        **model_funcs_sparse,
     )
     model_solved_split_twice = model_split_twice.solve(params)
 
