@@ -2,6 +2,7 @@ import numpy as np
 
 from dcegm.pre_processing.model_structure.shared import create_indexer_for_space
 from dcegm.pre_processing.shared import get_smallest_int_type
+from tests.test_state_space import n_stochastic_states
 
 
 def create_state_choice_space_and_child_state_mapping(
@@ -58,20 +59,22 @@ def create_state_choice_space_and_child_state_mapping(
 
     """
 
-    states_names_without_exog = state_space_arrays["state_names_without_exog"]
-    exog_state_names = state_space_arrays["stochastic_states_names"]
-    exog_state_space = state_space_arrays["stochastic_state_space"]
+    state_names_without_stochastic = state_space_arrays[
+        "state_names_without_stochastic"
+    ]
+    stochastic_states_names = state_space_arrays["stochastic_states_names"]
+    stochastic_state_space = state_space_arrays["stochastic_state_space"]
     map_state_to_index_with_proxy = state_space_arrays["map_state_to_index_with_proxy"]
     map_state_to_index = state_space_arrays["map_state_to_index"]
     state_space = state_space_arrays["state_space"]
 
-    n_states, n_state_and_exog_variables = state_space.shape
-    n_exog_states, n_exog_vars = exog_state_space.shape
+    n_states, n_state_and_stochastic_variables = state_space.shape
+    n_stochastic_states, n_stochastic_vars = stochastic_state_space.shape
     n_choices = len(model_config["choices"])
-    discrete_states_names = states_names_without_exog + exog_state_names
+    discrete_states_names = state_names_without_stochastic + stochastic_states_names
     n_periods = model_config["n_periods"]
 
-    dtype_exog_state_space = get_smallest_int_type(n_exog_states)
+    dtype_stochastic_state_space = get_smallest_int_type(n_stochastic_states)
 
     # Get dtype and maxint for choices
     dtype_choices = get_smallest_int_type(n_choices)
@@ -84,7 +87,7 @@ def create_state_choice_space_and_child_state_mapping(
         state_choice_space_dtype = dtype_choices
 
     state_choice_space_raw = np.zeros(
-        (n_states * n_choices, n_state_and_exog_variables + 1),
+        (n_states * n_choices, n_state_and_stochastic_variables + 1),
         dtype=state_choice_space_dtype,
     )
 
@@ -96,12 +99,14 @@ def create_state_choice_space_and_child_state_mapping(
     )
 
     map_state_choice_to_child_states = np.full(
-        (n_states * n_choices, n_exog_states),
+        (n_states * n_choices, n_stochastic_states),
         fill_value=invalid_indexer_idx,
         dtype=state_space_indexer_dtype,
     )
 
-    exog_states_tuple = tuple(exog_state_space[:, i] for i in range(n_exog_vars))
+    stochastic_states_tuple = tuple(
+        stochastic_state_space[:, i] for i in range(n_stochastic_vars)
+    )
 
     idx = 0
     for state_vec in state_space:
@@ -129,22 +134,27 @@ def create_state_choice_space_and_child_state_mapping(
                 )
 
                 check_endog_update_function(
-                    endog_state_update, this_period_state, choice, exog_state_names
+                    endog_state_update,
+                    this_period_state,
+                    choice,
+                    stochastic_states_names,
                 )
 
                 next_period_state = this_period_state.copy()
                 next_period_state.update(endog_state_update)
 
-                next_period_state_tuple_wo_exog = tuple(
+                next_period_state_tuple_wo_stochastic = tuple(
                     np.full(
-                        n_exog_states,
+                        n_stochastic_states,
                         fill_value=next_period_state[key],
-                        dtype=dtype_exog_state_space,
+                        dtype=dtype_stochastic_state_space,
                     )
-                    for key in states_names_without_exog
+                    for key in state_names_without_stochastic
                 )
 
-                states_next_tuple = next_period_state_tuple_wo_exog + exog_states_tuple
+                states_next_tuple = (
+                    next_period_state_tuple_wo_stochastic + stochastic_states_tuple
+                )
 
                 try:
                     child_idxs = map_state_to_index_with_proxy[states_next_tuple]
@@ -173,7 +183,7 @@ def create_state_choice_space_and_child_state_mapping(
                         f"It is also declared invalid by the sparsity condition. Please "
                         f"remember, that if a state is invalid because it can't be reached by the deterministic"
                         f"update of states, this has to be reflected in the state space function next_period_endogenous_state."
-                        f"If its exogenous state realization is invalid, this state has to be proxied to another state"
+                        f"If its stochastic state realization is invalid, this state has to be proxied to another state"
                         f"by the sparsity condition."
                     )
 
@@ -191,13 +201,13 @@ def create_state_choice_space_and_child_state_mapping(
     # Create indexer with proxy
     state_space_incl_proxies = state_space_arrays["state_space_incl_proxies"]
     state_space_incl_proxies_tuple = tuple(
-        state_space_incl_proxies[:, i] for i in range(n_state_and_exog_variables)
+        state_space_incl_proxies[:, i] for i in range(n_state_and_stochastic_variables)
     )
     states_proxy_to = state_space[
         map_state_to_index_with_proxy[state_space_incl_proxies_tuple]
     ]
     states_proxy_to_tuple = tuple(
-        states_proxy_to[:, i] for i in range(n_state_and_exog_variables)
+        states_proxy_to[:, i] for i in range(n_state_and_stochastic_variables)
     )
     map_state_choice_to_index_with_proxy = np.empty_like(map_state_choice_to_index)
     map_state_choice_to_index_with_proxy[state_space_incl_proxies_tuple] = (
@@ -290,7 +300,7 @@ def test_child_state_mapping(
 
 
 def check_endog_update_function(
-    endog_state_update, this_period_state, choice, exog_state_names
+    endog_state_update, this_period_state, choice, stochastic_state_names
 ):
     """Conduct several checks on the endogenous state update function."""
     if endog_state_update["period"] != this_period_state["period"] + 1:
@@ -307,13 +317,13 @@ def check_endog_update_function(
             f"{this_period_state} \n\n"
         )
 
-    # Check if exogenous state is updated. This is forbidden.
-    for exog_state_name in exog_state_names:
-        if exog_state_name in endog_state_update.keys():
+    # Check if stochastic state is updated. This is forbidden.
+    for state_name in stochastic_state_names:
+        if state_name in endog_state_update.keys():
             raise ValueError(
-                f"\n\n The exogenous state {exog_state_name} is also updated (or just returned)"
+                f"\n\n The stochastic state {state_name} is also updated (or just returned)"
                 f"for in the endogenous update function. You can use the proxy function to implement"
-                f"a custom update rule, i.e. redirecting the exogenous process."
+                f"a custom update rule, i.e. redirecting the stochastic state."
                 f"An example of this update happens with the state choice combination: \n\n"
                 f"{this_period_state} \n\n"
             )

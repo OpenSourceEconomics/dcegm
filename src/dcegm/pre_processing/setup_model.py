@@ -175,8 +175,8 @@ def load_and_setup_model(
     )
 
     model["model_funcs"]["stochastic_state_mapping"] = create_stochastic_state_mapping(
-        exog_state_space=model["model_structure"]["stochastic_state_space"],
-        exog_names=model["model_structure"]["stochastic_states_names"],
+        stochastic_state_space=model["model_structure"]["stochastic_state_space"],
+        stochastic_state_names=model["model_structure"]["stochastic_states_names"],
     )
 
     return model

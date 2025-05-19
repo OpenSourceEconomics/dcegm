@@ -82,13 +82,14 @@ def return_dummy_stochastic_transition(*args, **kwargs):
     return jnp.array([1])
 
 
-def create_stochastic_state_mapping(state_space, names):
+def create_stochastic_state_mapping(stochastic_state_space, stochastic_state_names):
     def stochastic_state_mapping(state_idx):
         # Caution: JAX does not throw an error if the state_idx is out of bounds
         # If the index is out of bounds, the last element of the array is returned.
-        stochastic_state = jnp.take(state_space, state_idx, axis=0)
+        stochastic_state = jnp.take(stochastic_state_space, state_idx, axis=0)
         stochastic_states_dict = {
-            key: jnp.take(stochastic_state, i) for i, key in enumerate(names)
+            key: jnp.take(stochastic_state, i)
+            for i, key in enumerate(stochastic_state_names)
         }
         return stochastic_states_dict
 
@@ -97,17 +98,18 @@ def create_stochastic_state_mapping(state_space, names):
 
 def process_stochastic_model_specifications(model_config):
     if "stochastic_states" in model_config:
-        state_name = list(model_config["stochastic_states"].keys())
+        stochastic_state_names = list(model_config["stochastic_states"].keys())
         dict_of_only_states = {
-            key: model_config["stochastic_states"][key] for key in state_name
+            key: model_config["stochastic_states"][key]
+            for key in stochastic_state_names
         }
 
-        state_space_with_stochastic = span_subspace(
+        stochastic_state_space = span_subspace(
             subdict_of_space=dict_of_only_states,
-            states_names=state_name,
+            states_names=stochastic_state_names,
         )
     else:
-        state_name = ["dummy_state_stochastic"]
-        state_space_with_stochastic = np.array([[0]], dtype=np.uint8)
+        stochastic_state_names = ["dummy_state_stochastic"]
+        stochastic_state_space = np.array([[0]], dtype=np.uint8)
 
-    return state_name, state_space_with_stochastic
+    return stochastic_state_names, stochastic_state_space

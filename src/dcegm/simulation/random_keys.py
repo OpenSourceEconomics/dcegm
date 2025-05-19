@@ -44,7 +44,7 @@ def draw_random_keys_for_seed(n_agents, n_periods, taste_shock_scale_is_scalar, 
     )
 
     sim_keys = {
-        "exog_process_keys": sim_keys_draw[:-1, idx_1, :],
+        "stochastic_state_keys": sim_keys_draw[:-1, idx_1, :],
         "income_shock_keys": sim_keys_draw[:-1, idx_2, :],
         "taste_shock_keys": sim_keys_draw[:-1, idx_3, :],
     }

@@ -201,7 +201,7 @@ def create_state_space(model_config, sparsity_condition, debugging=False):
         "map_state_to_index_with_proxy": map_state_to_index_with_proxy,
         "stochastic_state_space": stochastic_state_space,
         "stochastic_states_names": stochastic_state_names,
-        "state_names_without_exog": state_names_without_stochastic,
+        "state_names_without_stochastic": state_names_without_stochastic,
         "discrete_states_names": discrete_states_names,
     }
 

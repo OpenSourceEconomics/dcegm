@@ -60,15 +60,17 @@ def generate_alternative_sim_functions(
     )
 
     (
-        exog_states_names,
-        exog_state_space_raw,
+        stochastic_state_names,
+        stochastic_state_space_raw,
     ) = process_stochastic_model_specifications(model_config=model_config)
 
-    exog_state_space = create_array_with_smallest_int_dtype(exog_state_space_raw)
+    stochastic_state_space = create_array_with_smallest_int_dtype(
+        stochastic_state_space_raw
+    )
 
     model_funcs["stochastic_state_mapping"] = create_stochastic_state_mapping(
-        exog_state_space,
-        exog_states_names,
+        stochastic_state_space,
+        stochastic_state_names,
     )
 
     print("Model setup complete.\n")

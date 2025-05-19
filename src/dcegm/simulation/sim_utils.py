@@ -132,10 +132,12 @@ def transition_to_next_period(
 ):
     n_agents = savings_current_period.shape[0]
 
-    exog_states_next_period = vmap(realize_exog_process, in_axes=(0, 0, 0, None, None))(
+    stochastic_states_next_period = vmap(
+        realize_stochastic_states, in_axes=(0, 0, 0, None, None)
+    )(
         discrete_states_beginning_of_period,
         choice,
-        sim_keys["exog_process_keys"],
+        sim_keys["stochastic_state_keys"],
         params,
         model_funcs_sim["processed_stochastic_funcs"],
     )
@@ -153,7 +155,10 @@ def transition_to_next_period(
     # beginning of next period.
     # Initialize states by copying
     discrete_states_next_period = discrete_states_beginning_of_period.copy()
-    states_to_update = {**discrete_endog_states_next_period, **exog_states_next_period}
+    states_to_update = {
+        **discrete_endog_states_next_period,
+        **stochastic_states_next_period,
+    }
     discrete_states_next_period.update(states_to_update)
 
     # Draw income shocks.
@@ -244,16 +249,16 @@ def vectorized_utility(consumption_period, state, choice, params, compute_utilit
     return utility
 
 
-def realize_exog_process(state, choice, key, params, processed_stochastic_funcs):
-    exog_states_next_period = {}
-    for exog_state_name in processed_stochastic_funcs.keys():
-        exog_state_vec = processed_stochastic_funcs[exog_state_name](
+def realize_stochastic_states(state, choice, key, params, processed_stochastic_funcs):
+    stochastic_states_next_period = {}
+    for state_name in processed_stochastic_funcs.keys():
+        state_vec = processed_stochastic_funcs[state_name](
             params=params, **state, choice=choice
         )
-        exog_states_next_period[exog_state_name] = jax.random.choice(
-            key=key, a=exog_state_vec.shape[0], p=exog_state_vec
-        ).astype(state[exog_state_name].dtype)
-    return exog_states_next_period
+        stochastic_states_next_period[state_name] = jax.random.choice(
+            key=key, a=state_vec.shape[0], p=state_vec
+        ).astype(state[state_name].dtype)
+    return stochastic_states_next_period
 
 
 def interp1d_policy_and_value_function(

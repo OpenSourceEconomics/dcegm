@@ -331,10 +331,10 @@ def validate_stochastic_transition(model, params):
     transition_funcs_processed = model["model_funcs"]["processed_stochastic_funcs"]
     state_choice_space_dict = model["model_structure"]["state_choice_space_dict"]
 
-    for name, exog_func in transition_funcs_processed.items():
+    for name, func in transition_funcs_processed.items():
         # Sum transition probabilities for each state-choice combination
         all_transitions = jax.vmap(stochastic_transition_vec, in_axes=(0, None, None))(
-            state_choice_space_dict, exog_func, params
+            state_choice_space_dict, func, params
         )
         summed_transitions = jnp.sum(all_transitions, axis=1)
 

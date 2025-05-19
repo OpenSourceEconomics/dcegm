@@ -116,7 +116,7 @@ def correct_for_uneven_last_batch(
         last_batch_info = {
             "state_choice_idx": last_batch,
             "state_choices": last_state_choices,
-            "child_states_to_integrate_exog": last_child_states_to_integrate_exog,
+            "child_states_to_integrate_stochastic": last_child_states_to_integrate_exog,
             # Child state infos.
             "child_state_choices_to_aggr_choice": last_idx_to_aggregate_choice,
             "child_state_choice_idxs_to_interp": last_child_state_idx_interp,
@@ -188,7 +188,7 @@ def prepare_and_align_batch_arrays(
         # Now the batch array information. First the batch itself
         "batches_state_choice_idx": batch_array,
         "state_choices": state_choices_batches,
-        "child_states_to_integrate_exog": child_states_to_integrate_exog,
+        "child_states_to_integrate_stochastic": child_states_to_integrate_exog,
         # Then the child states
         "child_state_choices_to_aggr_choice": child_state_choices_to_aggr_choice,
         "child_state_choice_idxs_to_interp": child_state_choice_idxs_to_interp,

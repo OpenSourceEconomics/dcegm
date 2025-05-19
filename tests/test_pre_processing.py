@@ -73,7 +73,7 @@ def test_wrap_function(load_replication_params_and_specs):
     state_dict = {
         "consumption": jnp.arange(1, 7),
         "choice": jnp.arange(1, 7),
-        "global_exog": np.zeros(6, dtype=int),
+        "child_states_to_integrate_stochastic": np.zeros(6, dtype=int),
         "periods": jnp.arange(6),
     }
 

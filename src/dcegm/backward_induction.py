@@ -165,7 +165,7 @@ def backward_induction(
             xs=(
                 segment_info["batches_state_choice_idx"],
                 segment_info["child_state_choices_to_aggr_choice"],
-                segment_info["child_states_to_integrate_exog"],
+                segment_info["child_states_to_integrate_stochastic"],
                 segment_info["child_state_choice_idxs_to_interp"],
                 segment_info["child_states_idxs"],
                 segment_info["state_choices"],
