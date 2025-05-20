@@ -44,7 +44,7 @@ def interp1d_policy_and_value_on_wealth(
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
     params: Dict[str, float],
-    read_funcs: Dict[str, float],
+    discount_factor,
 ) -> Tuple[float, float]:
     """Interpolate policy and value function given a single wealth grid point.
 
@@ -86,7 +86,7 @@ def interp1d_policy_and_value_on_wealth(
         value_at_zero_wealth=value[0],
         state_choice_vec=state_choice_vec,
         params=params,
-        discount_factor=read_funcs["discount_factor"](params),
+        discount_factor=discount_factor,
     )
 
     return policy_interp, value_interp
