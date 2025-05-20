@@ -7,7 +7,8 @@ dependencies:
   - python=3.9
   - pip
   - ipython
-  - nbsphinx
+  - jupyter
+  - myst-nb
   - numpydoc
   - sphinx
   - sphinx-autobuild
