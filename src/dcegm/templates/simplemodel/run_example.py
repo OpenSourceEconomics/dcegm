@@ -16,7 +16,7 @@ config.update("jax_enable_x64", True)
 
 ## set up
 params = {
-    "beta": 0.9523809523809523,
+    "discount_factor": 0.9523809523809523,
     # disutility of work
     "delta": 0.35,
     # CRRA coefficient

@@ -143,7 +143,7 @@ def custom_interp2d_quad_value_function(
             # else:
             z[i, 0] = (
                 flow_util(x, params)
-                + model_funcs["read_funcs"]["beta"] * values[y_indx][0]
+                + model_funcs["read_funcs"]["discount_factor"] * values[y_indx][0]
             )
 
         if x < x_grids[y_indx + 1][1]:
@@ -154,7 +154,7 @@ def custom_interp2d_quad_value_function(
             # else:
             z[i, 1] = (
                 flow_util(x, params)
-                + model_funcs["read_funcs"]["beta"] * values[y_indx + 1][0]
+                + model_funcs["read_funcs"]["discount_factor"] * values[y_indx + 1][0]
             )
 
     alpha, beta = (x_cords @ A), (y_cords @ A)

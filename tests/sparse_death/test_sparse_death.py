@@ -53,7 +53,7 @@ def inputs():
 
     params = {
         "delta": 0.5,
-        "beta": 0.95,
+        "discount_factor": 0.95,
         "taste_shock_scale": 1,
         "sigma": 1,
         "interest_rate": 0.05,

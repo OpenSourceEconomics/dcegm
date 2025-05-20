@@ -86,7 +86,7 @@ def interp1d_policy_and_value_on_wealth(
         value_at_zero_wealth=value[0],
         state_choice_vec=state_choice_vec,
         params=params,
-        beta=read_funcs["beta"],
+        beta=read_funcs["discount_factor"],
     )
 
     return policy_interp, value_interp
@@ -99,7 +99,7 @@ def interp_value_on_wealth(
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
     params: Dict[str, float],
-    read_funcs: Dict[str, float],
+    beta: float,
 ) -> jnp.ndarray | float:
     """Interpolate value function on a single wealth point.
 
@@ -128,7 +128,7 @@ def interp_value_on_wealth(
         value_at_zero_wealth=value[0],
         state_choice_vec=state_choice_vec,
         params=params,
-        beta=read_funcs["beta"],
+        beta=beta,
     )
 
     return value_interp

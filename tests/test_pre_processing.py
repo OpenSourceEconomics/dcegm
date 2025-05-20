@@ -111,7 +111,7 @@ def test_missing_parameter(
     for param in ["interest_rate", "sigma"]:
         assert param in params_dict.keys()
 
-    params.pop("beta")
+    params.pop("discount_factor")
     with pytest.raises(ValueError, match="beta must be provided in params."):
         process_params(params, {"taste_shock_scale_in_params": False})
 

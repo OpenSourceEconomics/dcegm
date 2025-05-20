@@ -152,7 +152,7 @@ def test_sim_and_sol_model(model_configs):
     df["taste_shock_realized_of_expected"] = np.select(_cond, _val)
 
     df["discount_factors"] = model_funcs["read_funcs"][
-        "beta"
+        "discount_factor"
     ] ** df.index.get_level_values("period")
     df["disc_expected_utility"] = df["discount_factors"] * (
         df["taste_shock_realized_of_expected"] + df["utility"]

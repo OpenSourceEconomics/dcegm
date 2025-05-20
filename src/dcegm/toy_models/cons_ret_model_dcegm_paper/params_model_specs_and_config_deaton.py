@@ -4,7 +4,7 @@ from jax import numpy as jnp
 def example_params_deaton():
     params = {
         # discount factor
-        "beta": 0.95,
+        "discount_factor": 0.95,
         # disutility of work
         "delta": 0,
         # CRRA coefficient

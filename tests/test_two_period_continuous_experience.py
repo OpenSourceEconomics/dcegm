@@ -34,7 +34,7 @@ def euler_rhs(
     weights,
     params,
 ):
-    beta = model_funcs["read_funcs"]["beta"]
+    beta = model_funcs["read_funcs"]["discount_factor"]
     interest_factor = 1 + params["interest_rate"]
 
     rhs = 0
@@ -195,7 +195,7 @@ def next_period_experience(period, lagged_choice, experience, params):
 @pytest.fixture(scope="module")
 def create_test_inputs():
     params = {
-        "beta": 0.95,
+        "discount_factor": 0.95,
         "delta": 0.35,
         "rho": 1.95,
         "interest_rate": 0.04,

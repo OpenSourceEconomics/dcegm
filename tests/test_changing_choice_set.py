@@ -76,7 +76,7 @@ def sparsity_condition(period, lagged_choice, experience, model_specs):
 def test_model():
     params = {
         # utility
-        "beta": 0.95,
+        "discount_factor": 0.95,
         "taste_shock_scale": 1,
         "sigma": 1,
         "rho": 0.5,  # CRRA coefficient

@@ -12,7 +12,7 @@ def example_params():
         "wage_avg": 8,
         "sigma": 1,
         "taste_shock_scale": 10,
-        "beta": 0.95,
+        "discount_factor": 0.95,
         # Exogenous parameters
         "ltc_prob_constant": 0.3,
         "ltc_prob_age": 0.1,

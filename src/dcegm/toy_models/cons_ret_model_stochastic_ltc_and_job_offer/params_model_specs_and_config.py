@@ -16,7 +16,7 @@ def example_params():
         "sigma": 1,
         "taste_shock_scale": 1,
         "ltc_prob": 0.3,
-        "beta": 0.95,
+        "discount_factor": 0.95,
         # Exogenous parameters
         "ltc_prob_constant": 0.3,
         "ltc_prob_age": 0.1,

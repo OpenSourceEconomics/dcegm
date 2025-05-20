@@ -21,7 +21,7 @@ def _create_test_objects_from_df(df, params):
 
     value_period_zero = (
         df.xs(0, level=0)["utility"].mean()
-        + model_funcs["read_funcs"]["beta"]
+        + model_funcs["read_funcs"]["discount_factor"]
         * (
             df.xs(1, level=0)["utility"]
             + df.xs(1, level=0)["taste_shock_selected_choice"]

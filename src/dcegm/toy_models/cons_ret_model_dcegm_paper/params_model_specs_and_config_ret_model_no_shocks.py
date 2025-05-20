@@ -4,7 +4,7 @@ import jax.numpy as jnp
 def example_params_retirement_no_shocks():
 
     params = {
-        "beta": 0.95,
+        "discount_factor": 0.95,
         # disutility of work
         "delta": 0.35,
         # CRRA coefficient

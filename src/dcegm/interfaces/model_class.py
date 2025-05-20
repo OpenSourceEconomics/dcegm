@@ -138,7 +138,9 @@ class setup_model:
 
         """
 
-        params_processed = process_params(params)
+        params_processed = process_params(
+            params, params_check_info=self.params_check_info
+        )
         if load_sol_path is not None:
             sol_dict = pkl.load(open(load_sol_path, "rb"))
         else:

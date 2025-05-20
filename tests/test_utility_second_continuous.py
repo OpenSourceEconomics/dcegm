@@ -22,7 +22,7 @@ WEALTH_GRID_POINTS = 100
 MAX_INIT_EXPERIENCE = 1
 
 PARAMS = {
-    "beta": 0.95,
+    "discount_factor": 0.95,
     "delta": 0.35,
     "rho": 0.5,
     "exp_util": 0.99,

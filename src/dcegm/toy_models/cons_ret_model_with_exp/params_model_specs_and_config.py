@@ -4,7 +4,7 @@ import numpy as np
 
 def example_params():
     params = {
-        "beta": 0.95,
+        "discount_factor": 0.95,
         "delta": 0.35,
         "rho": 1.95,
         "interest_rate": 0.04,
