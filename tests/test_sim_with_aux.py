@@ -2,8 +2,15 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+<<<<<<< HEAD
+import dcegm.toy_models as toy_models
+from dcegm.interfaces.sim_interface import get_sol_and_sim_func_for_model
+from dcegm.pre_processing.setup_model import create_model_dict
+from dcegm.simulation.sim_utils import create_simulation_df
+=======
 import dcegm
 import dcegm.toy_models as toy_models
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
 
 
 def budget_with_aux(
@@ -126,7 +133,11 @@ def test_sim_and_sol_model(model_config):
 
     model_funcs = toy_models.load_example_model_functions("dcegm_paper")
 
+<<<<<<< HEAD
+    model_with_aux = create_model_dict(
+=======
     model_with_aux = dcegm.setup_model(
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=model_funcs["state_space_functions"],
@@ -135,7 +146,11 @@ def test_sim_and_sol_model(model_config):
         budget_constraint=budget_with_aux,
     )
 
+<<<<<<< HEAD
+    model_without_aux = create_model_dict(
+=======
     model_without_aux = dcegm.setup_model(
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=model_funcs["state_space_functions"],

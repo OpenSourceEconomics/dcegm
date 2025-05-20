@@ -22,10 +22,29 @@ def test_benchmark_models():
         toy_models.load_example_params_model_specs_and_config(
             "dcegm_paper_retirement_with_shocks"
         )
+<<<<<<< HEAD
     )
 
     model_funcs = toy_models.load_example_model_functions("dcegm_paper")
 
+    shock_functions = {"taste_shock_scale_per_state": taste_shock_per_lagged_choice}
+
+    model = create_model_dict(
+        model_config=model_config,
+        model_specs=model_specs,
+        state_space_functions=model_funcs["state_space_functions"],
+        utility_functions=model_funcs["utility_functions"],
+        utility_functions_final_period=model_funcs["utility_functions_final_period"],
+        budget_constraint=model_funcs["budget_constraint"],
+        shock_functions=shock_functions,
+    )
+
+=======
+    )
+
+    model_funcs = toy_models.load_example_model_functions("dcegm_paper")
+
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
     model = dcegm.setup_model(
         model_config=model_config,
         model_specs=model_specs,
@@ -65,7 +84,11 @@ def test_benchmark_models():
         state = {
             "period": period,
             "lagged_choice": state_choice_space_to_test[state_choice_idx, 1],
+<<<<<<< HEAD
+            "wealth": wealth_grid_to_test,
+=======
             "assets_begin_of_period": wealth_grid_to_test,
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
         }
         (
             policy_calc_interp,

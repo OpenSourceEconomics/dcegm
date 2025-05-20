@@ -12,9 +12,13 @@ import jax.numpy as jnp
 import numpy as np
 from jax import vmap
 
+<<<<<<< HEAD
+from dcegm.backward_induction import get_solve_func_for_model
+=======
 import dcegm
 
 # from dcegm.backward_induction import get_solve_func_for_model
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
 from dcegm.egm.aggregate_marginal_utility import (
     calculate_choice_probs_and_unsqueezed_logsum,
 )

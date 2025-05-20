@@ -448,7 +448,10 @@ def test_exog_processes(
 
     model_specs = {
         "n_choices": 2,
+<<<<<<< HEAD:tests/test_stochastic_transitions.py
+=======
         "taste_shock_scale": 1,
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8:tests/test_exog_processes.py
     }
     model_config = {
         "n_quad_points": 5,
@@ -456,10 +459,17 @@ def test_exog_processes(
         "choices": np.arange(2),
         "deterministic_states": {
             "married": [0, 1],
+<<<<<<< HEAD:tests/test_stochastic_transitions.py
+        },
+        "continuous_states": {
+            "wealth": np.linspace(0, 50, 100),
+        },
+=======
         },
         "continuous_states": {
             "assets_end_of_period": np.linspace(0, 50, 100),
         },
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8:tests/test_exog_processes.py
         "stochastic_states": {
             "health_mother": [0, 1, 2],
             "health_father": [0, 1, 2],
@@ -482,7 +492,11 @@ def test_exog_processes(
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
         budget_constraint=budget_constraint,
+<<<<<<< HEAD:tests/test_stochastic_transitions.py
+        stochastic_states_transition=stochastic_state_transitions,
+=======
         stochastic_states_transitions=stochastic_state_transitions,
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8:tests/test_exog_processes.py
     )
     model_funcs = model["model_funcs"]
     model_structure = model["model_structure"]

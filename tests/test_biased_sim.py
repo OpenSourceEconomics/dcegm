@@ -113,6 +113,10 @@ def test_sim_and_sol_model(model_configs):
     df = model_sol.solve_and_simulate(
         params=params,
         states_initial=states_initial,
+<<<<<<< HEAD
+        wealth_initial=np.ones(n_agents, dtype=float) * 10,
+=======
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
         seed=123,
     )
 

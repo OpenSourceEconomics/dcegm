@@ -14,6 +14,11 @@ from scipy.stats import norm
 
 import dcegm
 import dcegm.toy_models as toy_models
+<<<<<<< HEAD
+from dcegm.backward_induction import get_solve_func_for_model
+from dcegm.pre_processing.setup_model import create_model_dict
+=======
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
 from tests.utils.euler_equation_two_period import (
     euler_rhs_exog_ltc,
     euler_rhs_exog_ltc_and_job_offer,
@@ -28,16 +33,30 @@ def toy_model_exog_ltc_and_job_offer():
     model_funcs = toy_models.load_example_model_functions(
         "with_stochastic_ltc_and_job_offer"
     )
+<<<<<<< HEAD
+    params, options = toy_models.load_example_params_model_specs_and_config(
+        "with_stochastic_ltc_and_job_offer"
+=======
     params, model_specs, model_config = (
         toy_models.load_example_params_model_specs_and_config(
             "with_stochastic_ltc_and_job_offer"
         )
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
     )
     out = {}
+<<<<<<< HEAD
+    out["model"] = create_model_dict(
+        options=options,
+        state_space_functions=model_funcs["state_space_functions"],
+        utility_functions=model_funcs["utility_functions"],
+        utility_functions_final_period=model_funcs["utility_functions_final_period"],
+        budget_constraint=model_funcs["budget_constraint"],
+=======
     model = dcegm.setup_model(
         model_config=model_config,
         model_specs=model_specs,
         **model_funcs,
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
     )
 
     out["marginal_utility"] = model_funcs["utility_functions"]["marginal_utility"]
@@ -56,6 +75,19 @@ def toy_model_exog_ltc_and_job_offer():
 def toy_model_exog_ltc():
 
     model_funcs = toy_models.load_example_model_functions("with_stochastic_ltc")
+<<<<<<< HEAD
+    params, options = toy_models.load_example_params_model_specs_and_config(
+        "with_stochastic_ltc"
+    )
+
+    out = {}
+    out["model"] = create_model_dict(
+        options=options,
+        state_space_functions=model_funcs["state_space_functions"],
+        utility_functions=model_funcs["utility_functions"],
+        utility_functions_final_period=model_funcs["utility_functions_final_period"],
+        budget_constraint=model_funcs["budget_constraint"],
+=======
     params, model_specs, model_config = (
         toy_models.load_example_params_model_specs_and_config("with_stochastic_ltc")
     )
@@ -65,6 +97,7 @@ def toy_model_exog_ltc():
         model_config=model_config,
         model_specs=model_specs,
         **model_funcs,
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
     )
 
     out["model_solved"] = model.solve(params)
@@ -102,7 +135,11 @@ def test_two_period(
     params = toy_model["params"]
 
     quad_points, quad_weights = roots_sh_legendre(
+<<<<<<< HEAD
+        options["model_params"]["n_quad_points"]
+=======
         toy_model["model_config"]["n_quad_points"]
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
     )
     quad_draws = norm.ppf(quad_points) * params["sigma"]
 
@@ -118,7 +155,11 @@ def test_two_period(
         model_structure["map_state_choice_to_parent_state"] == state_idx
     )[0]
 
+<<<<<<< HEAD
+    if len(options["state_space"]["stochastic_states"]) == 2:
+=======
     if len(toy_model["model_config"]["stochastic_states"]) == 2:
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
         initial_conditions = {}
         initial_conditions["bad_health"] = state_space_dict["ltc"][state_idx] == 1
         initial_conditions["job_offer"] = 1

@@ -7,6 +7,11 @@ from numpy.testing import assert_array_almost_equal as aaae
 
 import dcegm
 import dcegm.toy_models as toy_models
+<<<<<<< HEAD
+from dcegm.backward_induction import get_solve_func_for_model
+from dcegm.pre_processing.setup_model import create_model_dict
+=======
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
 
@@ -20,6 +25,14 @@ def test_setup():
 
     model_funcs_discrete = toy_models.load_example_model_functions("with_exp")
     # params are actually the same for both models. Just name them params.
+<<<<<<< HEAD
+    params, options_discrete = toy_models.load_example_params_model_specs_and_config(
+        "with_exp"
+    )
+
+    model_disc = create_model_dict(
+        options=options_discrete,
+=======
     params, model_specs, model_config = (
         toy_models.load_example_params_model_specs_and_config("with_exp")
     )
@@ -27,6 +40,7 @@ def test_setup():
     model_disc = dcegm.setup_model(
         model_specs=model_specs,
         model_config=model_config,
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
         state_space_functions=model_funcs_discrete["state_space_functions"],
         utility_functions=model_funcs_discrete["utility_functions"],
         utility_functions_final_period=model_funcs_discrete[
@@ -42,6 +56,14 @@ def test_setup():
     # =================================================================================
 
     model_funcs_cont_exp = toy_models.load_example_model_functions("with_cont_exp")
+<<<<<<< HEAD
+    _, options_cont = toy_models.load_example_params_model_specs_and_config(
+        "with_cont_exp"
+    )
+
+    model_cont = create_model_dict(
+        options=options_cont,
+=======
     _, model_specs_cont, model_config_cont = (
         toy_models.load_example_params_model_specs_and_config("with_cont_exp")
     )
@@ -51,6 +73,7 @@ def test_setup():
     model_cont = dcegm.setup_model(
         model_config=model_config_cont,
         model_specs=model_specs_cont,
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
         state_space_functions=model_funcs_cont_exp["state_space_functions"],
         utility_functions=model_funcs_cont_exp["utility_functions"],
         utility_functions_final_period=model_funcs_cont_exp[

@@ -53,6 +53,15 @@ def simulate_all_periods(
         )
 
     continuous_states_info = model_config["continuous_states_info"]
+<<<<<<< HEAD
+
+    if continuous_states_info["second_continuous_exists"]:
+        states_initial_dtype[continuous_states_info["second_continuous_state_name"]] = (
+            states_initial[continuous_states_info["second_continuous_state_name"]]
+        )
+
+    n_agents = len(states_initial["wealth"])
+=======
 
     if continuous_states_info["second_continuous_exists"]:
         states_initial_dtype[continuous_states_info["second_continuous_state_name"]] = (
@@ -60,6 +69,7 @@ def simulate_all_periods(
         )
 
     n_agents = len(states_initial["period"])
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
 
     # Draw the random keys
     sim_keys, last_period_sim_keys = draw_random_keys_for_seed(
@@ -100,8 +110,11 @@ def simulate_all_periods(
         ),
         taste_shock_function=alt_model_funcs_sim["taste_shock_function"],
         compute_utility_final=model_funcs["compute_utility_final"],
+<<<<<<< HEAD
+=======
         continuous_states_info=model_config["continuous_states_info"],
         model_structure_sol=model_structure,
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
     )
 
     # Standard simulation output
@@ -252,8 +265,11 @@ def simulate_final_period(
     map_state_choice_to_index,
     taste_shock_function,
     compute_utility_final,
+<<<<<<< HEAD
+=======
     continuous_states_info,
     model_structure_sol,
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
 ):
     invalid_number = np.iinfo(map_state_choice_to_index.dtype).max
 

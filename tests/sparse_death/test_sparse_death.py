@@ -70,7 +70,11 @@ def inputs():
         utility_functions_final_period=create_final_period_utility_function_dict(),
         state_space_functions=create_state_space_functions(),
         budget_constraint=budget_constraint_exp,
+<<<<<<< HEAD
+        stochastic_states_transition=stochastic_state_transitions,
+=======
         stochastic_states_transitions=stochastic_state_transitions,
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
         debug_info="all",
     )
     #

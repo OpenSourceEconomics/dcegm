@@ -318,8 +318,12 @@ def solve_final_period_second_continuous(
     wealth_child_states_final_period = cont_grids_next_period["assets_begin_of_period"][
         idx_parent_states_final_period
     ]
+<<<<<<< HEAD
+    n_wealth = continuous_states_info["n_savings_grid"]
+=======
 
     n_assets = wealth_child_states_final_period.shape[-2]
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
 
     continuous_state_final = cont_grids_next_period["second_continuous"][
         idx_parent_states_final_period

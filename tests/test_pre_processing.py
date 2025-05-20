@@ -52,6 +52,27 @@ def test_wrap_function():
     )
     options = {}
 
+<<<<<<< HEAD
+    options["model_params"] = _raw_options
+    options.update(
+        {
+            "state_space": {
+                "n_periods": 25,
+                "choices": np.arange(2),
+                "deterministic_states": {
+                    "thus": np.arange(25),
+                    "that": [0, 1],
+                },
+                "continuous_states": {
+                    "wealth": np.linspace(0, 500, 100),
+                },
+                "stochastic_states": {
+                    "ltc": {"states": np.array([0]), "transition": jnp.array([0])}
+                },
+            },
+        }
+    )
+=======
     model_config = {
         "n_periods": 25,
         "choices": np.arange(2),
@@ -64,6 +85,7 @@ def test_wrap_function():
         },
         "stochastic_states": {"ltc": jnp.array([0])},
     }
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
 
     state_dict = {
         "consumption": jnp.arange(1, 7),
@@ -194,7 +216,11 @@ def test_grid_parameters():
         "n_periods": 25,
         "choices": [0, 1],
         "continuous_states": {
+<<<<<<< HEAD
+            "wealth": np.linspace(0, 10, 100),
+=======
             "assets_end_of_period": np.linspace(0, 10, 100),
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
         },
         "tuning_params": {
             "extra_wealth_grid_factor": 0.2,
@@ -234,7 +260,11 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
             "n_children": np.arange(3),
         },
         "continuous_states": {
+<<<<<<< HEAD
+            "wealth": np.linspace(0, 10_000, 100),
+=======
             "assets_end_of_period": np.linspace(0, 10_000, 100),
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
             "experience": np.linspace(0, 1, 6),
         },
     }

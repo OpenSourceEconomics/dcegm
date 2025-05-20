@@ -2,8 +2,11 @@ from dcegm.interfaces.interface import (
     policy_and_value_for_state_choice_vec,
     value_for_state_choice_vec,
 )
+<<<<<<< HEAD
+=======
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
 
 
 class model_solved:
@@ -16,7 +19,10 @@ class model_solved:
         model_structure,
         model_funcs,
         params,
+<<<<<<< HEAD
+=======
         alternative_sim_funcs,
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
     ):
         self.value = value
         self.policy = policy
@@ -25,6 +31,8 @@ class model_solved:
         self.model_structure = model_structure
         self.model_funcs = model_funcs
         self.params = params
+<<<<<<< HEAD
+=======
         self.alternative_sim_funcs = alternative_sim_funcs
 
     def simulate(self, states_initial, seed):
@@ -43,6 +51,7 @@ class model_solved:
             alt_model_funcs_sim=self.alternative_sim_funcs,
         )
         return create_simulation_df(sim_dict)
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
 
     def value_and_policy_for_state_and_choice(self, state, choice):
         """

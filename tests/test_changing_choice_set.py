@@ -115,7 +115,11 @@ def test_model():
             "experience": np.arange(5),
         },
         "continuous_states": {
+<<<<<<< HEAD
+            "wealth": np.linspace(0, 500, 100),
+=======
             "assets_end_of_period": np.linspace(0, 500, 100),
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
         },
         "stochastic_states": {
             "health": [0, 1],
@@ -228,7 +232,11 @@ def test_extended_choice_set_model(
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget,
+<<<<<<< HEAD
+        stochastic_states_transition=exogenous_states_transition,
+=======
         stochastic_states_transitions=exogenous_states_transition,
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
     )
 
     model_solved = model.solve(params)
