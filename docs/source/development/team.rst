@@ -32,7 +32,7 @@ Team
      - .. figure:: ../_static/images/gregor.jpg
          :width: 120px
 
-         `Gregor Schueler <https://github.com/gregor-schueler>`_
+         `Gregor Schüler <https://github.com/gregor-schueler>`_
 
 
 
@@ -45,10 +45,10 @@ Projects & Theses
 Research Projects
 ..................
 
-Blesch, Max and Bruno Veltri (2025). Policy Uncertainty, Misinformation, and Statutory Retirement Age Reform. Working Paper.
+Blesch, M. and Veltri, B. (2025). Policy Uncertainty, Misinformation, and Statutory Retirement Age Reform. Working Paper.
 
 Theses
 ........
 
-- `Gregor Schueler <https://github.com/gregor-schueler>`_ (Bachelor Thesis, Technical University of Berlin)
+- `Gregor Schüler <https://github.com/gregor-schueler>`_ (Bachelor Thesis, Technical University of Berlin)
 - `Frederik Emil Larsen <https://github.com/LarsenFred>`_ (Master Thesis, University of Copenhagen )
