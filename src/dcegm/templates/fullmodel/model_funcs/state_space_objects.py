@@ -14,41 +14,25 @@ def create_state_space_function_dict():
 
 def state_specific_choice_set(period, lagged_choice, job_offer, model_specs):
     """Return available choices depending on state."""
-    min_ret = model_specs["min_ret_period"]
-    max_ret = model_specs["max_ret_period"]
 
-    # Determine index based on state conditions
-    def get_index(period, lagged_choice):
-        is_retired = lagged_choice == 0
-        must_retire = period >= max_ret
-        can_retire = period >= min_ret
-        return jnp.where(
-            is_retired, 0, jnp.where(must_retire, 1, jnp.where(can_retire, 2, 3))
-        )
-
-    idx = get_index(period, lagged_choice)
-
-    def retired_case(_):
+    # Retirement is absorbing
+    if lagged_choice == 0:
         return [0]
-
-    def must_retire_case(_):
+    # If period equal or larger max ret age you have to choose retirement
+    elif period >= model_specs["max_ret_period"]:
         return [0]
-
-    def can_retire_case(_):
-        return jax.lax.cond(
-            job_offer == 1, lambda _: [0, 1, 2], lambda _: [0, 1], operand=None
-        )
-
-    def only_work_case(_):
-        return jax.lax.cond(
-            job_offer == 1, lambda _: [1, 2], lambda _: [1], operand=None
-        )
-
-    return jax.lax.switch(
-        idx,
-        [retired_case, must_retire_case, can_retire_case, only_work_case],
-        operand=None,
-    )
+    # If above minimum retirement period, retirement is possible
+    elif period >= model_specs["min_ret_period"]:
+        if job_offer == 1:
+            return [0, 1, 2]
+        else:
+            return [0, 1]
+    # If below then only working is possible
+    else:
+        if job_offer == 1:
+            return [1, 2]
+        else:
+            return [1]
 
 
 def sparsity_condition(
@@ -84,7 +68,7 @@ def next_period_deterministic_state(period, choice, lagged_choice):
     return {
         "period": period + 1,
         "lagged_choice": choice,
-        "already_retired": jnp.where(is_retired, 1, 0),
+        "already_retired": is_retired,
     }
 
 
