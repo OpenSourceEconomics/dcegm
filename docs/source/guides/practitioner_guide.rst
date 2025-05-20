@@ -50,7 +50,7 @@ This guide explains how to specify, solve, simulate and potentially estimate str
 
     The difference between the two is that `params` contains parameters that are subject to be changed frequently. Most naturrally these would be parameters to be estimated. Parameters which determine shapes of arrays or the number of computational steps have to be set in the `model_specs` dictionary. The distinction arises from the functionality of the `jax` library, which allows just in time compiling. More on this in the background section.
 
-    Every user function can access both of these dictionaries, by including it in the signature. The five core parameters of the model, can be stored in either of the two objects. These are:
+    Every user function can access both of these dictionaries, by including it in the signature. The five core parameters of the model, can be stored in either of the two objects. It is required to specify them in one of the two. The five core parameters are:
 
     - `discount_factor`: The discount factor
     - `interest_rate`: The interest rate
@@ -75,6 +75,11 @@ This guide explains how to specify, solve, simulate and potentially estimate str
 
         }
 
-.. dropdown:: Model Configuration
+.. dropdown:: Model Configuration (model_config)
 
-    The `model_config` dictionary specifies all structural elements of your dynamic model. It includes required and optional elements.
+    The `model_config` dictionary specifies the structure of the model. It is processed internally by the software and creates the decision tree of the dynamic programming model. We will now document the mandatory keys of the `model_config` dictionary before we turn to the optional ones. The mandatory keys are:
+
+    - `n_periods`: Number of period. Needs to be an integer largern than 1.
+    - `choices`: Discrete choices of the model. Consecutive integers starting from 0. Either provided as a list or as a integer, which then is converted to a list with consecutive integers starting from 0 and to the inter minus 1.
+    - `continuous_states`: Dictionary containing the grids for continuous variable. The dictionary requires
+        - `assets_end_of_period`: The grid for the end of period assets, which is required for the egm step. It is expected as a numpy array and with monotonic increasing values.
