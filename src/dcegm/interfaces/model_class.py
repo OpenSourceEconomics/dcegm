@@ -169,8 +169,7 @@ class setup_model:
         load_sol_path=None,
         save_sol_path=None,
     ):
-        """
-        Solve the model and simulate it.
+        """Solve the model and simulate it.
 
         Args:
             params: The parameters for the model.
@@ -182,6 +181,7 @@ class setup_model:
 
         Returns:
             A dictionary containing the solution and simulation results.
+
         """
         params_processed = process_params(params)
 

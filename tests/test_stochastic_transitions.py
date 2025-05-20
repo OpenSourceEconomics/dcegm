@@ -281,7 +281,6 @@
 #     expected = 0.3 * 0.2 + 0.3 * 0.3 + 0.4 * 0.4
 
 #     aaae(joint_trans_prob, expected)
-
 """Test module for exogenous processes."""
 
 import copy
@@ -306,8 +305,7 @@ from dcegm.toy_models.cons_ret_model_dcegm_paper import (
 
 
 def trans_prob_care_demand(health_state, params):
-    """
-    Compute the probability of needing care, conditional on health state.
+    """Compute the probability of needing care, conditional on health state.
 
     Args:
         health_state (int): Health state indicator (0, 1, or 2).
@@ -316,6 +314,7 @@ def trans_prob_care_demand(health_state, params):
 
     Returns:
         float: Probability of needing care in the current period.
+
     """
     prob_care_demand = (
         (health_state == 0) * params["care_demand_good_health"]
@@ -326,8 +325,7 @@ def trans_prob_care_demand(health_state, params):
 
 
 def prob_exog_health_father(health_mother, params):
-    """
-    Compute transition probabilities for father's health, given mother's health.
+    """Compute transition probabilities for father's health, given mother's health.
 
     Args:
         health_mother (int): Mother's health state indicator.
@@ -335,6 +333,7 @@ def prob_exog_health_father(health_mother, params):
 
     Returns:
         jnp.ndarray: Probability distribution over father's possible health states.
+
     """
     prob_good_health = (
         (health_mother == 0) * 0.7
@@ -356,8 +355,7 @@ def prob_exog_health_father(health_mother, params):
 
 
 def prob_exog_health_mother(health_father, params):
-    """
-    Compute transition probabilities for mother's health, given father's health.
+    """Compute transition probabilities for mother's health, given father's health.
 
     Args:
         health_father (int): Father's health state indicator.
@@ -365,6 +363,7 @@ def prob_exog_health_mother(health_father, params):
 
     Returns:
         jnp.ndarray: Probability distribution over mother's possible health states.
+
     """
     prob_good_health = (
         (health_father == 0) * 0.7
@@ -386,8 +385,7 @@ def prob_exog_health_mother(health_father, params):
 
 
 def prob_exog_health_child(health_child, params):
-    """
-    Compute transition probabilities for a child's health.
+    """Compute transition probabilities for a child's health.
 
     Args:
         health_child (int): Child's health state indicator.
@@ -395,6 +393,7 @@ def prob_exog_health_child(health_child, params):
 
     Returns:
         jnp.ndarray: Probability distribution over child's possible health states.
+
     """
     prob_good_health = (health_child == 0) * 0.7 + (health_child == 1) * 0.1
     prob_medium_health = (health_child == 0) * 0.3 + (health_child == 1) * 0.9
@@ -403,8 +402,7 @@ def prob_exog_health_child(health_child, params):
 
 
 def prob_exog_health_grandma(health_grandma, params):
-    """
-    Compute transition probabilities for a grandmother's health.
+    """Compute transition probabilities for a grandmother's health.
 
     Args:
         health_grandma (int): Grandmother's health state indicator.
@@ -412,6 +410,7 @@ def prob_exog_health_grandma(health_grandma, params):
 
     Returns:
         jnp.ndarray: Probability distribution over grandmother's health states.
+
     """
     prob_good_health = (health_grandma == 0) * 0.8 + (health_grandma == 1) * 0.15
     prob_medium_health = (health_grandma == 0) * 0.2 + (health_grandma == 1) * 0.85
@@ -432,9 +431,7 @@ EXOG_STATE_GRID_SMALL = [0, 1]
 def test_exog_processes(
     health_state_mother, health_state_father, health_state_child, health_state_grandma
 ):
-    """
-    Test consistency of exogenous transition processes with various health states.
-    """
+    """Test consistency of exogenous transition processes with various health states."""
     params = {
         "rho": 0.5,
         "delta": 0.5,
@@ -582,13 +579,13 @@ def test_exog_processes(
 
 
 def test_nested_exog_process():
-    """
-    Test that nested exogenous transition probabilities are computed correctly.
+    """Test that nested exogenous transition probabilities are computed correctly.
 
     >>> 0.3 * 0.8 + 0.3 * 0.7 + 0.4 * 0.6
     0.69
     >>> 0.3 * 0.2 + 0.3 * 0.3 + 0.4 * 0.4
     0.31000000000000005
+
     """
     params = {
         "care_demand_good_health": 0.2,

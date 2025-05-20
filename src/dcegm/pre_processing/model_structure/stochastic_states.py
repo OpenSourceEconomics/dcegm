@@ -15,8 +15,8 @@ def create_stochastic_transition_function(
 ):
     """Create the stochastic process transition function.
 
-    The output function takes a state-choice vector, params and model_specs as input.
-    It creates a transition vector over cartesian product of exogenous states.
+    The output function takes a state-choice vector, params and model_specs as input. It
+    creates a transition vector over cartesian product of exogenous states.
 
     """
     if "stochastic_states" not in model_config:

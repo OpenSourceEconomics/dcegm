@@ -26,6 +26,7 @@ def get_n_state_choice_period(model):
     Returns:
         pd.Series: A pandas Series with value counts of the first column of
         'state_choice_space', sorted by index.
+
     """
     return (
         pd.Series(model["model_structure"]["state_choice_space"][:, 0])
@@ -132,8 +133,7 @@ def value_for_state_choice_vec(
     model_structure,
     model_funcs,
 ):
-    """
-    Get the value function for a given state and choice vector.
+    """Get the value function for a given state and choice vector.
 
     Args:
         endog_grid_solved (jnp.ndarray): Endogenous wealth grid for all states
@@ -394,8 +394,7 @@ def validate_stochastic_transition(model, params):
 
 
 def stochastic_transition_vec(state_choice_vec_dict, func, params):
-    """
-    Evaluate the exogenous function for a given state-choice vector and params.
+    """Evaluate the exogenous function for a given state-choice vector and params.
 
     Args:
         state_choice_vec_dict (dict): Dictionary containing state-choice values.
@@ -405,5 +404,6 @@ def stochastic_transition_vec(state_choice_vec_dict, func, params):
     Returns:
         jnp.ndarray or float: The exogenous process outcomes for the given
         state-choice combination and parameters.
+
     """
     return func(**state_choice_vec_dict, params=params)
