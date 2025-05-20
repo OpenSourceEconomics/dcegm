@@ -8,6 +8,7 @@ def extract_model_specs_info(model_specs):
     if not isinstance(model_specs, dict):
         raise ValueError("model_specs must be a dictionary.")
 
+    # beta processing
     if "beta" in model_specs:
         # Check if beta is a scalar
         beta_val = model_specs["beta"]
@@ -21,7 +22,29 @@ def extract_model_specs_info(model_specs):
         read_func_beta = lambda params: jnp.asarray([model_funcs["read_funcs"]["beta"]])
         beta_in_params = True
 
-    specs_read_funcs = {"beta": read_func_beta}
-    specs_params_info = {"beta_in_params": beta_in_params}
+    # interest_rate processing
+    if "interest_rate" in model_specs:
+        # Check if interest_rate is a scalar
+        interest_rate_val = model_specs["interest_rate"]
+        if not isinstance(interest_rate_val, float):
+            raise ValueError(
+                f"interest_rate is not a scalar of type float. got {interest_rate_val} of type {type(interest_rate_val)}"
+            )
+        read_func_interest_rate = lambda params: jnp.asarray(
+            [model_specs["interest_rate"]]
+        )
+    else:
+        read_func_interest_rate = lambda params: jnp.asarray(
+            [model_funcs["read_funcs"]["interest_rate"]]
+        )
+
+    specs_read_funcs = {
+        "beta": read_func_beta,
+        "interest_rate": read_func_interest_rate,
+    }
+    specs_params_info = {
+        "beta_in_params": beta_in_params,
+        "interest_rate_in_params": False,
+    }
 
     return specs_read_funcs, specs_params_info
