@@ -31,8 +31,8 @@ What can dc-egm not be used for?
 
 **References**
 
-Iskhakov, Jorgensen, Rust, & Schjerning (2017).[The Endogenous Grid Method for Discrete-Continuous Dynamic Choice Models with (or without) Taste Shocks](http://onlinelibrary.wiley.com/doi/10.3982/QE643/full). *Quantitative Economics*
+- Iskhakov, Jørgensen, Rust, & Schjerning (2017). `The Endogenous Grid Method for Discrete-Continuous Dynamic Choice Models with (or without) Taste Shocks <http://onlinelibrary.wiley.com/doi/10.3982/QE643/full>`_. *Quantitative Economics*
 
-Iskhakov, F., & Keane, M. (2021). Effects of taxes and safety net pensions on life-cycle labor supply, savings and human capital: The case of Australia. Journal of Econometrics, 223(2), 401-432.
+- Iskhakov, F., & Keane, M. (2021). Effects of taxes and safety net pensions on life-cycle labor supply, savings and human capital: The case of Australia. *Journal of Econometrics*, 223(2), 401–432.
 
-Keane, M. P., & Wolpin, K. I. (1997). The career decisions of young men. *Journal of Political Economy*, 105(3), 473-522.
+- Keane, M. P., & Wolpin, K. I. (1997). The career decisions of young men. *Journal of Political Economy*, 105(3), 473–522.
