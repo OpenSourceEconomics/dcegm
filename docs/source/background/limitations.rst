@@ -12,4 +12,14 @@ Below we discuss what kind of models `dc-egm` is designed for and importantly wh
 What can dc-egm do?
 ---------------------
 
-The class of economic models suitable for the DC-EGM (Discrete-Continuous Endogenous Grid Method) framework are dynamic discrete-continuous choice models where agents make decisions that include both continuous controls (e.g., consumption or savings) and discrete choices (e.g., labor supply, retirement, or occupational states), potentially influenced by idiosyncratic taste shocks. These models are defined by recursive Bellman equations, where the optimal policy must be computed over a joint choice set. Traditional solution methods, such as nested fixed-point or brute-force grid search, are computationally intensive for these settings. The DC-EGM adapts the endogenous grid method to this structure by efficiently solving the Euler equation for the continuous choice conditional on each discrete alternative, thus avoiding costly root-finding or interpolation on the value function. This makes DC-EGM particularly well-suited for life-cycle models with a modest number of discrete alternatives, especially when taste shocks (e.g., Type I extreme value) allow the use of smooth choice probabilities. In contrast to purely discrete dynamic choice models (e.g., Rust-style models), or models with only continuous controls, DC-EGM addresses hybrid choice problems with substantial gains in speed and accuracy.
+The package follows Ishakov et al. (2017) and implements the discrete-continuous endogenous grid method (DC-EGM) for solving dynamic stochastic optimization problems with both discrete and continuous choices. Our code originated as a Python replication of their Matlab code and has since been extended to include additional features and improvements.
+
+The class of economic models suitable for implementation with `dc-egm` are dynamic discrete-continuous choice models where agents make decisions that include both continuous controls (e.g., consumption or savings) and discrete choices (e.g., labor supply, retirement, or occupational states), potentially influenced by idiosyncratic taste shocks.
+
+These models are defined by recursive Bellman equations, where the optimal policy must be computed over a joint choice set. Traditional solution methods, such as nested fixed-point or brute-force grid search, are computationally intensive for these settings. The DC-EGM adapts the endogenous grid method to this structure by efficiently solving the Euler equation for the continuous choice conditional on each discrete alternative, thus avoiding costly root-finding or interpolation on the value function.
+
+This makes DC-EGM particularly well-suited for life-cycle models with a modest number of discrete alternatives, especially when taste shocks (e.g., Type I extreme value) allow the use of smooth choice probabilities. In contrast to purely discrete dynamic choice models (e.g., Rust-style models), or models with only continuous controls, DC-EGM addresses hybrid choice problems with substantial gains in speed and accuracy.
+
+
+What can dc-egm not be used for?
+---------------------------------
