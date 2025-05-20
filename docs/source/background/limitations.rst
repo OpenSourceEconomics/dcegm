@@ -12,7 +12,7 @@ Below we discuss what kind of models `dc-egm` is designed for and importantly wh
 What can dc-egm do?
 ---------------------
 
-The package follows Ishakov et al. (2017) and implements the discrete-continuous endogenous grid method (DC-EGM) for solving dynamic stochastic optimization problems with both discrete and continuous choices. Our code originated as a Python replication of their Matlab code and has since been extended to include additional features and improvements.
+The package follows Ishakov et al. (2017) and implements the discrete-continuous endogenous grid method (DC-EGM) for solving dynamic stochastic optimization problems with both discrete and continuous choices. Our code originated as a Python replication of their Matlab code and has since been extended to include additional features and improvements (such as used in Iskhakov and Keane (2021)).
 
 The class of economic models suitable for implementation with `dc-egm` are dynamic discrete-continuous choice models where agents make decisions that include both continuous controls (e.g., consumption or savings) and discrete choices (e.g., labor supply, retirement, or occupational states), potentially influenced by idiosyncratic taste shocks.
 
@@ -23,3 +23,16 @@ This makes DC-EGM particularly well-suited for life-cycle models with a modest n
 
 What can dc-egm not be used for?
 ---------------------------------
+
+:x: Purely discrete choice models (see e.g. Keane and Wolpin; 1997)
+:x: Models with more than two continuous state variables.
+:x: Models with more than one continuous state variable with a normally distributed idiosyncratic shock.
+
+
+**References**
+
+Iskhakov, Jorgensen, Rust, & Schjerning (2017).[The Endogenous Grid Method for Discrete-Continuous Dynamic Choice Models with (or without) Taste Shocks](http://onlinelibrary.wiley.com/doi/10.3982/QE643/full). *Quantitative Economics*
+
+Iskhakov, F., & Keane, M. (2021). Effects of taxes and safety net pensions on life-cycle labor supply, savings and human capital: The case of Australia. Journal of Econometrics, 223(2), 401-432.
+
+Keane, M. P., & Wolpin, K. I. (1997). The career decisions of young men. *Journal of Political Economy*, 105(3), 473-522.
