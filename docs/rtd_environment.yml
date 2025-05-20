@@ -15,7 +15,6 @@ dependencies:
   - sphinx-autoapi
   - sphinx-design
   - sphinx-copybutton
-  - sphinx-panels
   - pip:
       - sphinx-tabs
       - furo

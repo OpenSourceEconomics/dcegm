@@ -37,7 +37,6 @@ extensions = [
     "sphinx.ext.mathjax",  # For math in notebooks
     "sphinx.ext.githubpages",  # For gh-pages'
     "sphinx_design",
-    "sphinx_panels",
     "sphinx_copybutton",
 ]
 
