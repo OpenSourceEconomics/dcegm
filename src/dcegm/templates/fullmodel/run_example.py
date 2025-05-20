@@ -3,8 +3,10 @@ import jax.numpy as jnp
 import numpy as np
 from jax import config
 
+import dcegm
+
 # import model_funcs
-from model_funcs import (
+from .model_funcs import (
     budget_constraint_exp,
     create_final_period_utility_function_dict,
     create_state_space_function_dict,
@@ -12,8 +14,6 @@ from model_funcs import (
     job_offer,
     prob_survival,
 )
-
-import dcegm
 
 config.update("jax_enable_x64", True)
 
