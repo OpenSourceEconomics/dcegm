@@ -13,7 +13,7 @@ dependencies:
   - sphinx
   - sphinx-autobuild
   - sphinx-autoapi
+  - sphinx-design
   - pip:
       - sphinx-tabs
       - furo
-      - sphinx-design

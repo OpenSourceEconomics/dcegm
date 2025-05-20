@@ -5,7 +5,7 @@ Practitioner's Guide
 
 This guide explains how to specify and calibrate models using the `dc-egm` framework. It combines configuration and parameterization instructions in a modular format for practitioners.
 
-.. dropdown:: Parameterization Guide
+.. dropdown:: Parameterization
 
     `dc-egm` uses two distinct dictionaries to store model parameters:
 
@@ -38,28 +38,6 @@ This guide explains how to specify and calibrate models using the `dc-egm` frame
 
     These objects are used to construct value functions and solve the model.
 
-.. dropdown:: Model Configuration Guide
+.. dropdown:: Model Configuration
 
     The `model_config` dictionary specifies all structural elements of your dynamic model. It includes required and optional elements.
-
-    ### Required
-
-    - `n_periods`: Number of periods
-    - `choices`: Discrete choices (e.g., work, retire)
-    - `state_vars`: List of state variables (e.g., age, assets)
-
-    .. code-block:: python
-
-        model_config = {}
-
-    ### Optional but usually needed
-
-    - Endogenous discrete states
-
-    Example:
-
-    .. code-block:: python
-
-        model_config = {}
-
-    These specifications are passed to `setup_model()` which creates the full state-choice space and value function objects.
