@@ -34,6 +34,7 @@ savings, including additional discrete choices.
 
    background/limitations
    background/literature
+   background/two_period_model_tutorial.ipynb
    background/interface_plots.ipynb
    background/specify_exogenous_processes.md
    background/timing_benchmarks.ipynb
