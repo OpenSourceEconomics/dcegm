@@ -34,7 +34,7 @@ def euler_rhs(
     weights,
     params,
 ):
-    discount_factor = model_funcs["read_funcs"]["discount_factor"]
+    discount_factor = params["discount_factor"]
     interest_factor = 1 + params["interest_rate"]
 
     rhs = 0

@@ -381,6 +381,7 @@ def test_replication_discrete_versus_continuous_experience(
                     compute_utility=model_cont.model_funcs["compute_utility"],
                     state_choice_vec=state_choice_cont_dict,
                     params=PARAMS,
+                    discount_factor=PARAMS["discount_factor"],
                 )
             )
 
@@ -392,6 +393,7 @@ def test_replication_discrete_versus_continuous_experience(
                 compute_utility=model_disc.model_funcs["compute_utility"],
                 state_choice_vec=state_choice_disc_dict,
                 params=PARAMS,
+                discount_factor=PARAMS["discount_factor"],
             )
 
             aaae(value_cont_interp, value_disc_interp, decimal=3)
