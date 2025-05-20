@@ -124,13 +124,13 @@ def interpolate_policy_and_value_for_all_agents(
 def transition_to_next_period(
     discrete_states_beginning_of_period,
     continuous_state_beginning_of_period,
-    savings_current_period,
+    assets_end_of_period,
     choice,
     params,
     model_funcs_sim,
     sim_keys,
 ):
-    n_agents = savings_current_period.shape[0]
+    n_agents = assets_end_of_period.shape[0]
 
     stochastic_states_next_period = vmap(
         realize_stochastic_states, in_axes=(0, 0, 0, None, None)
@@ -183,7 +183,11 @@ def transition_to_next_period(
             calc_assets_begin_of_period_for_all_agents(
                 states_beginning_of_period=discrete_states_next_period,
                 continuous_state_beginning_of_period=continuous_state_next_period,
+<<<<<<< HEAD
                 assets_end_of_period=savings_current_period,
+=======
+                assets_end_of_period=assets_end_of_period,
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
                 income_shocks_of_period=income_shocks_next_period,
                 params=params,
                 compute_assets_begin_of_period=next_period_wealth,
@@ -195,7 +199,11 @@ def transition_to_next_period(
         assets_beginning_of_next_period, budget_aux = (
             calculate_assets_begin_of_period_for_all_agents(
                 states_beginning_of_period=discrete_states_next_period,
+<<<<<<< HEAD
                 asset_end_of_previous_period=savings_current_period,
+=======
+                asset_grid_point_end_of_previous_period=assets_end_of_period,
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
                 income_shocks_of_period=income_shocks_next_period,
                 params=params,
                 compute_assets_begin_of_period=next_period_wealth,

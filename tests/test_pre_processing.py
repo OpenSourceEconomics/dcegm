@@ -46,10 +46,13 @@ def util_wrap(state_dict, params, util_func):
     return util_func(**state_dict, params=params)
 
 
-def test_wrap_function(load_replication_params_and_specs):
-    params, _raw_options = load_replication_params_and_specs("deaton")
+def test_wrap_function():
+    params, model_specs, _ = toy_models.load_example_params_model_specs_and_config(
+        "dcegm_paper_deaton"
+    )
     options = {}
 
+<<<<<<< HEAD
     options["model_params"] = _raw_options
     options.update(
         {
@@ -69,6 +72,20 @@ def test_wrap_function(load_replication_params_and_specs):
             },
         }
     )
+=======
+    model_config = {
+        "n_periods": 25,
+        "choices": np.arange(2),
+        "deterministic_states": {
+            "thus": np.arange(25),
+            "that": [0, 1],
+        },
+        "continuous_states": {
+            "assets_end_of_period": np.linspace(0, 500, 100),
+        },
+        "stochastic_states": {"ltc": jnp.array([0])},
+    }
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
 
     state_dict = {
         "consumption": jnp.arange(1, 7),
@@ -102,9 +119,12 @@ def test_wrap_function(load_replication_params_and_specs):
 )
 def test_missing_parameter(
     model_name,
-    load_replication_params_and_specs,
 ):
-    params, _ = load_replication_params_and_specs(f"{model_name}")
+    params, model_specs, model_config = (
+        toy_models.load_example_params_model_specs_and_config(
+            f"dcegm_paper_{model_name}"
+        )
+    )
 
     params.pop("interest_rate")
     params.pop("sigma")
@@ -196,7 +216,11 @@ def test_grid_parameters():
         "n_periods": 25,
         "choices": [0, 1],
         "continuous_states": {
+<<<<<<< HEAD
             "wealth": np.linspace(0, 10, 100),
+=======
+            "assets_end_of_period": np.linspace(0, 10, 100),
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
         },
         "tuning_params": {
             "extra_wealth_grid_factor": 0.2,
@@ -236,7 +260,11 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
             "n_children": np.arange(3),
         },
         "continuous_states": {
+<<<<<<< HEAD
             "wealth": np.linspace(0, 10_000, 100),
+=======
+            "assets_end_of_period": np.linspace(0, 10_000, 100),
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
             "experience": np.linspace(0, 1, 6),
         },
     }

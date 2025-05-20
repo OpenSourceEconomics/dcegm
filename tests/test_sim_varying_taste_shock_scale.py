@@ -1,18 +1,20 @@
 """Tests for simulation of consumption-retirement model with exogenous processes."""
 
-import jax
-import jax.numpy as jnp
 import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
+import dcegm
 import dcegm.toy_models as toy_models
+<<<<<<< HEAD
 from dcegm.backward_induction import get_solve_func_for_model
 from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import (
     simulate_all_periods,
 )
+=======
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
 
 
 def _create_test_objects_from_df(df, params):
@@ -46,6 +48,7 @@ def model_setup():
     shock_functions = {"taste_shock_scale_per_state": taste_shock_per_lagged_choice}
     ltc_model_functions["shock_functions"] = shock_functions
 
+<<<<<<< HEAD
     model = create_model_dict(
         model_specs=model_specs, model_config=model_config, **ltc_model_functions
     )
@@ -61,41 +64,39 @@ def model_setup():
     seed = 111
     n_agents = 1_000
     n_periods = model_config["n_periods"]
+=======
+    model = dcegm.setup_model(
+        model_specs=model_specs, model_config=model_config, **ltc_model_functions
+    )
+    seed = 111
+    n_agents = 100_000
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
 
     initial_states = {
         "period": np.zeros(n_agents),
         "lagged_choice": np.zeros(n_agents),  # all agents start as workers
         "married": np.zeros(n_agents),
         "ltc": np.zeros(n_agents),
+        "assets_begin_of_period": np.ones(n_agents) * 10,
     }
-    initial_wealth = np.ones(n_agents) * 10
-    initial_states_and_wealth = initial_states, initial_wealth
 
-    n_keys = len(initial_wealth) + 2
-    sim_specific_keys = jnp.array(
-        [
-            jax.random.split(jax.random.PRNGKey(seed + period), num=n_keys)
-            for period in range(n_periods)
-        ]
+    df = model.get_solve_and_simulate_func(states_initial=initial_states, seed=seed)(
+        params=params
     )
 
     return {
-        "initial_states": initial_states,
-        "initial_wealth": initial_wealth,
-        "initial_states_and_wealth": initial_states_and_wealth,
-        "sim_specific_keys": sim_specific_keys,
-        "seed": seed,
-        "value": value,
-        "policy": policy,
-        "endog_grid": endog_grid,
-        "model": model,
+        "df": df,
         "params": params,
+<<<<<<< HEAD
         "model_config": model_config,
+=======
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
     }
 
 
 def test_simulate(model_setup):
 
+<<<<<<< HEAD
     value = model_setup["value"]
     policy = model_setup["policy"]
     endog_grid = model_setup["endog_grid"]
@@ -125,6 +126,9 @@ def test_simulate(model_setup):
     )
 
     df = create_simulation_df(result)
+=======
+    df = model_setup["df"]
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
 
     value_period_zero, expected = _create_test_objects_from_df(
         df, model_setup["params"]

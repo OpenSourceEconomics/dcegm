@@ -1,24 +1,23 @@
 """Tests for simulation of consumption-retirement model with exogenous processes."""
 
-import copy
-from functools import partial
-
 import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
+import dcegm
 import dcegm.toy_models as toy_models
+<<<<<<< HEAD
 from dcegm.backward_induction import get_solve_func_for_model
 from dcegm.pre_processing.check_options import check_model_config_and_process
 from dcegm.pre_processing.setup_model import create_model_dict
 from dcegm.simulation.random_keys import draw_random_keys_for_seed
+=======
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import (
     simulate_all_periods,
-    simulate_final_period,
-    simulate_single_period,
 )
 
 
@@ -52,12 +51,17 @@ def model_setup():
         toy_models.load_example_params_model_specs_and_config("with_stochastic_ltc")
     )
 
+<<<<<<< HEAD
     model = create_model_dict(
+=======
+    model = dcegm.setup_model(
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
         model_config=model_config,
         model_specs=model_specs,
         **model_functions,
     )
 
+<<<<<<< HEAD
     (
         value,
         policy,
@@ -88,17 +92,13 @@ def model_setup():
         ],
         seed=seed,
     )
+=======
+    model_solved = model.solve(params)
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
 
     return {
-        "initial_states": initial_states,
-        "initial_wealth": initial_wealth,
-        "initial_states_and_wealth": initial_states_and_wealth,
-        "sim_keys": sim_keys,
-        "last_period_sim_keys": last_period_sim_keys,
-        "seed": seed,
-        "value": value,
-        "policy": policy,
-        "endog_grid": endog_grid,
+        "seed": 111,
+        "model_solved": model_solved,
         "model": model,
         "params": params,
         "model_config": model_config,
@@ -106,6 +106,7 @@ def model_setup():
     }
 
 
+<<<<<<< HEAD
 def test_simulate_lax_scan(model_setup):
     model_structure = model_setup["model"]["model_structure"]
     model_funcs = model_setup["model"]["model_funcs"]
@@ -194,12 +195,9 @@ def test_simulate_lax_scan(model_setup):
         aaae(lax_final_period_dict[key], final_period_dict[key])
 
 
+=======
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
 def test_simulate(model_setup):
-
-    value = model_setup["value"]
-    policy = model_setup["policy"]
-    endog_grid = model_setup["endog_grid"]
-
     n_agents = 100_000
 
     discrete_initial_states = {
@@ -207,9 +205,10 @@ def test_simulate(model_setup):
         "lagged_choice": np.zeros(n_agents),  # all agents start as workers
         "married": np.zeros(n_agents),
         "ltc": np.zeros(n_agents),
+        "assets_begin_of_period": np.ones(n_agents) * 10,
     }
-    wealth_initial = np.ones(n_agents) * 10
 
+<<<<<<< HEAD
     result = simulate_all_periods(
         states_initial=discrete_initial_states,
         wealth_initial=wealth_initial,
@@ -220,9 +219,11 @@ def test_simulate(model_setup):
         value_solved=value,
         policy_solved=policy,
         model=model_setup["model"],
+=======
+    df = model_setup["model_solved"].simulate(
+        states_initial=discrete_initial_states, seed=111
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
     )
-
-    df = create_simulation_df(result)
 
     value_period_zero, expected = _create_test_objects_from_df(
         df, model_setup["params"]
@@ -245,7 +246,11 @@ def test_simulate_second_continuous_choice(model_setup):
     model_config_cont["continuous_states"]["experience"] = jnp.linspace(0, 1, 6)
     model_specs_cont["max_init_experience"] = 1
 
+<<<<<<< HEAD
     model_cont = create_model_dict(
+=======
+    model_cont = dcegm.setup_model(
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
         model_config=model_config_cont,
         model_specs=model_specs_cont,
         state_space_functions=model_functions_cont["state_space_functions"],
@@ -254,15 +259,22 @@ def test_simulate_second_continuous_choice(model_setup):
             "utility_functions_final_period"
         ],
         budget_constraint=model_functions_ltc["budget_constraint"],
+<<<<<<< HEAD
         stochastic_states_transition=model_functions_ltc["exogenous_states_transition"],
+=======
+        stochastic_states_transitions=model_functions_ltc[
+            "stochastic_states_transitions"
+        ],
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
     )
 
     key = jax.random.PRNGKey(0)
     noise = jax.random.normal(key, shape=(24, 6, 120)) * 0
+    model_solved = model_setup["model_solved"]
 
-    value = jnp.repeat(model_setup["value"][:, None, :], 6, axis=1) + noise
-    policy = jnp.repeat(model_setup["policy"][:, None, :], 6, axis=1) + noise
-    endog_grid = jnp.repeat(model_setup["endog_grid"][:, None, :], 6, axis=1) + noise
+    value = jnp.repeat(model_solved.value[:, None, :], 6, axis=1) + noise
+    policy = jnp.repeat(model_solved.policy[:, None, :], 6, axis=1) + noise
+    endog_grid = jnp.repeat(model_solved.endog_grid[:, None, :], 6, axis=1) + noise
 
     n_agents = 100_000
 
@@ -272,19 +284,24 @@ def test_simulate_second_continuous_choice(model_setup):
         "married": np.zeros(n_agents),
         "ltc": np.zeros(n_agents),
         "experience": np.ones(n_agents),
+        "assets_begin_of_period": np.ones(n_agents) * 10,
     }
-    wealth_initial = np.ones(n_agents) * 10
 
     result = simulate_all_periods(
         states_initial=states_initial,
+<<<<<<< HEAD
         wealth_initial=wealth_initial,
+=======
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
         n_periods=model_config_cont["n_periods"],
         params=model_setup["params"],
         seed=111,
         endog_grid_solved=endog_grid,
         value_solved=value,
         policy_solved=policy,
-        model=model_cont,
+        model_funcs=model_cont.model_funcs,
+        model_config=model_cont.model_config,
+        model_structure=model_cont.model_structure,
     )
 
     df = create_simulation_df(result)

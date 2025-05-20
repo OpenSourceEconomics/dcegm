@@ -53,6 +53,7 @@ def simulate_all_periods(
         )
 
     continuous_states_info = model_config["continuous_states_info"]
+<<<<<<< HEAD
 
     if continuous_states_info["second_continuous_exists"]:
         states_initial_dtype[continuous_states_info["second_continuous_state_name"]] = (
@@ -60,6 +61,15 @@ def simulate_all_periods(
         )
 
     n_agents = len(states_initial["wealth"])
+=======
+
+    if continuous_states_info["second_continuous_exists"]:
+        states_initial_dtype[continuous_states_info["second_continuous_state_name"]] = (
+            states_initial[continuous_states_info["second_continuous_state_name"]]
+        )
+
+    n_agents = len(states_initial["period"])
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
 
     # Draw the random keys
     sim_keys, last_period_sim_keys = draw_random_keys_for_seed(
@@ -100,6 +110,11 @@ def simulate_all_periods(
         ),
         taste_shock_function=alt_model_funcs_sim["taste_shock_function"],
         compute_utility_final=model_funcs["compute_utility_final"],
+<<<<<<< HEAD
+=======
+        continuous_states_info=model_config["continuous_states_info"],
+        model_structure_sol=model_structure,
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
     )
 
     # Standard simulation output
@@ -210,7 +225,7 @@ def simulate_single_period(
     ) = transition_to_next_period(
         discrete_states_beginning_of_period=discrete_states_beginning_of_period,
         continuous_state_beginning_of_period=continuous_state_beginning_of_period,
-        savings_current_period=savings_current_period,
+        assets_end_of_period=savings_current_period,
         choice=choice,
         params=params,
         model_funcs_sim=model_funcs_sim,
@@ -242,7 +257,7 @@ def simulate_single_period(
 
 
 def simulate_final_period(
-    states_and_wealth_beginning_of_period,
+    states_begin_of_final_period,
     sim_keys,
     params,
     discrete_states_names,
@@ -250,15 +265,37 @@ def simulate_final_period(
     map_state_choice_to_index,
     taste_shock_function,
     compute_utility_final,
+<<<<<<< HEAD
+=======
+    continuous_states_info,
+    model_structure_sol,
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
 ):
     invalid_number = np.iinfo(map_state_choice_to_index.dtype).max
 
-    (
-        states_beginning_of_final_period,
-        wealth_beginning_of_final_period,
-    ) = states_and_wealth_beginning_of_period
+    n_agents = len(states_begin_of_final_period["period"])
+    discrete_states_begin_last_period = {
+        key: value
+        for key, value in states_begin_of_final_period.items()
+        if key in model_structure_sol["discrete_states_names"]
+    }
+    assets_begin_of_final_period = states_begin_of_final_period[
+        "assets_begin_of_period"
+    ]
 
-    n_agents = len(wealth_beginning_of_final_period)
+    if continuous_states_info["second_continuous_exists"]:
+        continuous_state_name = continuous_states_info["second_continuous_state_name"]
+
+        continuous_state_beginning_of_period = states_begin_of_final_period[
+            continuous_state_name
+        ]
+        states_begin_of_final_period = {
+            **discrete_states_begin_last_period,
+            continuous_state_name: continuous_state_beginning_of_period,
+        }
+
+    else:
+        states_begin_of_final_period = discrete_states_begin_last_period
 
     utilities_pre_taste_shock = vmap(
         vmap(
@@ -267,15 +304,15 @@ def simulate_final_period(
         ),
         in_axes=(0, None, 0, None, None),  # agents
     )(
-        states_beginning_of_final_period,
+        states_begin_of_final_period,
         choice_range,
-        wealth_beginning_of_final_period,
+        assets_begin_of_final_period,
         params,
         compute_utility_final,
     )
     state_choice_indexes = get_state_choice_index_per_discrete_state(
         map_state_choice_to_index=map_state_choice_to_index,
-        states=states_beginning_of_final_period,
+        states=states_begin_of_final_period,
         discrete_states_names=discrete_states_names,
     )
     utilities_pre_taste_shock = jnp.where(
@@ -285,7 +322,7 @@ def simulate_final_period(
     # Draw taste shocks and calculate final value.
     taste_shocks = draw_taste_shocks(
         params=params,
-        states_beginning_of_period=states_beginning_of_final_period,
+        states_beginning_of_period=states_begin_of_final_period,
         n_choices=len(choice_range),
         taste_shock_function=taste_shock_function,
         taste_shock_keys=sim_keys["taste_shock_keys"],
@@ -304,15 +341,15 @@ def simulate_final_period(
 
     result = {
         "choice": choice,
-        "consumption": wealth_beginning_of_final_period,
+        "consumption": assets_begin_of_final_period,
         "utility": utility_period,
         "value_max": value_period,
         "value_choice": values_across_choices[np.newaxis],
         "taste_shocks": taste_shocks[np.newaxis, :, :],
-        "wealth_beginning_of_period": wealth_beginning_of_final_period,
+        "assets_begin_of_period": assets_begin_of_final_period,
         "savings": jnp.zeros_like(utility_period),
         "income_shock": jnp.zeros(n_agents),
-        **states_beginning_of_final_period,
+        **states_begin_of_final_period,
     }
 
     return result

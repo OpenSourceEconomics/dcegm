@@ -12,7 +12,13 @@ import jax.numpy as jnp
 import numpy as np
 from jax import vmap
 
+<<<<<<< HEAD
 from dcegm.backward_induction import get_solve_func_for_model
+=======
+import dcegm
+
+# from dcegm.backward_induction import get_solve_func_for_model
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
 from dcegm.egm.aggregate_marginal_utility import (
     calculate_choice_probs_and_unsqueezed_logsum,
 )
@@ -31,9 +37,6 @@ def create_individual_likelihood_function_for_model(
     use_probability_of_observed_states=True,
 ):
 
-    solve_func = get_solve_func_for_model(
-        model=model,
-    )
     if unobserved_state_specs is None:
         choice_prob_func = create_partial_choice_prob_calculation(
             observed_states=observed_states,
@@ -53,15 +56,12 @@ def create_individual_likelihood_function_for_model(
     def individual_likelihood(params):
         params_update = params_all.copy()
         params_update.update(params)
-        (
-            value_solved,
-            policy_solved,
-            endog_grid_solved,
-        ) = solve_func(params_update)
+
+        model_solved = model.solve(params_update)
 
         choice_probs = choice_prob_func(
-            value_in=value_solved,
-            endog_grid_in=endog_grid_solved,
+            value_in=model_solved.value,
+            endog_grid_in=model_solved.endog_grid,
             params_in=params_update,
         )
         # Negative ll contributions are positive numbers. The smaller the better the fit
@@ -69,12 +69,7 @@ def create_individual_likelihood_function_for_model(
         neg_likelihood_contributions = (-jnp.log(choice_probs)).clip(max=999)
 
         if return_model_solution:
-            solution = {
-                "value": value_solved,
-                "policy": policy_solved,
-                "endog_grid": endog_grid_solved,
-            }
-            return neg_likelihood_contributions, solution
+            return neg_likelihood_contributions, model_solved
         else:
             return neg_likelihood_contributions
 

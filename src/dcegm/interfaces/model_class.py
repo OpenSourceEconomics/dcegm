@@ -24,7 +24,11 @@ class setup_model:
         utility_functions_final_period: Dict[str, Callable],
         budget_constraint: Callable,
         state_space_functions: Dict[str, Callable] = None,
+<<<<<<< HEAD
         stochastic_states_transition: Dict[str, Callable] = None,
+=======
+        stochastic_states_transitions: Dict[str, Callable] = None,
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
         shock_functions: Dict[str, Callable] = None,
         alternative_sim_specifications: Dict[str, Callable] = None,
         debug_info: str = None,
@@ -36,7 +40,11 @@ class setup_model:
             utility_functions_final_period=utility_functions_final_period,
             budget_constraint=budget_constraint,
             state_space_functions=state_space_functions,
+<<<<<<< HEAD
             stochastic_states_transition=stochastic_states_transition,
+=======
+            stochastic_states_transitions=stochastic_states_transitions,
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
             shock_functions=shock_functions,
             debug_info=debug_info,
         )
@@ -77,6 +85,11 @@ class setup_model:
             self.alternative_sim_funcs = generate_alternative_sim_functions(
                 **alternative_sim_specifications
             )
+<<<<<<< HEAD
+=======
+        else:
+            self.alternative_sim_funcs = None
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
 
     def solve(self, params):
         """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
@@ -112,6 +125,10 @@ class setup_model:
             model_structure=self.model_structure,
             model_funcs=self.model_funcs,
             params=params_processed,
+<<<<<<< HEAD
+=======
+            alternative_sim_funcs=self.alternative_sim_funcs,
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
         )
         return model_solved_class
 
@@ -119,7 +136,10 @@ class setup_model:
         self,
         params,
         states_initial,
+<<<<<<< HEAD
         wealth_initial,
+=======
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
         seed,
     ):
         """
@@ -142,7 +162,10 @@ class setup_model:
 
         sim_dict = simulate_all_periods(
             states_initial=states_initial,
+<<<<<<< HEAD
             wealth_initial=wealth_initial,
+=======
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
             n_periods=self.model_config["n_periods"],
             params=params,
             seed=seed,
@@ -161,13 +184,19 @@ class setup_model:
     def get_solve_and_simulate_func(
         self,
         states_initial,
+<<<<<<< HEAD
         wealth_initial,
+=======
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
         seed,
     ):
 
         sim_func = lambda params, value, policy, endog_gid: simulate_all_periods(
             states_initial=states_initial,
+<<<<<<< HEAD
             wealth_initial=wealth_initial,
+=======
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
             n_periods=self.model_config["n_periods"],
             params=params,
             seed=seed,

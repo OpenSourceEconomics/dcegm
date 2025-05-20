@@ -236,7 +236,7 @@ def interp2d_value_and_marg_util_for_state_choice(
             consumption=policy_interp,
             continuous_state=second_cont_grid_point,
             params=params,
-            **state_choice_vec
+            **state_choice_vec,
         )
 
         return value_interp, marg_util_interp

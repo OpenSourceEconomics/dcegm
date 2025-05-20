@@ -35,8 +35,12 @@ savings, including additional discrete choices.
 
    background/limitations
    background/literature
+<<<<<<< HEAD
    background/interface_plots.ipynb
    background/specify_exogenous_processes.ipynb
+=======
+   background/specify_exogenous_processes.md
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
    background/timing_benchmarks.ipynb
 
 

@@ -34,6 +34,11 @@ def example_model_config():
         "choices": [0, 1],
         "continuous_states": {
             "assets_end_of_period": np.linspace(0, 50, 100),
+<<<<<<< HEAD
+=======
+        },
+        "deterministic_states": {
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
             "married": [0, 1],
         },
         "stochastic_states": {

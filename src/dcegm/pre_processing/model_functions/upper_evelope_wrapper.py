@@ -23,7 +23,11 @@ def create_upper_envelope_function(model_config, continuous_state=None):
             ):
                 value_kwargs = {
                     "second_continuous_state": second_continuous_state,
+<<<<<<< HEAD
                     "expected_value_zero_savings": expected_value_zero_assets,
+=======
+                    "expected_value_zero_assets": expected_value_zero_assets,
+>>>>>>> 83037d3d4520f2db5a2ecf22020ce1ea3851e7b8
                     "params": params,
                     **state_choice_dict,
                 }

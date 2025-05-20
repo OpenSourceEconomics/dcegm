@@ -61,7 +61,7 @@ def marginal_utility_weighted_exog_ltc(
     init_cond, params, retirement_choice_1, nu, consumption
 ):
     """Return the expected marginal utility for one realization of the wage shock."""
-    budget_1 = init_cond["wealth"]
+    budget_1 = init_cond["assets_end_of_period"]
     ltc_state_1 = init_cond["bad_health"]
 
     weighted_marginal = 0
@@ -146,7 +146,7 @@ def marginal_utility_weighted_exog_ltc_and_job_offer(
     init_cond, params, retirement_choice_1, nu, consumption
 ):
     """Return the expected marginal utility for one realization of the wage shock."""
-    budget_1 = init_cond["wealth"]
+    budget_1 = init_cond["assets_end_of_period"]
     ltc_state_1 = init_cond["bad_health"]
     job_state_1 = init_cond["job_offer"]
 

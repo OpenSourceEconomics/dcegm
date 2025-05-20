@@ -1,5 +1,6 @@
 # Specifying Exogenous Processes in the DCEGM Module
 
+
 ## Overview
 
 Exogenous processes in the ```dcegm``` module define how state variables evolve over time based on transition probabilities. These transition probabilities must be properly specified to ensure consistency with the model structure. This document outlines how to define exogenous processes and specify them within the model's ```options``` dictionary.
