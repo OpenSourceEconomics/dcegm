@@ -19,15 +19,15 @@ def copy_template(version: str, target_dir: Path):
             shutil.copy2(item, destination)
 
 
-def create_project(project_name: str, style: int):
+def create_project(project_name: str, style: str):
     project_dir = Path(project_name).resolve()
     if project_dir.exists():
         print(f"Directory '{project_dir}' already exists.")
         return
 
     project_dir.mkdir(parents=True)
-    copy_template(f"v{style}", project_dir)
-    print(f"Project '{project_name}' created with style v{style}.")
+    copy_template(f"{style}", project_dir)
+    print(f"Project '{project_name}' created with style {style}.")
 
 
 def cli():
@@ -37,7 +37,11 @@ def cli():
     init = subparsers.add_parser("init", help="Initialize a new dcegm project")
     init.add_argument("project_name", type=str, help="Directory to create")
     init.add_argument(
-        "--style", type=int, choices=[1, 2], default=1, help="Template version"
+        "--style",
+        type=str,
+        choices=["fullmodel", "simplemodel"],
+        default="fullmodel",
+        help="Project style to use (default: fullmodel)",
     )
 
     args = parser.parse_args()
