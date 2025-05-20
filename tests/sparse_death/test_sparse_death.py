@@ -55,7 +55,7 @@ def inputs():
         "delta": 0.5,
         "discount_factor": 0.95,
         "taste_shock_scale": 1,
-        "sigma": 1,
+        "income_shock_std": 1,
         "interest_rate": 0.05,
         "constant": 1,
         "exp": 0.1,

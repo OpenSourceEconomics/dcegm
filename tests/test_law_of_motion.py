@@ -117,7 +117,7 @@ def test_get_beginning_of_period_wealth(
 
     n_quad_points = model_config["n_quad_points"]
 
-    sigma = params["sigma"]
+    income_shock_std = params["income_shock_std"]
     r = params["interest_rate"]
     consump_floor = params["consumption_floor"]
 
@@ -125,7 +125,7 @@ def test_get_beginning_of_period_wealth(
     savings_grid = np.linspace(0, max_wealth, n_grid_points)
 
     _quad_points, _ = roots_sh_legendre(n_quad_points)
-    quad_points = norm.ppf(_quad_points) * sigma
+    quad_points = norm.ppf(_quad_points) * income_shock_std
 
     random_saving_scalar = np.random.randint(0, n_grid_points)
     random_shock_scalar = np.random.randint(0, n_quad_points)

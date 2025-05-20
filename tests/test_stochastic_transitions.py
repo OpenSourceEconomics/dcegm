@@ -109,7 +109,7 @@
 #         "interest_rate": 0.02,
 #         "ltc_cost": 5,
 #         "wage_avg": 8,
-#         "sigma": 1,
+#         "income_shock_std": 1,
 #         "taste_shock_scale": 1,
 #         "ltc_prob": 0.3,
 #         "discount_factor": 0.95,
@@ -441,7 +441,7 @@ def test_exog_processes(
         "interest_rate": 0.02,
         "ltc_cost": 5,
         "wage_avg": 8,
-        "sigma": 1,
+        "income_shock_std": 1,
         "ltc_prob": 0.3,
         "discount_factor": 0.95,
     }

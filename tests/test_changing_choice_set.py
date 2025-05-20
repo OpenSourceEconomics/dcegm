@@ -78,7 +78,7 @@ def test_model():
         # utility
         "discount_factor": 0.95,
         "taste_shock_scale": 1,
-        "sigma": 1,
+        "income_shock_std": 1,
         "rho": 0.5,  # CRRA coefficient
         "delta": 1,  # disutility of work
         "phi": 0.5,  # utility of joint leisure

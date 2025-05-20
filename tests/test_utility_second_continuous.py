@@ -28,7 +28,7 @@ PARAMS = {
     "exp_util": 0.99,
     "interest_rate": 0.04,
     "taste_shock_scale": 1,  # taste shock (scale) parameter
-    "sigma": 1,  # shock on labor income, standard deviation
+    "income_shock_std": 1,  # shock on labor income, standard deviation
     "constant": 0.75,
     "exp": 0.04,
     "exp_squared": -0.0002,

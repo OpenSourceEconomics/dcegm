@@ -107,7 +107,7 @@ def test_missing_parameter(
         "taste_shock_scale_in_params": False,
         "discount_factor_in_params": True,
         "interest_rate_in_params": True,
-        "sigma_in_params": True,
+        "income_shock_std_in_params": True,
     }
 
     params.pop("interest_rate")
@@ -117,12 +117,12 @@ def test_missing_parameter(
         process_params(params, params_check_info)
     params["interest_rate"] = 0.03
 
-    params.pop("sigma")
+    params.pop("income_shock_std")
     with pytest.raises(
-        ValueError, match="sigma must be provided in model_specs or params."
+        ValueError, match="income_shock_std must be provided in model_specs or params."
     ):
         process_params(params, params_check_info)
-    params["sigma"] = 0.5
+    params["income_shock_std"] = 0.5
 
     params.pop("discount_factor")
     with pytest.raises(

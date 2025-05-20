@@ -104,7 +104,7 @@ def test_two_period(
     quad_points, quad_weights = roots_sh_legendre(
         toy_model["model_config"]["n_quad_points"]
     )
-    quad_draws = norm.ppf(quad_points) * params["sigma"]
+    quad_draws = norm.ppf(quad_points) * params["income_shock_std"]
 
     endog_grid_period = toy_model["model_solved"].endog_grid
     policy_period = toy_model["model_solved"].policy

@@ -200,7 +200,7 @@ def create_test_inputs():
         "rho": 1.95,
         "interest_rate": 0.04,
         "taste_shock_scale": 1,  # taste shock (scale) parameter
-        "sigma": 1,  # shock on labor income, standard deviation
+        "income_shock_std": 1,  # shock on labor income, standard deviation
         "income_shock_mean": 0,  # shock on labor income, mean
         "constant": 0.75,
         "exp": 0.04,
@@ -399,7 +399,8 @@ def test_euler_equation(wealth_idx, state_idx, create_test_inputs):
                     lagged_consumption=policy_period_0,
                     lagged_choice=lagged_choice,
                     experience=exp,
-                    income_shocks=income_shock_draws_unscaled * params["sigma"],
+                    income_shocks=income_shock_draws_unscaled
+                    * params["income_shock_std"],
                     weights=income_shock_weights,
                     params=params,
                 )

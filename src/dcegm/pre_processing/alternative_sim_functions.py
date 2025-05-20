@@ -50,7 +50,7 @@ def generate_alternative_sim_functions(
 
     model_config = check_model_config_and_process(model_config)
 
-    model_funcs, taste_shock_scale_in_params = process_alternative_sim_functions(
+    model_funcs, _ = process_alternative_sim_functions(
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=state_space_functions,
@@ -58,9 +58,6 @@ def generate_alternative_sim_functions(
         shock_functions=shock_functions,
         stochastic_states_transition=stochastic_states_transitions,
     )
-    model_config["params_check_info"][
-        "taste_shock_scale_in_params"
-    ] = taste_shock_scale_in_params
 
     (
         stochastic_state_names,

@@ -116,7 +116,7 @@ def interpolate_policy_and_value_for_all_agents(
         vectorized_interp = vmap(
             vmap(
                 interp1d_policy_and_value_function,
-                in_axes=(None, None, 0, 0, 0, 0, None, Non, Nonee),  # choices
+                in_axes=(None, None, 0, 0, 0, 0, None, None, None),  # choices
             ),
             in_axes=(0, 0, 0, 0, 0, None, None, None, None),  # agents
         )
@@ -187,7 +187,7 @@ def transition_to_next_period(
         key=sim_keys["income_shock_keys"],
         num_agents=n_agents,
         mean=0,
-        std=params["sigma"],
+        std=params["income_shock_std"],
     )
 
     next_period_wealth = model_funcs_sim["compute_assets_begin_of_period"]

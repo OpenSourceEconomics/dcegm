@@ -42,29 +42,33 @@ def extract_model_specs_info(model_specs):
         read_func_interest_rate = lambda params: jnp.asarray(params["interest_rate"])
         interest_rate_in_params = True
 
-    # income shock std processing ("sigma")
-    if "sigma" in model_specs:
-        # Check if sigma is a scalar
-        sigma_val = model_specs["sigma"]
-        if not isinstance(sigma_val, float):
+    # income shock std processing ("income_shock_std")
+    if "income_shock_std" in model_specs:
+        # Check if income_shock_std is a scalar
+        income_shock_std_val = model_specs["income_shock_std"]
+        if not isinstance(income_shock_std_val, float):
             raise ValueError(
-                f"sigma is not a scalar of type float. got {sigma_val} of type {type(sigma_val)}"
+                f"income_shock_std is not a scalar of type float. got {income_shock_std_val} of type {type(income_shock_std_val)}"
             )
-        read_func_sigma = lambda params: jnp.asarray(model_specs["sigma"])
-        sigma_in_params = False
+        read_func_income_shock_std = lambda params: jnp.asarray(
+            model_specs["income_shock_std"]
+        )
+        income_shock_std_in_params = False
     else:
-        read_func_sigma = lambda params: jnp.asarray(params["sigma"])
-        sigma_in_params = True
+        read_func_income_shock_std = lambda params: jnp.asarray(
+            params["income_shock_std"]
+        )
+        income_shock_std_in_params = True
 
     specs_read_funcs = {
         "discount_factor": read_func_discount_factor,
         "interest_rate": read_func_interest_rate,
-        "sigma": read_func_sigma,
+        "income_shock_std": read_func_income_shock_std,
     }
     specs_params_info = {
         "discount_factor_in_params": discount_factor_in_params,
         "interest_rate_in_params": interest_rate_in_params,
-        "sigma_in_params": sigma_in_params,
+        "income_shock_std_in_params": income_shock_std_in_params,
     }
 
     return specs_read_funcs, specs_params_info
