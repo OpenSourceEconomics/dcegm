@@ -79,7 +79,48 @@ This guide explains how to specify, solve, simulate and potentially estimate str
 
     The `model_config` dictionary specifies the structure of the model. It is processed internally by the software and creates the decision tree of the dynamic programming model. We will now document the mandatory keys of the `model_config` dictionary before we turn to the optional ones. The mandatory keys are:
 
-    - `n_periods`: Number of period. Needs to be an integer largern than 1.
-    - `choices`: Discrete choices of the model. Consecutive integers starting from 0. Either provided as a list or as a integer, which then is converted to a list with consecutive integers starting from 0 and to the inter minus 1.
+    - `n_periods`: Number of period. Needs to be an integer larger than 1.
+    - `choices`: Discrete choices of the model. Consecutive integers starting from 0. Either provided as a list or as a integer, which then is converted to a list with consecutive integers starting from 0 and to the integer minus 1.
     - `continuous_states`: Dictionary containing the grids for continuous variable. The dictionary requires
         - `assets_end_of_period`: The grid for the end of period assets, which is required for the egm step. It is expected as a numpy array and with monotonic increasing values.
+    - `n_quad_points`: Number of quadrature points used for the integration over the income shock distribution. The quadrature points are used to approximate the integral of the value function over the income shock distribution. The number of quadrature points should be a positive integer.
+
+    An example for a model configuration with the mandatory keys is:
+    .. code-block:: python
+
+        model_config = {
+            "n_periods": 20,
+            "choices": 2,
+            "continuous_states": {
+                "assets_end_of_period": numpy.linspace(0, 10, 100),
+            },
+            "n_quad_points": 5,
+        }
+
+    This is enough to specify the simplest model. The following keys can be used to specify more complex models. They are optional and can be used in any combination. The optional keys are:
+
+    - `min_period_batch_segments`: XXX
+    - `deterministic_states`: Dictionary containing the name of deterministic state variables of the model as keys. For a given key the corresponding value has to be a numpy array or python list with the possible values of the respective deterministic state variable. The values should be integers.
+    - `stochastic_states`: Dictionary containing the name of stochastic state variables of the model as keys. For a given key the corresponding value has to be a numpy array or python list with the possible values of the respective stochastic state variable. The values should be integers. The transition probabilities of the stochastic states are specified in the stochastic_state_transitions which is explained below.
+    - the `second continuous state variable` can be specified in the `continuous_states` dictionary. The name of the second continuous state variable is arbitrary.
+
+    An example for a model configuration with all optional keys is:
+    .. code-block:: python
+
+        model_config = {
+            "min_period_batch_segments": [5, 12],
+            "n_periods": 30,
+            "choices": np.arange(3, dtype=int),
+            "deterministic_states": {
+                "already_retired": np.arange(2, dtype=int),
+            },
+            "continuous_states": {
+                "assets_end_of_period": np.arange(0, 100, 5, dtype=float),
+                "experience": np.linspace(0, 1, 7, dtype=float),
+            },
+            "stochastic_states": {
+                "job_offer": [0, 1],
+                "survival": [0, 1],
+            },
+            "n_quad_points": 5,
+        }
