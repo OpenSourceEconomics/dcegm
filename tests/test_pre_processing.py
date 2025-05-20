@@ -103,17 +103,33 @@ def test_missing_parameter(
         )
     )
 
+    params_check_info = {
+        "taste_shock_scale_in_params": False,
+        "discount_factor_in_params": True,
+        "interest_rate_in_params": True,
+        "sigma_in_params": True,
+    }
+
     params.pop("interest_rate")
+    with pytest.raises(
+        ValueError, match="interest_rate must be provided in model_specs or params."
+    ):
+        process_params(params, params_check_info)
+    params["interest_rate"] = 0.03
+
     params.pop("sigma")
-
-    params_dict = process_params(params, {"taste_shock_scale_in_params": False})
-
-    for param in ["interest_rate", "sigma"]:
-        assert param in params_dict.keys()
+    with pytest.raises(
+        ValueError, match="sigma must be provided in model_specs or params."
+    ):
+        process_params(params, params_check_info)
+    params["sigma"] = 0.5
 
     params.pop("discount_factor")
-    with pytest.raises(ValueError, match="discount_factor must be provided in params."):
-        process_params(params, {"taste_shock_scale_in_params": False})
+    with pytest.raises(
+        ValueError, match="discount_factor must be provided in model_specs or params."
+    ):
+        process_params(params, params_check_info)
+    params["discount_factor"] = 0.95
 
 
 def test_grid_parameters():
