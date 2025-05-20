@@ -171,7 +171,7 @@ def value_for_state_choice_vec(
     )
     state_choice_index = map_state_choice_to_index[state_choice_tuple]
     continuous_states_info = model_config["continuous_states_info"]
-    discount_factor = model_funcs["read_funcs"]["discount_factor"]
+    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
 
     compute_utility = model_funcs["compute_utility"]
 

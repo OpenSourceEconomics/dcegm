@@ -86,7 +86,7 @@ def interp1d_policy_and_value_on_wealth(
         value_at_zero_wealth=value[0],
         state_choice_vec=state_choice_vec,
         params=params,
-        discount_factor=read_funcs["discount_factor"],
+        discount_factor=read_funcs["discount_factor"](params),
     )
 
     return policy_interp, value_interp

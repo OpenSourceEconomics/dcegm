@@ -297,7 +297,7 @@ def calc_choice_probs_for_states(
     choice_range = options["state_space"]["choices"]
     model_funcs = model["model_funcs"]
     compute_utility = model_funcs["compute_utility"]
-    discount_factor = model_funcs["read_funcs"]["discount_factor"]
+    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
 
     if len(options["exog_grids"]) == 2:
         vectorized_interp2d = jax.vmap(

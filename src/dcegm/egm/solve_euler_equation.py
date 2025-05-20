@@ -150,7 +150,8 @@ def compute_optimal_policy_and_value(
     compute_utility = model_funcs["compute_utility"]
     compute_stochastic_transition_vec = model_funcs["compute_stochastic_transition_vec"]
 
-    discount_factor = model_funcs["read_funcs"]["discount_factor"]
+    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
+    interest_rate = model_funcs["read_funcs"]["interest_rate"](params)
 
     policy, expected_value = solve_euler_equation(
         state_choice_vec=state_choice_vec,
@@ -160,7 +161,7 @@ def compute_optimal_policy_and_value(
         compute_stochastic_transition_vec=compute_stochastic_transition_vec,
         params=params,
         discount_factor=discount_factor,
-        interest_rate=model_funcs["read_funcs"]["interest_rate"],
+        interest_rate=interest_rate,
     )
     endog_grid = assets_grid_end_of_period + policy
 

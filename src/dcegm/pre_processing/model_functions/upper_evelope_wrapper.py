@@ -42,7 +42,7 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                             params=params,
                             **state_choice_dict,
                         )
-                        + model_funcs["read_funcs"]["discount_factor"]
+                        + model_funcs["read_funcs"]["discount_factor"](params)
                         * expected_value_zero_assets
                     )
 
@@ -88,7 +88,7 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                         utility_function(
                             consumption=consumption, params=params, **state_choice_dict
                         )
-                        + model_funcs["read_funcs"]["discount_factor"]
+                        + model_funcs["read_funcs"]["discount_factor"](params)
                         * expected_value_zero_assets
                     )
 
