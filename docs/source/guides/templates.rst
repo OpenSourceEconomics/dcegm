@@ -10,10 +10,10 @@ In order to install a template, follow these steps:
 
 1. Make sure you have `dc-egm` installed via pip.
 2. In your terminal, navigate to the directory you want to create the template in.
-3. Run the following command to install the template:
+3. Run the following command to install the template where `<template-project>` is the name of the folder you want to create and `<model>` is either "simplemodel" or "fullmodel":
+
    ```bash
    dcegm init <template-project> --style=<model>
    ```
-    where `<template-project>` is the name of the folder you want to create and `<model>` is either "simplemodel" or "fullmodel".
 
 The template contains example model specifications which are easy to adapt to your own model. We provide the code in a jupyter notebook and Python file which can be used based on personal preference.
