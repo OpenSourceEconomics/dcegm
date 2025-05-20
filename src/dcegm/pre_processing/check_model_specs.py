@@ -54,7 +54,7 @@ def extract_model_specs_info(model_specs):
         income_shock_mean_in_params = False
     else:
         read_func_income_shock_mean = lambda params: jnp.asarray(
-            params["income_shock_std"]
+            params["income_shock_mean"]
         )
         income_shock_mean_in_params = True
 
