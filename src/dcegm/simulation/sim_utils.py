@@ -29,6 +29,7 @@ def interpolate_policy_and_value_for_all_agents(
     discrete_states_names,
     compute_utility,
     continuous_grid,
+    discount_factor,
 ):
 
     if continuous_state_beginning_of_period is not None:
@@ -56,9 +57,21 @@ def interpolate_policy_and_value_for_all_agents(
         vectorized_interp = vmap(
             vmap(
                 interp2d_policy_and_value_function,
-                in_axes=(None, None, None, None, 0, 0, 0, 0, None, None),  # choices
+                in_axes=(
+                    None,
+                    None,
+                    None,
+                    None,
+                    0,
+                    0,
+                    0,
+                    0,
+                    None,
+                    None,
+                    None,
+                ),  # choices
             ),
-            in_axes=(0, 0, 0, None, 0, 0, 0, None, None, None),  # agents
+            in_axes=(0, 0, 0, None, 0, 0, 0, None, None, None, None),  # agents
         )
 
         # =================================================================================
@@ -74,6 +87,7 @@ def interpolate_policy_and_value_for_all_agents(
             choice_range,
             params,
             compute_utility,
+            discount_factor,
         )
 
         return policy_agent, value_agent
@@ -102,9 +116,9 @@ def interpolate_policy_and_value_for_all_agents(
         vectorized_interp = vmap(
             vmap(
                 interp1d_policy_and_value_function,
-                in_axes=(None, None, 0, 0, 0, 0, None, None),  # choices
+                in_axes=(None, None, 0, 0, 0, 0, None, None, None),  # choices
             ),
-            in_axes=(0, 0, 0, 0, 0, None, None, None),  # agents
+            in_axes=(0, 0, 0, 0, 0, None, None, None, None),  # agents
         )
 
         policy_agent, value_agent = vectorized_interp(
@@ -116,6 +130,7 @@ def interpolate_policy_and_value_for_all_agents(
             choice_range,
             params,
             compute_utility,
+            discount_factor,
         )
 
         return policy_agent, value_agent
@@ -172,7 +187,7 @@ def transition_to_next_period(
         key=sim_keys["income_shock_keys"],
         num_agents=n_agents,
         mean=0,
-        std=params["sigma"],
+        std=params["income_shock_std"],
     )
 
     next_period_wealth = model_funcs_sim["compute_assets_begin_of_period"]
@@ -278,6 +293,7 @@ def interp1d_policy_and_value_function(
     choice,
     params,
     compute_utility,
+    discount_factor,
 ):
     state_choice_vec = {**state, "choice": choice}
 
@@ -289,6 +305,7 @@ def interp1d_policy_and_value_function(
         compute_utility=compute_utility,
         state_choice_vec=state_choice_vec,
         params=params,
+        discount_factor=discount_factor,
     )
 
     return policy_interp, value_interp
@@ -305,6 +322,7 @@ def interp2d_policy_and_value_function(
     choice,
     params,
     compute_utility,
+    discount_factor,
 ):
     state_choice_vec = {**state, "choice": choice}
 
@@ -318,6 +336,7 @@ def interp2d_policy_and_value_function(
         compute_utility=compute_utility,
         state_choice_vec=state_choice_vec,
         params=params,
+        discount_factor=discount_factor,
     )
 
     return policy_interp, value_interp

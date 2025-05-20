@@ -83,8 +83,6 @@ def backward_induction(
             from the backward induction.
 
     """
-    # taste_shock_scale = model_funcs["taste_shock_function"]["taste_shock_scale_per_state"](params=params, state_dict_vec={})
-
     continuous_states_info = model_config["continuous_states_info"]
 
     cont_grids_next_period = calc_cont_grids_next_period(

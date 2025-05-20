@@ -1,6 +1,5 @@
 import jax.numpy as jnp
 import numpy as np
-from typing_extensions import assert_type
 
 
 def check_model_config_and_process(model_config):
@@ -174,5 +173,7 @@ def check_model_config_and_process(model_config):
         processed_model_config["deterministic_states"] = model_config[
             "deterministic_states"
         ]
+
+    processed_model_config["params_check_info"] = {}
 
     return processed_model_config

@@ -20,11 +20,13 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                 state_choice_dict,
                 utility_function,
                 params,
+                discount_factor,
             ):
                 value_kwargs = {
                     "second_continuous_state": second_continuous_state,
                     "expected_value_zero_assets": expected_value_zero_assets,
                     "params": params,
+                    "discount_factor": discount_factor,
                     **state_choice_dict,
                 }
 
@@ -33,6 +35,7 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                     second_continuous_state,
                     expected_value_zero_assets,
                     params,
+                    discount_factor,
                     **state_choice_dict,
                 ):
                     return (
@@ -42,7 +45,7 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                             params=params,
                             **state_choice_dict,
                         )
-                        + params["beta"] * expected_value_zero_assets
+                        + discount_factor * expected_value_zero_assets
                     )
 
                 return fues_jax(
@@ -70,10 +73,12 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                 state_choice_dict,
                 utility_function,
                 params,
+                discount_factor,
             ):
                 value_kwargs = {
                     "expected_value_zero_assets": expected_value_zero_assets,
                     "params": params,
+                    "discount_factor": discount_factor,
                     **state_choice_dict,
                 }
 
@@ -81,13 +86,14 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                     consumption,
                     expected_value_zero_assets,
                     params,
+                    discount_factor,
                     **state_choice_dict,
                 ):
                     return (
                         utility_function(
                             consumption=consumption, params=params, **state_choice_dict
                         )
-                        + params["beta"] * expected_value_zero_assets
+                        + discount_factor * expected_value_zero_assets
                     )
 
                 return fues_jax(

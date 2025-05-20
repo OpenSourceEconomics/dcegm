@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
 
-from dcegm.pre_processing.check_options import check_model_config_and_process
+from dcegm.pre_processing.check_model_config import check_model_config_and_process
 
 
 @pytest.fixture

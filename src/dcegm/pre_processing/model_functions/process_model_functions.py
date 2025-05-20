@@ -16,7 +16,7 @@ from dcegm.pre_processing.shared import (
 )
 
 
-def process_model_functions(
+def process_model_functions_and_extract_info(
     model_config: Dict,
     model_specs: Dict,
     state_space_functions: Dict[str, Callable],
@@ -155,11 +155,17 @@ def process_model_functions(
         continuous_state=second_continuous_state_name,
     )
 
-    taste_shock_function_processed = process_shock_functions(
-        shock_functions,
-        model_specs,
-        continuous_state_name=second_continuous_state_name,
+    taste_shock_function_processed, taste_shock_scale_in_params = (
+        process_shock_functions(
+            shock_functions,
+            model_specs,
+            continuous_state_name=second_continuous_state_name,
+        )
     )
+    model_config_processed = model_config
+    model_config_processed["params_check_info"] = {
+        "taste_shock_scale_in_params": taste_shock_scale_in_params
+    }
 
     model_funcs = {
         **utility_functions_processed,
@@ -175,7 +181,7 @@ def process_model_functions(
         "taste_shock_function": taste_shock_function_processed,
     }
 
-    return model_funcs
+    return model_funcs, model_config_processed
 
 
 def process_state_space_functions(

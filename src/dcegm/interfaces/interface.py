@@ -90,6 +90,7 @@ def policy_and_value_for_state_choice_vec(
     continuous_states_info = model_config["continuous_states_info"]
 
     compute_utility = model_funcs["compute_utility"]
+    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
 
     if continuous_states_info["second_continuous_exists"]:
 
@@ -107,6 +108,7 @@ def policy_and_value_for_state_choice_vec(
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
+            discount_factor=discount_factor,
         )
     else:
         policy, value = interp1d_policy_and_value_on_wealth(
@@ -117,6 +119,7 @@ def policy_and_value_for_state_choice_vec(
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
+            discount_factor=discount_factor,
         )
 
     return policy, value
@@ -171,6 +174,7 @@ def value_for_state_choice_vec(
     )
     state_choice_index = map_state_choice_to_index[state_choice_tuple]
     continuous_states_info = model_config["continuous_states_info"]
+    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
 
     compute_utility = model_funcs["compute_utility"]
 
@@ -190,6 +194,7 @@ def value_for_state_choice_vec(
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
+            discount_factor=discount_factor,
         )
     else:
 
@@ -200,6 +205,7 @@ def value_for_state_choice_vec(
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
+            discount_factor=discount_factor,
         )
 
     return value

@@ -16,7 +16,6 @@ from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
 from dcegm.interpolation.interp2d import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
-from dcegm.pre_processing.setup_model import create_model_dict
 
 # ====================================================================================
 # Test
@@ -178,6 +177,7 @@ def test_replication_discrete_versus_continuous_experience(
                     compute_utility=model_funcs_cont["compute_utility"],
                     state_choice_vec=state_choice_cont_dict,
                     params=params,
+                    discount_factor=params["discount_factor"],
                 )
             )
 
@@ -189,6 +189,7 @@ def test_replication_discrete_versus_continuous_experience(
                 compute_utility=model_funcs_disc["compute_utility"],
                 state_choice_vec=state_choice_disc_dict,
                 params=params,
+                discount_factor=params["discount_factor"],
             )
 
             aaae(value_cont_interp, value_disc_interp, decimal=3)

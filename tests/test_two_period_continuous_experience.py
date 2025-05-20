@@ -34,7 +34,7 @@ def euler_rhs(
     weights,
     params,
 ):
-    beta = params["beta"]
+    discount_factor = params["discount_factor"]
     interest_factor = 1 + params["interest_rate"]
 
     rhs = 0
@@ -49,7 +49,7 @@ def euler_rhs(
         )
         rhs += weights[idx_draw] * marg_util_draw
 
-    return rhs * beta * interest_factor
+    return rhs * discount_factor * interest_factor
 
 
 def marginal_utility_weighted(
@@ -195,12 +195,13 @@ def next_period_experience(period, lagged_choice, experience, params):
 @pytest.fixture(scope="module")
 def create_test_inputs():
     params = {
-        "beta": 0.95,
+        "discount_factor": 0.95,
         "delta": 0.35,
         "rho": 1.95,
         "interest_rate": 0.04,
         "taste_shock_scale": 1,  # taste shock (scale) parameter
-        "sigma": 1,  # shock on labor income, standard deviation
+        "income_shock_std": 1,  # shock on labor income, standard deviation
+        "income_shock_mean": 0.0,
         "income_shock_mean": 0,  # shock on labor income, mean
         "constant": 0.75,
         "exp": 0.04,
@@ -399,7 +400,8 @@ def test_euler_equation(wealth_idx, state_idx, create_test_inputs):
                     lagged_consumption=policy_period_0,
                     lagged_choice=lagged_choice,
                     experience=exp,
-                    income_shocks=income_shock_draws_unscaled * params["sigma"],
+                    income_shocks=income_shock_draws_unscaled
+                    * params["income_shock_std"],
                     weights=income_shock_weights,
                     params=params,
                 )

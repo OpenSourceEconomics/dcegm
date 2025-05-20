@@ -3,7 +3,7 @@ import jax.numpy as jnp
 
 def example_params_ret_model_with_shocks():
     params = {
-        "beta": 0.9523809523809523,
+        "discount_factor": 0.9523809523809523,
         # disutility of work
         "delta": 0.35,
         # CRRA coefficient
@@ -13,7 +13,8 @@ def example_params_ret_model_with_shocks():
         "exp": 0.04,
         "exp_squared": -0.0002,
         # Shock parameters of income
-        "sigma": 0.35,
+        "income_shock_std": 0.35,
+        "income_shock_mean": 0.0,
         "taste_shock_scale": 0.2,
         "interest_rate": 0.05,
         "consumption_floor": 0.001,
