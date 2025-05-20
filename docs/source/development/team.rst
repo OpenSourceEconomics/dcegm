@@ -3,8 +3,10 @@
 Team
 =======
 
+`dc-egm` is a collaborative opensource project developed a team of junior researchers and students. We are located in Berlin, Munich, and Copenhagen.
+
 .. list-table::
-   :widths: 50 50
+   :widths: 70 70
    :header-rows: 0
 
    * - .. figure:: ../_static/images/max.jpeg
@@ -32,7 +34,20 @@ Team
 
          `Gregor Schueler <https://github.com/gregor-schueler>`_
 
-     - .. figure:: ../_static/images/Frederik.jpeg
-         :width: 120px
 
-         `Frederik Emil Larsen <https://github.com/LarsenFred>`_
+Projects & Theses
+------------------
+
+`dc-egm` is collectively developed and used in multiple research projects as well as Undergraduate and Master theses.
+
+
+Research Projects
+..................
+
+Blesch, Max and Bruno Veltri (2025). Policy Uncertainty, Misinformation, and Statutory Retirement Age Reform. Working Paper.
+
+Theses
+........
+
+- `Gregor Schueler <https://github.com/gregor-schueler>`_ (Bachelor Thesis, Humboldt University of Berlin)
+- `Frederik Emil Larsen <https://github.com/LarsenFred>`_ (Master Thesis, University of Copenhagen )
