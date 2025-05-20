@@ -33,6 +33,9 @@ extensions = [
     "sphinx.ext.doctest",
     "sphinx.ext.extlinks",  # link to websites using abbreviations
     "sphinx.ext.napoleon",
+    "myst_nb",  # Already present per rtd_environment.yml
+    "sphinx.ext.mathjax",  # For math in notebooks
+    "sphinx.ext.githubpages",  # For gh-pages'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -48,8 +51,10 @@ language = "en"
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = []
+exclude_patterns = ["_build", "**.ipynb_checkpoints"]
 
+# Ensure Jupyter notebooks are parsed
+nbsphinx_allow_errors = True  # Optional: continue build even if code cells fail
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -63,6 +68,9 @@ html_theme_options = {
     "top_of_page_button": "edit",
     "navigation_with_keys": True,
     "sidebar_hide_name": False,
+    "source_repository": "https://github.com/OpenSourceEconomics/dc-egm",
+    "source_branch": "main",
+    "source_directory": "docs/source",
     "footer_icons": [
         {
             "name": "GitHub",
@@ -75,7 +83,7 @@ html_theme_options = {
             "class": "",
         },
     ],
-    "announcement": "This documentation is under construction.",
+    #"announcement": "This documentation is under construction.",
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
@@ -92,3 +100,7 @@ extlinks = {
 
 # Path for sphinx-autoapi
 autoapi_dirs = ["../../src"]
+
+source_suffix = [".rst", ".ipynb", ".md"]
+
+# note: do not add .ipynb when nbspinx is enabled, otherwise you get the "missing title" error
