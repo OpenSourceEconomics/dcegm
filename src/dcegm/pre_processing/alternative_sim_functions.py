@@ -1,7 +1,7 @@
 import pickle
 from typing import Callable, Dict
 
-from dcegm.pre_processing.check_options import check_model_config_and_process
+from dcegm.pre_processing.check_model_config import check_model_config_and_process
 from dcegm.pre_processing.model_functions.process_model_functions import (
     process_second_continuous_update_function,
     process_state_space_functions,

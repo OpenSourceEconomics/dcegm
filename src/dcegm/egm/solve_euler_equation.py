@@ -157,11 +157,12 @@ def compute_optimal_policy_and_value(
         compute_inverse_marginal_utility=compute_inverse_marginal_utility,
         compute_stochastic_transition_vec=compute_stochastic_transition_vec,
         params=params,
+        read_funcs=model_funcs["read_funcs"],
     )
     endog_grid = assets_grid_end_of_period + policy
 
     utility = compute_utility(consumption=policy, params=params, **state_choice_vec)
-    value = utility + params["beta"] * expected_value
+    value = utility + model_funcs["read_funcs"]["beta"] * expected_value
 
     return endog_grid, policy, value, expected_value
 
@@ -173,6 +174,7 @@ def solve_euler_equation(
     compute_inverse_marginal_utility: Callable,
     compute_stochastic_transition_vec: Callable,
     params: Dict[str, float],
+    read_funcs: Dict[str, Callable],
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Solve the Euler equation for given discrete choice and child states.
 
@@ -212,7 +214,11 @@ def solve_euler_equation(
     expected_value = jnp.nansum(transition_vec * emax_next)
 
     # RHS of Euler Eq., p. 337 IJRS (2017) by multiplying with marginal wealth
-    rhs_euler = marginal_utility_next * (1 + params["interest_rate"]) * params["beta"]
+    rhs_euler = (
+        marginal_utility_next
+        * (1 + params["interest_rate"])
+        * model_funcs["read_funcs"]["beta"]
+    )
 
     policy = compute_inverse_marginal_utility(
         marginal_utility=rhs_euler,

@@ -42,7 +42,7 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                             params=params,
                             **state_choice_dict,
                         )
-                        + params["beta"] * expected_value_zero_assets
+                        + model_funcs["read_funcs"]["beta"] * expected_value_zero_assets
                     )
 
                 return fues_jax(
@@ -87,7 +87,7 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                         utility_function(
                             consumption=consumption, params=params, **state_choice_dict
                         )
-                        + params["beta"] * expected_value_zero_assets
+                        + model_funcs["read_funcs"]["beta"] * expected_value_zero_assets
                     )
 
                 return fues_jax(

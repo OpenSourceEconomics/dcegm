@@ -4,10 +4,10 @@ import pytest
 from jax import vmap
 
 import dcegm.toy_models as toy_models
-from dcegm.pre_processing.check_options import check_model_config_and_process
+from dcegm.pre_processing.check_model_config import check_model_config_and_process
 from dcegm.pre_processing.check_params import process_params
 from dcegm.pre_processing.model_functions.process_model_functions import (
-    process_model_functions,
+    process_model_functions_and_extract_info,
 )
 from dcegm.pre_processing.setup_model import (  # load_and_setup_model,; setup_and_save_model,
     create_model_dict,
@@ -244,7 +244,7 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
 
     model_config = check_model_config_and_process(model_config)
 
-    model_funcs, _ = process_model_functions(
+    model_funcs, _ = process_model_functions_and_extract_info(
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=state_space_functions,

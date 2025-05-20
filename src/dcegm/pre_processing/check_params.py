@@ -25,12 +25,14 @@ def process_params(params, params_check_info) -> Dict[str, float]:
                 "not an element of model_specs or params."
             )
 
+    if params_check_info["beta_in_params"]:
+        if "beta" not in params:
+            raise ValueError("beta must be provided in params.")
+
     if "interest_rate" not in params:
         params["interest_rate"] = 0
     if "sigma" not in params:
         params["sigma"] = 0
-    if "beta" not in params:
-        raise ValueError("beta must be provided in params.")
     if "income_shock_mean" not in params:
         params["income_shock_mean"] = 0
 

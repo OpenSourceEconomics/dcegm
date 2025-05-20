@@ -318,7 +318,7 @@ def interp2d_value_and_check_creditconstraint(
             continuous_state=regular_point_to_interp,
             **state_choice_vec,
         )
-        + params["beta"] * value_at_zero_wealth[regular_idx_left]
+        + model_funcs["read_funcs"]["beta"] * value_at_zero_wealth[regular_idx_left]
     )
 
     regular_idx_right = coords_idxs[1, 0]
@@ -332,7 +332,7 @@ def interp2d_value_and_check_creditconstraint(
             params=params,
             **state_choice_vec,
         )
-        + params["beta"] * value_at_zero_wealth[regular_idx_right]
+        + model_funcs["read_funcs"]["beta"] * value_at_zero_wealth[regular_idx_right]
     )
 
     # Select the known values on the grid

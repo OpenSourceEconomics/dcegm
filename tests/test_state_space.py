@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 import dcegm.toy_models as toy_models
-from dcegm.pre_processing.model_functions.process_model_functions import (
+from dcegm.pre_processing.model_functions.process_model_functions_and_extract_info import (
     process_sparsity_condition,
 )
 from dcegm.pre_processing.model_structure.state_space import create_state_space

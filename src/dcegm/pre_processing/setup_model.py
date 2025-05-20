@@ -4,9 +4,10 @@ from typing import Callable, Dict
 import jax
 
 from dcegm.pre_processing.batches.batch_creation import create_batches_and_information
-from dcegm.pre_processing.check_options import check_model_config_and_process
+from dcegm.pre_processing.check_model_config import check_model_config_and_process
+from dcegm.pre_processing.check_model_specs import extract_model_specs_info
 from dcegm.pre_processing.model_functions.process_model_functions import (
-    process_model_functions,
+    process_model_functions_and_extract_info,
     process_sparsity_condition,
 )
 from dcegm.pre_processing.model_structure.model_structure import create_model_structure
@@ -65,7 +66,7 @@ def create_model_dict(
 
     model_config_processed = check_model_config_and_process(model_config)
 
-    model_funcs, taste_shock_scale_in_params = process_model_functions(
+    model_funcs, model_config_processed = process_model_functions_and_extract_info(
         model_config=model_config_processed,
         model_specs=model_specs,
         state_space_functions=state_space_functions,
@@ -75,9 +76,14 @@ def create_model_dict(
         stochastic_states_transitions=stochastic_states_transitions,
         shock_functions=shock_functions,
     )
-    model_config_processed["params_check_info"][
-        "taste_shock_scale_in_params"
-    ] = taste_shock_scale_in_params
+
+    specs_read_funcs, specs_params_info = extract_model_specs_info(model_specs)
+    model_funcs["read_funcs"] = specs_read_funcs
+
+    model_config_processed["params_check_info"] = {
+        **model_config_processed["params_check_info"],
+        **specs_params_info,
+    }
 
     model_structure = create_model_structure(
         model_config=model_config_processed,

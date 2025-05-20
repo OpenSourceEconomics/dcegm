@@ -141,7 +141,10 @@ def custom_interp2d_quad_value_function(
             #     z[i, 0] = transform(values[y_indx][0], theta)
 
             # else:
-            z[i, 0] = flow_util(x, params) + params["beta"] * values[y_indx][0]
+            z[i, 0] = (
+                flow_util(x, params)
+                + model_funcs["read_funcs"]["beta"] * values[y_indx][0]
+            )
 
         if x < x_grids[y_indx + 1][1]:
             x_cords[i, 1] = x
@@ -149,7 +152,10 @@ def custom_interp2d_quad_value_function(
             #     z[i, 1] = transform(values[y_indx + 1][0], params)
 
             # else:
-            z[i, 1] = flow_util(x, params) + params["beta"] * values[y_indx + 1][0]
+            z[i, 1] = (
+                flow_util(x, params)
+                + model_funcs["read_funcs"]["beta"] * values[y_indx + 1][0]
+            )
 
     alpha, beta = (x_cords @ A), (y_cords @ A)
     m, l = calculate_map_params(points[:, 0], points[:, 1], alpha, beta)
