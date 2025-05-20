@@ -108,7 +108,7 @@ def create_model_dict(
     }
 
 
-def setup_and_save_model(
+def create_model_dict_and_save(
     model_config: Dict,
     model_specs: Dict,
     utility_functions: Dict[str, Callable],
@@ -126,27 +126,28 @@ def setup_and_save_model(
     than recreating the model from scratch.
 
     """
-    model = create_model_dict(
+
+    model_dict = create_model_dict(
         model_config=model_config,
         model_specs=model_specs,
-        state_space_functions=state_space_functions,
         utility_functions=utility_functions,
         utility_functions_final_period=utility_functions_final_period,
         budget_constraint=budget_constraint,
+        state_space_functions=state_space_functions,
         stochastic_states_transitions=stochastic_states_transitions,
         shock_functions=shock_functions,
     )
 
     dict_to_save = {
-        "model_structure": model["model_structure"],
-        "batch_info": model["batch_info"],
+        "model_structure": model_dict["model_structure"],
+        "batch_info": model_dict["batch_info"],
     }
     pickle.dump(dict_to_save, open(path, "wb"))
 
-    return model
+    return model_dict
 
 
-def load_and_setup_model(
+def load_model_dict(
     model_config: Dict,
     model_specs: Dict,
     utility_functions: Dict[str, Callable],

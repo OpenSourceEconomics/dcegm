@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 from jax import vmap
 
+import dcegm
 import dcegm.toy_models as toy_models
 from dcegm.pre_processing.check_options import check_model_config_and_process
 from dcegm.pre_processing.check_params import process_params
@@ -11,8 +12,8 @@ from dcegm.pre_processing.model_functions.process_model_functions import (
 )
 from dcegm.pre_processing.setup_model import (
     create_model_dict,
-    load_and_setup_model,
-    setup_and_save_model,
+    create_model_dict_and_save,
+    load_model_dict,
 )
 from dcegm.pre_processing.shared import (
     determine_function_arguments_and_partial_model_specs,
@@ -134,7 +135,7 @@ def test_load_and_save_model(
         )
     )
 
-    model_setup = create_model_dict(
+    model_setup = dcegm.setup_model(
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=create_state_space_function_dict(),
@@ -143,38 +144,47 @@ def test_load_and_save_model(
         budget_constraint=budget_constraint,
     )
 
-    model_after_saving = setup_and_save_model(
+    model_after_saving = dcegm.setup_model(
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=create_state_space_function_dict(),
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
         budget_constraint=budget_constraint,
-        path="model.pkl",
+        model_save_path="model.pkl",
     )
 
-    model_after_loading = load_and_setup_model(
+    model_after_loading = dcegm.setup_model(
         model_config=model_config,
         model_specs=model_specs,
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
         budget_constraint=budget_constraint,
         state_space_functions=create_state_space_function_dict(),
-        path="model.pkl",
+        model_load_path="model.pkl",
     )
 
-    for key in model_setup.keys():
-        if isinstance(model_setup[key], np.ndarray):
-            np.testing.assert_allclose(model_setup[key], model_after_loading[key])
-            np.testing.assert_allclose(model_setup[key], model_after_saving[key])
-        elif isinstance(model_setup[key], dict):
-            for k in model_setup[key].keys():
-                if isinstance(model_setup[key][k], np.ndarray):
+    # Get list of attributes
+    attr_list = [
+        "model_structure",
+        "model_config",
+        "batch_info",
+    ]
+
+    for key in attr_list:
+        key_attr = getattr(model_setup, key)
+        if isinstance(key_attr, np.ndarray):
+            # Request attributes from model classes
+            np.testing.assert_allclose(key_attr, getattr(model_after_saving, key))
+            np.testing.assert_allclose(key_attr, getattr(model_after_loading, key))
+        elif isinstance(key_attr, dict):
+            for k in key_attr.keys():
+                if isinstance(key_attr[k], np.ndarray):
                     np.testing.assert_allclose(
-                        model_setup[key][k], model_after_loading[key][k]
+                        key_attr[k], getattr(model_after_loading, key)[k]
                     )
                     np.testing.assert_allclose(
-                        model_setup[key][k], model_after_saving[key][k]
+                        key_attr[k], getattr(model_after_loading, key)[k]
                     )
                 else:
                     pass

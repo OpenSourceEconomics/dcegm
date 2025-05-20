@@ -10,7 +10,11 @@ from dcegm.pre_processing.alternative_sim_functions import (
     generate_alternative_sim_functions,
 )
 from dcegm.pre_processing.check_params import process_params
-from dcegm.pre_processing.setup_model import create_model_dict
+from dcegm.pre_processing.setup_model import (
+    create_model_dict,
+    create_model_dict_and_save,
+    load_model_dict,
+)
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
 
@@ -28,18 +32,46 @@ class setup_model:
         shock_functions: Dict[str, Callable] = None,
         alternative_sim_specifications: Dict[str, Callable] = None,
         debug_info: str = None,
+        model_save_path: str = None,
+        model_load_path: str = None,
     ):
-        model_dict = create_model_dict(
-            model_config=model_config,
-            model_specs=model_specs,
-            utility_functions=utility_functions,
-            utility_functions_final_period=utility_functions_final_period,
-            budget_constraint=budget_constraint,
-            state_space_functions=state_space_functions,
-            stochastic_states_transitions=stochastic_states_transitions,
-            shock_functions=shock_functions,
-            debug_info=debug_info,
-        )
+        """Setup the model and check if load or save is required."""
+        if (model_save_path is not None) & (debug_info is None):
+            model_dict = create_model_dict_and_save(
+                model_config=model_config,
+                model_specs=model_specs,
+                utility_functions=utility_functions,
+                utility_functions_final_period=utility_functions_final_period,
+                budget_constraint=budget_constraint,
+                state_space_functions=state_space_functions,
+                stochastic_states_transitions=stochastic_states_transitions,
+                shock_functions=shock_functions,
+                path=model_save_path,
+            )
+        elif (model_load_path is not None) & (debug_info is None):
+            model_dict = load_model_dict(
+                model_config=model_config,
+                model_specs=model_specs,
+                utility_functions=utility_functions,
+                utility_functions_final_period=utility_functions_final_period,
+                budget_constraint=budget_constraint,
+                state_space_functions=state_space_functions,
+                stochastic_states_transitions=stochastic_states_transitions,
+                shock_functions=shock_functions,
+                path=model_load_path,
+            )
+        else:
+            model_dict = create_model_dict(
+                model_config=model_config,
+                model_specs=model_specs,
+                utility_functions=utility_functions,
+                utility_functions_final_period=utility_functions_final_period,
+                budget_constraint=budget_constraint,
+                state_space_functions=state_space_functions,
+                stochastic_states_transitions=stochastic_states_transitions,
+                shock_functions=shock_functions,
+                debug_info=debug_info,
+            )
 
         self.model_config = model_dict["model_config"]
         self.model_funcs = model_dict["model_funcs"]
