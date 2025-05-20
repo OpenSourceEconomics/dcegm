@@ -22,8 +22,7 @@ savings, including additional discrete choices.
 
    guides/installation
    guides/practitioner_guide
-   genindex
-   autoapi/index
+
 
 
 .. toctree::
@@ -47,3 +46,12 @@ savings, including additional discrete choices.
    development/team
    development/changes
    development/roadmap
+
+
+.. toctree::
+   :maxdepth: 2
+   :caption: dc-egm API
+   :hidden:
+
+   genindex
+   autoapi/index
