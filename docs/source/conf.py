@@ -36,6 +36,7 @@ extensions = [
     "myst_nb",  # Already present per rtd_environment.yml
     "sphinx.ext.mathjax",  # For math in notebooks
     "sphinx.ext.githubpages",  # For gh-pages'
+    "sphinx-design"
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -54,7 +55,7 @@ language = "en"
 exclude_patterns = ["_build", "**.ipynb_checkpoints"]
 
 # Ensure Jupyter notebooks are parsed
-nbsphinx_allow_errors = True  # Optional: continue build even if code cells fail
+#nbsphinx_allow_errors = True  # Optional: continue build even if code cells fail
 
 # -- Options for HTML output -------------------------------------------------
 

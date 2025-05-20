@@ -21,9 +21,7 @@ savings, including additional discrete choices.
    :hidden:
 
    guides/installation
-   guides/two_period_model_tutorial.ipynb
-   guides/practitioner_guides/parameters.ipynb
-   guides/practitioner_guides/model_config.ipynb
+   guides/practitioner_guide
    genindex
    autoapi/index
 
@@ -35,6 +33,7 @@ savings, including additional discrete choices.
 
    background/limitations
    background/literature
+   background/two_period_model_tutorial.ipynb
    background/specify_exogenous_processes.md
    background/timing_benchmarks.ipynb
 
