@@ -17,6 +17,7 @@ def process_params(params, params_check_info) -> Dict[str, float]:
         dict: Dictionary of model parameters.
 
     """
+    # ToDo: Check these are all floats, ints or array single value arrays
 
     if params_check_info["taste_shock_scale_in_params"]:
         if "taste_shock_scale" not in params.keys():

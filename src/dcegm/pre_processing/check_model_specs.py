@@ -4,6 +4,7 @@ import numpy as np
 
 def extract_model_specs_info(model_specs):
     """Check if options are valid and set defaults."""
+    # ToDo: Check these are all floats, ints or array single value arrays
 
     if not isinstance(model_specs, dict):
         raise ValueError("model_specs must be a dictionary.")
