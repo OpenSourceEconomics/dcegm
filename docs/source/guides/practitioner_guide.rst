@@ -3,9 +3,14 @@
 Practitioner's Guide
 =====================
 
-This guide explains how to specify and calibrate models using the `dc-egm` framework. It combines configuration and parameterization instructions in a modular format for practitioners.
+This guide explains how to specify, solve, simulate and potentially estimate structural life cycle models using the `dc-egm` framework. First, the main interface functions of the package are explained, before we turn to explaining the inputs of These functions.
 
-.. dropdown:: Parameterization
+.. dropdown:: Overview of main interface
+
+    The logic order of the main interface is inspired by the e.g. the OLS specification in `statsmodels`. In a first step,
+    we specify a model,
+
+.. dropdown:: Parameterization (params and model_specs)
 
     `dc-egm` uses two distinct dictionaries to store model parameters:
 
