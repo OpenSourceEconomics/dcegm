@@ -29,6 +29,10 @@ def process_params(params, params_check_info) -> Dict[str, float]:
         if "discount_factor" not in params:
             raise ValueError("beta must be provided in params.")
 
+    if params_check_info["interest_rate_in_params"]:
+        if "interest_rate" not in params:
+            raise ValueError("interest_rate must be provided in params.")
+
     if "interest_rate" not in params:
         params["interest_rate"] = 0
     if "sigma" not in params:
