@@ -1,3 +1,4 @@
+import pickle as pkl
 from functools import partial
 from typing import Callable, Dict
 
@@ -10,7 +11,11 @@ from dcegm.pre_processing.alternative_sim_functions import (
     generate_alternative_sim_functions,
 )
 from dcegm.pre_processing.check_params import process_params
-from dcegm.pre_processing.setup_model import create_model_dict
+from dcegm.pre_processing.setup_model import (
+    create_model_dict,
+    create_model_dict_and_save,
+    load_model_dict,
+)
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
 
@@ -28,18 +33,46 @@ class setup_model:
         shock_functions: Dict[str, Callable] = None,
         alternative_sim_specifications: Dict[str, Callable] = None,
         debug_info: str = None,
+        model_save_path: str = None,
+        model_load_path: str = None,
     ):
-        model_dict = create_model_dict(
-            model_config=model_config,
-            model_specs=model_specs,
-            utility_functions=utility_functions,
-            utility_functions_final_period=utility_functions_final_period,
-            budget_constraint=budget_constraint,
-            state_space_functions=state_space_functions,
-            stochastic_states_transitions=stochastic_states_transitions,
-            shock_functions=shock_functions,
-            debug_info=debug_info,
-        )
+        """Setup the model and check if load or save is required."""
+        if (model_load_path is not None) & (debug_info is None):
+            model_dict = load_model_dict(
+                model_config=model_config,
+                model_specs=model_specs,
+                utility_functions=utility_functions,
+                utility_functions_final_period=utility_functions_final_period,
+                budget_constraint=budget_constraint,
+                state_space_functions=state_space_functions,
+                stochastic_states_transitions=stochastic_states_transitions,
+                shock_functions=shock_functions,
+                path=model_load_path,
+            )
+        elif (model_save_path is not None) & (debug_info is None):
+            model_dict = create_model_dict_and_save(
+                model_config=model_config,
+                model_specs=model_specs,
+                utility_functions=utility_functions,
+                utility_functions_final_period=utility_functions_final_period,
+                budget_constraint=budget_constraint,
+                state_space_functions=state_space_functions,
+                stochastic_states_transitions=stochastic_states_transitions,
+                shock_functions=shock_functions,
+                path=model_save_path,
+            )
+        else:
+            model_dict = create_model_dict(
+                model_config=model_config,
+                model_specs=model_specs,
+                utility_functions=utility_functions,
+                utility_functions_final_period=utility_functions_final_period,
+                budget_constraint=budget_constraint,
+                state_space_functions=state_space_functions,
+                stochastic_states_transitions=stochastic_states_transitions,
+                shock_functions=shock_functions,
+                debug_info=debug_info,
+            )
 
         self.model_config = model_dict["model_config"]
         self.model_funcs = model_dict["model_funcs"]
@@ -82,7 +115,7 @@ class setup_model:
         else:
             self.alternative_sim_funcs = None
 
-    def solve(self, params):
+    def solve(self, params, load_sol_path=None, save_sol_path=None):
         """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
         Args:
@@ -104,14 +137,25 @@ class setup_model:
                 state a transition matrix vector.
 
         """
-        params_processed = process_params(params, self.params_check_info)
-        # Solve the model
-        value, policy, endog_grid = self.backward_induction_jit(params_processed)
+
+        params_processed = process_params(params)
+        if load_sol_path is not None:
+            sol_dict = pkl.load(open(load_sol_path, "rb"))
+        else:
+            # Solve the model
+            value, policy, endog_grid = self.backward_induction_jit(params_processed)
+            sol_dict = {
+                "value": value,
+                "policy": policy,
+                "endog_grid": endog_grid,
+            }
+            if save_sol_path is not None:
+                pkl.dump(sol_dict, open(save_sol_path, "wb"))
 
         model_solved_class = model_solved(
-            value=value,
-            policy=policy,
-            endog_grid=endog_grid,
+            value=sol_dict["value"],
+            policy=sol_dict["policy"],
+            endog_grid=sol_dict["endog_grid"],
             model_config=self.model_config,
             model_structure=self.model_structure,
             model_funcs=self.model_funcs,
@@ -125,6 +169,8 @@ class setup_model:
         params,
         states_initial,
         seed,
+        load_sol_path=None,
+        save_sol_path=None,
     ):
         """
         Solve the model and simulate it.
@@ -142,16 +188,27 @@ class setup_model:
         """
         params_processed = process_params(params, self.params_check_info)
 
-        value, policy, endog_grid = self.backward_induction_jit(params_processed)
+        if load_sol_path is not None:
+            sol_dict = pkl.load(open(load_sol_path, "rb"))
+        else:
+            # Solve the model
+            value, policy, endog_grid = self.backward_induction_jit(params_processed)
+            sol_dict = {
+                "value": value,
+                "policy": policy,
+                "endog_grid": endog_grid,
+            }
+            if save_sol_path is not None:
+                pkl.dump(sol_dict, open(save_sol_path, "wb"))
 
         sim_dict = simulate_all_periods(
             states_initial=states_initial,
             n_periods=self.model_config["n_periods"],
             params=params,
             seed=seed,
-            endog_grid_solved=endog_grid,
-            policy_solved=policy,
-            value_solved=value,
+            endog_grid_solved=sol_dict["endog_grid"],
+            policy_solved=sol_dict["policy"],
+            value_solved=sol_dict["value"],
             model_config=self.model_config,
             model_structure=self.model_structure,
             model_funcs=self.model_funcs,
