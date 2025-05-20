@@ -6,7 +6,7 @@ Team
 `dc-egm` is a collaborative opensource project developed a team of junior researchers and students. We are located in Berlin, Munich, and Copenhagen.
 
 .. list-table::
-   :widths: 70 70
+   :widths: 42 42 42 42 42
    :header-rows: 0
 
    * - .. figure:: ../_static/images/max.jpeg
@@ -19,7 +19,7 @@ Team
 
          `Sebastian Gsell <https://github.com/segsell>`_
 
-   * - .. figure:: ../_static/images/bruno.jpeg
+     - .. figure:: ../_static/images/bruno.jpg
          :width: 120px
 
          `Bruno Veltri <https://github.com/BVeltri>`_
@@ -29,10 +29,11 @@ Team
 
          `Annica Gehlen <https://github.com/amageh>`_
 
-   * - .. figure:: ../_static/images/gregor.png
+     - .. figure:: ../_static/images/gregor.png
          :width: 120px
 
          `Gregor Schueler <https://github.com/gregor-schueler>`_
+
 
 
 Projects & Theses
