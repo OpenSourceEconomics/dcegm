@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 from jax import vmap
 
+import dcegm
 import dcegm.toy_models as toy_models
 from dcegm.pre_processing.check_options import check_model_config_and_process
 from dcegm.pre_processing.check_params import process_params
@@ -11,8 +12,8 @@ from dcegm.pre_processing.model_functions.process_model_functions import (
 )
 from dcegm.pre_processing.setup_model import (
     create_model_dict,
-    load_and_setup_model,
-    setup_and_save_model,
+    create_model_dict_and_save,
+    load_model_dict,
 )
 from dcegm.pre_processing.shared import (
     determine_function_arguments_and_partial_model_specs,
@@ -115,75 +116,6 @@ def test_missing_parameter(
     params.pop("beta")
     with pytest.raises(ValueError, match="beta must be provided in params."):
         process_params(params)
-
-
-@pytest.mark.parametrize(
-    "model_name",
-    [
-        ("retirement_no_shocks"),
-        ("retirement_with_shocks"),
-        ("deaton"),
-    ],
-)
-def test_load_and_save_model(
-    model_name,
-):
-    _params, model_specs, model_config = (
-        toy_models.load_example_params_model_specs_and_config(
-            "dcegm_paper_" + model_name
-        )
-    )
-
-    model_setup = create_model_dict(
-        model_config=model_config,
-        model_specs=model_specs,
-        state_space_functions=create_state_space_function_dict(),
-        utility_functions=create_utility_function_dict(),
-        utility_functions_final_period=create_final_period_utility_function_dict(),
-        budget_constraint=budget_constraint,
-    )
-
-    model_after_saving = setup_and_save_model(
-        model_config=model_config,
-        model_specs=model_specs,
-        state_space_functions=create_state_space_function_dict(),
-        utility_functions=create_utility_function_dict(),
-        utility_functions_final_period=create_final_period_utility_function_dict(),
-        budget_constraint=budget_constraint,
-        path="model.pkl",
-    )
-
-    model_after_loading = load_and_setup_model(
-        model_config=model_config,
-        model_specs=model_specs,
-        utility_functions=create_utility_function_dict(),
-        utility_functions_final_period=create_final_period_utility_function_dict(),
-        budget_constraint=budget_constraint,
-        state_space_functions=create_state_space_function_dict(),
-        path="model.pkl",
-    )
-
-    for key in model_setup.keys():
-        if isinstance(model_setup[key], np.ndarray):
-            np.testing.assert_allclose(model_setup[key], model_after_loading[key])
-            np.testing.assert_allclose(model_setup[key], model_after_saving[key])
-        elif isinstance(model_setup[key], dict):
-            for k in model_setup[key].keys():
-                if isinstance(model_setup[key][k], np.ndarray):
-                    np.testing.assert_allclose(
-                        model_setup[key][k], model_after_loading[key][k]
-                    )
-                    np.testing.assert_allclose(
-                        model_setup[key][k], model_after_saving[key][k]
-                    )
-                else:
-                    pass
-        else:
-            pass
-
-    import os
-
-    os.remove("model.pkl")
 
 
 def test_grid_parameters():
