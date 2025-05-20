@@ -115,8 +115,6 @@ def test_get_beginning_of_period_wealth(
 
     params["part_time"] = -1
 
-    params = process_params(params)
-
     n_quad_points = model_config["n_quad_points"]
 
     sigma = params["sigma"]
@@ -175,7 +173,6 @@ def test_wealth_and_second_continuous_state(model_name, max_wealth, n_grid_point
 
     model_specs["working_hours_max"] = 3000
     params["part_time"] = -1
-    params = process_params(params)
 
     experience_grid = np.linspace(0, 1, n_exp_points)
 

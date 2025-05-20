@@ -50,7 +50,7 @@ def generate_alternative_sim_functions(
 
     model_config = check_model_config_and_process(model_config)
 
-    model_funcs = process_alternative_sim_functions(
+    model_funcs, taste_shock_scale_in_params = process_alternative_sim_functions(
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=state_space_functions,
@@ -58,6 +58,9 @@ def generate_alternative_sim_functions(
         shock_functions=shock_functions,
         stochastic_states_transition=stochastic_states_transitions,
     )
+    model_config["params_check_info"][
+        "taste_shock_scale_in_params"
+    ] = taste_shock_scale_in_params
 
     (
         stochastic_state_names,
@@ -172,10 +175,12 @@ def process_alternative_sim_functions(
         continuous_state=second_continuous_state_name,
     )
 
-    taste_shock_function_processed = process_shock_functions(
-        shock_functions,
-        model_specs,
-        continuous_state_name=second_continuous_state_name,
+    taste_shock_function_processed, taste_shock_scale_in_params = (
+        process_shock_functions(
+            shock_functions,
+            model_specs,
+            continuous_state_name=second_continuous_state_name,
+        )
     )
 
     alt_model_funcs = {
@@ -190,4 +195,4 @@ def process_alternative_sim_functions(
         "taste_shock_function": taste_shock_function_processed,
     }
 
-    return alt_model_funcs
+    return alt_model_funcs, taste_shock_scale_in_params

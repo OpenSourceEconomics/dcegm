@@ -3,7 +3,7 @@ from typing import Dict, Union
 import pandas as pd
 
 
-def process_params(params: Union[dict, pd.Series, pd.DataFrame]) -> Dict[str, float]:
+def process_params(params, params_check_info) -> Dict[str, float]:
     """Transforms params DataFrame into a dictionary.
 
     Checks if given params contains beta, taste shock scale, interest rate
@@ -17,6 +17,13 @@ def process_params(params: Union[dict, pd.Series, pd.DataFrame]) -> Dict[str, fl
         dict: Dictionary of model parameters.
 
     """
+
+    if params_check_info["taste_shock_scale_in_params"]:
+        if "taste_shock_scale" not in params.keys():
+            raise ValueError(
+                "There was no taste_shock_scale per state function provided and taste_shock_scale was"
+                "not an element of model_specs or params."
+            )
 
     if "interest_rate" not in params:
         params["interest_rate"] = 0

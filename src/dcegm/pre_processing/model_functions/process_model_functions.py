@@ -155,10 +155,12 @@ def process_model_functions(
         continuous_state=second_continuous_state_name,
     )
 
-    taste_shock_function_processed = process_shock_functions(
-        shock_functions,
-        model_specs,
-        continuous_state_name=second_continuous_state_name,
+    taste_shock_function_processed, taste_shock_scale_in_params = (
+        process_shock_functions(
+            shock_functions,
+            model_specs,
+            continuous_state_name=second_continuous_state_name,
+        )
     )
 
     model_funcs = {
@@ -175,7 +177,7 @@ def process_model_functions(
         "taste_shock_function": taste_shock_function_processed,
     }
 
-    return model_funcs
+    return model_funcs, taste_shock_scale_in_params
 
 
 def process_state_space_functions(

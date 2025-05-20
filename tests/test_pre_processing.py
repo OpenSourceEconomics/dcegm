@@ -246,7 +246,7 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
 
     model_config = check_model_config_and_process(model_config)
 
-    model_funcs = process_model_functions(
+    model_funcs, _ = process_model_functions(
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=state_space_functions,

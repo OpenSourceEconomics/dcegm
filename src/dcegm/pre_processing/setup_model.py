@@ -65,7 +65,7 @@ def create_model_dict(
 
     model_config_processed = check_model_config_and_process(model_config)
 
-    model_funcs = process_model_functions(
+    model_funcs, taste_shock_scale_in_params = process_model_functions(
         model_config=model_config_processed,
         model_specs=model_specs,
         state_space_functions=state_space_functions,
@@ -75,6 +75,9 @@ def create_model_dict(
         stochastic_states_transitions=stochastic_states_transitions,
         shock_functions=shock_functions,
     )
+    model_config_processed["params_check_info"][
+        "taste_shock_scale_in_params"
+    ] = taste_shock_scale_in_params
 
     model_structure = create_model_structure(
         model_config=model_config_processed,
@@ -163,7 +166,7 @@ def load_and_setup_model(
 
     model["model_config"] = check_model_config_and_process(model_config)
 
-    model["model_funcs"] = process_model_functions(
+    model["model_funcs"], taste_shock_scale_in_params = process_model_functions(
         model_config=model["model_config"],
         model_specs=model_specs,
         state_space_functions=state_space_functions,
@@ -173,6 +176,9 @@ def load_and_setup_model(
         stochastic_states_transitions=stochastic_states_transitions,
         shock_functions=shock_functions,
     )
+    model_config["params_check_info"][
+        "taste_shock_scale_in_params"
+    ] = taste_shock_scale_in_params
 
     model["model_funcs"]["stochastic_state_mapping"] = create_stochastic_state_mapping(
         stochastic_state_space=model["model_structure"]["stochastic_state_space"],
