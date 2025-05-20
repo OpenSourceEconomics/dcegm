@@ -38,6 +38,7 @@ extensions = [
     "sphinx.ext.githubpages",  # For gh-pages'
     "sphinx_design",
     "sphinx_copybutton",
+    "sphinx.ext.mathjax",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
