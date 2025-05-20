@@ -5,13 +5,6 @@ Team
 =======
 
 
-.. _team:
-
-
-Team
-=======
-
-
 .. list-table::
    :widths: 50 50
    :header-rows: 0
