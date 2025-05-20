@@ -173,7 +173,7 @@ def load_model_dict(
 
     model["model_config"] = check_model_config_and_process(model_config)
 
-    model["model_funcs"] = process_model_functions(
+    model["model_funcs"] = process_model_functions_and_extract_info(
         model_config=model["model_config"],
         model_specs=model_specs,
         state_space_functions=state_space_functions,
