@@ -22,8 +22,9 @@ savings, including additional discrete choices.
 
    guides/installation
    guides/practitioner_guide
-   genindex
-   autoapi/index
+   guides/minimal_example.ipynb
+   guides/maximal_example.ipynb
+
 
 
 .. toctree::
@@ -33,8 +34,8 @@ savings, including additional discrete choices.
 
    background/limitations
    background/literature
+   background/two_period_model_tutorial.ipynb
    background/interface_plots.ipynb
-   background/specify_exogenous_processes.ipynb
    background/specify_exogenous_processes.md
    background/timing_benchmarks.ipynb
 
@@ -47,3 +48,12 @@ savings, including additional discrete choices.
    development/team
    development/changes
    development/roadmap
+
+
+.. toctree::
+   :maxdepth: 2
+   :caption: dc-egm API
+   :hidden:
+
+   genindex
+   autoapi/index
