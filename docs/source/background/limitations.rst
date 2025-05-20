@@ -24,9 +24,9 @@ This makes DC-EGM particularly well-suited for life-cycle models with a modest n
 What can dc-egm not be used for?
 ---------------------------------
 
-:x: Purely discrete choice models (see e.g. Keane and Wolpin; 1997)
-:x: Models with more than two continuous state variables.
-:x: Models with more than one continuous state variable with a normally distributed idiosyncratic shock.
+- Purely discrete choice models (see e.g. Keane and Wolpin; 1997)
+- Models with more than two continuous state variables.
+- Models with more than one continuous state variable with a normally distributed idiosyncratic shock.
 
 
 **References**
