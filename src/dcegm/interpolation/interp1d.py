@@ -86,7 +86,7 @@ def interp1d_policy_and_value_on_wealth(
         value_at_zero_wealth=value[0],
         state_choice_vec=state_choice_vec,
         params=params,
-        beta=read_funcs["discount_factor"],
+        discount_factor=read_funcs["discount_factor"],
     )
 
     return policy_interp, value_interp
@@ -99,7 +99,7 @@ def interp_value_on_wealth(
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
     params: Dict[str, float],
-    beta: float,
+    discount_factor: float,
 ) -> jnp.ndarray | float:
     """Interpolate value function on a single wealth point.
 
@@ -128,7 +128,7 @@ def interp_value_on_wealth(
         value_at_zero_wealth=value[0],
         state_choice_vec=state_choice_vec,
         params=params,
-        beta=beta,
+        discount_factor=discount_factor,
     )
 
     return value_interp
@@ -177,7 +177,7 @@ def interp_value_and_check_creditconstraint(
     value_at_zero_wealth: float | jnp.ndarray,
     state_choice_vec: Dict[str, int],
     params: Dict[str, float],
-    beta: float,
+    discount_factor: float,
 ) -> float | jnp.ndarray:
     """Calculate the interpolated value with accounting for a possible credit
     constrained solution.
@@ -222,7 +222,7 @@ def interp_value_and_check_creditconstraint(
         params=params,
         **state_choice_vec,
     )
-    value_interp_closed_form = utility + beta * value_at_zero_wealth
+    value_interp_closed_form = utility + discount_factor * value_at_zero_wealth
 
     # Check if we are in the credit constrained region
     credit_constraint = new_wealth <= endog_grid_min

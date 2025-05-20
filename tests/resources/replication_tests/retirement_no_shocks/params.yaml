@@ -1,5 +1,5 @@
 ---
-beta: 0.95  # discount factor
+discount_factor: 0.95  # discount factor
 delta: 0.35  # disutility of work
 rho: 1.95  # CRRA coefficient
 constant: 0.75  # age-independent labor income

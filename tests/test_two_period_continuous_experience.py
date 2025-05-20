@@ -34,7 +34,7 @@ def euler_rhs(
     weights,
     params,
 ):
-    beta = model_funcs["read_funcs"]["discount_factor"]
+    discount_factor = model_funcs["read_funcs"]["discount_factor"]
     interest_factor = 1 + params["interest_rate"]
 
     rhs = 0
@@ -49,7 +49,7 @@ def euler_rhs(
         )
         rhs += weights[idx_draw] * marg_util_draw
 
-    return rhs * beta * interest_factor
+    return rhs * discount_factor * interest_factor
 
 
 def marginal_utility_weighted(

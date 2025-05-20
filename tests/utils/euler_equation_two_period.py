@@ -91,7 +91,7 @@ def marginal_utility_weighted_exog_ltc(
 def euler_rhs_exog_ltc(
     init_cond, params, draws, weights, retirement_choice_1, consumption
 ):
-    beta = model_funcs["read_funcs"]["discount_factor"]
+    discount_factor = model_funcs["read_funcs"]["discount_factor"]
     interest_factor = 1 + params["interest_rate"]
 
     rhs = 0
@@ -100,7 +100,7 @@ def euler_rhs_exog_ltc(
             init_cond, params, retirement_choice_1, draw, consumption
         )
         rhs += weights[index_draw] * marg_util_draw
-    return rhs * beta * interest_factor
+    return rhs * discount_factor * interest_factor
 
 
 # =====================================================================================
@@ -184,7 +184,7 @@ def marginal_utility_weighted_exog_ltc_and_job_offer(
 def euler_rhs_exog_ltc_and_job_offer(
     init_cond, params, draws, weights, retirement_choice_1, consumption
 ):
-    beta = model_funcs["read_funcs"]["discount_factor"]
+    discount_factor = model_funcs["read_funcs"]["discount_factor"]
     interest_factor = 1 + params["interest_rate"]
 
     rhs = 0
@@ -193,4 +193,4 @@ def euler_rhs_exog_ltc_and_job_offer(
             init_cond, params, retirement_choice_1, draw, consumption
         )
         rhs += weights[index_draw] * marg_util_draw
-    return rhs * beta * interest_factor
+    return rhs * discount_factor * interest_factor

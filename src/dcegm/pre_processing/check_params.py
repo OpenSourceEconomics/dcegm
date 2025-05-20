@@ -6,7 +6,7 @@ import pandas as pd
 def process_params(params, params_check_info) -> Dict[str, float]:
     """Transforms params DataFrame into a dictionary.
 
-    Checks if given params contains beta, taste shock scale, interest rate
+    Checks if given params contains discount_factor, taste shock scale, interest rate
     and discount factor.
 
     Args:
@@ -25,9 +25,9 @@ def process_params(params, params_check_info) -> Dict[str, float]:
                 "not an element of model_specs or params."
             )
 
-    if params_check_info["beta_in_params"]:
+    if params_check_info["discount_factor_in_params"]:
         if "discount_factor" not in params:
-            raise ValueError("beta must be provided in params.")
+            raise ValueError("discount_factor must be provided in params.")
 
     if params_check_info["interest_rate_in_params"]:
         if "interest_rate" not in params:

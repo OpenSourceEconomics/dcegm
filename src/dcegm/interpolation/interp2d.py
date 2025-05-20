@@ -27,7 +27,7 @@ def interp2d_policy_and_value_on_wealth_and_regular_grid(
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
     params: dict,
-    beta,
+    discount_factor,
 ):
     """Linear 2D interpolation on two grids where wealth has irregular spacing.
 
@@ -91,7 +91,7 @@ def interp2d_policy_and_value_on_wealth_and_regular_grid(
         value_at_zero_wealth=value_grid[:, 0],
         state_choice_vec=state_choice_vec,
         params=params,
-        beta=beta,
+        discount_factor=discount_factor,
     )
 
     return policy_interp, value_interp
@@ -106,7 +106,7 @@ def interp2d_value_on_wealth_and_regular_grid(
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
     params: dict,
-    beta,
+    discount_factor,
 ):
     """Interpolate the value function on a 2D grid.
 
@@ -158,7 +158,7 @@ def interp2d_value_on_wealth_and_regular_grid(
         value_at_zero_wealth=value_grid[:, 0],
         state_choice_vec=state_choice_vec,
         params=params,
-        beta=beta,
+        discount_factor=discount_factor,
     )
     return value_interp
 
@@ -275,7 +275,7 @@ def interp2d_value_and_check_creditconstraint(
     value_at_zero_wealth,
     state_choice_vec,
     params,
-    beta,
+    discount_factor,
 ):
     """Interpolate the value function on a 2D grid and check for credit constraints.
 
@@ -323,7 +323,7 @@ def interp2d_value_and_check_creditconstraint(
             continuous_state=regular_point_to_interp,
             **state_choice_vec,
         )
-        + beta * value_at_zero_wealth[regular_idx_left]
+        + discount_factor * value_at_zero_wealth[regular_idx_left]
     )
 
     regular_idx_right = coords_idxs[1, 0]
@@ -337,7 +337,7 @@ def interp2d_value_and_check_creditconstraint(
             params=params,
             **state_choice_vec,
         )
-        + beta * value_at_zero_wealth[regular_idx_right]
+        + discount_factor * value_at_zero_wealth[regular_idx_right]
     )
 
     # Select the known values on the grid

@@ -297,7 +297,7 @@ def calc_choice_probs_for_states(
     choice_range = options["state_space"]["choices"]
     model_funcs = model["model_funcs"]
     compute_utility = model_funcs["compute_utility"]
-    beta = model_funcs["read_funcs"]["discount_factor"]
+    discount_factor = model_funcs["read_funcs"]["discount_factor"]
 
     if len(options["exog_grids"]) == 2:
         vectorized_interp2d = jax.vmap(
@@ -320,7 +320,7 @@ def calc_choice_probs_for_states(
             params,
             options["exog_grids"]["second_continuous"],
             compute_utility,
-            beta,
+            discount_factor,
         )
 
     else:
@@ -370,7 +370,7 @@ def interp2d_value_for_state_in_each_choice(
     params,
     regular_grid,
     compute_utility,
-    beta,
+    discount_factor,
 ):
     state_choice_vec = {**state, "choice": choice}
 
@@ -383,7 +383,7 @@ def interp2d_value_for_state_in_each_choice(
         compute_utility=compute_utility,
         state_choice_vec=state_choice_vec,
         params=params,
-        beta=beta,
+        discount_factor=discount_factor,
     )
 
     return value_interp

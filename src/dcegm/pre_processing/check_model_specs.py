@@ -9,19 +9,21 @@ def extract_model_specs_info(model_specs):
         raise ValueError("model_specs must be a dictionary.")
 
     if "discount_factor" in model_specs:
-        # Check if beta is a scalar
-        beta_val = model_specs["discount_factor"]
-        if not isinstance(beta_val, float):
+        # Check if discount_factor is a scalar
+        discount_factor_val = model_specs["discount_factor"]
+        if not isinstance(discount_factor_val, float):
             raise ValueError(
-                f"beta is not a scalar of type float. got {beta_val} of type {type(beta_val)}"
+                f"discount_factor is not a scalar of type float. got {discount_factor_val} of type {type(discount_factor_val)}"
             )
-        read_func_beta = lambda params: jnp.asarray([model_specs["discount_factor"]])
-        beta_in_params = False
+        read_func_discount_factor = lambda params: jnp.asarray(
+            [model_specs["discount_factor"]]
+        )
+        discount_factor_in_params = False
     else:
-        read_func_beta = lambda params: jnp.asarray(
+        read_func_discount_factor = lambda params: jnp.asarray(
             [model_specs["read_funcs"]["discount_factor"]]
         )
-        beta_in_params = True
+        discount_factor_in_params = True
 
     # interest_rate processing
     if "interest_rate" in model_specs:
@@ -40,11 +42,11 @@ def extract_model_specs_info(model_specs):
         )
 
     specs_read_funcs = {
-        "beta": read_func_beta,
+        "discount_factor": read_func_discount_factor,
         "interest_rate": read_func_interest_rate,
     }
     specs_params_info = {
-        "beta_in_params": beta_in_params,
+        "discount_factor_in_params": discount_factor_in_params,
         "interest_rate_in_params": False,
     }
 

@@ -171,7 +171,7 @@ def value_for_state_choice_vec(
     )
     state_choice_index = map_state_choice_to_index[state_choice_tuple]
     continuous_states_info = model_config["continuous_states_info"]
-    beta = model_funcs["read_funcs"]["discount_factor"]
+    discount_factor = model_funcs["read_funcs"]["discount_factor"]
 
     compute_utility = model_funcs["compute_utility"]
 
@@ -191,7 +191,7 @@ def value_for_state_choice_vec(
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
-            beta=beta,
+            discount_factor=discount_factor,
         )
     else:
 
@@ -202,7 +202,7 @@ def value_for_state_choice_vec(
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
-            beta=beta,
+            discount_factor=discount_factor,
         )
 
     return value
