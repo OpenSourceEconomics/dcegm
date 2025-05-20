@@ -2,15 +2,15 @@
 import jax.numpy as jnp
 from jax import config
 
-import dcegm
-
 # import model_funcs
-from .model_funcs import (
+from model_funcs import (
     budget_constraint,
     create_final_period_utility_function_dict,
     create_state_space_function_dict,
     create_utility_function_dict,
 )
+
+import dcegm
 
 config.update("jax_enable_x64", True)
 
