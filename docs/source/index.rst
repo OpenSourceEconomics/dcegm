@@ -22,6 +22,7 @@ savings, including additional discrete choices.
 
    guides/installation
    guides/practitioner_guide
+   guides/templates
    guides/minimal_example.ipynb
    guides/maximal_example.ipynb
 
