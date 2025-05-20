@@ -18,7 +18,7 @@ Team
 
    * - .. figure:: ../_static/images/max.jpeg
          :width: 120px
-         
+
          `Max Blesch <https://github.com/MaxBlesch>`_
 
      - .. figure:: ../_static/images/sebastian.jpeg

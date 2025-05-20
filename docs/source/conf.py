@@ -83,7 +83,7 @@ html_theme_options = {
             "class": "",
         },
     ],
-    #"announcement": "This documentation is under construction.",
+    # "announcement": "This documentation is under construction.",
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,

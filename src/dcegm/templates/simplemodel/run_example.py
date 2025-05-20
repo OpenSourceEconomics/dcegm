@@ -69,8 +69,6 @@ n_agents = 1_000
 states_initial = {
     "period": jnp.zeros(n_agents),
     "lagged_choice": jnp.zeros(n_agents),  # all agents start as workers
-    "married": jnp.zeros(n_agents),
-    "ltc": jnp.zeros(n_agents),
     "experience": jnp.ones(n_agents),
     "assets_begin_of_period": jnp.ones(n_agents) * 10,
 }

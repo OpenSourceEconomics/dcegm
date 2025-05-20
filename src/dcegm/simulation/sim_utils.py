@@ -161,6 +161,12 @@ def transition_to_next_period(
     }
     discrete_states_next_period.update(states_to_update)
 
+    # Overwrite datatype with discrete_states_beginning_of_period dtypes
+    for key in discrete_states_next_period.keys():
+        discrete_states_next_period[key] = discrete_states_next_period[key].astype(
+            discrete_states_beginning_of_period[key].dtype
+        )
+
     # Draw income shocks.
     income_shocks_next_period = draw_normal_shocks(
         key=sim_keys["income_shock_keys"],
@@ -259,7 +265,7 @@ def realize_stochastic_states(state, choice, key, params, processed_stochastic_f
         )
         stochastic_states_next_period[state_name] = jax.random.choice(
             key=key, a=state_vec.shape[0], p=state_vec
-        ).astype(state[state_name].dtype)
+        )
     return stochastic_states_next_period
 
 
