@@ -15,6 +15,7 @@ def example_params():
         "discount_factor": 0.95,
         # Exogenous parameters
         "ltc_prob_constant": 0.3,
+        "income_shock_mean": 0.0,
         "ltc_prob_age": 0.1,
         "job_offer_constant": 0.5,
         "job_offer_age": 0,

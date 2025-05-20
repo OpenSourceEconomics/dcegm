@@ -45,10 +45,10 @@ def extract_model_specs_info(model_specs):
     # income shock std processing ("income_shock_std")
     if "income_shock_std" in model_specs:
         # Check if income_shock_std is a scalar
-        income_shock_std_val = model_specs["income_shock_std"]
-        if not isinstance(income_shock_std_val, float):
+        income_shock_std = model_specs["income_shock_std"]
+        if not isinstance(income_shock_std, float):
             raise ValueError(
-                f"income_shock_std is not a scalar of type float. got {income_shock_std_val} of type {type(income_shock_std_val)}"
+                f"income_shock_std is not a scalar of type float. got {income_shock_std} of type {type(income_shock_std)}"
             )
         read_func_income_shock_std = lambda params: jnp.asarray(
             model_specs["income_shock_std"]
@@ -60,15 +60,35 @@ def extract_model_specs_info(model_specs):
         )
         income_shock_std_in_params = True
 
+    # income shock std processing ("income_shock_std")
+    if "income_shock_mean" in model_specs:
+        # Check if income_shock_std is a scalar
+        income_shock_mean = model_specs["income_shock_mean"]
+        if not isinstance(income_shock_mean, float):
+            raise ValueError(
+                f"income_shock_mean is not a scalar of type float. got {income_shock_mean} of type {type(income_shock_mean)}"
+            )
+        read_func_income_shock_mean = lambda params: jnp.asarray(
+            model_specs["income_shock_mean"]
+        )
+        income_shock_mean_in_params = False
+    else:
+        read_func_income_shock_mean = lambda params: jnp.asarray(
+            params["income_shock_std"]
+        )
+        income_shock_mean_in_params = True
+
     specs_read_funcs = {
         "discount_factor": read_func_discount_factor,
         "interest_rate": read_func_interest_rate,
         "income_shock_std": read_func_income_shock_std,
+        "income_shock_mean": read_func_income_shock_mean,
     }
     specs_params_info = {
         "discount_factor_in_params": discount_factor_in_params,
         "interest_rate_in_params": interest_rate_in_params,
         "income_shock_std_in_params": income_shock_std_in_params,
+        "income_shock_mean_in_params": income_shock_mean_in_params,
     }
 
     return specs_read_funcs, specs_params_info

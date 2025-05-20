@@ -10,6 +10,7 @@ def example_params():
         "interest_rate": 0.04,
         "taste_shock_scale": 1,  # taste shock (scale) parameter
         "income_shock_std": 1,  # shock on labor income, standard deviation
+        "income_shock_mean": 0.0,
         "constant": 0.75,
         "exp": 0.04,
         "exp_squared": -0.0002,

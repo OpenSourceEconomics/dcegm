@@ -14,6 +14,7 @@ def example_params_deaton():
         "exp": 0.04,
         "exp_squared": -0.0004,
         "income_shock_std": 0.25,
+        "income_shock_mean": 0.0,
         # taste shock (scale) parameter
         "taste_shock_scale": 2.2204e-16,
         "interest_rate": 0.05,

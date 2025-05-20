@@ -14,6 +14,7 @@ def example_params_ret_model_with_shocks():
         "exp_squared": -0.0002,
         # Shock parameters of income
         "income_shock_std": 0.35,
+        "income_shock_mean": 0.0,
         "taste_shock_scale": 0.2,
         "interest_rate": 0.05,
         "consumption_floor": 0.001,

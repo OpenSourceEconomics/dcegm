@@ -76,14 +76,10 @@ def sparsity_condition(period, lagged_choice, experience, model_specs):
 def test_model():
     params = {
         # utility
-        "discount_factor": 0.95,
-        "taste_shock_scale": 1,
-        "income_shock_std": 1,
         "rho": 0.5,  # CRRA coefficient
         "delta": 1,  # disutility of work
         "phi": 0.5,  # utility of joint leisure
         # budget (/ income)
-        "interest_rate": 0.05,
         "constant": 1,
         "exp": 0.1,
         "exp_squared": -0.01,
@@ -107,6 +103,11 @@ def test_model():
         "n_health_states": 2,
         "n_partner_states": 2,
         "max_experience": 4,
+        "interest_rate": 0.05,
+        "discount_factor": 0.95,
+        "taste_shock_scale": 1,
+        "income_shock_std": 1,
+        "income_shock_mean": 0.0,
     }
     model_config = {
         "n_periods": 5,

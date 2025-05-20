@@ -56,7 +56,15 @@ def process_params(params, params_check_info) -> Dict[str, float]:
                 "income_shock_std was provided in params and model_specs. Choose one."
             )
 
-    if "income_shock_mean" not in params.keys():
-        params["income_shock_mean"] = 0
+    if params_check_info["income_shock_mean_in_params"]:
+        if "income_shock_mean" not in params.keys():
+            raise ValueError(
+                "income_shock_mean must be provided in model_specs or params."
+            )
+    else:
+        if "income_shock_mean" in params.keys():
+            raise ValueError(
+                "income_shock_mean was provided in params and model_specs. Choose one."
+            )
 
     return params

@@ -442,6 +442,7 @@ def test_exog_processes(
         "ltc_cost": 5,
         "wage_avg": 8,
         "income_shock_std": 1,
+        "income_shock_mean": 0.0,
         "ltc_prob": 0.3,
         "discount_factor": 0.95,
     }
