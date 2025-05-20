@@ -26,18 +26,35 @@ def process_params(params, params_check_info) -> Dict[str, float]:
             )
 
     if params_check_info["discount_factor_in_params"]:
-        if "discount_factor" not in params:
-            raise ValueError("discount_factor must be provided in params.")
+        if "discount_factor" not in params.keys():
+            raise ValueError(
+                "discount_factor must be provided in model_specs or params."
+            )
+    else:
+        if "discount_factor" in params.keys():
+            raise ValueError(
+                "discount_factor was provided in params and model_specs. Choose one."
+            )
 
     if params_check_info["interest_rate_in_params"]:
-        if "interest_rate" not in params:
-            raise ValueError("interest_rate must be provided in params.")
+        if "interest_rate" not in params.keys():
+            raise ValueError("interest_rate must be provided in model_specs or params.")
+    else:
+        if "interest_rate" in params.keys():
+            raise ValueError(
+                "interest_rate was provided in params and model_specs. Choose one."
+            )
 
-    if "interest_rate" not in params:
-        params["interest_rate"] = 0
-    if "sigma" not in params:
-        params["sigma"] = 0
-    if "income_shock_mean" not in params:
+    if params_check_info["sigma_in_params"]:
+        if "sigma" not in params.keys():
+            raise ValueError("sigma must be provided in model_specs or params.")
+    else:
+        if "sigma" in params.keys():
+            raise ValueError(
+                "sigma was provided in params and model_specs. Choose one."
+            )
+
+    if "income_shock_mean" not in params.keys():
         params["income_shock_mean"] = 0
 
     return params
