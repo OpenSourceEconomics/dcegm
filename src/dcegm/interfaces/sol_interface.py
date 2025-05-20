@@ -45,8 +45,7 @@ class model_solved:
         return create_simulation_df(sim_dict)
 
     def value_and_policy_for_state_and_choice(self, state, choice):
-        """
-        Get the value and policy for a given state and choice.
+        """Get the value and policy for a given state and choice.
 
         Args:
             state: The state for which to get the value and policy.
@@ -54,6 +53,7 @@ class model_solved:
 
         Returns:
             A tuple containing the value and policy for the given state and choice.
+
         """
         return policy_and_value_for_state_choice_vec(
             states=state,
@@ -68,8 +68,7 @@ class model_solved:
         )
 
     def value_for_state_and_choice(self, state, choice):
-        """
-        Get the value for a given state and choice.
+        """Get the value for a given state and choice.
 
         Args:
             state: The state for which to get the value.
@@ -77,6 +76,7 @@ class model_solved:
 
         Returns:
             The value for the given state and choice.
+
         """
         return value_for_state_choice_vec(
             states=state,
