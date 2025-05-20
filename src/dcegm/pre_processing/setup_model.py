@@ -111,81 +111,83 @@ def create_model_dict(
     }
 
 
-def setup_and_save_model(
-    model_config: Dict,
-    model_specs: Dict,
-    utility_functions: Dict[str, Callable],
-    utility_functions_final_period: Dict[str, Callable],
-    budget_constraint: Callable,
-    state_space_functions: Dict[str, Callable] = None,
-    stochastic_states_transitions: Dict[str, Callable] = None,
-    shock_functions: Dict[str, Callable] = None,
-    path: str = "model.pkl",
-):
-    """Set up the model and save.
-
-    Model creation is time-consuming. This function creates the model and saves it to
-    file. This way the model can be loaded from file in the future, which is much faster
-    than recreating the model from scratch.
-
-    """
-    model = create_model_dict(
-        model_config=model_config,
-        model_specs=model_specs,
-        state_space_functions=state_space_functions,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
-        budget_constraint=budget_constraint,
-        stochastic_states_transitions=stochastic_states_transitions,
-        shock_functions=shock_functions,
-    )
-
-    dict_to_save = {
-        "model_structure": model["model_structure"],
-        "batch_info": model["batch_info"],
-    }
-    pickle.dump(dict_to_save, open(path, "wb"))
-
-    return model
-
-
-def load_and_setup_model(
-    model_config: Dict,
-    model_specs: Dict,
-    utility_functions: Dict[str, Callable],
-    utility_functions_final_period: Dict[str, Callable],
-    budget_constraint: Callable,
-    state_space_functions: Dict[str, Callable] = None,
-    stochastic_states_transitions: Dict[str, Callable] = None,
-    shock_functions: Dict[str, Callable] = None,
-    path: str = "model.pkl",
-):
-    """Load the model from file."""
-
-    model = pickle.load(open(path, "rb"))
-
-    model["model_config"] = check_model_config_and_process(model_config)
-
-    model["model_funcs"], taste_shock_scale_in_params = process_model_functions(
-        model_config=model["model_config"],
-        model_specs=model_specs,
-        state_space_functions=state_space_functions,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
-        budget_constraint=budget_constraint,
-        stochastic_states_transitions=stochastic_states_transitions,
-        shock_functions=shock_functions,
-    )
-    model_config["params_check_info"][
-        "taste_shock_scale_in_params"
-    ] = taste_shock_scale_in_params
-
-    model["model_funcs"]["stochastic_state_mapping"] = create_stochastic_state_mapping(
-        stochastic_state_space=model["model_structure"]["stochastic_state_space"],
-        stochastic_state_names=model["model_structure"]["stochastic_states_names"],
-    )
-
-    return model
+#
+# def setup_and_save_model(
+#     model_config: Dict,
+#     model_specs: Dict,
+#     utility_functions: Dict[str, Callable],
+#     utility_functions_final_period: Dict[str, Callable],
+#     budget_constraint: Callable,
+#     state_space_functions: Dict[str, Callable] = None,
+#     stochastic_states_transitions: Dict[str, Callable] = None,
+#     shock_functions: Dict[str, Callable] = None,
+#     path: str = "model.pkl",
+# ):
+#     """Set up the model and save.
+#
+#     Model creation is time-consuming. This function creates the model and saves it to
+#     file. This way the model can be loaded from file in the future, which is much faster
+#     than recreating the model from scratch.
+#
+#     """
+#     model = create_model_dict(
+#         model_config=model_config,
+#         model_specs=model_specs,
+#         state_space_functions=state_space_functions,
+#         utility_functions=utility_functions,
+#         utility_functions_final_period=utility_functions_final_period,
+#         budget_constraint=budget_constraint,
+#         stochastic_states_transitions=stochastic_states_transitions,
+#         shock_functions=shock_functions,
+#     )
+#
+#     dict_to_save = {
+#         "model_structure": model["model_structure"],
+#         "batch_info": model["batch_info"],
+#     }
+#     pickle.dump(dict_to_save, open(path, "wb"))
+#
+#     return model
+#
+#
+# def load_and_setup_model(
+#     model_config: Dict,
+#     model_specs: Dict,
+#     utility_functions: Dict[str, Callable],
+#     utility_functions_final_period: Dict[str, Callable],
+#     budget_constraint: Callable,
+#     state_space_functions: Dict[str, Callable] = None,
+#     stochastic_states_transitions: Dict[str, Callable] = None,
+#     shock_functions: Dict[str, Callable] = None,
+#     path: str = "model.pkl",
+# ):
+#     """Load the model from file."""
+#
+#     model = pickle.load(open(path, "rb"))
+#
+#     model["model_config"] = check_model_config_and_process(model_config)
+#
+#     model["model_funcs"], taste_shock_scale_in_params = process_model_functions(
+#         model_config=model["model_config"],
+#         model_specs=model_specs,
+#         state_space_functions=state_space_functions,
+#         utility_functions=utility_functions,
+#         utility_functions_final_period=utility_functions_final_period,
+#         budget_constraint=budget_constraint,
+#         stochastic_states_transitions=stochastic_states_transitions,
+#         shock_functions=shock_functions,
+#     )
+#     model_config["params_check_info"][
+#         "taste_shock_scale_in_params"
+#     ] = taste_shock_scale_in_params
+#
+#     model["model_funcs"]["stochastic_state_mapping"] = create_stochastic_state_mapping(
+#         stochastic_state_space=model["model_structure"]["stochastic_state_space"],
+#         stochastic_state_names=model["model_structure"]["stochastic_states_names"],
+#     )
+#
+#     return model
+#
 
 
 def process_debug_string(
