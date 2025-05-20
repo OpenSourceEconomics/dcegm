@@ -5,9 +5,14 @@
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/OpenSourceEconomics/dcegm/main.svg)](https://results.pre-commit.ci/latest/github/OpenSourceEconomics/dcegm/main)
 [![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
+<!--
 Python implementation of the Discrete-Continuous Endogenous Grid Method (DC-EGM) for
 solving dynamic stochastic lifecycle models of continuous (e.g. consumption-savings) and
-additional discrete choices.
+additional discrete choices. -->
+
+Python package for the solution and simulation of finite-horizon discrete-continuous
+dynamic choice models based on the DC-EGM algorithm from Iskhakov, Jorgensen, Rust, and
+Schjerning (QE, 2017).
 
 The solution algorithm employs an extension of the Fast Upper-Envelope Scan (FUES) from
 Dobrescu & Shanker (2022).
