@@ -1,16 +1,7 @@
 .. _team:
 
-
 Team
 =======
-
-
-.. _team:
-
-
-Team
-=======
-
 
 .. list-table::
    :widths: 50 50
