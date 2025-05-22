@@ -107,7 +107,7 @@ class model_solved:
 
         return
 
-    def get_solution_for_state_choice(self, states, choice):
+    def get_solution_for_discrete_state_choice(self, states, choice):
         """
         Get the solution container for a given discrete state and choice combination.
         Args:
