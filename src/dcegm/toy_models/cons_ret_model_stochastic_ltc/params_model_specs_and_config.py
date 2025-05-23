@@ -36,7 +36,7 @@ def example_model_config():
             "assets_end_of_period": np.linspace(0, 50, 100),
         },
         "stochastic_states": {
-            "ltc": range(2),
+            "ltc": [0, 1],
         },
         "n_quad_points": 5,
     }
