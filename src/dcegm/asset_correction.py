@@ -25,7 +25,8 @@ def adjust_observed_assets(observed_states_dict, params, model_class):
     observed_states_dict_int = observed_states_dict.copy()
 
     wealth_int = observed_states_dict["wealth"]
-    assets_end_last_period = jnp.asarray(wealth_int / (1 + params["interest_rate"]))
+    interest_rate = model_class.model_funcs["read_funcs"]["interest_rate"](params)
+    assets_end_last_period = jnp.asarray(wealth_int / (1 + interest_rate))
 
     model_funcs = model_class.model_funcs
     continuous_states_info = model_class.model_config["continuous_states_info"]
