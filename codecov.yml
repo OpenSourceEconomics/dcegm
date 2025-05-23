@@ -20,6 +20,6 @@ ignore:
   - .tox/**/*
   - src/toy_models/*
   - src/dcegm/likelihood.py
-  - src/dcegm/wealth_correction.py
+  - src/dcegm/asset_correction.py
   - src/dcegm/cli.py
   - src/dcegm/interfaces/interface.py
