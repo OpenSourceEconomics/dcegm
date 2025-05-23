@@ -69,9 +69,9 @@ def check_model_config_and_process(model_config):
 
     continuous_states_info = {}
     n_assets_end_of_period = len(asset_grid)
-    continuous_states_info["assets_grid_end_of_period"] = continuous_states_grids[
-        "assets_end_of_period"
-    ]
+    continuous_states_info["assets_grid_end_of_period"] = jnp.asarray(
+        continuous_states_grids["assets_end_of_period"], dtype=float
+    )
 
     if len(continuous_states_grids) > 2:
         raise ValueError("At most two continuous states are supported.")
