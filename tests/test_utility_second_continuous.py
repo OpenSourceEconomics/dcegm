@@ -22,13 +22,14 @@ WEALTH_GRID_POINTS = 100
 MAX_INIT_EXPERIENCE = 1
 
 PARAMS = {
-    "beta": 0.95,
+    "discount_factor": 0.95,
     "delta": 0.35,
     "rho": 0.5,
     "exp_util": 0.99,
     "interest_rate": 0.04,
     "taste_shock_scale": 1,  # taste shock (scale) parameter
-    "sigma": 1,  # shock on labor income, standard deviation
+    "income_shock_std": 1,  # shock on labor income, standard deviation
+    "income_shock_mean": 0.0,
     "constant": 0.75,
     "exp": 0.04,
     "exp_squared": -0.0002,
@@ -381,6 +382,7 @@ def test_replication_discrete_versus_continuous_experience(
                     compute_utility=model_cont.model_funcs["compute_utility"],
                     state_choice_vec=state_choice_cont_dict,
                     params=PARAMS,
+                    discount_factor=PARAMS["discount_factor"],
                 )
             )
 
@@ -392,6 +394,7 @@ def test_replication_discrete_versus_continuous_experience(
                 compute_utility=model_disc.model_funcs["compute_utility"],
                 state_choice_vec=state_choice_disc_dict,
                 params=PARAMS,
+                discount_factor=PARAMS["discount_factor"],
             )
 
             aaae(value_cont_interp, value_disc_interp, decimal=3)

@@ -79,6 +79,8 @@ class setup_model:
         self.model_structure = model_dict["model_structure"]
         self.batch_info = model_dict["batch_info"]
 
+        self.params_check_info = self.model_config["params_check_info"]
+
         income_shock_draws_unscaled, income_shock_weights = quadrature_legendre(
             model_config["n_quad_points"]
         )
@@ -108,7 +110,7 @@ class setup_model:
 
         if alternative_sim_specifications is not None:
             self.alternative_sim_funcs = generate_alternative_sim_functions(
-                **alternative_sim_specifications
+                model_specs=model_specs, **alternative_sim_specifications
             )
         else:
             self.alternative_sim_funcs = None
@@ -135,7 +137,10 @@ class setup_model:
                 state a transition matrix vector.
 
         """
-        params_processed = process_params(params)
+
+        params_processed = process_params(
+            params, params_check_info=self.params_check_info
+        )
         if load_sol_path is not None:
             sol_dict = pkl.load(open(load_sol_path, "rb"))
         else:
@@ -183,7 +188,7 @@ class setup_model:
             A dictionary containing the solution and simulation results.
 
         """
-        params_processed = process_params(params)
+        params_processed = process_params(params, self.params_check_info)
 
         if load_sol_path is not None:
             sol_dict = pkl.load(open(load_sol_path, "rb"))
@@ -236,7 +241,7 @@ class setup_model:
         )
 
         def solve_and_simulate_function_to_jit(params):
-            params_processed = process_params(params)
+            params_processed = process_params(params, self.params_check_info)
             # Solve the model
             value, policy, endog_grid = self.backward_induction_jit(params_processed)
 

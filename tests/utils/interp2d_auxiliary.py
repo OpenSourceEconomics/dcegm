@@ -68,9 +68,9 @@ def custom_interp2d_quad(x_grids, y_grid, values, points):
             values[y_indx][x_indx1 + 1],
         ]
 
-    alpha, beta = (x_cords @ A), (y_cords @ A)
+    alpha, discount_factor = (x_cords @ A), (y_cords @ A)
 
-    m, l = calculate_map_params(points[:, 0], points[:, 1], alpha, beta)
+    m, l = calculate_map_params(points[:, 0], points[:, 1], alpha, discount_factor)
     weights = compute_weights(l, m)
 
     return (weights * z).sum(axis=1)
@@ -141,7 +141,10 @@ def custom_interp2d_quad_value_function(
             #     z[i, 0] = transform(values[y_indx][0], theta)
 
             # else:
-            z[i, 0] = flow_util(x, params) + params["beta"] * values[y_indx][0]
+            z[i, 0] = (
+                flow_util(x, params)
+                + model_funcs["read_funcs"]["discount_factor"] * values[y_indx][0]
+            )
 
         if x < x_grids[y_indx + 1][1]:
             x_cords[i, 1] = x
@@ -149,18 +152,21 @@ def custom_interp2d_quad_value_function(
             #     z[i, 1] = transform(values[y_indx + 1][0], params)
 
             # else:
-            z[i, 1] = flow_util(x, params) + params["beta"] * values[y_indx + 1][0]
+            z[i, 1] = (
+                flow_util(x, params)
+                + model_funcs["read_funcs"]["discount_factor"] * values[y_indx + 1][0]
+            )
 
-    alpha, beta = (x_cords @ A), (y_cords @ A)
-    m, l = calculate_map_params(points[:, 0], points[:, 1], alpha, beta)
+    alpha, discount_factor = (x_cords @ A), (y_cords @ A)
+    m, l = calculate_map_params(points[:, 0], points[:, 1], alpha, discount_factor)
     weights = compute_weights(l, m)
 
     # return de_transform((weights * z).sum(axis=1), params)
     return (weights * z).sum(axis=1)
 
 
-def calculate_map_params(x, y, alpha, beta):
-    l = (y - beta[:, 0]) / beta[:, 1]
+def calculate_map_params(x, y, alpha, discount_factor):
+    l = (y - discount_factor[:, 0]) / discount_factor[:, 1]
     m = (x - alpha[:, 0] - alpha[:, 1] * l) / (alpha[:, 2] + alpha[:, 3] * l)
     return m, l
 

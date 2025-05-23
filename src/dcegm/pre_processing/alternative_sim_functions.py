@@ -1,7 +1,7 @@
 import pickle
 from typing import Callable, Dict
 
-from dcegm.pre_processing.check_options import check_model_config_and_process
+from dcegm.pre_processing.check_model_config import check_model_config_and_process
 from dcegm.pre_processing.model_functions.process_model_functions import (
     process_second_continuous_update_function,
     process_state_space_functions,
@@ -50,7 +50,7 @@ def generate_alternative_sim_functions(
 
     model_config = check_model_config_and_process(model_config)
 
-    model_funcs = process_alternative_sim_functions(
+    model_funcs, _ = process_alternative_sim_functions(
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=state_space_functions,
@@ -172,10 +172,12 @@ def process_alternative_sim_functions(
         continuous_state=second_continuous_state_name,
     )
 
-    taste_shock_function_processed = process_shock_functions(
-        shock_functions,
-        model_specs,
-        continuous_state_name=second_continuous_state_name,
+    taste_shock_function_processed, taste_shock_scale_in_params = (
+        process_shock_functions(
+            shock_functions,
+            model_specs,
+            continuous_state_name=second_continuous_state_name,
+        )
     )
 
     alt_model_funcs = {
@@ -190,4 +192,4 @@ def process_alternative_sim_functions(
         "taste_shock_function": taste_shock_function_processed,
     }
 
-    return alt_model_funcs
+    return alt_model_funcs, taste_shock_scale_in_params

@@ -18,6 +18,7 @@ def process_shock_functions(shock_functions, model_specs, continuous_state_name)
             taste_shock_scale_per_state
         )
         taste_shock_scale_is_scalar = False
+        taste_shock_scale_in_params = False
     else:
         if "taste_shock_scale" in model_specs:
             # Check if lambda is a scalar
@@ -28,8 +29,11 @@ def process_shock_functions(shock_functions, model_specs, continuous_state_name)
                     f"lambda must be a scalar. Got {lambda_val}."
                 )
             read_func = lambda params: jnp.asarray([model_specs["taste_shock_scale"]])
+            taste_shock_scale_in_params = False
         else:
             read_func = lambda params: jnp.asarray([params["taste_shock_scale"]])
+
+            taste_shock_scale_in_params = True
 
         taste_shock_function_processed["read_out_taste_shock_scale"] = read_func
 
@@ -39,7 +43,7 @@ def process_shock_functions(shock_functions, model_specs, continuous_state_name)
         taste_shock_scale_is_scalar
     )
 
-    return taste_shock_function_processed
+    return taste_shock_function_processed, taste_shock_scale_in_params
 
 
 def get_taste_shock_function_for_state(

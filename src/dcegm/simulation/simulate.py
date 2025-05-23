@@ -80,6 +80,7 @@ def simulate_all_periods(
         model_structure_sol=model_structure,
         model_funcs_sim=alt_model_funcs_sim,
         compute_utility=model_funcs["compute_utility"],
+        read_funcs=model_funcs["read_funcs"],
         model_config=model_config,
     )
 
@@ -131,6 +132,7 @@ def simulate_single_period(
     model_structure_sol,
     model_funcs_sim,
     compute_utility,
+    read_funcs,
     model_config,
 ):
 
@@ -156,6 +158,8 @@ def simulate_single_period(
     assets_begin_of_period = states_beginning_of_period["assets_begin_of_period"]
 
     choice_range = model_structure_sol["choice_range"]
+
+    discount_factor = read_funcs["discount_factor"](params)
     # Interpolate policy and value function for all agents.
     policy, values_pre_taste_shock = interpolate_policy_and_value_for_all_agents(
         discrete_states_beginning_of_period=discrete_states_beginning_of_period,
@@ -172,6 +176,7 @@ def simulate_single_period(
         discrete_states_names=model_structure_sol["discrete_states_names"],
         compute_utility=compute_utility,
         continuous_grid=continuous_grid,
+        discount_factor=discount_factor,
     )
 
     # Draw taste shocks and calculate final value.

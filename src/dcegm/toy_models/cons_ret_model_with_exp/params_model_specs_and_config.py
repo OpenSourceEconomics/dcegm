@@ -4,12 +4,13 @@ import numpy as np
 
 def example_params():
     params = {
-        "beta": 0.95,
+        "discount_factor": 0.95,
         "delta": 0.35,
         "rho": 1.95,
         "interest_rate": 0.04,
         "taste_shock_scale": 1,  # taste shock (scale) parameter
-        "sigma": 1,  # shock on labor income, standard deviation
+        "income_shock_std": 1,  # shock on labor income, standard deviation
+        "income_shock_mean": 0.0,
         "constant": 0.75,
         "exp": 0.04,
         "exp_squared": -0.0002,

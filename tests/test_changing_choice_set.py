@@ -76,14 +76,10 @@ def sparsity_condition(period, lagged_choice, experience, model_specs):
 def test_model():
     params = {
         # utility
-        "beta": 0.95,
-        "taste_shock_scale": 1,
-        "sigma": 1,
         "rho": 0.5,  # CRRA coefficient
         "delta": 1,  # disutility of work
         "phi": 0.5,  # utility of joint leisure
         # budget (/ income)
-        "interest_rate": 0.05,
         "constant": 1,
         "exp": 0.1,
         "exp_squared": -0.01,
@@ -107,6 +103,11 @@ def test_model():
         "n_health_states": 2,
         "n_partner_states": 2,
         "max_experience": 4,
+        "interest_rate": 0.05,
+        "discount_factor": 0.95,
+        "taste_shock_scale": 1,
+        "income_shock_std": 1,
+        "income_shock_mean": 0.0,
     }
     model_config = {
         "n_periods": 5,
@@ -187,7 +188,9 @@ def utility_functions_final_period():
     }
 
 
-def budget(lagged_choice, experience, asset_end_of_previous_period, health, params):
+def budget(
+    lagged_choice, experience, asset_end_of_previous_period, health, params, model_specs
+):
     unemployed = lagged_choice == 0
     working = lagged_choice == 1
     retired = lagged_choice == 2
@@ -206,7 +209,7 @@ def budget(lagged_choice, experience, asset_end_of_previous_period, health, para
     )
 
     return jnp.maximum(
-        income + (1 + params["interest_rate"]) * asset_end_of_previous_period,
+        income + (1 + model_specs["interest_rate"]) * asset_end_of_previous_period,
         params["consumption_floor"],
     )
 

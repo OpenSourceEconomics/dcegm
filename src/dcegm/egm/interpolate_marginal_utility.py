@@ -10,8 +10,7 @@ from dcegm.interpolation.interp2d import (
 
 
 def interpolate_value_and_marg_util(
-    compute_marginal_utility: Callable,
-    compute_utility: Callable,
+    model_funcs,
     state_choice_vec: Dict[str, int],
     continuous_grids_info: Dict[str, Any],
     cont_grids_next_period: Dict[str, jnp.ndarray],
@@ -57,6 +56,9 @@ def interpolate_value_and_marg_util(
     wealth_child_states = cont_grids_next_period["assets_begin_of_period"][
         child_state_idxs
     ]
+    compute_marginal_utility = model_funcs["compute_marginal_utility"]
+    compute_utility = model_funcs["compute_utility"]
+    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
 
     if continuous_grids_info["second_continuous_exists"]:
         continuous_state_child_states = cont_grids_next_period["second_continuous"][
@@ -66,7 +68,19 @@ def interpolate_value_and_marg_util(
 
         interp_for_single_state_choice = vmap(
             interp2d_value_and_marg_util_for_state_choice,
-            in_axes=(None, None, 0, None, 0, 0, 0, 0, 0, None),  # discrete state-choice
+            in_axes=(
+                None,
+                None,
+                0,
+                None,
+                0,
+                0,
+                0,
+                0,
+                0,
+                None,
+                None,
+            ),  # discrete state-choice
         )
 
         return interp_for_single_state_choice(
@@ -80,12 +94,13 @@ def interpolate_value_and_marg_util(
             policy_child_state_choice,
             value_child_state_choice,
             params,
+            discount_factor,
         )
 
     else:
         interp_for_single_state_choice = vmap(
             interp1d_value_and_marg_util_for_state_choice,
-            in_axes=(None, None, 0, 0, 0, 0, 0, None),  # discrete state-choice
+            in_axes=(None, None, 0, 0, 0, 0, 0, None, None),  # discrete state-choice
         )
 
         return interp_for_single_state_choice(
@@ -97,6 +112,7 @@ def interpolate_value_and_marg_util(
             policy_child_state_choice,
             value_child_state_choice,
             params,
+            discount_factor,
         )
 
 
@@ -109,6 +125,7 @@ def interp1d_value_and_marg_util_for_state_choice(
     policy_child_state_choice: jnp.ndarray,
     value_child_state_choice: jnp.ndarray,
     params: Dict[str, float],
+    discount_factor: float,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Interpolate value and policy for given child state and compute marginal utility.
 
@@ -153,6 +170,7 @@ def interp1d_value_and_marg_util_for_state_choice(
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
+            discount_factor=discount_factor,
         )
         marg_util_interp = compute_marginal_utility(
             consumption=policy_interp, params=params, **state_choice_vec
@@ -182,6 +200,7 @@ def interp2d_value_and_marg_util_for_state_choice(
     policy_child_state_choice: jnp.ndarray,
     value_child_state_choice: jnp.ndarray,
     params: Dict[str, float],
+    discount_factor: float,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Interpolate value and policy for given child state and compute marginal utility.
 
@@ -230,6 +249,7 @@ def interp2d_value_and_marg_util_for_state_choice(
                 compute_utility=compute_utility,
                 state_choice_vec=state_choice_vec,
                 params=params,
+                discount_factor=discount_factor,
             )
         )
         marg_util_interp = compute_marginal_utility(

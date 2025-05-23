@@ -16,7 +16,7 @@ config.update("jax_enable_x64", True)
 
 ## set up
 params = {
-    "beta": 0.9523809523809523,
+    "discount_factor": 0.9523809523809523,
     # disutility of work
     "delta": 0.35,
     # CRRA coefficient
@@ -26,7 +26,7 @@ params = {
     "exp": 0.04,
     "exp_squared": -0.0002,
     # Shock parameters of income
-    "sigma": 0.35,
+    "income_shock_std": 0.35,
     "taste_shock_scale": 0.2,
     "interest_rate": 0.05,
     "consumption_floor": 0.001,

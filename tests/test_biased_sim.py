@@ -81,7 +81,6 @@ def test_sim_and_sol_model(model_configs):
 
     alt_model_specs = {
         "model_config": model_configs["simulation"],
-        "model_specs": model_specs,
         "state_space_functions": model_funcs["state_space_functions"],
         "budget_constraint": model_funcs["budget_constraint"],
         "stochastic_states_transitions": stochastic_states_transitions,
@@ -151,7 +150,9 @@ def test_sim_and_sol_model(model_configs):
     _val = [df["taste_shocks_0"], df["taste_shocks_1"]]
     df["taste_shock_realized_of_expected"] = np.select(_cond, _val)
 
-    df["discount_factors"] = params["beta"] ** df.index.get_level_values("period")
+    df["discount_factors"] = params["discount_factor"] ** df.index.get_level_values(
+        "period"
+    )
     df["disc_expected_utility"] = df["discount_factors"] * (
         df["taste_shock_realized_of_expected"] + df["utility"]
     )

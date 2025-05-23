@@ -4,7 +4,7 @@ import jax.numpy as jnp
 def example_params_retirement_no_shocks():
 
     params = {
-        "beta": 0.95,
+        "discount_factor": 0.95,
         # disutility of work
         "delta": 0.35,
         # CRRA coefficient
@@ -14,7 +14,8 @@ def example_params_retirement_no_shocks():
         "exp": 0.04,
         "exp_squared": -0.0002,
         # Set shocks to zero (taste shock to almost zero. Not allowed to be zero)
-        "sigma": 0.00,
+        "income_shock_std": 0.00,
+        "income_shock_mean": 0.0,
         "taste_shock_scale": 2.2204e-16,
         "interest_rate": 0.05,
         # consumption floor/retirement safety net (only relevant in the dc-egm retirement model)

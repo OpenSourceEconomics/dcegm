@@ -31,8 +31,7 @@ def solve_single_period(
 
     # EGM step 1)
     value_interpolated, marginal_utility_interpolated = interpolate_value_and_marg_util(
-        compute_marginal_utility=model_funcs["compute_marginal_utility"],
-        compute_utility=model_funcs["compute_utility"],
+        model_funcs=model_funcs,
         state_choice_vec=state_choice_mat_child,
         continuous_grids_info=continuous_grids_info,
         cont_grids_next_period=cont_grids_next_period,
@@ -130,6 +129,8 @@ def solve_for_interpolated_values(
         params=params,
     )
 
+    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
+
     # Run upper envelope over all state-choice combinations to remove suboptimal
     # candidates
     (
@@ -145,6 +146,7 @@ def solve_for_interpolated_values(
         state_choice_mat=state_choice_mat,
         compute_utility=model_funcs["compute_utility"],
         params=params,
+        discount_factor=discount_factor,
         has_second_continuous_state=continuous_grids_info["second_continuous_exists"],
         compute_upper_envelope_for_state_choice=model_funcs["compute_upper_envelope"],
     )
@@ -165,6 +167,7 @@ def run_upper_envelope(
     state_choice_mat,
     compute_utility,
     params,
+    discount_factor,
     has_second_continuous_state,
     compute_upper_envelope_for_state_choice,
 ):
@@ -178,9 +181,19 @@ def run_upper_envelope(
         return vmap(
             vmap(
                 compute_upper_envelope_for_state_choice,
-                in_axes=(0, 0, 0, 0, 0, None, None, None),  # continuous state
+                in_axes=(0, 0, 0, 0, 0, None, None, None, None),  # continuous state
             ),
-            in_axes=(0, 0, 0, 0, None, 0, None, None),  # discrete states and choices
+            in_axes=(
+                0,
+                0,
+                0,
+                0,
+                None,
+                0,
+                None,
+                None,
+                None,
+            ),  # discrete states and choices
         )(
             endog_grid_candidate,
             policy_candidate,
@@ -190,12 +203,22 @@ def run_upper_envelope(
             state_choice_mat,
             compute_utility,
             params,
+            discount_factor,
         )
 
     else:
         return vmap(
             compute_upper_envelope_for_state_choice,
-            in_axes=(0, 0, 0, 0, 0, None, None),  # discrete states and choice combs
+            in_axes=(
+                0,
+                0,
+                0,
+                0,
+                0,
+                None,
+                None,
+                None,
+            ),  # discrete states and choice combs
         )(
             endog_grid_candidate,
             policy_candidate,
@@ -204,4 +227,5 @@ def run_upper_envelope(
             state_choice_mat,
             compute_utility,
             params,
+            discount_factor,
         )

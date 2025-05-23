@@ -5,15 +5,13 @@ from jax import vmap
 
 import dcegm
 import dcegm.toy_models as toy_models
-from dcegm.pre_processing.check_options import check_model_config_and_process
+from dcegm.pre_processing.check_model_config import check_model_config_and_process
 from dcegm.pre_processing.check_params import process_params
 from dcegm.pre_processing.model_functions.process_model_functions import (
-    process_model_functions,
+    process_model_functions_and_extract_info,
 )
-from dcegm.pre_processing.setup_model import (
+from dcegm.pre_processing.setup_model import (  # load_and_setup_model,; setup_and_save_model,
     create_model_dict,
-    create_model_dict_and_save,
-    load_model_dict,
 )
 from dcegm.pre_processing.shared import (
     determine_function_arguments_and_partial_model_specs,
@@ -105,17 +103,33 @@ def test_missing_parameter(
         )
     )
 
+    params_check_info = {
+        "taste_shock_scale_in_params": False,
+        "discount_factor_in_params": True,
+        "interest_rate_in_params": True,
+        "income_shock_std_in_params": True,
+    }
+
     params.pop("interest_rate")
-    params.pop("sigma")
+    with pytest.raises(
+        ValueError, match="interest_rate must be provided in model_specs or params."
+    ):
+        process_params(params, params_check_info)
+    params["interest_rate"] = 0.03
 
-    params_dict = process_params(params)
+    params.pop("income_shock_std")
+    with pytest.raises(
+        ValueError, match="income_shock_std must be provided in model_specs or params."
+    ):
+        process_params(params, params_check_info)
+    params["income_shock_std"] = 0.5
 
-    for param in ["interest_rate", "sigma"]:
-        assert param in params_dict.keys()
-
-    params.pop("beta")
-    with pytest.raises(ValueError, match="beta must be provided in params."):
-        process_params(params)
+    params.pop("discount_factor")
+    with pytest.raises(
+        ValueError, match="discount_factor must be provided in model_specs or params."
+    ):
+        process_params(params, params_check_info)
+    params["discount_factor"] = 0.95
 
 
 def test_grid_parameters():
@@ -178,7 +192,7 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
 
     model_config = check_model_config_and_process(model_config)
 
-    model_funcs = process_model_functions(
+    model_funcs, _ = process_model_functions_and_extract_info(
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=state_space_functions,

@@ -35,7 +35,7 @@ from tests.utils.interp2d_auxiliary import (
 )
 
 PARAMS = {
-    "beta": 0.95,
+    "discount_factor": 0.95,
     "rho": 0.5,
     "delta": -1,
     "interest_rate": 0.05,
@@ -228,6 +228,7 @@ def test_interp2d_against_custom(test_cases, test_id):
             compute_utility=compute_utility,
             state_choice_vec={"choice": 0},
             params=PARAMS,
+            discount_factor=PARAMS["discount_factor"],
         )
     )
 

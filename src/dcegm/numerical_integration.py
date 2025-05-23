@@ -6,7 +6,7 @@ from scipy.stats import norm
 
 
 def quadrature_hermite(
-    n_quad_points: int, sigma: float
+    n_quad_points: int, income_shock_std: float
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Return the Hermite quadrature points and weights.
 
@@ -16,7 +16,7 @@ def quadrature_hermite(
 
     Args:
         n_quad_points (int): Number of quadrature points.
-        sigma (float): Standard deviation of the normal distribution.
+        income_shock_std (float): Standard deviation of the normal distribution.
 
     Returns:
         tuple:
@@ -30,7 +30,7 @@ def quadrature_hermite(
     # This should be the better quadrature. Leave out for now!
     quad_points, quad_weights = roots_hermite(n_quad_points)
     # Rescale draws and weights
-    quad_points_scaled = quad_points * np.sqrt(2) * sigma
+    quad_points_scaled = quad_points * np.sqrt(2) * income_shock_std
     quad_weights *= 1 / np.sqrt(np.pi)
 
     return quad_points_scaled, quad_weights
@@ -44,7 +44,7 @@ def quadrature_legendre(n_quad_points: int) -> Tuple[np.ndarray, np.ndarray]:
 
     Args:
         n_quad_points (int): Number of quadrature points.
-        sigma (float): Standard deviation of the normal distribution.
+        income_shock_std (float): Standard deviation of the normal distribution.
 
     Returns:
         tuple:
