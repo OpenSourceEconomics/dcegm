@@ -317,7 +317,6 @@ def calc_choice_probs_for_states(
     endog_grid_agent = jnp.take(endog_grid_solved, state_choice_indexes, axis=0)
 
     # Read out relevant model objects
-    compute_utility = model_funcs["compute_utility"]
     continuous_states_info = model_config["continuous_states_info"]
     choice_range = model_config["choices"]
 
@@ -343,7 +342,7 @@ def calc_choice_probs_for_states(
             choice_range,
             params,
             continuous_states_info["second_continuous_grid"],
-            compute_utility,
+            model_funcs,
         )
 
     else:
@@ -361,7 +360,7 @@ def calc_choice_probs_for_states(
             value_grid_agent,
             choice_range,
             params,
-            compute_utility,
+            model_funcs,
         )
 
     if model_funcs["taste_shock_function"]["taste_shock_scale_is_scalar"]:
@@ -392,9 +391,12 @@ def interp2d_value_for_state_in_each_choice(
     choice,
     params,
     regular_grid,
-    compute_utility,
+    model_funcs,
 ):
     state_choice_vec = {**state, "choice": choice}
+
+    compute_utility = model_funcs["compute_utility"]
+    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
 
     value_interp = interp2d_value_on_wealth_and_regular_grid(
         regular_grid=regular_grid,
@@ -405,6 +407,7 @@ def interp2d_value_for_state_in_each_choice(
         compute_utility=compute_utility,
         state_choice_vec=state_choice_vec,
         params=params,
+        discount_factor=discount_factor,
     )
 
     return value_interp
@@ -416,9 +419,11 @@ def interp1d_value_for_state_in_each_choice(
     value_agent,
     choice,
     params,
-    compute_utility,
+    model_funcs,
 ):
     state_choice_vec = {**state, "choice": choice}
+    compute_utility = model_funcs["compute_utility"]
+    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
 
     value_interp = interp_value_on_wealth(
         wealth=state["wealth"],
@@ -427,6 +432,7 @@ def interp1d_value_for_state_in_each_choice(
         compute_utility=compute_utility,
         state_choice_vec=state_choice_vec,
         params=params,
+        discount_factor=discount_factor,
     )
 
     return value_interp
