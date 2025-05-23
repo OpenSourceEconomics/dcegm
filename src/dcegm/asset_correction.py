@@ -7,7 +7,7 @@ from dcegm.law_of_motion import (
 )
 
 
-def adjust_observed_assets(observed_states_dict, params, model):
+def adjust_observed_assets(observed_states_dict, params, model_class):
     """Correct observed beginning of period wealth data for likelihood estimation.
 
     Wealth in empirical survey data is observed without the income of last period's
@@ -27,9 +27,12 @@ def adjust_observed_assets(observed_states_dict, params, model):
     wealth_int = observed_states_dict["wealth"]
     assets_end_last_period = jnp.asarray(wealth_int / (1 + params["interest_rate"]))
 
-    if len(model["options"]["exog_grids"]) == 2:
+    model_funcs = model_class.model_funcs
+    continuous_states_info = model_class.model_config["continuous_states_info"]
+
+    if continuous_states_info["second_continuous_exists"]:
         # If there are two continuous states, we need to read out the second var
-        second_cont_state_name = model["options"]["second_continuous_state_name"]
+        second_cont_state_name = continuous_states_info["second_continuous_state_name"]
         second_cont_state_vars = observed_states_dict[second_cont_state_name]
         observed_states_dict_int.pop(second_cont_state_name)
 
@@ -42,7 +45,7 @@ def adjust_observed_assets(observed_states_dict, params, model):
             assets_end_last_period,
             jnp.array(0.0, dtype=jnp.float64),
             params,
-            model["model_funcs"]["compute_assets_begin_of_period"],
+            model_funcs["compute_assets_begin_of_period"],
             False,
         )
 
@@ -55,7 +58,7 @@ def adjust_observed_assets(observed_states_dict, params, model):
             assets_end_last_period,
             jnp.array(0.0, dtype=jnp.float64),
             params,
-            model["model_funcs"]["compute_assets_begin_of_period"],
+            model_funcs["compute_assets_begin_of_period"],
             False,
         )
 
