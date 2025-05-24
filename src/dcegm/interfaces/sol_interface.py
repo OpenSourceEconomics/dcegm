@@ -94,8 +94,7 @@ class model_solved:
         )
 
     def policy_for_state_and_choice(self, state, choice):
-        """
-        Get the policy for a given state and choice.
+        """Get the policy for a given state and choice.
 
         Args:
             state: The state for which to get the policy.
@@ -103,6 +102,7 @@ class model_solved:
 
         Returns:
             The policy for the given state and choice.
+
         """
 
         return policy_for_state_choice_vec(
@@ -115,13 +115,14 @@ class model_solved:
         )
 
     def get_solution_for_discrete_state_choice(self, states, choice):
-        """
-        Get the solution container for a given discrete state and choice combination.
+        """Get the solution container for a given discrete state and choice combination.
+
         Args:
             states: The state for which to get the solution.
             choice: The choice for which to get the solution.
         Returns:
             A tuple containing the wealth grid, value grid, and policy grid for the given state and choice.
+
         """
         # Get the value and policy for a given state and choice.
 
