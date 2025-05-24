@@ -117,14 +117,13 @@ def upper_envelope(
         # This is new!!!
         for id_intersect in range(points_to_add.shape[1]):
             intersect_point = points_to_add[0, id_intersect]
-            idx_insert = (np.where(value_refined[0, :] < intersect_point)[0]).max() + 1
+            idx_insert = (np.where(value_refined[0, :] < intersect_point)[0]).max()
             value_refined = np.insert(
                 value_refined,
                 idx_insert,
                 points_to_add[:, id_intersect],
                 axis=1,
             )
-
     else:
         value_refined = value
         policy_refined = policy
@@ -526,10 +525,11 @@ def refine_policy(
 
     policy_refined = np.stack([endog_wealth_grid, optimal_consumption])
 
-    # Make sure first element in endogenous wealth grid and optiomal consumption policy
-    # are both 0.
-    if policy_refined[0, 0] != 0.0:
-        policy_refined = np.hstack([np.zeros((2, 1)), policy_refined])
+    # Lets do this always outside
+    # # Make sure first element in endogenous wealth grid and optiomal consumption policy
+    # # are both 0.
+    # if policy_refined[0, 0] != 0.0:
+    #     policy_refined = np.hstack([np.zeros((2, 1)), policy_refined])
 
     return policy_refined
 

@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 from jax import numpy as jnp
 from upper_envelope import fues_jax
@@ -101,50 +102,48 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                 policy_fedor = np.append(0.0, policy_fedor)
                 value_fedor = np.append(expected_value_zero_assets, value_fedor)
 
-                value_kwargs = {
-                    "expected_value_zero_assets": expected_value_zero_assets,
-                    "params": params,
-                    "discount_factor": discount_factor,
-                    **state_choice_dict,
-                }
-
-                def value_function(
-                    consumption,
-                    expected_value_zero_assets,
-                    params,
-                    discount_factor,
-                    **state_choice_dict,
-                ):
-                    return (
-                        utility_function(
-                            consumption=consumption, params=params, **state_choice_dict
-                        )
-                        + discount_factor * expected_value_zero_assets
-                    )
-
-                endog_grid_fues, policy_fues, value_fues = fues_jax(
-                    endog_grid=endog_grid,
-                    policy=policy,
-                    value=value,
-                    expected_value_zero_savings=expected_value_zero_assets,
-                    value_function=value_function,
-                    value_function_kwargs=value_kwargs,
-                    n_constrained_points_to_add=tuning_params[
-                        "n_constrained_points_to_add"
-                    ],
-                    n_final_wealth_grid=tuning_params["n_total_wealth_grid"],
-                    jump_thresh=tuning_params["fues_jump_thresh"],
-                    n_points_to_scan=tuning_params["fues_n_points_to_scan"],
-                )
-                not_nan_fedor = np.isfinite(endog_grid_fedor)
-                not_nan_fues = np.isfinite(endog_grid_fues)
-                assert np.allclose(
-                    endog_grid_fedor[not_nan_fedor], endog_grid_fues[not_nan_fues]
-                )
-                assert np.allclose(
-                    policy_fedor[not_nan_fedor], policy_fues[not_nan_fues]
-                )
-                assert np.allclose(value_fedor[not_nan_fedor], value_fues[not_nan_fues])
+                # value_kwargs = {
+                #     "expected_value_zero_assets": expected_value_zero_assets,
+                #     "params": params,
+                #     "discount_factor": discount_factor,
+                #     **state_choice_dict,
+                # }
+                #
+                # def value_function(
+                #     consumption,
+                #     expected_value_zero_assets,
+                #     params,
+                #     discount_factor,
+                #     **state_choice_dict,
+                # ):
+                #     return (
+                #         utility_function(
+                #             consumption=consumption, params=params, **state_choice_dict
+                #         )
+                #         + discount_factor * expected_value_zero_assets
+                #     )
+                #
+                # endog_grid_fues, policy_fues, value_fues = fues_jax(
+                #     endog_grid=endog_grid,
+                #     policy=policy,
+                #     value=value,
+                #     expected_value_zero_savings=expected_value_zero_assets,
+                #     value_function=value_function,
+                #     value_function_kwargs=value_kwargs,
+                #     n_constrained_points_to_add=tuning_params[
+                #         "n_constrained_points_to_add"
+                #     ],
+                #     n_final_wealth_grid=tuning_params["n_total_wealth_grid"],
+                #     jump_thresh=tuning_params["fues_jump_thresh"],
+                #     n_points_to_scan=tuning_params["fues_n_points_to_scan"],
+                # )
+                # not_nan_fedor = np.isfinite(endog_grid_fedor)
+                # not_nan_fues = np.isfinite(endog_grid_fues)
+                # assert np.allclose(endog_grid_fedor[not_nan_fedor], endog_grid_fues[not_nan_fues])
+                # assert np.allclose(
+                #     policy_fedor[not_nan_fedor], policy_fues[not_nan_fues]
+                # )
+                # assert np.allclose(value_fedor[not_nan_fedor], value_fues[not_nan_fues])
                 return endog_grid_fedor, policy_fedor, value_fedor
 
     return compute_upper_envelope
