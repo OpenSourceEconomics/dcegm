@@ -157,19 +157,48 @@ def backward_induction(
             endog_grid_solved,
         )
 
-        final_carry, _ = jax.lax.scan(
-            f=partial_single_period,
-            init=carry_start,
-            xs=(
-                segment_info["batches_state_choice_idx"],
-                segment_info["child_state_choices_to_aggr_choice"],
-                segment_info["child_states_to_integrate_stochastic"],
-                segment_info["child_state_choice_idxs_to_interp"],
-                segment_info["child_states_idxs"],
-                segment_info["state_choices"],
-                segment_info["state_choices_childs"],
-            ),
-        )
+        carry = carry_start
+        n_batches = segment_info["batches_state_choice_idx"].shape[0]
+        for iter in range(n_batches):
+            state_choices_iter = {
+                key: segment_info["state_choices"][key][iter]
+                for key in segment_info["state_choices"]
+            }
+            state_choices_child_iter = {
+                key: segment_info["state_choices_childs"][key][iter]
+                for key in segment_info["state_choices_childs"]
+            }
+
+            x = (
+                segment_info["batches_state_choice_idx"][iter],
+                segment_info["child_state_choices_to_aggr_choice"][iter],
+                segment_info["child_states_to_integrate_stochastic"][iter],
+                segment_info["child_state_choice_idxs_to_interp"][iter],
+                segment_info["child_states_idxs"][iter],
+                state_choices_iter,
+                state_choices_child_iter,
+            )
+
+            carry, _ = partial_single_period(
+                carry=carry,
+                xs=x,
+            )
+
+        final_carry = carry
+
+        # final_carry, _ = jax.lax.scan(
+        #     f=partial_single_period,
+        #     init=carry_start,
+        #     xs=(
+        #         segment_info["batches_state_choice_idx"],
+        #         segment_info["child_state_choices_to_aggr_choice"],
+        #         segment_info["child_states_to_integrate_stochastic"],
+        #         segment_info["child_state_choice_idxs_to_interp"],
+        #         segment_info["child_states_idxs"],
+        #         segment_info["state_choices"],
+        #         segment_info["state_choices_childs"],
+        #     ),
+        # )
 
         if not segment_info["batches_cover_all"]:
             last_batch_info = segment_info["last_batch_info"]

@@ -1,5 +1,8 @@
+import numpy as np
 from jax import numpy as jnp
 from upper_envelope import fues_jax
+
+from dcegm.upper_envelope_fedor import upper_envelope
 
 
 def create_upper_envelope_function(model_config, continuous_state=None):
@@ -75,6 +78,29 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                 params,
                 discount_factor,
             ):
+                policy_two_dim = np.vstack((endog_grid, policy))
+                value_two_dim = np.vstack((endog_grid, value))
+
+                params["beta"] = discount_factor
+
+                policy_sol, value_sol = upper_envelope(
+                    policy=policy_two_dim,
+                    value=value_two_dim,
+                    exog_grid=endog_grid - policy,
+                    state_choice_vec=state_choice_dict,
+                    params=params,
+                    compute_utility=utility_function,
+                )
+                n_nans_policy = (np.isnan(policy_sol[0, :])).sum()
+                n_nans_value = (np.isnan(value_sol[0, :])).sum()
+
+                endog_grid_fedor = policy_sol[0, :]
+                policy_fedor = policy_sol[1, :]
+                value_fedor = value_sol[1, :]
+                endog_grid_fedor = np.append(0.0, endog_grid_fedor)
+                policy_fedor = np.append(0.0, policy_fedor)
+                value_fedor = np.append(expected_value_zero_assets, value_fedor)
+
                 value_kwargs = {
                     "expected_value_zero_assets": expected_value_zero_assets,
                     "params": params,
@@ -96,7 +122,7 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                         + discount_factor * expected_value_zero_assets
                     )
 
-                return fues_jax(
+                endog_grid_fues, policy_fues, value_fues = fues_jax(
                     endog_grid=endog_grid,
                     policy=policy,
                     value=value,
@@ -110,6 +136,16 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                     jump_thresh=tuning_params["fues_jump_thresh"],
                     n_points_to_scan=tuning_params["fues_n_points_to_scan"],
                 )
+                not_nan_fedor = np.isfinite(endog_grid_fedor)
+                not_nan_fues = np.isfinite(endog_grid_fues)
+                assert np.allclose(
+                    endog_grid_fedor[not_nan_fedor], endog_grid_fues[not_nan_fues]
+                )
+                assert np.allclose(
+                    policy_fedor[not_nan_fedor], policy_fues[not_nan_fues]
+                )
+                assert np.allclose(value_fedor[not_nan_fedor], value_fues[not_nan_fues])
+                return endog_grid_fedor, policy_fedor, value_fedor
 
     return compute_upper_envelope
 

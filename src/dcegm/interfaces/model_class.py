@@ -95,18 +95,16 @@ class setup_model:
             "second_continuous_exists"
         ]
 
-        backward_jit = jax.jit(
-            partial(
-                backward_induction,
-                model_config=self.model_config,
-                has_second_continuous_state=has_second_continuous_state,
-                state_space_dict=self.model_structure["state_space_dict"],
-                n_state_choices=self.model_structure["state_choice_space"].shape[0],
-                batch_info=self.batch_info,
-                income_shock_draws_unscaled=self.income_shock_draws_unscaled,
-                income_shock_weights=self.income_shock_weights,
-                model_funcs=self.model_funcs,
-            )
+        backward_jit = partial(
+            backward_induction,
+            model_config=self.model_config,
+            has_second_continuous_state=has_second_continuous_state,
+            state_space_dict=self.model_structure["state_space_dict"],
+            n_state_choices=self.model_structure["state_choice_space"].shape[0],
+            batch_info=self.batch_info,
+            income_shock_draws_unscaled=self.income_shock_draws_unscaled,
+            income_shock_weights=self.income_shock_weights,
+            model_funcs=self.model_funcs,
         )
 
         self.backward_induction_jit = backward_jit
