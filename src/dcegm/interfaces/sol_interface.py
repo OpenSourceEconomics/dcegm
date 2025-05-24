@@ -105,7 +105,14 @@ class model_solved:
             The policy for the given state and choice.
         """
 
-        return
+        return policy_for_state_choice_vec(
+            states=state,
+            choice=choice,
+            model_config=self.model_config,
+            model_structure=self.model_structure,
+            endog_grid_solved=self.endog_grid,
+            policy_solved=self.policy,
+        )
 
     def get_solution_for_discrete_state_choice(self, states, choice):
         """
