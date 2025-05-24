@@ -62,7 +62,7 @@ repos:
     rev: 25.1.0
     hooks:
       - id: black
-        language_version: python3.11
+        language_version: python3.12
 #  - repo: https://github.com/charliermarsh/ruff-pre-commit
 #    rev: v0.0.282
 #    hooks:
@@ -72,17 +72,17 @@ repos:
 #            tests/|
 #            docs/source/conf.py|
 #          )$
-#  - repo: https://github.com/PyCQA/docformatter
-#    rev: v1.7.5
-#    hooks:
-#      - id: docformatter
-#        args:
-#          - --in-place
-#          - --wrap-summaries
-#          - '88'
-#          - --wrap-descriptions
-#          - '88'
-#          - --blank
+  - repo: https://github.com/PyCQA/docformatter
+    rev: v1.7.7
+    hooks:
+      - id: docformatter
+        args:
+          - --in-place
+          - --wrap-summaries
+          - '88'
+          - --wrap-descriptions
+          - '88'
+          - --blank
   - repo: https://github.com/nbQA-dev/nbQA
     rev: 1.9.1
     hooks:
@@ -100,18 +100,12 @@ repos:
           - --wrap
           - '88'
         files: (README\.md)
-  - repo: https://github.com/codespell-project/codespell
-    rev: v2.4.1
-    hooks:
-      - id: codespell
-        additional_dependencies:
-          - tomli
-        exclude: tests/sandbox/|docs/source/background/interface_plots.ipynb
-# -   repo: https://github.com/mgedmin/check-manifest
-#     rev: "0.49"
+#   - repo: https://github.com/codespell-project/codespell
+#     rev: v2.4.1
 #     hooks:
-#     -   id: check-manifest
-#         args: [--no-build-isolation]
-#         additional_dependencies: [setuptools-scm, toml]
+#       - id: codespell
+#         additional_dependencies:
+#           - tomli
+#         exclude: tests/sandbox/|docs/source/background/interface_plots.ipynb
 ci:
   autoupdate_schedule: monthly

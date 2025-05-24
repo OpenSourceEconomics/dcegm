@@ -15,17 +15,18 @@ savings, including additional discrete choices.
 1. Christopher D. Carroll (2006). `The method of endogenous gridpoints for solving dynamic stochastic optimization problems <http://www.sciencedirect.com/science/article/pii/S0165176505003368>`__. *Economics Letters*
 2. Iskhakov, Jorgensen, Rust, and Schjerning (2017). `The Endogenous Grid Method for Discrete-Continuous Dynamic Choice Models with (or without) Taste Shocks <http://onlinelibrary.wiley.com/doi/10.3982/QE643/full>`__. *Quantitative Economics*
 
+   installation
+
 .. toctree::
    :maxdepth: 2
    :caption: Guides
    :hidden:
 
-   guides/installation
-   guides/two_period_model_tutorial.ipynb
-   guides/practitioner_guides/parameters.ipynb
-   guides/practitioner_guides/model_config.ipynb
-   genindex
-   autoapi/index
+   guides/practitioner_guide
+   guides/templates
+   guides/minimal_example.ipynb
+   guides/maximal_example.ipynb
+
 
 
 .. toctree::
@@ -35,6 +36,8 @@ savings, including additional discrete choices.
 
    background/limitations
    background/literature
+   background/two_period_model_tutorial.ipynb
+   background/interface_plots.ipynb
    background/specify_exogenous_processes.md
    background/timing_benchmarks.ipynb
 
@@ -47,3 +50,12 @@ savings, including additional discrete choices.
    development/team
    development/changes
    development/roadmap
+
+
+.. toctree::
+   :maxdepth: 2
+   :caption: dc-egm API
+   :hidden:
+
+   genindex
+   autoapi/index

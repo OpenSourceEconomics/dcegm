@@ -12,7 +12,8 @@ def create_batches_and_information(
     min_period_batch_segments=None,
 ):
     """Batches are used instead of periods to have chunks of equal sized state choices.
-    The batch inparams=paramsformation dictionary contains the following arrays reflecting the.
+    The batch inparams=paramsformation dictionary contains the following arrays
+    reflecting the.
 
     steps in the backward induction:
         - batches_state_choice_idx: The state choice indexes in each batch to be solved.

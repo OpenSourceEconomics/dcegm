@@ -101,53 +101,23 @@ def test_replication_discrete_versus_continuous_experience(
         model_solved_cont,
     ) = test_setup
 
-    model_config_cont = model_solved_cont.model_config
-
-    experience_grid = model_config_cont["continuous_states_info"][
-        "second_continuous_grid"
-    ]
-
-    exp_share_to_test = experience / (period + MAX_INIT_EXPERIENCE)
-
-    state_choice_disc_dict = {
+    states_disc = {
         "period": period,
         "lagged_choice": lagged_choice,
         "experience": experience,
-        "dummy_stochastic": 0,
-        "choice": choice,
     }
-    state_choice_cont_dict = {
+
+    exp_share_to_test = experience / (period + MAX_INIT_EXPERIENCE)
+    states_cont = {
         "period": period,
         "lagged_choice": lagged_choice,
-        "dummy_stochastic": 0,
-        "choice": choice,
+        "experience": exp_share_to_test,
     }
 
-    model_structure_disc = model_solved_disc.model_structure
     model_funcs_disc = model_solved_disc.model_funcs
 
-    model_structure_cont = model_solved_cont.model_structure
-    model_funcs_cont = model_solved_cont.model_funcs
-
-    idx_state_choice_disc = model_structure_disc[
-        "map_state_choice_to_index_with_proxy"
-    ][
-        state_choice_disc_dict["period"],
-        state_choice_disc_dict["lagged_choice"],
-        state_choice_disc_dict["experience"],
-        state_choice_disc_dict["dummy_stochastic"],
-        state_choice_disc_dict["choice"],
-    ]
-    idx_state_choice_cont = model_structure_cont[
-        "map_state_choice_to_index_with_proxy"
-    ][
-        state_choice_cont_dict["period"],
-        state_choice_cont_dict["lagged_choice"],
-        state_choice_cont_dict["dummy_stochastic"],
-        state_choice_cont_dict["choice"],
-    ]
     state_specific_choice_set = model_funcs_disc["state_specific_choice_set"](
-        **state_choice_disc_dict
+        **states_disc, choice=choice
     )
     choice_valid = choice in state_specific_choice_set
 
@@ -166,31 +136,53 @@ def test_replication_discrete_versus_continuous_experience(
 
         for wealth_to_test in np.arange(5, 100, 5, dtype=float):
 
-            policy_cont_interp, value_cont_interp = (
-                interp2d_policy_and_value_on_wealth_and_regular_grid(
-                    regular_grid=experience_grid,
-                    wealth_grid=model_solved_cont.endog_grid[idx_state_choice_cont],
-                    policy_grid=model_solved_cont.policy[idx_state_choice_cont],
-                    value_grid=model_solved_cont.value[idx_state_choice_cont],
-                    regular_point_to_interp=exp_share_to_test,
-                    wealth_point_to_interp=jnp.array(wealth_to_test),
-                    compute_utility=model_funcs_cont["compute_utility"],
-                    state_choice_vec=state_choice_cont_dict,
-                    params=params,
-                    discount_factor=params["discount_factor"],
-                )
+            states_cont["wealth"] = wealth_to_test
+
+            value_cont_interp = model_solved_cont.value_for_state_and_choice(
+                state=states_cont,
+                choice=choice,
+            )
+            policy_cont_interp = model_solved_cont.policy_for_state_and_choice(
+                state=states_cont,
+                choice=choice,
             )
 
-            policy_disc_interp, value_disc_interp = interp1d_policy_and_value_on_wealth(
-                wealth=jnp.array(wealth_to_test),
-                endog_grid=model_solved_disc.endog_grid[idx_state_choice_disc],
-                policy=model_solved_disc.policy[idx_state_choice_disc],
-                value=model_solved_disc.value[idx_state_choice_disc],
-                compute_utility=model_funcs_disc["compute_utility"],
-                state_choice_vec=state_choice_disc_dict,
-                params=params,
-                discount_factor=params["discount_factor"],
+            states_disc["wealth"] = wealth_to_test
+
+            value_disc_interp = model_solved_disc.value_for_state_and_choice(
+                state=states_disc,
+                choice=choice,
             )
+            policy_disc_interp = model_solved_disc.policy_for_state_and_choice(
+                state=states_disc,
+                choice=choice,
+            )
+
+            # policy_cont_interp,  = (
+            #     interp2d_policy_and_value_on_wealth_and_regular_grid(
+            #         regular_grid=experience_grid,
+            #         wealth_grid=model_solved_cont.endog_grid[idx_state_choice_cont],
+            #         policy_grid=model_solved_cont.policy[idx_state_choice_cont],
+            #         value_grid=model_solved_cont.value[idx_state_choice_cont],
+            #         regular_point_to_interp=exp_share_to_test,
+            #         wealth_point_to_interp=jnp.array(wealth_to_test),
+            #         compute_utility=model_funcs_cont["compute_utility"],
+            #         state_choice_vec=state_choice_cont_dict,
+            #         params=params,
+            #         discount_factor=params["discount_factor"],
+            #     )
+            # )
+            #
+            # policy_disc_interp, value_disc_interp = interp1d_policy_and_value_on_wealth(
+            #     wealth=jnp.array(wealth_to_test),
+            #     endog_grid=model_solved_disc.endog_grid[idx_state_choice_disc],
+            #     policy=model_solved_disc.policy[idx_state_choice_disc],
+            #     value=model_solved_disc.value[idx_state_choice_disc],
+            #     compute_utility=model_funcs_disc["compute_utility"],
+            #     state_choice_vec=state_choice_disc_dict,
+            #     params=params,
+            #     discount_factor=params["discount_factor"],
+            # )
 
             aaae(value_cont_interp, value_disc_interp, decimal=3)
             aaae(policy_cont_interp, policy_disc_interp, decimal=3)

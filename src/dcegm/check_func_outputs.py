@@ -34,7 +34,8 @@ def check_budget_equation_and_return_wealth_plus_optional_aux(out, optional_aux=
 
 
 def check_valid_auxiliary_dict(aux, func_name):
-    """The function checks weather the auxiliary dictionary contains one value per key."""
+    """The function checks weather the auxiliary dictionary contains one value per
+    key."""
     if isinstance(aux, dict):
         for key, value in aux.items():
             if not check_valid_jnp_array(value):

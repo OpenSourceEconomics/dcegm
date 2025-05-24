@@ -1,6 +1,6 @@
 
-Index
-=====
+API index
+=========
 
 .. toctree::
    :hidden:

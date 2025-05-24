@@ -4,7 +4,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.11
+  - python
   - pip
   - pytest
   - pytest-cov
@@ -19,7 +19,6 @@ dependencies:
 
   # Misc
   - black
-  - nb_black
   - flake8
   - jupyterlab
   - matplotlib
@@ -36,7 +35,5 @@ dependencies:
   - pip:
       - blackcellmagic
       - furo
+      - upper-envelope
       - -e .  # Install dcegm locally
-
-      # Development dependencies
-      - git+https://github.com/OpenSourceEconomics/upper-envelope.git

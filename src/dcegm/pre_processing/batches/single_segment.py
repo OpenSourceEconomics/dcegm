@@ -4,8 +4,10 @@ from dcegm.pre_processing.batches.algo_batch_size import determine_optimal_batch
 
 
 def create_single_segment_of_batches(bool_state_choices_to_batch, model_structure):
-    """Create a single segment of evenly sized batches. If the last batch is not evenly
-    we correct it.
+    """Create a single segment of evenly sized batches.
+
+    If the last batch is not evenly we correct it.
+
     """
 
     state_choice_space = model_structure["state_choice_space"]
@@ -76,8 +78,10 @@ def correct_for_uneven_last_batch(
     map_state_choice_to_parent_state,
     discrete_states_names,
 ):
-    """Check if the last batch has the same length as the others. If not, we need to save
-    the information separately.
+    """Check if the last batch has the same length as the others.
+
+    If not, we need to save the information separately.
+
     """
     if len(batches_list) == 1:
         # This is the case for a three period model.
@@ -154,8 +158,12 @@ def prepare_and_align_batch_arrays(
     map_state_choice_to_parent_state,
     discrete_states_names,
 ):
-    """Prepare the lists we get out of the algorithm (and after correction) for the
-    jax calculations. They all need to have the same length of leading axis"""
+    """Prepare the lists we get out of the algorithm (and after correction) for the jax
+    calculations.
+
+    They all need to have the same length of leading axis
+
+    """
     # Get out of bound state choice idx, by taking the number of state choices + 1
     out_of_bounds_state_choice_idx = state_choice_space.shape[0] + 1
 
