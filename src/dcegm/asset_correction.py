@@ -8,14 +8,14 @@ from dcegm.law_of_motion import (
 
 
 def adjust_observed_assets(observed_states_dict, params, model_class):
-    """Correct observed beginning of period wealth data for likelihood estimation.
+    """Correct observed beginning of period assets data for likelihood estimation.
 
-    Wealth in empirical survey data is observed without the income of last period's
+    Assets in empirical survey data is observed without the income of last period's
     choice.
 
     In the dcegm framework, however, individuals make their consumption decision given
-    the income of the previous period. Therefore, agents in the model have a higher
-    beginning of period wealth than the observed wealth in survey data.
+    the income of the previous period. Therefore, agents in the model have higher
+    beginning of assets wealth than the observed wealth in survey data.
 
     This function can be used to align these two wealth definitions; especially in
     likelihood estimation, where the computation of choice probabilities requires the
@@ -24,7 +24,7 @@ def adjust_observed_assets(observed_states_dict, params, model_class):
     """
     observed_states_dict_int = observed_states_dict.copy()
 
-    wealth_int = observed_states_dict["wealth"]
+    wealth_int = observed_states_dict["assets_begin_of_period"]
     interest_rate = model_class.model_funcs["read_funcs"]["interest_rate"](params)
     assets_end_last_period = jnp.asarray(wealth_int / (1 + interest_rate))
 
@@ -37,7 +37,7 @@ def adjust_observed_assets(observed_states_dict, params, model_class):
         second_cont_state_vars = observed_states_dict[second_cont_state_name]
         observed_states_dict_int.pop(second_cont_state_name)
 
-        adjusted_wealth = vmap(
+        adjusted_assets = vmap(
             calc_assets_beginning_of_period_2cont_vec,
             in_axes=(0, 0, 0, None, None, None, None),
         )(
@@ -51,7 +51,7 @@ def adjust_observed_assets(observed_states_dict, params, model_class):
         )
 
     else:
-        adjusted_wealth = vmap(
+        adjusted_assets = vmap(
             calc_beginning_of_period_assets_1cont_vec,
             in_axes=(0, 0, None, None, None, None),
         )(
@@ -63,4 +63,4 @@ def adjust_observed_assets(observed_states_dict, params, model_class):
             False,
         )
 
-    return adjusted_wealth
+    return adjusted_assets
