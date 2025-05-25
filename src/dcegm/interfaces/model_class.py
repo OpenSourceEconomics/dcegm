@@ -5,6 +5,7 @@ from typing import Callable, Dict
 import jax
 
 from dcegm.backward_induction import backward_induction
+from dcegm.interfaces.interface import validate_stochastic_transition
 from dcegm.interfaces.sol_interface import model_solved
 from dcegm.likelihood import create_individual_likelihood_function
 from dcegm.numerical_integration import quadrature_legendre
@@ -288,4 +289,13 @@ class setup_model:
             unobserved_state_specs=unobserved_state_specs,
             return_model_solution=return_model_solution,
             use_probability_of_observed_states=use_probability_of_observed_states,
+        )
+
+    def validate_exogenous(self, params):
+
+        return validate_stochastic_transition(
+            params=params,
+            model_structure=self.model_structure,
+            model_config=self.model_config,
+            model_funcs=self.model_funcs,
         )

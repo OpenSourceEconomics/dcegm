@@ -26,6 +26,7 @@ def create_stochastic_transition_function(
     else:
         func_list, func_dict = process_stochastic_transitions(
             stochastic_states_transitions,
+            model_config=model_config,
             model_specs=model_specs,
             continuous_state_name=continuous_state_name,
         )
@@ -38,7 +39,7 @@ def create_stochastic_transition_function(
 
 
 def process_stochastic_transitions(
-    stochastic_states_transitions, model_specs, continuous_state_name
+    stochastic_states_transitions, model_config, model_specs, continuous_state_name
 ):
     """Process stochastic functions.
 
@@ -54,7 +55,8 @@ def process_stochastic_transitions(
     func_dict = {}
 
     # What about vectors instead of callables supplied?
-    for name, func in stochastic_states_transitions.items():
+    for name in model_config["stochastic_states"].keys():
+        func = stochastic_states_transitions[name]
         if isinstance(func, Callable):
             processed_exog_func = determine_function_arguments_and_partial_model_specs(
                 func=func,
@@ -63,6 +65,8 @@ def process_stochastic_transitions(
             )
             func_list += [processed_exog_func]
             func_dict[name] = processed_exog_func
+        else:
+            raise ValueError(f"Stochastic transition function {name} is not callable. ")
 
     return func_list, func_dict
 

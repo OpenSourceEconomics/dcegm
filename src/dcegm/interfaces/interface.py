@@ -328,7 +328,7 @@ def get_state_choice_index_per_discrete_state_and_choice(model, state_choice_dic
     return state_choice_index
 
 
-def validate_stochastic_transition(model, params):
+def validate_stochastic_transition(params, model_config, model_funcs, model_structure):
     """Validate the exogenous processes in the model.
 
     This function checks that transition probabilities for each exogenous
@@ -346,11 +346,8 @@ def validate_stochastic_transition(model, params):
         ValueError is raised.
 
     """
-    # Update to float64
-    jax.config.update("jax_enable_x64", True)
-
-    transition_funcs_processed = model["model_funcs"]["processed_stochastic_funcs"]
-    state_choice_space_dict = model["model_structure"]["state_choice_space_dict"]
+    transition_funcs_processed = model_funcs["processed_stochastic_funcs"]
+    state_choice_space_dict = model_structure["state_choice_space_dict"]
 
     for name, func in transition_funcs_processed.items():
         # Sum transition probabilities for each state-choice combination
@@ -385,7 +382,7 @@ def validate_stochastic_transition(model, params):
             )
 
         # Check the number of transitions
-        n_states = len(model["model_config"]["stochastic_states"][name])
+        n_states = len(model_config["stochastic_states"][name])
         if all_transitions.shape[1] != n_states:
             raise ValueError(
                 f"Stochastic state {name} does not return the correct "

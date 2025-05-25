@@ -291,6 +291,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_almost_equal as aaae
 
+import dcegm
 from dcegm.interfaces.interface import validate_stochastic_transition
 from dcegm.pre_processing.model_structure.stochastic_states import (
     create_stochastic_state_mapping,
@@ -467,13 +468,98 @@ def test_exog_processes(
     }
 
     stochastic_state_transitions = {
-        "health_mother": prob_exog_health_mother,
+        # "health_mother": prob_exog_health_mother,
         "health_father": prob_exog_health_father,
         "health_child": prob_exog_health_child,
         "health_grandma": prob_exog_health_grandma,
     }
 
-    model = create_model_dict(
+    with pytest.raises(
+        ValueError, match="does not return float transition probabilities"
+    ):
+        stochastic_state_transitions["health_mother"] = lambda params: jnp.array(
+            [1, 3, 4]
+        )
+        model = dcegm.setup_model(
+            model_config=model_config,
+            model_specs=model_specs,
+            state_space_functions=create_state_space_function_dict(),
+            utility_functions=create_utility_function_dict(),
+            utility_functions_final_period=create_final_period_utility_function_dict(),
+            budget_constraint=budget_constraint,
+            stochastic_states_transitions=stochastic_state_transitions,
+        )
+        model.validate_exogenous(params)
+
+    with pytest.raises(
+        ValueError, match="returns one or more negative transition probabilities"
+    ):
+        stochastic_state_transitions["health_mother"] = lambda params: jnp.array(
+            [0.7, -0.3, 0.6]
+        )
+        model = dcegm.setup_model(
+            model_config=model_config,
+            model_specs=model_specs,
+            state_space_functions=create_state_space_function_dict(),
+            utility_functions=create_utility_function_dict(),
+            utility_functions_final_period=create_final_period_utility_function_dict(),
+            budget_constraint=budget_constraint,
+            stochastic_states_transitions=stochastic_state_transitions,
+        )
+        model.validate_exogenous(params)
+
+    with pytest.raises(
+        ValueError, match="returns one or more transition probabilities > 1"
+    ):
+        stochastic_state_transitions["health_mother"] = lambda params: jnp.array(
+            [0.7, 1.3, 0.6]
+        )
+        model = dcegm.setup_model(
+            model_config=model_config,
+            model_specs=model_specs,
+            state_space_functions=create_state_space_function_dict(),
+            utility_functions=create_utility_function_dict(),
+            utility_functions_final_period=create_final_period_utility_function_dict(),
+            budget_constraint=budget_constraint,
+            stochastic_states_transitions=stochastic_state_transitions,
+        )
+        model.validate_exogenous(params)
+
+    with pytest.raises(
+        ValueError, match="does not return the correct number of transitions"
+    ):
+        stochastic_state_transitions["health_mother"] = lambda params: jnp.array(
+            [0.7, 0.3]
+        )
+        model = dcegm.setup_model(
+            model_config=model_config,
+            model_specs=model_specs,
+            state_space_functions=create_state_space_function_dict(),
+            utility_functions=create_utility_function_dict(),
+            utility_functions_final_period=create_final_period_utility_function_dict(),
+            budget_constraint=budget_constraint,
+            stochastic_states_transitions=stochastic_state_transitions,
+        )
+        model.validate_exogenous(params)
+
+    with pytest.raises(ValueError, match="transition probabilities do not sum to 1"):
+        stochastic_state_transitions["health_mother"] = lambda params: jnp.array(
+            [0.6, 0.3, 0.2]
+        )
+        model = dcegm.setup_model(
+            model_config=model_config,
+            model_specs=model_specs,
+            state_space_functions=create_state_space_function_dict(),
+            utility_functions=create_utility_function_dict(),
+            utility_functions_final_period=create_final_period_utility_function_dict(),
+            budget_constraint=budget_constraint,
+            stochastic_states_transitions=stochastic_state_transitions,
+        )
+        model.validate_exogenous(params)
+
+    stochastic_state_transitions["health_mother"] = prob_exog_health_mother
+
+    model = dcegm.setup_model(
         model_config=model_config,
         model_specs=model_specs,
         state_space_functions=create_state_space_function_dict(),
@@ -482,56 +568,17 @@ def test_exog_processes(
         budget_constraint=budget_constraint,
         stochastic_states_transitions=stochastic_state_transitions,
     )
-    model_funcs = model["model_funcs"]
-    model_structure = model["model_structure"]
+
+    # Check if valid model passes
+    assert model.validate_exogenous(params)
+
+    model_funcs = model.model_funcs
+    model_structure = model.model_structure
 
     stochastic_state_mapping = create_stochastic_state_mapping(
         model_structure["stochastic_state_space"].astype(np.int16),
         model_structure["stochastic_states_names"],
     )
-
-    # Test the interface validation function for exogenous processes
-    invalid_model = copy.deepcopy(model)
-    with pytest.raises(
-        ValueError, match="does not return float transition probabilities"
-    ):
-        invalid_model["model_funcs"]["processed_stochastic_funcs"]["health_mother"] = (
-            lambda **kwargs: jnp.array([1, 3, 4])
-        )
-        validate_stochastic_transition(invalid_model, params)
-
-    with pytest.raises(
-        ValueError, match="returns one or more negative transition probabilities"
-    ):
-        invalid_model["model_funcs"]["processed_stochastic_funcs"]["health_mother"] = (
-            lambda **kwargs: jnp.array([0.7, -0.3, 0.6])
-        )
-        validate_stochastic_transition(invalid_model, params)
-
-    with pytest.raises(
-        ValueError, match="returns one or more transition probabilities > 1"
-    ):
-        invalid_model["model_funcs"]["processed_stochastic_funcs"]["health_mother"] = (
-            lambda **kwargs: jnp.array([0.7, 1.3, 0.6])
-        )
-        validate_stochastic_transition(invalid_model, params)
-
-    with pytest.raises(
-        ValueError, match="does not return the correct number of transitions"
-    ):
-        invalid_model["model_funcs"]["processed_stochastic_funcs"]["health_mother"] = (
-            lambda **kwargs: jnp.array([0.7, 0.3])
-        )
-        validate_stochastic_transition(invalid_model, params)
-
-    with pytest.raises(ValueError, match="transition probabilities do not sum to 1"):
-        invalid_model["model_funcs"]["processed_stochastic_funcs"]["health_mother"] = (
-            lambda **kwargs: jnp.array([0.6, 0.3, 0.2])
-        )
-        validate_stochastic_transition(invalid_model, params)
-
-    # Check if valid model passes
-    assert validate_stochastic_transition(model, params)
 
     # Check if mapping works
     mother_bad_health = np.where(model_structure["stochastic_state_space"][:, 0] == 2)[
