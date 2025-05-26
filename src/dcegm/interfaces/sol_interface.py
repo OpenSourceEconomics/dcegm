@@ -18,6 +18,7 @@ class model_solved:
         model_config,
         model_structure,
         model_funcs,
+        model_specs,
         params,
         alternative_sim_funcs,
     ):
@@ -29,6 +30,7 @@ class model_solved:
         self.model_funcs = model_funcs
         self.params = params
         self.alternative_sim_funcs = alternative_sim_funcs
+        self.model_specs = model_specs
 
     def simulate(self, states_initial, seed):
 
