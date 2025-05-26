@@ -165,6 +165,7 @@ class setup_model:
             model_config=self.model_config,
             model_structure=self.model_structure,
             model_funcs=self.model_funcs,
+            model_specs=self.model_specs,
             params=params_processed,
             alternative_sim_funcs=self.alternative_sim_funcs,
         )
