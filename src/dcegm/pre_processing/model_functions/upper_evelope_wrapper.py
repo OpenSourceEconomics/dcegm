@@ -1,3 +1,5 @@
+import pickle
+
 import matplotlib.pyplot as plt
 import numpy as np
 from jax import numpy as jnp
@@ -84,10 +86,26 @@ def create_upper_envelope_function(model_config, continuous_state=None):
 
                 params["beta"] = discount_factor
 
+                # breakpoint()  # Set a breakpoint here to inspect the inputs
+
+                choice = state_choice_dict["choice"]
+                lagged_choice = state_choice_dict["lagged_choice"]
+                period = state_choice_dict["period"]
+
+                label = f"choice{choice}_lagged{lagged_choice}_period{period}"
+
+                with open(f"pickle/pre_ue_policy_{label}.pickle", "wb") as f:
+                    pickle.dump(policy, f)
+
+                with open(f"pickle/pre_ue_value_{label}.pickle", "wb") as f:
+                    pickle.dump(value, f)
+
+                with open(f"pickle/pre_ue_endog_grid_{label}.pickle", "wb") as f:
+                    pickle.dump(endog_grid, f)
+
                 policy_sol, value_sol = upper_envelope(
                     policy=policy_two_dim,
                     value=value_two_dim,
-                    exog_grid=endog_grid - policy,
                     state_choice_vec=state_choice_dict,
                     params=params,
                     compute_utility=utility_function,

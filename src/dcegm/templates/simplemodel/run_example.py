@@ -78,14 +78,14 @@ model_functions = {
 }
 
 # Set up the model
-model = dcegm.setup_model(
-    model_config=model_config,
-    model_specs=model_specs,
-    **model_functions,
-)
+# model = dcegm.setup_model(
+#     model_config=model_config,
+#     model_specs=model_specs,
+#     **model_functions,
+# )
 
-# Solve the model
-model_solved = model.solve(params)
+# # Solve the model
+# model_solved = model.solve(params)
 
 
 line_styles = [
@@ -132,38 +132,65 @@ model = dcegm.setup_model(
     **model_functions,
 )
 
-# solve the model for different taste shock scales with income uncertainty and plot the consumption policy function
-for k, taste_shock_scale in enumerate([2e-16, 0.01, 0.05, 0.10, 0.15]):
+# solve the model for different taste shock scales with income uncertainty and plot both
+fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharex=True)
+
+for k, taste_shock_scale in enumerate(
+    [0.01]
+):  # enumerate([2e-16, 0.01, 0.05, 0.10, 0.15]):
     params["taste_shock_scale"] = taste_shock_scale
     model_solved = model.solve(params)
     endog_grid, value, policy = model_solved.get_solution_for_discrete_state_choice(
         state_dict, choice
     )
 
-    # # sort idx by wealth for plotting
-    # idx = np.argsort(endog_grid)
-    # endog_grid = endog_grid[idx]
-    # policy = policy[idx]
+    # # load pre upper envelope solution (endog_grid.pickle, policy.pickle, value.pickle)
+    # endog_grid = pd.read_pickle("pickle/pre_ue_endog_grid_choice0_lagged0_period4.pickle")
+    # policy = pd.read_pickle("pickle/pre_ue_policy_choice0_lagged0_period4.pickle")
+    # value = pd.read_pickle("pickle/pre_ue_value_choice0_lagged0_period4.pickle")
 
-    plt.plot(
+    # Plot consumption policy
+    axes[0].plot(
         endog_grid,
         policy,
         label=f"λ={taste_shock_scale:.2f}",
         **line_styles[k],
     )
 
-plt.xlim([15, 120])
-plt.ylim([15, 25])
-plt.yticks(np.arange(15, 25, 1))
-plt.ylabel("Consumption")
-plt.title(
-    "Period T-5: Income Uncertainty, Varying Taste Shock\nWorking Individual Continues Employment",
+    # Plot value function
+    axes[1].plot(
+        endog_grid,
+        value,
+        label=f"λ={taste_shock_scale:.2f}",
+        **line_styles[k],
+    )
+
+# Consumption policy plot settings
+axes[0].set_xlim([15, 120])
+axes[0].set_ylim([15, 25])
+axes[0].set_yticks(np.arange(15, 25, 1))
+axes[0].set_xlabel("Wealth")
+axes[0].set_ylabel("Consumption")
+axes[0].set_title(
+    "Consumption Policy Function\nPeriod T-5, Varying Taste Shock, Continues Employment",
     fontsize=11,
     fontweight="bold",
 )
-plt.xlabel("Wealth")
-plt.legend()
-plt.show()
+axes[0].legend()
+
+# Value function plot settings
+axes[1].set_xlim([15, 120])
+axes[1].set_xlabel("Wealth")
+axes[1].set_ylabel("Value")
+axes[1].set_title(
+    "Value Function\nPeriod T-5, Varying Taste Shock, Continues Employment",
+    fontsize=11,
+    fontweight="bold",
+)
+axes[1].legend()
+
+# plt.tight_layout()
+# plt.show()
 
 # # Simulate the model
 # n_agents = 1_000

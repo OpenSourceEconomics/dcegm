@@ -7,6 +7,10 @@
 
 src/dcegm/_version.py
 
+# debugging pickle files and svg with flamegraph
+pickle/*
+*.svg
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
