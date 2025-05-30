@@ -280,54 +280,6 @@ def policy_for_state_choice_vec(
     return policy
 
 
-def get_state_choice_index_per_discrete_state(
-    map_state_choice_to_index, states, discrete_states_names
-):
-    """Get the state-choice index for a given set of discrete states.
-
-    Args:
-        map_state_choice_to_index (dict): Mapping from a state-choice tuple to
-            an index.
-        states (dict): Dictionary of state values.
-        discrete_states_names (list[str]): Names of discrete state variables.
-
-    Returns:
-        int: The index corresponding to the given discrete states.
-
-    """
-    indexes = map_state_choice_to_index[
-        tuple((states[key],) for key in discrete_states_names)
-    ]
-    # As the code above generates a dummy dimension in the first index, remove it
-    return indexes[0]
-
-
-def get_state_choice_index_per_discrete_state_and_choice(model, state_choice_dict):
-    """Get the state-choice index for a given set of discrete states and a choice.
-
-    Args:
-        model (dict): A dictionary representing the model. Must contain
-            'model_structure' with a 'map_state_choice_to_index_with_proxy'
-            and 'discrete_states_names'.
-        state_choice_dict (dict): Dictionary containing discrete states and
-            the choice.
-
-    Returns:
-        int: The index corresponding to the specified discrete states and choice.
-
-    """
-    map_state_choice_to_index = model["model_structure"][
-        "map_state_choice_to_index_with_proxy"
-    ]
-    discrete_states_names = model["model_structure"]["discrete_states_names"]
-    state_choice_tuple = tuple(
-        state_choice_dict[st] for st in discrete_states_names + ["choice"]
-    )
-    state_choice_index = map_state_choice_to_index[state_choice_tuple]
-
-    return state_choice_index
-
-
 def validate_stochastic_transition(params, model_config, model_funcs, model_structure):
     """Validate the exogenous processes in the model.
 
