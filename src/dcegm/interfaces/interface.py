@@ -188,7 +188,7 @@ def value_for_state_choice_vec(
             wealth_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
             value_grid=jnp.take(value_solved, state_choice_index, axis=0),
             regular_point_to_interp=second_continuous,
-            wealth_point_to_interp=state_choice_vec["wealth"],
+            wealth_point_to_interp=state_choice_vec["assets_begin_of_period"],
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
@@ -197,7 +197,7 @@ def value_for_state_choice_vec(
     else:
 
         value = interp_value_on_wealth(
-            wealth=state_choice_vec["wealth"],
+            wealth=state_choice_vec["assets_begin_of_period"],
             endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
             value=jnp.take(value_solved, state_choice_index, axis=0),
             compute_utility=compute_utility,
@@ -267,12 +267,12 @@ def policy_for_state_choice_vec(
             wealth_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
             policy_grid=jnp.take(policy_solved, state_choice_index, axis=0),
             regular_point_to_interp=second_continuous,
-            wealth_point_to_interp=states["wealth"],
+            wealth_point_to_interp=states["assets_begin_of_period"],
         )
 
     else:
         policy = interp_policy_on_wealth(
-            wealth=states["wealth"],
+            wealth=states["assets_begin_of_period"],
             endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
             policy=jnp.take(policy_solved, state_choice_index, axis=0),
         )
