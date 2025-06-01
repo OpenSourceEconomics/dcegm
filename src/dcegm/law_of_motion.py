@@ -6,24 +6,27 @@ from dcegm.check_func_outputs import (
 
 
 def calc_cont_grids_next_period(
-    state_space_dict,
-    model_config,
-    income_shock_draws_unscaled,
     params,
+    income_shock_draws_unscaled,
+    model_structure,
+    model_config,
     model_funcs,
-    has_second_continuous_state,
 ):
 
-    continuous_grids = model_config["continuous_states_info"]
+    continuous_states_info = model_config["continuous_states_info"]
+    state_space_dict = model_structure["state_space_dict"]
 
-    income_shocks_scaled = income_shock_draws_unscaled * model_funcs["read_funcs"][
-        "income_shock_std"
-    ](params) + model_funcs["read_funcs"]["income_shock_mean"](params)
+    # Scale income shock draws
+    income_shock_mean = model_funcs["read_funcs"]["income_shock_mean"](params)
+    income_shock_std = model_funcs["read_funcs"]["income_shock_std"](params)
+    income_shocks_scaled = (
+        income_shock_draws_unscaled * income_shock_std + income_shock_mean
+    )
 
-    if has_second_continuous_state:
+    if continuous_states_info["second_continuous_exists"]:
         continuous_state_next_period = calculate_continuous_state(
             discrete_states_beginning_of_period=state_space_dict,
-            continuous_grid=continuous_grids["second_continuous_grid"],
+            continuous_grid=continuous_states_info["second_continuous_grid"],
             params=params,
             compute_continuous_state=model_funcs["next_period_continuous_state"],
         )
@@ -32,7 +35,9 @@ def calc_cont_grids_next_period(
         assets_beginning_of_next_period = calc_assets_beginning_of_period_2cont(
             discrete_states_beginning_of_next_period=state_space_dict,
             continuous_state_beginning_of_next_period=continuous_state_next_period,
-            assets_grid_end_of_period=continuous_grids["assets_grid_end_of_period"],
+            assets_grid_end_of_period=continuous_states_info[
+                "assets_grid_end_of_period"
+            ],
             income_shocks=income_shocks_scaled,
             params=params,
             compute_assets_begin_of_period=model_funcs[
@@ -48,7 +53,9 @@ def calc_cont_grids_next_period(
     else:
         assets_begin_of_next_period = calc_beginning_of_period_assets_1cont(
             discrete_states_beginning_of_period=state_space_dict,
-            assets_grid_end_of_period=continuous_grids["assets_grid_end_of_period"],
+            assets_grid_end_of_period=continuous_states_info[
+                "assets_grid_end_of_period"
+            ],
             income_shocks_current_period=income_shocks_scaled,
             params=params,
             compute_assets_begin_of_period=model_funcs[

@@ -13,7 +13,7 @@ from dcegm.solve_single_period import solve_for_interpolated_values
 
 def solve_last_two_periods(
     params: Dict[str, float],
-    continuous_grids_info: Dict[str, Any],
+    continuous_states_info: Dict[str, Any],
     cont_grids_next_period: Dict[str, jnp.ndarray],
     income_shock_weights: jnp.ndarray,
     model_funcs: Dict[str, Callable],
@@ -21,7 +21,6 @@ def solve_last_two_periods(
     value_solved,
     policy_solved,
     endog_grid_solved,
-    has_second_continuous_state: bool,
 ):
     """Solves the last two periods of the model.
 
@@ -66,13 +65,12 @@ def solve_last_two_periods(
             "state_choice_mat_final_period"
         ],
         cont_grids_next_period=cont_grids_next_period,
-        continuous_states_info=continuous_grids_info,
+        continuous_states_info=continuous_states_info,
         params=params,
         model_funcs=model_funcs,
         value_solved=value_solved,
         policy_solved=policy_solved,
         endog_grid_solved=endog_grid_solved,
-        has_second_continuous_state=has_second_continuous_state,
     )
 
     # Check if we have a scalar taste shock scale or state specific. Extract in each of the cases.
@@ -104,7 +102,7 @@ def solve_last_two_periods(
         ],
         params=params,
         income_shock_weights=income_shock_weights,
-        continuous_grids_info=continuous_grids_info,
+        continuous_grids_info=continuous_states_info,
         model_funcs=model_funcs,
     )
 
@@ -132,7 +130,6 @@ def solve_final_period(
     value_solved,
     policy_solved,
     endog_grid_solved,
-    has_second_continuous_state: bool,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Compute solution to final period for policy and value function.
 
@@ -157,7 +154,7 @@ def solve_final_period(
 
     """
 
-    if has_second_continuous_state:
+    if continuous_states_info["second_continuous_exists"]:
         (
             value_solved,
             policy_solved,
