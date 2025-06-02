@@ -12,6 +12,7 @@ from dcegm.interfaces.inspect_structure import (
 )
 from dcegm.interfaces.interface import validate_stochastic_transition
 from dcegm.interfaces.sol_interface import model_solved
+from dcegm.law_of_motion import calc_cont_grids_next_period
 from dcegm.likelihood import create_individual_likelihood_function
 from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.alternative_sim_functions import (
@@ -324,3 +325,12 @@ class setup_model:
             key: state_space_dict[key][child_idx] for key in discrete_states_names
         }
         return pd.DataFrame(child_states)
+
+    def compute_law_of_motions(self, params):
+        return calc_cont_grids_next_period(
+            params=params,
+            model_structure=self.model_structure,
+            model_config=self.model_config,
+            model_funcs=self.model_funcs,
+            income_shock_draws_unscaled=self.income_shock_draws_unscaled,
+        )
