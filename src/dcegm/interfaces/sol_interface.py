@@ -154,4 +154,4 @@ class model_solved:
         value_grid = jnp.take(self.value, state_choice_index, axis=0)
         policy_grid = jnp.take(self.policy, state_choice_index, axis=0)
 
-        return endog_grid, value_grid, policy_grid
+        return endog_grid, policy_grid, value_grid

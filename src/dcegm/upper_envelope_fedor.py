@@ -13,7 +13,6 @@ from scipy.optimize import brenth as root
 EPS = 2.2204e-16
 
 
-@profile
 def upper_envelope(
     policy: np.ndarray,
     value: np.ndarray,
@@ -139,7 +138,6 @@ def upper_envelope(
     return policy_refined_with_nans, value_refined_with_nans
 
 
-@profile
 def locate_non_concave_regions(
     value: np.ndarray,
 ) -> List[np.ndarray]:
@@ -208,7 +206,6 @@ def locate_non_concave_regions(
     return segments_non_mono
 
 
-@profile
 def compute_upper_envelope(
     segments: List[np.ndarray],
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -372,7 +369,6 @@ def compute_upper_envelope(
     return points_upper_env_refined, points_to_add
 
 
-@profile
 def find_dominated_points(
     value_correspondence: np.ndarray,
     value_refined: np.ndarray,
@@ -420,7 +416,6 @@ def find_dominated_points(
     return index_dominated_points
 
 
-@profile
 def refine_policy(
     policy: np.ndarray, index_dominated_points: np.ndarray, points_to_add: np.ndarray
 ) -> np.ndarray:
@@ -536,7 +531,6 @@ def refine_policy(
     return policy_refined
 
 
-@profile
 def _augment_grid(
     policy: np.ndarray,
     value: np.ndarray,
@@ -606,7 +600,6 @@ def _augment_grid(
     return policy_augmented, value_augmented
 
 
-@profile
 def _partition_grid(
     value_correspondence: np.ndarray, j: int
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -646,7 +639,6 @@ def _partition_grid(
     return part_one, part_two
 
 
-@profile
 def _subtract_values(grid_point: float, first_segment, second_segment):
     """Subtracts the interpolated values of the two uppermost segments."""
     values_first_segment = _linear_interpolation_with_extrapolation(
@@ -661,7 +653,6 @@ def _subtract_values(grid_point: float, first_segment, second_segment):
     return diff_values_segments
 
 
-@profile
 def _linear_interpolation_with_extrapolation(x, y, x_new):
     """Linear interpolation with extrapolation.
 
@@ -700,7 +691,6 @@ def _linear_interpolation_with_extrapolation(x, y, x_new):
     return interpol_res
 
 
-@profile
 def _linear_interpolation_with_inserting_missing_values(x, y, x_new, missing_value):
     """Linear interpolation with inserting missing values.
 
