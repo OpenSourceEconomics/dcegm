@@ -3,8 +3,13 @@ from functools import partial
 from typing import Callable, Dict
 
 import jax
+import pandas as pd
 
 from dcegm.backward_induction import backward_induction
+from dcegm.interfaces.inspect_structure import (
+    get_child_state_index_per_state_choice,
+    get_state_choice_index_per_discrete_state,
+)
 from dcegm.interfaces.interface import validate_stochastic_transition
 from dcegm.interfaces.sol_interface import model_solved
 from dcegm.likelihood import create_individual_likelihood_function
@@ -41,7 +46,7 @@ class setup_model:
         """Setup the model and check if load or save is required."""
 
         self.model_specs = model_specs
-        if (model_load_path is not None) & (debug_info is None):
+        if model_load_path is not None:
             model_dict = load_model_dict(
                 model_config=model_config,
                 model_specs=model_specs,
@@ -53,7 +58,7 @@ class setup_model:
                 shock_functions=shock_functions,
                 path=model_load_path,
             )
-        elif (model_save_path is not None) & (debug_info is None):
+        elif model_save_path is not None:
             model_dict = create_model_dict_and_save(
                 model_config=model_config,
                 model_specs=model_specs,
@@ -64,6 +69,7 @@ class setup_model:
                 stochastic_states_transitions=stochastic_states_transitions,
                 shock_functions=shock_functions,
                 path=model_save_path,
+                debug_info=debug_info,
             )
         else:
             model_dict = create_model_dict(
@@ -92,20 +98,14 @@ class setup_model:
         self.income_shock_draws_unscaled = income_shock_draws_unscaled
         self.income_shock_weights = income_shock_weights
 
-        has_second_continuous_state = self.model_config["continuous_states_info"][
-            "second_continuous_exists"
-        ]
-
         backward_jit = partial(
             backward_induction,
-            model_config=self.model_config,
-            has_second_continuous_state=has_second_continuous_state,
-            state_space_dict=self.model_structure["state_space_dict"],
-            n_state_choices=self.model_structure["state_choice_space"].shape[0],
-            batch_info=self.batch_info,
             income_shock_draws_unscaled=self.income_shock_draws_unscaled,
             income_shock_weights=self.income_shock_weights,
+            model_config=self.model_config,
+            batch_info=self.batch_info,
             model_funcs=self.model_funcs,
+            model_structure=self.model_structure,
         )
 
         self.backward_induction_jit = backward_jit
@@ -298,3 +298,27 @@ class setup_model:
             model_config=self.model_config,
             model_funcs=self.model_funcs,
         )
+
+    def get_state_choices_idx(self, states):
+        """Get the indices of the state choices for given states."""
+        return get_state_choice_index_per_discrete_state(
+            states=states,
+            map_state_choice_to_index=self.model_structure["map_state_choice_to_index"],
+            discrete_states_names=self.model_structure["discrete_states_names"],
+        )
+
+    def get_child_states(self, state, choice):
+        if "map_state_choice_to_child_states" not in self.model_structure:
+            raise ValueError(
+                "For this function the model needs to be created with debug_info='all'"
+            )
+
+        child_idx = get_child_state_index_per_state_choice(
+            states=state, choice=choice, model_structure=self.model_structure
+        )
+        state_space_dict = self.model_structure["state_space_dict"]
+        discrete_states_names = self.model_structure["discrete_states_names"]
+        child_states = {
+            key: state_space_dict[key][child_idx] for key in discrete_states_names
+        }
+        return pd.DataFrame(child_states)

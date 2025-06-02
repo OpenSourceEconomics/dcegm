@@ -188,7 +188,7 @@ def value_for_state_choice_vec(
             wealth_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
             value_grid=jnp.take(value_solved, state_choice_index, axis=0),
             regular_point_to_interp=second_continuous,
-            wealth_point_to_interp=state_choice_vec["wealth"],
+            wealth_point_to_interp=state_choice_vec["assets_begin_of_period"],
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
@@ -197,7 +197,7 @@ def value_for_state_choice_vec(
     else:
 
         value = interp_value_on_wealth(
-            wealth=state_choice_vec["wealth"],
+            wealth=state_choice_vec["assets_begin_of_period"],
             endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
             value=jnp.take(value_solved, state_choice_index, axis=0),
             compute_utility=compute_utility,
@@ -267,65 +267,17 @@ def policy_for_state_choice_vec(
             wealth_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
             policy_grid=jnp.take(policy_solved, state_choice_index, axis=0),
             regular_point_to_interp=second_continuous,
-            wealth_point_to_interp=states["wealth"],
+            wealth_point_to_interp=states["assets_begin_of_period"],
         )
 
     else:
         policy = interp_policy_on_wealth(
-            wealth=states["wealth"],
+            wealth=states["assets_begin_of_period"],
             endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
             policy=jnp.take(policy_solved, state_choice_index, axis=0),
         )
 
     return policy
-
-
-def get_state_choice_index_per_discrete_state(
-    map_state_choice_to_index, states, discrete_states_names
-):
-    """Get the state-choice index for a given set of discrete states.
-
-    Args:
-        map_state_choice_to_index (dict): Mapping from a state-choice tuple to
-            an index.
-        states (dict): Dictionary of state values.
-        discrete_states_names (list[str]): Names of discrete state variables.
-
-    Returns:
-        int: The index corresponding to the given discrete states.
-
-    """
-    indexes = map_state_choice_to_index[
-        tuple((states[key],) for key in discrete_states_names)
-    ]
-    # As the code above generates a dummy dimension in the first index, remove it
-    return indexes[0]
-
-
-def get_state_choice_index_per_discrete_state_and_choice(model, state_choice_dict):
-    """Get the state-choice index for a given set of discrete states and a choice.
-
-    Args:
-        model (dict): A dictionary representing the model. Must contain
-            'model_structure' with a 'map_state_choice_to_index_with_proxy'
-            and 'discrete_states_names'.
-        state_choice_dict (dict): Dictionary containing discrete states and
-            the choice.
-
-    Returns:
-        int: The index corresponding to the specified discrete states and choice.
-
-    """
-    map_state_choice_to_index = model["model_structure"][
-        "map_state_choice_to_index_with_proxy"
-    ]
-    discrete_states_names = model["model_structure"]["discrete_states_names"]
-    state_choice_tuple = tuple(
-        state_choice_dict[st] for st in discrete_states_names + ["choice"]
-    )
-    state_choice_index = map_state_choice_to_index[state_choice_tuple]
-
-    return state_choice_index
 
 
 def validate_stochastic_transition(params, model_config, model_funcs, model_structure):

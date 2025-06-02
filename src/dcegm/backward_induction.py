@@ -14,14 +14,12 @@ from dcegm.solve_single_period import solve_single_period
 
 def backward_induction(
     params: Dict[str, float],
-    model_config: Dict[str, Any],
-    has_second_continuous_state: bool,
-    state_space_dict: np.ndarray,
-    n_state_choices: int,
-    batch_info: Dict[str, np.ndarray],
     income_shock_draws_unscaled: jnp.ndarray,
     income_shock_weights: jnp.ndarray,
+    model_config: Dict[str, Any],
     model_funcs: Dict[str, Callable],
+    model_structure: Dict[str, Any],
+    batch_info: Dict[str, Any],
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Do backward induction and solve for optimal policy and value function.
 
@@ -86,18 +84,12 @@ def backward_induction(
     continuous_states_info = model_config["continuous_states_info"]
 
     cont_grids_next_period = calc_cont_grids_next_period(
-        state_space_dict=state_space_dict,
+        model_structure=model_structure,
         model_config=model_config,
         income_shock_draws_unscaled=income_shock_draws_unscaled,
         params=params,
         model_funcs=model_funcs,
-        has_second_continuous_state=has_second_continuous_state,
     )
-
-    if has_second_continuous_state:
-        n_second_continuous_grid = continuous_states_info["n_second_continuous_grid"]
-    else:
-        n_second_continuous_grid = None
 
     # Create solution containers. The 20 percent extra in wealth grid needs to go
     # into tuning parameters
@@ -107,10 +99,8 @@ def backward_induction(
         policy_solved,
         endog_grid_solved,
     ) = create_solution_container(
-        n_state_choices=n_state_choices,
-        n_total_wealth_grid=n_total_wealth_grid,
-        n_second_continuous_grid=n_second_continuous_grid,
-        has_second_continuous_state=has_second_continuous_state,
+        model_config=model_config,
+        model_structure=model_structure,
     )
 
     # Solve the last two periods. We do this separately as the marginal utility of
@@ -122,7 +112,7 @@ def backward_induction(
         endog_grid_solved,
     ) = solve_last_two_periods(
         params=params,
-        continuous_grids_info=continuous_states_info,
+        continuous_states_info=continuous_states_info,
         cont_grids_next_period=cont_grids_next_period,
         income_shock_weights=income_shock_weights,
         model_funcs=model_funcs,
@@ -130,7 +120,6 @@ def backward_induction(
         value_solved=value_solved,
         policy_solved=policy_solved,
         endog_grid_solved=endog_grid_solved,
-        has_second_continuous_state=has_second_continuous_state,
     )
 
     # If it is a two period model we are done.
@@ -235,14 +224,19 @@ def backward_induction(
 
 
 def create_solution_container(
-    n_state_choices,
-    n_total_wealth_grid,
-    n_second_continuous_grid,
-    has_second_continuous_state,
+    model_config: Dict[str, Any],
+    model_structure: Dict[str, Any],
 ):
     """Create solution containers for value, policy, and endog_grid."""
 
-    if has_second_continuous_state:
+    # Read out grid size
+    n_total_wealth_grid = model_config["tuning_params"]["n_total_wealth_grid"]
+    n_state_choices = model_structure["state_choice_space"].shape[0]
+
+    # Check if second continuous state exists and read out array size
+    continuous_states_info = model_config["continuous_states_info"]
+    if continuous_states_info["second_continuous_exists"]:
+        n_second_continuous_grid = continuous_states_info["n_second_continuous_grid"]
 
         value_solved = jnp.full(
             (n_state_choices, n_second_continuous_grid, n_total_wealth_grid),

@@ -136,7 +136,7 @@ def test_replication_discrete_versus_continuous_experience(
 
         for wealth_to_test in np.arange(5, 100, 5, dtype=float):
 
-            states_cont["wealth"] = wealth_to_test
+            states_cont["assets_begin_of_period"] = wealth_to_test
 
             value_cont_interp = model_solved_cont.value_for_state_and_choice(
                 state=states_cont,
@@ -147,7 +147,7 @@ def test_replication_discrete_versus_continuous_experience(
                 choice=choice,
             )
 
-            states_disc["wealth"] = wealth_to_test
+            states_disc["assets_begin_of_period"] = wealth_to_test
 
             value_disc_interp = model_solved_disc.value_for_state_and_choice(
                 state=states_disc,
