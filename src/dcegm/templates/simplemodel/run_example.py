@@ -17,77 +17,6 @@ import dcegm
 
 config.update("jax_enable_x64", True)
 
-## set up
-# params = {
-#     "discount_factor": 0.98,
-#     # disutility of work
-#     "delta": 1.0,
-#     # CRRA coefficient
-#     "rho": 1,
-#     # labor income coefficients
-#     "constant": np.log(20.0),
-#     "exp": 0.0,
-#     "exp_squared": 0.0,
-#     # Shock parameters of income
-#     "income_shock_std": np.sqrt(0.005),
-#     "income_shock_mean": -0.005 / 2,
-#     "taste_shock_scale": 0.01,
-#     "interest_rate": 0.0,
-#     "consumption_floor": 0.000, # why does 0 break upper envelope?
-# }
-params = {
-    "discount_factor": 0.98,
-    # disutility of work
-    "delta": 1.0,
-    # CRRA coefficient
-    "rho": 1,
-    # labor income coefficients
-    "constant": np.log(20.0),
-    "exp": 0.0,
-    "exp_squared": 0.0,
-    # Shock parameters of income
-    "income_shock_std": 0,
-    "income_shock_mean": 0,
-    "taste_shock_scale": 0.01,
-    "interest_rate": 0.0,
-    "consumption_floor": 0.001,
-}
-model_config = {
-    "n_periods": 10,
-    "choices": [0, 1],
-    "continuous_states": {
-        "assets_end_of_period": jnp.linspace(
-            0,
-            50,
-            500,
-        )
-    },
-    "n_quad_points": 1,
-}
-model_specs = {
-    "min_age": 20,
-    "n_choices": 2,
-}
-
-
-model_functions = {
-    "utility_functions": create_utility_function_dict(),
-    "utility_functions_final_period": create_final_period_utility_function_dict(),
-    "state_space_functions": create_state_space_function_dict(),
-    "budget_constraint": budget_constraint,
-}
-
-# Set up the model
-# model = dcegm.setup_model(
-#     model_config=model_config,
-#     model_specs=model_specs,
-#     **model_functions,
-# )
-
-# # Solve the model
-# model_solved = model.solve(params)
-
-
 line_styles = [
     {
         "color": "black",
@@ -102,16 +31,31 @@ line_styles = [
 ]
 
 
+## set up
+params = {
+    "discount_factor": 0.98,
+    # disutility of work
+    "delta": 1,
+    # CRRA coefficient
+    "rho": 1.0,
+    # labor income coefficients
+    "constant": np.log(20.0),
+    "exp": 0.0,
+    "exp_squared": 0.0,
+    # Shock parameters of income
+    "income_shock_std": 0,
+    "income_shock_mean": 0,
+    "taste_shock_scale": 0.1,
+    "interest_rate": 0.0,
+    "consumption_floor": 0.001,
+}
 # set the income uncertainty parameters analogous to the Figure 4 (b) in the paper
 params["income_shock_std"] = np.sqrt(0.005)
 params["income_shock_mean"] = -0.005 / 2
-
-# Define state and choice for the plot
-state_dict = {
-    "period": 4,  # Perioid T-5
-    "lagged_choice": 0,  # working in the previous period
+model_specs = {
+    "min_age": 20,
+    "n_choices": 2,
 }
-choice = 0  # continuing to work
 
 model_config = {
     "n_periods": 10,  # number of periods in the model (e.g. 43 for t = 0, 1, ..., 42)
@@ -126,11 +70,27 @@ model_config = {
     "n_quad_points": 5,  # number of quadrature points for the income shock
 }
 
+model_functions = {
+    "utility_functions": create_utility_function_dict(),
+    "utility_functions_final_period": create_final_period_utility_function_dict(),
+    "state_space_functions": create_state_space_function_dict(),
+    "budget_constraint": budget_constraint,
+}
+
+
 model = dcegm.setup_model(
     model_config=model_config,
     model_specs=model_specs,
     **model_functions,
 )
+
+
+# Define state and choice for the plot
+state_dict = {
+    "period": 4,  # Perioid T-5
+    "lagged_choice": 0,  # working in the previous period
+}
+choice = 0  # continuing to work
 
 # solve the model for different taste shock scales with income uncertainty and plot both
 fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharex=True)
@@ -189,8 +149,8 @@ axes[1].set_title(
 )
 axes[1].legend()
 
-# plt.tight_layout()
-# plt.show()
+plt.tight_layout()
+plt.show()
 
 # # Simulate the model
 # n_agents = 1_000
