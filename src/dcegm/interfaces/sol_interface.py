@@ -12,25 +12,27 @@ from dcegm.simulation.simulate import simulate_all_periods
 class model_solved:
     def __init__(
         self,
+        model,
+        params,
         value,
         policy,
         endog_grid,
-        model_config,
-        model_structure,
-        model_funcs,
-        model_specs,
-        params,
-        alternative_sim_funcs,
     ):
+        # Assign the solution containers and params
+        self.params = params
         self.value = value
         self.policy = policy
         self.endog_grid = endog_grid
-        self.model_config = model_config
-        self.model_structure = model_structure
-        self.model_funcs = model_funcs
-        self.params = params
-        self.alternative_sim_funcs = alternative_sim_funcs
-        self.model_specs = model_specs
+
+        # Assign the model itself
+        self.model = model
+
+        # Assign all attributes from the model
+        self.model_config = model.model_config
+        self.model_structure = model.model_structure
+        self.model_funcs = model.model_funcs
+        self.model_specs = model.model_specs
+        self.alternative_sim_funcs = model.alternative_sim_funcs
 
     def simulate(self, states_initial, seed):
 

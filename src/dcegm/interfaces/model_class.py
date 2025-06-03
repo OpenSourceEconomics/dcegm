@@ -160,15 +160,11 @@ class setup_model:
                 pkl.dump(sol_dict, open(save_sol_path, "wb"))
 
         model_solved_class = model_solved(
+            model=self,
+            params=params,
             value=sol_dict["value"],
             policy=sol_dict["policy"],
             endog_grid=sol_dict["endog_grid"],
-            model_config=self.model_config,
-            model_structure=self.model_structure,
-            model_funcs=self.model_funcs,
-            model_specs=self.model_specs,
-            params=params_processed,
-            alternative_sim_funcs=self.alternative_sim_funcs,
         )
         return model_solved_class
 
