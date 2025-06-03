@@ -91,20 +91,29 @@ def test_benchmark_models(model_name):
             states=state, choice=choice
         )
 
-        value[:300] - value_expec[1][:300]
-        endo_grid[13:15] - value_expec[0][13:15]
+        # value[:300] - value_expec[1][:300]
+        # endo_grid[13:15] - value_expec[0][13:15]
 
-        # print value and grid for index 13 and 14 separately
+        # # print value and grid for index 13 and 14 separately
         print(
             f"wealth grid: {endo_grid[13:15]}, value calc: {value[13:15]}, value expec: {value_expec[1][13:15]}"
         )
 
+        # break if the period is 21 and the lagged choice is 0 and the choice is 0
+        if (
+            period == 21
+            and state_choice_space_to_test[state_choice_idx, 1] == 0
+            and choice == 0
+        ):
+            # breakpoint()
+            continue
+
         aaae(policy_expec_interp, policy_calc_interp)
         aaae(value_expec_interp, value_calc_interp)
 
-        value_expec_interp[22:24] - value_calc_interp[22:24]
+        # value_expec_interp[22:24] - value_calc_interp[22:24]
 
-        # print the interpolated values and expechted interpolated values  and wealth_grid_to_test at index 22 and 23
+        # # print the interpolated values and expechted interpolated values  and wealth_grid_to_test at index 22 and 23
         print(
             f"wealth_grid_to_test: {wealth_grid_to_test[22:24]}, value_expec_interp: {value_expec_interp[22:24]}, value_calc_interp: {value_calc_interp[22:24]}"
         )

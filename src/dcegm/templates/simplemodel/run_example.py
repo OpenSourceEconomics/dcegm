@@ -104,11 +104,6 @@ for k, taste_shock_scale in enumerate(
         state_dict, choice
     )
 
-    # # load pre upper envelope solution (endog_grid.pickle, policy.pickle, value.pickle)
-    # endog_grid = pd.read_pickle("pickle/pre_ue_endog_grid_choice0_lagged0_period4.pickle")
-    # policy = pd.read_pickle("pickle/pre_ue_policy_choice0_lagged0_period4.pickle")
-    # value = pd.read_pickle("pickle/pre_ue_value_choice0_lagged0_period4.pickle")
-
     # Plot consumption policy
     axes[0].plot(
         endog_grid,
