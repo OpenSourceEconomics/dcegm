@@ -176,7 +176,7 @@ def create_state_choice_space_and_child_state_mapping(
                         key: invalid_child_state_example[i]
                         for i, key in enumerate(discrete_states_names)
                     }
-                    raise IndexError(
+                    raise Warning(
                         f"\n\n The state \n\n{invalid_child_state_dict}\n\n is a child state of "
                         f"the state \n\n{this_period_state}\n\n with choice: {choice}.\n\n "
                         f"It is also declared invalid by the sparsity condition. Please "
@@ -290,7 +290,7 @@ def test_child_state_mapping(
             key: not_child_state_example[i]
             for i, key in enumerate(discrete_states_names)
         }
-        raise ValueError(
+        raise Warning(
             f"\n\n\n\n Some states are not child states of any state-choice "
             f"combination or stochastic transition. Please revisit the sparsity condition. \n \n"
             f"An example of a state that is not a child state is: \n \n"
