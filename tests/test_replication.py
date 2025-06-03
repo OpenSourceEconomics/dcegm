@@ -101,7 +101,7 @@ def test_benchmark_models(model_name):
 
         # break if the period is 21 and the lagged choice is 0 and the choice is 0
         if (
-            period == 21
+            period == 20
             and state_choice_space_to_test[state_choice_idx, 1] == 0
             and choice == 0
         ):

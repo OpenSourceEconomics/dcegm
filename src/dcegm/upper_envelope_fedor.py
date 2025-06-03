@@ -68,6 +68,16 @@ def upper_envelope(
             function have been added. Shape (2, 1.1 * n_grid_wealth).
 
     """
+
+    # if state_choice_vec["period"] == 21 and state_choice_vec["lagged_choice"] == 0 and state_choice_vec["choice"] == 0:
+    #     breakpoint()
+
+    # # plot scatter using matplotlib value[1][10:20] over value[0][10:20] label the points 1, 2, 3 ...
+    # import matplotlib.pyplot as plt
+    # plt.scatter(value[0, 0:41], value[1, 0:41])
+    # [plt.text(value[0, i], value[1, i], str(i)) for i in range(0, 41)]
+    # plt.show()
+
     n_grid_wealth = len(policy[0, :])
     min_wealth_grid = np.min(value[0, 1:])
     credit_constr = False
@@ -98,6 +108,11 @@ def upper_envelope(
 
     if len(segments_non_mono) > 1:
         _value_refined, points_to_add = compute_upper_envelope(segments_non_mono)
+
+        # plt.scatter(_value_refined[0, 0:41], _value_refined[1, 0:41])
+        # [plt.text(_value_refined[0, i], _value_refined[1, i], str(i)) for i in range(0, 41)]
+        # plt.show()
+
         index_dominated_points = find_dominated_points(
             value, _value_refined, significance=10
         )
@@ -225,7 +240,6 @@ def compute_upper_envelope(
             given non-monotonous segment.
     Returns:
         (tuple) Tuple containing:
-
         - points_upper_env_refined (np.ndarray): Array containing the *refined*
             endogenous wealth grid and the corresponding value function.
             *refined* means suboptimal points have been dropped and the kink points
@@ -239,7 +253,6 @@ def compute_upper_envelope(
             Shape (2, *n_intersect_points*), where *n_intersect_points* is the number of
             intersection points between the two uppermost segments
             (i.e. ``first_segment`` and ``second_segment``).
-
     """
     endog_wealth_grid = np.unique(
         np.concatenate([segments[arr][0] for arr in range(len(segments))])
@@ -253,10 +266,8 @@ def compute_upper_envelope(
             x_new=endog_wealth_grid,
             missing_value=-np.inf,
         )
-    # values_interp has in each row the corresponding values of the upper curve
-    # in the overlapping seg
 
-    max_values_interp = np.tile(values_interp.max(axis=0), (3, 1))  # need this below
+    max_values_interp = np.tile(values_interp.max(axis=0), (3, 1))
     top_segments = values_interp == max_values_interp[0, :]
 
     grid_points_upper_env = [endog_wealth_grid[0]]
@@ -267,7 +278,6 @@ def compute_upper_envelope(
     move_right = True
 
     while move_right:
-        # Index of top segment, starting at first (left-most) grid point
         index_first_segment = np.where(top_segments[:, 0])[0][0]
 
         for i in range(1, len(endog_wealth_grid)):
@@ -279,6 +289,7 @@ def compute_upper_envelope(
                 first_grid_point = endog_wealth_grid[i - 1]
                 second_grid_point = endog_wealth_grid[i]
 
+                # Interpolate values at the grid points to define the line segments
                 values_first_segment = (
                     _linear_interpolation_with_inserting_missing_values(
                         x=segments[first_segment][0],
@@ -301,53 +312,51 @@ def compute_upper_envelope(
                         np.vstack([values_first_segment, values_second_segment])
                     )
                 ) and np.all(np.abs(values_first_segment - values_second_segment) > 0):
-                    intersect_point = root(
-                        _subtract_values,
-                        first_grid_point,
-                        second_grid_point,
-                        args=(
-                            segments[first_segment],
-                            segments[second_segment],
-                        ),
+                    # Define the line segments for intersection
+                    seg1 = np.array(
+                        [[first_grid_point, second_grid_point], values_first_segment]
                     )
-                    value_intersect = (
-                        _linear_interpolation_with_inserting_missing_values(
-                            x=segments[first_segment][0],
-                            y=segments[first_segment][1],
-                            x_new=np.array([intersect_point]),
-                            missing_value=np.nan,
-                        )[0]
+                    seg2 = np.array(
+                        [[first_grid_point, second_grid_point], values_second_segment]
                     )
 
-                    values_all_segments = np.empty((len(segments), 1))
-                    for segment in range(len(segments)):
-                        values_all_segments[segment] = (
-                            _linear_interpolation_with_inserting_missing_values(
-                                x=segments[segment][0],
-                                y=segments[segment][1],
-                                x_new=np.array([intersect_point]),
-                                missing_value=-np.inf,
-                            )[0]
+                    try:
+                        # Use closed-form solution to find intersection
+                        intersect_point, value_intersect = _intersection_closed_form(
+                            seg1, seg2
                         )
 
-                    index_max_value_intersect = np.where(
-                        values_all_segments == values_all_segments.max(axis=0)
-                    )[0][0]
+                        # Verify the intersection lies within the segment bounds
+                        if first_grid_point <= intersect_point <= second_grid_point:
+                            values_all_segments = np.empty((len(segments), 1))
+                            for segment in range(len(segments)):
+                                values_all_segments[segment] = (
+                                    _linear_interpolation_with_inserting_missing_values(
+                                        x=segments[segment][0],
+                                        y=segments[segment][1],
+                                        x_new=np.array([intersect_point]),
+                                        missing_value=-np.inf,
+                                    )[0]
+                                )
 
-                    if (index_max_value_intersect == first_segment) | (
-                        index_max_value_intersect == second_segment
-                    ):
-                        # There are no other functions above
-                        grid_points_upper_env.append(intersect_point)
-                        values_upper_env.append(value_intersect)
+                            index_max_value_intersect = np.where(
+                                values_all_segments == values_all_segments.max(axis=0)
+                            )[0][0]
 
-                        intersect_points_upper_env.append(intersect_point)
-                        values_intersect_upper_env.append(value_intersect)
+                            if (index_max_value_intersect == first_segment) | (
+                                index_max_value_intersect == second_segment
+                            ):
+                                grid_points_upper_env.append(intersect_point)
+                                values_upper_env.append(value_intersect)
+                                intersect_points_upper_env.append(intersect_point)
+                                values_intersect_upper_env.append(value_intersect)
 
-                        if second_segment == index_second_segment:
-                            move_right = False
+                                if second_segment == index_second_segment:
+                                    move_right = False
+                    except ValueError:
+                        # Skip if segments are parallel or do not intersect
+                        pass
 
-            # Add point if it lies currently on the highest segment
             if (
                 any(abs(segments[index_second_segment][0] - endog_wealth_grid[i]) < EPS)
                 is True
@@ -715,3 +724,34 @@ def _linear_interpolation_with_inserting_missing_values(x, y, x_new, missing_val
     interpol_res[where_to_miss] = missing_value
 
     return interpol_res
+
+
+def _intersection_closed_form(seg1, seg2):
+    """Finds the intersection point of two line segments in 2D space.
+
+    Args:
+        seg1 (np.ndarray): First segment defined by two points, shape (2, 2).
+        seg2 (np.ndarray): Second segment defined by two points, shape (2, 2).
+    Returns:
+        (float, float): The x and y coordinates of the intersection point.
+    Raises:
+        ValueError: If the segments are parallel or do not intersect.
+
+    """
+    x1, x2 = seg1[0]
+    y1, y2 = seg1[1]
+    x3, x4 = seg2[0]
+    y3, y4 = seg2[1]
+
+    m1 = (y2 - y1) / (x2 - x1)
+    b1 = y1 - m1 * x1
+    m2 = (y4 - y3) / (x4 - x3)
+    b2 = y3 - m2 * x3
+
+    if np.isclose(m1, m2):
+        raise ValueError("Segments are parallel, no unique intersection.")
+
+    x_intersect = (b2 - b1) / (m1 - m2)
+    y_intersect = m1 * x_intersect + b1
+
+    return x_intersect, y_intersect
