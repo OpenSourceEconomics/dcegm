@@ -86,34 +86,34 @@ def test_benchmark_models(model_name):
                 choice=choice,
             )
         )
-
+        #
         endo_grid, policy, value = model_solved.get_solution_for_discrete_state_choice(
             states=state, choice=choice
         )
-
-        # value[:300] - value_expec[1][:300]
-        # endo_grid[13:15] - value_expec[0][13:15]
-
-        # # print value and grid for index 13 and 14 separately
-        print(
-            f"wealth grid: {endo_grid[13:15]}, value calc: {value[13:15]}, value expec: {value_expec[1][13:15]}"
-        )
-
-        # break if the period is 21 and the lagged choice is 0 and the choice is 0
-        if (
-            period == 20
-            and state_choice_space_to_test[state_choice_idx, 1] == 0
-            and choice == 0
-        ):
-            # breakpoint()
-            continue
+        #
+        # # value[:300] - value_expec[1][:300]
+        # # endo_grid[13:15] - value_expec[0][13:15]
+        #
+        # # # print value and grid for index 13 and 14 separately
+        # print(
+        #     f"wealth grid: {endo_grid[13:15]}, value calc: {value[13:15]}, value expec: {value_expec[1][13:15]}"
+        # )
+        #
+        # # break if the period is 21 and the lagged choice is 0 and the choice is 0
+        # if (
+        #     period == 20
+        #     and state_choice_space_to_test[state_choice_idx, 1] == 0
+        #     and choice == 0
+        # ):
+        #     # breakpoint()
+        #     continue
 
         aaae(policy_expec_interp, policy_calc_interp)
         aaae(value_expec_interp, value_calc_interp)
 
         # value_expec_interp[22:24] - value_calc_interp[22:24]
-
-        # # print the interpolated values and expechted interpolated values  and wealth_grid_to_test at index 22 and 23
-        print(
-            f"wealth_grid_to_test: {wealth_grid_to_test[22:24]}, value_expec_interp: {value_expec_interp[22:24]}, value_calc_interp: {value_calc_interp[22:24]}"
-        )
+        #
+        # # # print the interpolated values and expechted interpolated values  and wealth_grid_to_test at index 22 and 23
+        # print(
+        #     f"wealth_grid_to_test: {wealth_grid_to_test[22:24]}, value_expec_interp: {value_expec_interp[22:24]}, value_calc_interp: {value_calc_interp[22:24]}"
+        # )

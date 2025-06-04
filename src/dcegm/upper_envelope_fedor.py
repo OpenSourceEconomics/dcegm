@@ -21,7 +21,7 @@ def upper_envelope(
     params: Dict[str, float],
     compute_utility: Callable,
     expected_value_zero_assets: float,
-) -> Tuple[np.ndarray, np.ndarray]:
+):
     """Runs the Upper Envelope algorithm and drops sub-optimal points.
     Calculates the upper envelope over the overlapping segments of the
     decision-specific value functions, which in fact are value "correspondences"
@@ -59,15 +59,6 @@ def upper_envelope(
         compute_value (callable): Function to compute the agent's value.
 
     Returns:
-        (tuple) Tuple containing
-        - policy_refined (np.ndarray): Worker's *refined* (consumption) policy
-            function of the current period, where suboptimal points have been dropped
-            and the kink points along with the corresponding interpolated values of
-            the policy function have been added. Shape (2, 1.1 * n_grid_wealth).
-        - value_refined (np.ndarray): Worker's *refined* value function of the
-            current period, where suboptimal points have been dropped and the kink
-            points along with the corresponding interpolated values of the value
-            function have been added. Shape (2, 1.1 * n_grid_wealth).
 
     """
 
@@ -113,7 +104,9 @@ def upper_envelope(
         segments_non_mono = locate_non_concave_regions(value)
 
     if len(segments_non_mono) > 1:
-        _value_refined, points_to_add = compute_upper_envelope(segments_non_mono)
+        _value_refined, points_to_add = compute_upper_envelope(
+            segments_non_mono, state_choice_vec["period"]
+        )
 
         # plt.scatter(_value_refined[0, 0:41], _value_refined[1, 0:41])
         # [plt.text(_value_refined[0, i], _value_refined[1, i], str(i)) for i in range(0, 41)]
@@ -141,7 +134,7 @@ def upper_envelope(
             idx_insert = (np.where(value_refined[0, :] < intersect_point)[0]).max()
             value_refined = np.insert(
                 value_refined,
-                idx_insert,
+                idx_insert + 1,
                 points_to_add[:, id_intersect],
                 axis=1,
             )
@@ -149,17 +142,28 @@ def upper_envelope(
         value_refined = value
         policy_refined = policy
 
+    if credit_constr:
+        value_final = value_refined[1, :]
+    else:
+        value_final = np.append(expected_value_zero_assets, value_refined[1, :])
+
+    endog_grid_final = np.append(0.0, policy_refined[0, :])
+    policy_final = np.append(0.0, policy_refined[1, :])
+
     # Fill array with nans to fit 10% extra grid points,
     # as the true shape is unknown ex ante
-    policy_refined_with_nans = np.empty((2, int(1.1 * n_grid_wealth)))
-    value_refined_with_nans = np.empty((2, int(1.1 * n_grid_wealth)))
-    policy_refined_with_nans[:] = np.nan
-    value_refined_with_nans[:] = np.nan
+    endog_grid = np.empty(int(1.1 * n_grid_wealth))
+    endog_grid[:] = np.nan
+    policy = np.empty(int(1.1 * n_grid_wealth))
+    policy[:] = np.nan
+    value = np.empty(int(1.1 * n_grid_wealth))
+    value[:] = np.nan
 
-    policy_refined_with_nans[:, : policy_refined.shape[1]] = policy_refined
-    value_refined_with_nans[:, : value_refined.shape[1]] = value_refined
+    endog_grid[: len(endog_grid_final)] = endog_grid_final
+    policy[: len(policy_final)] = policy_final
+    value[: len(value_final)] = value_final
 
-    return policy_refined_with_nans, value_refined_with_nans
+    return endog_grid, policy, value
 
 
 def locate_non_concave_regions(
@@ -236,7 +240,7 @@ def locate_non_concave_regions(
 
 
 def compute_upper_envelope(
-    segments: List[np.ndarray],
+    segments: List[np.ndarray], period
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Compute upper envelope and refines value function correspondence.
     The upper envelope algorithm detects suboptimal points in the value function
@@ -380,14 +384,14 @@ def compute_upper_envelope(
 
             index_first_segment = index_second_segment
 
-        n_intersect_upper_envelope = len(intersect_points_upper_env)
-        points_to_add = np.empty((2, n_intersect_upper_envelope))
-        points_to_add[0] = intersect_points_upper_env
-        points_to_add[1] = values_intersect_upper_env
+    n_intersect_upper_envelope = len(intersect_points_upper_env)
+    points_to_add = np.empty((2, n_intersect_upper_envelope))
+    points_to_add[0] = intersect_points_upper_env
+    points_to_add[1] = values_intersect_upper_env
 
-        points_upper_env_refined = np.empty((2, len(grid_points_upper_env)))
-        points_upper_env_refined[0, :] = grid_points_upper_env
-        points_upper_env_refined[1, :] = values_upper_env
+    points_upper_env_refined = np.empty((2, len(grid_points_upper_env)))
+    points_upper_env_refined[0, :] = grid_points_upper_env
+    points_upper_env_refined[1, :] = values_upper_env
 
     return points_upper_env_refined, points_to_add
 
