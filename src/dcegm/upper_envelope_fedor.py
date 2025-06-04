@@ -128,7 +128,7 @@ def upper_envelope(
                 [
                     np.array([[0], [expected_value_zero_wealth]]),
                     _value_refined,
-                ]  ## TODO why [0] not [min_wealth_grid]?
+                ]
             )
         else:
             value_refined = _value_refined
@@ -200,7 +200,12 @@ def locate_non_concave_regions(
     """
     segments_non_mono = []
 
-    is_monotonic = value[0, 1:] > value[0, :-1]
+    is_monotonic = value[0, 1:] > value[0, :-1]  # compare t and t-1 point wise
+
+    if is_monotonic[0] != True:
+        # If the first point is not monotonic, we need to add it to the segments
+        # breakpoint()
+        pass
 
     niter = 0
     move_right = True
@@ -529,7 +534,8 @@ def refine_policy(
         endog_wealth_grid = np.insert(
             endog_wealth_grid,
             index_insert + 1,
-            new_points_policy_interp[to_add][0] - 0.001 * 2.2204e-16,
+            new_points_policy_interp[to_add][0]
+            - 0.001 * 2.2204e-16,  # TODO: why not 0?
         )
 
         # 2a) Add new optimal consumption point, interpolated from the left
@@ -662,20 +668,6 @@ def _partition_grid(
     part_two = np.vstack([value_correspondence[0, j:], value_correspondence[1, j:]])
 
     return part_one, part_two
-
-
-def _subtract_values(grid_point: float, first_segment, second_segment):
-    """Subtracts the interpolated values of the two uppermost segments."""
-    values_first_segment = _linear_interpolation_with_extrapolation(
-        x=first_segment[0], y=first_segment[1], x_new=grid_point
-    )
-    values_second_segment = _linear_interpolation_with_extrapolation(
-        x=second_segment[0], y=second_segment[1], x_new=grid_point
-    )
-
-    diff_values_segments = values_first_segment - values_second_segment
-
-    return diff_values_segments
 
 
 def _linear_interpolation_with_extrapolation(x, y, x_new):

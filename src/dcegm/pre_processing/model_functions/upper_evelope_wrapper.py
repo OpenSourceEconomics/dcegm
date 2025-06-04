@@ -160,14 +160,14 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                 not_nan_fues = np.isfinite(endog_grid_fues)
 
                 # print value fedor and fues index 13 and 14
-                print(
-                    f"fedor: {endog_grid_fedor[13:17]}, {value_fedor[13:17]}, fues: {endog_grid_fues[13:17]}, {value_fues[13:17]}"
-                )
+                # print(
+                #     f"fedor: {endog_grid_fedor[13:17]}, {value_fedor[13:17]}, fues: {endog_grid_fues[13:17]}, {value_fues[13:17]}"
+                # )
 
-                # now just the difference between the two
-                print(
-                    f"fedor - fues: {endog_grid_fedor[13:17] - endog_grid_fues[13:17]}, {value_fedor[13:17] - value_fues[13:17]}"
-                )
+                # # now just the difference between the two
+                # print(
+                #     f"fedor - fues: {endog_grid_fedor[13:17] - endog_grid_fues[13:17]}, {value_fedor[13:17] - value_fues[13:17]}"
+                # )
 
                 # # remove values at index 15 from fues
                 # endog_grid_fues = np.delete(endog_grid_fues, 15)
