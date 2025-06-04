@@ -109,6 +109,7 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                     state_choice_vec=state_choice_dict,
                     params=params,
                     compute_utility=utility_function,
+                    expected_value_zero_assets=expected_value_zero_assets,
                 )
                 n_nans_policy = (np.isnan(policy_sol[0, :])).sum()
                 n_nans_value = (np.isnan(value_sol[0, :])).sum()

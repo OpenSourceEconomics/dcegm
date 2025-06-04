@@ -8,9 +8,10 @@ https://github.com/fediskhakov/dcegm/blob/master/model_retirement.m
 from typing import Callable, Dict, List, Tuple
 
 import numpy as np
-from scipy.optimize import brenth as root
 
-EPS = 2.2204e-16
+# from scipy.optimize import brenth as root
+
+EPS = 2e-10
 
 
 def upper_envelope(
@@ -19,6 +20,7 @@ def upper_envelope(
     state_choice_vec: Dict,
     params: Dict[str, float],
     compute_utility: Callable,
+    expected_value_zero_assets: float,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Runs the Upper Envelope algorithm and drops sub-optimal points.
     Calculates the upper envelope over the overlapping segments of the
@@ -82,6 +84,7 @@ def upper_envelope(
     min_wealth_grid = np.min(value[0, 1:])
     credit_constr = False
 
+    # standard case, no segment bending back further than the first point
     if value[0, 1] <= min_wealth_grid:
         segments_non_mono = locate_non_concave_regions(value)
     else:
@@ -92,8 +95,11 @@ def upper_envelope(
         # so we just need to add some points to the left of the first grid point.
 
         credit_constr = True
-        expected_value_zero_wealth = value[1, 0]
+        expected_value_zero_wealth = expected_value_zero_assets
+        # if grid starts at 0, this is the value at zero wealth otherwise
+        # it is the value at the minimum of the wealth grid / begin of period assets grid.
 
+        ## add 10% more points to the left of the first grid point for even size, can introduce some bunching, but computationally efficient
         policy, value = _augment_grid(
             policy,
             value,
@@ -119,7 +125,10 @@ def upper_envelope(
 
         if credit_constr:
             value_refined = np.hstack(
-                [np.array([[0], [expected_value_zero_wealth]]), _value_refined]
+                [
+                    np.array([[0], [expected_value_zero_wealth]]),
+                    _value_refined,
+                ]  ## TODO why [0] not [min_wealth_grid]?
             )
         else:
             value_refined = _value_refined
@@ -383,44 +392,51 @@ def find_dominated_points(
     value_refined: np.ndarray,
     significance: int = 10,
 ) -> np.ndarray:
-    """Returns indexes of dominated points in the value function correspondence.
+    """Returns indices of dominated points in the value function correspondence.
 
-    Equality is measured up to 10**(-``significance``).
+    Points are considered dominated if their grid or value differs significantly
+    from all points in the refined set, based on a tolerance of 10**(-significance).
+
     Args:
-        value_correspondence (np.ndarray):  Array storing the choice-specific
-            value function correspondences. Shape (2, n_endog_wealth_grid), where
-            n_endog_wealth_grid is of variable length depending on the number of
-            kinks and non-concave regions in the value function.
-            In the presence of kinks, the value function is a correspondence
-            rather than a function due to non-concavities.
-        value_refined (np.ndarray): Array of refined value function, where
-            suboptimal points have been dropped and kink points along with the
-            corresponding interpolated values of the value function have been added.
-            Shape (2, n_grid_refined), where n_grid_refined is the length of
-            the refined endogenous grid.
-        significance (float): Level of significance. Equality is measured up to
-            10**(-``significance``).
+        value_correspondence (jnp.ndarray): Array of shape (2, n_endog_wealth_grid)
+            storing choice-specific value function correspondences.
+        value_refined (jnp.ndarray): Array of shape (2, n_grid_refined) storing
+            the refined value function with suboptimal points dropped and kink points added.
+        significance (int): Level of significance for comparison tolerance (default: 10).
 
     Returns:
-        index_dominated_points (np.ndarray): Array of shape (n_dominated_points,)
-            containing the indices of dominated points in the endogenous wealth grid,
-            where n_dominated_points is of variable length.
+        index_dominated_points (jnp.ndarray): Array of shape (n_dominated_points,)
+            containing indices of dominated points.
 
     """
-    sig_pos = 10**significance
-    sig_neg = 10 ** (-significance)
+    # Tolerance for numerical comparison
+    tol = 2 * 10 ** (-significance)
 
-    grid_all = np.round(value_correspondence[0, :] * sig_pos) * sig_neg
-    grid_refined_sig = np.round(value_refined[0, :] * sig_pos) * sig_neg
+    # Extract grid and value arrays
+    grid_all = value_correspondence[0, :]
+    value_all = value_correspondence[1, :]
+    grid_refined = value_refined[0, :]
+    value_refined = value_refined[1, :]
 
-    value_all = np.round(value_correspondence[1, :] * sig_pos) * sig_neg
-    value_refined_sig = np.round(value_refined[1, :] * sig_pos) * sig_neg
-
+    # Initialize index array
     index_all = np.arange(len(grid_all))
-    index_dominated_points = np.union1d(
-        index_all[~np.isin(grid_all, grid_refined_sig)],
-        index_all[~np.isin(value_all, value_refined_sig)],
-    )
+
+    # Compute differences using broadcasting
+    grid_diff = np.abs(
+        grid_all[:, None] - grid_refined[None, :]
+    )  # Shape: (n_all, n_refined)
+    value_diff = np.abs(
+        value_all[:, None] - value_refined[None, :]
+    )  # Shape: (n_all, n_refined)
+
+    # A point is non-dominated if there exists a refined point where both
+    # grid and value differences are within tolerance
+    is_non_dominated = np.any(
+        (grid_diff < tol) & (value_diff < tol), axis=1
+    )  # Shape: (n_all,)
+
+    # Dominated points are those that are not non-dominated
+    index_dominated_points = index_all[~is_non_dominated]
 
     return index_dominated_points
 
