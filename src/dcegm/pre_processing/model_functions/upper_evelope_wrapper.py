@@ -1,5 +1,3 @@
-import matplotlib.pyplot as plt
-import numpy as np
 from jax import numpy as jnp
 from upper_envelope import fues_jax
 
@@ -68,6 +66,8 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                     n_points_to_scan=tuning_params["fues_n_points_to_scan"],
                 )
 
+            # Here UE Fedor TODO
+
         else:
 
             def compute_upper_envelope(
@@ -119,14 +119,14 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                 # )
 
                 return upper_envelope(
-                    egm_endog_grid=endog_grid,
+                    endog_grid=endog_grid,
                     policy=policy,
                     value=value,
-                    state_choice_vec=state_choice_dict,
+                    state_choice_dict=state_choice_dict,
                     params={**params, "beta": discount_factor},
                     compute_utility=utility_function,
                     expected_value_zero_assets=expected_value_zero_assets,
-                    n_final_asset_grid=tuning_params["n_total_wealth_grid"],
+                    final_grid_size=tuning_params["n_total_wealth_grid"],
                 )
 
     return compute_upper_envelope

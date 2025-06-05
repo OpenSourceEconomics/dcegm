@@ -79,8 +79,8 @@ def debug_plot_overlay(policy_expec, value_expec, policy_calc, value_calc):
     "model_name",
     [
         "retirement_no_shocks",
-        # "retirement_with_shocks",
-        # "deaton",
+        "retirement_with_shocks",
+        "deaton",
     ],
 )
 def test_benchmark_models(model_name):
