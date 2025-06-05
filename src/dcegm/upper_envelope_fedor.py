@@ -65,12 +65,6 @@ def upper_envelope(
     # if state_choice_vec["period"] == 21 and state_choice_vec["lagged_choice"] == 0 and state_choice_vec["choice"] == 0:
     #     breakpoint()
 
-    # # plot scatter using matplotlib value[1][10:20] over value[0][10:20] label the points 1, 2, 3 ...
-    # import matplotlib.pyplot as plt
-    # plt.scatter(value[0, 0:41], value[1, 0:41])
-    # [plt.text(value[0, i], value[1, i], str(i)) for i in range(0, 41)]
-    # plt.show()
-
     n_grid_wealth = len(policy[0, :])
     min_wealth_grid = np.min(value[0, 1:])
     credit_constr = False
@@ -86,6 +80,35 @@ def upper_envelope(
         # so we just need to add some points to the left of the first grid point.
 
         credit_constr = True
+
+        # def debug_plot(double_array):
+        #     import matplotlib.pyplot as plt
+        #     mask = (double_array[0, :] >= 5.42) & (double_array[0, :] <= 10)
+        #     indices = np.where(mask & (np.arange(double_array.shape[1]) < 71))[0]
+
+        #     # Plot line connecting the points in order of `indices`
+        #     plt.plot(double_array[0, indices], double_array[1, indices], linestyle='-', color='gray', alpha=0.6)
+
+        #     # Plot the individual points
+        #     plt.scatter(double_array[0, indices], double_array[1, indices], color='blue')
+
+        #     # Add index labels
+        #     for i in indices:
+        #         plt.text(double_array[0, i], double_array[1, i], str(i), fontsize=8, ha='right', va='bottom')
+
+        #     plt.show()
+        # # debug_plot(value)
+        # (Pdb++) wealth_grid_to_test[4:6]
+        # Array([5.44480444, 5.51098448], dtype=float64)
+        # (Pdb++) policy_expec_interp[4:6]
+        # Array([5.40674895, 5.4176808 ], dtype=float64)
+        # (Pdb++) policy_calc_interp[4:6]
+        # Array([5.44480444, 5.51098448], dtype=float64)
+        # (Pdb++) value_expec_interp[4:6]
+        # Array([3.76990056, 3.77236547], dtype=float64)
+        # (Pdb++) value_calc_interp[4:6]
+        # Array([3.76989006, 3.77229137], dtype=float64)
+        # breakpoint()
         expected_value_zero_wealth = expected_value_zero_assets
         # if grid starts at 0, this is the value at zero wealth otherwise
         # it is the value at the minimum of the wealth grid / begin of period assets grid.
@@ -108,8 +131,8 @@ def upper_envelope(
             segments_non_mono, state_choice_vec["period"]
         )
 
-        # plt.scatter(_value_refined[0, 0:41], _value_refined[1, 0:41])
-        # [plt.text(_value_refined[0, i], _value_refined[1, i], str(i)) for i in range(0, 41)]
+        # plt.scatter(_value_refined[0, 0:71], _value_refined[1, 0:71])
+        # [plt.text(_value_refined[0, i], _value_refined[1, i], str(i)) for i in range(0, 71)]
         # plt.show()
 
         index_dominated_points = find_dominated_points(
