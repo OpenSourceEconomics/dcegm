@@ -143,6 +143,7 @@ def transition_to_next_period(
     choice,
     params,
     model_funcs_sim,
+    read_funcs,
     sim_keys,
 ):
     n_agents = assets_end_of_period.shape[0]
@@ -182,12 +183,15 @@ def transition_to_next_period(
             discrete_states_beginning_of_period[key].dtype
         )
 
+    income_shock_std = read_funcs["income_shock_std"](params)
+    income_shock_mean = read_funcs["income_shock_mean"](params)
+
     # Draw income shocks.
     income_shocks_next_period = draw_normal_shocks(
         key=sim_keys["income_shock_keys"],
         num_agents=n_agents,
-        mean=0,
-        std=params["income_shock_std"],
+        mean=income_shock_mean,
+        std=income_shock_std,
     )
 
     next_period_wealth = model_funcs_sim["compute_assets_begin_of_period"]

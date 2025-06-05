@@ -70,6 +70,16 @@ def test_sim_and_sol_model(model_configs):
     )
     params["married_util"] = 0.5
 
+    # We also test in this test if the stochastic shock parameters can be passed in model_specs
+    standard_params = [
+        "income_shock_std",
+        "income_shock_mean",
+        "taste_shock_scale",
+    ]
+    for param in standard_params:
+        model_specs[param] = params[param]
+        del params[param]
+
     model_funcs = toy_models.load_example_model_functions("dcegm_paper")
     utility_functions = model_funcs["utility_functions"]
     utility_functions["utility"] = utility_crra

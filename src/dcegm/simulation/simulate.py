@@ -221,6 +221,7 @@ def simulate_single_period(
         choice=choice,
         params=params,
         model_funcs_sim=model_funcs_sim,
+        read_funcs=read_funcs,
         sim_keys=sim_keys,
     )
 
