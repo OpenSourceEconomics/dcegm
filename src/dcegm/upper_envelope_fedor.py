@@ -11,7 +11,7 @@ import numpy as np
 
 # from scipy.optimize import brenth as root
 
-EPS = 2e-10
+EPS = 2e-16
 
 
 def upper_envelope(
@@ -62,15 +62,33 @@ def upper_envelope(
 
     """
 
-    # if state_choice_vec["period"] == 21 and state_choice_vec["lagged_choice"] == 0 and state_choice_vec["choice"] == 0:
-    #     breakpoint()
+    # def debug_plot(double_array, left_bound=4, right_bound=10):
+    #     import matplotlib.pyplot as plt
+    #     mask = (double_array[0, :] >= left_bound) & (double_array[0, :] <= right_bound)
+    #     indices = np.where(mask & (np.arange(double_array.shape[1]) < 71))[0]
+
+    #     # Plot line connecting the points in order of `indices`
+    #     plt.plot(double_array[0, indices], double_array[1, indices], linestyle='-', color='gray', alpha=0.6)
+
+    #     # Plot the individual points
+    #     plt.scatter(double_array[0, indices], double_array[1, indices], color='blue')
+
+    #     # Add index labels
+    #     for i in indices:
+    #         plt.text(double_array[0, i], double_array[1, i], str(i), fontsize=8, ha='right', va='bottom')
+
+    #     plt.show()
+    # debug_plot(value)
+
+    # if state_choice_vec["period"] == 4 and state_choice_vec["lagged_choice"] == 0 and state_choice_vec["choice"] == 0:
+    #      breakpoint()
 
     n_grid_wealth = len(policy[0, :])
     min_wealth_grid = np.min(value[0, 1:])
     credit_constr = False
 
     # standard case, no segment bending back further than the first point
-    if value[0, 1] <= min_wealth_grid:
+    if value[0, 0] <= min_wealth_grid:
         segments_non_mono = locate_non_concave_regions(value)
     else:
         # Non-concave region coincides with credit constraint.
@@ -81,37 +99,8 @@ def upper_envelope(
 
         credit_constr = True
 
-        # def debug_plot(double_array):
-        #     import matplotlib.pyplot as plt
-        #     mask = (double_array[0, :] >= 5.42) & (double_array[0, :] <= 10)
-        #     indices = np.where(mask & (np.arange(double_array.shape[1]) < 71))[0]
-
-        #     # Plot line connecting the points in order of `indices`
-        #     plt.plot(double_array[0, indices], double_array[1, indices], linestyle='-', color='gray', alpha=0.6)
-
-        #     # Plot the individual points
-        #     plt.scatter(double_array[0, indices], double_array[1, indices], color='blue')
-
-        #     # Add index labels
-        #     for i in indices:
-        #         plt.text(double_array[0, i], double_array[1, i], str(i), fontsize=8, ha='right', va='bottom')
-
-        #     plt.show()
-        # # debug_plot(value)
-        # (Pdb++) wealth_grid_to_test[4:6]
-        # Array([5.44480444, 5.51098448], dtype=float64)
-        # (Pdb++) policy_expec_interp[4:6]
-        # Array([5.40674895, 5.4176808 ], dtype=float64)
-        # (Pdb++) policy_calc_interp[4:6]
-        # Array([5.44480444, 5.51098448], dtype=float64)
-        # (Pdb++) value_expec_interp[4:6]
-        # Array([3.76990056, 3.77236547], dtype=float64)
-        # (Pdb++) value_calc_interp[4:6]
-        # Array([3.76989006, 3.77229137], dtype=float64)
         # breakpoint()
         expected_value_zero_wealth = expected_value_zero_assets
-        # if grid starts at 0, this is the value at zero wealth otherwise
-        # it is the value at the minimum of the wealth grid / begin of period assets grid.
 
         ## add 10% more points to the left of the first grid point for even size, can introduce some bunching, but computationally efficient
         policy, value = _augment_grid(
@@ -130,13 +119,10 @@ def upper_envelope(
         _value_refined, points_to_add = compute_upper_envelope(
             segments_non_mono, state_choice_vec["period"]
         )
-
-        # plt.scatter(_value_refined[0, 0:71], _value_refined[1, 0:71])
-        # [plt.text(_value_refined[0, i], _value_refined[1, i], str(i)) for i in range(0, 71)]
-        # plt.show()
+        # debug_plot(_value_refined, left_bound=4, right_bound=10)
 
         index_dominated_points = find_dominated_points(
-            value, _value_refined, significance=10
+            value, _value_refined, significance=15
         )
 
         if credit_constr:
@@ -228,11 +214,6 @@ def locate_non_concave_regions(
     segments_non_mono = []
 
     is_monotonic = value[0, 1:] > value[0, :-1]  # compare t and t-1 point wise
-
-    if is_monotonic[0] != True:
-        # If the first point is not monotonic, we need to add it to the segments
-        # breakpoint()
-        pass
 
     niter = 0
     move_right = True
@@ -631,9 +612,7 @@ def _augment_grid(
 
     """
 
-    grid_points_to_add = np.linspace(min_wealth_grid, value[0, 1], n_grid_wealth // 10)[
-        :-1
-    ]
+    grid_points_to_add = np.linspace(min_wealth_grid, value[0, 0], n_grid_wealth // 10)
 
     utility = compute_utility(
         consumption=grid_points_to_add,

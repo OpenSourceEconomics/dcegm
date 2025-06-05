@@ -118,7 +118,7 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                 #     "discount_factor": discount_factor,
                 #     **state_choice_dict,
                 # }
-                #
+
                 # def value_function(
                 #     consumption,
                 #     expected_value_zero_assets,
@@ -132,7 +132,7 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                 #         )
                 #         + discount_factor * expected_value_zero_assets
                 #     )
-                #
+
                 # endog_grid_fues, policy_fues, value_fues = fues_jax(
                 #     endog_grid=endog_grid,
                 #     policy=policy,
@@ -184,7 +184,11 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                 #     policy_fedor[not_nan_fedor], policy_fues[not_nan_fues]
                 # )
                 # assert np.allclose(value_fedor[not_nan_fedor], value_fues[not_nan_fues])
-                return endog_grid_fedor, policy_fedor, value_fedor
+                return (
+                    endog_grid_fedor,
+                    policy_fedor,
+                    value_fedor,
+                )
 
     return compute_upper_envelope
 

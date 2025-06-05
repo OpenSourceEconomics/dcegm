@@ -17,6 +17,64 @@ TEST_DIR = Path(__file__).parent
 REPLICATION_TEST_RESOURCES_DIR = TEST_DIR / "resources" / "replication_tests"
 
 
+def debug_plot_overlay(policy_expec, value_expec, policy_calc, value_calc):
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5), sharex=True)
+
+    for ax, data_expec, data_calc, title in zip(
+        axes,
+        [policy_expec, value_expec],
+        [policy_calc, value_calc],
+        ["Policy Function", "Value Function"],
+    ):
+        mask = (data_expec[0, :] >= 0) & (data_expec[0, :] <= 50)
+        indices = np.where(mask & (np.arange(data_expec.shape[1]) < 501))[0]
+
+        # Plot expected
+        ax.plot(
+            data_expec[0, indices],
+            data_expec[1, indices],
+            linestyle="--",
+            color="blue",
+            label="Expected",
+            alpha=0.5,
+        )
+        ax.scatter(
+            data_expec[0, indices],
+            data_expec[1, indices],
+            color="blue",
+            s=50,
+            alpha=0.7,
+        )
+
+        # Plot calculated
+        ax.plot(
+            data_calc[0, indices],
+            data_calc[1, indices],
+            linestyle="-",
+            color="orange",
+            label="Calculated",
+            alpha=0.5,
+        )
+        ax.scatter(
+            data_calc[0, indices],
+            data_calc[1, indices],
+            color="orange",
+            s=25,
+            alpha=1,
+        )
+
+        ax.set_title(title)
+        ax.set_xlabel("Wealth")
+        ax.legend()
+
+    axes[0].set_ylabel("Policy / Value")
+    plt.tight_layout()
+    plt.show()
+
+
 @pytest.mark.parametrize(
     "model_name",
     [
@@ -90,23 +148,17 @@ def test_benchmark_models(model_name):
         endo_grid, policy, value = model_solved.get_solution_for_discrete_state_choice(
             states=state, choice=choice
         )
-        #
-        # # value[:300] - value_expec[1][:300]
-        # # endo_grid[13:15] - value_expec[0][13:15]
-        #
-        # # # print value and grid for index 13 and 14 separately
-        # print(
-        #     f"wealth grid: {endo_grid[13:15]}, value calc: {value[13:15]}, value expec: {value_expec[1][13:15]}"
-        # )
-        #
-        # # break if the period is 21 and the lagged choice is 0 and the choice is 0
-        # if (
-        #     period == 20
-        #     and state_choice_space_to_test[state_choice_idx, 1] == 0
-        #     and choice == 0
-        # ):
-        #     # breakpoint()
-        #     continue
+
+        # value_calc = jnp.vstack((endo_grid, value))
+        # policy_calc = jnp.vstack((endo_grid, policy))
+
+        # debug_plot_overlay(policy_expec, value_expec, policy_calc, value_calc)
+
+        # if period == 4 and choice == 0 and state_choice_space_to_test[state_choice_idx, -2] == 0:
+        #     value_calc = jnp.vstack((endo_grid, value))
+        #     policy_calc = jnp.vstack((endo_grid, policy))
+        #     debug_plot_overlay(policy_expec, value_expec, policy_calc, value_calc)
+        #     breakpoint()
 
         aaae(policy_expec_interp, policy_calc_interp)
         aaae(value_expec_interp, value_calc_interp)
