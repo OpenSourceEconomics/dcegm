@@ -144,28 +144,6 @@ def test_benchmark_models(model_name):
                 choice=choice,
             )
         )
-        #
-        endo_grid, policy, value = model_solved.get_solution_for_discrete_state_choice(
-            states=state, choice=choice
-        )
-
-        # value_calc = jnp.vstack((endo_grid, value))
-        # policy_calc = jnp.vstack((endo_grid, policy))
-
-        # debug_plot_overlay(policy_expec, value_expec, policy_calc, value_calc)
-
-        # if period == 4 and choice == 0 and state_choice_space_to_test[state_choice_idx, -2] == 0:
-        #     value_calc = jnp.vstack((endo_grid, value))
-        #     policy_calc = jnp.vstack((endo_grid, policy))
-        #     debug_plot_overlay(policy_expec, value_expec, policy_calc, value_calc)
-        #     breakpoint()
 
         aaae(policy_expec_interp, policy_calc_interp)
         aaae(value_expec_interp, value_calc_interp)
-
-        # value_expec_interp[22:24] - value_calc_interp[22:24]
-        #
-        # # # print the interpolated values and expechted interpolated values  and wealth_grid_to_test at index 22 and 23
-        # print(
-        #     f"wealth_grid_to_test: {wealth_grid_to_test[22:24]}, value_expec_interp: {value_expec_interp[22:24]}, value_calc_interp: {value_calc_interp[22:24]}"
-        # )

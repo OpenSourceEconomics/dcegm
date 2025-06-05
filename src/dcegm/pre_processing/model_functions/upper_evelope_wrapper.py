@@ -1,5 +1,3 @@
-import pickle
-
 import matplotlib.pyplot as plt
 import numpy as np
 from jax import numpy as jnp
@@ -17,6 +15,7 @@ def create_upper_envelope_function(model_config, continuous_state=None):
 
         if continuous_state:
 
+            # JAX FUES implementation
             def compute_upper_envelope(
                 endog_grid,
                 policy,
@@ -81,37 +80,8 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                 params,
                 discount_factor,
             ):
-                policy_two_dim = np.vstack((endog_grid, policy))
-                value_two_dim = np.vstack((endog_grid, value))
 
-                params["beta"] = discount_factor
-
-                # breakpoint()  # Set a breakpoint here to inspect the inputs
-
-                choice = state_choice_dict["choice"]
-                lagged_choice = state_choice_dict["lagged_choice"]
-                period = state_choice_dict["period"]
-
-                label = f"choice{choice}_lagged{lagged_choice}_period{period}"
-
-                # with open(f"pickle/pre_ue_policy_{label}.pickle", "wb") as f:
-                #     pickle.dump(policy, f)
-                #
-                # with open(f"pickle/pre_ue_value_{label}.pickle", "wb") as f:
-                #     pickle.dump(value, f)
-                #
-                # with open(f"pickle/pre_ue_endog_grid_{label}.pickle", "wb") as f:
-                #     pickle.dump(endog_grid, f)
-
-                endog_grid_fedor, policy_fedor, value_fedor = upper_envelope(
-                    policy=policy_two_dim,
-                    value=value_two_dim,
-                    state_choice_vec=state_choice_dict,
-                    params=params,
-                    compute_utility=utility_function,
-                    expected_value_zero_assets=expected_value_zero_assets,
-                )
-
+                ## JAX FUES implementation
                 # value_kwargs = {
                 #     "expected_value_zero_assets": expected_value_zero_assets,
                 #     "params": params,
@@ -133,7 +103,7 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                 #         + discount_factor * expected_value_zero_assets
                 #     )
 
-                # endog_grid_fues, policy_fues, value_fues = fues_jax(
+                # return fues_jax(
                 #     endog_grid=endog_grid,
                 #     policy=policy,
                 #     value=value,
@@ -147,47 +117,16 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                 #     jump_thresh=tuning_params["fues_jump_thresh"],
                 #     n_points_to_scan=tuning_params["fues_n_points_to_scan"],
                 # )
-                # not_nan_fedor = np.isfinite(endog_grid_fedor)
-                # not_nan_fues = np.isfinite(endog_grid_fues)
 
-                # print value fedor and fues index 13 and 14
-                # print(
-                #     f"fedor: {endog_grid_fedor[13:17]}, {value_fedor[13:17]}, fues: {endog_grid_fues[13:17]}, {value_fues[13:17]}"
-                # )
-
-                # # now just the difference between the two
-                # print(
-                #     f"fedor - fues: {endog_grid_fedor[13:17] - endog_grid_fues[13:17]}, {value_fedor[13:17] - value_fues[13:17]}"
-                # )
-
-                # # remove values at index 15 from fues
-                # endog_grid_fues = np.delete(endog_grid_fues, 15)
-                # policy_fues = np.delete(policy_fues, 15)
-                # value_fues = np.delete(value_fues, 15)
-                # endog_grid_fedor[0:100] - endog_grid_fues[0:100]
-                # policy_fedor[0:100] - policy_fues[0:100]
-                # value_fedor[0:100] - value_fues[0:100]
-
-                # if not np.array_equal(endog_grid_fedor[not_nan_fedor], endog_grid_fues[not_nan_fues]):
-                #     # # Delete points 18 from fues
-                #     endog_grid_fues = np.delete(endog_grid_fues, 60)
-                #     policy_fues = np.delete(policy_fues, 18)
-                #     value_fues = np.delete(value_fues, 18)
-                #     breakpoint()
-
-                # not_nan_fues = np.isfinite(endog_grid_fues)
-
-                # assert np.allclose(
-                #     endog_grid_fedor[not_nan_fedor], endog_grid_fues[not_nan_fues]
-                # )
-                # assert np.allclose(
-                #     policy_fedor[not_nan_fedor], policy_fues[not_nan_fues]
-                # )
-                # assert np.allclose(value_fedor[not_nan_fedor], value_fues[not_nan_fues])
-                return (
-                    endog_grid_fedor,
-                    policy_fedor,
-                    value_fedor,
+                return upper_envelope(
+                    egm_endog_grid=endog_grid,
+                    policy=policy,
+                    value=value,
+                    state_choice_vec=state_choice_dict,
+                    params={**params, "beta": discount_factor},
+                    compute_utility=utility_function,
+                    expected_value_zero_assets=expected_value_zero_assets,
+                    n_final_asset_grid=tuning_params["n_total_wealth_grid"],
                 )
 
     return compute_upper_envelope

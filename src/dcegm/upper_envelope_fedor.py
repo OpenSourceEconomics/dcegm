@@ -9,18 +9,18 @@ from typing import Callable, Dict, List, Tuple
 
 import numpy as np
 
-# from scipy.optimize import brenth as root
-
 EPS = 2e-16
 
 
 def upper_envelope(
+    egm_endog_grid: np.ndarray,
     policy: np.ndarray,
     value: np.ndarray,
     state_choice_vec: Dict,
     params: Dict[str, float],
     compute_utility: Callable,
     expected_value_zero_assets: float,
+    n_final_asset_grid: int,
 ):
     """Runs the Upper Envelope algorithm and drops sub-optimal points.
     Calculates the upper envelope over the overlapping segments of the
@@ -44,51 +44,43 @@ def upper_envelope(
     worker's anticipation of landing exactly at the kink points in the
     subsequent periods t + 1, t + 2, ..., T under the optimal consumption policy.
     Args:
-        policy (np.ndarray): Array of choice-specific consumption policy
-            of shape (2, n_grid_wealth).
-            Position [0, :] of the arrays contain the endogenous grid over wealth M,
-            and [1, :] stores the corresponding value of the (consumption) policy
-            function c(M, d), for each time period and each discrete choice.
-        value (np.ndarray): Array of choice-specific value function
-            of shape (2, n_grid_wealth).
-            Position [0, :] of the array contains the endogenous grid over wealth M,
-            and [1, :] stores the corresponding value of the value function v(M, d),
-            for each time period and each discrete choice.
-        choice (int): The current choice.
-        params (dict): Dictionary containing the model's parameters.
-        compute_value (callable): Function to compute the agent's value.
+        egm_endog_grid (np.ndarray): 1d array of shape (n_endog_wealth_grid,) containing
+            the endogenous wealth grid, which is the grid of wealth M at the beginning of
+            period t.
+        policy (np.ndarray): 1d array of shape (n_endog_wealth_grid,) containing the
+            choice-specific policy function, which is the optimal consumption
+            at the beginning of period t.
+        value (np.ndarray): 1d array of shape (n_endog_wealth_grid,) containing the
+            choice-specific value function "correspondences", which is the EV of
+            the optimal consumption at the beginning of period t.
+        state_choice_vec (dict): Dictionary containing the state and choice variables.
+        params (dict): Dictionary containing model parameters.
+        compute_utility (callable): Function to compute utility given consumption.
+        expected_value_zero_assets (float): Expected value when assets at end of period are zero.
+        n_final_asset_grid (int): Number of grid points in the final asset grid.
+            This is fixed over all periods and usually n_endog_wealth_grid*1.2
 
     Returns:
+        endog_grid (np.ndarray): 1d array of shape (n_grid_final,) containing the
+            refined endogenous wealth grid
+        policy (np.ndarray): 1d array of shape (n_grid_final,) containing the
+            refined choice-specific policy function
+        value (np.ndarray): 1d array of shape (n_grid_final,) containing the
+            refined choice-specific value function
 
     """
+    n_grid_wealth = egm_endog_grid.shape[
+        0
+    ]  # constant as we always use the same end of period asset grid
+    policy = np.vstack([egm_endog_grid, policy])
+    value = np.vstack([egm_endog_grid, value])
 
-    # def debug_plot(double_array, left_bound=4, right_bound=10):
-    #     import matplotlib.pyplot as plt
-    #     mask = (double_array[0, :] >= left_bound) & (double_array[0, :] <= right_bound)
-    #     indices = np.where(mask & (np.arange(double_array.shape[1]) < 71))[0]
-
-    #     # Plot line connecting the points in order of `indices`
-    #     plt.plot(double_array[0, indices], double_array[1, indices], linestyle='-', color='gray', alpha=0.6)
-
-    #     # Plot the individual points
-    #     plt.scatter(double_array[0, indices], double_array[1, indices], color='blue')
-
-    #     # Add index labels
-    #     for i in indices:
-    #         plt.text(double_array[0, i], double_array[1, i], str(i), fontsize=8, ha='right', va='bottom')
-
-    #     plt.show()
-    # debug_plot(value)
-
-    # if state_choice_vec["period"] == 4 and state_choice_vec["lagged_choice"] == 0 and state_choice_vec["choice"] == 0:
-    #      breakpoint()
-
-    n_grid_wealth = len(policy[0, :])
-    min_wealth_grid = np.min(value[0, 1:])
-    credit_constr = False
+    # Check if the first point is below the minimum wealth grid
+    min_wealth_grid = np.min(value[0, :])
+    credit_constr = value[0, 0] > min_wealth_grid
 
     # standard case, no segment bending back further than the first point
-    if value[0, 0] <= min_wealth_grid:
+    if not credit_constr:
         segments_non_mono = locate_non_concave_regions(value)
     else:
         # Non-concave region coincides with credit constraint.
@@ -96,18 +88,13 @@ def upper_envelope(
         # that goes below the first point.
         # Solution: Value function to the left of the first point is analytical,
         # so we just need to add some points to the left of the first grid point.
-
-        credit_constr = True
-
-        # breakpoint()
-        expected_value_zero_wealth = expected_value_zero_assets
-
-        ## add 10% more points to the left of the first grid point for even size, can introduce some bunching, but computationally efficient
+        # we add 10% more points to the left of the first grid point for even size, can introduce
+        # some bunching, but computationally efficient
         policy, value = _augment_grid(
             policy,
             value,
             state_choice_vec,
-            expected_value_zero_wealth,
+            expected_value_zero_assets,
             min_wealth_grid,
             n_grid_wealth,
             params,
@@ -116,10 +103,7 @@ def upper_envelope(
         segments_non_mono = locate_non_concave_regions(value)
 
     if len(segments_non_mono) > 1:
-        _value_refined, points_to_add = compute_upper_envelope(
-            segments_non_mono, state_choice_vec["period"]
-        )
-        # debug_plot(_value_refined, left_bound=4, right_bound=10)
+        _value_refined, points_to_add = compute_upper_envelope(segments_non_mono)
 
         index_dominated_points = find_dominated_points(
             value, _value_refined, significance=15
@@ -128,7 +112,7 @@ def upper_envelope(
         if credit_constr:
             value_refined = np.hstack(
                 [
-                    np.array([[0], [expected_value_zero_wealth]]),
+                    np.array([[0], [expected_value_zero_assets]]),
                     _value_refined,
                 ]
             )
@@ -137,7 +121,7 @@ def upper_envelope(
 
         policy_refined = refine_policy(policy, index_dominated_points, points_to_add)
 
-        # This is new!!!
+        # Kink points added second time to value grid
         for id_intersect in range(points_to_add.shape[1]):
             intersect_point = points_to_add[0, id_intersect]
             idx_insert = (np.where(value_refined[0, :] < intersect_point)[0]).max()
@@ -160,12 +144,14 @@ def upper_envelope(
     policy_final = np.append(0.0, policy_refined[1, :])
 
     # Fill array with nans to fit 10% extra grid points,
-    # as the true shape is unknown ex ante
-    endog_grid = np.empty(int(1.1 * n_grid_wealth))
+    # as the true shape is unknown ex ante (kink points is variable
+    # and we might add 10% more points to the left of the first point
+    # in case the credit constraint is binding somewhere.
+    endog_grid = np.empty(n_final_asset_grid)
     endog_grid[:] = np.nan
-    policy = np.empty(int(1.1 * n_grid_wealth))
+    policy = np.empty(n_final_asset_grid)
     policy[:] = np.nan
-    value = np.empty(int(1.1 * n_grid_wealth))
+    value = np.empty(n_final_asset_grid)
     value[:] = np.nan
 
     endog_grid[: len(endog_grid_final)] = endog_grid_final
@@ -243,9 +229,7 @@ def locate_non_concave_regions(
     return segments_non_mono
 
 
-def compute_upper_envelope(
-    segments: List[np.ndarray], period
-) -> Tuple[np.ndarray, np.ndarray]:
+def compute_upper_envelope(segments: List[np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
     """Compute upper envelope and refines value function correspondence.
     The upper envelope algorithm detects suboptimal points in the value function
     correspondence. Consequently, (i) the suboptimal points are removed and the
@@ -342,42 +326,37 @@ def compute_upper_envelope(
                         [[first_grid_point, second_grid_point], values_second_segment]
                     )
 
-                    try:
-                        # Use closed-form solution to find intersection
-                        intersect_point, value_intersect = _intersection_closed_form(
-                            seg1, seg2
-                        )
+                    intersect_point, value_intersect = _intersection_closed_form(
+                        seg1, seg2
+                    )
 
-                        # Verify the intersection lies within the segment bounds
-                        if first_grid_point <= intersect_point <= second_grid_point:
-                            values_all_segments = np.empty((len(segments), 1))
-                            for segment in range(len(segments)):
-                                values_all_segments[segment] = (
-                                    _linear_interpolation_with_inserting_missing_values(
-                                        x=segments[segment][0],
-                                        y=segments[segment][1],
-                                        x_new=np.array([intersect_point]),
-                                        missing_value=-np.inf,
-                                    )[0]
-                                )
+                    # Verify the intersection lies within the segment bounds
+                    if first_grid_point <= intersect_point <= second_grid_point:
+                        values_all_segments = np.empty((len(segments), 1))
+                        for segment in range(len(segments)):
+                            values_all_segments[segment] = (
+                                _linear_interpolation_with_inserting_missing_values(
+                                    x=segments[segment][0],
+                                    y=segments[segment][1],
+                                    x_new=np.array([intersect_point]),
+                                    missing_value=-np.inf,
+                                )[0]
+                            )
 
-                            index_max_value_intersect = np.where(
-                                values_all_segments == values_all_segments.max(axis=0)
-                            )[0][0]
+                        index_max_value_intersect = np.where(
+                            values_all_segments == values_all_segments.max(axis=0)
+                        )[0][0]
 
-                            if (index_max_value_intersect == first_segment) | (
-                                index_max_value_intersect == second_segment
-                            ):
-                                grid_points_upper_env.append(intersect_point)
-                                values_upper_env.append(value_intersect)
-                                intersect_points_upper_env.append(intersect_point)
-                                values_intersect_upper_env.append(value_intersect)
+                        if (index_max_value_intersect == first_segment) | (
+                            index_max_value_intersect == second_segment
+                        ):
+                            grid_points_upper_env.append(intersect_point)
+                            values_upper_env.append(value_intersect)
+                            intersect_points_upper_env.append(intersect_point)
+                            values_intersect_upper_env.append(value_intersect)
 
-                                if second_segment == index_second_segment:
-                                    move_right = False
-                    except ValueError:
-                        # Skip if segments are parallel or do not intersect
-                        pass
+                            if second_segment == index_second_segment:
+                                move_right = False
 
             if (
                 any(abs(segments[index_second_segment][0] - endog_wealth_grid[i]) < EPS)
@@ -561,12 +540,6 @@ def refine_policy(
 
     policy_refined = np.stack([endog_wealth_grid, optimal_consumption])
 
-    # Lets do this always outside
-    # # Make sure first element in endogenous wealth grid and optiomal consumption policy
-    # # are both 0.
-    # if policy_refined[0, 0] != 0.0:
-    #     policy_refined = np.hstack([np.zeros((2, 1)), policy_refined])
-
     return policy_refined
 
 
@@ -574,7 +547,7 @@ def _augment_grid(
     policy: np.ndarray,
     value: np.ndarray,
     state_choice_vec: np.ndarray,
-    expected_value_zero_wealth: np.ndarray,
+    expected_value_zero_assets: np.ndarray,
     min_wealth_grid: float,
     n_grid_wealth: int,
     params,
@@ -595,7 +568,7 @@ def _augment_grid(
             kinks and non-concave regions in the value function.
             In the presence of kinks, the value function is a "correspondence"
             rather than a function due to non-concavities.
-        expected_value_zero_wealth (float): The agent's expected value given that she
+        expected_value_zero_assets (float): The agent's expected value given that she
             has a wealth of zero.
         min_wealth_grid (float): Minimal wealth level in the endogenous wealth grid.
         n_grid_wealth (int): Number of grid points in the exogenous wealth grid.
@@ -619,7 +592,7 @@ def _augment_grid(
         params=params,
         **state_choice_vec,
     )
-    values_to_add = utility + params["beta"] * expected_value_zero_wealth
+    values_to_add = utility + params["beta"] * expected_value_zero_assets
 
     value_augmented = np.vstack(
         [
@@ -763,7 +736,9 @@ def _intersection_closed_form(seg1, seg2):
     b2 = y3 - m2 * x3
 
     if np.isclose(m1, m2):
-        raise ValueError("Segments are parallel, no unique intersection.")
+        raise ValueError(
+            "2 Upper Envelope Segments are parallel, no unique intersection."
+        )
 
     x_intersect = (b2 - b1) / (m1 - m2)
     y_intersect = m1 * x_intersect + b1
