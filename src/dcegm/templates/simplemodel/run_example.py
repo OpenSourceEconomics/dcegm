@@ -72,7 +72,7 @@ def main():
                 500,  # why if i set this on 100 does upper envelope go into a infinite loop?
             )
         },
-        "n_quad_points": 5,  # number of quadrature points for the income shock
+        "n_quad_points": 101,  # number of quadrature points for the income shock
     }
 
     model_functions = {
@@ -98,9 +98,7 @@ def main():
     # solve the model for different taste shock scales with income uncertainty and plot both
     fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharex=True)
 
-    for k, taste_shock_scale in enumerate(
-        [0.05, 0.10, 0.15]
-    ):  # enumerate([2e-16, 0.01, 0.05, 0.10, 0.15]):
+    for k, taste_shock_scale in enumerate([2e-16, 0.01, 0.05, 0.10, 0.15]):
         params["taste_shock_scale"] = taste_shock_scale
         model_solved = model.solve(params)
         endog_grid, policy, value = model_solved.get_solution_for_discrete_state_choice(
@@ -124,9 +122,9 @@ def main():
         )
 
     # Consumption policy plot settings
-    # axes[0].set_xlim([15, 120])
-    # axes[0].set_ylim([15, 25])
-    # axes[0].set_yticks(np.arange(15, 25, 1))
+    axes[0].set_xlim([15, 120])
+    axes[0].set_ylim([15, 25])
+    axes[0].set_yticks(np.arange(15, 25, 1))
     axes[0].set_xlabel("Wealth")
     axes[0].set_ylabel("Consumption")
     axes[0].set_title(

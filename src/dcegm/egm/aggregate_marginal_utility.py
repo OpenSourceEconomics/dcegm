@@ -16,7 +16,7 @@ def aggregate_marg_utils_and_exp_values(
 
     Args:
         value_state_choice_specific (jnp.ndarray): 3d array of shape
-            (n_states * n_ choices, n_exog_savings, n_income_shocks) of the value
+            (n_states * n_choices, n_exog_savings, n_income_shocks) of the value
             function for all state-choice combinations and income shocks.
         marg_util_state_choice_specific (jnp.ndarray): 3d array of shape
             (n_states * n_choices, n_exog_savings, n_income_shocks) of the marginal
