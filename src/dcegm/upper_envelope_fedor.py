@@ -97,22 +97,13 @@ def upper_envelope(
         refined_value, kink_points = compute_upper_envelope(non_concave_segments)
         dominated_indices = find_dominated_points(value, refined_value)
 
-        if is_credit_constrained:
-            refined_value = np.hstack(
-                [np.array([[0], [expected_value_zero_assets]]), refined_value]
-            )
-
         refined_policy = refine_policy(policy, dominated_indices, kink_points)
 
     else:
         refined_value, refined_policy = value, policy
 
     # Prepare final arrays
-    final_value = (
-        np.append(expected_value_zero_assets, refined_value[1, :])
-        if not is_credit_constrained
-        else refined_value[1, :]
-    )
+    final_value = np.append(expected_value_zero_assets, refined_value[1, :])
     final_endog_grid = np.append(0.0, refined_policy[0, :])
     final_policy = np.append(0.0, refined_policy[1, :])
 
