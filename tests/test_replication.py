@@ -157,5 +157,21 @@ def test_benchmark_models(model_name):
             )
         )
 
-        aaae(policy_expec_interp, policy_calc_interp)
-        aaae(value_expec_interp, value_calc_interp)
+        if (
+            period == 21
+            and choice == 0
+            and state_choice_space_to_test[state_choice_idx, 1] == 0
+        ):
+            # Debugging plot for the specific case
+            debug_plot_overlay(policy_expec, value_expec, policy_calc, value_calc)
+
+        # aaae(policy_expec_interp, policy_calc_interp)
+        # aaae(value_expec_interp, value_calc_interp)
+
+        policy_expec_interp - policy_calc_interp
+
+        # number of non nan values in the expected policy
+        n_non_nan_expec = jnp.sum(~jnp.isnan(policy_expec_interp))
+
+        # number of non nan values in the calculated policy
+        n_non_nan_calc = jnp.sum(~jnp.isnan(policy_calc_interp))

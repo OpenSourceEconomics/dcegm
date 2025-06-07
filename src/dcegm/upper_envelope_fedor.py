@@ -257,11 +257,10 @@ def _augment_grid_left(
         compute_utility (Callable): Function to compute utility given consumption.
 
     Returns:
-        Tuple[np.ndarray, np.ndarray]: A tuple containing:
-            - policy_augmented (np.ndarray): 2D array of shape (2, n_grid_augmented)
-                containing the augmented endogenous grid and policy function.
-            - value_augmented (np.ndarray): 2D array of shape (2, n_grid_augmented)
-                containing the augmented endogenous grid and value function.
+        Tuple[np.ndarray, np.ndarray, np.ndarray]: A tuple containing:
+            - endog_grid (np.ndarray): Extended endogenous wealth grid.
+            - policy (np.ndarray): Extended policy function.
+            - extra_values (np.ndarray): Extended value function for the extra points.
 
     """
     extra_points = np.linspace(min_wealth, candidates[0, 0], grid_size // 10)

@@ -1,14 +1,9 @@
-"""Fedor's Upper Envelope algorithm, refactored for readability and vmap compatibility.
+"""JAX-compatible version of Fedor's Upper Envelope algorithm."""
 
-Based on the original MATLAB code by Fedor Iskhakov:
-https://github.com/fediskhakov/dcegm/blob/master/model_retirement.m
+from typing import Callable, Dict, Tuple
 
-"""
-
-from typing import Callable, NamedTuple, Tuple
-
+import jax
 import jax.numpy as jnp
-from jax import lax
 
 EPS = 2e-16
 
@@ -17,609 +12,378 @@ def upper_envelope(
     endog_grid: jnp.ndarray,
     policy: jnp.ndarray,
     value: jnp.ndarray,
-    state_choice_vec: jnp.ndarray,
-    params: jnp.ndarray,
+    state_choice_dict: Dict,
+    params: Dict[str, float],
     compute_utility: Callable,
     expected_value_zero_assets: float,
-    n_final_asset_grid: int,
-    max_segments: int = 100,  # Maximum number of non-monotonic segments
+    final_grid_size: int,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
-    """Computes the upper envelope over decision-specific value correspondences.
-
-    Eliminates suboptimal points from the endogenous wealth grid and handles
-    non-concave regions caused by discrete choices, which introduce kinks in the
-    value function and discontinuities in the policy function.
+    """JAX-compatible upper envelope algorithm.
 
     Args:
-        endog_grid: 1D array of shape (n_grid_wealth,) with endogenous wealth grid.
-        policy: 1D array of shape (n_grid_wealth,) with choice-specific policy (consumption).
-        value: 1D array of shape (n_grid_wealth,) with choice-specific value correspondence.
-        state_choice_vec: 1D array with state and choice variables.
-        params: 1D array with model parameters (including beta for discount factor).
-        compute_utility: Function to compute utility given consumption and parameters.
-        expected_value_zero_assets: Expected value when end-of-period assets are zero.
-        n_final_asset_grid: Fixed size of the final asset grid (typically 1.2 * n_grid_wealth).
-        max_segments: Maximum number of non-monotonic segments for fixed-size arrays.
+        endog_grid: 1D array of endogenous wealth grid
+        policy: 1D array of choice-specific optimal consumption
+        value: 1D array of choice-specific expected value
+        state_choice_dict: Dictionary containing state and choice variables
+        params: Dictionary containing model parameters
+        compute_utility: Function to compute utility given consumption
+        expected_value_zero_assets: Expected value when assets are zero
+        final_grid_size: Number of grid points in final asset grid
 
     Returns:
-        Tuple of three 1D arrays of shape (n_final_asset_grid,):
-        - Refined endogenous wealth grid.
-        - Refined policy function (optimal consumption).
-        - Refined value function.
+        Tuple of (endog_grid, policy, value) arrays of size final_grid_size + 1
 
     """
-    n_grid_wealth = endog_grid.shape[0]
+    initial_grid_size = endog_grid.shape[0]
 
-    # Combine grid with policy and value for processing
-    policy_grid = jnp.vstack([endog_grid, policy])  # Shape: (2, n_grid_wealth)
-    value_grid = jnp.vstack([endog_grid, value])  # Shape: (2, n_grid_wealth)
+    # Stack grids for processing
+    candidates = jnp.vstack([endog_grid, policy, value])
 
-    # Check for credit constraint (non-monotonicity below minimum wealth)
-    min_wealth = jnp.min(value_grid[0, :])
-    is_credit_constrained = value_grid[0, 0] > min_wealth
+    # Check for credit constraint
+    min_wealth = jnp.min(candidates[0, :])
+    is_credit_constrained = candidates[0, 0] > min_wealth
 
-    # Handle credit constraint by augmenting grid if needed
-    def augment_grid_true(_):
-        return _augment_grid(
-            policy=policy_grid,
-            value=value_grid,
-            state_choice_vec=state_choice_vec,
-            expected_value_zero_assets=expected_value_zero_assets,
-            min_wealth=min_wealth,
-            n_grid_wealth=n_grid_wealth,
-            params=params,
-            compute_utility=compute_utility,
-        )
+    # Augment grid if credit constrained - pad to ensure consistent shape
+    max_augmented_size = int(initial_grid_size * 1.1)  # Based on your bound
+    candidates_padded = jnp.full((3, max_augmented_size), jnp.nan)
+    candidates_padded = candidates_padded.at[:, :initial_grid_size].set(candidates)
 
-    def augment_grid_false(_):
-        # Pad original grids to match augmented shape
-        n_points = n_grid_wealth // 10
-        pad_size = n_grid_wealth + n_points - 1
-        padded_policy = jnp.pad(
-            policy_grid,
-            ((0, 0), (0, pad_size - n_grid_wealth)),
-            constant_values=jnp.nan,
-        )
-        padded_value = jnp.pad(
-            value_grid, ((0, 0), (0, pad_size - n_grid_wealth)), constant_values=jnp.nan
-        )
-        return padded_policy, padded_value
-
-    policy_grid, value_grid = lax.cond(
-        is_credit_constrained, augment_grid_true, augment_grid_false, operand=None
-    )
-
-    # Identify non-monotonic segments in the value function
-    segments, n_segments = _locate_non_concave_regions(
-        value_grid, max_segments, n_grid_wealth
-    )
-
-    # Process multiple segments if present
-    if n_segments > 1:
-        # Compute the upper envelope and identify kink points
-        value_refined, points_to_add = _compute_upper_envelope(segments, n_segments)
-
-        # Identify dominated points to remove
-        dominated_indices = _find_dominated_points(value_grid, value_refined)
-
-        # Adjust for credit constraint
-        value_refined = lax.cond(
-            is_credit_constrained,
-            lambda _: jnp.hstack(
-                [jnp.array([[0.0], [expected_value_zero_assets]]), value_refined]
-            ),
-            lambda x: x,
-            operand=value_refined,
-        )
-
-        # Refine policy by removing dominated points and adding kink points
-        policy_refined = _refine_policy(policy_grid, dominated_indices, points_to_add)
-
-        # Add kink points to value grid to capture discontinuities
-        value_refined = _add_kink_points_to_value(value_refined, points_to_add)
-    else:
-        value_refined = value_grid
-        policy_refined = policy_grid
-
-    # Finalize outputs with zero wealth point
-    value_final = lax.cond(
+    candidates = jax.lax.cond(
         is_credit_constrained,
-        lambda x: x[1, :],
-        lambda x: jnp.append(expected_value_zero_assets, x[1, :]),
-        operand=value_refined,
+        lambda x: _augment_grid_left_jax(
+            x,
+            state_choice_dict,
+            expected_value_zero_assets,
+            min_wealth,
+            initial_grid_size,
+            params,
+            compute_utility,
+            max_augmented_size,
+        ),
+        lambda x: x,
+        candidates_padded,
     )
-    endog_grid_final = jnp.append(0.0, policy_refined[0, :])
-    policy_final = jnp.append(0.0, policy_refined[1, :])
 
-    # Pad outputs to fixed size with nan for invalid entries
-    output_size = n_final_asset_grid
-    endog_grid_out = jnp.full(output_size, jnp.nan)
-    policy_out = jnp.full(output_size, jnp.nan)
-    value_out = jnp.full(output_size, jnp.nan)
+    # Locate segments using fixed-size arrays
+    segments_info = _locate_segments_jax(candidates, initial_grid_size)
+    n_segments = segments_info["n_segments"]
 
-    valid_length = jnp.minimum(endog_grid_final.shape[0], output_size)
-    endog_grid_out = endog_grid_out.at[:valid_length].set(
-        endog_grid_final[:valid_length]
+    # Process segments
+    endog_out, policy_out, value_out = jax.lax.cond(
+        n_segments > 1,
+        lambda: _compute_upper_envelope_jax(
+            candidates, segments_info, final_grid_size - 1
+        ),
+        lambda: _handle_single_segment_jax(candidates, final_grid_size - 1),
     )
-    policy_out = policy_out.at[:valid_length].set(policy_final[:valid_length])
-    value_out = value_out.at[:valid_length].set(value_final[:valid_length])
 
-    return endog_grid_out, policy_out, value_out
+    # Add point for zero begin-of-period assets
+    endog_final = jnp.concatenate([jnp.array([0.0]), endog_out])
+    policy_final = jnp.concatenate([jnp.array([0.0]), policy_out])
+    value_final = jnp.concatenate([jnp.array([expected_value_zero_assets]), value_out])
 
-
-class SegmentState(NamedTuple):
-    segments: jnp.ndarray
-    n_segments: int
-    current_grid: jnp.ndarray
-    current_monotonic: jnp.ndarray
-    continue_loop: jnp.ndarray
+    return endog_final, policy_final, value_final
 
 
-def _locate_non_concave_regions(
-    value_grid: jnp.ndarray, max_segments: int, n_grid_wealth: int
-) -> Tuple[jnp.ndarray, int]:
-    """Identifies non-monotonic segments in the value function using jax.lax.scan.
+def _locate_segments_jax(candidates: jnp.ndarray, max_size: int) -> Dict:
+    """Locate non-concave segments using fixed-size arrays."""
+    wealth = candidates[0, :]
+    diffs = wealth[1:] - wealth[:-1]
 
-    Non-monotonic regions in the endogenous wealth grid indicate non-concave
-    regions in the value function, resulting in a value correspondence.
+    # Find sign changes (potential segment boundaries)
+    signs = jnp.sign(diffs)
+    sign_changes = jnp.abs(signs[1:] - signs[:-1]) > EPS
 
-    Args:
-        value_grid: Array of shape (2, max_grid_size) with wealth grid and values.
-        max_segments: Maximum number of segments to allocate.
-        n_grid_wealth: Number of grid points in the original wealth grid.
+    # Get change points (add 1 to account for diff indexing)
+    change_indices = jnp.where(sign_changes, size=max_size // 10, fill_value=-1)[0] + 1
 
-    Returns:
-        Tuple of:
-        - segments: Array of shape (max_segments, 2, max_grid_size) with segments.
-        - n_segments: Number of valid segments.
+    # Count actual segments
+    n_segments = jnp.sum(change_indices >= 0) + 1
 
-    """
-    max_grid_size = value_grid.shape[1]  # Maximum grid size after augmentation
-    segments = jnp.full((max_segments, 2, max_grid_size), jnp.nan)
-    is_monotonic = value_grid[0, 1:] > value_grid[0, :-1]
+    # Create segment start/end indices without boolean indexing
+    max_segments = max_size // 10 + 1
 
-    def scan_body(state: SegmentState, _):
-        # Find the first non-monotonic index
-        diff_mask = state.current_monotonic != state.current_monotonic[0]
-        non_monotonic_idx = jnp.nonzero(
-            diff_mask, size=n_grid_wealth, fill_value=n_grid_wealth
-        )[0]
-        idx = jnp.min(non_monotonic_idx)
+    # Initialize segment arrays
+    segment_starts = jnp.full(max_segments, -1)
+    segment_ends = jnp.full(max_segments, -1)
 
-        # Check if no non-monotonic points remain
-        no_non_monotonic = jnp.all(non_monotonic_idx == n_grid_wealth)
-        continue_loop = jnp.logical_not(no_non_monotonic)
+    # Set first segment start
+    segment_starts = segment_starts.at[0].set(0)
 
-        # Partition the grid if non-monotonic points exist
-        def partition_true(_):
-            part_one, part_two = _partition_grid(state.current_grid, idx, max_grid_size)
-            return part_one, part_two
+    # Count valid changes
+    n_valid = jnp.sum(change_indices >= 0)
 
-        def partition_false(_):
-            # Return current grid as part_one, empty part_two
-            part_one = state.current_grid
-            part_two = jnp.full((2, max_grid_size), jnp.nan)
-            return part_one, part_two
+    # Use a loop to fill valid indices to avoid dynamic slicing
+    def fill_segments(i, state):
+        starts, ends = state
+        # Only process if we have a valid change index
+        is_valid = (i < n_valid) & (change_indices[i] >= 0)
 
-        part_one, part_two = lax.cond(
-            continue_loop, partition_true, partition_false, operand=None
+        # Update segment starts (i+1 because first start is 0)
+        starts = jax.lax.cond(
+            is_valid, lambda: starts.at[i + 1].set(change_indices[i]), lambda: starts
         )
 
-        # Update segments array
-        new_segments = state.segments.at[state.n_segments].set(
-            lax.cond(
-                continue_loop,
-                lambda _: part_one,
-                lambda _: state.current_grid if state.n_segments > 0 else part_one,
-                operand=None,
-            )
+        # Update segment ends
+        ends = jax.lax.cond(
+            is_valid, lambda: ends.at[i].set(change_indices[i]), lambda: ends
         )
 
-        # Update state
-        new_n_segments = state.n_segments + lax.cond(
-            continue_loop,
-            lambda _: 1,
-            lambda _: jnp.where(state.n_segments > 0, 1, 0),
-            operand=None,
-        )
-        new_current_grid = part_two
-        new_current_monotonic = state.current_monotonic[idx:]
+        return starts, ends
 
-        return (
-            SegmentState(
-                segments=new_segments,
-                n_segments=new_n_segments,
-                current_grid=new_current_grid,
-                current_monotonic=new_current_monotonic,
-                continue_loop=continue_loop,
+    # Fill segment arrays using loop
+    segment_starts, segment_ends = jax.lax.fori_loop(
+        0, max_segments - 1, fill_segments, (segment_starts, segment_ends)
+    )
+
+    # Set final segment end using loop to avoid dynamic indexing
+    def set_final_end(i, ends):
+        # Set end at position n_valid if i == n_valid
+        should_set = i == n_valid
+        return jax.lax.cond(
+            should_set, lambda: ends.at[i].set(wealth.shape[0]), lambda: ends
+        )
+
+    segment_ends = jax.lax.fori_loop(0, max_segments, set_final_end, segment_ends)
+
+    return {
+        "n_segments": n_segments,
+        "segment_starts": segment_starts,
+        "segment_ends": segment_ends,
+    }
+
+
+def _compute_upper_envelope_jax(
+    candidates: jnp.ndarray, segments_info: Dict, grid_size: int
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+    """Compute upper envelope from segments using JAX operations."""
+
+    # Create unified wealth grid from all segments
+    wealth_points = candidates[0, :]
+    unified_grid = jnp.unique(wealth_points, size=int(wealth_points.shape[0] * 1.1))
+
+    n_segments = segments_info["n_segments"]
+    starts = segments_info["segment_starts"]
+    ends = segments_info["segment_ends"]
+
+    # Pre-allocate interpolation arrays
+    max_segments = starts.shape[0]
+    interpolated_value = jnp.full((max_segments, unified_grid.shape[0]), -jnp.inf)
+    interpolated_policy = jnp.full((max_segments, unified_grid.shape[0]), jnp.nan)
+
+    # Interpolate each segment
+    def interpolate_segment(i, arrays):
+        interp_val, interp_pol = arrays
+
+        # Get segment boundaries
+        start_idx = starts[i]
+        end_idx = ends[i]
+
+        # Only process valid segments
+        valid_segment = (i < n_segments) & (start_idx >= 0) & (end_idx > start_idx)
+
+        # Extract segment data using dynamic slice with fixed size
+        max_seg_length = int(grid_size * 1.1)  # Based on your bound - fixed size
+
+        # Use dynamic slice with fixed segment size
+        seg_wealth_padded = jax.lax.dynamic_slice(
+            jnp.concatenate([candidates[0, :], jnp.full(max_seg_length, jnp.nan)]),
+            (start_idx,),
+            (max_seg_length,),
+        )
+        seg_policy_padded = jax.lax.dynamic_slice(
+            jnp.concatenate([candidates[1, :], jnp.full(max_seg_length, jnp.nan)]),
+            (start_idx,),
+            (max_seg_length,),
+        )
+        seg_value_padded = jax.lax.dynamic_slice(
+            jnp.concatenate([candidates[2, :], jnp.full(max_seg_length, jnp.nan)]),
+            (start_idx,),
+            (max_seg_length,),
+        )
+
+        # Mask out invalid entries beyond actual segment length
+        seg_length = end_idx - start_idx
+        valid_mask = jnp.arange(max_seg_length) < seg_length
+
+        seg_wealth = jnp.where(valid_mask, seg_wealth_padded, jnp.nan)
+        seg_policy = jnp.where(valid_mask, seg_policy_padded, jnp.nan)
+        seg_value = jnp.where(valid_mask, seg_value_padded, jnp.nan)
+
+        # Interpolate over unified grid
+        new_val = jax.lax.cond(
+            valid_segment,
+            lambda: jnp.interp(
+                unified_grid, seg_wealth, seg_value, left=-jnp.inf, right=-jnp.inf
             ),
-            None,
+            lambda: jnp.full_like(unified_grid, -jnp.inf),
         )
 
-    # Initialize scan state
-    init_state = SegmentState(
-        segments=segments,
-        n_segments=0,
-        current_grid=value_grid,
-        current_monotonic=is_monotonic,
-        continue_loop=jnp.array(True),
+        new_pol = jax.lax.cond(
+            valid_segment,
+            lambda: jnp.interp(
+                unified_grid, seg_wealth, seg_policy, left=jnp.nan, right=jnp.nan
+            ),
+            lambda: jnp.full_like(unified_grid, jnp.nan),
+        )
+
+        interp_val = interp_val.at[i].set(new_val)
+        interp_pol = interp_pol.at[i].set(new_pol)
+
+        return interp_val, interp_pol
+
+    interpolated_value, interpolated_policy = jax.lax.fori_loop(
+        0, max_segments, interpolate_segment, (interpolated_value, interpolated_policy)
     )
 
-    # Run scan until no non-monotonic points remain or max_segments reached
-    final_state, _ = lax.scan(
-        scan_body, init_state, None, length=max_segments  # Upper bound on iterations
+    # Find best segment at each point
+    max_values = jnp.max(interpolated_value, axis=0)
+    best_segment = jnp.argmax(interpolated_value, axis=0)
+
+    # Initialize output arrays
+    endog_grid = jnp.full(grid_size, jnp.nan)
+    value_out = jnp.full(grid_size, jnp.nan)
+    policy_out = jnp.full(grid_size, jnp.nan)
+
+    # Set first point
+    endog_grid = endog_grid.at[0].set(unified_grid[0])
+    value_out = value_out.at[0].set(max_values[0])
+    policy_out = policy_out.at[0].set(interpolated_policy[best_segment[0], 0])
+
+    # Process remaining points to find kinks
+    def process_point(i, state):
+        grid, val, pol, insert_idx = state
+
+        prev_best = best_segment[i - 1]
+        curr_best = best_segment[i]
+
+        # Check if segment switches (kink point)
+        is_kink = prev_best != curr_best
+
+        def add_kink():
+            # Calculate kink point
+            x0, x1 = unified_grid[i - 1], unified_grid[i]
+
+            # Values for both segments
+            y0_prev = interpolated_value[prev_best, i - 1]
+            y1_prev = interpolated_value[prev_best, i]
+            y0_curr = interpolated_value[curr_best, i - 1]
+            y1_curr = interpolated_value[curr_best, i]
+
+            # Policies for both segments
+            p0_prev = interpolated_policy[prev_best, i - 1]
+            p1_prev = interpolated_policy[prev_best, i]
+            p0_curr = interpolated_policy[curr_best, i - 1]
+            p1_curr = interpolated_policy[curr_best, i]
+
+            # Check if all values are finite
+            all_finite = jnp.all(
+                jnp.isfinite(jnp.array([y0_prev, y1_prev, y0_curr, y1_curr]))
+            )
+
+            def compute_kink():
+                # Calculate intersection point
+                slope_prev = (y1_prev - y0_prev) / (x1 - x0)
+                intercept_prev = y0_prev - slope_prev * x0
+                slope_curr = (y1_curr - y0_curr) / (x1 - x0)
+                intercept_curr = y0_curr - slope_curr * x0
+
+                x_kink = (intercept_curr - intercept_prev) / (slope_prev - slope_curr)
+                value_kink = slope_prev * x_kink + intercept_prev
+
+                # Interpolate policies at kink
+                policy_left = p0_prev + ((p1_prev - p0_prev) / (x1 - x0)) * (
+                    x_kink - x0
+                )
+                policy_right = p0_curr + ((p1_curr - p0_curr) / (x1 - x0)) * (
+                    x_kink - x0
+                )
+
+                # Use dynamic_update_slice to update arrays at insert_idx
+                new_grid = jax.lax.dynamic_update_slice(
+                    grid, jnp.array([x_kink - EPS, x_kink + EPS]), [insert_idx]
+                )
+                new_val = jax.lax.dynamic_update_slice(
+                    val, jnp.array([value_kink, value_kink]), [insert_idx]
+                )
+                new_pol = jax.lax.dynamic_update_slice(
+                    pol, jnp.array([policy_left, policy_right]), [insert_idx]
+                )
+
+                return new_grid, new_val, new_pol, insert_idx + 2
+
+            return jax.lax.cond(
+                all_finite, compute_kink, lambda: (grid, val, pol, insert_idx)
+            )
+
+        # Add kink if needed
+        grid, val, pol, new_insert_idx = jax.lax.cond(
+            is_kink, add_kink, lambda: (grid, val, pol, insert_idx)
+        )
+
+        # Add current dominating point
+        grid = grid.at[new_insert_idx].set(unified_grid[i])
+        val = val.at[new_insert_idx].set(max_values[i])
+        pol = pol.at[new_insert_idx].set(interpolated_policy[curr_best, i])
+
+        return grid, val, pol, new_insert_idx + 1
+
+    endog_grid, value_out, policy_out, _ = jax.lax.fori_loop(
+        1, unified_grid.shape[0], process_point, (endog_grid, value_out, policy_out, 1)
     )
 
-    return final_state.segments, final_state.n_segments
+    return endog_grid, policy_out, value_out
 
 
-def _compute_upper_envelope(
-    segments: jnp.ndarray, n_segments: int
-) -> Tuple[jnp.ndarray, jnp.ndarray]:
-    """Computes the upper envelope over non-monotonic segments.
+def _handle_single_segment_jax(
+    candidates: jnp.ndarray, final_grid_size: int
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+    """Handle case with single segment."""
+    initial_size = candidates.shape[1]
 
-    Removes suboptimal points and adds kink points to refine the value function.
-
-    Args:
-        segments: Array of shape (max_segments, 2, max_grid_size) with segments.
-        n_segments: Number of valid segments.
-
-    Returns:
-        Tuple of:
-        - value_refined: Array of shape (2, n_refined) with refined grid and values.
-        - points_to_add: Array of shape (2, n_kinks) with kink points and values.
-
-    """
-    # Create a unified wealth grid
-    valid_segments = segments[:n_segments, 0, :]
-    endog_wealth_grid = jnp.unique(jnp.concatenate(valid_segments, axis=0))
-
-    # Interpolate values for each segment
-    values_interp = jnp.array(
-        [
-            _linear_interpolation_with_inserting_missing_values(
-                x=segments[i, 0, :],
-                y=segments[i, 1, :],
-                x_new=endog_wealth_grid,
-                missing_value=jnp.nan,
-            )
-            for i in range(n_segments)
-        ]
+    endog_grid = (
+        jnp.full(final_grid_size, jnp.nan).at[:initial_size].set(candidates[0, :])
     )
+    policy = jnp.full(final_grid_size, jnp.nan).at[:initial_size].set(candidates[1, :])
+    value = jnp.full(final_grid_size, jnp.nan).at[:initial_size].set(candidates[2, :])
 
-    # Identify top segments
-    max_values = jnp.max(values_interp, axis=0)
-    top_segments = values_interp == max_values[None, :]
-
-    grid_points = [endog_wealth_grid[0]]
-    values = [values_interp[0, 0]]
-    kink_points = []
-    kink_values = []
-
-    first_segment_idx = jnp.where(top_segments[:, 0])[0][0]
-
-    for i in range(1, len(endog_wealth_grid)):
-        second_segment_idx = jnp.where(top_segments[:, i])[0][0]
-
-        if second_segment_idx != first_segment_idx:
-            grid1, grid2 = endog_wealth_grid[i - 1], endog_wealth_grid[i]
-            values1 = _linear_interpolation_with_inserting_missing_values(
-                x=segments[first_segment_idx, 0, :],
-                y=segments[first_segment_idx, 1, :],
-                x_new=jnp.array([grid1, grid2]),
-                missing_value=jnp.nan,
-            )
-            values2 = _linear_interpolation_with_inserting_missing_values(
-                x=segments[second_segment_idx, 0, :],
-                y=segments[second_segment_idx, 1, :],
-                x_new=jnp.array([grid1, grid2]),
-                missing_value=jnp.nan,
-            )
-
-            if jnp.all(jnp.isfinite(jnp.vstack([values1, values2]))) and jnp.all(
-                jnp.abs(values1 - values2) > 0
-            ):
-                seg1 = jnp.array([[grid1, grid2], values1])
-                seg2 = jnp.array([[grid1, grid2], values2])
-                x_intersect, y_intersect = _intersection_closed_form(seg1, seg2)
-
-                if grid1 <= x_intersect <= grid2:
-                    segment_values = jnp.array(
-                        [
-                            _linear_interpolation_with_inserting_missing_values(
-                                x=segments[j, 0, :],
-                                y=segments[j, 1, :],
-                                x_new=jnp.array([x_intersect]),
-                                missing_value=jnp.nan,
-                            )[0]
-                            for j in range(n_segments)
-                        ]
-                    )
-                    max_segment_idx = jnp.argmax(segment_values)
-
-                    if max_segment_idx in [first_segment_idx, second_segment_idx]:
-                        grid_points.append(x_intersect)
-                        values.append(y_intersect)
-                        kink_points.append(x_intersect)
-                        kink_values.append(y_intersect)
-
-        if jnp.any(
-            jnp.abs(segments[second_segment_idx, 0, :] - endog_wealth_grid[i]) < EPS
-        ):
-            grid_points.append(endog_wealth_grid[i])
-            values.append(max_values[i])
-
-        first_segment_idx = second_segment_idx
-
-    points_to_add = jnp.vstack([kink_points, kink_values])
-    value_refined = jnp.vstack([grid_points, values])
-    return value_refined, points_to_add
+    return endog_grid, policy, value
 
 
-def _find_dominated_points(
-    value_grid: jnp.ndarray, value_refined: jnp.ndarray, significance: int = 10
-) -> jnp.ndarray:
-    """Identifies indices of dominated points in the value correspondence.
-
-    Args:
-        value_grid: Array of shape (2, max_grid_size) with original grid and values.
-        value_refined: Array of shape (2, n_refined) with refined grid and values.
-        significance: Tolerance level for comparison (default: 10).
-
-    Returns:
-        Array of indices of dominated points.
-
-    """
-    tol = 2 * 10 ** (-significance)
-    grid_diff = jnp.abs(value_grid[0, :, None] - value_refined[0, None, :])
-    value_diff = jnp.abs(value_grid[1, :, None] - value_refined[1, None, :])
-    is_non_dominated = jnp.any((grid_diff < tol) & (value_diff < tol), axis=1)
-    return jnp.arange(value_grid.shape[1])[~is_non_dominated]
-
-
-def _refine_policy(
-    policy_grid: jnp.ndarray, dominated_indices: jnp.ndarray, points_to_add: jnp.ndarray
-) -> jnp.ndarray:
-    """Refines policy by removing dominated points and adding kink points.
-
-    Args:
-        policy_grid: Array of shape (2, max_grid_size) with grid and policy.
-        dominated_indices: Indices of points to remove.
-        points_to_add: Array of shape (2, n_kinks) with kink points and values.
-
-    Returns:
-        Refined policy array of shape (2, n_refined).
-
-    """
-    endog_grid = jnp.delete(policy_grid[0, :], dominated_indices)
-    consumption = jnp.delete(policy_grid[1, :], dominated_indices)
-
-    for x, y_right in points_to_add.T:
-        left_idx = jnp.max(
-            jnp.where(
-                (endog_grid < x)
-                & (~jnp.isin(jnp.arange(endog_grid.size), dominated_indices))
-            )[0]
-        )
-        right_idx = jnp.min(
-            jnp.where(
-                (endog_grid > x)
-                & (~jnp.isin(jnp.arange(endog_grid.size), dominated_indices))
-            )[0]
-        )
-
-        left_y = _linear_interpolation_with_extrapolation(
-            x=endog_grid[left_idx : left_idx + 2],
-            y=consumption[left_idx : left_idx + 2],
-            x_new=x,
-        )
-        right_y = _linear_interpolation_with_extrapolation(
-            x=endog_grid[right_idx - 1 : right_idx + 1],
-            y=consumption[right_idx - 1 : right_idx + 1],
-            x_new=x,
-        )
-
-        insert_idx = jnp.where(endog_grid > x)[0][0]
-        endog_grid = jnp.insert(endog_grid, insert_idx, [x, x - 0.001 * EPS])
-        consumption = jnp.insert(consumption, insert_idx, [left_y, right_y])
-
-    return jnp.vstack([endog_grid, consumption])
-
-
-def _add_kink_points_to_value(
-    value_grid: jnp.ndarray, points_to_add: jnp.ndarray
-) -> jnp.ndarray:
-    """Adds kink points to the value grid to capture discontinuities.
-
-    Args:
-        value_grid: Array of shape (2, max_grid_size) with wealth grid and values.
-        points_to_add: Array of shape (2, n_kinks) with kink points and values.
-
-    Returns:
-        Updated value grid with kink points.
-
-    """
-    for x, y in points_to_add.T:
-        insert_idx = jnp.max(jnp.where(value_grid[0, :] < x)[0]) + 1
-        value_grid = jnp.insert(value_grid, insert_idx, jnp.array([x, y]), axis=1)
-    return value_grid
-
-
-def _augment_grid(
-    policy: jnp.ndarray,
-    value: jnp.ndarray,
-    state_choice_vec: jnp.ndarray,
+def _augment_grid_left_jax(
+    candidates: jnp.ndarray,
+    state_choice_dict: Dict,
     expected_value_zero_assets: float,
     min_wealth: float,
-    n_grid_wealth: int,
-    params: jnp.ndarray,
+    initial_grid_size: int,
+    params: Dict,
     compute_utility: Callable,
-) -> Tuple[jnp.ndarray, jnp.ndarray]:
-    """Extends wealth grid, policy, and value function to the left for credit
-    constraints.
+    max_size: int,
+) -> jnp.ndarray:
+    """Augment grid to the left for credit constrained case."""
 
-    Args:
-        policy: Array of shape (2, n_grid_wealth) with grid and policy.
-        value: Array of shape (2, n_grid_wealth) with grid and values.
-        state_choice_vec: Array with state and choice variables.
-        expected_value_zero_assets: Expected value at zero assets.
-        min_wealth: Minimum wealth level in the grid.
-        n_grid_wealth: Number of grid points.
-        params: Array of model parameters.
-        compute_utility: Function to compute utility.
+    n_extra = initial_grid_size // 10
+    extra_points = jnp.linspace(min_wealth, candidates[0, 0], n_extra)
 
-    Returns:
-        Tuple of augmented policy and value arrays, padded to fixed size with nan.
-
-    """
-    n_points = n_grid_wealth // 10
-    grid_points = jnp.linspace(min_wealth, value[0, 0], n_points)
+    # Compute utility for extra points
     utility = compute_utility(
-        consumption=grid_points, params=params, **state_choice_vec
+        consumption=extra_points, params=params, **state_choice_dict
     )
-    values = utility + params["beta"] * expected_value_zero_assets
+    extra_values = utility + params["beta"] * expected_value_zero_assets
 
-    # Compute final size and pad with nan
-    final_size = n_grid_wealth + n_points - 1
-    policy_augmented = jnp.vstack(
-        [jnp.append(grid_points, policy[0, 1:]), jnp.append(grid_points, policy[1, 1:])]
-    )
-    value_augmented = jnp.vstack(
-        [jnp.append(grid_points, value[0, 1:]), jnp.append(values, value[1, 1:])]
-    )
+    # Create output array with same shape as input
+    output = jnp.full((3, max_size), jnp.nan)
 
-    # Pad to ensure consistent shape
-    policy_augmented = jnp.pad(
-        policy_augmented,
-        ((0, 0), (0, final_size - policy_augmented.shape[1])),
-        constant_values=jnp.nan,
-    )
-    value_augmented = jnp.pad(
-        value_augmented,
-        ((0, 0), (0, final_size - value_augmented.shape[1])),
-        constant_values=jnp.nan,
-    )
+    # Fill with augmented data
+    total_size = (
+        n_extra + initial_grid_size - 1
+    )  # -1 because we skip first original point
+    new_wealth = jnp.concatenate([extra_points, candidates[0, 1:initial_grid_size]])
+    new_policy = jnp.concatenate([extra_points, candidates[1, 1:initial_grid_size]])
+    new_value = jnp.concatenate([extra_values, candidates[2, 1:initial_grid_size]])
 
-    return policy_augmented, value_augmented
+    output = output.at[0, :total_size].set(new_wealth)
+    output = output.at[1, :total_size].set(new_policy)
+    output = output.at[2, :total_size].set(new_value)
 
-
-def _partition_grid(
-    value_grid: jnp.ndarray, split_idx: jnp.ndarray, max_grid_size: int
-) -> Tuple[jnp.ndarray, jnp.ndarray]:
-    """Splits the value grid into two parts at the given index using dynamic slicing.
-
-    Args:
-        value_grid: Array of shape (2, max_grid_size) with grid and values.
-        split_idx: Scalar index to split the grid (dynamic).
-        max_grid_size: Maximum size of the grid dimension.
-
-    Returns:
-        Tuple of two arrays of shape (2, max_grid_size):
-        - Left partition (padded with nan).
-        - Right partition (padded with nan).
-
-    """
-    # Ensure split_idx is valid
-    split_idx = jnp.minimum(split_idx, value_grid.shape[1] - 1)
-
-    # Extract left partition: [:, :split_idx + 1]
-    left_size = split_idx + 1
-    part_one = lax.dynamic_slice(
-        value_grid, start_indices=(0, 0), slice_sizes=(2, left_size)
-    )
-    part_one = jnp.pad(
-        part_one, ((0, 0), (0, max_grid_size - left_size)), constant_values=jnp.nan
-    )
-
-    # Extract right partition: [:, split_idx:]
-    right_size = value_grid.shape[1] - split_idx
-    part_two = lax.dynamic_slice(
-        value_grid, start_indices=(0, split_idx), slice_sizes=(2, right_size)
-    )
-    part_two = jnp.pad(
-        part_two, ((0, 0), (0, max_grid_size - right_size)), constant_values=jnp.nan
-    )
-
-    return part_one, part_two
-
-
-def _linear_interpolation_with_extrapolation(x: jnp.ndarray, y: jnp.ndarray, x_new):
-    """Linear interpolation with extrapolation for new x values.
-
-    Args:
-        x: 1D array of x-values.
-        y: 1D array of y-values.
-        x_new: Scalar or array of new x-values.
-
-    Returns:
-        Interpolated y-values with extrapolation.
-
-    """
-    ind = jnp.argsort(x)
-    x = x[ind]
-    y = y[ind]
-
-    ind_high = jnp.searchsorted(x, x_new).clip(max=x.shape[0] - 1, min=1)
-    ind_low = ind_high - 1
-
-    y_high = y[ind_high]
-    y_low = y[ind_low]
-    x_high = x[ind_high]
-    x_low = x[ind_low]
-
-    slope = (y_high - y_low) / (x_high - x_low)
-    return y_low + slope * (x_new - x_low)
-
-
-def _linear_interpolation_with_inserting_missing_values(
-    x: jnp.ndarray, y: jnp.ndarray, x_new, missing_value
-):
-    """Linear interpolation with missing values for out-of-range x_new.
-
-    Args:
-        x: 1D array of x-values.
-        y: 1D array of y-values.
-        x_new: Scalar or array of new x-values.
-        missing_value: Value to use for out-of-range x_new.
-
-    Returns:
-        Interpolated y-values with missing values for out-of-range points.
-
-    """
-    result = _linear_interpolation_with_extrapolation(x, y, x_new)
-    mask = (x_new < x.min()) | (x_new > x.max())
-    return jnp.where(mask, missing_value, result)
-
-
-def _intersection_closed_form(
-    seg1: jnp.ndarray, seg2: jnp.ndarray
-) -> Tuple[float, float]:
-    """Finds the intersection point of two 2D line segments.
-
-    Args:
-        seg1: Array of shape (2, 2) defining first segment (x, y coordinates).
-        seg2: Array of shape (2, 2) defining second segment.
-
-    Returns:
-        Tuple of (x, y) intersection coordinates.
-
-    Raises:
-        ValueError: If segments are parallel.
-
-    """
-    x1, x2 = seg1[0]
-    y1, y2 = seg1[1]
-    x3, x4 = seg2[0]
-    y3, y4 = seg2[1]
-
-    m1 = (y2 - y1) / (x2 - x1)
-    b1 = y1 - m1 * x1
-    m2 = (y4 - y3) / (x4 - x3)
-    b2 = y3 - m2 * x3
-
-    if jnp.isclose(m1, m2):
-        raise ValueError("Segments are parallel, no unique intersection.")
-
-    x_intersect = (b2 - b1) / (m1 - m2)
-    y_intersect = m1 * x_intersect + b1
-    return x_intersect, y_intersect
+    return output
