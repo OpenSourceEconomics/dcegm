@@ -69,195 +69,176 @@ def upper_envelope(
                 refined choice-specific value function.
 
     """
-    # Combine grids into 2D arrays for processing
-    policy = np.vstack([endog_grid, policy])
-    value = np.vstack([endog_grid, value])
+    # Combine grids into 3D array for processing
+    initial_grid_size = endog_grid.size
+    candidates = np.vstack([endog_grid, policy, value])
 
     # Check for credit constraint
-    min_wealth = np.min(value[0, :])
-    is_credit_constrained = value[0, 0] > min_wealth
+    min_wealth = np.min(candidates[0, :])
+    is_credit_constrained = candidates[0, 0] > min_wealth
 
     # Handle non-monotonic regions and augment grid if needed
     if is_credit_constrained:
-        policy, value = _augment_grid_left(
-            policy,
-            value,
+        candidates = _augment_grid_left(
+            candidates,
             state_choice_dict,
             expected_value_zero_assets,
             min_wealth,
-            endog_grid.size,
+            initial_grid_size,
             params,
             compute_utility,
         )
 
-    non_concave_segments = locate_non_concave_regions(value)
+    non_concave_segments = locate_non_concave_regions(candidates)
 
     # Process non-concave regions if multiple segments exist
     if len(non_concave_segments) > 1:
-        refined_value, kink_points = compute_upper_envelope(non_concave_segments)
-        dominated_indices = find_dominated_points(value, refined_value)
-
-        refined_policy = refine_policy(policy, dominated_indices, kink_points)
+        endog_grid, policy, value, kinks = compute_upper_envelope(
+            non_concave_segments, final_grid_size - 1
+        )
 
     else:
-        refined_value, refined_policy = value, policy
+        endog_grid = np.full(final_grid_size, np.nan)[:initial_grid_size] = candidates[
+            0, :
+        ]
+        policy = np.full(final_grid_size, np.nan)[:initial_grid_size] = candidates[1, :]
+        value = np.full(final_grid_size, np.nan)[:initial_grid_size] = candidates[2, :]
+        kinks = np.full((3, final_grid_size), np.nan)
 
-    # Prepare final arrays
-    final_value = np.append(expected_value_zero_assets, refined_value[1, :])
-    final_endog_grid = np.append(0.0, refined_policy[0, :])
-    final_policy = np.append(0.0, refined_policy[1, :])
+    # Add point for no begin of period assets
+    value = np.append(expected_value_zero_assets, value)
+    endog_grid = np.append(0.0, endog_grid)
+    policy = np.append(0.0, policy)
 
-    # Initialize output arrays with NaNs
-    result_endog_grid = np.full(final_grid_size, np.nan)
-    result_policy = np.full(final_grid_size, np.nan)
-    result_value = np.full(final_grid_size, np.nan)
-
-    # Fill output arrays
-    result_endog_grid[: len(final_endog_grid)] = final_endog_grid
-    result_policy[: len(final_policy)] = final_policy
-    result_value[: len(final_value)] = final_value
-
-    return result_endog_grid, result_policy, result_value
+    return endog_grid, policy, value
 
 
-def locate_non_concave_regions(value: np.ndarray) -> List[np.ndarray]:
+def locate_non_concave_regions(candidates: np.ndarray) -> List[np.ndarray]:
     """Locate segments where the grid is non-monotonic."""
-    diffs = value[0, 1:] - value[0, :-1]
+    diffs = candidates[0, 1:] - candidates[0, :-1]
     change_points = np.where(np.sign(diffs[:-1]) != np.sign(diffs[1:]))[0] + 1
-
     segments = []
     start = 0
+
     for idx in change_points:
-        segments.append(value[:, start : idx + 1])
+        segments.append(candidates[:, start : idx + 1])
         start = idx
-    segments.append(value[:, start:])  # Add final segment
+    segments.append(candidates[:, start:])  # Add final segment
 
     return segments
 
 
-def compute_upper_envelope(segments: List[np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
+def compute_upper_envelope(
+    segments: List[np.ndarray], grid_size: int
+) -> Tuple[np.ndarray, np.ndarray]:
     """Computes the upper envelope from overlapping value function segments."""
 
     # 1. Create a unified wealth grid
-    wealth_grid = np.unique(np.concatenate([seg[0] for seg in segments]))
+    unified_grid = np.unique(np.concatenate([seg[0] for seg in segments]))
 
     # 2. Interpolate all segments over the unified grid using NumPy
-    interpolated = np.array(
+    interpolated_value = np.array(
         [
-            np.interp(wealth_grid, seg[0], seg[1], left=-np.inf, right=-np.inf)
+            np.interp(unified_grid, seg[0], seg[2], left=-np.inf, right=-np.inf)
+            for seg in segments
+        ]
+    )
+    interpolated_policy = np.array(
+        [
+            np.interp(unified_grid, seg[0], seg[1], left=np.nan, right=np.nan)
             for seg in segments
         ]
     )
 
     # 3. Find max value and best segment at each grid point
-    max_values = np.max(interpolated, axis=0)
-    best_segment = np.argmax(interpolated, axis=0)
+    max_values = np.max(interpolated_value, axis=0)
+    best_segment = np.argmax(interpolated_value, axis=0)
 
-    grid = [wealth_grid[0]]
-    values = [max_values[0]]
-    kinks_x, kinks_y = [], []
+    # 4. Initialize grid, value and policy with final_grid_size + store kinks
+    endog_grid = np.full(grid_size, np.nan)
+    value = np.full(grid_size, np.nan)
+    policy = np.full(grid_size, np.nan)
+    # store every kink twice with engo_grid, value and policy
+    kinks = np.full((3, grid_size), np.nan)
 
-    for i in range(1, len(wealth_grid)):
+    # 5. Set the first point
+    endog_grid[0] = unified_grid[0]
+    value[0] = max_values[0]
+    policy[0] = interpolated_policy[best_segment[0], 0]
+
+    # 6. Iterate through the wealth grid to find kinks and add points
+    insert_idx = 1
+    for i in range(1, len(unified_grid)):
         prev_idx, curr_idx = best_segment[i - 1], best_segment[i]
-
-        if prev_idx != curr_idx:
-
-            # If segments are different, find intersection point
-            x0, x1 = wealth_grid[i - 1], wealth_grid[i]
-            y0_prev, y1_prev = interpolated[prev_idx, i - 1], interpolated[prev_idx, i]
-            y0_curr, y1_curr = interpolated[curr_idx, i - 1], interpolated[curr_idx, i]
-
+        if prev_idx != curr_idx:  # best segment switches
+            # endo_grid left and right of the kink
+            x0, x1 = unified_grid[i - 1], unified_grid[i]
+            # find the value right and left of the kink for the two value function segments
+            y0_prev, y1_prev = (
+                interpolated_value[prev_idx, i - 1],
+                interpolated_value[prev_idx, i],
+            )
+            y0_curr, y1_curr = (
+                interpolated_value[curr_idx, i - 1],
+                interpolated_value[curr_idx, i],
+            )
+            # find policy right and left of the kink for the two policy function segments
+            p0_prev, p1_prev = (
+                interpolated_policy[prev_idx, i - 1],
+                interpolated_policy[prev_idx, i],
+            )
+            p0_curr, p1_curr = (
+                interpolated_policy[curr_idx, i - 1],
+                interpolated_policy[curr_idx, i],
+            )
+            # only add the kink point if it is between two actual segments
+            # no extrapolation for any of the segments of the value function
             if all(np.isfinite([y0_prev, y1_prev, y0_curr, y1_curr])):
-                # Compute slopes and intercepts
-                m1 = (y1_prev - y0_prev) / (x1 - x0)
-                b1 = y0_prev - m1 * x0
-                m2 = (y1_curr - y0_curr) / (x1 - x0)
-                b2 = y0_curr - m2 * x0
-                x_kink = (b2 - b1) / (m1 - m2)
-                y_kink = m1 * x_kink + b1
-                grid.append(x_kink)
-                grid.append(x_kink + EPS)  # Add a small offset to avoid duplicates
-                values.append(y_kink)
-                values.append(y_kink)
-                kinks_x.append(x_kink)
-                kinks_y.append(y_kink)
+                # Compute slopes and intercepts of the two segments of the value function
+                slope_prev = (y1_prev - y0_prev) / (x1 - x0)
+                intercept_prev = y0_prev - slope_prev * x0
+                slope_curr = (y1_curr - y0_curr) / (x1 - x0)
+                intercept_curr = y0_curr - slope_curr * x0
+                # Calculate endo_grid at kink point
+                x_kink = (intercept_curr - intercept_prev) / (slope_prev - slope_curr)
+                # Calculate value at kink point
+                value_kink = (
+                    slope_prev * x_kink + intercept_prev
+                )  # could be done with either line
+                # Calculate policy left and right of the kink
+                interp_left = interpolate_with_extrapolation(
+                    [x0, x1], [p0_prev, p1_prev], x_kink
+                )
+                interp_right = interpolate_with_extrapolation(
+                    [x0, x1], [p0_curr, p1_curr], x_kink
+                )
+                # Set kink coordinates with offset on endo_grid
+                endog_grid[insert_idx : insert_idx + 2] = [x_kink - EPS, x_kink + EPS]
+                # Set value at kink point on endo_grid
+                value[insert_idx : insert_idx + 2] = [value_kink, value_kink]
+                # Set policy at kink points on endo_grid
+                policy[insert_idx : insert_idx + 2] = [interp_left, interp_right]
+                # Store kink endo_grid, value and policy left and right of the kink
+                kinks[:, insert_idx : insert_idx + 2] = np.array(
+                    [
+                        [x_kink - EPS, x_kink + EPS],
+                        [value_kink, value_kink],
+                        [interp_left, interp_right],
+                    ]
+                )
+                insert_idx += 2
 
-        if any(np.abs(segments[curr_idx][0] - wealth_grid[i]) < EPS):
-            grid.append(wealth_grid[i])
-            values.append(max_values[i])
+        # always add the dominating point
+        endog_grid[insert_idx] = unified_grid[i]
+        value[insert_idx] = max_values[i]
+        policy[insert_idx] = interpolated_policy[best_segment[i], i]
+        insert_idx += 1
 
-    return np.array([grid, values]), np.array([kinks_x, kinks_y])
-
-
-def find_dominated_points(
-    value: np.ndarray, refined_value: np.ndarray, significance: int = 10
-) -> np.ndarray:
-    """Identifies indices of dominated points in the value function correspondence.
-
-    Points are considered dominated if their grid or value differs significantly
-    from all points in the refined set, based on a tolerance of 2 * 10^(-significance).
-
-    Args:
-        value (np.ndarray): 2D array of shape (2, n_endog_wealth_grid) containing
-            choice-specific value function correspondences.
-        refined_value (np.ndarray): 2D array of shape (2, n_grid_refined) containing
-            the refined value function with suboptimal points dropped and kink points added.
-        significance (int): Level of significance for comparison tolerance (default: 10).
-
-    Returns:
-        np.ndarray: 1D array of shape (n_dominated_points,) containing indices of
-            dominated points, where n_dominated_points varies.
-
-    """
-    tol = 2 * 10 ** (-significance)
-    grid_diff = np.abs(value[0, :, None] - refined_value[0, None, :])
-    value_diff = np.abs(value[1, :, None] - refined_value[1, None, :])
-
-    is_non_dominated = np.any((grid_diff < tol) & (value_diff < tol), axis=1)
-    return np.arange(value.shape[1])[~is_non_dominated]
-
-
-def refine_policy(
-    policy: np.ndarray, dominated_indices: np.ndarray, kink_points: np.ndarray
-) -> np.ndarray:
-    """Refines the policy by removing dominated points and adding kink points."""
-    wealth_grid = np.delete(policy[0, :], dominated_indices)
-    consumption = np.delete(policy[1, :], dominated_indices)
-
-    for kink in kink_points[0, :]:
-
-        # Identify left and right indices in the original (full) policy grid
-        valid_indices = [
-            i for i in range(policy.shape[1]) if i not in dominated_indices
-        ]
-        left_candidates = [i for i in valid_indices if policy[0, i] < kink]
-        right_candidates = [i for i in valid_indices if policy[0, i] > kink]
-
-        if not left_candidates or not right_candidates:
-            continue  # skip if kink is outside the valid interpolation range
-
-        left_idx = max(left_candidates)
-        right_idx = min(right_candidates)
-
-        interp_left = interpolate_with_extrapolation(
-            policy[0, left_idx : left_idx + 2], policy[1, left_idx : left_idx + 2], kink
-        )
-        interp_right = interpolate_with_extrapolation(
-            policy[0, right_idx - 1 : right_idx + 1],
-            policy[1, right_idx - 1 : right_idx + 1],
-            kink,
-        )
-
-        insert_idx = np.where(wealth_grid > kink)[0][0]
-        wealth_grid = np.insert(wealth_grid, insert_idx, [kink, kink + EPS])
-        consumption = np.insert(consumption, insert_idx, [interp_left, interp_right])
-
-    return np.stack([wealth_grid, consumption])
+    return endog_grid, policy, value, kinks
 
 
 def _augment_grid_left(
-    policy: np.ndarray,
-    value: np.ndarray,
+    candidates: np.ndarray,
     state_choice_dict: Dict,
     expected_value_zero_assets: float,
     min_wealth: float,
@@ -268,10 +249,6 @@ def _augment_grid_left(
     """Extends the endogenous wealth grid, value, and policy function to the left.
 
     Args:
-        policy (np.ndarray): 2D array of shape (2, n_endog_wealth_grid) containing the
-            choice-specific policy function correspondence.
-        value (np.ndarray): 2D array of shape (2, n_endog_wealth_grid) containing the
-            choice-specific value function correspondence.
         state_choice_dict (Dict): Dictionary containing state and choice variables.
         expected_value_zero_assets (float): Expected value when wealth is zero.
         min_wealth (float): Minimum wealth level in the endogenous wealth grid.
@@ -287,20 +264,19 @@ def _augment_grid_left(
                 containing the augmented endogenous grid and value function.
 
     """
-    extra_points = np.linspace(min_wealth, value[0, 0], grid_size // 10)
+    extra_points = np.linspace(min_wealth, candidates[0, 0], grid_size // 10)
     utility = compute_utility(
         consumption=extra_points, params=params, **state_choice_dict
     )
     extra_values = utility + params["beta"] * expected_value_zero_assets
 
-    policy_augmented = np.vstack(
-        [np.append(extra_points, policy[0, 1:]), np.append(extra_points, policy[1, 1:])]
+    return np.vstack(
+        (
+            np.append(extra_points, candidates[0, 1:]),
+            np.append(extra_points, candidates[1, 1:]),
+            np.append(extra_values, candidates[2, 1:]),
+        )
     )
-    value_augmented = np.vstack(
-        [np.append(extra_points, value[0, 1:]), np.append(extra_values, value[1, 1:])]
-    )
-
-    return policy_augmented, value_augmented
 
 
 def interpolate_with_extrapolation(x, y, x0):

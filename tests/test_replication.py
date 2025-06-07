@@ -159,5 +159,3 @@ def test_benchmark_models(model_name):
 
         aaae(policy_expec_interp, policy_calc_interp)
         aaae(value_expec_interp, value_calc_interp)
-
-        value_expec_interp - value_calc_interp
