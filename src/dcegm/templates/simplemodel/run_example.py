@@ -165,5 +165,5 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         print("An error occurred:")
-        traceback.print_exc()
-        pdb.post_mortem()  # Start the debugger in post-mortem mode
+        # traceback.print_exc()
+        # pdb.post_mortem()  # Start the debugger in post-mortem mode

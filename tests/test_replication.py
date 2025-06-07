@@ -133,6 +133,18 @@ def test_benchmark_models(model_name):
             x_new=wealth_grid_to_test, x=policy_expec[0], y=policy_expec[1]
         )
 
+        endo_grid, policy_calc, value_calc = (
+            model_solved.get_solution_for_discrete_state_choice(
+                states={
+                    "period": period,
+                    "lagged_choice": state_choice_space_to_test[state_choice_idx, 1],
+                },
+                choice=choice,
+            )
+        )
+        policy_calc = jnp.vstack((endo_grid, policy_calc))
+        value_calc = jnp.vstack((endo_grid, value_calc))
+
         state = {
             "period": period,
             "lagged_choice": state_choice_space_to_test[state_choice_idx, 1],
@@ -147,3 +159,5 @@ def test_benchmark_models(model_name):
 
         aaae(policy_expec_interp, policy_calc_interp)
         aaae(value_expec_interp, value_calc_interp)
+
+        value_expec_interp - value_calc_interp

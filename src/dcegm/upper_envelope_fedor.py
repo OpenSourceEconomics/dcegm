@@ -104,12 +104,6 @@ def upper_envelope(
 
         refined_policy = refine_policy(policy, dominated_indices, kink_points)
 
-        # Add kink points to value grid
-        for i in range(kink_points.shape[1]):
-            insert_idx = np.where(refined_value[0, :] < kink_points[0, i])[0].max() + 1
-            refined_value = np.insert(
-                refined_value, insert_idx, kink_points[:, i], axis=1
-            )
     else:
         refined_value, refined_policy = value, policy
 
@@ -136,147 +130,72 @@ def upper_envelope(
 
 
 def locate_non_concave_regions(value: np.ndarray) -> List[np.ndarray]:
-    """Locates non-concave regions in the value function.
+    """Locate segments where the grid is non-monotonic."""
+    diffs = value[0, 1:] - value[0, :-1]
+    change_points = np.where(np.sign(diffs[:-1]) != np.sign(diffs[1:]))[0] + 1
 
-    Identifies non-monotonicity in the endogenous wealth grid where a grid point
-    to the right is smaller than its preceding point, indicating the value function
-    bends "backwards". Non-concave regions in the value function are reflected by
-    non-monotonous regions in the underlying endogenous wealth grid. Multiple
-    solutions to the Euler equation cause the standard EGM loop to produce a
-    "value correspondence" rather than a value function. The elimination of
-    suboptimal grid points converts this correspondence back to a proper function.
-
-    Args:
-        value (np.ndarray): 2D array of shape (2, n_endog_wealth_grid) containing the
-            choice-specific value function "correspondences", where n_endog_wealth_grid
-            varies based on the number of kinks and non-concave regions.
-
-    Returns:
-        List[np.ndarray]: List of arrays, each of shape (2, n_segment), containing
-            segments of the value function where n_segment is the length of each
-            non-monotonic segment.
-
-    """
     segments = []
-    current_value = value
-    is_monotonic = current_value[0, 1:] > current_value[0, :-1]
-
-    while True:
-        non_monotonic_idx = np.where(is_monotonic != is_monotonic[0])[0]
-
-        if not non_monotonic_idx.size:
-            if segments:  # Only append if we've already found segments
-                segments.append(current_value)
-            break
-
-        split_idx = min(non_monotonic_idx)
-        part_one, part_two = _partition_grid(current_value, split_idx)
-        segments.append(part_one)
-        current_value = part_two
-        is_monotonic = is_monotonic[split_idx:]
+    start = 0
+    for idx in change_points:
+        segments.append(value[:, start : idx + 1])
+        start = idx
+    segments.append(value[:, start:])  # Add final segment
 
     return segments
 
 
 def compute_upper_envelope(segments: List[np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
-    """Computes the upper envelope and refines the value function correspondence.
+    """Computes the upper envelope from overlapping value function segments."""
 
-    Detects suboptimal points in the value function correspondence, removes them,
-    and includes kink points along with their interpolated values. This process
-    converts the value correspondence back to a proper function, yielding the
-    refined endogenous wealth grid and value function.
-
-    Args:
-        segments (List[np.ndarray]): List of non-monotonous segments in the endogenous
-            wealth grid, each of shape (2, n_segment), where n_segment is the length
-            of the given non-monotonous segment.
-
-    Returns:
-        Tuple[np.ndarray, np.ndarray]: A tuple containing:
-            - refined_value (np.ndarray): 2D array of shape (2, n_grid_refined) containing
-                the refined endogenous wealth grid and corresponding value function.
-            - kink_points (np.ndarray): 2D array of shape (2, n_intersect_points) containing
-                kink points and their corresponding interpolated values.
-
-    """
-    # Create unified wealth grid
+    # 1. Create a unified wealth grid
     wealth_grid = np.unique(np.concatenate([seg[0] for seg in segments]))
 
-    # Interpolate values for each segment
-    interp_values = np.array(
+    # 2. Interpolate all segments over the unified grid using NumPy
+    interpolated = np.array(
         [
-            _linear_interpolation_with_inserting_missing_values(
-                seg[0], seg[1], wealth_grid, -np.inf
-            )
+            np.interp(wealth_grid, seg[0], seg[1], left=-np.inf, right=-np.inf)
             for seg in segments
         ]
     )
 
-    # Identify top segments
-    max_values = np.max(interp_values, axis=0)
-    top_segments = interp_values == max_values
+    # 3. Find max value and best segment at each grid point
+    max_values = np.max(interpolated, axis=0)
+    best_segment = np.argmax(interpolated, axis=0)
 
-    grid_points = [wealth_grid[0]]
-    values = [interp_values[0, 0]]
-    kink_points = []
-    kink_values = []
-
-    current_segment = np.where(top_segments[:, 0])[0][0]
+    grid = [wealth_grid[0]]
+    values = [max_values[0]]
+    kinks_x, kinks_y = [], []
 
     for i in range(1, len(wealth_grid)):
-        next_segment = np.where(top_segments[:, i])[0][0]
+        prev_idx, curr_idx = best_segment[i - 1], best_segment[i]
 
-        if next_segment != current_segment:
-            grid_start, grid_end = wealth_grid[i - 1 : i + 1]
-            val_seg1 = _linear_interpolation_with_inserting_missing_values(
-                segments[current_segment][0],
-                segments[current_segment][1],
-                np.array([grid_start, grid_end]),
-                np.nan,
-            )
-            val_seg2 = _linear_interpolation_with_inserting_missing_values(
-                segments[next_segment][0],
-                segments[next_segment][1],
-                np.array([grid_start, grid_end]),
-                np.nan,
-            )
+        if prev_idx != curr_idx:
 
-            if np.all(np.isfinite(np.vstack([val_seg1, val_seg2]))):
-                seg1 = np.array([[grid_start, grid_end], val_seg1])
-                seg2 = np.array([[grid_start, grid_end], val_seg2])
+            # If segments are different, find intersection point
+            x0, x1 = wealth_grid[i - 1], wealth_grid[i]
+            y0_prev, y1_prev = interpolated[prev_idx, i - 1], interpolated[prev_idx, i]
+            y0_curr, y1_curr = interpolated[curr_idx, i - 1], interpolated[curr_idx, i]
 
-                try:
-                    x_intersect, y_intersect = _intersection_closed_form(seg1, seg2)
-                    if grid_start <= x_intersect <= grid_end:
-                        all_seg_vals = np.array(
-                            [
-                                _linear_interpolation_with_inserting_missing_values(
-                                    seg[0], seg[1], np.array([x_intersect]), -np.inf
-                                )[0]
-                                for seg in segments
-                            ]
-                        )
-                        if np.max(all_seg_vals) in (
-                            all_seg_vals[current_segment],
-                            all_seg_vals[next_segment],
-                        ):
-                            grid_points.append(x_intersect)
-                            values.append(y_intersect)
-                            kink_points.append(x_intersect)
-                            kink_values.append(y_intersect)
-                except ValueError:
-                    pass
+            if all(np.isfinite([y0_prev, y1_prev, y0_curr, y1_curr])):
+                # Compute slopes and intercepts
+                m1 = (y1_prev - y0_prev) / (x1 - x0)
+                b1 = y0_prev - m1 * x0
+                m2 = (y1_curr - y0_curr) / (x1 - x0)
+                b2 = y0_curr - m2 * x0
+                x_kink = (b2 - b1) / (m1 - m2)
+                y_kink = m1 * x_kink + b1
+                grid.append(x_kink)
+                grid.append(x_kink + EPS)  # Add a small offset to avoid duplicates
+                values.append(y_kink)
+                values.append(y_kink)
+                kinks_x.append(x_kink)
+                kinks_y.append(y_kink)
 
-        if any(abs(segments[next_segment][0] - wealth_grid[i]) < EPS):
-            grid_points.append(wealth_grid[i])
+        if any(np.abs(segments[curr_idx][0] - wealth_grid[i]) < EPS):
+            grid.append(wealth_grid[i])
             values.append(max_values[i])
 
-        current_segment = next_segment
-
-    refined_value = np.array([grid_points, values])
-    kink_points_array = np.array([kink_points, kink_values])
-
-    return refined_value, kink_points_array
+    return np.array([grid, values]), np.array([kinks_x, kinks_y])
 
 
 def find_dominated_points(
@@ -310,44 +229,36 @@ def find_dominated_points(
 def refine_policy(
     policy: np.ndarray, dominated_indices: np.ndarray, kink_points: np.ndarray
 ) -> np.ndarray:
-    """Refines the policy correspondence by removing suboptimal points and adding kink
-    points.
-
-    Args:
-        policy (np.ndarray): 2D array of shape (2, n_endog_wealth_grid) containing the
-            choice-specific policy function correspondence.
-        dominated_indices (np.ndarray): 1D array of shape (n_dominated_points,) containing
-            indices of dominated points in the endogenous wealth grid.
-        kink_points (np.ndarray): 2D array of shape (2, n_kink_points) containing kink
-            points and their corresponding interpolated values.
-
-    Returns:
-        np.ndarray: 2D array of shape (2, n_grid_refined) containing the refined
-            choice-specific policy function with suboptimal points removed and kink points added.
-
-    """
+    """Refines the policy by removing dominated points and adding kink points."""
     wealth_grid = np.delete(policy[0, :], dominated_indices)
     consumption = np.delete(policy[1, :], dominated_indices)
 
     for kink in kink_points[0, :]:
-        left_idx = max(
-            [i for i in np.where(policy[0, :] < kink)[0] if i not in dominated_indices]
-        )
-        right_idx = min(
-            [i for i in np.where(policy[0, :] > kink)[0] if i not in dominated_indices]
-        )
 
-        interp_left = _linear_interpolation_with_extrapolation(
+        # Identify left and right indices in the original (full) policy grid
+        valid_indices = [
+            i for i in range(policy.shape[1]) if i not in dominated_indices
+        ]
+        left_candidates = [i for i in valid_indices if policy[0, i] < kink]
+        right_candidates = [i for i in valid_indices if policy[0, i] > kink]
+
+        if not left_candidates or not right_candidates:
+            continue  # skip if kink is outside the valid interpolation range
+
+        left_idx = max(left_candidates)
+        right_idx = min(right_candidates)
+
+        interp_left = interpolate_with_extrapolation(
             policy[0, left_idx : left_idx + 2], policy[1, left_idx : left_idx + 2], kink
         )
-        interp_right = _linear_interpolation_with_extrapolation(
+        interp_right = interpolate_with_extrapolation(
             policy[0, right_idx - 1 : right_idx + 1],
             policy[1, right_idx - 1 : right_idx + 1],
             kink,
         )
 
         insert_idx = np.where(wealth_grid > kink)[0][0]
-        wealth_grid = np.insert(wealth_grid, insert_idx, [kink, kink - 0.001 * EPS])
+        wealth_grid = np.insert(wealth_grid, insert_idx, [kink, kink + EPS])
         consumption = np.insert(consumption, insert_idx, [interp_left, interp_right])
 
     return np.stack([wealth_grid, consumption])
@@ -401,103 +312,5 @@ def _augment_grid_left(
     return policy_augmented, value_augmented
 
 
-def _partition_grid(value: np.ndarray, split_idx: int) -> Tuple[np.ndarray, np.ndarray]:
-    """Splits the grid into two parts at the specified index.
-
-    The index after which the separation occurs is also included in the second partition.
-
-    Args:
-        value (np.ndarray): 2D array of shape (2, n_endog_wealth_grid) containing the
-            choice-specific value function correspondence.
-        split_idx (int): Index where the endogenous wealth grid is separated.
-
-    Returns:
-        Tuple[np.ndarray, np.ndarray]: A tuple containing:
-            - part_one (np.ndarray): 2D array of shape (2, split_idx+1) containing the first partition.
-            - part_two (np.ndarray): 2D array of shape (2, n_endog_wealth_grid-split_idx) containing the second partition.
-
-    """
-    split_idx = min(split_idx, value.shape[1])
-    return value[:, : split_idx + 1], value[:, split_idx:]
-
-
-def _linear_interpolation_with_extrapolation(
-    x: np.ndarray, y: np.ndarray, x_new: np.ndarray
-) -> np.ndarray:
-    """Performs linear interpolation with extrapolation for new x-values.
-
-    Args:
-        x (np.ndarray): 1D array of shape (n,) containing the x-values.
-        y (np.ndarray): 1D array of shape (n,) containing the y-values corresponding to x.
-        x_new (np.ndarray): 1D array of shape (m,) or float containing the new x-values.
-
-    Returns:
-        np.ndarray: 1D array of shape (m,) or float containing the interpolated or
-            extrapolated y-values corresponding to x_new.
-
-    """
-    idx = np.argsort(x)
-    x, y = x[idx], y[idx]
-
-    high_idx = np.searchsorted(x, x_new).clip(max=x.size - 1, min=1)
-    low_idx = high_idx - 1
-
-    slope = (y[high_idx] - y[low_idx]) / (x[high_idx] - x[low_idx])
-    return slope * (x_new - x[low_idx]) + y[low_idx]
-
-
-def _linear_interpolation_with_inserting_missing_values(
-    x: np.ndarray, y: np.ndarray, x_new: np.ndarray, missing_value: float
-) -> np.ndarray:
-    """Performs linear interpolation, inserting missing values for out-of-range
-    x-values.
-
-    Args:
-        x (np.ndarray): 1D array of shape (n,) containing the x-values.
-        y (np.ndarray): 1D array of shape (n,) containing the y-values corresponding to x.
-        x_new (np.ndarray): 1D array of shape (m,) or float containing the new x-values.
-        missing_value (float): Value to set for x_new values outside the range of x.
-
-    Returns:
-        np.ndarray: 1D array of shape (m,) or float containing the interpolated y-values,
-            with missing_value set for out-of-range x_new values.
-
-    """
-    result = _linear_interpolation_with_extrapolation(x, y, x_new)
-    result[(x_new < x.min()) | (x_new > x.max())] = missing_value
-    return result
-
-
-def _intersection_closed_form(
-    seg1: np.ndarray, seg2: np.ndarray
-) -> Tuple[float, float]:
-    """Finds the intersection point of two line segments in 2D space.
-
-    Args:
-        seg1 (np.ndarray): 2D array of shape (2, 2) defining the first segment's x and y coordinates.
-        seg2 (np.ndarray): 2D array of shape (2, 2) defining the second segment's x and y coordinates.
-
-    Returns:
-        Tuple[float, float]: The x and y coordinates of the intersection point.
-
-    Raises:
-        ValueError: If the segments are parallel.
-
-    """
-    x1, x2 = seg1[0]
-    y1, y2 = seg1[1]
-    x3, x4 = seg2[0]
-    y3, y4 = seg2[1]
-
-    m1 = (y2 - y1) / (x2 - x1)
-    b1 = y1 - m1 * x1
-    m2 = (y4 - y3) / (x4 - x3)
-    b2 = y3 - m2 * x3
-
-    if np.isclose(m1, m2):
-        raise ValueError(
-            "Two Upper Envelope Segments are parallel, no unique intersection."
-        )
-
-    x_intersect = (b2 - b1) / (m1 - m2)
-    return x_intersect, m1 * x_intersect + b1
+def interpolate_with_extrapolation(x, y, x0):
+    return y[0] + ((y[1] - y[0]) / (x[1] - x[0])) * (x0 - x[0])
