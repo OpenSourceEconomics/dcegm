@@ -128,7 +128,7 @@ def main():
     axes[0].set_xlabel("Wealth")
     axes[0].set_ylabel("Consumption")
     axes[0].set_title(
-        "Consumption Policy Function\nPeriod T-5, Varying Taste Shock, Continues Employment",
+        "Policy Function, Period T-5, Varying Taste Shock,\n Continues Employment with Income Uncertainty",
         fontsize=11,
         fontweight="bold",
     )
@@ -139,7 +139,7 @@ def main():
     axes[1].set_xlabel("Wealth")
     axes[1].set_ylabel("Value")
     axes[1].set_title(
-        "Value Function\nPeriod T-5, Varying Taste Shock, Continues Employment",
+        "Value Function, Period T-5, Varying Taste Shock,\nContinues Employment with Income Uncertainty",
         fontsize=11,
         fontweight="bold",
     )

@@ -5,7 +5,7 @@ from typing import Callable, Dict, Tuple
 import jax
 import jax.numpy as jnp
 
-EPS = 2e-16
+EPS = 2e-10
 
 
 def upper_envelope(
@@ -34,7 +34,15 @@ def upper_envelope(
         Tuple of (endog_grid, policy, value) arrays of size final_grid_size + 1
 
     """
+
     initial_grid_size = endog_grid.shape[0]
+    max_n_segments = (
+        initial_grid_size // 12
+    )  # Maximum number of segments TODO find heuristic based on period, n_choice, taste shock scale & ask Max if based on period is allowed
+    max_s_segments = (
+        initial_grid_size  # Maximum size of each segment TODO think about this
+    )
+    n_extra = initial_grid_size // 10  # Points to add if credit constrained
 
     # Stack grids for processing
     candidates = jnp.vstack([endog_grid, policy, value])
@@ -43,41 +51,54 @@ def upper_envelope(
     min_wealth = jnp.min(candidates[0, :])
     is_credit_constrained = candidates[0, 0] > min_wealth
 
-    # Augment grid if credit constrained - pad to ensure consistent shape
-    max_augmented_size = int(initial_grid_size * 1.1)  # Based on your bound
-    candidates_padded = jnp.full((3, max_augmented_size), jnp.nan)
-    candidates_padded = candidates_padded.at[:, :initial_grid_size].set(candidates)
+    # last valid index
+    last_valid_index = jax.lax.cond(
+        is_credit_constrained,
+        lambda x: x + n_extra - 1,
+        lambda x: x - 1,
+        initial_grid_size,
+    )
 
-    candidates = jax.lax.cond(
+    # Augment grid if credit constrained - pad to final_grid_size for consistent shape
+    candidates_padded = jnp.full((3, final_grid_size), jnp.nan)
+
+    candidates_padded = jax.lax.cond(
         is_credit_constrained,
         lambda x: _augment_grid_left_jax(
             x,
+            candidates,
             state_choice_dict,
             expected_value_zero_assets,
             min_wealth,
+            n_extra,
             initial_grid_size,
             params,
             compute_utility,
-            max_augmented_size,
         ),
-        lambda x: x,
+        lambda x: x.at[:, :initial_grid_size].set(candidates),
         candidates_padded,
     )
 
-    # Locate segments using fixed-size arrays
-    segments_info = _locate_segments_jax(candidates, initial_grid_size)
+    # Locate segments of fixed-size padded array
+    segments_info = _locate_segments_jax(
+        candidates_padded, max_n_segments, last_valid_index
+    )
     n_segments = segments_info["n_segments"]
 
     # Process segments
     endog_out, policy_out, value_out = jax.lax.cond(
         n_segments > 1,
         lambda: _compute_upper_envelope_jax(
-            candidates, segments_info, final_grid_size - 1
+            candidates_padded,
+            segments_info,
+            final_grid_size - 1,
+            max_n_segments,
+            max_s_segments,
         ),
         lambda: _handle_single_segment_jax(candidates, final_grid_size - 1),
     )
 
-    # Add point for zero begin-of-period assets
+    # Add point for zero begin-of-period assets and zero end-of-period assets
     endog_final = jnp.concatenate([jnp.array([0.0]), endog_out])
     policy_final = jnp.concatenate([jnp.array([0.0]), policy_out])
     value_final = jnp.concatenate([jnp.array([expected_value_zero_assets]), value_out])
@@ -85,9 +106,22 @@ def upper_envelope(
     return endog_final, policy_final, value_final
 
 
-def _locate_segments_jax(candidates: jnp.ndarray, max_size: int) -> Dict:
-    """Locate non-concave segments using fixed-size arrays."""
-    wealth = candidates[0, :]
+def _locate_segments_jax(
+    candidates_padded: jnp.ndarray, max_segments: int, last_valid_index: int
+) -> Dict:
+    """Locate non-concave segments using dynamic slicing.
+
+    Args:
+        candidates_padded: 2D array of shape (3, n) with wealth, policy, and value
+        max_segments: Maximum number of segments to find
+    Returns:
+        Dictionary with segment information:
+            - n_segments: Number of segments found
+            - segment_starts: 1D array of segment start indices
+            - segment_ends: 1D array of segment end indices
+
+    """
+    wealth = candidates_padded[0, :]
     diffs = wealth[1:] - wealth[:-1]
 
     # Find sign changes (potential segment boundaries)
@@ -95,56 +129,14 @@ def _locate_segments_jax(candidates: jnp.ndarray, max_size: int) -> Dict:
     sign_changes = jnp.abs(signs[1:] - signs[:-1]) > EPS
 
     # Get change points (add 1 to account for diff indexing)
-    change_indices = jnp.where(sign_changes, size=max_size // 10, fill_value=-1)[0] + 1
+    change_indices = jnp.nonzero(sign_changes, size=max_segments, fill_value=-2)[0] + 1
 
-    # Count actual segments
+    # Count how many are valid (not -1) add 1 for first segment
     n_segments = jnp.sum(change_indices >= 0) + 1
 
-    # Create segment start/end indices without boolean indexing
-    max_segments = max_size // 10 + 1
-
-    # Initialize segment arrays
-    segment_starts = jnp.full(max_segments, -1)
-    segment_ends = jnp.full(max_segments, -1)
-
-    # Set first segment start
-    segment_starts = segment_starts.at[0].set(0)
-
-    # Count valid changes
-    n_valid = jnp.sum(change_indices >= 0)
-
-    # Use a loop to fill valid indices to avoid dynamic slicing
-    def fill_segments(i, state):
-        starts, ends = state
-        # Only process if we have a valid change index
-        is_valid = (i < n_valid) & (change_indices[i] >= 0)
-
-        # Update segment starts (i+1 because first start is 0)
-        starts = jax.lax.cond(
-            is_valid, lambda: starts.at[i + 1].set(change_indices[i]), lambda: starts
-        )
-
-        # Update segment ends
-        ends = jax.lax.cond(
-            is_valid, lambda: ends.at[i].set(change_indices[i]), lambda: ends
-        )
-
-        return starts, ends
-
-    # Fill segment arrays using loop
-    segment_starts, segment_ends = jax.lax.fori_loop(
-        0, max_segments - 1, fill_segments, (segment_starts, segment_ends)
-    )
-
-    # Set final segment end using loop to avoid dynamic indexing
-    def set_final_end(i, ends):
-        # Set end at position n_valid if i == n_valid
-        should_set = i == n_valid
-        return jax.lax.cond(
-            should_set, lambda: ends.at[i].set(wealth.shape[0]), lambda: ends
-        )
-
-    segment_ends = jax.lax.fori_loop(0, max_segments, set_final_end, segment_ends)
+    # Compose segment start and end arrays
+    segment_starts = jnp.concatenate([jnp.array([0]), change_indices[:-1]])
+    segment_ends = change_indices.at[n_segments - 1].set(last_valid_index)
 
     return {
         "n_segments": n_segments,
@@ -154,22 +146,25 @@ def _locate_segments_jax(candidates: jnp.ndarray, max_size: int) -> Dict:
 
 
 def _compute_upper_envelope_jax(
-    candidates: jnp.ndarray, segments_info: Dict, grid_size: int
+    candidates: jnp.ndarray,
+    segments_info: Dict,
+    final_grid_size: int,
+    max_n_segments: int,
+    max_s_segments: int,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Compute upper envelope from segments using JAX operations."""
 
     # Create unified wealth grid from all segments
     wealth_points = candidates[0, :]
-    unified_grid = jnp.unique(wealth_points, size=int(wealth_points.shape[0] * 1.1))
+    unified_grid = jnp.unique(wealth_points, size=final_grid_size, fill_value=jnp.nan)
 
     n_segments = segments_info["n_segments"]
     starts = segments_info["segment_starts"]
     ends = segments_info["segment_ends"]
 
     # Pre-allocate interpolation arrays
-    max_segments = starts.shape[0]
-    interpolated_value = jnp.full((max_segments, unified_grid.shape[0]), -jnp.inf)
-    interpolated_policy = jnp.full((max_segments, unified_grid.shape[0]), jnp.nan)
+    interpolated_value = jnp.full((max_n_segments, unified_grid.shape[0]), -jnp.inf)
+    interpolated_policy = jnp.full((max_n_segments, unified_grid.shape[0]), -jnp.inf)
 
     # Interpolate each segment
     def interpolate_segment(i, arrays):
@@ -177,38 +172,47 @@ def _compute_upper_envelope_jax(
 
         # Get segment boundaries
         start_idx = starts[i]
-        end_idx = ends[i]
+        end_idx = ends[i] + 1
 
         # Only process valid segments
-        valid_segment = (i < n_segments) & (start_idx >= 0) & (end_idx > start_idx)
+        valid_segment = (i < n_segments) & (start_idx >= 0)
 
-        # Extract segment data using dynamic slice with fixed size
-        max_seg_length = int(grid_size * 1.1)  # Based on your bound - fixed size
-
+        # TODO move this into the jax.lax.cond with the interpolation (this only needs to be done for valid segments)
         # Use dynamic slice with fixed segment size
         seg_wealth_padded = jax.lax.dynamic_slice(
-            jnp.concatenate([candidates[0, :], jnp.full(max_seg_length, jnp.nan)]),
+            jnp.concatenate([candidates[0, :], jnp.full(max_s_segments, jnp.nan)]),
             (start_idx,),
-            (max_seg_length,),
+            (max_s_segments,),
         )
+
+        # TODO move this into the jax.lax.cond with the interpolation (this only needs to be done for valid segments)
         seg_policy_padded = jax.lax.dynamic_slice(
-            jnp.concatenate([candidates[1, :], jnp.full(max_seg_length, jnp.nan)]),
+            jnp.concatenate([candidates[1, :], jnp.full(max_s_segments, jnp.nan)]),
             (start_idx,),
-            (max_seg_length,),
+            (max_s_segments,),
         )
+
+        # TODO move this into the jax.lax.cond with the interpolation (this only needs to be done for valid segments)
         seg_value_padded = jax.lax.dynamic_slice(
-            jnp.concatenate([candidates[2, :], jnp.full(max_seg_length, jnp.nan)]),
+            jnp.concatenate([candidates[2, :], jnp.full(max_s_segments, jnp.nan)]),
             (start_idx,),
-            (max_seg_length,),
+            (max_s_segments,),
         )
 
-        # Mask out invalid entries beyond actual segment length
+        # Mask out invalid entries beyond actual segment length and replace with last valid entry
         seg_length = end_idx - start_idx
-        valid_mask = jnp.arange(max_seg_length) < seg_length
-
+        valid_mask = jnp.arange(max_s_segments) < seg_length
         seg_wealth = jnp.where(valid_mask, seg_wealth_padded, jnp.nan)
         seg_policy = jnp.where(valid_mask, seg_policy_padded, jnp.nan)
         seg_value = jnp.where(valid_mask, seg_value_padded, jnp.nan)
+
+        # # horrendous way of dealing with machine precision ig
+        # sometimes the last point in a segment will be ignored when interpolating on
+        # the unified grid below TODO Debug this on less caffein.
+        # last_valid_index = jnp.sum(valid_mask) - 1
+        # seg_wealth = seg_wealth.at[last_valid_index + 1].set(seg_wealth[last_valid_index] + EPS)
+        # seg_policy = seg_policy.at[last_valid_index + 1].set(seg_policy[last_valid_index] + EPS)
+        # seg_value = seg_value.at[last_valid_index + 1].set(seg_value[last_valid_index] + EPS)
 
         # Interpolate over unified grid
         new_val = jax.lax.cond(
@@ -222,9 +226,9 @@ def _compute_upper_envelope_jax(
         new_pol = jax.lax.cond(
             valid_segment,
             lambda: jnp.interp(
-                unified_grid, seg_wealth, seg_policy, left=jnp.nan, right=jnp.nan
+                unified_grid, seg_wealth, seg_policy, left=-jnp.inf, right=-jnp.inf
             ),
-            lambda: jnp.full_like(unified_grid, jnp.nan),
+            lambda: jnp.full_like(unified_grid, -jnp.inf),
         )
 
         interp_val = interp_val.at[i].set(new_val)
@@ -233,17 +237,20 @@ def _compute_upper_envelope_jax(
         return interp_val, interp_pol
 
     interpolated_value, interpolated_policy = jax.lax.fori_loop(
-        0, max_segments, interpolate_segment, (interpolated_value, interpolated_policy)
+        0,
+        max_n_segments,
+        interpolate_segment,
+        (interpolated_value, interpolated_policy),
     )
 
     # Find best segment at each point
-    max_values = jnp.max(interpolated_value, axis=0)
-    best_segment = jnp.argmax(interpolated_value, axis=0)
+    max_values = jnp.nanmax(interpolated_value, axis=0)
+    best_segment = jnp.nanargmax(interpolated_value, axis=0)
 
     # Initialize output arrays
-    endog_grid = jnp.full(grid_size, jnp.nan)
-    value_out = jnp.full(grid_size, jnp.nan)
-    policy_out = jnp.full(grid_size, jnp.nan)
+    endog_grid = jnp.full(final_grid_size, jnp.nan)
+    value_out = jnp.full(final_grid_size, jnp.nan)
+    policy_out = jnp.full(final_grid_size, jnp.nan)
 
     # Set first point
     endog_grid = endog_grid.at[0].set(unified_grid[0])
@@ -351,18 +358,18 @@ def _handle_single_segment_jax(
 
 
 def _augment_grid_left_jax(
+    candidates_padded: jnp.ndarray,
     candidates: jnp.ndarray,
     state_choice_dict: Dict,
     expected_value_zero_assets: float,
     min_wealth: float,
+    n_extra: int,
     initial_grid_size: int,
     params: Dict,
     compute_utility: Callable,
-    max_size: int,
 ) -> jnp.ndarray:
     """Augment grid to the left for credit constrained case."""
 
-    n_extra = initial_grid_size // 10
     extra_points = jnp.linspace(min_wealth, candidates[0, 0], n_extra)
 
     # Compute utility for extra points
@@ -371,19 +378,12 @@ def _augment_grid_left_jax(
     )
     extra_values = utility + params["beta"] * expected_value_zero_assets
 
-    # Create output array with same shape as input
-    output = jnp.full((3, max_size), jnp.nan)
-
     # Fill with augmented data
-    total_size = (
-        n_extra + initial_grid_size - 1
-    )  # -1 because we skip first original point
-    new_wealth = jnp.concatenate([extra_points, candidates[0, 1:initial_grid_size]])
-    new_policy = jnp.concatenate([extra_points, candidates[1, 1:initial_grid_size]])
-    new_value = jnp.concatenate([extra_values, candidates[2, 1:initial_grid_size]])
-
-    output = output.at[0, :total_size].set(new_wealth)
-    output = output.at[1, :total_size].set(new_policy)
-    output = output.at[2, :total_size].set(new_value)
-
-    return output
+    candidates_padded = candidates_padded.at[0, :n_extra].set(extra_points)
+    candidates_padded = candidates_padded.at[1, :n_extra].set(extra_points)
+    candidates_padded = candidates_padded.at[2, :n_extra].set(extra_values)
+    # Shift existing candidates to the right
+    candidates_padded = candidates_padded.at[
+        :, n_extra : initial_grid_size + n_extra
+    ].set(candidates)
+    return candidates_padded

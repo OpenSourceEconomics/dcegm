@@ -137,6 +137,7 @@ def compute_upper_envelope(
     unified_grid = np.unique(np.concatenate([seg[0] for seg in segments]))
 
     # 2. Interpolate all segments over the unified grid using NumPy
+    # Since each segment itself is sorted, we can use np.interp
     interpolated_value = np.array(
         [
             np.interp(unified_grid, seg[0], seg[2], left=-np.inf, right=-np.inf)
