@@ -4,7 +4,6 @@ from pathlib import Path
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from jax import config
 from numpy.testing import assert_array_almost_equal as aaae
 
 import dcegm
@@ -156,28 +155,6 @@ def test_benchmark_models(model_name):
         policy_calc_interp = linear_interpolation_with_extrapolation(
             x_new=wealth_grid_to_test, x=policy_calc[0], y=policy_calc[1]
         )
-
-        # TL;DR: I created a bug, i think it was always there, but refactoring made it pop up.
-
-        # debug_plot_overlay(policy_expec, value_expec, policy_calc, value_calc)
-        # In some periods the last 3 or 4 endo grid points have policy and value missing, i think
-        # that is because the interpolation as it is currently implemented (with jnp.interp)
-        # inside of the upper envelope function does not do the exact same thing as the
-        # interpolation using numpy. Or more likely i introduced a bug in the UE somewhere,
-        # since there are also some magic extra points in the endo grid and i dont know where
-        # they come from, but they are near the kinks and always relatively close to another
-        # point (always lie exactly on the graph of the policy / value function). And starting
-        # in period 4 there are also some points missing in the value function segments, root
-        # cause is also that they are not added to that points segment when interpolating, even
-        # though they are in the endo grid and on that segment... @Max i hate debugging JAX but
-        # at least i got this horrendous version of a jax implementation to work (halfway). All
-        # the tests expect one run again if i add a point just eps away from the last point to the segment
-        # before interpolating on the unified grid. For period 21 this has the sideeffect that we find a new
-        # value and policy function that is too good so the test fails obviously.
-
-        # if period == 21 and choice == 0 and lagged_choice == 0:
-        #      debug_plot_overlay(policy_expec, value_expec, policy_calc, value_calc)
-        # #     # breakpoint()
 
         aaae(policy_expec_interp, policy_calc_interp)
         aaae(value_expec_interp, value_calc_interp)

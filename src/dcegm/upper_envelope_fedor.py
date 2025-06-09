@@ -98,11 +98,12 @@ def upper_envelope(
         )
 
     else:
-        endog_grid = np.full(final_grid_size, np.nan)[:initial_grid_size] = candidates[
-            0, :
-        ]
-        policy = np.full(final_grid_size, np.nan)[:initial_grid_size] = candidates[1, :]
-        value = np.full(final_grid_size, np.nan)[:initial_grid_size] = candidates[2, :]
+        endog_grid = np.full(final_grid_size - 1, np.nan)
+        policy = np.full(final_grid_size - 1, np.nan)
+        value = np.full(final_grid_size - 1, np.nan)
+        endog_grid[:initial_grid_size] = candidates[0, :]
+        policy[:initial_grid_size] = candidates[1, :]
+        value[:initial_grid_size] = candidates[2, :]
         kinks = np.full((3, final_grid_size), np.nan)
 
     # Add point for no begin of period assets

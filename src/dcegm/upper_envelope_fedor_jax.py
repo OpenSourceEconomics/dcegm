@@ -156,7 +156,9 @@ def _compute_upper_envelope_jax(
 
     # Create unified wealth grid from all segments
     wealth_points = candidates[0, :]
-    unified_grid = jnp.unique(wealth_points, size=final_grid_size, fill_value=jnp.nan)
+    unified_grid = jax.lax.sort(
+        jnp.unique(wealth_points, size=final_grid_size, fill_value=jnp.nan)
+    )
 
     n_segments = segments_info["n_segments"]
     starts = segments_info["segment_starts"]
@@ -165,70 +167,59 @@ def _compute_upper_envelope_jax(
     # Pre-allocate interpolation arrays
     interpolated_value = jnp.full((max_n_segments, unified_grid.shape[0]), -jnp.inf)
     interpolated_policy = jnp.full((max_n_segments, unified_grid.shape[0]), -jnp.inf)
+    # Before the fori_loop, get unified grid length (non-NaN entries)
+    unified_grid_len = jnp.sum(jnp.isfinite(unified_grid))
 
-    # Interpolate each segment
     def interpolate_segment(i, arrays):
         interp_val, interp_pol = arrays
 
-        # Get segment boundaries
         start_idx = starts[i]
         end_idx = ends[i] + 1
+        seg_length = end_idx - start_idx
 
-        # Only process valid segments
         valid_segment = (i < n_segments) & (start_idx >= 0)
 
-        # TODO move this into the jax.lax.cond with the interpolation (this only needs to be done for valid segments)
-        # Use dynamic slice with fixed segment size
+        # Pad segment and mask
         seg_wealth_padded = jax.lax.dynamic_slice(
             jnp.concatenate([candidates[0, :], jnp.full(max_s_segments, jnp.nan)]),
             (start_idx,),
             (max_s_segments,),
         )
-
-        # TODO move this into the jax.lax.cond with the interpolation (this only needs to be done for valid segments)
         seg_policy_padded = jax.lax.dynamic_slice(
             jnp.concatenate([candidates[1, :], jnp.full(max_s_segments, jnp.nan)]),
             (start_idx,),
             (max_s_segments,),
         )
-
-        # TODO move this into the jax.lax.cond with the interpolation (this only needs to be done for valid segments)
         seg_value_padded = jax.lax.dynamic_slice(
             jnp.concatenate([candidates[2, :], jnp.full(max_s_segments, jnp.nan)]),
             (start_idx,),
             (max_s_segments,),
         )
 
-        # Mask out invalid entries beyond actual segment length and replace with last valid entry
-        seg_length = end_idx - start_idx
-        valid_mask = jnp.arange(max_s_segments) < seg_length
-        seg_wealth = jnp.where(valid_mask, seg_wealth_padded, jnp.nan)
-        seg_policy = jnp.where(valid_mask, seg_policy_padded, jnp.nan)
-        seg_value = jnp.where(valid_mask, seg_value_padded, jnp.nan)
+        def interpolate():
+            new_val = fast_interp_sorted_nan_safe(
+                seg_wealth_padded,
+                seg_value_padded,
+                unified_grid,
+                seg_len=seg_length,
+                seg_len_new=unified_grid_len,
+            )
+            new_pol = fast_interp_sorted_nan_safe(
+                seg_wealth_padded,
+                seg_policy_padded,
+                unified_grid,
+                seg_len=seg_length,
+                seg_len_new=unified_grid_len,
+            )
+            return new_val, new_pol
 
-        # # horrendous way of dealing with machine precision ig
-        # sometimes the last point in a segment will be ignored when interpolating on
-        # the unified grid below TODO Debug this on less caffein.
-        # last_valid_index = jnp.sum(valid_mask) - 1
-        # seg_wealth = seg_wealth.at[last_valid_index + 1].set(seg_wealth[last_valid_index] + EPS)
-        # seg_policy = seg_policy.at[last_valid_index + 1].set(seg_policy[last_valid_index] + EPS)
-        # seg_value = seg_value.at[last_valid_index + 1].set(seg_value[last_valid_index] + EPS)
-
-        # Interpolate over unified grid
-        new_val = jax.lax.cond(
+        new_val, new_pol = jax.lax.cond(
             valid_segment,
-            lambda: jnp.interp(
-                unified_grid, seg_wealth, seg_value, left=-jnp.inf, right=-jnp.inf
+            interpolate,
+            lambda: (
+                jnp.full_like(unified_grid, -jnp.inf),
+                jnp.full_like(unified_grid, -jnp.inf),
             ),
-            lambda: jnp.full_like(unified_grid, -jnp.inf),
-        )
-
-        new_pol = jax.lax.cond(
-            valid_segment,
-            lambda: jnp.interp(
-                unified_grid, seg_wealth, seg_policy, left=-jnp.inf, right=-jnp.inf
-            ),
-            lambda: jnp.full_like(unified_grid, -jnp.inf),
         )
 
         interp_val = interp_val.at[i].set(new_val)
@@ -387,3 +378,60 @@ def _augment_grid_left_jax(
         :, n_extra : initial_grid_size + n_extra
     ].set(candidates)
     return candidates_padded
+
+
+def fast_interp_sorted_nan_safe(
+    x: jnp.ndarray, y: jnp.ndarray, x_new: jnp.ndarray, seg_len: int, seg_len_new: int
+) -> jnp.ndarray:
+    """Interpolates x/y at x_new assuming:
+
+    - x and x_new are sorted.
+    - Only the first `seg_len_x` of x/y and `seg_len_new` of x_new are valid.
+    - Returns -inf after first NaN or if x_new is outside valid x.
+
+    """
+    y_out_init = jnp.full_like(x_new, -jnp.inf)
+
+    def loop_fn(i, state):
+        idx, y_out, invalid = state
+
+        x_new_i = x_new[i]
+        new_invalid = invalid | (i >= seg_len_new)
+
+        def valid_branch(state):
+            idx, y_out, _ = state
+
+            # Move right while x[idx+1] <= x_new[i] and idx < seg_len_x - 2
+            idx = jax.lax.while_loop(
+                lambda j: (j < seg_len - 2) & (x[j + 1] <= x_new_i),
+                lambda j: j + 1,
+                idx,
+            )
+
+            x0, x1 = x[idx], x[idx + 1]
+            y0, y1 = y[idx], y[idx + 1]
+
+            # Linear interpolation
+            y_i = y0 + (y1 - y0) * (x_new_i - x0) / (x1 - x0)
+
+            # Out-of-domain → -inf
+            y_i = jnp.where(
+                (x_new_i < x[0]) | (x_new_i > x[seg_len - 1]), -jnp.inf, y_i
+            )
+
+            y_out = y_out.at[i].set(y_i)
+            return (idx, y_out, new_invalid)
+
+        def invalid_branch(state):
+            idx, y_out, _ = state
+            # leave y_out[i] = -inf
+            return (idx, y_out, new_invalid)
+
+        return jax.lax.cond(new_invalid, invalid_branch, valid_branch, state)
+
+    # Initial state: idx = 0, output -inf, valid
+    _, y_out_final, _ = jax.lax.fori_loop(
+        0, x_new.shape[0], loop_fn, (0, y_out_init, False)
+    )
+
+    return y_out_final

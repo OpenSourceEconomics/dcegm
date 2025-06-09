@@ -98,14 +98,16 @@ class setup_model:
         self.income_shock_draws_unscaled = income_shock_draws_unscaled
         self.income_shock_weights = income_shock_weights
 
-        backward_jit = partial(
-            backward_induction,
-            income_shock_draws_unscaled=self.income_shock_draws_unscaled,
-            income_shock_weights=self.income_shock_weights,
-            model_config=self.model_config,
-            batch_info=self.batch_info,
-            model_funcs=self.model_funcs,
-            model_structure=self.model_structure,
+        backward_jit = jax.jit(
+            partial(
+                backward_induction,
+                income_shock_draws_unscaled=self.income_shock_draws_unscaled,
+                income_shock_weights=self.income_shock_weights,
+                model_config=self.model_config,
+                batch_info=self.batch_info,
+                model_funcs=self.model_funcs,
+                model_structure=self.model_structure,
+            )
         )
 
         self.backward_induction_jit = backward_jit
