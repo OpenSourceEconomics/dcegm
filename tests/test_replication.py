@@ -136,8 +136,9 @@ def test_benchmark_models(model_name):
                 choice=choice,
             )
         )
-        policy_calc = np.vstack((endo_grid, policy_calc))
-        value_calc = np.vstack((endo_grid, value_calc))
+        first_nan_idx = np.where(np.isnan(endo_grid))[0][0]
+        policy_calc = np.vstack((endo_grid, policy_calc))[:, :first_nan_idx]
+        value_calc = np.vstack((endo_grid, value_calc))[:, :first_nan_idx]
 
         wealth_grid_to_test = jnp.linspace(
             policy_expec[0][1], policy_expec[0][-1] + 10, 1000
@@ -156,6 +157,8 @@ def test_benchmark_models(model_name):
             x_new=wealth_grid_to_test, x=policy_calc[0], y=policy_calc[1]
         )
 
+        # TL;DR: I created a bug, i think it was always there, but refactoring made it pop up.
+
         # debug_plot_overlay(policy_expec, value_expec, policy_calc, value_calc)
         # In some periods the last 3 or 4 endo grid points have policy and value missing, i think
         # that is because the interpolation as it is currently implemented (with jnp.interp)
@@ -172,9 +175,9 @@ def test_benchmark_models(model_name):
         # before interpolating on the unified grid. For period 21 this has the sideeffect that we find a new
         # value and policy function that is too good so the test fails obviously.
 
-        if period <= 4 and choice == 0 and lagged_choice == 0:
-            debug_plot_overlay(policy_expec, value_expec, policy_calc, value_calc)
-            # breakpoint()
+        # if period == 21 and choice == 0 and lagged_choice == 0:
+        #      debug_plot_overlay(policy_expec, value_expec, policy_calc, value_calc)
+        # #     # breakpoint()
 
-        # aaae(policy_expec_interp, policy_calc_interp)
-        # aaae(value_expec_interp, value_calc_interp)
+        aaae(policy_expec_interp, policy_calc_interp)
+        aaae(value_expec_interp, value_calc_interp)

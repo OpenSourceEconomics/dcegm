@@ -208,61 +208,61 @@ def run_upper_envelope(
         )
 
     else:
-        # n_state_choices = endog_grid_candidate.shape[0]
-        # n_wealth_total = int(1.2 * endog_grid_candidate.shape[1])
-        # endog_grid_sol = np.full(
-        #     (n_state_choices, n_wealth_total), dtype=float, fill_value=np.nan
-        # )
-        # policy_sol = np.full(
-        #     (n_state_choices, n_wealth_total), dtype=float, fill_value=np.nan
-        # )
-        # value_sol = np.full(
-        #     (n_state_choices, n_wealth_total), dtype=float, fill_value=np.nan
-        # )
-
-        # for sc_id in range(n_state_choices):
-        #     state_choice_id = {
-        #         key: state_choice_mat[key][sc_id] for key in state_choice_mat.keys()
-        #     }
-        #     endog_sc, policy_sc, value_sc = compute_upper_envelope_for_state_choice(
-        #         endog_grid_candidate[sc_id],
-        #         policy_candidate[sc_id],
-        #         value_candidate[sc_id],
-        #         expected_values[sc_id, 0],
-        #         state_choice_id,
-        #         compute_utility,
-        #         params,
-        #         discount_factor,
-        #     )
-        #     endog_grid_sol[sc_id, : endog_sc.shape[0]] = endog_sc
-        #     policy_sol[sc_id, : endog_sc.shape[0]] = policy_sc
-        #     value_sol[sc_id, : endog_sc.shape[0]] = value_sc
-
-        # return (
-        #     endog_grid_sol,
-        #     policy_sol,
-        #     value_sol,
-        # )
-
-        return vmap(
-            compute_upper_envelope_for_state_choice,
-            in_axes=(
-                0,
-                0,
-                0,
-                0,
-                0,
-                None,
-                None,
-                None,
-            ),  # discrete states and choice combs
-        )(
-            endog_grid_candidate,
-            policy_candidate,
-            value_candidate,
-            expected_values[:, 0],
-            state_choice_mat,
-            compute_utility,
-            params,
-            discount_factor,
+        n_state_choices = endog_grid_candidate.shape[0]
+        n_wealth_total = int(1.2 * endog_grid_candidate.shape[1])
+        endog_grid_sol = np.full(
+            (n_state_choices, n_wealth_total), dtype=float, fill_value=np.nan
         )
+        policy_sol = np.full(
+            (n_state_choices, n_wealth_total), dtype=float, fill_value=np.nan
+        )
+        value_sol = np.full(
+            (n_state_choices, n_wealth_total), dtype=float, fill_value=np.nan
+        )
+
+        for sc_id in range(n_state_choices):
+            state_choice_id = {
+                key: state_choice_mat[key][sc_id] for key in state_choice_mat.keys()
+            }
+            endog_sc, policy_sc, value_sc = compute_upper_envelope_for_state_choice(
+                endog_grid_candidate[sc_id],
+                policy_candidate[sc_id],
+                value_candidate[sc_id],
+                expected_values[sc_id, 0],
+                state_choice_id,
+                compute_utility,
+                params,
+                discount_factor,
+            )
+            endog_grid_sol[sc_id, : endog_sc.shape[0]] = endog_sc
+            policy_sol[sc_id, : endog_sc.shape[0]] = policy_sc
+            value_sol[sc_id, : endog_sc.shape[0]] = value_sc
+
+        return (
+            endog_grid_sol,
+            policy_sol,
+            value_sol,
+        )
+
+        # return vmap(
+        #     compute_upper_envelope_for_state_choice,
+        #     in_axes=(
+        #         0,
+        #         0,
+        #         0,
+        #         0,
+        #         0,
+        #         None,
+        #         None,
+        #         None,
+        #     ),  # discrete states and choice combs
+        # )(
+        #     endog_grid_candidate,
+        #     policy_candidate,
+        #     value_candidate,
+        #     expected_values[:, 0],
+        #     state_choice_mat,
+        #     compute_utility,
+        #     params,
+        #     discount_factor,
+        # )

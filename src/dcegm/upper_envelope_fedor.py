@@ -94,7 +94,7 @@ def upper_envelope(
     # Process non-concave regions if multiple segments exist
     if len(non_concave_segments) > 1:
         endog_grid, policy, value, kinks = compute_upper_envelope(
-            non_concave_segments, final_grid_size - 1
+            non_concave_segments, final_grid_size - 1, state_choice_dict
         )
 
     else:
@@ -115,21 +115,23 @@ def upper_envelope(
 
 def locate_non_concave_regions(candidates: np.ndarray) -> List[np.ndarray]:
     """Locate segments where the grid is non-monotonic."""
+
     diffs = candidates[0, 1:] - candidates[0, :-1]
-    change_points = np.where(np.sign(diffs[:-1]) != np.sign(diffs[1:]))[0] + 1
-    segments = []
-    start = 0
-
-    for idx in change_points:
-        segments.append(candidates[:, start : idx + 1])
-        start = idx
-    segments.append(candidates[:, start:])  # Add final segment
-
-    return segments
+    change_points = (np.where(np.sign(diffs[:-1]) != np.sign(diffs[1:]))[0] + 1)[0::2]
+    regions = []
+    if len(change_points) == 0:
+        return regions
+    else:
+        start = 0
+        for idx in change_points:
+            regions.append(candidates[:, start : idx + 1])
+            start = idx + 1
+        regions.append(candidates[:, start:])  # Add final segment
+        return regions
 
 
 def compute_upper_envelope(
-    segments: List[np.ndarray], grid_size: int
+    segments: List[np.ndarray], grid_size: int, state_choice_dict
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Computes the upper envelope from overlapping value function segments."""
 

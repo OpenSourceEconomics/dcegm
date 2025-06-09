@@ -1,7 +1,7 @@
 from jax import numpy as jnp
 from upper_envelope import fues_jax
 
-from dcegm.upper_envelope_fedor_jax import upper_envelope
+from dcegm.upper_envelope_fedor import upper_envelope
 
 
 def create_upper_envelope_function(model_config, continuous_state=None):
