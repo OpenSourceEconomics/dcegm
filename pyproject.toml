@@ -33,10 +33,10 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 authors = [
-  { name = "Sebastian Gsell", email = "gsell.sebastian@gmail.com" }
+    { name = "Max Blesch, Sebastian Gsell", email = "gsell.sebastian@gmail.com" }
 ]
 maintainers = [
-  { name = "Max Blesch", email = "maximilian.blesch@hu-berlin.de" }
+    { name = "Max Blesch, Sebastian Gsell", email = "maximilian.blesch@hu-berlin.de" }
 ]
 
 [project.readme]
