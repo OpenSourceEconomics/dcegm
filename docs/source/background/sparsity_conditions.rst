@@ -78,8 +78,6 @@ Best Practices
 - Handle **absorbing states** like death or permanent retirement carefully.
 - Ensure that any state created in the deterministic transition function also satisfies the sparsity condition.
 
-Failing to correctly define sparsity conditions will result in `ValueError` exceptions and warnings during model setup, as *dcegm* verifies that every `(state, choice)` pair leads to a valid next state. 
+Failing to correctly define sparsity conditions will result in `ValueError` exceptions and warnings during model setup, as *dcegm* verifies that every `(state, choice)` pair leads to a valid next state.
 
 To help you setup the correct sparsity conditions for your model, ``setup_model()`` provides a debug mode which can be triggered by passing the argument ``debug=state_space_df``.
-
-
