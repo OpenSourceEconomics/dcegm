@@ -209,41 +209,41 @@ def run_upper_envelope(
         )
 
     else:
-        # n_state_choices = endog_grid_candidate.shape[0]
-        # n_wealth_total = int(1.2 * endog_grid_candidate.shape[1])
-        # endog_grid_sol = np.full(
-        #     (n_state_choices, n_wealth_total), dtype=float, fill_value=np.nan
-        # )
-        # policy_sol = np.full(
-        #     (n_state_choices, n_wealth_total), dtype=float, fill_value=np.nan
-        # )
-        # value_sol = np.full(
-        #     (n_state_choices, n_wealth_total), dtype=float, fill_value=np.nan
-        # )
+        n_state_choices = endog_grid_candidate.shape[0]
+        n_wealth_total = int(1.2 * endog_grid_candidate.shape[1])
+        endog_grid_sol = np.full(
+            (n_state_choices, n_wealth_total), dtype=float, fill_value=np.nan
+        )
+        policy_sol = np.full(
+            (n_state_choices, n_wealth_total), dtype=float, fill_value=np.nan
+        )
+        value_sol = np.full(
+            (n_state_choices, n_wealth_total), dtype=float, fill_value=np.nan
+        )
 
-        # for sc_id in range(n_state_choices):
-        #     state_choice_id = {
-        #         key: state_choice_mat[key][sc_id] for key in state_choice_mat.keys()
-        #     }
-        #     endog_sc, policy_sc, value_sc = compute_upper_envelope_for_state_choice(
-        #         endog_grid_candidate[sc_id],
-        #         policy_candidate[sc_id],
-        #         value_candidate[sc_id],
-        #         expected_values[sc_id, 0],
-        #         state_choice_id,
-        #         compute_utility,
-        #         params,
-        #         discount_factor,
-        #     )
-        #     endog_grid_sol[sc_id, : endog_sc.shape[0]] = endog_sc
-        #     policy_sol[sc_id, : endog_sc.shape[0]] = policy_sc
-        #     value_sol[sc_id, : endog_sc.shape[0]] = value_sc
+        for sc_id in range(n_state_choices):
+            state_choice_id = {
+                key: state_choice_mat[key][sc_id] for key in state_choice_mat.keys()
+            }
+            endog_sc, policy_sc, value_sc = compute_upper_envelope_for_state_choice(
+                endog_grid_candidate[sc_id],
+                policy_candidate[sc_id],
+                value_candidate[sc_id],
+                expected_values[sc_id, 0],
+                state_choice_id,
+                compute_utility,
+                params,
+                discount_factor,
+            )
+            endog_grid_sol[sc_id, : endog_sc.shape[0]] = endog_sc
+            policy_sol[sc_id, : endog_sc.shape[0]] = policy_sc
+            value_sol[sc_id, : endog_sc.shape[0]] = value_sc
 
-        # return (
-        #     endog_grid_sol,
-        #     policy_sol,
-        #     value_sol,
-        # )
+        return (
+            endog_grid_sol,
+            policy_sol,
+            value_sol,
+        )
 
         # return vmap(
         #     compute_upper_envelope_for_state_choice,
@@ -267,90 +267,3 @@ def run_upper_envelope(
         #     params,
         #     discount_factor,
         # )
-
-        n_wealth_total = int(
-            1.2 * endog_grid_candidate.shape[1]
-        )  # TODO -> get from tuning params
-
-        # breakpoint()
-
-        def is_monotonic(endog_grid: jnp.ndarray) -> bool:
-            diffs = jnp.diff(endog_grid)
-            signs = jnp.sign(diffs)
-            sign_changes = jnp.abs(signs[1:] - signs[:-1]) > 1e-8
-            return jnp.sum(sign_changes) == 0
-
-        # Precompute monotonicity mask
-        is_mono_v = vmap(is_monotonic)(endog_grid_candidate)
-        B = endog_grid_candidate.shape[0]
-
-        # Helper for monotonic case
-        def handle_mono(endog, policy, value, ev0):
-            endog_final = jnp.concatenate([jnp.array([0.0]), endog])
-            policy_final = jnp.concatenate([jnp.array([0.0]), policy])
-            value_final = jnp.concatenate([jnp.array([ev0]), value])
-            pad = n_wealth_total - endog_final.shape[0]
-            endog_final = jnp.pad(endog_final, (0, pad), constant_values=jnp.nan)
-            policy_final = jnp.pad(policy_final, (0, pad), constant_values=jnp.nan)
-            value_final = jnp.pad(value_final, (0, pad), constant_values=jnp.nan)
-
-            return endog_final, policy_final, value_final
-
-        # Helper for non-monotonic case: internally vectorize if needed
-        def handle_nonmono(endog, policy, value, ev0, sc):
-            ef, pf, vf = compute_upper_envelope_for_state_choice(
-                endog, policy, value, ev0, sc, compute_utility, params, discount_factor
-            )
-            return ef, pf, vf
-
-        # === Main loop ===
-        def compute_all(
-            endog_grid_candidate,
-            policy_candidate,
-            value_candidate,
-            expected_values,
-            state_choice_mat,
-        ):
-            def body(i, carry):
-                endog_out, policy_out, value_out = carry
-                endog_i = endog_grid_candidate[i]
-                policy_i = policy_candidate[i]
-                value_i = value_candidate[i]
-                ev0_i = expected_values[i, 0]
-                sc_i = state_choice_mat[i]
-                is_mono_i = is_mono_v[i]
-
-                ef, pf, vf = lax.cond(
-                    is_mono_i,
-                    lambda _: handle_mono(endog_i, policy_i, value_i, ev0_i),
-                    lambda _: handle_nonmono(endog_i, policy_i, value_i, ev0_i, sc_i),
-                    operand=None,
-                )
-
-                endog_out = endog_out.at[i].set(ef)
-                policy_out = policy_out.at[i].set(pf)
-                value_out = value_out.at[i].set(vf)
-
-                return endog_out, policy_out, value_out
-
-            # Allocate outputs
-            endog_out = jnp.full((B, n_wealth_total), jnp.nan)
-            policy_out = jnp.full((B, n_wealth_total), jnp.nan)
-            value_out = jnp.full((B, n_wealth_total), jnp.nan)
-
-            def loop_fn(i, carry):
-                return body(i, carry)
-
-            endog_out, policy_out, value_out = lax.fori_loop(
-                0, B, loop_fn, (endog_out, policy_out, value_out)
-            )
-
-            return endog_out, policy_out, value_out
-
-        return compute_all(
-            endog_grid_candidate,
-            policy_candidate,
-            value_candidate,
-            expected_values,
-            state_choice_mat,
-        )
