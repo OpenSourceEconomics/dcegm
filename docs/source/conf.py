@@ -34,11 +34,10 @@ extensions = [
     "sphinx.ext.extlinks",  # link to websites using abbreviations
     "sphinx.ext.napoleon",
     "myst_nb",  # Already present per rtd_environment.yml
-    "sphinx.ext.mathjax",  # For math in notebooks
+    #"sphinx.ext.mathjax",  # For math in notebooks
     "sphinx.ext.githubpages",  # For gh-pages'
     "sphinx_design",
     "sphinx_copybutton",
-    "sphinx.ext.mathjax",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -57,7 +56,16 @@ language = "en"
 exclude_patterns = ["_build", "**.ipynb_checkpoints"]
 
 # Ensure Jupyter notebooks are parsed
-# nbsphinx_allow_errors = True  # Optional: continue build even if code cells fail
+nbsphinx_allow_errors = True  # Optional: continue build even if code cells fail
+
+
+# MyST-NB math settings
+myst_enable_extensions = [
+    "dollarmath",
+    "amsmath",
+]
+
+myst_nb_render_math = True
 
 # -- Options for HTML output -------------------------------------------------
 

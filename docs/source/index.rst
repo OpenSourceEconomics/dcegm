@@ -10,6 +10,7 @@ Python implementation of the *Endogenous Grid Method* (EGM) and Discrete-Continu
 (DC-EGM) algorithms for solving dynamic stochastic lifecycle models of consumption and
 savings, including additional discrete choices.
 
+
 **References**
 
 1. Christopher D. Carroll (2006). `The method of endogenous gridpoints for solving dynamic stochastic optimization problems <http://www.sciencedirect.com/science/article/pii/S0165176505003368>`__. *Economics Letters*
