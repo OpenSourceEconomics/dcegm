@@ -1,5 +1,6 @@
+import jax.numpy as jnp
 import numpy as np
-from jax import vmap
+from jax import lax, vmap
 
 from dcegm.egm.aggregate_marginal_utility import aggregate_marg_utils_and_exp_values
 from dcegm.egm.interpolate_marginal_utility import interpolate_value_and_marg_util
@@ -244,25 +245,112 @@ def run_upper_envelope(
         #     value_sol,
         # )
 
-        return vmap(
-            compute_upper_envelope_for_state_choice,
-            in_axes=(
-                0,
-                0,
-                0,
-                0,
-                0,
-                None,
-                None,
-                None,
-            ),  # discrete states and choice combs
-        )(
+        # return vmap(
+        #     compute_upper_envelope_for_state_choice,
+        #     in_axes=(
+        #         0,
+        #         0,
+        #         0,
+        #         0,
+        #         0,
+        #         None,
+        #         None,
+        #         None,
+        #     ),  # discrete states and choice combs
+        # )(
+        #     endog_grid_candidate,
+        #     policy_candidate,
+        #     value_candidate,
+        #     expected_values[:, 0],
+        #     state_choice_mat,
+        #     compute_utility,
+        #     params,
+        #     discount_factor,
+        # )
+
+        n_wealth_total = int(
+            1.2 * endog_grid_candidate.shape[1]
+        )  # TODO -> get from tuning params
+
+        # breakpoint()
+
+        def is_monotonic(endog_grid: jnp.ndarray) -> bool:
+            diffs = jnp.diff(endog_grid)
+            signs = jnp.sign(diffs)
+            sign_changes = jnp.abs(signs[1:] - signs[:-1]) > 1e-8
+            return jnp.sum(sign_changes) == 0
+
+        # Precompute monotonicity mask
+        is_mono_v = vmap(is_monotonic)(endog_grid_candidate)
+        B = endog_grid_candidate.shape[0]
+
+        # Helper for monotonic case
+        def handle_mono(endog, policy, value, ev0):
+            endog_final = jnp.concatenate([jnp.array([0.0]), endog])
+            policy_final = jnp.concatenate([jnp.array([0.0]), policy])
+            value_final = jnp.concatenate([jnp.array([ev0]), value])
+            pad = n_wealth_total - endog_final.shape[0]
+            endog_final = jnp.pad(endog_final, (0, pad), constant_values=jnp.nan)
+            policy_final = jnp.pad(policy_final, (0, pad), constant_values=jnp.nan)
+            value_final = jnp.pad(value_final, (0, pad), constant_values=jnp.nan)
+
+            return endog_final, policy_final, value_final
+
+        # Helper for non-monotonic case: internally vectorize if needed
+        def handle_nonmono(endog, policy, value, ev0, sc):
+            ef, pf, vf = compute_upper_envelope_for_state_choice(
+                endog, policy, value, ev0, sc, compute_utility, params, discount_factor
+            )
+            return ef, pf, vf
+
+        # === Main loop ===
+        def compute_all(
             endog_grid_candidate,
             policy_candidate,
             value_candidate,
-            expected_values[:, 0],
+            expected_values,
             state_choice_mat,
-            compute_utility,
-            params,
-            discount_factor,
+        ):
+            def body(i, carry):
+                endog_out, policy_out, value_out = carry
+                endog_i = endog_grid_candidate[i]
+                policy_i = policy_candidate[i]
+                value_i = value_candidate[i]
+                ev0_i = expected_values[i, 0]
+                sc_i = state_choice_mat[i]
+                is_mono_i = is_mono_v[i]
+
+                ef, pf, vf = lax.cond(
+                    is_mono_i,
+                    lambda _: handle_mono(endog_i, policy_i, value_i, ev0_i),
+                    lambda _: handle_nonmono(endog_i, policy_i, value_i, ev0_i, sc_i),
+                    operand=None,
+                )
+
+                endog_out = endog_out.at[i].set(ef)
+                policy_out = policy_out.at[i].set(pf)
+                value_out = value_out.at[i].set(vf)
+
+                return endog_out, policy_out, value_out
+
+            # Allocate outputs
+            endog_out = jnp.full((B, n_wealth_total), jnp.nan)
+            policy_out = jnp.full((B, n_wealth_total), jnp.nan)
+            value_out = jnp.full((B, n_wealth_total), jnp.nan)
+
+            def loop_fn(i, carry):
+                return body(i, carry)
+
+            endog_out, policy_out, value_out = lax.fori_loop(
+                0, B, loop_fn, (endog_out, policy_out, value_out)
+            )
+
+            return endog_out, policy_out, value_out
+
+        return compute_all(
+            endog_grid_candidate,
+            policy_candidate,
+            value_candidate,
+            expected_values,
+            state_choice_mat,
         )

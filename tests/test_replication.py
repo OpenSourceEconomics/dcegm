@@ -156,5 +156,8 @@ def test_benchmark_models(model_name):
             x_new=wealth_grid_to_test, x=policy_calc[0], y=policy_calc[1]
         )
 
+        # if model_name == "retirement_no_shocks" and choice == 0 and lagged_choice == 0:
+        #     debug_plot_overlay(policy_expec, value_expec, policy_calc, value_calc)
+
         aaae(policy_expec_interp, policy_calc_interp)
         aaae(value_expec_interp, value_calc_interp)

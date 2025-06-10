@@ -123,20 +123,23 @@ def _locate_segments_jax(
     """
     wealth = candidates_padded[0, :]
     diffs = wealth[1:] - wealth[:-1]
-
-    # Find sign changes (potential segment boundaries)
     signs = jnp.sign(diffs)
     sign_changes = jnp.abs(signs[1:] - signs[:-1]) > EPS
+    change_indices = jnp.where(sign_changes, size=max_segments, fill_value=-2)[0] + 1
+    valid_indices = change_indices[::2]
+    padded_valid_indices = jnp.pad(
+        valid_indices,
+        (0, max_segments - valid_indices.shape[0]),
+        mode="constant",
+        constant_values=-1,
+    )
 
-    # Get change points (add 1 to account for diff indexing)
-    change_indices = jnp.nonzero(sign_changes, size=max_segments, fill_value=-2)[0] + 1
-
-    # Count how many are valid (not -1) add 1 for first segment
-    n_segments = jnp.sum(change_indices >= 0) + 1
+    # Count how many are valid
+    n_segments = jnp.sum(padded_valid_indices >= 0) + 1
 
     # Compose segment start and end arrays
-    segment_starts = jnp.concatenate([jnp.array([0]), change_indices[:-1]])
-    segment_ends = change_indices.at[n_segments - 1].set(last_valid_index)
+    segment_starts = jnp.concatenate([jnp.array([0]), padded_valid_indices[:-1] + 1])
+    segment_ends = padded_valid_indices.at[n_segments - 1].set(last_valid_index)
 
     return {
         "n_segments": n_segments,
