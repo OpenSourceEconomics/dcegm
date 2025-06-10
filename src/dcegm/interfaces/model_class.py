@@ -6,6 +6,7 @@ import jax
 
 from dcegm.backward_induction import backward_induction
 from dcegm.interfaces.sol_interface import model_solved
+from dcegm.likelihood import create_individual_likelihood_function
 from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.alternative_sim_functions import (
     generate_alternative_sim_functions,
@@ -37,6 +38,8 @@ class setup_model:
         model_load_path: str = None,
     ):
         """Setup the model and check if load or save is required."""
+
+        self.model_specs = model_specs
         if (model_load_path is not None) & (debug_info is None):
             model_dict = load_model_dict(
                 model_config=model_config,
@@ -262,3 +265,27 @@ class setup_model:
             return df
 
         return solve_and_simulate_function
+
+    def create_experimental_ll_func(
+        self,
+        params_all,
+        observed_states,
+        observed_choices,
+        unobserved_state_specs=None,
+        return_model_solution=False,
+        use_probability_of_observed_states=True,
+    ):
+
+        return create_individual_likelihood_function(
+            model_structure=self.model_structure,
+            model_config=self.model_config,
+            model_funcs=self.model_funcs,
+            model_specs=self.model_specs,
+            backwards_induction=self.backward_induction_jit,
+            observed_states=observed_states,
+            observed_choices=observed_choices,
+            params_all=params_all,
+            unobserved_state_specs=unobserved_state_specs,
+            return_model_solution=return_model_solution,
+            use_probability_of_observed_states=use_probability_of_observed_states,
+        )
