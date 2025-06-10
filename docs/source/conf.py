@@ -34,7 +34,7 @@ extensions = [
     "sphinx.ext.extlinks",  # link to websites using abbreviations
     "sphinx.ext.napoleon",
     "myst_nb",  # Already present per rtd_environment.yml
-    #"sphinx.ext.mathjax",  # For math in notebooks
+    # "sphinx.ext.mathjax",  # For math in notebooks
     "sphinx.ext.githubpages",  # For gh-pages'
     "sphinx_design",
     "sphinx_copybutton",
