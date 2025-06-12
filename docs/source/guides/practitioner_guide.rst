@@ -125,3 +125,46 @@ This guide explains how to specify, solve, simulate and potentially estimate str
             },
             "n_quad_points": 5,
         }
+
+
+.. dropdown:: Utility Function
+
+    The utility function, its derivative the marginal utility function, as well as the inverse marginal utility function have to be supplied to the `setup_model` function. This is done via the utility functions dictionary, which has to consist of three keys. An example would be:
+
+    .. code-block:: python
+
+        utility_functions = {
+            "utility": utility_function,
+            "marginal_utility": marginal_utility_function,
+            "inverse_marginal_utility": inverse_marginal_utility_function,
+        }
+
+    The user is responsible to ensure, that the functions are the derivative of the utility function and its inverse. Here is an example for a utility function from the dcegm paper (you can find this function in the toy models of the package):
+
+    .. code-block:: python
+
+        def utility_crra(consumption, choice, params):
+
+            rho_equal_one = jnp.allclose(params["rho"], 1)
+
+            log_utility = jnp.log(consumption)
+
+            utility_rho_not_one = (consumption ** (1 - params["rho"]) - 1) / (1 - params["rho"])
+
+            utility_consumption = jax.lax.select(rho_equal_one, log_utility, utility_rho_not_one)
+
+            utility = utility_consumption - (1 - choice) * params["delta"]
+
+        return utility
+
+    Note, that the utility function has to be written jax jit compatible. There we can not use any if conditions (except for arguments in model_specs, as these are fixed before evaluating). In this case, `rho` is a part of params. So in order to write the function, such that it can be evaluated for all possible values of `rho` including 1, we need to check if `rho` is equal to 1, calculate the utility for either case and select the correct one. Note, that instead of jax.lax.select, one could also use jnp.where.
+
+    The utility function is evaluated for each state and choice separatly. Besides the standard arguments of `params` and `model_specs`, the following state-choice variables can be used in the signature:
+        - consumption
+        - choice
+        - period
+        - lagged_choice
+        - assets_begin_of_period
+        - state_name (any key of `deterministic_states`, `stochastic_states`, `continuous_states`)
+
+    The interfaces of `marginal_utility` and `inverse_marginal_utility` are accept the same inputs, except `inverse_marginal_utility` where naturally consumption is not accepted, but instead `marginal_utility`.
