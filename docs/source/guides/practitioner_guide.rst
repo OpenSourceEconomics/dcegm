@@ -7,7 +7,7 @@ This guide explains how to specify, solve, simulate and potentially estimate str
 
 .. dropdown:: Overview of main interface (specify, solve, simulate)
 
-    The logic order of the main interface is inspired by the e.g. the OLS specification in `statsmodels`. In a first step,
+    The logic of the main interface is inspired by e.g. the OLS interface in `statsmodels`. In a first step,
     we specify a model, then we can solve it (in parallel to fitting an OLS model), and finally we can simulate it (in parallel to the predict method of an OLS model). Lets walk through the three steps:
 
     .. code-block:: python
@@ -58,7 +58,7 @@ This guide explains how to specify, solve, simulate and potentially estimate str
     - `income_shock_std`: The incomme shock standard deviation of the assumed normal distribution.
     - `income_shock_mean`: The mean of the income shock distribution of the assumed normal distribution.
 
-    An example for a model, where one estimates the disutility of work and the taste shock scale and fixes the income parameters, would be:
+    An example for a model, where one estimates the disutility of work, the taste shock scale and fixes the income parameters, would be:
 
     .. code-block:: python
 
@@ -86,6 +86,7 @@ This guide explains how to specify, solve, simulate and potentially estimate str
     - `n_quad_points`: Number of quadrature points used for the integration over the income shock distribution. The quadrature points are used to approximate the integral of the value function over the income shock distribution. The number of quadrature points should be a positive integer.
 
     An example for a model configuration with the mandatory keys is:
+
     .. code-block:: python
 
         model_config = {
@@ -99,16 +100,16 @@ This guide explains how to specify, solve, simulate and potentially estimate str
 
     This is enough to specify the simplest model. The following keys can be used to specify more complex models. They are optional and can be used in any combination. The optional keys are:
 
-    - `min_period_batch_segments`: XXX
-    - `deterministic_states`: Dictionary containing the name of deterministic state variables of the model as keys. For a given key the corresponding value has to be a numpy array or python list with the possible values of the respective deterministic state variable. The values should be integers.
-    - `stochastic_states`: Dictionary containing the name of stochastic state variables of the model as keys. For a given key the corresponding value has to be a numpy array or python list with the possible values of the respective stochastic state variable. The values should be integers. The transition probabilities of the stochastic states are specified in the stochastic_state_transitions which is explained below.
-    - the `second continuous state variable` can be specified in the `continuous_states` dictionary. The name of the second continuous state variable is arbitrary.
+    - `deterministic_states`: Dictionary containing the name of deterministic state variables of the model as keys. For a given key the corresponding value has to be a numpy array or python list with the possible values of the respective deterministic state variable. The values have to be consecutive integers starting from 0.
+    - `stochastic_states`: Dictionary containing the name of stochastic state variables of the model as keys. For a given key the corresponding value has to be a numpy array or python list with the possible values of the respective stochastic state variable.The values have to be consecutive integers starting from 0. The transition probabilities of the stochastic states are specified in the stochastic_state_transitions which is explained below.
+
+
+    Additionally, one can define a second continuous state variable. This can be done, by adding the state name as a key in `continuous_states` and a monotone increasing grid.
 
     An example for a model configuration with all optional keys is:
     .. code-block:: python
 
         model_config = {
-            "min_period_batch_segments": [5, 12],
             "n_periods": 30,
             "choices": np.arange(3, dtype=int),
             "deterministic_states": {
