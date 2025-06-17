@@ -96,7 +96,9 @@ def backward_induction(
         policy_solved,
         endog_grid_solved,
     ) = create_solution_container(
-        model_config=model_config,
+        continuous_states_info=model_config["continuous_states_info"],
+        # Read out grid size
+        n_total_wealth_grid=model_config["tuning_params"]["n_total_wealth_grid"],
         n_state_choices=model_structure["state_choice_space"].shape[0],
     )
 

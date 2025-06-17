@@ -4,16 +4,11 @@ from jax import numpy as jnp
 
 
 def create_solution_container(
-    model_config: Dict[str, Any],
+    continuous_states_info: Dict[str, Any],
+    n_total_wealth_grid: int,
     n_state_choices: int,
 ):
     """Create solution containers for value, policy, and endog_grid."""
-
-    # Read out grid size
-    n_total_wealth_grid = model_config["tuning_params"]["n_total_wealth_grid"]
-
-    # Check if second continuous state exists and read out array size
-    continuous_states_info = model_config["continuous_states_info"]
     if continuous_states_info["second_continuous_exists"]:
         n_second_continuous_grid = continuous_states_info["n_second_continuous_grid"]
 
