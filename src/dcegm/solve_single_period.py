@@ -75,46 +75,36 @@ def solve_single_period(
         model_funcs=model_funcs,
         debug_info=debug_info,
     )
+    value_solved = value_solved.at[state_choices_idxs, :].set(out_dict_period["value"])
+    policy_solved = policy_solved.at[state_choices_idxs, :].set(
+        out_dict_period["policy"]
+    )
+    endog_grid_solved = endog_grid_solved.at[state_choices_idxs, :].set(
+        out_dict_period["endog_grid"]
+    )
 
-    # If we are not in the debug mode, we only return the solved values.
+    # If we are not in the debug mode, we only return the solution as a tuple and an empty tuple.
     if debug_info is None:
-
-        value_solved = value_solved.at[state_choices_idxs, :].set(
-            out_dict_period["value"]
-        )
-        policy_solved = policy_solved.at[state_choices_idxs, :].set(
-            out_dict_period["policy"]
-        )
-        endog_grid_solved = endog_grid_solved.at[state_choices_idxs, :].set(
-            out_dict_period["endog_grid"]
-        )
         carry = (value_solved, policy_solved, endog_grid_solved)
+        return carry, ()
 
     else:
-        if "rescale_idx" in debug_info.keys():
-            state_choices_idxs = state_choices_idxs - debug_info["rescale_idx"]
-        value_solved = value_solved.at[state_choices_idxs, :].set(
-            out_dict_period["value"]
-        )
-        policy_solved = policy_solved.at[state_choices_idxs, :].set(
-            out_dict_period["policy"]
-        )
-        endog_grid_solved = endog_grid_solved.at[state_choices_idxs, :].set(
-            out_dict_period["endog_grid"]
-        )
-        if debug_info["return_candidates"]:
-            carry = (
-                value_solved,
-                policy_solved,
-                endog_grid_solved,
-                out_dict_period["value_candidates"],
-                out_dict_period["policy_candidates"],
-                out_dict_period["endog_grid_candidates"],
-            )
-        else:
-            carry = (value_solved, policy_solved, endog_grid_solved)
+        # In debug mode we return a dictionary.
+        out_dict = {
+            "value": value_solved,
+            "policy": policy_solved,
+            "endog_grid": endog_grid_solved,
+        }
 
-    return carry, ()
+        # If candidates are requested, we add them
+        if debug_info["return_candidates"]:
+            out_dict = {
+                **out_dict,
+                "value_candidates": out_dict_period["value_candidates"],
+                "policy_candidates": out_dict_period["policy_candidates"],
+                "endog_grid_candidates": out_dict_period["endog_grid_candidates"],
+            }
+        return out_dict
 
 
 def solve_for_interpolated_values(

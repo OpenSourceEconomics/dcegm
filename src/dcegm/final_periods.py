@@ -48,17 +48,6 @@ def solve_last_two_periods(
             for all states, end of period assets, and income shocks.
 
     """
-
-    idx_state_choices_final_period = last_two_period_batch_info[
-        "idx_state_choices_final_period"
-    ]
-    if debug_info is not None:
-        if "rescale_idx" in debug_info.keys():
-            # If we want to rescale the idx, because we only solve part of the model, then to this first.
-            idx_state_choices_final_period = (
-                idx_state_choices_final_period - debug_info["rescale_idx"]
-            )
-
     (
         value_solved,
         policy_solved,
@@ -66,7 +55,9 @@ def solve_last_two_periods(
         value_interp_final_period,
         marginal_utility_final_last_period,
     ) = solve_final_period(
-        idx_state_choices_final_period=idx_state_choices_final_period,
+        idx_state_choices_final_period=last_two_period_batch_info[
+            "idx_state_choices_final_period"
+        ],
         idx_parent_states_final_period=last_two_period_batch_info[
             "idxs_parent_states_final_period"
         ],
@@ -118,17 +109,18 @@ def solve_last_two_periods(
 
     idx_second_last = last_two_period_batch_info["idx_state_choices_second_last_period"]
 
+    value_solved = value_solved.at[idx_second_last, ...].set(
+        out_dict_second_last["value"]
+    )
+    policy_solved = policy_solved.at[idx_second_last, ...].set(
+        out_dict_second_last["policy"]
+    )
+    endog_grid_solved = endog_grid_solved.at[idx_second_last, ...].set(
+        out_dict_second_last["endog_grid"]
+    )
+
     # If we do not call the function in debug mode. Assign everything and return
     if debug_info is None:
-        value_solved = value_solved.at[idx_second_last, ...].set(
-            out_dict_second_last["value"]
-        )
-        policy_solved = policy_solved.at[idx_second_last, ...].set(
-            out_dict_second_last["policy"]
-        )
-        endog_grid_solved = endog_grid_solved.at[idx_second_last, ...].set(
-            out_dict_second_last["endog_grid"]
-        )
         return (
             value_solved,
             policy_solved,
@@ -136,20 +128,6 @@ def solve_last_two_periods(
         )
 
     else:
-        if "rescale_idx" in debug_info.keys():
-            # If we want to rescale the idx, because we only solve part of the model, then to this first.
-            idx_rescaled_second_last = idx_second_last - debug_info["rescale_idx"]
-            # And then assign to the solution containers.
-            value_solved = value_solved.at[idx_rescaled_second_last, ...].set(
-                out_dict_second_last["value"]
-            )
-            policy_solved = policy_solved.at[idx_rescaled_second_last, ...].set(
-                out_dict_second_last["policy"]
-            )
-            endog_grid_solved = endog_grid_solved.at[idx_rescaled_second_last, ...].set(
-                out_dict_second_last["endog_grid"]
-            )
-
         # If candidates are also needed to returned we return them additionally to the solution containers.
         if debug_info["return_candidates"]:
             return (
