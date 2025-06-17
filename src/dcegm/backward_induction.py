@@ -1,6 +1,5 @@
 """Interface for the DC-EGM algorithm."""
 
-from functools import partial
 from typing import Any, Callable, Dict, Tuple
 
 import jax.lax
@@ -9,6 +8,7 @@ import numpy as np
 
 from dcegm.final_periods import solve_last_two_periods
 from dcegm.law_of_motion import calc_cont_grids_next_period
+from dcegm.pre_processing.sol_container import create_solution_container
 from dcegm.solve_single_period import solve_single_period
 
 
@@ -91,16 +91,13 @@ def backward_induction(
         model_funcs=model_funcs,
     )
 
-    # Create solution containers. The 20 percent extra in wealth grid needs to go
-    # into tuning parameters
-    n_total_wealth_grid = model_config["tuning_params"]["n_total_wealth_grid"]
     (
         value_solved,
         policy_solved,
         endog_grid_solved,
     ) = create_solution_container(
         model_config=model_config,
-        model_structure=model_structure,
+        n_state_choices=model_structure["state_choice_space"].shape[0],
     )
 
     # Solve the last two periods. We do this separately as the marginal utility of
@@ -120,6 +117,7 @@ def backward_induction(
         value_solved=value_solved,
         policy_solved=policy_solved,
         endog_grid_solved=endog_grid_solved,
+        debug_info=None,
     )
 
     # If it is a two period model we are done.
@@ -135,6 +133,7 @@ def backward_induction(
             cont_grids_next_period=cont_grids_next_period,
             model_funcs=model_funcs,
             income_shock_weights=income_shock_weights,
+            debug_info=None,
         )
 
     for id_segment in range(batch_info["n_segments"]):
@@ -192,53 +191,3 @@ def backward_induction(
         policy_solved,
         endog_grid_solved,
     )
-
-
-def create_solution_container(
-    model_config: Dict[str, Any],
-    model_structure: Dict[str, Any],
-):
-    """Create solution containers for value, policy, and endog_grid."""
-
-    # Read out grid size
-    n_total_wealth_grid = model_config["tuning_params"]["n_total_wealth_grid"]
-    n_state_choices = model_structure["state_choice_space"].shape[0]
-
-    # Check if second continuous state exists and read out array size
-    continuous_states_info = model_config["continuous_states_info"]
-    if continuous_states_info["second_continuous_exists"]:
-        n_second_continuous_grid = continuous_states_info["n_second_continuous_grid"]
-
-        value_solved = jnp.full(
-            (n_state_choices, n_second_continuous_grid, n_total_wealth_grid),
-            dtype=jnp.float64,
-            fill_value=jnp.nan,
-        )
-        policy_solved = jnp.full(
-            (n_state_choices, n_second_continuous_grid, n_total_wealth_grid),
-            dtype=jnp.float64,
-            fill_value=jnp.nan,
-        )
-        endog_grid_solved = jnp.full(
-            (n_state_choices, n_second_continuous_grid, n_total_wealth_grid),
-            dtype=jnp.float64,
-            fill_value=jnp.nan,
-        )
-    else:
-        value_solved = jnp.full(
-            (n_state_choices, n_total_wealth_grid),
-            dtype=jnp.float64,
-            fill_value=jnp.nan,
-        )
-        policy_solved = jnp.full(
-            (n_state_choices, n_total_wealth_grid),
-            dtype=jnp.float64,
-            fill_value=jnp.nan,
-        )
-        endog_grid_solved = jnp.full(
-            (n_state_choices, n_total_wealth_grid),
-            dtype=jnp.float64,
-            fill_value=jnp.nan,
-        )
-
-    return value_solved, policy_solved, endog_grid_solved

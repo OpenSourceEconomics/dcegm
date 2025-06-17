@@ -15,6 +15,7 @@ def solve_single_period(
     cont_grids_next_period,
     model_funcs,
     income_shock_weights,
+    debug_info,
 ):
     """Solve a single period of the model using DCEGM."""
     (value_solved, policy_solved, endog_grid_solved) = carry
@@ -60,29 +61,58 @@ def solve_single_period(
             state_choice_mat_child, params
         )
 
-    endog_grid_state_choice, policy_state_choice, value_state_choice = (
-        solve_for_interpolated_values(
-            value_interpolated=value_interpolated,
-            marginal_utility_interpolated=marginal_utility_interpolated,
-            state_choice_mat=state_choice_mat,
-            child_state_idxs=child_states_to_integrate_stochastic,
-            states_to_choices_child_states=child_state_choices_to_aggr_choice,
-            params=params,
-            taste_shock_scale=taste_shock_scale,
-            taste_shock_scale_is_scalar=taste_shock_scale_is_scalar,
-            income_shock_weights=income_shock_weights,
-            continuous_grids_info=continuous_grids_info,
-            model_funcs=model_funcs,
+    out_dict_period = solve_for_interpolated_values(
+        value_interpolated=value_interpolated,
+        marginal_utility_interpolated=marginal_utility_interpolated,
+        state_choice_mat=state_choice_mat,
+        child_state_idxs=child_states_to_integrate_stochastic,
+        states_to_choices_child_states=child_state_choices_to_aggr_choice,
+        params=params,
+        taste_shock_scale=taste_shock_scale,
+        taste_shock_scale_is_scalar=taste_shock_scale_is_scalar,
+        income_shock_weights=income_shock_weights,
+        continuous_grids_info=continuous_grids_info,
+        model_funcs=model_funcs,
+        debug_info=debug_info,
+    )
+
+    # If we are not in the debug mode, we only return the solved values.
+    if debug_info is None:
+
+        value_solved = value_solved.at[state_choices_idxs, :].set(
+            out_dict_period["value"]
         )
-    )
+        policy_solved = policy_solved.at[state_choices_idxs, :].set(
+            out_dict_period["policy"]
+        )
+        endog_grid_solved = endog_grid_solved.at[state_choices_idxs, :].set(
+            out_dict_period["endog_grid"]
+        )
+        carry = (value_solved, policy_solved, endog_grid_solved)
 
-    value_solved = value_solved.at[state_choices_idxs, :].set(value_state_choice)
-    policy_solved = policy_solved.at[state_choices_idxs, :].set(policy_state_choice)
-    endog_grid_solved = endog_grid_solved.at[state_choices_idxs, :].set(
-        endog_grid_state_choice
-    )
-
-    carry = (value_solved, policy_solved, endog_grid_solved)
+    else:
+        if "rescale_idx" in debug_info.keys():
+            state_choices_idxs = state_choices_idxs - debug_info["rescale_idx"]
+        value_solved = value_solved.at[state_choices_idxs, :].set(
+            out_dict_period["value"]
+        )
+        policy_solved = policy_solved.at[state_choices_idxs, :].set(
+            out_dict_period["policy"]
+        )
+        endog_grid_solved = endog_grid_solved.at[state_choices_idxs, :].set(
+            out_dict_period["endog_grid"]
+        )
+        if debug_info["return_candidates"]:
+            carry = (
+                value_solved,
+                policy_solved,
+                endog_grid_solved,
+                out_dict_period["value_candidates"],
+                out_dict_period["policy_candidates"],
+                out_dict_period["endog_grid_candidates"],
+            )
+        else:
+            carry = (value_solved, policy_solved, endog_grid_solved)
 
     return carry, ()
 
@@ -99,6 +129,7 @@ def solve_for_interpolated_values(
     income_shock_weights,
     continuous_grids_info,
     model_funcs,
+    debug_info,
 ):
     # EGM step 2)
     # Aggregate the marginal utilities and expected values over all state-choice
@@ -150,12 +181,20 @@ def solve_for_interpolated_values(
         has_second_continuous_state=continuous_grids_info["second_continuous_exists"],
         compute_upper_envelope_for_state_choice=model_funcs["compute_upper_envelope"],
     )
+    out_dict = {
+        "endog_grid": endog_grid_state_choice,
+        "policy": policy_state_choice,
+        "value": value_state_choice,
+    }
 
-    return (
-        endog_grid_state_choice,
-        policy_state_choice,
-        value_state_choice,
-    )
+    # If candidates are requested, we additionally return them in the output dictionary.
+    if debug_info is not None:
+        if debug_info["return_candidates"]:
+            out_dict["endog_grid_candidates"] = endog_grid_candidate
+            out_dict["policy_candidates"] = policy_candidate
+            out_dict["value_candidates"] = value_candidate
+
+    return out_dict
 
 
 def run_upper_envelope(
