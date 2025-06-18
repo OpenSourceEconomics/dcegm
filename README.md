@@ -1,6 +1,7 @@
 # DC-EGM
 
 [![Continuous Integration Workflow](https://github.com/OpenSourceEconomics/dcegm/actions/workflows/main.yml/badge.svg)](https://github.com/OpenSourceEconomics/dcegm/actions/workflows/main.yml)
+[![image](https://readthedocs.org/projects/dcegm/badge/?version=latest)](https://dcegm.readthedocs.io/en/latest)
 [![Codecov](https://codecov.io/gh/OpenSourceEconomics/dcegm/branch/main/graph/badge.svg)](https://app.codecov.io/gh/OpenSourceEconomics/dcegm)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/OpenSourceEconomics/dcegm/main.svg)](https://results.pre-commit.ci/latest/github/OpenSourceEconomics/dcegm/main)
 [![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
@@ -10,8 +11,12 @@ Python implementation of the Discrete-Continuous Endogenous Grid Method (DC-EGM)
 solving dynamic stochastic lifecycle models of continuous (e.g. consumption-savings) and
 additional discrete choices. -->
 
-Python package for the solution and simulation of finite-horizon discrete-continuous
-dynamic choice models based on the DC-EGM algorithm from Iskhakov, Jorgensen, Rust, and
+**Note:** This is a pre-release version of the package. While the core features are in
+place, the interface and functionality may still evolve. Feedback and contributions are
+welcome.
+
+Python package for solving and simulating finite-horizon stochastic discrete-continuous
+dynamic choice models using the DC-EGM algorithm from Iskhakov, Jørgensen, Rust, and
 Schjerning (QE, 2017).
 
 The solution algorithm employs an extension of the Fast Upper-Envelope Scan (FUES) from
