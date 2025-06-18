@@ -7,7 +7,7 @@ import jax.numpy as jnp
 import numpy as np
 from jax import vmap
 
-from dcegm.interfaces.interface import get_state_choice_index_per_discrete_state
+from dcegm.interfaces.inspect_structure import get_state_choice_index_per_discrete_state
 from dcegm.simulation.random_keys import draw_random_keys_for_seed
 from dcegm.simulation.sim_utils import (
     compute_final_utility_for_each_choice,
@@ -221,6 +221,7 @@ def simulate_single_period(
         choice=choice,
         params=params,
         model_funcs_sim=model_funcs_sim,
+        read_funcs=read_funcs,
         sim_keys=sim_keys,
     )
 
@@ -300,8 +301,8 @@ def simulate_final_period(
         compute_utility_final,
     )
     state_choice_indexes = get_state_choice_index_per_discrete_state(
-        map_state_choice_to_index=map_state_choice_to_index,
         states=states_begin_of_final_period,
+        map_state_choice_to_index=map_state_choice_to_index,
         discrete_states_names=discrete_states_names,
     )
     utilities_pre_taste_shock = jnp.where(

@@ -120,16 +120,27 @@ def test_benchmark_models():
     )
 
     state_choices_sparse = model_sparse.model_structure["state_choice_space"]
-    state_choice_space_tuple_sparse = tuple(
-        state_choices_sparse[:, i] for i in range(state_choices_sparse.shape[1])
+    discrete_states_names = model_full.model_structure["discrete_states_names"]
+    states_dict = {
+        state: state_choices_sparse[:, id]
+        for id, state in enumerate(discrete_states_names + ["choice"])
+    }
+    (endog_grid_full, policy_full, value_full) = (
+        model_solved_full.get_solution_for_discrete_state_choice(
+            states=states_dict, choice=state_choices_sparse[:, -1]
+        )
     )
-    full_idxs = model_solved_full.model_structure[
-        "map_state_choice_to_index_with_proxy"
-    ][state_choice_space_tuple_sparse]
 
-    aaae(model_solved_full.endog_grid[full_idxs], model_solved_sparse.endog_grid)
-    aaae(model_solved_full.value[full_idxs], model_solved_sparse.value)
-    aaae(model_solved_full.policy[full_idxs], model_solved_sparse.policy)
+    # state_choice_space_tuple_sparse = tuple(
+    #     state_choices_sparse[:, i] for i in range(state_choices_sparse.shape[1])
+    # )
+    # full_idxs = model_solved_full.model_structure[
+    #     "map_state_choice_to_index_with_proxy"
+    # ][state_choice_space_tuple_sparse]
+
+    aaae(endog_grid_full, model_solved_sparse.endog_grid)
+    aaae(policy_full, model_solved_sparse.value)
+    aaae(value_full, model_solved_sparse.policy)
 
     model_config_sep_once = model_config.copy()
     model_config_sep_once["min_period_batch_segments"] = [20]
@@ -142,9 +153,9 @@ def test_benchmark_models():
 
     model_solved_split_once = model_split.solve(params)
 
-    aaae(model_solved_full.endog_grid[full_idxs], model_solved_split_once.endog_grid)
-    aaae(model_solved_full.value[full_idxs], model_solved_split_once.value)
-    aaae(model_solved_full.policy[full_idxs], model_solved_split_once.policy)
+    aaae(endog_grid_full, model_solved_split_once.endog_grid)
+    aaae(policy_full, model_solved_split_once.value)
+    aaae(value_full, model_solved_split_once.policy)
 
     model_config_split_twice = model_config.copy()
     model_config_split_twice["min_period_batch_segments"] = [15, 20]
@@ -156,6 +167,6 @@ def test_benchmark_models():
     )
     model_solved_split_twice = model_split_twice.solve(params)
 
-    aaae(model_solved_full.endog_grid[full_idxs], model_solved_split_twice.endog_grid)
-    aaae(model_solved_full.value[full_idxs], model_solved_split_twice.value)
-    aaae(model_solved_full.policy[full_idxs], model_solved_split_twice.policy)
+    aaae(endog_grid_full, model_solved_split_twice.endog_grid)
+    aaae(policy_full, model_solved_split_twice.value)
+    aaae(value_full, model_solved_split_twice.policy)
