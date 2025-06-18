@@ -36,7 +36,7 @@ To install the latest development version directly from the GitHub repository, r
 $ pip install git+https://github.com/OpenSourceEconomics/dcegm.git
 ```
 
-# Documentation
+## Documentation
 
 The documentation is hosted at https://dcegm.readthedocs.io
 
