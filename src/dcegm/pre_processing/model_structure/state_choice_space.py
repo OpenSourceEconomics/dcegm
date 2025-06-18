@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 
 from dcegm.pre_processing.model_structure.shared import create_indexer_for_space
@@ -176,7 +178,7 @@ def create_state_choice_space_and_child_state_mapping(
                         key: invalid_child_state_example[i]
                         for i, key in enumerate(discrete_states_names)
                     }
-                    raise IndexError(
+                    warnings.warn(
                         f"\n\n The state \n\n{invalid_child_state_dict}\n\n is a child state of "
                         f"the state \n\n{this_period_state}\n\n with choice: {choice}.\n\n "
                         f"It is also declared invalid by the sparsity condition. Please "
@@ -229,7 +231,7 @@ def create_state_choice_space_and_child_state_mapping(
     dict_of_state_choice_space_objects = {
         "state_choice_space": state_choice_space,
         "state_choice_space_dict": state_choice_space_dict,
-        # "map_state_choice_to_index": map_state_choice_to_index,
+        "map_state_choice_to_index": map_state_choice_to_index,
         "map_state_choice_to_index_with_proxy": map_state_choice_to_index_with_proxy,
         "map_state_choice_to_parent_state": map_state_choice_to_parent_state,
         "map_state_choice_to_child_states": map_state_choice_to_child_states,
@@ -290,7 +292,7 @@ def test_child_state_mapping(
             key: not_child_state_example[i]
             for i, key in enumerate(discrete_states_names)
         }
-        raise ValueError(
+        warnings.warn(
             f"\n\n\n\n Some states are not child states of any state-choice "
             f"combination or stochastic transition. Please revisit the sparsity condition. \n \n"
             f"An example of a state that is not a child state is: \n \n"

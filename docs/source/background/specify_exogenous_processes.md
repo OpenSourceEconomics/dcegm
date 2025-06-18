@@ -1,4 +1,4 @@
-# Specifying Exogenous Processes in the DCEGM Module
+# Specifying Exogenous Processes
 
 
 ## Overview

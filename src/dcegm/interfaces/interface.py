@@ -26,6 +26,7 @@ def get_n_state_choice_period(model):
     Returns:
         pd.Series: A pandas Series with value counts of the first column of
         'state_choice_space', sorted by index.
+
     """
     return (
         pd.Series(model["model_structure"]["state_choice_space"][:, 0])
@@ -135,8 +136,7 @@ def value_for_state_choice_vec(
     model_structure,
     model_funcs,
 ):
-    """
-    Get the value function for a given state and choice vector.
+    """Get the value function for a given state and choice vector.
 
     Args:
         endog_grid_solved (jnp.ndarray): Endogenous wealth grid for all states
@@ -184,13 +184,11 @@ def value_for_state_choice_vec(
         ]
 
         value = interp2d_value_on_wealth_and_regular_grid(
-            regular_grid=model_config["continuous_states_info"][
-                "second_continuous_grid"
-            ],
+            regular_grid=continuous_states_info["second_continuous_grid"],
             wealth_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
             value_grid=jnp.take(value_solved, state_choice_index, axis=0),
             regular_point_to_interp=second_continuous,
-            wealth_point_to_interp=state_choice_vec["wealth"],
+            wealth_point_to_interp=state_choice_vec["assets_begin_of_period"],
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
@@ -199,7 +197,7 @@ def value_for_state_choice_vec(
     else:
 
         value = interp_value_on_wealth(
-            wealth=state_choice_vec["wealth"],
+            wealth=state_choice_vec["assets_begin_of_period"],
             endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
             value=jnp.take(value_solved, state_choice_index, axis=0),
             compute_utility=compute_utility,
@@ -212,12 +210,12 @@ def value_for_state_choice_vec(
 
 
 def policy_for_state_choice_vec(
+    states,
+    choice,
     endog_grid_solved,
     policy_solved,
-    model,
-    state_choice_vec,
-    wealth,
-    second_continuous=None,
+    model_structure,
+    model_config,
 ):
     """Get the policy function for a given state and choice vector.
 
@@ -235,85 +233,54 @@ def policy_for_state_choice_vec(
         float: The policy at the given state and choice.
 
     """
-    map_state_choice_to_index = model["model_structure"][
-        "map_state_choice_to_index_with_proxy"
-    ]
-    discrete_states_names = model["model_structure"]["discrete_states_names"]
+    map_state_choice_to_index = model_structure["map_state_choice_to_index_with_proxy"]
+    discrete_states_names = model_structure["discrete_states_names"]
+
+    if "dummy_stochastic" in discrete_states_names:
+        state_choice_vec = {
+            **states,
+            "choice": choice,
+            "dummy_stochastic": 0,
+        }
+
+    else:
+        state_choice_vec = {
+            **states,
+            "choice": choice,
+        }
 
     state_choice_tuple = tuple(
         state_choice_vec[st] for st in discrete_states_names + ["choice"]
     )
     state_choice_index = map_state_choice_to_index[state_choice_tuple]
+    continuous_states_info = model_config["continuous_states_info"]
 
-    if second_continuous is None:
-        policy = interp_policy_on_wealth(
-            wealth=wealth,
-            endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
-            policy=jnp.take(policy_solved, state_choice_index, axis=0),
-        )
-    else:
+    if continuous_states_info["second_continuous_exists"]:
+        second_continuous = states[
+            continuous_states_info["second_continuous_state_name"]
+        ]
+
         policy = interp2d_policy_on_wealth_and_regular_grid(
-            regular_grid=model["model_config"]["continuous_states_info"][
+            regular_grid=model_config["continuous_states_info"][
                 "second_continuous_grid"
             ],
             wealth_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
             policy_grid=jnp.take(policy_solved, state_choice_index, axis=0),
             regular_point_to_interp=second_continuous,
-            wealth_point_to_interp=wealth,
+            wealth_point_to_interp=states["assets_begin_of_period"],
+        )
+
+    else:
+        policy = interp_policy_on_wealth(
+            wealth=states["assets_begin_of_period"],
+            endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
+            policy=jnp.take(policy_solved, state_choice_index, axis=0),
         )
 
     return policy
 
 
-def get_state_choice_index_per_discrete_state(
-    map_state_choice_to_index, states, discrete_states_names
-):
-    """Get the state-choice index for a given set of discrete states.
-
-    Args:
-        map_state_choice_to_index (dict): Mapping from a state-choice tuple to
-            an index.
-        states (dict): Dictionary of state values.
-        discrete_states_names (list[str]): Names of discrete state variables.
-
-    Returns:
-        int: The index corresponding to the given discrete states.
-
-    """
-    indexes = map_state_choice_to_index[
-        tuple((states[key],) for key in discrete_states_names)
-    ]
-    # As the code above generates a dummy dimension in the first index, remove it
-    return indexes[0]
-
-
-def get_state_choice_index_per_discrete_state_and_choice(model, state_choice_dict):
-    """Get the state-choice index for a given set of discrete states and a choice.
-
-    Args:
-        model (dict): A dictionary representing the model. Must contain
-            'model_structure' with a 'map_state_choice_to_index_with_proxy'
-            and 'discrete_states_names'.
-        state_choice_dict (dict): Dictionary containing discrete states and
-            the choice.
-
-    Returns:
-        int: The index corresponding to the specified discrete states and choice.
-
-    """
-    map_state_choice_to_index = model["model_structure"][
-        "map_state_choice_to_index_with_proxy"
-    ]
-    discrete_states_names = model["model_structure"]["discrete_states_names"]
-    state_choice_tuple = tuple(
-        state_choice_dict[st] for st in discrete_states_names + ["choice"]
-    )
-    state_choice_index = map_state_choice_to_index[state_choice_tuple]
-
-    return state_choice_index
-
-
-def validate_stochastic_transition(model, params):
+def validate_stochastic_transition(params, model_config, model_funcs, model_structure):
     """Validate the exogenous processes in the model.
 
     This function checks that transition probabilities for each exogenous
@@ -331,11 +298,8 @@ def validate_stochastic_transition(model, params):
         ValueError is raised.
 
     """
-    # Update to float64
-    jax.config.update("jax_enable_x64", True)
-
-    transition_funcs_processed = model["model_funcs"]["processed_stochastic_funcs"]
-    state_choice_space_dict = model["model_structure"]["state_choice_space_dict"]
+    transition_funcs_processed = model_funcs["processed_stochastic_funcs"]
+    state_choice_space_dict = model_structure["state_choice_space_dict"]
 
     for name, func in transition_funcs_processed.items():
         # Sum transition probabilities for each state-choice combination
@@ -370,7 +334,7 @@ def validate_stochastic_transition(model, params):
             )
 
         # Check the number of transitions
-        n_states = len(model["model_config"]["stochastic_states"][name])
+        n_states = len(model_config["stochastic_states"][name])
         if all_transitions.shape[1] != n_states:
             raise ValueError(
                 f"Stochastic state {name} does not return the correct "
@@ -400,8 +364,7 @@ def validate_stochastic_transition(model, params):
 
 
 def stochastic_transition_vec(state_choice_vec_dict, func, params):
-    """
-    Evaluate the exogenous function for a given state-choice vector and params.
+    """Evaluate the exogenous function for a given state-choice vector and params.
 
     Args:
         state_choice_vec_dict (dict): Dictionary containing state-choice values.
@@ -411,5 +374,6 @@ def stochastic_transition_vec(state_choice_vec_dict, func, params):
     Returns:
         jnp.ndarray or float: The exogenous process outcomes for the given
         state-choice combination and parameters.
+
     """
     return func(**state_choice_vec_dict, params=params)

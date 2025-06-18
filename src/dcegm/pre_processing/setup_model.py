@@ -104,9 +104,10 @@ def create_model_dict(
         min_period_batch_segments=model_config_processed["min_period_batch_segments"],
     )
     if not debug_info == "all":
-        # Delete large array which is not needed. Not if all is requested
+        # Delete large arrays which is not needed. Not if all is requested
         # by the debug string.
         model_structure.pop("map_state_choice_to_child_states")
+        model_structure.pop("map_state_choice_to_index")
 
     print("Model setup complete.\n")
     return {
@@ -127,6 +128,7 @@ def create_model_dict_and_save(
     stochastic_states_transitions: Dict[str, Callable] = None,
     shock_functions: Dict[str, Callable] = None,
     path: str = "model.pkl",
+    debug_info=None,
 ):
     """Set up the model and save.
 
@@ -145,6 +147,7 @@ def create_model_dict_and_save(
         state_space_functions=state_space_functions,
         stochastic_states_transitions=stochastic_states_transitions,
         shock_functions=shock_functions,
+        debug_info=debug_info,
     )
 
     dict_to_save = {
