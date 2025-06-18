@@ -1,4 +1,4 @@
-# DC-EGM
+# dc-egm
 
 [![Continuous Integration Workflow](https://github.com/OpenSourceEconomics/dcegm/actions/workflows/main.yml/badge.svg)](https://github.com/OpenSourceEconomics/dcegm/actions/workflows/main.yml)
 [![image](https://readthedocs.org/projects/dcegm/badge/?version=latest)](https://dcegm.readthedocs.io/en/latest)
