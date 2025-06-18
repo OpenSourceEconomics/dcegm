@@ -15,20 +15,42 @@ additional discrete choices. -->
 place, the interface and functionality may still evolve. Feedback and contributions are
 welcome.
 
-Python package for solving and simulating finite-horizon stochastic discrete-continuous
-dynamic choice models using the DC-EGM algorithm from Iskhakov, Jørgensen, Rust, and
-Schjerning (QE, 2017).
+`dcegm` is a Python package for solving and simulating finite-horizon stochastic
+discrete-continuous dynamic choice models using the DC-EGM algorithm from Iskhakov,
+Jørgensen, Rust, and Schjerning (QE, 2017).
 
 The solution algorithm employs an extension of the Fast Upper-Envelope Scan (FUES) from
 Dobrescu & Shanker (2022).
 
+## Installation
+
+You can install `dcegm` via PyPI or directly from GitHub. In your terminal, run:
+
+```console
+$ pip install dcegm
+```
+
+To install the latest development version directly from the GitHub repository, run:
+
+```console
+$ pip install git+https://github.com/OpenSourceEconomics/dcegm.git
+```
+
 ## References
 
-1. Iskhakov, Jorgensen, Rust, & Schjerning (2017).
-   [The Endogenous Grid Method for Discrete-Continuous Dynamic Choice Models with (or without) Taste Shocks](http://onlinelibrary.wiley.com/doi/10.3982/QE643/full).
-   *Quantitative Economics*
 1. Christopher D. Carroll (2006).
    [The method of endogenous gridpoints for solving dynamic stochastic optimization problems](http://www.sciencedirect.com/science/article/pii/S0165176505003368).
    *Economics Letters*
+1. Iskhakov, Jorgensen, Rust, & Schjerning (2017).
+   [The Endogenous Grid Method for Discrete-Continuous Dynamic Choice Models with (or without) Taste Shocks](http://onlinelibrary.wiley.com/doi/10.3982/QE643/full).
+   *Quantitative Economics*
 1. Loretti I. Dobrescu & Akshay Shanker (2022).
    [Fast Upper-Envelope Scan for Discrete-Continuous Dynamic Programming](https://dx.doi.org/10.2139/ssrn.4181302).
+
+## Citation
+
+If you use dcegm for your research, please do not forget to cite it.
+
+@Unpublished{BleschGsell2025, Title = {dcegm: A GPU-accelerated python implementation of
+the Discrete-Contiunous Endogenous Grid Method}, Author = {Maximilian Blesch & Sebastian
+Gsell}, Year = {2025}, Url = {https://github.com/OpenSourceEconomics/dcegm} }
