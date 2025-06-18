@@ -4,6 +4,7 @@
 [project]
 name = "dcegm"
 description = "Python package for solving and simulating finite-horizon stochastic discrete-continuous dynamic choice models using the DC-EGM algorithm from Iskhakov, Jørgensen, Rust, and Schjerning (QE, 2017)."
+version = "0.1.0.dev0"
 requires-python = ">=3.10"
 dependencies = [
   "numpy",

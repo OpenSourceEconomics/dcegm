@@ -36,6 +36,10 @@ To install the latest development version directly from the GitHub repository, r
 $ pip install git+https://github.com/OpenSourceEconomics/dcegm.git
 ```
 
+# Documentation
+
+The documentation is hosted at https://dcegm.readthedocs.io
+
 ## References
 
 1. Christopher D. Carroll (2006).
@@ -47,10 +51,14 @@ $ pip install git+https://github.com/OpenSourceEconomics/dcegm.git
 1. Loretti I. Dobrescu & Akshay Shanker (2022).
    [Fast Upper-Envelope Scan for Discrete-Continuous Dynamic Programming](https://dx.doi.org/10.2139/ssrn.4181302).
 
-## Citation
+<!-- ## Citation
 
 If you use dcegm for your research, please do not forget to cite it.
 
-@Unpublished{BleschGsell2025, Title = {dcegm: A GPU-accelerated python implementation of
-the Discrete-Contiunous Endogenous Grid Method}, Author = {Maximilian Blesch & Sebastian
-Gsell}, Year = {2025}, Url = {https://github.com/OpenSourceEconomics/dcegm} }
+```bibtex
+@Unpublished{BleschGsell2025,
+   Title = {dcegm: A GPU-accelerated python implementation of the Discrete-Contiunous Endogenous Grid Method},
+   Author = {Maximilian Blesch & Sebastian Gsell},
+   Year = {2025},
+   Url = {https://github.com/OpenSourceEconomics/dcegm} }
+``` -->
