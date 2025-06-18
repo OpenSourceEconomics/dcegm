@@ -322,6 +322,17 @@ class setup_model:
         }
         return pd.DataFrame(child_states)
 
+    def get_child_states_and_calc_trans_probs(self, state, choice, params):
+        """Get the child states for a given state and choice and calculate the
+        transition probabilities."""
+        child_states_df = self.get_child_states(state, choice)
+
+        trans_probs = self.model_funcs["compute_stochastic_transition_vec"](
+            params=params, choice=choice, **state
+        )
+        child_states_df["trans_probs"] = trans_probs
+        return child_states_df
+
     def compute_law_of_motions(self, params):
         return calc_cont_grids_next_period(
             params=params,

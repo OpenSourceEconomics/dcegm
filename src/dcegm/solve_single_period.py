@@ -122,7 +122,7 @@ def solve_for_interpolated_values(
     debug_info,
 ):
     # EGM step 2)
-    # Aggregate the marginal utilities and expected values over all state-choice
+    # Aggregate the marginal utilities and expected values over all child state-choice
     # combinations and income shock draws
     marg_util, emax = aggregate_marg_utils_and_exp_values(
         value_state_choice_specific=value_interpolated,
