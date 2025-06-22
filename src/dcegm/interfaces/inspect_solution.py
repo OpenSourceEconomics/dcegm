@@ -187,11 +187,17 @@ def partially_solve(
                 key: segment_info["state_choices_childs"][key][id_batch, :]
                 for key in segment_info["state_choices_childs"].keys()
             }
+
+            child_state_choice_idxs_to_interp = (
+                segment_info["child_state_choice_idxs_to_interp"][id_batch, :]
+                - rescale_idx
+            )
+
             xs = (
                 idx_to_solve,
                 segment_info["child_state_choices_to_aggr_choice"][id_batch, :, :],
                 child_states_to_integrate_stochastic,
-                segment_info["child_state_choice_idxs_to_interp"][id_batch, :],
+                child_state_choice_idxs_to_interp,
                 segment_info["child_states_idxs"][id_batch, :],
                 state_choices_batch,
                 state_choices_childs_batch,

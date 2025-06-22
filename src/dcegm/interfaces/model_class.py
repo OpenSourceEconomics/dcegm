@@ -333,6 +333,63 @@ class setup_model:
         child_states_df["trans_probs"] = trans_probs
         return child_states_df
 
+    def get_full_child_states_by_asset_id_and_probs(
+        self, state, choice, params, asset_id, second_continuous_id=None
+    ):
+        """Get the child states for a given state and choice and calculate the
+        transition probabilities."""
+        if "map_state_choice_to_child_states" not in self.model_structure:
+            raise ValueError(
+                "For this function the model needs to be created with debug_info='all'"
+            )
+
+        child_idx = get_child_state_index_per_state_choice(
+            states=state, choice=choice, model_structure=self.model_structure
+        )
+        state_space_dict = self.model_structure["state_space_dict"]
+        discrete_states_names = self.model_structure["discrete_states_names"]
+        child_states = {
+            key: state_space_dict[key][child_idx] for key in discrete_states_names
+        }
+        child_states_df = pd.DataFrame(child_states)
+
+        child_continuous_states = self.compute_law_of_motions(params=params)
+
+        if "second_continuous" in child_continuous_states.keys():
+            if second_continuous_id is None:
+                raise ValueError("second_continuous_id must be provided.")
+            else:
+                quad_wealth = child_continuous_states["assets_begin_of_period"][
+                    child_idx, second_continuous_id, asset_id, :
+                ]
+                next_period_second_continuous = child_continuous_states[
+                    "second_continuous"
+                ][child_idx, second_continuous_id]
+
+                second_continuous_name = self.model_config["continuous_states_info"][
+                    "second_continuous_state_name"
+                ]
+                child_states_df[second_continuous_name] = next_period_second_continuous
+
+        else:
+            if second_continuous_id is not None:
+                raise ValueError("second_continuous_id must not be provided.")
+            else:
+                quad_wealth = child_continuous_states["assets_begin_of_period"][
+                    child_idx, asset_id, :
+                ]
+
+        for id_quad in range(quad_wealth.shape[1]):
+            child_states_df[f"assets_begin_of_period_quad_point_{id_quad}"] = (
+                quad_wealth[:, id_quad]
+            )
+
+        trans_probs = self.model_funcs["compute_stochastic_transition_vec"](
+            params=params, choice=choice, **state
+        )
+        child_states_df["trans_probs"] = trans_probs
+        return child_states_df
+
     def compute_law_of_motions(self, params):
         return calc_cont_grids_next_period(
             params=params,
