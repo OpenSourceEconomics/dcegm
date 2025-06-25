@@ -56,8 +56,9 @@ model_specs = {
 params = {
     "delta": 0.5,
     "discount_factor": 0.95,
-    "taste_shock_scale": 1,
+    "taste_shock_scale": 0.1,
     "income_shock_std": 1,
+    "income_shock_mean": 0,
     "interest_rate": 0.05,
     "constant": 1,
     "exp": 0.1,
@@ -78,16 +79,16 @@ model = dcegm.setup_model(
 # Solve the model
 model_solved = model.solve(params)
 
-# Simulate the model
-n_agents = 1_000
-states_initial = {
-    "period": jnp.zeros(n_agents),
-    "lagged_choice": jnp.ones(n_agents) * 2,  # all agents start as full time workers
-    "already_retired": jnp.zeros(n_agents),
-    "job_offer": jnp.ones(n_agents),
-    "survival": jnp.ones(n_agents),
-    "experience": jnp.ones(n_agents),
-    "assets_begin_of_period": jnp.ones(n_agents) * 10,
-}
+# # Simulate the model
+# n_agents = 1_000
+# states_initial = {
+#     "period": jnp.zeros(n_agents),
+#     "lagged_choice": jnp.ones(n_agents) * 2,  # all agents start as full time workers
+#     "already_retired": jnp.zeros(n_agents),
+#     "job_offer": jnp.ones(n_agents),
+#     "survival": jnp.ones(n_agents),
+#     "experience": jnp.ones(n_agents),
+#     "assets_begin_of_period": jnp.ones(n_agents) * 10,
+# }
 
-model_solved.simulate(states_initial=states_initial, seed=42)
+# model_solved.simulate(states_initial=states_initial, seed=42)

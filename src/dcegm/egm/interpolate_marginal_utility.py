@@ -1,5 +1,6 @@
 from typing import Any, Callable, Dict, Tuple
 
+from jax import jit
 from jax import numpy as jnp
 from jax import vmap
 

@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 import numpy as np
-from jax import lax, vmap
+from jax import jit, lax, vmap
 
 from dcegm.egm.aggregate_marginal_utility import aggregate_marg_utils_and_exp_values
 from dcegm.egm.interpolate_marginal_utility import interpolate_value_and_marg_util
