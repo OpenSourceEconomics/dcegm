@@ -12,7 +12,6 @@ import numpy as np
 EPS = 2e-16
 
 
-@profile
 def upper_envelope(
     endog_grid: np.ndarray,
     policy: np.ndarray,
@@ -115,7 +114,6 @@ def upper_envelope(
     return endog_grid, policy, value
 
 
-@profile
 def locate_non_concave_regions(candidates: np.ndarray) -> List[np.ndarray]:
     """Locate segments where the grid is non-monotonic."""
 
@@ -133,7 +131,6 @@ def locate_non_concave_regions(candidates: np.ndarray) -> List[np.ndarray]:
         return regions
 
 
-@profile
 def compute_upper_envelope(
     segments: List[np.ndarray], grid_size: int
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -224,7 +221,6 @@ def compute_upper_envelope(
     return endog_grid, policy, value, kinks
 
 
-@profile
 def _augment_grid_left(
     candidates: np.ndarray,
     state_choice_dict: Dict,
@@ -266,12 +262,10 @@ def _augment_grid_left(
     )
 
 
-@profile
 def interpolate_with_extrapolation(x, y, x0):
     return y[0] + ((y[1] - y[0]) / (x[1] - x[0])) * (x0 - x[0])
 
 
-@profile
 def calculate_kink(
     change_indx: int,
     prev_seg: int,

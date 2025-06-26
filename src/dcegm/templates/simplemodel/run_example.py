@@ -36,16 +36,16 @@ colors = ["#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e"]
 
 # Model parameters
 params = {
-    "discount_factor": 0.95,
-    "delta": 0.5,
+    "discount_factor": 0.98,
+    "delta": 1.0,
     "rho": 1.0,
     "constant": np.log(20.0),
     "exp": 0.0,
     "exp_squared": 0.0,
     "income_shock_std": np.sqrt(0.005),
     "income_shock_mean": -0.005 / 2,
-    "taste_shock_scale": 2e-16,
-    "interest_rate": (1 - 0.95) / 0.95,
+    "taste_shock_scale": 0.05,
+    "interest_rate": 0.0,
     "consumption_floor": 0.001,
 }
 
@@ -56,7 +56,7 @@ model_specs = {
 
 # Define quadrature points to test
 quad_points_list = [5, 15, 50, 100, 500]
-n_quad_points_true = 500
+n_quad_points_true = 1000
 # New list for 50 quadrature points (log-spaced for better distribution)
 quad_points_extended = np.unique(np.logspace(0, 3, 50, dtype=int))
 
@@ -80,7 +80,7 @@ model_functions = {
 model_config_true = {
     "n_periods": 5,
     "choices": [0, 1],
-    "continuous_states": {"assets_end_of_period": np.linspace(1, 200, 10000)},
+    "continuous_states": {"assets_end_of_period": np.linspace(0, 150, 5000)},
     "n_quad_points": n_quad_points_true,
 }
 model_config_test = {
