@@ -13,6 +13,21 @@ The solution algorithm employs an extension of the Fast Upper-Envelope Scan (FUE
 Dobrescu & Shanker (2022).
 
 
+# Installation
+
+You can install `dcegm` via PyPI or directly from GitHub. In your terminal, run:
+
+```console
+$ pip install dcegm
+```
+
+To install the latest development version directly from the GitHub repository, run:
+
+```console
+$ pip install git+https://github.com/OpenSourceEconomics/dcegm.git
+```
+
+
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -29,7 +44,6 @@ Dobrescu & Shanker (2022).
    guides/practitioner_guide
    guides/templates
    guides/minimal_example.ipynb
-   guides/maximal_example.ipynb
 
 
 
@@ -40,11 +54,9 @@ Dobrescu & Shanker (2022).
 
    background/limitations
    background/literature
-   background/two_period_model_tutorial.ipynb
    background/interface_plots.ipynb
    background/specify_exogenous_processes.md
    background/sparsity_conditions
-   background/timing_benchmarks.ipynb
 
 
 .. toctree::
@@ -59,7 +71,7 @@ Dobrescu & Shanker (2022).
 
 .. toctree::
    :maxdepth: 2
-   :caption: dc-egm API
+   :caption: dcegm API
    :hidden:
 
    genindex
