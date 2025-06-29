@@ -115,4 +115,4 @@ autoapi_dirs = ["../../src"]
 source_suffix = [".rst", ".ipynb", ".md"]
 
 # note: do not add .ipynb when nbspinx is enabled, otherwise you get the "missing title" error
-nbsphinx_execute = "never"
+jupyter_execute_notebooks = "off"
