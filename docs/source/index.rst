@@ -1,9 +1,10 @@
 dcegm
 =====
 
-**Note:** This is a pre-release version of the package. While the core features are in
-place, the interface and functionality may still evolve. Feedback and contributions are
-welcome.
+.. note::
+   This is a pre-release version of the package. While the core features are in
+   place, the interface and functionality may still evolve. Feedback and contributions are
+   welcome.
 
 `dcegm` is a Python package for solving and simulating finite-horizon stochastic
 discrete-continuous dynamic choice models using the DC-EGM algorithm from Iskhakov,
