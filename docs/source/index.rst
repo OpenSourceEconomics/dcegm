@@ -13,22 +13,6 @@ The solution algorithm employs an extension of the Fast Upper-Envelope Scan (FUE
 Dobrescu & Shanker (2022).
 
 
-Installation
---------------
-
-You can install `dcegm` via PyPI or directly from GitHub. In your terminal, run:
-
-```console
-$ pip install dcegm
-```
-
-To install the latest development version directly from the GitHub repository, run:
-
-```console
-$ pip install git+https://github.com/OpenSourceEconomics/dcegm.git
-```
-
-
 .. toctree::
    :maxdepth: 1
    :hidden:
