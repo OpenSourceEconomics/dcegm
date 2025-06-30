@@ -13,7 +13,7 @@ Jørgensen, Rust, and Schjerning (QE, 2017).
 The solution algorithm employs an extension of the Fast Upper-Envelope Scan (FUES) from
 Dobrescu & Shanker (2022).
 
-Check out our :ref:`guides<guides/index.rst>` to find information on getting started and useful templates for setting up a model. 
+Check out our :ref:`guides<guides/index.rst>` to find information on getting started and useful templates for setting up a model.
 
 
 .. toctree::
