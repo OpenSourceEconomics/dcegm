@@ -1,5 +1,5 @@
-dc-egm
-======
+dcegm
+=====
 
 **Note:** This is a pre-release version of the package. While the core features are in
 place, the interface and functionality may still evolve. Feedback and contributions are
@@ -13,7 +13,8 @@ The solution algorithm employs an extension of the Fast Upper-Envelope Scan (FUE
 Dobrescu & Shanker (2022).
 
 
-# Installation
+Installation
+--------------
 
 You can install `dcegm` via PyPI or directly from GitHub. In your terminal, run:
 
@@ -55,6 +56,7 @@ $ pip install git+https://github.com/OpenSourceEconomics/dcegm.git
    background/limitations
    background/literature
    background/interface_plots.ipynb
+   background/two_period_model_tutorial.ipynb
    background/specify_exogenous_processes.md
    background/sparsity_conditions
 
