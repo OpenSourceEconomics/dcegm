@@ -18,7 +18,9 @@ TEST_DIR = Path(__file__).parent
 REPLICATION_TEST_RESOURCES_DIR = TEST_DIR / "resources" / "replication_tests"
 
 
-def debug_plot_overlay(policy_expec, value_expec, policy_calc, value_calc):
+def debug_plot_overlay(
+    policy_expec, value_expec, policy_calc, value_calc, choice, lagged_choice, period
+):
     import matplotlib.pyplot as plt
     import numpy as np
 
@@ -30,21 +32,19 @@ def debug_plot_overlay(policy_expec, value_expec, policy_calc, value_calc):
         [policy_calc, value_calc],
         ["Policy Function", "Value Function"],
     ):
-        mask = (data_expec[0, :] >= 0) & (data_expec[0, :] <= 75)
-        indices = np.where(mask)[0]
 
         # Plot expected
         ax.plot(
-            data_expec[0, indices],
-            data_expec[1, indices],
+            data_expec[0, :],
+            data_expec[1, :],
             linestyle="--",
             color="blue",
             label="Expected",
             alpha=0.5,
         )
         ax.scatter(
-            data_expec[0, indices],
-            data_expec[1, indices],
+            data_expec[0, :],
+            data_expec[1, :],
             color="blue",
             s=50,
             alpha=0.7,
@@ -52,16 +52,16 @@ def debug_plot_overlay(policy_expec, value_expec, policy_calc, value_calc):
 
         # Plot calculated
         ax.plot(
-            data_calc[0, indices],
-            data_calc[1, indices],
+            data_calc[0, :],
+            data_calc[1, :],
             linestyle="-",
             color="orange",
             label="Calculated",
             alpha=0.5,
         )
         ax.scatter(
-            data_calc[0, indices],
-            data_calc[1, indices],
+            data_calc[0, :],
+            data_calc[1, :],
             color="orange",
             s=25,
             alpha=1,
@@ -72,6 +72,10 @@ def debug_plot_overlay(policy_expec, value_expec, policy_calc, value_calc):
         ax.legend()
 
     axes[0].set_ylabel("Policy / Value")
+    fig.suptitle(
+        f"Choice: {choice}, Lagged Choice: {lagged_choice}, Period: {period}",
+        fontsize=16,
+    )
     plt.tight_layout()
     plt.show()
 
@@ -156,8 +160,7 @@ def test_benchmark_models(model_name):
             x_new=wealth_grid_to_test, x=policy_calc[0], y=policy_calc[1]
         )
 
-        # if model_name == "retirement_no_shocks" and choice == 0 and lagged_choice == 0:
-        #     debug_plot_overlay(policy_expec, value_expec, policy_calc, value_calc)
+        # debug_plot_overlay(policy_expec, value_expec, policy_calc, value_calc, choice, lagged_choice, period)
 
         aaae(policy_expec_interp, policy_calc_interp)
         aaae(value_expec_interp, value_calc_interp)
