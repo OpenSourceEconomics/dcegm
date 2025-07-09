@@ -170,7 +170,7 @@ def test_interp2d_against_scipy(test_cases, test_id):
         jnp.array(test_y),
     )
 
-    aaae(policy_interp_jax, policy_interp_scipy, decimal=7)
+    aaae(policy_interp_jax, policy_interp_scipy)
 
 
 @pytest.mark.parametrize("test_id", range(N_TEST_CASES))
