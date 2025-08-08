@@ -7,13 +7,12 @@ import pandas as pd
 from dcegm.interpolation.interp1d import (
     interp1d_policy_and_value_on_wealth,
     interp_policy_on_wealth,
-    interp_value_on_wealth,
 )
 from dcegm.interpolation.interp2d import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
     interp2d_policy_on_wealth_and_regular_grid,
-    interp2d_value_on_wealth_and_regular_grid,
 )
+from dcegm.interpolation.interp_interfaces import interpolate_value_for_state_and_choice
 
 
 def get_n_state_choice_period(model):
@@ -126,7 +125,7 @@ def policy_and_value_for_state_choice_vec(
     return policy, value
 
 
-def value_for_state_choice_vec(
+def value_for_state_and_choice(
     states,
     choice,
     params,
@@ -156,7 +155,9 @@ def value_for_state_choice_vec(
     map_state_choice_to_index = model_structure["map_state_choice_to_index_with_proxy"]
     discrete_states_names = model_structure["discrete_states_names"]
 
-    if "dummy_stochastic" in discrete_states_names:
+    if ("dummy_stochastic" in discrete_states_names) & (
+        "dummy_stochastic" not in states.keys()
+    ):
         state_choice_vec = {
             **states,
             "choice": choice,
@@ -173,38 +174,18 @@ def value_for_state_choice_vec(
         state_choice_vec[st] for st in discrete_states_names + ["choice"]
     )
     state_choice_index = map_state_choice_to_index[state_choice_tuple]
-    continuous_states_info = model_config["continuous_states_info"]
-    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
 
-    compute_utility = model_funcs["compute_utility"]
+    value_grid_state_choice = jnp.take(value_solved, state_choice_index, axis=0)
+    endog_grid_state_choice = jnp.take(endog_grid_solved, state_choice_index, axis=0)
 
-    if continuous_states_info["second_continuous_exists"]:
-        second_continuous = state_choice_vec[
-            continuous_states_info["second_continuous_state_name"]
-        ]
-
-        value = interp2d_value_on_wealth_and_regular_grid(
-            regular_grid=continuous_states_info["second_continuous_grid"],
-            wealth_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
-            value_grid=jnp.take(value_solved, state_choice_index, axis=0),
-            regular_point_to_interp=second_continuous,
-            wealth_point_to_interp=state_choice_vec["assets_begin_of_period"],
-            compute_utility=compute_utility,
-            state_choice_vec=state_choice_vec,
-            params=params,
-            discount_factor=discount_factor,
-        )
-    else:
-
-        value = interp_value_on_wealth(
-            wealth=state_choice_vec["assets_begin_of_period"],
-            endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
-            value=jnp.take(value_solved, state_choice_index, axis=0),
-            compute_utility=compute_utility,
-            state_choice_vec=state_choice_vec,
-            params=params,
-            discount_factor=discount_factor,
-        )
+    value = interpolate_value_for_state_and_choice(
+        value_grid_state_choice=value_grid_state_choice,
+        endog_grid_state_choice=endog_grid_state_choice,
+        state_choice_vec=state_choice_vec,
+        params=params,
+        model_config=model_config,
+        model_funcs=model_funcs,
+    )
 
     return value
 

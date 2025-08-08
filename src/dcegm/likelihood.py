@@ -16,8 +16,7 @@ from dcegm.egm.aggregate_marginal_utility import (
     calculate_choice_probs_and_unsqueezed_logsum,
 )
 from dcegm.interfaces.inspect_structure import get_state_choice_index_per_discrete_state
-from dcegm.interpolation.interp1d import interp_value_on_wealth
-from dcegm.interpolation.interp2d import interp2d_value_on_wealth_and_regular_grid
+from dcegm.interpolation.interp_interfaces import interpolate_value_for_state_and_choice
 
 
 def create_individual_likelihood_function(
@@ -280,8 +279,8 @@ def calc_choice_prob_for_state_choices(
         value_solved=value_solved,
         endog_grid_solved=endog_grid_solved,
         params=params,
-        observed_states=states,
-        state_choice_indexes=state_choice_indexes,
+        states=states,
+        state_choice_indexes_for_states=state_choice_indexes,
         model_config=model_config,
         model_funcs=model_funcs,
     )
@@ -295,62 +294,54 @@ def calc_choice_probs_for_states(
     value_solved,
     endog_grid_solved,
     params,
-    observed_states,
-    state_choice_indexes,
+    states,
+    state_choice_indexes_for_states,
     model_config,
     model_funcs,
 ):
-    value_grid_agent = jnp.take(
-        value_solved, state_choice_indexes, axis=0, mode="fill", fill_value=jnp.nan
+    value_grid_states = jnp.take(
+        value_solved,
+        state_choice_indexes_for_states,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
     )
-    endog_grid_agent = jnp.take(endog_grid_solved, state_choice_indexes, axis=0)
+    endog_grid_states = jnp.take(
+        endog_grid_solved, state_choice_indexes_for_states, axis=0
+    )
 
-    # Read out relevant model objects
-    continuous_states_info = model_config["continuous_states_info"]
+    def wrapper_interp_value_for_choice(
+        state,
+        value_grid_state_choice,
+        endog_grid_state_choice,
+        choice,
+    ):
+        state_choice_vec = {**state, "choice": choice}
+
+        return interpolate_value_for_state_and_choice(
+            value_grid_state_choice=value_grid_state_choice,
+            endog_grid_state_choice=endog_grid_state_choice,
+            state_choice_vec=state_choice_vec,
+            params=params,
+            model_config=model_config,
+            model_funcs=model_funcs,
+        )
+
+    # Read out choice range to loop over
     choice_range = model_config["choices"]
 
-    if continuous_states_info["second_continuous_exists"]:
-        vectorized_interp2d = jax.vmap(
-            jax.vmap(
-                interp2d_value_for_state_in_each_choice,
-                in_axes=(None, None, 0, 0, 0, None, None, None),
-            ),
-            in_axes=(0, 0, 0, 0, None, None, None, None),
-        )
-        # Extract second cont state name
-        second_continuous_state_name = continuous_states_info[
-            "second_continuous_state_name"
-        ]
-        second_cont_value = observed_states[second_continuous_state_name]
-
-        value_per_agent_interp = vectorized_interp2d(
-            observed_states,
-            second_cont_value,
-            endog_grid_agent,
-            value_grid_agent,
-            choice_range,
-            params,
-            continuous_states_info["second_continuous_grid"],
-            model_funcs,
-        )
-
-    else:
-        vectorized_interp1d = jax.vmap(
-            jax.vmap(
-                interp1d_value_for_state_in_each_choice,
-                in_axes=(None, 0, 0, 0, None, None),
-            ),
-            in_axes=(0, 0, 0, None, None, None),
-        )
-
-        value_per_agent_interp = vectorized_interp1d(
-            observed_states,
-            endog_grid_agent,
-            value_grid_agent,
-            choice_range,
-            params,
-            model_funcs,
-        )
+    value_per_agent_interp = jax.vmap(
+        jax.vmap(
+            wrapper_interp_value_for_choice,
+            in_axes=(None, 0, 0, 0),
+        ),
+        in_axes=(0, 0, 0, None),
+    )(
+        states,
+        endog_grid_states,
+        value_grid_states,
+        choice_range,
+    )
 
     if model_funcs["taste_shock_function"]["taste_shock_scale_is_scalar"]:
         taste_shock_scale = model_funcs["taste_shock_function"][
@@ -361,7 +352,7 @@ def calc_choice_probs_for_states(
             "taste_shock_scale_per_state"
         ]
         taste_shock_scale = vmap(taste_shock_scale_per_state_func, in_axes=(0, None))(
-            observed_states, params
+            states, params
         )
         taste_shock_scale = taste_shock_scale[:, None]
 
@@ -370,61 +361,6 @@ def calc_choice_probs_for_states(
         taste_shock_scale=taste_shock_scale,
     )
     return choice_prob_across_choices
-
-
-def interp2d_value_for_state_in_each_choice(
-    state,
-    second_cont_state,
-    endog_grid_agent,
-    value_agent,
-    choice,
-    params,
-    regular_grid,
-    model_funcs,
-):
-    state_choice_vec = {**state, "choice": choice}
-
-    compute_utility = model_funcs["compute_utility"]
-    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
-
-    value_interp = interp2d_value_on_wealth_and_regular_grid(
-        regular_grid=regular_grid,
-        wealth_grid=endog_grid_agent,
-        value_grid=value_agent,
-        regular_point_to_interp=second_cont_state,
-        wealth_point_to_interp=state["assets_begin_of_period"],
-        compute_utility=compute_utility,
-        state_choice_vec=state_choice_vec,
-        params=params,
-        discount_factor=discount_factor,
-    )
-
-    return value_interp
-
-
-def interp1d_value_for_state_in_each_choice(
-    state,
-    endog_grid_agent,
-    value_agent,
-    choice,
-    params,
-    model_funcs,
-):
-    state_choice_vec = {**state, "choice": choice}
-    compute_utility = model_funcs["compute_utility"]
-    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
-
-    value_interp = interp_value_on_wealth(
-        wealth=state["assets_begin_of_period"],
-        endog_grid=endog_grid_agent,
-        value=value_agent,
-        compute_utility=compute_utility,
-        state_choice_vec=state_choice_vec,
-        params=params,
-        discount_factor=discount_factor,
-    )
-
-    return value_interp
 
 
 def calculate_weights_for_each_state(params, weight_vars, model_specs, weight_func):

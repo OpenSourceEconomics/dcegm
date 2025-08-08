@@ -3,7 +3,11 @@ import jax.numpy as jnp
 from dcegm.interfaces.interface import (
     policy_and_value_for_state_choice_vec,
     policy_for_state_choice_vec,
-    value_for_state_choice_vec,
+    value_for_state_and_choice,
+)
+from dcegm.likelihood import (
+    calc_choice_probs_for_states,
+    get_state_choice_index_per_discrete_state,
 )
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
@@ -86,7 +90,7 @@ class model_solved:
 
         """
 
-        return value_for_state_choice_vec(
+        return value_for_state_and_choice(
             states=state,
             choice=choice,
             model_config=self.model_config,
@@ -157,3 +161,23 @@ class model_solved:
         policy_grid = jnp.take(self.policy, state_choice_index, axis=0)
 
         return endog_grid, value_grid, policy_grid
+
+    def choice_probabilites_for_states(self, states):
+
+        state_choice_idxs = get_state_choice_index_per_discrete_state(
+            states=states,
+            map_state_choice_to_index=self.model_structure[
+                "map_state_choice_to_index_with_proxy"
+            ],
+            discrete_states_names=self.model_structure["discrete_states_names"],
+        )
+
+        return calc_choice_probs_for_states(
+            value_solved=self.value,
+            endog_grid_solved=self.endog_grid,
+            params=self.params,
+            states=states,
+            state_choice_indexes_for_states=state_choice_idxs,
+            model_config=self.model_config,
+            model_funcs=self.model_funcs,
+        )
