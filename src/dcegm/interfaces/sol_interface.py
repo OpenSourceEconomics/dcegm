@@ -7,6 +7,7 @@ from dcegm.interfaces.interface import (
 )
 from dcegm.likelihood import (
     calc_choice_probs_for_states,
+    choice_values_for_states,
     get_state_choice_index_per_discrete_state,
 )
 from dcegm.simulation.sim_utils import create_simulation_df
@@ -162,7 +163,7 @@ class model_solved:
 
         return endog_grid, value_grid, policy_grid
 
-    def choice_probabilites_for_states(self, states):
+    def choice_probabilities_for_states(self, states):
 
         state_choice_idxs = get_state_choice_index_per_discrete_state(
             states=states,
@@ -175,9 +176,27 @@ class model_solved:
         return calc_choice_probs_for_states(
             value_solved=self.value,
             endog_grid_solved=self.endog_grid,
+            state_choice_indexes=state_choice_idxs,
             params=self.params,
             states=states,
-            state_choice_indexes_for_states=state_choice_idxs,
+            model_config=self.model_config,
+            model_funcs=self.model_funcs,
+        )
+
+    def choice_values_for_states(self, states):
+        state_choice_idxs = get_state_choice_index_per_discrete_state(
+            states=states,
+            map_state_choice_to_index=self.model_structure[
+                "map_state_choice_to_index_with_proxy"
+            ],
+            discrete_states_names=self.model_structure["discrete_states_names"],
+        )
+        return choice_values_for_states(
+            value_solved=self.value,
+            endog_grid_solved=self.endog_grid,
+            state_choice_indexes=state_choice_idxs,
+            params=self.params,
+            states=states,
             model_config=self.model_config,
             model_funcs=self.model_funcs,
         )

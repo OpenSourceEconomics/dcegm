@@ -275,12 +275,13 @@ def calc_choice_prob_for_state_choices(
     and then interpolates the wealth at the beginning of period on them.
 
     """
+
     choice_prob_across_choices = calc_choice_probs_for_states(
         value_solved=value_solved,
         endog_grid_solved=endog_grid_solved,
+        state_choice_indexes=state_choice_indexes,
         params=params,
         states=states,
-        state_choice_indexes_for_states=state_choice_indexes,
         model_config=model_config,
         model_funcs=model_funcs,
     )
@@ -293,21 +294,64 @@ def calc_choice_prob_for_state_choices(
 def calc_choice_probs_for_states(
     value_solved,
     endog_grid_solved,
+    state_choice_indexes,
     params,
     states,
-    state_choice_indexes_for_states,
+    model_config,
+    model_funcs,
+):
+    choice_values_per_state = choice_values_for_states(
+        value_solved=value_solved,
+        endog_grid_solved=endog_grid_solved,
+        state_choice_indexes=state_choice_indexes,
+        params=params,
+        states=states,
+        model_config=model_config,
+        model_funcs=model_funcs,
+    )
+
+    if model_funcs["taste_shock_function"]["taste_shock_scale_is_scalar"]:
+        taste_shock_scale = model_funcs["taste_shock_function"][
+            "read_out_taste_shock_scale"
+        ](params)
+    else:
+        taste_shock_scale_per_state_func = model_funcs["taste_shock_function"][
+            "taste_shock_scale_per_state"
+        ]
+        taste_shock_scale = vmap(taste_shock_scale_per_state_func, in_axes=(0, None))(
+            states, params
+        )
+        taste_shock_scale = taste_shock_scale[:, None]
+
+    choice_prob_across_choices, _, _ = calculate_choice_probs_and_unsqueezed_logsum(
+        choice_values_per_state=choice_values_per_state,
+        taste_shock_scale=taste_shock_scale,
+    )
+    return choice_prob_across_choices
+
+
+def choice_values_for_states(
+    value_solved,
+    endog_grid_solved,
+    state_choice_indexes,
+    params,
+    states,
     model_config,
     model_funcs,
 ):
     value_grid_states = jnp.take(
         value_solved,
-        state_choice_indexes_for_states,
+        state_choice_indexes,
         axis=0,
         mode="fill",
         fill_value=jnp.nan,
     )
     endog_grid_states = jnp.take(
-        endog_grid_solved, state_choice_indexes_for_states, axis=0
+        endog_grid_solved,
+        state_choice_indexes,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
     )
 
     def wrapper_interp_value_for_choice(
@@ -330,7 +374,7 @@ def calc_choice_probs_for_states(
     # Read out choice range to loop over
     choice_range = model_config["choices"]
 
-    value_per_agent_interp = jax.vmap(
+    choice_values_per_state = jax.vmap(
         jax.vmap(
             wrapper_interp_value_for_choice,
             in_axes=(None, 0, 0, 0),
@@ -342,25 +386,7 @@ def calc_choice_probs_for_states(
         value_grid_states,
         choice_range,
     )
-
-    if model_funcs["taste_shock_function"]["taste_shock_scale_is_scalar"]:
-        taste_shock_scale = model_funcs["taste_shock_function"][
-            "read_out_taste_shock_scale"
-        ](params)
-    else:
-        taste_shock_scale_per_state_func = model_funcs["taste_shock_function"][
-            "taste_shock_scale_per_state"
-        ]
-        taste_shock_scale = vmap(taste_shock_scale_per_state_func, in_axes=(0, None))(
-            states, params
-        )
-        taste_shock_scale = taste_shock_scale[:, None]
-
-    choice_prob_across_choices, _, _ = calculate_choice_probs_and_unsqueezed_logsum(
-        choice_values_per_state=value_per_agent_interp,
-        taste_shock_scale=taste_shock_scale,
-    )
-    return choice_prob_across_choices
+    return choice_values_per_state
 
 
 def calculate_weights_for_each_state(params, weight_vars, model_specs, weight_func):
