@@ -137,17 +137,19 @@ class model_solved:
             A tuple containing the wealth grid, value grid, and policy grid for the given state and choice.
 
         """
-        # Get the value and policy for a given state and choice.
+        # Check if the states and choices are valid according to the model structure.
+        state_choices = check_states_and_choices(
+            states=states,
+            choices=choices,
+            model_structure=self.model_structure,
+        )
+
+        # Get the value and policy for a given state and choice. We use state choices as states as it is not important
+        # that these are missing.
         state_choice_index = get_state_choice_index_per_discrete_states_and_choices(
             model_structure=self.model_structure,
-            states=states,
-            choices=choices,
-        )
-        # Check if the states and choices are valid according to the model structure.
-        check_states_and_choices(
-            states=states,
-            choices=choices,
-            model_structure=self.model_structure,
+            states=state_choices,
+            choices=state_choices["choice"],
         )
 
         endog_grid = jnp.take(self.endog_grid, state_choice_index, axis=0)

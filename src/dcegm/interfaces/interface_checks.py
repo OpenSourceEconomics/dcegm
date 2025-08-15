@@ -12,7 +12,7 @@ def check_states_and_choices(states, choices, model_structure):
             discrete states and choices.
 
     Returns:
-        bool: True if the states and choices are valid, False otherwise.
+        state_choices (dict): Dictionary containing the states and choices,
 
     """
     discrete_states_names = model_structure["discrete_states_names"]
