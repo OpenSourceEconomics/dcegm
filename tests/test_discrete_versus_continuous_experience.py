@@ -138,24 +138,24 @@ def test_replication_discrete_versus_continuous_experience(
 
             states_cont["assets_begin_of_period"] = wealth_to_test
 
-            value_cont_interp = model_solved_cont.value_for_state_and_choice(
-                state=states_cont,
-                choice=choice,
+            value_cont_interp = model_solved_cont.value_for_states_and_choices(
+                states=states_cont,
+                choices=choice,
             )
-            policy_cont_interp = model_solved_cont.policy_for_state_and_choice(
-                state=states_cont,
-                choice=choice,
+            policy_cont_interp = model_solved_cont.policy_for_states_and_choices(
+                states=states_cont,
+                choices=choice,
             )
 
             states_disc["assets_begin_of_period"] = wealth_to_test
 
-            value_disc_interp = model_solved_disc.value_for_state_and_choice(
-                state=states_disc,
-                choice=choice,
+            value_disc_interp = model_solved_disc.value_for_states_and_choices(
+                states=states_disc,
+                choices=choice,
             )
-            policy_disc_interp = model_solved_disc.policy_for_state_and_choice(
-                state=states_disc,
-                choice=choice,
+            policy_disc_interp = model_solved_disc.policy_for_states_and_choices(
+                states=states_disc,
+                choices=choice,
             )
 
             # policy_cont_interp,  = (

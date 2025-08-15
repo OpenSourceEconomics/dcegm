@@ -15,7 +15,7 @@ from jax import vmap
 from dcegm.egm.aggregate_marginal_utility import (
     calculate_choice_probs_and_unsqueezed_logsum,
 )
-from dcegm.interfaces.inspect_structure import get_state_choice_index_per_discrete_state
+from dcegm.interfaces.index_functions import get_state_choice_index_per_discrete_states
 from dcegm.interpolation.interp_interfaces import interpolate_value_for_state_and_choice
 
 
@@ -236,7 +236,7 @@ def create_partial_choice_prob_calculation(
     model_config,
     model_funcs,
 ):
-    discrete_observed_state_choice_indexes = get_state_choice_index_per_discrete_state(
+    discrete_observed_state_choice_indexes = get_state_choice_index_per_discrete_states(
         states=observed_states,
         map_state_choice_to_index=model_structure[
             "map_state_choice_to_index_with_proxy"

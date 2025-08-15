@@ -6,9 +6,9 @@ import jax
 import pandas as pd
 
 from dcegm.backward_induction import backward_induction
-from dcegm.interfaces.inspect_structure import (
-    get_child_state_index_per_state_choice,
-    get_state_choice_index_per_discrete_state,
+from dcegm.interfaces.index_functions import (
+    get_child_state_index_per_states_and_choices,
+    get_state_choice_index_per_discrete_states,
 )
 from dcegm.interfaces.interface import validate_stochastic_transition
 from dcegm.interfaces.sol_interface import model_solved
@@ -300,7 +300,7 @@ class setup_model:
 
     def get_state_choices_idx(self, states):
         """Get the indices of the state choices for given states."""
-        return get_state_choice_index_per_discrete_state(
+        return get_state_choice_index_per_discrete_states(
             states=states,
             map_state_choice_to_index=self.model_structure["map_state_choice_to_index"],
             discrete_states_names=self.model_structure["discrete_states_names"],
@@ -312,8 +312,8 @@ class setup_model:
                 "For this function the model needs to be created with debug_info='all'"
             )
 
-        child_idx = get_child_state_index_per_state_choice(
-            states=state, choice=choice, model_structure=self.model_structure
+        child_idx = get_child_state_index_per_states_and_choices(
+            states=state, choices=choice, model_structure=self.model_structure
         )
         state_space_dict = self.model_structure["state_space_dict"]
         discrete_states_names = self.model_structure["discrete_states_names"]
@@ -343,8 +343,8 @@ class setup_model:
                 "For this function the model needs to be created with debug_info='all'"
             )
 
-        child_idx = get_child_state_index_per_state_choice(
-            states=state, choice=choice, model_structure=self.model_structure
+        child_idx = get_child_state_index_per_states_and_choices(
+            states=state, choices=choice, model_structure=self.model_structure
         )
         state_space_dict = self.model_structure["state_space_dict"]
         discrete_states_names = self.model_structure["discrete_states_names"]

@@ -70,9 +70,9 @@ def test_benchmark_models():
         (
             policy_calc_interp,
             value_calc_interp,
-        ) = model_solved.value_and_policy_for_state_and_choice(
-            state=state,
-            choice=choice,
+        ) = model_solved.value_and_policy_for_states_and_choices(
+            states=state,
+            choices=choice,
         )
 
         aaae(policy_expec_interp, policy_calc_interp)

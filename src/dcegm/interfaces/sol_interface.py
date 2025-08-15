@@ -1,14 +1,18 @@
 import jax.numpy as jnp
 
+from dcegm.interfaces.index_functions import (
+    get_state_choice_index_per_discrete_states_and_choices,
+)
 from dcegm.interfaces.interface import (
-    policy_and_value_for_state_choice_vec,
+    policy_and_value_for_states_and_choices,
     policy_for_state_choice_vec,
     value_for_state_and_choice,
 )
+from dcegm.interfaces.interface_checks import check_states_and_choices
 from dcegm.likelihood import (
     calc_choice_probs_for_states,
     choice_values_for_states,
-    get_state_choice_index_per_discrete_state,
+    get_state_choice_index_per_discrete_states,
 )
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
@@ -56,20 +60,20 @@ class model_solved:
         )
         return create_simulation_df(sim_dict)
 
-    def value_and_policy_for_state_and_choice(self, state, choice):
+    def value_and_policy_for_states_and_choices(self, states, choices):
         """Get the value and policy for a given state and choice.
 
         Args:
-            state: The state for which to get the value and policy.
-            choice: The choice for which to get the value and policy.
+            states: The state for which to get the value and policy.
+            choices: The choice for which to get the value and policy.
 
         Returns:
             A tuple containing the value and policy for the given state and choice.
 
         """
-        return policy_and_value_for_state_choice_vec(
-            states=state,
-            choice=choice,
+        return policy_and_value_for_states_and_choices(
+            states=states,
+            choices=choices,
             model_config=self.model_config,
             model_structure=self.model_structure,
             model_funcs=self.model_funcs,
@@ -79,12 +83,12 @@ class model_solved:
             policy_solved=self.policy,
         )
 
-    def value_for_state_and_choice(self, state, choice):
+    def value_for_states_and_choices(self, states, choices):
         """Get the value for a given state and choice.
 
         Args:
-            state: The state for which to get the value.
-            choice: The choice for which to get the value.
+            states: The state for which to get the value.
+            choices: The choice for which to get the value.
 
         Returns:
             The value for the given state and choice.
@@ -92,8 +96,8 @@ class model_solved:
         """
 
         return value_for_state_and_choice(
-            states=state,
-            choice=choice,
+            states=states,
+            choices=choices,
             model_config=self.model_config,
             model_structure=self.model_structure,
             model_funcs=self.model_funcs,
@@ -102,12 +106,12 @@ class model_solved:
             value_solved=self.value,
         )
 
-    def policy_for_state_and_choice(self, state, choice):
+    def policy_for_states_and_choices(self, states, choices):
         """Get the policy for a given state and choice.
 
         Args:
-            state: The state for which to get the policy.
-            choice: The choice for which to get the policy.
+            states: The state for which to get the policy.
+            choices: The choice for which to get the policy.
 
         Returns:
             The policy for the given state and choice.
@@ -115,47 +119,36 @@ class model_solved:
         """
 
         return policy_for_state_choice_vec(
-            states=state,
-            choice=choice,
+            states=states,
+            choices=choices,
             model_config=self.model_config,
             model_structure=self.model_structure,
             endog_grid_solved=self.endog_grid,
             policy_solved=self.policy,
         )
 
-    def get_solution_for_discrete_state_choice(self, states, choice):
+    def get_solution_for_discrete_state_choice(self, states, choices):
         """Get the solution container for a given discrete state and choice combination.
 
         Args:
             states: The state for which to get the solution.
-            choice: The choice for which to get the solution.
+            choices: The choice for which to get the solution.
         Returns:
             A tuple containing the wealth grid, value grid, and policy grid for the given state and choice.
 
         """
         # Get the value and policy for a given state and choice.
-
-        map_state_choice_to_index = self.model_structure[
-            "map_state_choice_to_index_with_proxy"
-        ]
-        discrete_states_names = self.model_structure["discrete_states_names"]
-
-        if "dummy_stochastic" in discrete_states_names:
-            state_choice_vec = {
-                **states,
-                "choice": choice,
-                "dummy_stochastic": 0,
-            }
-        else:
-            state_choice_vec = {
-                **states,
-                "choice": choice,
-            }
-
-        state_choice_tuple = tuple(
-            state_choice_vec[state] for state in discrete_states_names + ["choice"]
+        state_choice_index = get_state_choice_index_per_discrete_states_and_choices(
+            model_structure=self.model_structure,
+            states=states,
+            choices=choices,
         )
-        state_choice_index = map_state_choice_to_index[state_choice_tuple]
+        # Check if the states and choices are valid according to the model structure.
+        check_states_and_choices(
+            states=states,
+            choices=choices,
+            model_structure=self.model_structure,
+        )
 
         endog_grid = jnp.take(self.endog_grid, state_choice_index, axis=0)
         value_grid = jnp.take(self.value, state_choice_index, axis=0)
@@ -165,7 +158,7 @@ class model_solved:
 
     def choice_probabilities_for_states(self, states):
 
-        state_choice_idxs = get_state_choice_index_per_discrete_state(
+        state_choice_idxs = get_state_choice_index_per_discrete_states(
             states=states,
             map_state_choice_to_index=self.model_structure[
                 "map_state_choice_to_index_with_proxy"
@@ -184,7 +177,7 @@ class model_solved:
         )
 
     def choice_values_for_states(self, states):
-        state_choice_idxs = get_state_choice_index_per_discrete_state(
+        state_choice_idxs = get_state_choice_index_per_discrete_states(
             states=states,
             map_state_choice_to_index=self.model_structure[
                 "map_state_choice_to_index_with_proxy"

@@ -1,7 +1,6 @@
-def get_child_state_index_per_state_choice(states, choice, model_structure):
-    states_choice_dict = {**states, "choice": choice}
-    state_choice_index = get_state_choice_index_per_discrete_state_and_choice(
-        model_structure, states_choice_dict
+def get_child_state_index_per_states_and_choices(states, choices, model_structure):
+    state_choice_index = get_state_choice_index_per_discrete_states_and_choices(
+        model_structure, states, choices
     )
 
     child_states = model_structure["map_state_choice_to_child_states"][
@@ -11,7 +10,7 @@ def get_child_state_index_per_state_choice(states, choice, model_structure):
     return child_states
 
 
-def get_state_choice_index_per_discrete_state(
+def get_state_choice_index_per_discrete_states(
     states, map_state_choice_to_index, discrete_states_names
 ):
     """Get the state-choice index for a given set of discrete states.
@@ -33,26 +32,26 @@ def get_state_choice_index_per_discrete_state(
     return indexes[0]
 
 
-def get_state_choice_index_per_discrete_state_and_choice(
-    model_structure, state_choice_dict
+def get_state_choice_index_per_discrete_states_and_choices(
+    model_structure, states, choices
 ):
     """Get the state-choice index for a given set of discrete states and a choice.
 
     Args:
-        model (dict): A dictionary representing the model. Must contain
-            'model_structure' with a 'map_state_choice_to_index_with_proxy'
-            and 'discrete_states_names'.
-        state_choice_dict (dict): Dictionary containing discrete states and
+        model_structure (dict): Model structure containing all information on the structure of the model.
+        states (dict): Dictionary containing discrete states and
             the choice.
 
     Returns:
         int: The index corresponding to the specified discrete states and choice.
 
     """
+    state_choices = {"choice": choices, **states}
+
     map_state_choice_to_index = model_structure["map_state_choice_to_index_with_proxy"]
     discrete_states_names = model_structure["discrete_states_names"]
     state_choice_tuple = tuple(
-        state_choice_dict[st] for st in discrete_states_names + ["choice"]
+        state_choices[st] for st in discrete_states_names + ["choice"]
     )
     state_choice_index = map_state_choice_to_index[state_choice_tuple]
 
