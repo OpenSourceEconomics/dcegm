@@ -382,8 +382,8 @@ def choice_values_for_states(
         in_axes=(0, 0, 0, None),
     )(
         states,
-        endog_grid_states,
         value_grid_states,
+        endog_grid_states,
         choice_range,
     )
     return choice_values_per_state
