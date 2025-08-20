@@ -33,26 +33,16 @@ def create_individual_likelihood_function(
     use_probability_of_observed_states=True,
 ):
 
-    if unobserved_state_specs is None:
-        choice_prob_func = create_partial_choice_prob_calculation(
-            observed_states=observed_states,
-            observed_choices=observed_choices,
-            model_structure=model_structure,
-            model_config=model_config,
-            model_funcs=model_funcs,
-        )
-    else:
-
-        choice_prob_func = create_choice_prob_func_unobserved_states(
-            model_structure=model_structure,
-            model_config=model_config,
-            model_funcs=model_funcs,
-            model_specs=model_specs,
-            observed_states=observed_states,
-            observed_choices=observed_choices,
-            unobserved_state_specs=unobserved_state_specs,
-            use_probability_of_observed_states=use_probability_of_observed_states,
-        )
+    choice_prob_func = create_choice_prob_function(
+        model_structure=model_structure,
+        model_config=model_config,
+        model_funcs=model_funcs,
+        model_specs=model_specs,
+        observed_states=observed_states,
+        observed_choices=observed_choices,
+        unobserved_state_specs=unobserved_state_specs,
+        use_probability_of_observed_states=use_probability_of_observed_states,
+    )
 
     def individual_likelihood(params):
         params_update = params_all.copy()
@@ -80,6 +70,40 @@ def create_individual_likelihood_function(
             return neg_likelihood_contributions
 
     return jax.jit(individual_likelihood)
+
+
+def create_choice_prob_function(
+    model_structure,
+    model_config,
+    model_funcs,
+    model_specs,
+    observed_states,
+    observed_choices,
+    unobserved_state_specs,
+    use_probability_of_observed_states,
+):
+    if unobserved_state_specs is None:
+        choice_prob_func = create_partial_choice_prob_calculation(
+            observed_states=observed_states,
+            observed_choices=observed_choices,
+            model_structure=model_structure,
+            model_config=model_config,
+            model_funcs=model_funcs,
+        )
+    else:
+
+        choice_prob_func = create_choice_prob_func_unobserved_states(
+            model_structure=model_structure,
+            model_config=model_config,
+            model_funcs=model_funcs,
+            model_specs=model_specs,
+            observed_states=observed_states,
+            observed_choices=observed_choices,
+            unobserved_state_specs=unobserved_state_specs,
+            use_probability_of_observed_states=use_probability_of_observed_states,
+        )
+
+    return choice_prob_func
 
 
 def create_choice_prob_func_unobserved_states(
