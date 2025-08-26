@@ -50,9 +50,10 @@ def _regular_indices_and_weights_static(
 
 
 def _enumerate_corners(R: int) -> jnp.ndarray:
-    """
-    Returns a (2**R, R) array of {0,1} bits.
+    """Returns a (2**R, R) array of {0,1} bits.
+
     Row k gives the low/high selector per axis for corner k.
+
     """
     C = 1 << R
     ks = jnp.arange(C, dtype=jnp.uint32)[:, None]  # (C,1)
@@ -61,9 +62,10 @@ def _enumerate_corners(R: int) -> jnp.ndarray:
 
 
 def _flat_strides(dims: Tuple[int, ...]) -> jnp.ndarray:
-    """
-    Given dims = (n0,...,n{R-1}), return strides for row-major flattening.
+    """Given dims = (n0,...,n{R-1}), return strides for row-major flattening.
+
     stride[i] = prod_{j<i} n_j, with stride[0]=1.
+
     """
     if not dims:
         return jnp.array([], dtype=jnp.int32)
@@ -82,12 +84,13 @@ def interpNd_one_irregular(
     regular_point: jnp.ndarray,  # shape: (R,)
     irregular_point: float,  # scalar
 ) -> jnp.ndarray:
-    """
-    N-D linear interpolation with exactly one irregular axis (the last one).
+    """N-D linear interpolation with exactly one irregular axis (the last one).
+
     - Per-corner: 1D linear interpolation along the irregular axis using the local (varying) grid
     - Then: multilinear blend across regular axes with tensor-product weights
 
     Returns scalar (same dtype as `values`).
+
     """
     R = len(regular_grids)
     dims = tuple(g.shape[0] for g in regular_grids)
