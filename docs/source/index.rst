@@ -1,31 +1,38 @@
-.. dc-egm documentation master file, created by
-   sphinx-quickstart on Fri Sep 30 17:22:05 2022.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+dcegm
+=====
 
-dc-egm`s Documentation
-======================
+.. note::
+   This is a pre-release version of the package. While the core features are in
+   place, the interface and functionality may still evolve. Feedback and contributions are
+   welcome.
 
-Python implementation of the *Endogenous Grid Method* (EGM) and Discrete-Continuous EGM
-(DC-EGM) algorithms for solving dynamic stochastic lifecycle models of consumption and
-savings, including additional discrete choices.
+`dcegm` is a Python package for solving and simulating finite-horizon stochastic
+discrete-continuous dynamic choice models using the DC-EGM algorithm from Iskhakov,
+Jørgensen, Rust, and Schjerning (QE, 2017).
 
-**References**
+The solution algorithm employs an extension of the Fast Upper-Envelope Scan (FUES) from
+Dobrescu & Shanker (2022).
 
-1. Christopher D. Carroll (2006). `The method of endogenous gridpoints for solving dynamic stochastic optimization problems <http://www.sciencedirect.com/science/article/pii/S0165176505003368>`__. *Economics Letters*
-2. Iskhakov, Jorgensen, Rust, and Schjerning (2017). `The Endogenous Grid Method for Discrete-Continuous Dynamic Choice Models with (or without) Taste Shocks <http://onlinelibrary.wiley.com/doi/10.3982/QE643/full>`__. *Quantitative Economics*
+Check out our :ref:`guides<guides/index.rst>` to find information on getting started and useful templates for setting up a model.
+
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   installation
+
+
 
 .. toctree::
    :maxdepth: 2
    :caption: Guides
    :hidden:
 
-   guides/installation
-   guides/two_period_model_tutorial.ipynb
-   guides/practitioner_guides/parameters.ipynb
-   guides/practitioner_guides/model_config.ipynb
-   genindex
-   autoapi/index
+   guides/practitioner_guide
+   guides/templates
+   guides/minimal_example.ipynb
+
 
 
 .. toctree::
@@ -35,8 +42,10 @@ savings, including additional discrete choices.
 
    background/limitations
    background/literature
+   background/interface_plots.ipynb
+   background/two_period_model_tutorial.ipynb
    background/specify_exogenous_processes.md
-   background/timing_benchmarks.ipynb
+   background/sparsity_conditions
 
 
 .. toctree::
@@ -47,3 +56,12 @@ savings, including additional discrete choices.
    development/team
    development/changes
    development/roadmap
+
+
+.. toctree::
+   :maxdepth: 2
+   :caption: dcegm API
+   :hidden:
+
+   genindex
+   autoapi/index

@@ -288,7 +288,6 @@ def create_test_inputs():
         value_solved=value_solved,
         policy_solved=policy_solved,
         endog_grid_solved=endog_grid_solved,
-        has_second_continuous_state=True,
     )
 
     endog_grid, policy, value_second_last = solve_for_interpolated_values(
@@ -431,33 +430,20 @@ def _get_solve_last_two_periods_args(model, params, has_second_continuous_state)
 
     # Get state space dictionary and model functions
     model_structure = model.model_structure
-    state_space_dict = model_structure["state_space_dict"]
     model_funcs = model.model_funcs
 
     cont_grids_next_period = calc_cont_grids_next_period(
-        state_space_dict=state_space_dict,
-        model_config=model_config,
-        income_shock_draws_unscaled=income_shock_draws_unscaled,
         params=params,
+        income_shock_draws_unscaled=income_shock_draws_unscaled,
+        model_structure=model_structure,
+        model_config=model_config,
         model_funcs=model_funcs,
-        has_second_continuous_state=has_second_continuous_state,
     )
-
-    n_total_wealth_grid = model_config["tuning_params"]["n_total_wealth_grid"]
-
-    if has_second_continuous_state:
-        n_second_continuous_grid = model_config["continuous_states_info"][
-            "n_second_continuous_grid"
-        ]
-    else:
-        n_second_continuous_grid = None
 
     # Create solution containers for value, policy, and endogenous grids
     value_solved, policy_solved, endog_grid_solved = create_solution_container(
-        n_state_choices=model_structure["state_choice_space"].shape[0],
-        n_total_wealth_grid=n_total_wealth_grid,
-        n_second_continuous_grid=n_second_continuous_grid,
-        has_second_continuous_state=has_second_continuous_state,
+        model_structure=model_structure,
+        model_config=model_config,
     )
 
     return (

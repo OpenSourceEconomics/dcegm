@@ -1,9 +1,9 @@
-# Specifying Exogenous Processes in the DCEGM Module
+# Specifying Exogenous Processes
 
 
 ## Overview
 
-Exogenous processes in the ```dcegm``` module define how state variables evolve over time based on transition probabilities. These transition probabilities must be properly specified to ensure consistency with the model structure. This document outlines how to define exogenous processes and specify them within the model's ```options``` dictionary.
+Exogenous processes in the `dcegm` module define how state variables evolve over time based on transition probabilities. These transition probabilities must be properly specified to ensure consistency with the model structure. This document outlines how to define exogenous processes and specify them within the model's ```options``` dictionary.
 
 ## Defining an Exogenous Process Function
 
@@ -51,7 +51,7 @@ options = {
 
 ## Validating Exogenous Processes
 
-To ensure correctness, the validation function can be used as implemented in the ```dcegm``` module:
+To ensure correctness, the validation function can be used as implemented in the `dcegm` module:
 
 ```python
 from dcegm.interfaces.interface import validate_stochastic_states

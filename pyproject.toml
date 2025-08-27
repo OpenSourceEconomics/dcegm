@@ -1,57 +1,86 @@
-[build-system]
-requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.0"]
-build-backend = "setuptools.build_meta"
-
+# ======================================================================================
+# Project metadata
+# ======================================================================================
 [project]
 name = "dcegm"
-version = "0.1.0"
-description = "Python implementation of the DC-EGM algorithm from Iskhakov, Jorgensen, Rust, and Schjerning (QE, 2017)."
-readme = "README.md"
-requires-python = ">=3.9"
-license = { text = "MIT" }
-authors = [
-  { name = "Sebastian Gsell", email = "sebastian.gsell@econ.lmu.de" }
-]
-classifiers = [
-  "Development Status :: 1 - Planning",
-  "Environment :: Console",
-  "Intended Audience :: Science/Research",
-  "Operating System :: MacOS :: MacOS X",
-  "Operating System :: Microsoft :: Windows",
-  "Operating System :: POSIX",
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3 :: Only",
-  "Topic :: Scientific/Engineering",
-  "Topic :: Software Development :: Build Tools"
-]
-keywords = ["economics", "DC-EGM", "dynamic programming", "python"]
-urls = { "Github" = "https://github.com/OpenSourceEconomics/dcegm" }
-
+description = "Python package for solving and simulating finite-horizon stochastic discrete-continuous dynamic choice models using the DC-EGM algorithm from Iskhakov, Jørgensen, Rust, and Schjerning (QE, 2017)."
+version = "0.1.0.dev0"
+requires-python = ">=3.10"
 dependencies = [
   "numpy",
-  "scipy",
-  "numba",
-  "pandas",
   "jax",
-  "blackcellmagic",
-  "furo"
+]
+keywords = [
+  "Economics",
+  "DC-EGM",
+  "Dynamic Programming",
+  "Life Cycle Models",
+  "Computational Economics",
+  "Econometrics",
+  "Statistics",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+]
+authors = [
+    { name = "Max Blesch, Sebastian Gsell", email = "gsell.sebastian@gmail.com" }
+]
+maintainers = [
+    { name = "Max Blesch, Sebastian Gsell", email = "maximilian.blesch@hu-berlin.de" }
 ]
 
-[project.scripts]
-dcegm = "dcegm.cli:cli"
+[project.readme]
+file = "README.md"
+content-type = "text/markdown"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[project.license]
+text = "MIT"
+
+[project.urls]
+Github = "https://github.com/OpenSourceEconomics/dcegm"
+
+
+# ======================================================================================
+# Build system configuration
+# ======================================================================================
+[build-system]
+requires = ["hatchling", "hatch_vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/dcegm/_version.py"
+
+[tool.hatch.build.targets.sdist]
+exclude = ["tests"]
+only-packages = true
+
+[tool.hatch.build.targets.wheel]
+only-include = ["src"]
+sources = ["src"]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.setuptools.package-data]
 "dcegm" = ["templates/**/*"]
 
-[tool.setuptools]
-include-package-data = true
-zip-safe = false
 
-[tool.setuptools_scm]
-write_to = "src/dcegm/_version.py"
+# ======================================================================================
+# Misc configuration
+# ======================================================================================
 
 [tool.pytest.ini_options]
 addopts = [

@@ -12,13 +12,10 @@ import jax.numpy as jnp
 import numpy as np
 from jax import vmap
 
-import dcegm
-
-# from dcegm.backward_induction import get_solve_func_for_model
 from dcegm.egm.aggregate_marginal_utility import (
     calculate_choice_probs_and_unsqueezed_logsum,
 )
-from dcegm.interfaces.interface import get_state_choice_index_per_discrete_state
+from dcegm.interfaces.inspect_structure import get_state_choice_index_per_discrete_state
 from dcegm.interpolation.interp1d import interp_value_on_wealth
 from dcegm.interpolation.interp2d import interp2d_value_on_wealth_and_regular_grid
 
@@ -96,14 +93,6 @@ def create_choice_prob_func_unobserved_states(
     unobserved_state_specs,
     use_probability_of_observed_states=True,
 ):
-    continuous_states_info = model_config["continuous_states_info"]
-
-    # First prepare full observed states, choices and pre period states for weighting
-    state_space_names = model_structure["discrete_states_names"] + ["wealth"]
-
-    if continuous_states_info["second_continuous_exists"]:
-        second_cont_state_name = continuous_states_info["second_continuous_state_name"]
-        state_space_names += [second_cont_state_name]
 
     unobserved_state_names = unobserved_state_specs["observed_bools_states"].keys()
     observed_bools = unobserved_state_specs["observed_bools_states"]
@@ -403,7 +392,7 @@ def interp2d_value_for_state_in_each_choice(
         wealth_grid=endog_grid_agent,
         value_grid=value_agent,
         regular_point_to_interp=second_cont_state,
-        wealth_point_to_interp=state["wealth"],
+        wealth_point_to_interp=state["assets_begin_of_period"],
         compute_utility=compute_utility,
         state_choice_vec=state_choice_vec,
         params=params,
@@ -426,7 +415,7 @@ def interp1d_value_for_state_in_each_choice(
     discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
 
     value_interp = interp_value_on_wealth(
-        wealth=state["wealth"],
+        wealth=state["assets_begin_of_period"],
         endog_grid=endog_grid_agent,
         value=value_agent,
         compute_utility=compute_utility,

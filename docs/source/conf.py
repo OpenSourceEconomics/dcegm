@@ -13,7 +13,7 @@
 # sys.path.insert(0, os.path.abspath('.'))
 # -- Project information -----------------------------------------------------
 
-project = "dc-egm"
+project = "dcegm"
 copyright = "2025, Max Blesch, Sebastian Gsell"
 author = "Max Blesch, Sebastian Gsell"
 
@@ -34,8 +34,10 @@ extensions = [
     "sphinx.ext.extlinks",  # link to websites using abbreviations
     "sphinx.ext.napoleon",
     "myst_nb",  # Already present per rtd_environment.yml
-    "sphinx.ext.mathjax",  # For math in notebooks
+    # "sphinx.ext.mathjax",  # For math in notebooks
     "sphinx.ext.githubpages",  # For gh-pages'
+    "sphinx_design",
+    "sphinx_copybutton",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -56,11 +58,20 @@ exclude_patterns = ["_build", "**.ipynb_checkpoints"]
 # Ensure Jupyter notebooks are parsed
 nbsphinx_allow_errors = True  # Optional: continue build even if code cells fail
 
+
+# MyST-NB math settings
+myst_enable_extensions = [
+    "dollarmath",
+    "amsmath",
+]
+
+myst_nb_render_math = True
+
 # -- Options for HTML output -------------------------------------------------
 
 # Documentation theme and customization.
 
-html_title = "dc-egm"
+html_title = "dcegm"
 
 html_theme = "furo"
 
@@ -104,3 +115,4 @@ autoapi_dirs = ["../../src"]
 source_suffix = [".rst", ".ipynb", ".md"]
 
 # note: do not add .ipynb when nbspinx is enabled, otherwise you get the "missing title" error
+jupyter_execute_notebooks = "off"
