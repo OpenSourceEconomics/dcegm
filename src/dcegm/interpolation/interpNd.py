@@ -6,31 +6,6 @@ import jax.numpy as jnp
 from dcegm.interpolation.interp1d import get_index_high_and_low
 
 
-def _regular_indices_and_weights(
-    regular_grids: List[jnp.ndarray], regular_point: jnp.ndarray
-) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
-    """
-    For each regular axis i:
-      - find low/high index (i_lo, i_hi)
-      - compute 1D weight t_i in [0,1]
-    Returns:
-      idx_lo: (R,), idx_hi: (R,), t: (R,)
-    """
-
-    def one_axis(g, x):
-        hi, lo = get_index_high_and_low(g, x)
-        # Guard against zero division (degenerate cell)
-        denom = jnp.maximum(g[hi] - g[lo], jnp.finfo(g.dtype).eps)
-        t = (x - g[lo]) / denom
-        return lo, hi, t
-
-    lo, hi, t = jax.vmap(one_axis, in_axes=(0, 0))(
-        jnp.array(regular_grids, dtype=object), regular_point
-    )
-    # The dtype=object trick is not JIT-able; instead, pass as tuple and vmapping won't work.
-    # We'll implement with a Python loop since R is static, which is JIT-safe.
-
-
 def _regular_indices_and_weights_static(
     regular_grids: List[jnp.ndarray], regular_point: jnp.ndarray
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
@@ -200,7 +175,7 @@ def interpNd_value_with_cc(
     val_flat = value_grid.reshape((-1, nW))
     val_sel = val_flat[flat_idx]  # (C, nW)
 
-    # replace whole row if constrained (same as your 2D left/right replacement, generalized)
+    # replace whole row if constrained (same as 2D left/right replacement, generalized)
     constrained = wealth_point <= w_min_sel  # (C,)
     # For constrained rows, the value at the *target* wealth is v_cc; emulate this
     # by performing 1D interpolation on a degenerate segment [wealth_point, wealth_point]
