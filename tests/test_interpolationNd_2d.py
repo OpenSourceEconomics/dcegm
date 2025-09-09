@@ -22,6 +22,8 @@ from tests.utils.interpNd_helpers import (
 
 N_TEST_CASES = 20
 
+jax.config.update("jax_enable_x64", True)
+
 
 @pytest.fixture(scope="module")
 def test_cases_2d():

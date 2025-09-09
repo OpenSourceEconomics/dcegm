@@ -16,6 +16,8 @@ from tests.utils.interpNd_helpers import (
 
 N_TEST_CASES_ND = 10
 
+jax.config.update("jax_enable_x64", True)
+
 
 def generate_test_cases_nd(
     R, n_test_cases, seed=1234, n_reg_base=20, nW=30, n_points=20
