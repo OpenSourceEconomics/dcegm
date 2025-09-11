@@ -218,8 +218,8 @@ def create_choice_prob_func_unobserved_states(
     n_obs = len(observed_choices)
 
     # Use jax tree map to make only jax arrays of possible states and weighting vars
-    possible_states = jax.tree_map(lambda x: jnp.asarray(x), possible_states)
-    weighting_vars_for_possible_states = jax.tree_map(
+    possible_states = jax.tree_util.tree_map(lambda x: jnp.asarray(x), possible_states)
+    weighting_vars_for_possible_states = jax.tree_util.tree_map(
         lambda x: jnp.asarray(x), weighting_vars_for_possible_states
     )
 
