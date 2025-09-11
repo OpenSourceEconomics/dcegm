@@ -99,21 +99,16 @@ def backward_induction(
         return value_solved, policy_solved, endog_grid_solved
 
     # Create JIT-compiled single period solver using lambda
-    solve_single_period_jit = jax.jit(
-        lambda carry, xs: solve_single_period(
-            carry=carry,
-            xs=xs,
-            params=params,
-            continuous_grids_info=continuous_states_info,
-            cont_grids_next_period=cont_grids_next_period,
-            model_funcs=model_funcs,
-            income_shock_weights=income_shock_weights,
-            debug_info=None,
-        )
+    partial_single_period = lambda carry, xs: solve_single_period(
+        carry=carry,
+        xs=xs,
+        params=params,
+        continuous_grids_info=continuous_states_info,
+        cont_grids_next_period=cont_grids_next_period,
+        model_funcs=model_funcs,
+        income_shock_weights=income_shock_weights,
+        debug_info=None,
     )
-
-    def partial_single_period(carry, xs):
-        return solve_single_period_jit(carry, xs)
 
     for id_segment in range(batch_info["n_segments"]):
         segment_info = batch_info[f"batches_info_segment_{id_segment}"]
