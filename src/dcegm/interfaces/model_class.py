@@ -110,6 +110,18 @@ class setup_model:
         else:
             self.alternative_sim_funcs = None
 
+    def backward_induction_inner_jit(self, params):
+        return backward_induction(
+            params=params,
+            income_shock_draws_unscaled=self.income_shock_draws_unscaled,
+            income_shock_weights=self.income_shock_weights,
+            model_config=self.model_config,
+            batch_info=self.batch_info,
+            model_funcs=self.model_funcs,
+            model_structure=self.model_structure,
+        )
+
+    def get_fast_solve_func(self):
         backward_jit = jax.jit(
             partial(
                 backward_induction,
@@ -122,20 +134,9 @@ class setup_model:
             )
         )
 
-        self.backward_induction_jit = backward_jit
+        return backward_jit
 
-    def backward_induction_inner_jit(self, params):
-        return backward_induction(
-            params=params,
-            income_shock_draws_unscaled=self.income_shock_draws_unscaled,
-            income_shock_weights=self.income_shock_weights,
-            model_config=self.model_config,
-            batch_info=self.batch_info,
-            model_funcs=self.model_funcs,
-            model_structure=self.model_structure,
-        )
-
-    def solve(self, params, load_sol_path=None, save_sol_path=None, slow_version=False):
+    def solve(self, params, load_sol_path=None, save_sol_path=None):
         """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
         Args:
@@ -164,15 +165,9 @@ class setup_model:
         if load_sol_path is not None:
             sol_dict = pkl.load(open(load_sol_path, "rb"))
         else:
-            if slow_version:
-                value, policy, endog_grid = self.backward_induction_inner_jit(
-                    params_processed
-                )
-            else:
-                # Solve the model
-                value, policy, endog_grid = self.backward_induction_jit(
-                    params_processed
-                )
+            value, policy, endog_grid = self.backward_induction_inner_jit(
+                params_processed
+            )
             sol_dict = {
                 "value": value,
                 "policy": policy,
@@ -197,7 +192,6 @@ class setup_model:
         seed,
         load_sol_path=None,
         save_sol_path=None,
-        slow_version=False,
     ):
         """Solve the model and simulate it.
 
@@ -218,15 +212,9 @@ class setup_model:
         if load_sol_path is not None:
             sol_dict = pkl.load(open(load_sol_path, "rb"))
         else:
-            if slow_version:
-                value, policy, endog_grid = self.backward_induction_inner_jit(
-                    params_processed
-                )
-            else:
-                # Solve the model
-                value, policy, endog_grid = self.backward_induction_jit(
-                    params_processed
-                )
+            value, policy, endog_grid = self.backward_induction_inner_jit(
+                params_processed
+            )
 
             sol_dict = {
                 "value": value,
@@ -277,7 +265,9 @@ class setup_model:
         def solve_and_simulate_function_to_jit(params):
             params_processed = process_params(params, self.params_check_info)
             # Solve the model
-            value, policy, endog_grid = self.backward_induction_jit(params_processed)
+            value, policy, endog_grid = self.backward_induction_inner_jit(
+                params_processed
+            )
 
             sim_dict = sim_func(
                 params=params_processed,
