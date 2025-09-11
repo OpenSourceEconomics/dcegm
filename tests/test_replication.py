@@ -74,16 +74,17 @@ def test_benchmark_models(model_name):
         policy_expec_interp = linear_interpolation_with_extrapolation(
             x_new=wealth_grid_to_test, x=policy_expec[0], y=policy_expec[1]
         )
-
+        lagged_choice = state_choice_space_to_test[state_choice_idx, 1]
         state = {
-            "period": period,
-            "lagged_choice": state_choice_space_to_test[state_choice_idx, 1],
+            "period": jnp.ones_like(wealth_grid_to_test, dtype=int) * period,
+            "lagged_choice": jnp.ones_like(wealth_grid_to_test, dtype=int)
+            * lagged_choice,
             "assets_begin_of_period": wealth_grid_to_test,
         }
         policy_calc_interp, value_calc_interp = (
             model_solved.value_and_policy_for_states_and_choices(
                 states=state,
-                choices=choice,
+                choices=jnp.ones_like(wealth_grid_to_test, dtype=int) * choice,
             )
         )
 
