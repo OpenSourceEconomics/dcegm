@@ -2,21 +2,20 @@
 
 from typing import Callable, Dict, Tuple
 
-import numpy as np
 from jax import numpy as jnp
 from jax import vmap
 
 
 def calculate_candidate_solutions_from_euler_equation(
-    continuous_grids_info: np.ndarray,
+    continuous_grids_info: jnp.ndarray,
     marg_util_next: jnp.ndarray,
     emax_next: jnp.ndarray,
-    state_choice_mat: np.ndarray,
-    idx_post_decision_child_states: np.ndarray,
+    state_choice_mat: jnp.ndarray,
+    idx_post_decision_child_states: jnp.ndarray,
     model_funcs: Dict[str, Callable],
     has_second_continuous_state: bool,
     params: Dict[str, float],
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Calculate candidates for the optimal policy and value function."""
 
     feasible_marg_utils_child = jnp.take(
@@ -78,14 +77,14 @@ def calculate_candidate_solutions_from_euler_equation(
 
 
 def compute_optimal_policy_and_value_wrapper(
-    marg_util_next: np.ndarray,
-    emax_next: np.ndarray,
-    second_continuous_grid: np.ndarray,
-    assets_grid_end_of_period: np.ndarray,
+    marg_util_next: jnp.ndarray,
+    emax_next: jnp.ndarray,
+    second_continuous_grid: jnp.ndarray,
+    assets_grid_end_of_period: jnp.ndarray,
     state_choice_vec: Dict,
     model_funcs: Dict[str, Callable],
     params: Dict[str, float],
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Write second continuous grid point into state_choice_vec."""
     state_choice_vec["continuous_state"] = second_continuous_grid
 
@@ -100,13 +99,13 @@ def compute_optimal_policy_and_value_wrapper(
 
 
 def compute_optimal_policy_and_value(
-    marg_util_next: np.ndarray,
-    emax_next: np.ndarray,
-    assets_grid_end_of_period: np.ndarray,
+    marg_util_next: jnp.ndarray,
+    emax_next: jnp.ndarray,
+    assets_grid_end_of_period: jnp.ndarray,
     state_choice_vec: Dict,
     model_funcs: Dict[str, Callable],
     params: Dict[str, float],
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Compute optimal child-state- and choice-specific policy and value function.
 
     Given the marginal utilities of possible child states and next period wealth, we
@@ -173,14 +172,14 @@ def compute_optimal_policy_and_value(
 
 def solve_euler_equation(
     state_choice_vec: dict,
-    marg_util_next: np.ndarray,
-    emax_next: np.ndarray,
+    marg_util_next: jnp.ndarray,
+    emax_next: jnp.ndarray,
     compute_inverse_marginal_utility: Callable,
     compute_stochastic_transition_vec: Callable,
     params: Dict[str, float],
     discount_factor: float,
     interest_rate: float,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Solve the Euler equation for given discrete choice and child states.
 
     We integrate over the exogenous process and income uncertainty and

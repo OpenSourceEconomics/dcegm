@@ -26,7 +26,7 @@ def create_individual_likelihood_function(
     model_specs,
     backwards_induction,
     observed_states: Dict[str, int],
-    observed_choices: np.array,
+    observed_choices,
     params_all,
     unobserved_state_specs=None,
     return_model_solution=False,
@@ -112,7 +112,7 @@ def create_choice_prob_func_unobserved_states(
     model_funcs,
     model_specs,
     observed_states: Dict[str, int],
-    observed_choices: np.array,
+    observed_choices,
     unobserved_state_specs,
     use_probability_of_observed_states=True,
 ):
@@ -191,6 +191,8 @@ def create_choice_prob_func_unobserved_states(
 
         observed_weights[observed_bools[state_name]] /= n_state_values
 
+    observed_weights = jnp.asarray(observed_weights)
+
     # Create a list of partial choice probability functions for each unique
     # combination of unobserved states.
     partial_choice_probs_unobserved_states = []
@@ -214,6 +216,12 @@ def create_choice_prob_func_unobserved_states(
     )
 
     n_obs = len(observed_choices)
+
+    # Use jax tree map to make only jax arrays of possible states and weighting vars
+    possible_states = jax.tree_map(lambda x: jnp.asarray(x), possible_states)
+    weighting_vars_for_possible_states = jax.tree_map(
+        lambda x: jnp.asarray(x), weighting_vars_for_possible_states
+    )
 
     def choice_prob_func(value_in, endog_grid_in, params_in):
         choice_probs_final = jnp.zeros(n_obs, dtype=jnp.float64)

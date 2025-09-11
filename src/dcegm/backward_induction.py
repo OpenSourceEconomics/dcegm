@@ -4,7 +4,6 @@ from typing import Any, Callable, Dict, Tuple
 
 import jax.lax
 import jax.numpy as jnp
-import numpy as np
 
 from dcegm.final_periods import solve_last_two_periods
 from dcegm.law_of_motion import calc_cont_grids_next_period
