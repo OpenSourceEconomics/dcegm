@@ -2,6 +2,7 @@ import pickle
 from typing import Callable, Dict
 
 import jax
+import jax.numpy as jnp
 
 from dcegm.pre_processing.batches.batch_creation import create_batches_and_information
 from dcegm.pre_processing.check_model_config import check_model_config_and_process
@@ -15,7 +16,10 @@ from dcegm.pre_processing.model_structure.state_space import create_state_space
 from dcegm.pre_processing.model_structure.stochastic_states import (
     create_stochastic_state_mapping,
 )
-from dcegm.pre_processing.shared import create_array_with_smallest_int_dtype
+from dcegm.pre_processing.shared import (
+    create_array_with_smallest_int_dtype,
+    try_jax_array,
+)
 
 
 def create_model_dict(
@@ -109,12 +113,14 @@ def create_model_dict(
         model_structure.pop("map_state_choice_to_child_states")
         model_structure.pop("map_state_choice_to_index")
 
+    batch_info = jax.tree.map(create_array_with_smallest_int_dtype, batch_info)
     print("Model setup complete.\n")
     return {
         "model_config": model_config_processed,
         "model_funcs": model_funcs,
-        "model_structure": model_structure,
-        "batch_info": jax.tree.map(create_array_with_smallest_int_dtype, batch_info),
+        # Model structure are also lists, therefore we use try function
+        "model_structure": jax.tree.map(try_jax_array, model_structure),
+        "batch_info": jax.tree.map(jnp.asarray, batch_info),
     }
 
 
