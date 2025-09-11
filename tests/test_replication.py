@@ -43,7 +43,7 @@ def test_benchmark_models(model_name):
         **model_funcs,
     )
 
-    model_solved = model.solve(params)
+    model_solved = model.solve(params, slow_version=True)
 
     policy_expected = pickle.load(
         (REPLICATION_TEST_RESOURCES_DIR / f"{model_name}" / "policy.pkl").open("rb")

@@ -162,8 +162,9 @@ def process_model_functions_and_extract_info(
 
     taste_shock_function_processed, taste_shock_scale_in_params = (
         process_shock_functions(
-            shock_functions,
-            model_specs_jax,
+            shock_functions=shock_functions,
+            model_specs=model_specs,
+            model_specs_jax=model_specs_jax,
             continuous_state_name=second_continuous_state_name,
         )
     )

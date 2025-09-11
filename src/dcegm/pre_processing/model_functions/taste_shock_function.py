@@ -5,13 +5,15 @@ from dcegm.pre_processing.shared import (
 )
 
 
-def process_shock_functions(shock_functions, model_specs, continuous_state_name):
+def process_shock_functions(
+    shock_functions, model_specs, model_specs_jax, continuous_state_name
+):
     taste_shock_function_processed = {}
     shock_functions = {} if shock_functions is None else shock_functions
     if "taste_shock_scale_per_state" in shock_functions.keys():
         taste_shock_scale_per_state = get_taste_shock_function_for_state(
             draw_function_taste_shocks=shock_functions["taste_shock_scale_per_state"],
-            model_specs=model_specs,
+            model_specs=model_specs_jax,
             continuous_state_name=continuous_state_name,
         )
         taste_shock_function_processed["taste_shock_scale_per_state"] = (
@@ -28,10 +30,10 @@ def process_shock_functions(shock_functions, model_specs, continuous_state_name)
                     f"Lambda is not a scalar. If there is no draw function provided, "
                     f"lambda must be a scalar. Got {lambda_val}."
                 )
-            read_func = lambda params: jnp.asarray([model_specs["taste_shock_scale"]])
+            read_func = lambda params: model_specs_jax["taste_shock_scale"]
             taste_shock_scale_in_params = False
         else:
-            read_func = lambda params: jnp.asarray([params["taste_shock_scale"]])
+            read_func = lambda params: params["taste_shock_scale"]
 
             taste_shock_scale_in_params = True
 

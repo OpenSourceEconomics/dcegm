@@ -24,13 +24,14 @@ def create_individual_likelihood_function(
     model_config,
     model_funcs,
     model_specs,
-    backwards_induction,
+    backwards_induction_inner_jit,
     observed_states: Dict[str, int],
     observed_choices,
     params_all,
     unobserved_state_specs=None,
     return_model_solution=False,
     use_probability_of_observed_states=True,
+    slow_version=False,
 ):
 
     choice_prob_func = create_choice_prob_function(
@@ -48,7 +49,7 @@ def create_individual_likelihood_function(
         params_update = params_all.copy()
         params_update.update(params)
 
-        value, policy, endog_grid = backwards_induction(params_update)
+        value, policy, endog_grid = backwards_induction_inner_jit(params_update)
 
         choice_probs = choice_prob_func(
             value_in=value,
@@ -69,7 +70,10 @@ def create_individual_likelihood_function(
         else:
             return neg_likelihood_contributions
 
-    return jax.jit(individual_likelihood)
+    if slow_version:
+        return individual_likelihood
+    else:
+        return jax.jit(individual_likelihood)
 
 
 def create_choice_prob_function(

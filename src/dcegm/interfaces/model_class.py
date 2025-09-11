@@ -101,6 +101,15 @@ class setup_model:
         self.income_shock_draws_unscaled = income_shock_draws_unscaled
         self.income_shock_weights = income_shock_weights
 
+        if alternative_sim_specifications is not None:
+            self.alternative_sim_funcs = generate_alternative_sim_functions(
+                model_specs=model_specs,
+                model_specs_jax=self.model_specs,
+                **alternative_sim_specifications,
+            )
+        else:
+            self.alternative_sim_funcs = None
+
         backward_jit = jax.jit(
             partial(
                 backward_induction,
@@ -115,14 +124,18 @@ class setup_model:
 
         self.backward_induction_jit = backward_jit
 
-        if alternative_sim_specifications is not None:
-            self.alternative_sim_funcs = generate_alternative_sim_functions(
-                model_specs=model_specs, **alternative_sim_specifications
-            )
-        else:
-            self.alternative_sim_funcs = None
+    def backward_induction_inner_jit(self, params):
+        return backward_induction(
+            params=params,
+            income_shock_draws_unscaled=self.income_shock_draws_unscaled,
+            income_shock_weights=self.income_shock_weights,
+            model_config=self.model_config,
+            batch_info=self.batch_info,
+            model_funcs=self.model_funcs,
+            model_structure=self.model_structure,
+        )
 
-    def solve(self, params, load_sol_path=None, save_sol_path=None):
+    def solve(self, params, load_sol_path=None, save_sol_path=None, slow_version=False):
         """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
 
         Args:
@@ -151,8 +164,15 @@ class setup_model:
         if load_sol_path is not None:
             sol_dict = pkl.load(open(load_sol_path, "rb"))
         else:
-            # Solve the model
-            value, policy, endog_grid = self.backward_induction_jit(params_processed)
+            if slow_version:
+                value, policy, endog_grid = self.backward_induction_inner_jit(
+                    params_processed
+                )
+            else:
+                # Solve the model
+                value, policy, endog_grid = self.backward_induction_jit(
+                    params_processed
+                )
             sol_dict = {
                 "value": value,
                 "policy": policy,
@@ -177,6 +197,7 @@ class setup_model:
         seed,
         load_sol_path=None,
         save_sol_path=None,
+        slow_version=False,
     ):
         """Solve the model and simulate it.
 
@@ -197,8 +218,16 @@ class setup_model:
         if load_sol_path is not None:
             sol_dict = pkl.load(open(load_sol_path, "rb"))
         else:
-            # Solve the model
-            value, policy, endog_grid = self.backward_induction_jit(params_processed)
+            if slow_version:
+                value, policy, endog_grid = self.backward_induction_inner_jit(
+                    params_processed
+                )
+            else:
+                # Solve the model
+                value, policy, endog_grid = self.backward_induction_jit(
+                    params_processed
+                )
+
             sol_dict = {
                 "value": value,
                 "policy": policy,
@@ -228,6 +257,7 @@ class setup_model:
         self,
         states_initial,
         seed,
+        slow_version=False,
     ):
 
         sim_func = lambda params, value, policy, endog_gid: simulate_all_periods(
@@ -258,10 +288,13 @@ class setup_model:
 
             return sim_dict
 
-        jit_solve_simulate = jax.jit(solve_and_simulate_function_to_jit)
+        if slow_version:
+            solve_simulate_func = solve_and_simulate_function_to_jit
+        else:
+            solve_simulate_func = jax.jit(solve_and_simulate_function_to_jit)
 
         def solve_and_simulate_function(params):
-            sim_dict = jit_solve_simulate(params)
+            sim_dict = solve_simulate_func(params)
             df = create_simulation_df(sim_dict)
             return df
 
@@ -275,6 +308,7 @@ class setup_model:
         unobserved_state_specs=None,
         return_model_solution=False,
         use_probability_of_observed_states=True,
+        slow_version=False,
     ):
 
         return create_individual_likelihood_function(
@@ -282,13 +316,14 @@ class setup_model:
             model_config=self.model_config,
             model_funcs=self.model_funcs,
             model_specs=self.model_specs,
-            backwards_induction=self.backward_induction_jit,
+            backwards_induction_inner_jit=self.backward_induction_inner_jit,
             observed_states=observed_states,
             observed_choices=observed_choices,
             params_all=params_all,
             unobserved_state_specs=unobserved_state_specs,
             return_model_solution=return_model_solution,
             use_probability_of_observed_states=use_probability_of_observed_states,
+            slow_version=slow_version,
         )
 
     def validate_exogenous(self, params):
