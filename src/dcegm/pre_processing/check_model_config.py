@@ -93,9 +93,9 @@ def check_model_config_and_process(model_config):
             second_continuous_state_name
         )
 
-        second_continuous_state_grid = continuous_states_grids[
-            second_continuous_state_name
-        ]
+        second_continuous_state_grid = jnp.asarray(
+            continuous_states_grids[second_continuous_state_name]
+        )
         continuous_states_info["second_continuous_grid"] = second_continuous_state_grid
         # ToDo: Check if grid is array or list and monotonic increasing
 
