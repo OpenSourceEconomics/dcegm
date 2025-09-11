@@ -1,5 +1,6 @@
 from typing import Callable, Dict, Optional
 
+import jax
 import jax.numpy as jnp
 
 from dcegm.pre_processing.model_functions.taste_shock_function import (
@@ -13,6 +14,7 @@ from dcegm.pre_processing.model_structure.stochastic_states import (
 )
 from dcegm.pre_processing.shared import (
     determine_function_arguments_and_partial_model_specs,
+    try_jax_array,
 )
 
 
@@ -70,23 +72,26 @@ def process_model_functions_and_extract_info(
         "second_continuous_state_name"
     ]
 
+    # We use this for functions which are called later in the jitted code
+    model_specs_jax = jax.tree_util.tree_map(try_jax_array, model_specs)
+
     # Process mandatory functions. Start with utility functions
     compute_utility = determine_function_arguments_and_partial_model_specs(
         func=utility_functions["utility"],
-        model_specs=model_specs,
+        model_specs=model_specs_jax,
         continuous_state_name=second_continuous_state_name,
     )
 
     compute_marginal_utility = determine_function_arguments_and_partial_model_specs(
         func=utility_functions["marginal_utility"],
-        model_specs=model_specs,
+        model_specs=model_specs_jax,
         continuous_state_name=second_continuous_state_name,
     )
 
     compute_inverse_marginal_utility = (
         determine_function_arguments_and_partial_model_specs(
             func=utility_functions["inverse_marginal_utility"],
-            model_specs=model_specs,
+            model_specs=model_specs_jax,
             continuous_state_name=second_continuous_state_name,
         )
     )
@@ -99,14 +104,14 @@ def process_model_functions_and_extract_info(
     # Final period utility functions
     compute_utility_final = determine_function_arguments_and_partial_model_specs(
         func=utility_functions_final_period["utility"],
-        model_specs=model_specs,
+        model_specs=model_specs_jax,
         continuous_state_name=second_continuous_state_name,
     )
 
     compute_marginal_utility_final = (
         determine_function_arguments_and_partial_model_specs(
             func=utility_functions_final_period["marginal_utility"],
-            model_specs=model_specs,
+            model_specs=model_specs_jax,
             continuous_state_name=second_continuous_state_name,
         )
     )
@@ -121,12 +126,12 @@ def process_model_functions_and_extract_info(
         create_stochastic_transition_function(
             stochastic_states_transitions,
             model_config=model_config,
-            model_specs=model_specs,
+            model_specs=model_specs_jax,
             continuous_state_name=second_continuous_state_name,
         )
     )
 
-    # Now state space functions
+    # Now state space functions - here we use the old model_specs
     state_specific_choice_set, next_period_deterministic_state, sparsity_condition = (
         process_state_space_functions(
             state_space_functions,
@@ -137,7 +142,7 @@ def process_model_functions_and_extract_info(
     )
 
     next_period_continuous_state = process_second_continuous_update_function(
-        second_continuous_state_name, state_space_functions, model_specs=model_specs
+        second_continuous_state_name, state_space_functions, model_specs=model_specs_jax
     )
 
     # Budget equation
@@ -145,7 +150,7 @@ def process_model_functions_and_extract_info(
         determine_function_arguments_and_partial_model_specs(
             func=budget_constraint,
             continuous_state_name=second_continuous_state_name,
-            model_specs=model_specs,
+            model_specs=model_specs_jax,
         )
     )
 
@@ -158,7 +163,7 @@ def process_model_functions_and_extract_info(
     taste_shock_function_processed, taste_shock_scale_in_params = (
         process_shock_functions(
             shock_functions,
-            model_specs,
+            model_specs_jax,
             continuous_state_name=second_continuous_state_name,
         )
     )

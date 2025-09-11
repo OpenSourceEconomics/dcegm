@@ -24,6 +24,7 @@ from dcegm.pre_processing.setup_model import (
     create_model_dict_and_save,
     load_model_dict,
 )
+from dcegm.pre_processing.shared import try_jax_array
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
 
@@ -46,7 +47,6 @@ class setup_model:
     ):
         """Setup the model and check if load or save is required."""
 
-        self.model_specs = model_specs
         if model_load_path is not None:
             model_dict = load_model_dict(
                 model_config=model_config,
@@ -84,6 +84,8 @@ class setup_model:
                 shock_functions=shock_functions,
                 debug_info=debug_info,
             )
+
+        self.model_specs = jax.tree_util.tree_map(try_jax_array, model_specs)
 
         self.model_config = model_dict["model_config"]
         self.model_funcs = model_dict["model_funcs"]
