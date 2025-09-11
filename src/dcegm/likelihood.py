@@ -69,7 +69,7 @@ def create_individual_likelihood_function(
         else:
             return neg_likelihood_contributions
 
-    return jax.jit(individual_likelihood)
+    return individual_likelihood
 
 
 def create_choice_prob_function(
