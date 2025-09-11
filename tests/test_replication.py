@@ -3,13 +3,13 @@ from pathlib import Path
 
 import jax.numpy as jnp
 import pytest
+from interp1d_auxiliary import (
+    linear_interpolation_with_extrapolation,
+)
 from numpy.testing import assert_array_almost_equal as aaae
 
 import dcegm
 import dcegm.toy_models as toy_models
-from tests.utils.interp1d_auxiliary import (
-    linear_interpolation_with_extrapolation,
-)
 
 # Obtain the test directory of the package
 TEST_DIR = Path(__file__).parent
@@ -43,7 +43,7 @@ def test_benchmark_models(model_name):
         **model_funcs,
     )
 
-    model_solved = model.solve(params, slow_version=True)
+    model_solved = model.solve(params)
 
     policy_expected = pickle.load(
         (REPLICATION_TEST_RESOURCES_DIR / f"{model_name}" / "policy.pkl").open("rb")
