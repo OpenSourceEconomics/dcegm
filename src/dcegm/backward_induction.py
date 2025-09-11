@@ -2,6 +2,7 @@
 
 from typing import Any, Callable, Dict, Tuple
 
+import jax
 import jax.lax
 import jax.numpy as jnp
 
@@ -24,71 +25,34 @@ def backward_induction(
 
     Args:
         params (dict): Dictionary containing the model parameters.
-        options (dict): Dictionary containing the model options.
-        period_specific_state_objects (np.ndarray): Dictionary containing
-            period-specific state and state-choice objects, with the following keys:
-            - "state_choice_mat" (jnp.ndarray)
-            - "idx_state_of_state_choice" (jnp.ndarray)
-            - "reshape_state_choice_vec_to_mat" (callable)
-            - "transform_between_state_and_state_choice_vec" (callable)
-        exog_savings_grid (np.ndarray): 1d array of shape (n_grid_wealth,)
-            containing the exogenous savings grid.
-        has_second_continuous_state (bool): Boolean indicating whether the model
-            features a second continuous state variable. If False, the only
-            continuous state variable is consumption/savings.
-        state_space (np.ndarray): 2d array of shape (n_states, n_state_variables + 1)
-            which serves as a collection of all possible states. By convention,
-            the first column must contain the period and the last column the
-            exogenous processes. Any other state variables are in between.
-            E.g. if the two state variables are period and lagged choice and all choices
-            are admissible in each period, the shape of the state space array is
-            (n_periods * n_choices, 3).
-        state_choice_space (np.ndarray): 2d array of shape
-            (n_feasible_states, n_state_and_exog_variables + 1) containing all
-            feasible state-choice combinations. By convention, the second to last
-            column contains the exogenous process. The last column always contains the
-            choice to be made (which is not a state variable).
         income_shock_draws_unscaled (np.ndarray): 1d array of shape (n_quad_points,)
             containing the Hermite quadrature points unscaled.
         income_shock_weights (np.ndarrray): 1d array of shape
             (n_stochastic_quad_points) with weights for each stoachstic shock draw.
-        n_periods (int): Number of periods.
-        model_funcs (dict): Dictionary containing following model functions:
-            - compute_marginal_utility (callable): User-defined function to compute the
-                agent's marginal utility. The input ```params``` is already partialled
-                in.
-            - compute_inverse_marginal_utility (Callable): Function for calculating the
-                inverse marginal utiFality, which takes the marginal utility as only
-                 input.
-            - compute_next_period_wealth (callable): User-defined function to compute
-                the agent's wealth of the next period (t + 1). The inputs
-                ```saving```, ```shock```, ```params``` and ```options```
-                are already partialled in.
-            - transition_vector_by_state (Callable): Partialled transition function
-                return transition vector for each state.
-            - final_period_partial (Callable): Partialled function for calculating the
-                consumption as well as value function and marginal utility in the final
-                period.
-        compute_upper_envelope (Callable): Function for calculating the upper
-                envelope of the policy and value function. If the number of discrete
-                choices is 1, this function is a dummy function that returns the policy
-                and value function as is, without performing a fast upper envelope
-                scan.
+        model_config (dict): Dictionary containing the model configuration.
+        model_funcs (dict): Dictionary containing model functions.
+        model_structure (dict): Dictionary containing model structure.
+        batch_info (dict): Dictionary containing batch information.
 
     Returns:
-        dict: Dictionary containing the period-specific endog_grid, policy, and value
+        Tuple: Tuple containing the period-specific endog_grid, policy, and value
             from the backward induction.
 
     """
     continuous_states_info = model_config["continuous_states_info"]
 
-    cont_grids_next_period = calc_cont_grids_next_period(
-        model_structure=model_structure,
-        model_config=model_config,
-        income_shock_draws_unscaled=income_shock_draws_unscaled,
-        params=params,
-        model_funcs=model_funcs,
+    #
+    calc_grids_jit = jax.jit(
+        lambda income_shock_draws, params_inner: calc_cont_grids_next_period(
+            model_structure=model_structure,
+            model_config=model_config,
+            income_shock_draws_unscaled=income_shock_draws,
+            params=params_inner,
+            model_funcs=model_funcs,
+        )
     )
+
+    cont_grids_next_period = calc_grids_jit(income_shock_draws_unscaled, params)
 
     (
         value_solved,
@@ -101,32 +65,42 @@ def backward_induction(
         n_state_choices=model_structure["state_choice_space"].shape[0],
     )
 
-    # Solve the last two periods. We do this separately as the marginal utility of
-    # the child states in the last period is calculated from the marginal utility
-    # function of the bequest function, which might differ.
+    # Solve the last two periods using lambda to capture static arguments
+    solve_last_two_period_jit = jax.jit(
+        lambda params_inner, cont_grids, weights, val_solved, pol_solved, endog_solved: solve_last_two_periods(
+            params=params_inner,
+            continuous_states_info=continuous_states_info,
+            cont_grids_next_period=cont_grids,
+            income_shock_weights=weights,
+            model_funcs=model_funcs,
+            last_two_period_batch_info=batch_info["last_two_period_info"],
+            value_solved=val_solved,
+            policy_solved=pol_solved,
+            endog_grid_solved=endog_solved,
+            debug_info=None,
+        )
+    )
+
     (
         value_solved,
         policy_solved,
         endog_grid_solved,
-    ) = solve_last_two_periods(
-        params=params,
-        continuous_states_info=continuous_states_info,
-        cont_grids_next_period=cont_grids_next_period,
-        income_shock_weights=income_shock_weights,
-        model_funcs=model_funcs,
-        last_two_period_batch_info=batch_info["last_two_period_info"],
-        value_solved=value_solved,
-        policy_solved=policy_solved,
-        endog_grid_solved=endog_grid_solved,
-        debug_info=None,
+    ) = solve_last_two_period_jit(
+        params,
+        cont_grids_next_period,
+        income_shock_weights,
+        value_solved,
+        policy_solved,
+        endog_grid_solved,
     )
 
     # If it is a two period model we are done.
     if batch_info["two_period_model"]:
         return value_solved, policy_solved, endog_grid_solved
 
-    def partial_single_period(carry, xs):
-        return solve_single_period(
+    # Create JIT-compiled single period solver using lambda
+    solve_single_period_jit = jax.jit(
+        lambda carry, xs: solve_single_period(
             carry=carry,
             xs=xs,
             params=params,
@@ -136,6 +110,10 @@ def backward_induction(
             income_shock_weights=income_shock_weights,
             debug_info=None,
         )
+    )
+
+    def partial_single_period(carry, xs):
+        return solve_single_period_jit(carry, xs)
 
     for id_segment in range(batch_info["n_segments"]):
         segment_info = batch_info[f"batches_info_segment_{id_segment}"]
