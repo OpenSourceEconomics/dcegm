@@ -103,7 +103,9 @@ class setup_model:
 
         if alternative_sim_specifications is not None:
             self.alternative_sim_funcs = generate_alternative_sim_functions(
-                model_specs=model_specs, **alternative_sim_specifications
+                model_specs=model_specs,
+                model_specs_jax=self.model_specs,
+                **alternative_sim_specifications,
             )
         else:
             self.alternative_sim_funcs = None
