@@ -43,6 +43,7 @@ def create_individual_likelihood_function(
         observed_choices=observed_choices,
         unobserved_state_specs=unobserved_state_specs,
         use_probability_of_observed_states=use_probability_of_observed_states,
+        return_weight_func=False,
     )
 
     def individual_likelihood(params):
@@ -85,6 +86,7 @@ def create_choice_prob_function(
     observed_choices,
     unobserved_state_specs,
     use_probability_of_observed_states,
+    return_weight_func,
 ):
     if unobserved_state_specs is None:
         choice_prob_func = create_partial_choice_prob_calculation(
@@ -105,6 +107,7 @@ def create_choice_prob_function(
             observed_choices=observed_choices,
             unobserved_state_specs=unobserved_state_specs,
             use_probability_of_observed_states=use_probability_of_observed_states,
+            return_weight_func=return_weight_func,
         )
 
     return choice_prob_func
@@ -119,16 +122,14 @@ def create_choice_prob_func_unobserved_states(
     observed_choices,
     unobserved_state_specs,
     use_probability_of_observed_states=True,
+    return_weight_func=False,
 ):
 
     unobserved_state_names = unobserved_state_specs["observed_bools_states"].keys()
     observed_bools = unobserved_state_specs["observed_bools_states"]
 
     # Create weighting vars by extracting states and choices
-    weighting_vars = unobserved_state_specs["state_choices_weighing"]["states"]
-    weighting_vars["choice"] = unobserved_state_specs["state_choices_weighing"][
-        "choices"
-    ]
+    weighting_vars = unobserved_state_specs["weighting_vars"]
 
     # Add unobserved states with appendix new and bools indicating if state is observed
     for state_name in unobserved_state_names:
@@ -175,7 +176,7 @@ def create_choice_prob_func_unobserved_states(
             for possible_state in possible_states:
                 possible_state[state_name][unobserved_state_bool] = state_value
                 new_possible_states.append(copy.deepcopy(possible_state))
-            # Same for pre period states
+            # Same for variables to weight function
             for weighting_vars in weighting_vars_for_possible_states:
                 weighting_vars[state_name + "_new"][unobserved_state_bool] = state_value
                 new_weighting_vars_for_possible_states.append(
@@ -262,7 +263,35 @@ def create_choice_prob_func_unobserved_states(
 
         return choice_probs_final
 
-    return choice_prob_func
+    def weight_only_func(params_in):
+        weights = np.zeros((n_obs, len(possible_states)), dtype=np.float64)
+        count = 0
+        for partial_choice_prob, unobserved_state, weighting_vars in zip(
+            partial_choice_probs_unobserved_states,
+            possible_states,
+            weighting_vars_for_possible_states,
+        ):
+            unobserved_weights = jax.vmap(
+                partial_weight_func,
+                in_axes=(None, 0),
+            )(
+                params_in,
+                weighting_vars,
+            )
+
+            weights[:, count] = unobserved_weights
+            count += 1
+        return (
+            weights,
+            observed_weights,
+            possible_states,
+            weighting_vars_for_possible_states,
+        )
+
+    if return_weight_func:
+        return choice_prob_func, weight_only_func
+    else:
+        return choice_prob_func
 
 
 def create_partial_choice_prob_calculation(
