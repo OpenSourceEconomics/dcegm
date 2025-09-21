@@ -1,3 +1,6 @@
+import numpy as np
+
+
 def get_child_state_index_per_states_and_choices(states, choices, model_structure):
     state_choice_index = get_state_choice_index_per_discrete_states_and_choices(
         model_structure, states, choices
@@ -28,6 +31,15 @@ def get_state_choice_index_per_discrete_states(
     indexes = map_state_choice_to_index[
         tuple((states[key],) for key in discrete_states_names)
     ]
+    max_values_per_state = {key: np.max(states[key]) for key in discrete_states_names}
+    # Check that max value does not exceed the dimension
+    dim = map_state_choice_to_index.shape
+    for i, key in enumerate(discrete_states_names):
+        if max_values_per_state[key] > dim[i] - 1:
+            raise ValueError(
+                f"Max value of state {key} exceeds the dimension of the model."
+            )
+
     # As the code above generates a dummy dimension in the first index, remove it
     return indexes[0]
 
