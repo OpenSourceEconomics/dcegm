@@ -82,7 +82,7 @@ def test_benchmark_models(model_name):
             "assets_begin_of_period": wealth_grid_to_test,
         }
         policy_calc_interp, value_calc_interp = (
-            model_solved.value_and_policy_for_states_and_choices(
+            model_solved.policy_and_value_for_states_and_choices(
                 states=state,
                 choices=jnp.ones_like(wealth_grid_to_test, dtype=int) * choice,
             )

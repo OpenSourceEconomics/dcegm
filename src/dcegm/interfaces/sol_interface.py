@@ -60,7 +60,7 @@ class model_solved:
         )
         return create_simulation_df(sim_dict)
 
-    def value_and_policy_for_states_and_choices(self, states, choices):
+    def policy_and_value_for_states_and_choices(self, states, choices):
         """Get the value and policy for a given state and choice.
 
         Args:
