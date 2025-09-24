@@ -1,3 +1,4 @@
+import jax
 import jax.numpy as jnp
 
 from dcegm.interfaces.index_functions import (
@@ -14,6 +15,10 @@ from dcegm.likelihood import (
     choice_values_for_states,
     get_state_choice_index_per_discrete_states,
 )
+from dcegm.pre_processing.alternative_sim_functions import (
+    generate_alternative_sim_functions,
+)
+from dcegm.pre_processing.shared import try_jax_array
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
 
@@ -41,7 +46,28 @@ class model_solved:
         self.model_structure = model.model_structure
         self.model_funcs = model.model_funcs
         self.model_specs = model.model_specs
+        self.specs_without_jax = model.specs_without_jax
         self.alternative_sim_funcs = model.alternative_sim_funcs
+
+    def set_alternative_sim_funcs(
+        self, alternative_sim_specifications, alternative_specs=None
+    ):
+        if alternative_specs is None:
+            self.alternative_sim_specs = self.model_specs
+            alternative_specs_without_jax = self.specs_without_jax
+        else:
+            self.alternative_sim_specs = jax.tree_util.tree_map(
+                try_jax_array, alternative_specs
+            )
+            alternative_specs_without_jax = alternative_specs
+
+        alternative_sim_funcs = generate_alternative_sim_functions(
+            model_specs=alternative_specs_without_jax,
+            model_specs_jax=self.alternative_sim_specs,
+            **alternative_sim_specifications,
+        )
+        self.model.alternative_sim_funcs = alternative_sim_funcs
+        self.alternative_sim_funcs = alternative_sim_funcs
 
     def simulate(self, states_initial, seed):
 

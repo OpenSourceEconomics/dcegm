@@ -86,6 +86,7 @@ class setup_model:
             )
 
         self.model_specs = jax.tree_util.tree_map(try_jax_array, model_specs)
+        self.specs_without_jax = model_specs
 
         self.model_config = model_dict["model_config"]
         self.model_funcs = model_dict["model_funcs"]
@@ -103,12 +104,31 @@ class setup_model:
 
         if alternative_sim_specifications is not None:
             self.alternative_sim_funcs = generate_alternative_sim_functions(
-                model_specs=model_specs,
+                model_specs=self.specs_without_jax,
                 model_specs_jax=self.model_specs,
                 **alternative_sim_specifications,
             )
         else:
             self.alternative_sim_funcs = None
+
+    def set_alternative_sim_funcs(
+        self, alternative_sim_specifications, alternative_specs=None
+    ):
+        if alternative_specs is None:
+            self.alternative_sim_specs = self.model_specs
+            alternative_specs_without_jax = self.specs_without_jax
+        else:
+            self.alternative_sim_specs = jax.tree_util.tree_map(
+                try_jax_array, alternative_specs
+            )
+            alternative_specs_without_jax = alternative_specs
+
+        alternative_sim_funcs = generate_alternative_sim_functions(
+            model_specs=alternative_specs_without_jax,
+            model_specs_jax=self.alternative_sim_specs,
+            **alternative_sim_specifications,
+        )
+        self.alternative_sim_funcs = alternative_sim_funcs
 
     def backward_induction_inner_jit(self, params):
         return backward_induction(
