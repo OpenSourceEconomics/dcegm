@@ -5,6 +5,8 @@ from dcegm.interfaces.index_functions import (
     get_state_choice_index_per_discrete_states_and_choices,
 )
 from dcegm.interfaces.interface import (
+    choice_policies_for_states,
+    choice_values_for_states,
     policy_and_value_for_states_and_choices,
     policy_for_state_choice_vec,
     value_for_state_and_choice,
@@ -12,7 +14,6 @@ from dcegm.interfaces.interface import (
 from dcegm.interfaces.interface_checks import check_states_and_choices
 from dcegm.likelihood import (
     calc_choice_probs_for_states,
-    choice_values_for_states,
     get_state_choice_index_per_discrete_states,
 )
 from dcegm.pre_processing.alternative_sim_functions import (
@@ -186,6 +187,16 @@ class model_solved:
 
     def choice_probabilities_for_states(self, states):
 
+        # To check structure, add dummy choice for now and delete afterwards.
+        # Error messages will be misleading though.
+        state_choices = check_states_and_choices(
+            states=states,
+            choices=states["period"],
+            model_structure=self.model_structure,
+        )
+        state_choices.pop("choice")
+        states = state_choices
+
         state_choice_idxs = get_state_choice_index_per_discrete_states(
             states=states,
             map_state_choice_to_index=self.model_structure[
@@ -205,6 +216,16 @@ class model_solved:
         )
 
     def choice_values_for_states(self, states):
+        # To check structure, add dummy choice for now and delete afterwards.
+        # Error messages will be misleading though.
+        state_choices = check_states_and_choices(
+            states=states,
+            choices=states["period"],
+            model_structure=self.model_structure,
+        )
+        state_choices.pop("choice")
+        states = state_choices
+
         state_choice_idxs = get_state_choice_index_per_discrete_states(
             states=states,
             map_state_choice_to_index=self.model_structure[
@@ -220,4 +241,30 @@ class model_solved:
             states=states,
             model_config=self.model_config,
             model_funcs=self.model_funcs,
+        )
+
+    def choice_policies_for_states(self, states):
+        # To check structure, add dummy choice for now and delete afterwards.
+        # Error messages will be misleading though.
+        state_choices = check_states_and_choices(
+            states=states,
+            choices=states["period"],
+            model_structure=self.model_structure,
+        )
+        state_choices.pop("choice")
+        states = state_choices
+
+        state_choice_idxs = get_state_choice_index_per_discrete_states(
+            states=states,
+            map_state_choice_to_index=self.model_structure[
+                "map_state_choice_to_index_with_proxy"
+            ],
+            discrete_states_names=self.model_structure["discrete_states_names"],
+        )
+        return choice_policies_for_states(
+            policy_solved=self.policy,
+            endog_grid_solved=self.endog_grid,
+            state_choice_indexes=state_choice_idxs,
+            states=states,
+            model_config=self.model_config,
         )

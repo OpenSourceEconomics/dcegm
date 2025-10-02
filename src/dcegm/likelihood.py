@@ -5,7 +5,7 @@ IT IS WORK IN PROGRESS.
 """
 
 import copy
-from typing import Any, Dict
+from typing import Dict
 
 import jax
 import jax.numpy as jnp
@@ -16,7 +16,7 @@ from dcegm.egm.aggregate_marginal_utility import (
     calculate_choice_probs_and_unsqueezed_logsum,
 )
 from dcegm.interfaces.index_functions import get_state_choice_index_per_discrete_states
-from dcegm.interpolation.interp_interfaces import interpolate_value_for_state_and_choice
+from dcegm.interfaces.interface import choice_values_for_states
 
 
 def create_individual_likelihood_function(
@@ -393,65 +393,6 @@ def calc_choice_probs_for_states(
         taste_shock_scale=taste_shock_scale,
     )
     return choice_prob_across_choices
-
-
-def choice_values_for_states(
-    value_solved,
-    endog_grid_solved,
-    state_choice_indexes,
-    params,
-    states,
-    model_config,
-    model_funcs,
-):
-    value_grid_states = jnp.take(
-        value_solved,
-        state_choice_indexes,
-        axis=0,
-        mode="fill",
-        fill_value=jnp.nan,
-    )
-    endog_grid_states = jnp.take(
-        endog_grid_solved,
-        state_choice_indexes,
-        axis=0,
-        mode="fill",
-        fill_value=jnp.nan,
-    )
-
-    def wrapper_interp_value_for_choice(
-        state,
-        value_grid_state_choice,
-        endog_grid_state_choice,
-        choice,
-    ):
-        state_choice_vec = {**state, "choice": choice}
-
-        return interpolate_value_for_state_and_choice(
-            value_grid_state_choice=value_grid_state_choice,
-            endog_grid_state_choice=endog_grid_state_choice,
-            state_choice_vec=state_choice_vec,
-            params=params,
-            model_config=model_config,
-            model_funcs=model_funcs,
-        )
-
-    # Read out choice range to loop over
-    choice_range = model_config["choices"]
-
-    choice_values_per_state = jax.vmap(
-        jax.vmap(
-            wrapper_interp_value_for_choice,
-            in_axes=(None, 0, 0, 0),
-        ),
-        in_axes=(0, 0, 0, None),
-    )(
-        states,
-        value_grid_states,
-        endog_grid_states,
-        choice_range,
-    )
-    return choice_values_per_state
 
 
 def calculate_weights_for_each_state(params, weight_vars, model_specs, weight_func):
