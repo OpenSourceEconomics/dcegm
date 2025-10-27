@@ -10,7 +10,10 @@ from dcegm.interfaces.index_functions import (
     get_child_state_index_per_states_and_choices,
     get_state_choice_index_per_discrete_states,
 )
-from dcegm.interfaces.interface import validate_stochastic_transition
+from dcegm.interfaces.interface import (
+    get_n_state_choice_period,
+    validate_stochastic_transition,
+)
 from dcegm.interfaces.sol_interface import model_solved
 from dcegm.law_of_motion import calc_cont_grids_next_period
 from dcegm.likelihood import create_individual_likelihood_function
@@ -445,3 +448,6 @@ class setup_model:
             model_funcs=self.model_funcs,
             income_shock_draws_unscaled=self.income_shock_draws_unscaled,
         )
+
+    def get_n_state_choices_per_period(self):
+        return get_n_state_choice_period(self.model_structure)

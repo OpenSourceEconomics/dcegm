@@ -16,7 +16,7 @@ from dcegm.interpolation.interp_interfaces import (
 )
 
 
-def get_n_state_choice_period(model):
+def get_n_state_choice_period(model_structure):
     """Get the number of state-choice periods from the model.
 
     Args:
@@ -29,7 +29,7 @@ def get_n_state_choice_period(model):
 
     """
     return (
-        pd.Series(model["model_structure"]["state_choice_space"][:, 0])
+        pd.Series(model_structure["state_choice_space"][:, 0])
         .value_counts()
         .sort_index()
     )
