@@ -9,10 +9,10 @@ from numpy.testing import assert_array_almost_equal as aaae
 
 import dcegm
 import dcegm.toy_models as toy_models
-from dcegm.backward_induction import create_solution_container
 from dcegm.final_periods import solve_final_period
 from dcegm.law_of_motion import calc_cont_grids_next_period
 from dcegm.numerical_integration import quadrature_legendre
+from dcegm.pre_processing.sol_container import create_solution_container
 from dcegm.solve_single_period import solve_for_interpolated_values
 
 MAX_WEALTH = 50
@@ -290,7 +290,7 @@ def create_test_inputs():
         endog_grid_solved=endog_grid_solved,
     )
 
-    endog_grid, policy, value_second_last = solve_for_interpolated_values(
+    out_dict_second_last = solve_for_interpolated_values(
         value_interpolated=value_interp_final_period,
         marginal_utility_interpolated=marginal_utility_final_last_period,
         state_choice_mat=last_two_period_batch_info_cont[
@@ -308,15 +308,22 @@ def create_test_inputs():
         income_shock_weights=income_shock_weights,
         continuous_grids_info=model_config["continuous_states_info"],
         model_funcs=model_funcs_cont,
+        debug_info=None,
     )
 
     idx_second_last = last_two_period_batch_info_cont[
         "idx_state_choices_second_last_period"
     ]
 
-    value_solved = value_solved.at[idx_second_last, ...].set(value_second_last)
-    policy_solved = policy_solved.at[idx_second_last, ...].set(policy)
-    endog_grid_solved = endog_grid_solved.at[idx_second_last, ...].set(endog_grid)
+    value_solved = value_solved.at[idx_second_last, ...].set(
+        out_dict_second_last["value"]
+    )
+    policy_solved = policy_solved.at[idx_second_last, ...].set(
+        out_dict_second_last["policy"]
+    )
+    endog_grid_solved = endog_grid_solved.at[idx_second_last, ...].set(
+        out_dict_second_last["endog_grid"]
+    )
 
     return (
         value_solved,
@@ -442,8 +449,9 @@ def _get_solve_last_two_periods_args(model, params, has_second_continuous_state)
 
     # Create solution containers for value, policy, and endogenous grids
     value_solved, policy_solved, endog_grid_solved = create_solution_container(
-        model_structure=model_structure,
-        model_config=model_config,
+        continuous_states_info=model_config["continuous_states_info"],
+        n_total_wealth_grid=model_config["tuning_params"]["n_total_wealth_grid"],
+        n_state_choices=model_structure["state_choice_space"].shape[0],
     )
 
     return (

@@ -65,3 +65,10 @@ def get_smallest_int_type(n_values):
     for dtype in uint_types:
         if np.iinfo(dtype).max >= n_values:
             return dtype
+
+
+def try_jax_array(x):
+    try:
+        return jnp.asarray(x)
+    except:
+        return x

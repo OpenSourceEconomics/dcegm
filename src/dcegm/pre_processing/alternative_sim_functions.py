@@ -26,6 +26,7 @@ from dcegm.pre_processing.shared import (
 def generate_alternative_sim_functions(
     model_config: Dict,
     model_specs: Dict,
+    model_specs_jax: Dict,
     state_space_functions: Dict[str, Callable],
     budget_constraint: Callable,
     shock_functions: Dict[str, Callable] = None,
@@ -53,6 +54,7 @@ def generate_alternative_sim_functions(
     model_funcs, _ = process_alternative_sim_functions(
         model_config=model_config,
         model_specs=model_specs,
+        model_specs_jax=model_specs_jax,
         state_space_functions=state_space_functions,
         budget_constraint=budget_constraint,
         shock_functions=shock_functions,
@@ -80,6 +82,7 @@ def generate_alternative_sim_functions(
 def process_alternative_sim_functions(
     model_config: Dict,
     model_specs: Dict,
+    model_specs_jax: Dict,
     stochastic_states_transition,
     state_space_functions: Dict[str, Callable],
     budget_constraint: Callable,
@@ -138,7 +141,7 @@ def process_alternative_sim_functions(
         create_stochastic_transition_function(
             stochastic_states_transition,
             model_config=model_config,
-            model_specs=model_specs,
+            model_specs=model_specs_jax,
             continuous_state_name=second_continuous_state_name,
         )
     )
@@ -154,7 +157,7 @@ def process_alternative_sim_functions(
     )
 
     next_period_continuous_state = process_second_continuous_update_function(
-        second_continuous_state_name, state_space_functions, model_specs=model_specs
+        second_continuous_state_name, state_space_functions, model_specs=model_specs_jax
     )
 
     # Budget equation
@@ -162,7 +165,7 @@ def process_alternative_sim_functions(
         determine_function_arguments_and_partial_model_specs(
             func=budget_constraint,
             continuous_state_name=second_continuous_state_name,
-            model_specs=model_specs,
+            model_specs=model_specs_jax,
         )
     )
 
@@ -174,8 +177,9 @@ def process_alternative_sim_functions(
 
     taste_shock_function_processed, taste_shock_scale_in_params = (
         process_shock_functions(
-            shock_functions,
-            model_specs,
+            shock_functions=shock_functions,
+            model_specs=model_specs,
+            model_specs_jax=model_specs_jax,
             continuous_state_name=second_continuous_state_name,
         )
     )

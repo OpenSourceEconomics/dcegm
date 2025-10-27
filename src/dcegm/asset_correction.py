@@ -7,7 +7,7 @@ from dcegm.law_of_motion import (
 )
 
 
-def adjust_observed_assets(observed_states_dict, params, model_class):
+def adjust_observed_assets(observed_states_dict, params, model_class, aux_outs=False):
     """Correct observed beginning of period assets data for likelihood estimation.
 
     Assets in empirical survey data is observed without the income of last period's
@@ -47,7 +47,7 @@ def adjust_observed_assets(observed_states_dict, params, model_class):
             jnp.array(0.0, dtype=jnp.float64),
             params,
             model_funcs["compute_assets_begin_of_period"],
-            False,
+            aux_outs,
         )
 
     else:
@@ -60,7 +60,7 @@ def adjust_observed_assets(observed_states_dict, params, model_class):
             jnp.array(0.0, dtype=jnp.float64),
             params,
             model_funcs["compute_assets_begin_of_period"],
-            False,
+            aux_outs,
         )
 
     return adjusted_assets

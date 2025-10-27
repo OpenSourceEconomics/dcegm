@@ -5,7 +5,7 @@ IT IS WORK IN PROGRESS.
 """
 
 import copy
-from typing import Any, Dict
+from typing import Dict
 
 import jax
 import jax.numpy as jnp
@@ -15,9 +15,8 @@ from jax import vmap
 from dcegm.egm.aggregate_marginal_utility import (
     calculate_choice_probs_and_unsqueezed_logsum,
 )
-from dcegm.interfaces.inspect_structure import get_state_choice_index_per_discrete_state
-from dcegm.interpolation.interp1d import interp_value_on_wealth
-from dcegm.interpolation.interp2d import interp2d_value_on_wealth_and_regular_grid
+from dcegm.interfaces.index_functions import get_state_choice_index_per_discrete_states
+from dcegm.interfaces.interface import choice_values_for_states
 
 
 def create_individual_likelihood_function(
@@ -25,41 +24,33 @@ def create_individual_likelihood_function(
     model_config,
     model_funcs,
     model_specs,
-    backwards_induction,
+    backwards_induction_inner_jit,
     observed_states: Dict[str, int],
-    observed_choices: np.array,
+    observed_choices,
     params_all,
     unobserved_state_specs=None,
     return_model_solution=False,
     use_probability_of_observed_states=True,
+    slow_version=False,
 ):
 
-    if unobserved_state_specs is None:
-        choice_prob_func = create_partial_choice_prob_calculation(
-            observed_states=observed_states,
-            observed_choices=observed_choices,
-            model_structure=model_structure,
-            model_config=model_config,
-            model_funcs=model_funcs,
-        )
-    else:
-
-        choice_prob_func = create_choice_prob_func_unobserved_states(
-            model_structure=model_structure,
-            model_config=model_config,
-            model_funcs=model_funcs,
-            model_specs=model_specs,
-            observed_states=observed_states,
-            observed_choices=observed_choices,
-            unobserved_state_specs=unobserved_state_specs,
-            use_probability_of_observed_states=use_probability_of_observed_states,
-        )
+    choice_prob_func = create_choice_prob_function(
+        model_structure=model_structure,
+        model_config=model_config,
+        model_funcs=model_funcs,
+        model_specs=model_specs,
+        observed_states=observed_states,
+        observed_choices=observed_choices,
+        unobserved_state_specs=unobserved_state_specs,
+        use_probability_of_observed_states=use_probability_of_observed_states,
+        return_weight_func=False,
+    )
 
     def individual_likelihood(params):
         params_update = params_all.copy()
         params_update.update(params)
 
-        value, policy, endog_grid = backwards_induction(params_update)
+        value, policy, endog_grid = backwards_induction_inner_jit(params_update)
 
         choice_probs = choice_prob_func(
             value_in=value,
@@ -80,7 +71,46 @@ def create_individual_likelihood_function(
         else:
             return neg_likelihood_contributions
 
-    return jax.jit(individual_likelihood)
+    if slow_version:
+        return individual_likelihood
+    else:
+        return jax.jit(individual_likelihood)
+
+
+def create_choice_prob_function(
+    model_structure,
+    model_config,
+    model_funcs,
+    model_specs,
+    observed_states,
+    observed_choices,
+    unobserved_state_specs,
+    use_probability_of_observed_states,
+    return_weight_func,
+):
+    if unobserved_state_specs is None:
+        choice_prob_func = create_partial_choice_prob_calculation(
+            observed_states=observed_states,
+            observed_choices=observed_choices,
+            model_structure=model_structure,
+            model_config=model_config,
+            model_funcs=model_funcs,
+        )
+    else:
+
+        choice_prob_func = create_choice_prob_func_unobserved_states(
+            model_structure=model_structure,
+            model_config=model_config,
+            model_funcs=model_funcs,
+            model_specs=model_specs,
+            observed_states=observed_states,
+            observed_choices=observed_choices,
+            unobserved_state_specs=unobserved_state_specs,
+            use_probability_of_observed_states=use_probability_of_observed_states,
+            return_weight_func=return_weight_func,
+        )
+
+    return choice_prob_func
 
 
 def create_choice_prob_func_unobserved_states(
@@ -89,19 +119,17 @@ def create_choice_prob_func_unobserved_states(
     model_funcs,
     model_specs,
     observed_states: Dict[str, int],
-    observed_choices: np.array,
+    observed_choices,
     unobserved_state_specs,
     use_probability_of_observed_states=True,
+    return_weight_func=False,
 ):
 
     unobserved_state_names = unobserved_state_specs["observed_bools_states"].keys()
     observed_bools = unobserved_state_specs["observed_bools_states"]
 
     # Create weighting vars by extracting states and choices
-    weighting_vars = unobserved_state_specs["state_choices_weighing"]["states"]
-    weighting_vars["choice"] = unobserved_state_specs["state_choices_weighing"][
-        "choices"
-    ]
+    weighting_vars = unobserved_state_specs["weighting_vars"]
 
     # Add unobserved states with appendix new and bools indicating if state is observed
     for state_name in unobserved_state_names:
@@ -148,7 +176,7 @@ def create_choice_prob_func_unobserved_states(
             for possible_state in possible_states:
                 possible_state[state_name][unobserved_state_bool] = state_value
                 new_possible_states.append(copy.deepcopy(possible_state))
-            # Same for pre period states
+            # Same for variables to weight function
             for weighting_vars in weighting_vars_for_possible_states:
                 weighting_vars[state_name + "_new"][unobserved_state_bool] = state_value
                 new_weighting_vars_for_possible_states.append(
@@ -167,6 +195,8 @@ def create_choice_prob_func_unobserved_states(
         n_state_values = len(unobserved_state_values[state_name])
 
         observed_weights[observed_bools[state_name]] /= n_state_values
+
+    observed_weights = jnp.asarray(observed_weights)
 
     # Create a list of partial choice probability functions for each unique
     # combination of unobserved states.
@@ -191,6 +221,12 @@ def create_choice_prob_func_unobserved_states(
     )
 
     n_obs = len(observed_choices)
+
+    # Use jax tree map to make only jax arrays of possible states and weighting vars
+    possible_states = jax.tree_util.tree_map(lambda x: jnp.asarray(x), possible_states)
+    weighting_vars_for_possible_states = jax.tree_util.tree_map(
+        lambda x: jnp.asarray(x), weighting_vars_for_possible_states
+    )
 
     def choice_prob_func(value_in, endog_grid_in, params_in):
         choice_probs_final = jnp.zeros(n_obs, dtype=jnp.float64)
@@ -227,7 +263,35 @@ def create_choice_prob_func_unobserved_states(
 
         return choice_probs_final
 
-    return choice_prob_func
+    def weight_only_func(params_in):
+        weights = np.zeros((n_obs, len(possible_states)), dtype=np.float64)
+        count = 0
+        for partial_choice_prob, unobserved_state, weighting_vars in zip(
+            partial_choice_probs_unobserved_states,
+            possible_states,
+            weighting_vars_for_possible_states,
+        ):
+            unobserved_weights = jax.vmap(
+                partial_weight_func,
+                in_axes=(None, 0),
+            )(
+                params_in,
+                weighting_vars,
+            )
+
+            weights[:, count] = unobserved_weights
+            count += 1
+        return (
+            weights,
+            observed_weights,
+            possible_states,
+            weighting_vars_for_possible_states,
+        )
+
+    if return_weight_func:
+        return choice_prob_func, weight_only_func
+    else:
+        return choice_prob_func
 
 
 def create_partial_choice_prob_calculation(
@@ -237,7 +301,7 @@ def create_partial_choice_prob_calculation(
     model_config,
     model_funcs,
 ):
-    discrete_observed_state_choice_indexes = get_state_choice_index_per_discrete_state(
+    discrete_observed_state_choice_indexes = get_state_choice_index_per_discrete_states(
         states=observed_states,
         map_state_choice_to_index=model_structure[
             "map_state_choice_to_index_with_proxy"
@@ -276,12 +340,13 @@ def calc_choice_prob_for_state_choices(
     and then interpolates the wealth at the beginning of period on them.
 
     """
+
     choice_prob_across_choices = calc_choice_probs_for_states(
         value_solved=value_solved,
         endog_grid_solved=endog_grid_solved,
-        params=params,
-        observed_states=states,
         state_choice_indexes=state_choice_indexes,
+        params=params,
+        states=states,
         model_config=model_config,
         model_funcs=model_funcs,
     )
@@ -294,63 +359,21 @@ def calc_choice_prob_for_state_choices(
 def calc_choice_probs_for_states(
     value_solved,
     endog_grid_solved,
-    params,
-    observed_states,
     state_choice_indexes,
+    params,
+    states,
     model_config,
     model_funcs,
 ):
-    value_grid_agent = jnp.take(
-        value_solved, state_choice_indexes, axis=0, mode="fill", fill_value=jnp.nan
+    choice_values_per_state = choice_values_for_states(
+        value_solved=value_solved,
+        endog_grid_solved=endog_grid_solved,
+        state_choice_indexes=state_choice_indexes,
+        params=params,
+        states=states,
+        model_config=model_config,
+        model_funcs=model_funcs,
     )
-    endog_grid_agent = jnp.take(endog_grid_solved, state_choice_indexes, axis=0)
-
-    # Read out relevant model objects
-    continuous_states_info = model_config["continuous_states_info"]
-    choice_range = model_config["choices"]
-
-    if continuous_states_info["second_continuous_exists"]:
-        vectorized_interp2d = jax.vmap(
-            jax.vmap(
-                interp2d_value_for_state_in_each_choice,
-                in_axes=(None, None, 0, 0, 0, None, None, None),
-            ),
-            in_axes=(0, 0, 0, 0, None, None, None, None),
-        )
-        # Extract second cont state name
-        second_continuous_state_name = continuous_states_info[
-            "second_continuous_state_name"
-        ]
-        second_cont_value = observed_states[second_continuous_state_name]
-
-        value_per_agent_interp = vectorized_interp2d(
-            observed_states,
-            second_cont_value,
-            endog_grid_agent,
-            value_grid_agent,
-            choice_range,
-            params,
-            continuous_states_info["second_continuous_grid"],
-            model_funcs,
-        )
-
-    else:
-        vectorized_interp1d = jax.vmap(
-            jax.vmap(
-                interp1d_value_for_state_in_each_choice,
-                in_axes=(None, 0, 0, 0, None, None),
-            ),
-            in_axes=(0, 0, 0, None, None, None),
-        )
-
-        value_per_agent_interp = vectorized_interp1d(
-            observed_states,
-            endog_grid_agent,
-            value_grid_agent,
-            choice_range,
-            params,
-            model_funcs,
-        )
 
     if model_funcs["taste_shock_function"]["taste_shock_scale_is_scalar"]:
         taste_shock_scale = model_funcs["taste_shock_function"][
@@ -361,70 +384,15 @@ def calc_choice_probs_for_states(
             "taste_shock_scale_per_state"
         ]
         taste_shock_scale = vmap(taste_shock_scale_per_state_func, in_axes=(0, None))(
-            observed_states, params
+            states, params
         )
         taste_shock_scale = taste_shock_scale[:, None]
 
     choice_prob_across_choices, _, _ = calculate_choice_probs_and_unsqueezed_logsum(
-        choice_values_per_state=value_per_agent_interp,
+        choice_values_per_state=choice_values_per_state,
         taste_shock_scale=taste_shock_scale,
     )
     return choice_prob_across_choices
-
-
-def interp2d_value_for_state_in_each_choice(
-    state,
-    second_cont_state,
-    endog_grid_agent,
-    value_agent,
-    choice,
-    params,
-    regular_grid,
-    model_funcs,
-):
-    state_choice_vec = {**state, "choice": choice}
-
-    compute_utility = model_funcs["compute_utility"]
-    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
-
-    value_interp = interp2d_value_on_wealth_and_regular_grid(
-        regular_grid=regular_grid,
-        wealth_grid=endog_grid_agent,
-        value_grid=value_agent,
-        regular_point_to_interp=second_cont_state,
-        wealth_point_to_interp=state["assets_begin_of_period"],
-        compute_utility=compute_utility,
-        state_choice_vec=state_choice_vec,
-        params=params,
-        discount_factor=discount_factor,
-    )
-
-    return value_interp
-
-
-def interp1d_value_for_state_in_each_choice(
-    state,
-    endog_grid_agent,
-    value_agent,
-    choice,
-    params,
-    model_funcs,
-):
-    state_choice_vec = {**state, "choice": choice}
-    compute_utility = model_funcs["compute_utility"]
-    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
-
-    value_interp = interp_value_on_wealth(
-        wealth=state["assets_begin_of_period"],
-        endog_grid=endog_grid_agent,
-        value=value_agent,
-        compute_utility=compute_utility,
-        state_choice_vec=state_choice_vec,
-        params=params,
-        discount_factor=discount_factor,
-    )
-
-    return value_interp
 
 
 def calculate_weights_for_each_state(params, weight_vars, model_specs, weight_func):

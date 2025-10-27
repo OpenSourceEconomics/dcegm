@@ -164,9 +164,9 @@ def interp1d_value_and_marg_util_for_state_choice(
     def interp_on_single_wealth_point(wealth_point):
         policy_interp, value_interp = interp1d_policy_and_value_on_wealth(
             wealth=wealth_point,
-            endog_grid=endog_grid_child_state_choice,
-            policy=policy_child_state_choice,
-            value=value_child_state_choice,
+            wealth_grid=endog_grid_child_state_choice,
+            policy_grid=policy_child_state_choice,
+            value_grid=value_child_state_choice,
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,

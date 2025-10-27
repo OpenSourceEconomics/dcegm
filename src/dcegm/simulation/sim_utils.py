@@ -4,7 +4,7 @@ import pandas as pd
 from jax import numpy as jnp
 from jax import vmap
 
-from dcegm.interfaces.inspect_structure import get_state_choice_index_per_discrete_state
+from dcegm.interfaces.index_functions import get_state_choice_index_per_discrete_states
 from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
 from dcegm.interpolation.interp2d import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
@@ -34,7 +34,7 @@ def interpolate_policy_and_value_for_all_agents(
 
     if continuous_state_beginning_of_period is not None:
 
-        discrete_state_choice_indexes = get_state_choice_index_per_discrete_state(
+        discrete_state_choice_indexes = get_state_choice_index_per_discrete_states(
             states=discrete_states_beginning_of_period,
             map_state_choice_to_index=map_state_choice_to_index,
             discrete_states_names=discrete_states_names,
@@ -93,7 +93,7 @@ def interpolate_policy_and_value_for_all_agents(
         return policy_agent, value_agent
 
     else:
-        discrete_state_choice_indexes = get_state_choice_index_per_discrete_state(
+        discrete_state_choice_indexes = get_state_choice_index_per_discrete_states(
             states=discrete_states_beginning_of_period,
             map_state_choice_to_index=map_state_choice_to_index,
             discrete_states_names=discrete_states_names,
@@ -303,9 +303,9 @@ def interp1d_policy_and_value_function(
 
     policy_interp, value_interp = interp1d_policy_and_value_on_wealth(
         wealth=wealth_beginning_of_period,
-        endog_grid=endog_grid_agent,
-        policy=policy_agent,
-        value=value_agent,
+        wealth_grid=endog_grid_agent,
+        policy_grid=policy_agent,
+        value_grid=value_agent,
         compute_utility=compute_utility,
         state_choice_vec=state_choice_vec,
         params=params,

@@ -21,6 +21,7 @@ def solve_last_two_periods(
     value_solved,
     policy_solved,
     endog_grid_solved,
+    debug_info,
 ):
     """Solves the last two periods of the model.
 
@@ -47,7 +48,6 @@ def solve_last_two_periods(
             for all states, end of period assets, and income shocks.
 
     """
-
     (
         value_solved,
         policy_solved,
@@ -86,7 +86,7 @@ def solve_last_two_periods(
             last_two_period_batch_info["state_choice_mat_final_period"], params
         )
 
-    endog_grid, policy, value = solve_for_interpolated_values(
+    out_dict_second_last = solve_for_interpolated_values(
         value_interpolated=value_interp_final_period,
         marginal_utility_interpolated=marginal_utility_final_last_period,
         state_choice_mat=last_two_period_batch_info[
@@ -104,19 +104,47 @@ def solve_last_two_periods(
         income_shock_weights=income_shock_weights,
         continuous_grids_info=continuous_states_info,
         model_funcs=model_funcs,
+        debug_info=debug_info,
     )
 
     idx_second_last = last_two_period_batch_info["idx_state_choices_second_last_period"]
 
-    value_solved = value_solved.at[idx_second_last, ...].set(value)
-    policy_solved = policy_solved.at[idx_second_last, ...].set(policy)
-    endog_grid_solved = endog_grid_solved.at[idx_second_last, ...].set(endog_grid)
-
-    return (
-        value_solved,
-        policy_solved,
-        endog_grid_solved,
+    value_solved = value_solved.at[idx_second_last, ...].set(
+        out_dict_second_last["value"]
     )
+    policy_solved = policy_solved.at[idx_second_last, ...].set(
+        out_dict_second_last["policy"]
+    )
+    endog_grid_solved = endog_grid_solved.at[idx_second_last, ...].set(
+        out_dict_second_last["endog_grid"]
+    )
+
+    # If we do not call the function in debug mode. Assign everything and return
+    if debug_info is None:
+        return (
+            value_solved,
+            policy_solved,
+            endog_grid_solved,
+        )
+
+    else:
+        # If candidates are also needed to returned we return them additionally to the solution containers.
+        if debug_info["return_candidates"]:
+            return (
+                value_solved,
+                policy_solved,
+                endog_grid_solved,
+                out_dict_second_last["value_candidates"],
+                out_dict_second_last["policy_candidates"],
+                out_dict_second_last["endog_grid_candidates"],
+            )
+
+        else:
+            return (
+                value_solved,
+                policy_solved,
+                endog_grid_solved,
+            )
 
 
 def solve_final_period(

@@ -6,11 +6,14 @@ import jax
 import pandas as pd
 
 from dcegm.backward_induction import backward_induction
-from dcegm.interfaces.inspect_structure import (
-    get_child_state_index_per_state_choice,
-    get_state_choice_index_per_discrete_state,
+from dcegm.interfaces.index_functions import (
+    get_child_state_index_per_states_and_choices,
+    get_state_choice_index_per_discrete_states,
 )
-from dcegm.interfaces.interface import validate_stochastic_transition
+from dcegm.interfaces.interface import (
+    get_n_state_choice_period,
+    validate_stochastic_transition,
+)
 from dcegm.interfaces.sol_interface import model_solved
 from dcegm.law_of_motion import calc_cont_grids_next_period
 from dcegm.likelihood import create_individual_likelihood_function
@@ -24,6 +27,7 @@ from dcegm.pre_processing.setup_model import (
     create_model_dict_and_save,
     load_model_dict,
 )
+from dcegm.pre_processing.shared import try_jax_array
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
 
@@ -46,7 +50,6 @@ class setup_model:
     ):
         """Setup the model and check if load or save is required."""
 
-        self.model_specs = model_specs
         if model_load_path is not None:
             model_dict = load_model_dict(
                 model_config=model_config,
@@ -85,6 +88,9 @@ class setup_model:
                 debug_info=debug_info,
             )
 
+        self.model_specs = jax.tree_util.tree_map(try_jax_array, model_specs)
+        self.specs_without_jax = model_specs
+
         self.model_config = model_dict["model_config"]
         self.model_funcs = model_dict["model_funcs"]
         self.model_structure = model_dict["model_structure"]
@@ -99,6 +105,46 @@ class setup_model:
         self.income_shock_draws_unscaled = income_shock_draws_unscaled
         self.income_shock_weights = income_shock_weights
 
+        if alternative_sim_specifications is not None:
+            self.alternative_sim_funcs = generate_alternative_sim_functions(
+                model_specs=self.specs_without_jax,
+                model_specs_jax=self.model_specs,
+                **alternative_sim_specifications,
+            )
+        else:
+            self.alternative_sim_funcs = None
+
+    def set_alternative_sim_funcs(
+        self, alternative_sim_specifications, alternative_specs=None
+    ):
+        if alternative_specs is None:
+            self.alternative_sim_specs = self.model_specs
+            alternative_specs_without_jax = self.specs_without_jax
+        else:
+            self.alternative_sim_specs = jax.tree_util.tree_map(
+                try_jax_array, alternative_specs
+            )
+            alternative_specs_without_jax = alternative_specs
+
+        alternative_sim_funcs = generate_alternative_sim_functions(
+            model_specs=alternative_specs_without_jax,
+            model_specs_jax=self.alternative_sim_specs,
+            **alternative_sim_specifications,
+        )
+        self.alternative_sim_funcs = alternative_sim_funcs
+
+    def backward_induction_inner_jit(self, params):
+        return backward_induction(
+            params=params,
+            income_shock_draws_unscaled=self.income_shock_draws_unscaled,
+            income_shock_weights=self.income_shock_weights,
+            model_config=self.model_config,
+            batch_info=self.batch_info,
+            model_funcs=self.model_funcs,
+            model_structure=self.model_structure,
+        )
+
+    def get_fast_solve_func(self):
         backward_jit = jax.jit(
             partial(
                 backward_induction,
@@ -111,14 +157,7 @@ class setup_model:
             )
         )
 
-        self.backward_induction_jit = backward_jit
-
-        if alternative_sim_specifications is not None:
-            self.alternative_sim_funcs = generate_alternative_sim_functions(
-                model_specs=model_specs, **alternative_sim_specifications
-            )
-        else:
-            self.alternative_sim_funcs = None
+        return backward_jit
 
     def solve(self, params, load_sol_path=None, save_sol_path=None):
         """Solve a discrete-continuous life-cycle model using the DC-EGM algorithm.
@@ -149,8 +188,9 @@ class setup_model:
         if load_sol_path is not None:
             sol_dict = pkl.load(open(load_sol_path, "rb"))
         else:
-            # Solve the model
-            value, policy, endog_grid = self.backward_induction_jit(params_processed)
+            value, policy, endog_grid = self.backward_induction_inner_jit(
+                params_processed
+            )
             sol_dict = {
                 "value": value,
                 "policy": policy,
@@ -195,8 +235,10 @@ class setup_model:
         if load_sol_path is not None:
             sol_dict = pkl.load(open(load_sol_path, "rb"))
         else:
-            # Solve the model
-            value, policy, endog_grid = self.backward_induction_jit(params_processed)
+            value, policy, endog_grid = self.backward_induction_inner_jit(
+                params_processed
+            )
+
             sol_dict = {
                 "value": value,
                 "policy": policy,
@@ -226,6 +268,7 @@ class setup_model:
         self,
         states_initial,
         seed,
+        slow_version=False,
     ):
 
         sim_func = lambda params, value, policy, endog_gid: simulate_all_periods(
@@ -245,7 +288,9 @@ class setup_model:
         def solve_and_simulate_function_to_jit(params):
             params_processed = process_params(params, self.params_check_info)
             # Solve the model
-            value, policy, endog_grid = self.backward_induction_jit(params_processed)
+            value, policy, endog_grid = self.backward_induction_inner_jit(
+                params_processed
+            )
 
             sim_dict = sim_func(
                 params=params_processed,
@@ -256,10 +301,13 @@ class setup_model:
 
             return sim_dict
 
-        jit_solve_simulate = jax.jit(solve_and_simulate_function_to_jit)
+        if slow_version:
+            solve_simulate_func = solve_and_simulate_function_to_jit
+        else:
+            solve_simulate_func = jax.jit(solve_and_simulate_function_to_jit)
 
         def solve_and_simulate_function(params):
-            sim_dict = jit_solve_simulate(params)
+            sim_dict = solve_simulate_func(params)
             df = create_simulation_df(sim_dict)
             return df
 
@@ -273,6 +321,7 @@ class setup_model:
         unobserved_state_specs=None,
         return_model_solution=False,
         use_probability_of_observed_states=True,
+        slow_version=False,
     ):
 
         return create_individual_likelihood_function(
@@ -280,13 +329,14 @@ class setup_model:
             model_config=self.model_config,
             model_funcs=self.model_funcs,
             model_specs=self.model_specs,
-            backwards_induction=self.backward_induction_jit,
+            backwards_induction_inner_jit=self.backward_induction_inner_jit,
             observed_states=observed_states,
             observed_choices=observed_choices,
             params_all=params_all,
             unobserved_state_specs=unobserved_state_specs,
             return_model_solution=return_model_solution,
             use_probability_of_observed_states=use_probability_of_observed_states,
+            slow_version=slow_version,
         )
 
     def validate_exogenous(self, params):
@@ -300,7 +350,7 @@ class setup_model:
 
     def get_state_choices_idx(self, states):
         """Get the indices of the state choices for given states."""
-        return get_state_choice_index_per_discrete_state(
+        return get_state_choice_index_per_discrete_states(
             states=states,
             map_state_choice_to_index=self.model_structure["map_state_choice_to_index"],
             discrete_states_names=self.model_structure["discrete_states_names"],
@@ -312,8 +362,8 @@ class setup_model:
                 "For this function the model needs to be created with debug_info='all'"
             )
 
-        child_idx = get_child_state_index_per_state_choice(
-            states=state, choice=choice, model_structure=self.model_structure
+        child_idx = get_child_state_index_per_states_and_choices(
+            states=state, choices=choice, model_structure=self.model_structure
         )
         state_space_dict = self.model_structure["state_space_dict"]
         discrete_states_names = self.model_structure["discrete_states_names"]
@@ -321,6 +371,74 @@ class setup_model:
             key: state_space_dict[key][child_idx] for key in discrete_states_names
         }
         return pd.DataFrame(child_states)
+
+    def get_child_states_and_calc_trans_probs(self, state, choice, params):
+        """Get the child states for a given state and choice and calculate the
+        transition probabilities."""
+        child_states_df = self.get_child_states(state, choice)
+
+        trans_probs = self.model_funcs["compute_stochastic_transition_vec"](
+            params=params, choice=choice, **state
+        )
+        child_states_df["trans_probs"] = trans_probs
+        return child_states_df
+
+    def get_full_child_states_by_asset_id_and_probs(
+        self, state, choice, params, asset_id, second_continuous_id=None
+    ):
+        """Get the child states for a given state and choice and calculate the
+        transition probabilities."""
+        if "map_state_choice_to_child_states" not in self.model_structure:
+            raise ValueError(
+                "For this function the model needs to be created with debug_info='all'"
+            )
+
+        child_idx = get_child_state_index_per_states_and_choices(
+            states=state, choices=choice, model_structure=self.model_structure
+        )
+        state_space_dict = self.model_structure["state_space_dict"]
+        discrete_states_names = self.model_structure["discrete_states_names"]
+        child_states = {
+            key: state_space_dict[key][child_idx] for key in discrete_states_names
+        }
+        child_states_df = pd.DataFrame(child_states)
+
+        child_continuous_states = self.compute_law_of_motions(params=params)
+
+        if "second_continuous" in child_continuous_states.keys():
+            if second_continuous_id is None:
+                raise ValueError("second_continuous_id must be provided.")
+            else:
+                quad_wealth = child_continuous_states["assets_begin_of_period"][
+                    child_idx, second_continuous_id, asset_id, :
+                ]
+                next_period_second_continuous = child_continuous_states[
+                    "second_continuous"
+                ][child_idx, second_continuous_id]
+
+                second_continuous_name = self.model_config["continuous_states_info"][
+                    "second_continuous_state_name"
+                ]
+                child_states_df[second_continuous_name] = next_period_second_continuous
+
+        else:
+            if second_continuous_id is not None:
+                raise ValueError("second_continuous_id must not be provided.")
+            else:
+                quad_wealth = child_continuous_states["assets_begin_of_period"][
+                    child_idx, asset_id, :
+                ]
+
+        for id_quad in range(quad_wealth.shape[1]):
+            child_states_df[f"assets_begin_of_period_quad_point_{id_quad}"] = (
+                quad_wealth[:, id_quad]
+            )
+
+        trans_probs = self.model_funcs["compute_stochastic_transition_vec"](
+            params=params, choice=choice, **state
+        )
+        child_states_df["trans_probs"] = trans_probs
+        return child_states_df
 
     def compute_law_of_motions(self, params):
         return calc_cont_grids_next_period(
@@ -330,3 +448,6 @@ class setup_model:
             model_funcs=self.model_funcs,
             income_shock_draws_unscaled=self.income_shock_draws_unscaled,
         )
+
+    def get_n_state_choices_per_period(self):
+        return get_n_state_choice_period(self.model_structure)

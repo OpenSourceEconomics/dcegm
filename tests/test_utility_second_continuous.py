@@ -388,9 +388,9 @@ def test_replication_discrete_versus_continuous_experience(
 
             policy_disc_interp, value_disc_interp = interp1d_policy_and_value_on_wealth(
                 wealth=jnp.array(wealth_to_test),
-                endog_grid=endog_grid_disc[idx_state_choice_disc],
-                policy=policy_disc[idx_state_choice_disc],
-                value=value_disc[idx_state_choice_disc],
+                wealth_grid=endog_grid_disc[idx_state_choice_disc],
+                policy_grid=policy_disc[idx_state_choice_disc],
+                value_grid=value_disc[idx_state_choice_disc],
                 compute_utility=model_disc.model_funcs["compute_utility"],
                 state_choice_vec=state_choice_disc_dict,
                 params=PARAMS,
