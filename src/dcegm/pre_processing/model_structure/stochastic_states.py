@@ -1,6 +1,8 @@
+import inspect
 from functools import partial
 from typing import Callable
 
+import jax
 import numpy as np
 from jax import numpy as jnp
 
@@ -24,15 +26,17 @@ def create_stochastic_transition_function(
         compute_stochastic_transition_vec = return_dummy_stochastic_transition
         func_dict = {}
     else:
-        func_list, func_dict = process_stochastic_transitions(
+        func_dict = process_stochastic_transitions(
             stochastic_states_transitions,
             model_config=model_config,
             model_specs=model_specs,
             continuous_state_name=continuous_state_name,
         )
 
+        trans_func_list = [func_dict[name] for name in func_dict.keys()]
+
         compute_stochastic_transition_vec = partial(
-            get_stochastic_transition_vec, transition_funcs=func_list
+            get_stochastic_transition_vec, transition_funcs=trans_func_list
         )
 
     return compute_stochastic_transition_vec, func_dict
@@ -45,9 +49,6 @@ def process_stochastic_transitions(
 
     Args:
         options (dict): Options dictionary.
-
-    Returns:
-        tuple: Tuple of exogenous processes.
 
     """
 
@@ -68,7 +69,7 @@ def process_stochastic_transitions(
         else:
             raise ValueError(f"Stochastic transition function {name} is not callable. ")
 
-    return func_list, func_dict
+    return func_dict
 
 
 def get_stochastic_transition_vec(transition_funcs, params, **state_choice_vars):
@@ -117,3 +118,48 @@ def process_stochastic_model_specifications(model_config):
         stochastic_state_space = np.array([[0]], dtype=np.uint8)
 
     return stochastic_state_names, stochastic_state_space
+
+
+def create_sparse_stochastic_trans_map(
+    model_structure, model_funcs, model_config_processed
+):
+    """Create sparse mapping from state-choice to stochastic states."""
+    state_choice_dict = model_structure["state_choice_space_dict"]
+    stochastic_transitions_dict = model_funcs["processed_stochastic_funcs"]
+
+    eval_functions = []
+
+    for stoch_name, stoch_states in model_config_processed["stochastic_states"].items():
+        if stoch_name == "dummy_stochastic":
+            continue
+
+        has_params = (
+            "params"
+            in inspect.signature(stochastic_transitions_dict[stoch_name]).parameters
+        )
+
+        if has_params:
+            n_states = len(stoch_states)
+            eval_func = lambda state_choice, n=n_states: jnp.ones(n) / n
+        else:
+            func = stochastic_transitions_dict[stoch_name]
+            eval_func = lambda state_choice, f=func: f(**state_choice)
+            single_transitions = jax.vmap(eval_func)(state_choice_dict)
+
+        eval_functions.append(eval_func)
+
+    all_transitions = jax.vmap(kronecker_eval_functions, in_axes=(None, 0))(
+        eval_functions, state_choice_dict
+    )
+
+    threshold = 1e-12
+    zero_kron_indices = all_transitions < threshold
+
+    return {"zero_kron_indices": zero_kron_indices}
+
+
+def kronecker_eval_functions(all_eval_functions, state_choice):
+    trans_vector = all_eval_functions[0](state_choice)
+    for func in all_eval_functions[1:]:
+        trans_vector = jnp.kron(trans_vector, func(state_choice))
+    return trans_vector

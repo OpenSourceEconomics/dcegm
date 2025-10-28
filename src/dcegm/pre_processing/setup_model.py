@@ -14,6 +14,7 @@ from dcegm.pre_processing.model_functions.process_model_functions import (
 from dcegm.pre_processing.model_structure.model_structure import create_model_structure
 from dcegm.pre_processing.model_structure.state_space import create_state_space
 from dcegm.pre_processing.model_structure.stochastic_states import (
+    create_sparse_stochastic_trans_map,
     create_stochastic_state_mapping,
 )
 from dcegm.pre_processing.shared import (
@@ -92,6 +93,12 @@ def create_model_dict(
     model_structure = create_model_structure(
         model_config=model_config_processed,
         model_funcs=model_funcs,
+    )
+
+    create_sparse_stochastic_trans_map(
+        model_structure=model_structure,
+        model_funcs=model_funcs,
+        model_config_processed=model_config_processed,
     )
 
     model_funcs["stochastic_state_mapping"] = create_stochastic_state_mapping(
