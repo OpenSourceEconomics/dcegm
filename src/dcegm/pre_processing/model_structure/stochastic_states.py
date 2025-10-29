@@ -216,7 +216,7 @@ def create_sparse_stochastic_trans_map(
         get_stochastic_transition_vec, transition_funcs=spares_stoch_trans_funcs
     )
     if from_saved:
-        compute_stochastic_transition_vec, trans_func_dict
+        return compute_stochastic_transition_vec, trans_func_dict
 
     # Evaluate kronecker product with NaNs
     def kronecker_with_index(idx):

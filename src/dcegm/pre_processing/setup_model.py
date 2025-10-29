@@ -236,7 +236,7 @@ def load_model_dict(
         ) = create_sparse_stochastic_trans_map(
             model_structure=model["model_structure"],
             model_funcs=model["model_funcs"],
-            model_config_processed=model["model_config_processed"],
+            model_config_processed=model["model_config"],
             from_saved=True,
         )
 
