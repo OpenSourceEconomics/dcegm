@@ -74,13 +74,13 @@ def add_last_two_period_information(
         "child_states_second_last_period": child_states_second_last_period,
     }
 
+    state_choice_space_dict = model_structure["state_choice_space_dict"]
     # Also add state choice mat as dictionary for each of the two periods
     for idx, period_name in [
         (idx_state_choice_final_period, "final"),
         (idx_state_choice_second_last_period, "second_last"),
     ]:
         last_two_period_info[f"state_choice_mat_{period_name}_period"] = {
-            key: state_choice_space[:, i][idx]
-            for i, key in enumerate(discrete_states_names + ["choice"])
+            key: var[idx] for key, var in state_choice_space_dict.items()
         }
     return last_two_period_info

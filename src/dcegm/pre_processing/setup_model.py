@@ -33,6 +33,7 @@ def create_model_dict(
     stochastic_states_transitions: Dict[str, Callable] = None,
     shock_functions: Dict[str, Callable] = None,
     debug_info: str = None,
+    use_stochastic_sparsity=True,
 ):
     """Set up the model for dcegm.
 
@@ -95,11 +96,25 @@ def create_model_dict(
         model_funcs=model_funcs,
     )
 
-    create_sparse_stochastic_trans_map(
-        model_structure=model_structure,
-        model_funcs=model_funcs,
-        model_config_processed=model_config_processed,
-    )
+    if use_stochastic_sparsity:
+        n_stochastic_original = model_structure[
+            "map_state_choice_to_child_states"
+        ].shape[1]
+        (
+            model_structure["map_state_choice_to_child_states"],
+            model_structure["state_choice_space_dict"],
+            model_funcs["compute_stochastic_transition_vec"],
+            model_funcs["processed_stochastic_funcs"],
+        ) = create_sparse_stochastic_trans_map(
+            model_structure=model_structure,
+            model_funcs=model_funcs,
+            model_config_processed=model_config_processed,
+            from_saved=False,
+        )
+        n_sparse = model_structure["map_state_choice_to_child_states"].shape[1]
+        print(
+            f"Stochastic transition mapping sparsified from {n_stochastic_original} to {n_sparse} "
+        )
 
     model_funcs["stochastic_state_mapping"] = create_stochastic_state_mapping(
         model_structure["stochastic_state_space"],
@@ -142,6 +157,7 @@ def create_model_dict_and_save(
     shock_functions: Dict[str, Callable] = None,
     path: str = "model.pkl",
     debug_info=None,
+    use_stochastic_sparsity=True,
 ):
     """Set up the model and save.
 
@@ -161,6 +177,7 @@ def create_model_dict_and_save(
         stochastic_states_transitions=stochastic_states_transitions,
         shock_functions=shock_functions,
         debug_info=debug_info,
+        use_stochastic_sparsity=use_stochastic_sparsity,
     )
 
     dict_to_save = {
@@ -182,6 +199,7 @@ def load_model_dict(
     stochastic_states_transitions: Dict[str, Callable] = None,
     shock_functions: Dict[str, Callable] = None,
     path: str = "model.pkl",
+    use_stochastic_sparsity=True,
 ):
     """Load the model from file."""
 
@@ -209,6 +227,18 @@ def load_model_dict(
         **model["model_config"]["params_check_info"],
         **specs_params_info,
     }
+
+    # Save full and then create sparsity
+    if use_stochastic_sparsity:
+        (
+            model["model_funcs"]["compute_stochastic_transition_vec"],
+            model["model_funcs"]["processed_stochastic_funcs"],
+        ) = create_sparse_stochastic_trans_map(
+            model_structure=model["model_structure"],
+            model_funcs=model["model_funcs"],
+            model_config_processed=model["model_config_processed"],
+            from_saved=True,
+        )
 
     model["model_funcs"]["stochastic_state_mapping"] = create_stochastic_state_mapping(
         stochastic_state_space=model["model_structure"]["stochastic_state_space"],

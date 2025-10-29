@@ -8,6 +8,7 @@ from jax import numpy as jnp
 
 from dcegm.pre_processing.model_structure.shared import span_subspace
 from dcegm.pre_processing.shared import (
+    create_array_with_smallest_int_dtype,
     determine_function_arguments_and_partial_model_specs,
 )
 
@@ -121,13 +122,18 @@ def process_stochastic_model_specifications(model_config):
 
 
 def create_sparse_stochastic_trans_map(
-    model_structure, model_funcs, model_config_processed
+    model_structure, model_funcs, model_config_processed, from_saved=False
 ):
     """Create sparse mapping from state-choice to stochastic states."""
     state_choice_dict = model_structure["state_choice_space_dict"]
     stochastic_transitions_dict = model_funcs["processed_stochastic_funcs"]
+    threshold = 1e-12
 
-    eval_functions = []
+    # Add index to state_choice_dict
+    n_state_choices = len(state_choice_dict[next(iter(state_choice_dict))])
+    sparse_index_functions = []
+    spares_stoch_trans_funcs = []
+    trans_func_dict = {}
 
     for stoch_name, stoch_states in model_config_processed["stochastic_states"].items():
         if stoch_name == "dummy_stochastic":
@@ -137,29 +143,106 @@ def create_sparse_stochastic_trans_map(
             "params"
             in inspect.signature(stochastic_transitions_dict[stoch_name]).parameters
         )
+        n_states = len(stoch_states)
+        trans_func = stochastic_transitions_dict[stoch_name]
 
         if has_params:
-            n_states = len(stoch_states)
-            eval_func = lambda state_choice, n=n_states: jnp.ones(n) / n
+            index_eval = lambda index, n=n_states: np.ones(n) / n
+            sparse_index_functions.append(index_eval)
+            spares_stoch_trans_funcs += [trans_func]
+            trans_func_dict[stoch_name] = index_eval
         else:
-            func = stochastic_transitions_dict[stoch_name]
-            eval_func = lambda state_choice, f=func: f(**state_choice)
+
+            eval_func = lambda state_choice, f=trans_func: f(**state_choice)
+
+            # Compute transitions and find indices to keep
             single_transitions = jax.vmap(eval_func)(state_choice_dict)
+            zero_mask = single_transitions < threshold
 
-        eval_functions.append(eval_func)
+            max_n_zeros = zero_mask.sum(axis=1).min()
+            if max_n_zeros == 0:
+                # No sparsity for this state
+                index_eval = lambda index, n=n_states: np.ones(n) / n
+                sparse_index_functions.append(index_eval)
+                spares_stoch_trans_funcs += [trans_func]
+                trans_func_dict[stoch_name] = index_eval
+                continue
+            n_keep = zero_mask.shape[1] - max_n_zeros
 
-    all_transitions = jax.vmap(kronecker_eval_functions, in_axes=(None, 0))(
-        eval_functions, state_choice_dict
+            keep_mask = ~zero_mask
+            keep_indices = np.where(keep_mask, np.arange(keep_mask.shape[1]), -1)
+
+            # Get sorted positions and the original indices
+            sort_order = np.argsort(keep_indices, axis=1)
+            indices_to_keep = np.take_along_axis(keep_indices, sort_order, axis=1)[
+                :, -n_keep:
+            ]
+
+            # For positions with -1, use the original position from sort_order
+            original_positions = sort_order[:, -n_keep:]
+            indices_to_keep = np.where(
+                indices_to_keep == -1, original_positions, indices_to_keep
+            )
+            # Sort again to get indices in ascending order
+            indices_to_keep = np.sort(indices_to_keep, axis=1)
+            indices_to_keep = jnp.asarray(indices_to_keep)
+            indices_to_keep = create_array_with_smallest_int_dtype(indices_to_keep)
+
+            def create_sparse_func(trans_f, indices_keep):
+                def sparse_trans_func(**kwargs):
+                    index_to_keep = indices_keep[kwargs["index"]]
+                    return trans_f(**kwargs)[index_to_keep]
+
+                return sparse_trans_func
+
+            sparse_trans_func = create_sparse_func(trans_func, indices_to_keep)
+
+            spares_stoch_trans_funcs += [sparse_trans_func]
+            trans_func_dict[stoch_name] = sparse_trans_func
+
+            # Create sparse eval function that returns NaN for deleted states
+            def create_nan_padded_eval(indices_keep, n_total):
+                def nan_padded_eval(index):
+                    result = jnp.full(n_total, jnp.nan)
+                    result = result.at[indices_keep[index]].set(1.0)
+                    return result
+
+                return nan_padded_eval
+
+            index_eval = create_nan_padded_eval(indices_to_keep, n_states)
+            sparse_index_functions.append(index_eval)
+
+    compute_stochastic_transition_vec = partial(
+        get_stochastic_transition_vec, transition_funcs=spares_stoch_trans_funcs
+    )
+    if from_saved:
+        compute_stochastic_transition_vec, trans_func_dict
+
+    # Evaluate kronecker product with NaNs
+    def kronecker_with_index(idx):
+        trans_vector = sparse_index_functions[0](idx)
+        for func in sparse_index_functions[1:]:
+            trans_vector = jnp.kron(trans_vector, func(idx))
+        return trans_vector
+
+    all_transitions = jax.vmap(kronecker_with_index)(
+        jnp.arange(n_state_choices),
     )
 
-    threshold = 1e-12
-    zero_kron_indices = all_transitions < threshold
+    # Find non-NaN positions (states to keep)
+    keep_mask = ~np.isnan(all_transitions)
 
-    return {"zero_kron_indices": zero_kron_indices}
-
-
-def kronecker_eval_functions(all_eval_functions, state_choice):
-    trans_vector = all_eval_functions[0](state_choice)
-    for func in all_eval_functions[1:]:
-        trans_vector = jnp.kron(trans_vector, func(state_choice))
-    return trans_vector
+    # Select non-NaN child states directly
+    sparse_child_states_mapping = model_structure["map_state_choice_to_child_states"][
+        keep_mask
+    ].reshape(keep_mask.shape[0], -1)
+    state_choice_dict_with_idx = {
+        **state_choice_dict,
+        "index": jnp.arange(n_state_choices),
+    }
+    return (
+        sparse_child_states_mapping,
+        state_choice_dict_with_idx,
+        compute_stochastic_transition_vec,
+        trans_func_dict,
+    )
