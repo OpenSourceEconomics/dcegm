@@ -104,7 +104,7 @@ def create_model_dict(
             model_structure["map_state_choice_to_child_states"],
             model_structure["state_choice_space_dict"],
             model_funcs["compute_stochastic_transition_vec"],
-            model_funcs["processed_stochastic_funcs"],
+            model_funcs["sparse_processed_stochastic_funcs"],
         ) = create_sparse_stochastic_trans_map(
             model_structure=model_structure,
             model_funcs=model_funcs,
@@ -232,7 +232,7 @@ def load_model_dict(
     if use_stochastic_sparsity:
         (
             model["model_funcs"]["compute_stochastic_transition_vec"],
-            model["model_funcs"]["processed_stochastic_funcs"],
+            model["model_funcs"]["sparse_processed_stochastic_funcs"],
         ) = create_sparse_stochastic_trans_map(
             model_structure=model["model_structure"],
             model_funcs=model["model_funcs"],

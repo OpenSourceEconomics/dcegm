@@ -127,7 +127,7 @@ def create_sparse_stochastic_trans_map(
     """Create sparse mapping from state-choice to stochastic states."""
     state_choice_dict = model_structure["state_choice_space_dict"]
     stochastic_transitions_dict = model_funcs["processed_stochastic_funcs"]
-    threshold = 1e-12
+    threshold = 1e-6
 
     # Add index to state_choice_dict
     n_state_choices = len(state_choice_dict[next(iter(state_choice_dict))])
@@ -150,7 +150,7 @@ def create_sparse_stochastic_trans_map(
             index_eval = lambda index, n=n_states: np.ones(n) / n
             sparse_index_functions.append(index_eval)
             spares_stoch_trans_funcs += [trans_func]
-            trans_func_dict[stoch_name] = index_eval
+            trans_func_dict[stoch_name] = trans_func
         else:
 
             eval_func = lambda state_choice, f=trans_func: f(**state_choice)
@@ -165,7 +165,7 @@ def create_sparse_stochastic_trans_map(
                 index_eval = lambda index, n=n_states: np.ones(n) / n
                 sparse_index_functions.append(index_eval)
                 spares_stoch_trans_funcs += [trans_func]
-                trans_func_dict[stoch_name] = index_eval
+                trans_func_dict[stoch_name] = trans_func
                 continue
             n_keep = zero_mask.shape[1] - max_n_zeros
 
