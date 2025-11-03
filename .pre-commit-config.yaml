@@ -10,11 +10,11 @@ repos:
     hooks:
       - id: yamllint
   - repo: https://github.com/lyz-code/yamlfix
-    rev: 1.17.0
+    rev: 1.19.0
     hooks:
       - id: yamlfix
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: check-added-large-files
         args:
@@ -48,7 +48,7 @@ repos:
   #       args:
   #         - --py37-plus
   - repo: https://github.com/pycqa/isort
-    rev: 6.0.1
+    rev: 7.0.0
     hooks:
       - id: isort
         name: isort
@@ -58,8 +58,8 @@ repos:
 #    rev: v2.8.0
 #    hooks:
 #      - id: setup-cfg-fmt
-  - repo: https://github.com/psf/black
-    rev: 25.1.0
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 25.9.0
     hooks:
       - id: black
         language_version: python3.12
@@ -90,7 +90,7 @@ repos:
       - id: nbqa-ruff
         exclude: tests/sandbox/
   - repo: https://github.com/executablebooks/mdformat
-    rev: 0.7.22
+    rev: 1.0.0
     hooks:
       - id: mdformat
         additional_dependencies:
