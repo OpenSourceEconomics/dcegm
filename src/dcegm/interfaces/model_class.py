@@ -47,9 +47,14 @@ class setup_model:
         debug_info: str = None,
         model_save_path: str = None,
         model_load_path: str = None,
-        use_stochastic_sparsity: bool = True,
+        use_stochastic_sparsity: bool = False,
     ):
-        """Setup the model and check if load or save is required."""
+        """Setup the model and check if load or save is required.
+
+        Args:
+            use_stochastic_sparsity (bool, optional): EXPERIMENTAL: Use stochastic transition sparsity.
+
+        """
 
         if model_load_path is not None:
             model_dict = load_model_dict(

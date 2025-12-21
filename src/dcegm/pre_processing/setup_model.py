@@ -33,7 +33,7 @@ def create_model_dict(
     stochastic_states_transitions: Dict[str, Callable] = None,
     shock_functions: Dict[str, Callable] = None,
     debug_info: str = None,
-    use_stochastic_sparsity=True,
+    use_stochastic_sparsity=False,
 ):
     """Set up the model for dcegm.
 
@@ -157,7 +157,7 @@ def create_model_dict_and_save(
     shock_functions: Dict[str, Callable] = None,
     path: str = "model.pkl",
     debug_info=None,
-    use_stochastic_sparsity=True,
+    use_stochastic_sparsity=False,
 ):
     """Set up the model and save.
 
@@ -199,7 +199,7 @@ def load_model_dict(
     stochastic_states_transitions: Dict[str, Callable] = None,
     shock_functions: Dict[str, Callable] = None,
     path: str = "model.pkl",
-    use_stochastic_sparsity=True,
+    use_stochastic_sparsity=False,
 ):
     """Load the model from file."""
 
