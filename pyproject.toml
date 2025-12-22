@@ -54,11 +54,8 @@ Github = "https://github.com/OpenSourceEconomics/dcegm"
 # Build system configuration
 # ======================================================================================
 [build-system]
-requires = ["hatchling", "hatch_vcs"]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[tool.hatch.build.hooks.vcs]
-version-file = "src/dcegm/_version.py"
 
 [tool.hatch.build.targets.sdist]
 exclude = ["tests"]
@@ -67,9 +64,6 @@ only-packages = true
 [tool.hatch.build.targets.wheel]
 only-include = ["src"]
 sources = ["src"]
-
-[tool.hatch.version]
-source = "vcs"
 
 [tool.hatch.metadata]
 allow-direct-references = true
