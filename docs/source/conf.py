@@ -13,7 +13,7 @@
 # sys.path.insert(0, os.path.abspath('.'))
 # -- Project information -----------------------------------------------------
 
-project = "dc-egm"
+project = "dcegm"
 copyright = "2025, Max Blesch, Sebastian Gsell"
 author = "Max Blesch, Sebastian Gsell"
 
@@ -71,7 +71,7 @@ myst_nb_render_math = True
 
 # Documentation theme and customization.
 
-html_title = "dc-egm"
+html_title = "dcegm"
 
 html_theme = "furo"
 
@@ -115,3 +115,4 @@ autoapi_dirs = ["../../src"]
 source_suffix = [".rst", ".ipynb", ".md"]
 
 # note: do not add .ipynb when nbspinx is enabled, otherwise you get the "missing title" error
+jupyter_execute_notebooks = "off"

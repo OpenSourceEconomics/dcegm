@@ -279,11 +279,12 @@ def vectorized_utility(consumption_period, state, choice, params, compute_utilit
 def realize_stochastic_states(state, choice, key, params, processed_stochastic_funcs):
     stochastic_states_next_period = {}
     for state_name in processed_stochastic_funcs.keys():
+        key, subkey = jax.random.split(key)
         state_vec = processed_stochastic_funcs[state_name](
             params=params, **state, choice=choice
         )
         stochastic_states_next_period[state_name] = jax.random.choice(
-            key=key, a=state_vec.shape[0], p=state_vec
+            key=subkey, a=state_vec.shape[0], p=state_vec
         )
     return stochastic_states_next_period
 

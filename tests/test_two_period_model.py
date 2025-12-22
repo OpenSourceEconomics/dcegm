@@ -134,13 +134,17 @@ def test_two_period(
         if ~np.isnan(endog_grid) and endog_grid > 0:
             initial_conditions["assets_end_of_period"] = endog_grid
 
-            diff = toy_model["euler"](
+            rhs_euler = toy_model["euler"](
                 initial_conditions,
                 params,
                 quad_draws,
                 quad_weights,
                 choice,
                 cons_calc,
-            ) - toy_model["marginal_utility"](consumption=cons_calc, params=params)
+            )
+
+            lhs = toy_model["marginal_utility"](consumption=cons_calc, params=params)
+
+            diff = lhs - rhs_euler
 
             assert_allclose(diff, 0, atol=1e-6)

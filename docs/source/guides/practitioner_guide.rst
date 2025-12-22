@@ -3,7 +3,7 @@
 Practitioner's Guide
 =====================
 
-This guide explains how to specify, solve, simulate and potentially estimate structural life cycle models using the `dc-egm` framework. First, the main interface functions of the package are explained, before we turn to explaining the inputs of these functions. This guide requires you to have installed the dcegm packase as outlined in the installation guide.
+This guide explains how to specify, solve, simulate and potentially estimate structural life cycle models using the `dcegm` framework. First, the main interface functions of the package are explained, before we turn to explaining the inputs of these functions. This guide requires you to have installed the dcegm packase as outlined in the installation guide.
 
 .. dropdown:: Overview of main interface (specify, solve, simulate)
 
@@ -48,14 +48,14 @@ This guide explains how to specify, solve, simulate and potentially estimate str
     - `params`
     - `model_specs`
 
-    The difference between the two is that `params` contains parameters that are subject to be changed frequently. Most naturrally these would be parameters to be estimated. Parameters which determine shapes of arrays or the number of computational steps have to be set in the `model_specs` dictionary. The distinction arises from the functionality of the `jax` library, which allows just in time compiling. More on this in the background section.
+    The difference between the two is that `params` contains parameters that are subject to be changed frequently. Most naturally these would be parameters to be estimated. Parameters which determine shapes of arrays or the number of computational steps have to be set in the `model_specs` dictionary. The distinction arises from the functionality of the `jax` library, which allows just in time compiling. More on this in the background section.
 
     Every user function can access both of these dictionaries, by including it in the signature. The five core parameters of the model, can be stored in either of the two objects. It is required to specify them in one of the two. The five core parameters are:
 
     - `discount_factor`: The discount factor
     - `interest_rate`: The interest rate
     - `taste_shock_scale`: The scale of the the taste shock.
-    - `income_shock_std`: The incomme shock standard deviation of the assumed normal distribution.
+    - `income_shock_std`: The income shock standard deviation of the assumed normal distribution.
     - `income_shock_mean`: The mean of the income shock distribution of the assumed normal distribution.
 
     An example for a model, where one estimates the disutility of work, the taste shock scale and fixes the income parameters, would be:
@@ -159,7 +159,7 @@ This guide explains how to specify, solve, simulate and potentially estimate str
 
     Note, that the utility function has to be written jax jit compatible. There we can not use any if conditions (except for arguments in model_specs, as these are fixed before evaluating). In this case, `rho` is a part of params. So in order to write the function, such that it can be evaluated for all possible values of `rho` including 1, we need to check if `rho` is equal to 1, calculate the utility for either case and select the correct one. Note, that instead of jax.lax.select, one could also use jnp.where.
 
-    The utility function is evaluated for each state and choice separatly. Besides the standard arguments of `params` and `model_specs`, the following state-choice variables can be used in the signature:
+    The utility function is evaluated for each state and choice separately. Besides the standard arguments of `params` and `model_specs`, the following state-choice variables can be used in the signature:
         - consumption
         - choice
         - period

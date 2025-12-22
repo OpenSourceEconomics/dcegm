@@ -1,9 +1,10 @@
-dc-egm
-======
+dcegm
+=====
 
-**Note:** This is a pre-release version of the package. While the core features are in
-place, the interface and functionality may still evolve. Feedback and contributions are
-welcome.
+.. note::
+   This is a pre-release version of the package. While the core features are in
+   place, the interface and functionality may still evolve. Feedback and contributions are
+   welcome.
 
 `dcegm` is a Python package for solving and simulating finite-horizon stochastic
 discrete-continuous dynamic choice models using the DC-EGM algorithm from Iskhakov,
@@ -11,6 +12,8 @@ Jørgensen, Rust, and Schjerning (QE, 2017).
 
 The solution algorithm employs an extension of the Fast Upper-Envelope Scan (FUES) from
 Dobrescu & Shanker (2022).
+
+Check out our :ref:`guides<guides/index.rst>` to find information on getting started and useful templates for setting up a model.
 
 
 .. toctree::
@@ -29,7 +32,6 @@ Dobrescu & Shanker (2022).
    guides/practitioner_guide
    guides/templates
    guides/minimal_example.ipynb
-   guides/maximal_example.ipynb
 
 
 
@@ -40,11 +42,10 @@ Dobrescu & Shanker (2022).
 
    background/limitations
    background/literature
-   background/two_period_model_tutorial.ipynb
    background/interface_plots.ipynb
+   background/two_period_model_tutorial.ipynb
    background/specify_exogenous_processes.md
    background/sparsity_conditions
-   background/timing_benchmarks.ipynb
 
 
 .. toctree::
@@ -59,7 +60,7 @@ Dobrescu & Shanker (2022).
 
 .. toctree::
    :maxdepth: 2
-   :caption: dc-egm API
+   :caption: dcegm API
    :hidden:
 
    genindex
