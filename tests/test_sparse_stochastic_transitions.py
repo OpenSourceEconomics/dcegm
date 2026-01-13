@@ -1,9 +1,10 @@
 """Test sparse stochastic transitions."""
 
+import os
+
 import jax
 import jax.numpy as jnp
 import numpy as np
-import pytest
 from numpy.testing import assert_array_almost_equal as aaae
 
 import dcegm
@@ -161,6 +162,7 @@ def test_sparse_stochastic_transitions():
         use_stochastic_sparsity=False,
     )
 
+    # Set up with saving and also with loading:
     # Setup model second time with same config
     model_2 = dcegm.setup_model(
         model_config=model_config,
@@ -170,14 +172,34 @@ def test_sparse_stochastic_transitions():
         utility_functions_final_period=create_final_period_utility_function_dict(),
         budget_constraint=budget_constraint,
         stochastic_states_transitions=stochastic_state_transitions,
+        model_save_path="model_stoch_sparse.pkl",
+        use_stochastic_sparsity=True,
+    )
+
+    model_3 = dcegm.setup_model(
+        model_config=model_config,
+        model_specs=model_specs,
+        state_space_functions=create_state_space_function_dict(),
+        utility_functions=create_utility_function_dict(),
+        utility_functions_final_period=create_final_period_utility_function_dict(),
+        budget_constraint=budget_constraint,
+        stochastic_states_transitions=stochastic_state_transitions,
+        model_load_path="model_stoch_sparse.pkl",
         use_stochastic_sparsity=True,
     )
 
     # Solve both models
     model_solved_1 = model_1.solve(params=params)
     model_solved_2 = model_2.solve(params=params)
+    model_solved_3 = model_3.solve(params=params)
 
     # Test that solutions are identical
     aaae(model_solved_1.endog_grid, model_solved_2.endog_grid)
     aaae(model_solved_1.policy, model_solved_2.policy)
     aaae(model_solved_1.value, model_solved_2.value)
+    aaae(model_solved_1.endog_grid, model_solved_3.endog_grid)
+    aaae(model_solved_1.policy, model_solved_3.policy)
+    aaae(model_solved_1.value, model_solved_3.value)
+
+    # Clean up saved model file
+    os.remove("model_stoch_sparse.pkl")

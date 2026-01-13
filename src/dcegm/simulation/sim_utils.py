@@ -10,7 +10,6 @@ from dcegm.interpolation.interp2d import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
 from dcegm.law_of_motion import (
-    calc_assets_begin_of_period_for_all_agents,
     calculate_assets_begin_of_period_for_all_agents,
     calculate_second_continuous_state_for_all_agents,
 )
@@ -204,28 +203,23 @@ def transition_to_next_period(
             compute_continuous_state=model_funcs_sim["next_period_continuous_state"],
         )
 
-        assets_beginning_of_next_period, budget_aux = (
-            calc_assets_begin_of_period_for_all_agents(
-                states_beginning_of_period=discrete_states_next_period,
-                continuous_state_beginning_of_period=continuous_state_next_period,
-                assets_end_of_period=assets_end_of_period,
-                income_shocks_of_period=income_shocks_next_period,
-                params=params,
-                compute_assets_begin_of_period=next_period_wealth,
-            )
-        )
+        all_states_next_period = {
+            **discrete_states_next_period,
+            "continuous_state": continuous_state_next_period,
+        }
     else:
+        all_states_next_period = discrete_states_next_period.copy()
         continuous_state_next_period = None
 
-        assets_beginning_of_next_period, budget_aux = (
-            calculate_assets_begin_of_period_for_all_agents(
-                states_beginning_of_period=discrete_states_next_period,
-                asset_grid_point_end_of_previous_period=assets_end_of_period,
-                income_shocks_of_period=income_shocks_next_period,
-                params=params,
-                compute_assets_begin_of_period=next_period_wealth,
-            )
+    assets_beginning_of_next_period, budget_aux = (
+        calculate_assets_begin_of_period_for_all_agents(
+            states_beginning_of_period=all_states_next_period,
+            asset_grid_point_end_of_previous_period=assets_end_of_period,
+            income_shocks_of_period=income_shocks_next_period,
+            params=params,
+            compute_assets_begin_of_period=next_period_wealth,
         )
+    )
 
     return (
         assets_beginning_of_next_period,
