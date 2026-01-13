@@ -93,14 +93,7 @@ def partially_solve(
     last_two_period_batch_info["idx_state_choices_second_last_period"] = (
         last_two_period_batch_info["idx_state_choices_second_last_period"] - rescale_idx
     )
-    (
-        value_solved,
-        policy_solved,
-        endog_grid_solved,
-        value_candidates_second_last,
-        policy_candidates_second_last,
-        endog_grid_candidates_second_last,
-    ) = solve_last_two_periods(
+    last_two_period_sols = solve_last_two_periods(
         params=params,
         continuous_states_info=continuous_states_info,
         cont_grids_next_period=cont_grids_next_period,
@@ -113,6 +106,14 @@ def partially_solve(
         debug_info=debug_info,
     )
     if return_candidates:
+        (
+            value_solved,
+            policy_solved,
+            endog_grid_solved,
+            value_candidates_second_last,
+            policy_candidates_second_last,
+            endog_grid_candidates_second_last,
+        ) = last_two_period_sols
         idx_second_last = batch_info_internal["last_two_period_info"][
             "idx_state_choices_second_last_period"
         ]
@@ -125,6 +126,8 @@ def partially_solve(
         endog_grid_candidates = endog_grid_candidates.at[idx_second_last, ...].set(
             endog_grid_candidates_second_last
         )
+    else:
+        value_solved, policy_solved, endog_grid_solved = last_two_period_sols
 
     if n_periods <= 2:
         out_dict = {

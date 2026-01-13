@@ -39,6 +39,16 @@ def test_partial_solve_func():
     aaae(model_solved.value, partial_sol["value"])
     aaae(model_solved.endog_grid, partial_sol["endog_grid"])
 
+    partial_sol_2 = model.solve_partially(
+        params=params,
+        n_periods=model_config["n_periods"],
+        return_candidates=False,
+    )
+
+    aaae(model_solved.policy, partial_sol_2["policy"])
+    aaae(model_solved.value, partial_sol_2["value"])
+    aaae(model_solved.endog_grid, partial_sol_2["endog_grid"])
+
     state_choices = model_solved.model_structure["state_choice_space"]
     choices = state_choices[:, -1]
     states_dict = {
