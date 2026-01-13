@@ -75,3 +75,10 @@ def test_partial_solve_func():
         np.arange(policy_states_all_choices.shape[0]), choices
     ]
     aaae(model_solved.policy[:, 5], policy_choices)
+
+    value_solved_fast, policy_solved_fast, endog_grid_solved_fast = (
+        model.get_fast_solve_func()(params)
+    )
+    aaae(model_solved.value, value_solved_fast)
+    aaae(model_solved.policy, policy_solved_fast)
+    aaae(model_solved.endog_grid, endog_grid_solved_fast)
