@@ -170,7 +170,8 @@ def test_interp2d_against_scipy(test_cases, test_id):
         jnp.array(test_y),
     )
 
-    aaae(policy_interp_jax, policy_interp_scipy, decimal=7)
+    # First element is out of bounds. We use internally extrapolation, while griddata returns a nan
+    aaae(policy_interp_jax[1:], policy_interp_scipy[1:])
 
 
 @pytest.mark.parametrize("test_id", range(N_TEST_CASES))

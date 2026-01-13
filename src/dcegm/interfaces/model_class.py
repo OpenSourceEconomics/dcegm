@@ -47,8 +47,14 @@ class setup_model:
         debug_info: str = None,
         model_save_path: str = None,
         model_load_path: str = None,
+        use_stochastic_sparsity: bool = False,
     ):
-        """Setup the model and check if load or save is required."""
+        """Setup the model and check if load or save is required.
+
+        Args:
+            use_stochastic_sparsity (bool, optional): EXPERIMENTAL: Use stochastic transition sparsity.
+
+        """
 
         if model_load_path is not None:
             model_dict = load_model_dict(
@@ -61,6 +67,7 @@ class setup_model:
                 stochastic_states_transitions=stochastic_states_transitions,
                 shock_functions=shock_functions,
                 path=model_load_path,
+                use_stochastic_sparsity=use_stochastic_sparsity,
             )
         elif model_save_path is not None:
             model_dict = create_model_dict_and_save(
@@ -74,6 +81,7 @@ class setup_model:
                 shock_functions=shock_functions,
                 path=model_save_path,
                 debug_info=debug_info,
+                use_stochastic_sparsity=use_stochastic_sparsity,
             )
         else:
             model_dict = create_model_dict(
@@ -86,6 +94,7 @@ class setup_model:
                 stochastic_states_transitions=stochastic_states_transitions,
                 shock_functions=shock_functions,
                 debug_info=debug_info,
+                use_stochastic_sparsity=use_stochastic_sparsity,
             )
 
         self.model_specs = jax.tree_util.tree_map(try_jax_array, model_specs)
