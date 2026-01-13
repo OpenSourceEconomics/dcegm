@@ -81,6 +81,7 @@ class setup_model:
                 shock_functions=shock_functions,
                 path=model_save_path,
                 debug_info=debug_info,
+                use_stochastic_sparsity=use_stochastic_sparsity,
             )
         else:
             model_dict = create_model_dict(
