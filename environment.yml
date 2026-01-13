@@ -22,7 +22,6 @@ dependencies:
   - flake8
   - jupyterlab
   - matplotlib
-  - pdbpp
   - pre-commit
   - setuptools_scm
   - toml

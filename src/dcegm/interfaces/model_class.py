@@ -10,6 +10,7 @@ from dcegm.interfaces.index_functions import (
     get_child_state_index_per_states_and_choices,
     get_state_choice_index_per_discrete_states,
 )
+from dcegm.interfaces.inspect_solution import partially_solve
 from dcegm.interfaces.interface import (
     get_n_state_choice_period,
     validate_stochastic_transition,
@@ -460,3 +461,17 @@ class setup_model:
 
     def get_n_state_choices_per_period(self):
         return get_n_state_choice_period(self.model_structure)
+
+    def solve_partially(self, params, n_periods, return_candidates=False):
+
+        return partially_solve(
+            income_shock_draws_unscaled=self.income_shock_draws_unscaled,
+            income_shock_weights=self.income_shock_weights,
+            model_config=self.model_config,
+            batch_info=self.batch_info,
+            model_funcs=self.model_funcs,
+            model_structure=self.model_structure,
+            params=params,
+            n_periods=n_periods,
+            return_candidates=return_candidates,
+        )
