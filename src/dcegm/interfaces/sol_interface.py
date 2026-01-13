@@ -1,10 +1,25 @@
+import jax
 import jax.numpy as jnp
 
-from dcegm.interfaces.interface import (
-    policy_and_value_for_state_choice_vec,
-    policy_for_state_choice_vec,
-    value_for_state_choice_vec,
+from dcegm.interfaces.index_functions import (
+    get_state_choice_index_per_discrete_states_and_choices,
 )
+from dcegm.interfaces.interface import (
+    choice_policies_for_states,
+    choice_values_for_states,
+    policy_and_value_for_states_and_choices,
+    policy_for_state_choice_vec,
+    value_for_state_and_choice,
+)
+from dcegm.interfaces.interface_checks import check_states_and_choices
+from dcegm.likelihood import (
+    calc_choice_probs_for_states,
+    get_state_choice_index_per_discrete_states,
+)
+from dcegm.pre_processing.alternative_sim_functions import (
+    generate_alternative_sim_functions,
+)
+from dcegm.pre_processing.shared import try_jax_array
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
 
@@ -32,7 +47,28 @@ class model_solved:
         self.model_structure = model.model_structure
         self.model_funcs = model.model_funcs
         self.model_specs = model.model_specs
+        self.specs_without_jax = model.specs_without_jax
         self.alternative_sim_funcs = model.alternative_sim_funcs
+
+    def set_alternative_sim_funcs(
+        self, alternative_sim_specifications, alternative_specs=None
+    ):
+        if alternative_specs is None:
+            self.alternative_sim_specs = self.model_specs
+            alternative_specs_without_jax = self.specs_without_jax
+        else:
+            self.alternative_sim_specs = jax.tree_util.tree_map(
+                try_jax_array, alternative_specs
+            )
+            alternative_specs_without_jax = alternative_specs
+
+        alternative_sim_funcs = generate_alternative_sim_functions(
+            model_specs=alternative_specs_without_jax,
+            model_specs_jax=self.alternative_sim_specs,
+            **alternative_sim_specifications,
+        )
+        self.model.alternative_sim_funcs = alternative_sim_funcs
+        self.alternative_sim_funcs = alternative_sim_funcs
 
     def simulate(self, states_initial, seed):
 
@@ -51,20 +87,20 @@ class model_solved:
         )
         return create_simulation_df(sim_dict)
 
-    def value_and_policy_for_state_and_choice(self, state, choice):
+    def policy_and_value_for_states_and_choices(self, states, choices):
         """Get the value and policy for a given state and choice.
 
         Args:
-            state: The state for which to get the value and policy.
-            choice: The choice for which to get the value and policy.
+            states: The state for which to get the value and policy.
+            choices: The choice for which to get the value and policy.
 
         Returns:
             A tuple containing the value and policy for the given state and choice.
 
         """
-        return policy_and_value_for_state_choice_vec(
-            states=state,
-            choice=choice,
+        return policy_and_value_for_states_and_choices(
+            states=states,
+            choices=choices,
             model_config=self.model_config,
             model_structure=self.model_structure,
             model_funcs=self.model_funcs,
@@ -74,21 +110,21 @@ class model_solved:
             policy_solved=self.policy,
         )
 
-    def value_for_state_and_choice(self, state, choice):
+    def value_for_states_and_choices(self, states, choices):
         """Get the value for a given state and choice.
 
         Args:
-            state: The state for which to get the value.
-            choice: The choice for which to get the value.
+            states: The state for which to get the value.
+            choices: The choice for which to get the value.
 
         Returns:
             The value for the given state and choice.
 
         """
 
-        return value_for_state_choice_vec(
-            states=state,
-            choice=choice,
+        return value_for_state_and_choice(
+            states=states,
+            choices=choices,
             model_config=self.model_config,
             model_structure=self.model_structure,
             model_funcs=self.model_funcs,
@@ -97,12 +133,12 @@ class model_solved:
             value_solved=self.value,
         )
 
-    def policy_for_state_and_choice(self, state, choice):
+    def policy_for_states_and_choices(self, states, choices):
         """Get the policy for a given state and choice.
 
         Args:
-            state: The state for which to get the policy.
-            choice: The choice for which to get the policy.
+            states: The state for which to get the policy.
+            choices: The choice for which to get the policy.
 
         Returns:
             The policy for the given state and choice.
@@ -110,50 +146,125 @@ class model_solved:
         """
 
         return policy_for_state_choice_vec(
-            states=state,
-            choice=choice,
+            states=states,
+            choices=choices,
             model_config=self.model_config,
             model_structure=self.model_structure,
             endog_grid_solved=self.endog_grid,
             policy_solved=self.policy,
         )
 
-    def get_solution_for_discrete_state_choice(self, states, choice):
+    def get_solution_for_discrete_state_choice(self, states, choices):
         """Get the solution container for a given discrete state and choice combination.
 
         Args:
             states: The state for which to get the solution.
-            choice: The choice for which to get the solution.
+            choices: The choice for which to get the solution.
         Returns:
             A tuple containing the wealth grid, value grid, and policy grid for the given state and choice.
 
         """
-        # Get the value and policy for a given state and choice.
-
-        map_state_choice_to_index = self.model_structure[
-            "map_state_choice_to_index_with_proxy"
-        ]
-        discrete_states_names = self.model_structure["discrete_states_names"]
-
-        if "dummy_stochastic" in discrete_states_names:
-            state_choice_vec = {
-                **states,
-                "choice": choice,
-                "dummy_stochastic": 0,
-            }
-        else:
-            state_choice_vec = {
-                **states,
-                "choice": choice,
-            }
-
-        state_choice_tuple = tuple(
-            state_choice_vec[state] for state in discrete_states_names + ["choice"]
+        # Check if the states and choices are valid according to the model structure.
+        state_choices = check_states_and_choices(
+            states=states,
+            choices=choices,
+            model_structure=self.model_structure,
         )
-        state_choice_index = map_state_choice_to_index[state_choice_tuple]
+
+        # Get the value and policy for a given state and choice. We use state choices as states as it is not important
+        # that these are missing.
+        state_choice_index = get_state_choice_index_per_discrete_states_and_choices(
+            model_structure=self.model_structure,
+            states=state_choices,
+            choices=state_choices["choice"],
+        )
 
         endog_grid = jnp.take(self.endog_grid, state_choice_index, axis=0)
         value_grid = jnp.take(self.value, state_choice_index, axis=0)
         policy_grid = jnp.take(self.policy, state_choice_index, axis=0)
 
         return endog_grid, value_grid, policy_grid
+
+    def choice_probabilities_for_states(self, states):
+
+        # To check structure, add dummy choice for now and delete afterwards.
+        # Error messages will be misleading though.
+        state_choices = check_states_and_choices(
+            states=states,
+            choices=states["period"],
+            model_structure=self.model_structure,
+        )
+        state_choices.pop("choice")
+        states = state_choices
+
+        state_choice_idxs = get_state_choice_index_per_discrete_states(
+            states=states,
+            map_state_choice_to_index=self.model_structure[
+                "map_state_choice_to_index_with_proxy"
+            ],
+            discrete_states_names=self.model_structure["discrete_states_names"],
+        )
+
+        return calc_choice_probs_for_states(
+            value_solved=self.value,
+            endog_grid_solved=self.endog_grid,
+            state_choice_indexes=state_choice_idxs,
+            params=self.params,
+            states=states,
+            model_config=self.model_config,
+            model_funcs=self.model_funcs,
+        )
+
+    def choice_values_for_states(self, states):
+        # To check structure, add dummy choice for now and delete afterwards.
+        # Error messages will be misleading though.
+        state_choices = check_states_and_choices(
+            states=states,
+            choices=states["period"],
+            model_structure=self.model_structure,
+        )
+        state_choices.pop("choice")
+        states = state_choices
+
+        state_choice_idxs = get_state_choice_index_per_discrete_states(
+            states=states,
+            map_state_choice_to_index=self.model_structure[
+                "map_state_choice_to_index_with_proxy"
+            ],
+            discrete_states_names=self.model_structure["discrete_states_names"],
+        )
+        return choice_values_for_states(
+            value_solved=self.value,
+            endog_grid_solved=self.endog_grid,
+            state_choice_indexes=state_choice_idxs,
+            params=self.params,
+            states=states,
+            model_config=self.model_config,
+            model_funcs=self.model_funcs,
+        )
+
+    def choice_policies_for_states(self, states):
+        # To check structure, add dummy choice for now and delete afterwards.
+        # Error messages will be misleading though.
+        state_choices = check_states_and_choices(
+            states=states,
+            choices=states["period"],
+            model_structure=self.model_structure,
+        )
+        state_choices.pop("choice")
+        states = state_choices
+
+        state_choice_idxs = get_state_choice_index_per_discrete_states(
+            states=states,
+            map_state_choice_to_index=self.model_structure[
+                "map_state_choice_to_index_with_proxy"
+            ],
+            discrete_states_names=self.model_structure["discrete_states_names"],
+        )
+        return choice_policies_for_states(
+            policy_solved=self.policy,
+            endog_grid_solved=self.endog_grid,
+            state_choice_indexes=state_choice_idxs,
+            states=states,
+            model_config=self.model_config,
+        )

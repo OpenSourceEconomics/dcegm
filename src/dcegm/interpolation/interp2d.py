@@ -193,7 +193,7 @@ def interp2d_policy_on_wealth_and_regular_grid(
             to interpolate.
 
     Returns:
-        float: The interpolated value of the policy function at the given
+        jnp.ndarray | float: The interpolated value of the policy function at the given
             (regular, wealth) point.
 
     """

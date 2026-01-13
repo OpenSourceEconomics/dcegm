@@ -1,12 +1,10 @@
 import jax.numpy as jnp
 import numpy as np
+import pandas as pd
 import pytest
 
 import dcegm
 import dcegm.toy_models as toy_models
-from dcegm.pre_processing.setup_model import create_model_dict
-from dcegm.simulation.sim_utils import create_simulation_df
-from dcegm.simulation.simulate import simulate_all_periods
 
 
 def utility_crra(
@@ -96,7 +94,7 @@ def test_sim_and_sol_model(model_configs):
         "stochastic_states_transitions": stochastic_states_transitions,
     }
 
-    model_sol = dcegm.setup_model(
+    model = dcegm.setup_model(
         model_config=model_configs["solution"],
         model_specs=model_specs,
         state_space_functions=model_funcs["state_space_functions"],
@@ -119,11 +117,52 @@ def test_sim_and_sol_model(model_configs):
         "assets_begin_of_period": np.ones(n_agents, dtype=float) * 10,
     }
 
-    df = model_sol.solve_and_simulate(
+    df = model.solve_and_simulate(
         params=params,
         states_initial=states_initial,
         seed=123,
     )
+
+    ##################################
+    # First compare with other ways to setup up alternative sim specificatios
+    ##################################
+    model_init = dcegm.setup_model(
+        model_config=model_configs["solution"],
+        model_specs=model_specs,
+        state_space_functions=model_funcs["state_space_functions"],
+        utility_functions=utility_functions,
+        utility_functions_final_period=model_funcs["utility_functions_final_period"],
+        budget_constraint=model_funcs["budget_constraint"],
+    )
+    model_init.set_alternative_sim_funcs(alternative_sim_specifications=alt_model_specs)
+
+    df_2 = model_init.solve_and_simulate(
+        params=params,
+        states_initial=states_initial,
+        seed=123,
+    )
+    pd.testing.assert_frame_equal(df, df_2)
+
+    model_init = dcegm.setup_model(
+        model_config=model_configs["solution"],
+        model_specs=model_specs,
+        state_space_functions=model_funcs["state_space_functions"],
+        utility_functions=utility_functions,
+        utility_functions_final_period=model_funcs["utility_functions_final_period"],
+        budget_constraint=model_funcs["budget_constraint"],
+    )
+
+    model_init.set_alternative_sim_funcs(
+        alternative_sim_specifications=alt_model_specs,
+        alternative_specs=model_specs,
+    )
+
+    df_3 = model_init.solve_and_simulate(
+        params=params,
+        states_initial=states_initial,
+        seed=123,
+    )
+    pd.testing.assert_frame_equal(df, df_3)
 
     ###########################################
     # Compare marriage shares as they must be governed

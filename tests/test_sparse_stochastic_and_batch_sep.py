@@ -127,7 +127,7 @@ def test_benchmark_models():
     }
     (endog_grid_full, policy_full, value_full) = (
         model_solved_full.get_solution_for_discrete_state_choice(
-            states=states_dict, choice=state_choices_sparse[:, -1]
+            states=states_dict, choices=state_choices_sparse[:, -1]
         )
     )
 

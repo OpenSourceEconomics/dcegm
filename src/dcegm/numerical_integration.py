@@ -1,5 +1,6 @@
 from typing import Tuple
 
+import jax.numpy as jnp
 import numpy as np
 from scipy.special import roots_hermite, roots_sh_legendre
 from scipy.stats import norm
@@ -33,10 +34,10 @@ def quadrature_hermite(
     quad_points_scaled = quad_points * np.sqrt(2) * income_shock_std
     quad_weights *= 1 / np.sqrt(np.pi)
 
-    return quad_points_scaled, quad_weights
+    return jnp.asarray(quad_points_scaled), jnp.asarray(quad_weights)
 
 
-def quadrature_legendre(n_quad_points: int) -> Tuple[np.ndarray, np.ndarray]:
+def quadrature_legendre(n_quad_points: int) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Return the Gauss-Legendre quadrature points and weights.
 
     The stochastic Gauss-Legendre quadrature points are shifted points
@@ -58,4 +59,4 @@ def quadrature_legendre(n_quad_points: int) -> Tuple[np.ndarray, np.ndarray]:
     quad_points, quad_weights = roots_sh_legendre(n_quad_points)
     quad_points_normal = norm.ppf(quad_points)
 
-    return quad_points_normal, quad_weights
+    return jnp.asarray(quad_points_normal), jnp.asarray(quad_weights)

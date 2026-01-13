@@ -4,13 +4,12 @@ import pandas as pd
 from jax import numpy as jnp
 from jax import vmap
 
-from dcegm.interfaces.inspect_structure import get_state_choice_index_per_discrete_state
+from dcegm.interfaces.index_functions import get_state_choice_index_per_discrete_states
 from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
 from dcegm.interpolation.interp2d import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
 from dcegm.law_of_motion import (
-    calc_assets_begin_of_period_for_all_agents,
     calculate_assets_begin_of_period_for_all_agents,
     calculate_second_continuous_state_for_all_agents,
 )
@@ -34,7 +33,7 @@ def interpolate_policy_and_value_for_all_agents(
 
     if continuous_state_beginning_of_period is not None:
 
-        discrete_state_choice_indexes = get_state_choice_index_per_discrete_state(
+        discrete_state_choice_indexes = get_state_choice_index_per_discrete_states(
             states=discrete_states_beginning_of_period,
             map_state_choice_to_index=map_state_choice_to_index,
             discrete_states_names=discrete_states_names,
@@ -93,7 +92,7 @@ def interpolate_policy_and_value_for_all_agents(
         return policy_agent, value_agent
 
     else:
-        discrete_state_choice_indexes = get_state_choice_index_per_discrete_state(
+        discrete_state_choice_indexes = get_state_choice_index_per_discrete_states(
             states=discrete_states_beginning_of_period,
             map_state_choice_to_index=map_state_choice_to_index,
             discrete_states_names=discrete_states_names,
@@ -204,28 +203,23 @@ def transition_to_next_period(
             compute_continuous_state=model_funcs_sim["next_period_continuous_state"],
         )
 
-        assets_beginning_of_next_period, budget_aux = (
-            calc_assets_begin_of_period_for_all_agents(
-                states_beginning_of_period=discrete_states_next_period,
-                continuous_state_beginning_of_period=continuous_state_next_period,
-                assets_end_of_period=assets_end_of_period,
-                income_shocks_of_period=income_shocks_next_period,
-                params=params,
-                compute_assets_begin_of_period=next_period_wealth,
-            )
-        )
+        all_states_next_period = {
+            **discrete_states_next_period,
+            "continuous_state": continuous_state_next_period,
+        }
     else:
+        all_states_next_period = discrete_states_next_period.copy()
         continuous_state_next_period = None
 
-        assets_beginning_of_next_period, budget_aux = (
-            calculate_assets_begin_of_period_for_all_agents(
-                states_beginning_of_period=discrete_states_next_period,
-                asset_grid_point_end_of_previous_period=assets_end_of_period,
-                income_shocks_of_period=income_shocks_next_period,
-                params=params,
-                compute_assets_begin_of_period=next_period_wealth,
-            )
+    assets_beginning_of_next_period, budget_aux = (
+        calculate_assets_begin_of_period_for_all_agents(
+            states_beginning_of_period=all_states_next_period,
+            asset_grid_point_end_of_previous_period=assets_end_of_period,
+            income_shocks_of_period=income_shocks_next_period,
+            params=params,
+            compute_assets_begin_of_period=next_period_wealth,
         )
+    )
 
     return (
         assets_beginning_of_next_period,
@@ -304,9 +298,9 @@ def interp1d_policy_and_value_function(
 
     policy_interp, value_interp = interp1d_policy_and_value_on_wealth(
         wealth=wealth_beginning_of_period,
-        endog_grid=endog_grid_agent,
-        policy=policy_agent,
-        value=value_agent,
+        wealth_grid=endog_grid_agent,
+        policy_grid=policy_agent,
+        value_grid=value_agent,
         compute_utility=compute_utility,
         state_choice_vec=state_choice_vec,
         params=params,

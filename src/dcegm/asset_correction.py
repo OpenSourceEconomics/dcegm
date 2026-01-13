@@ -2,12 +2,11 @@ import jax.numpy as jnp
 from jax import vmap
 
 from dcegm.law_of_motion import (
-    calc_assets_beginning_of_period_2cont_vec,
-    calc_beginning_of_period_assets_1cont_vec,
+    calc_beginning_of_period_assets_for_single_state,
 )
 
 
-def adjust_observed_assets(observed_states_dict, params, model_class):
+def adjust_observed_assets(observed_states_dict, params, model_class, aux_outs=False):
     """Correct observed beginning of period assets data for likelihood estimation.
 
     Assets in empirical survey data is observed without the income of last period's
@@ -37,30 +36,23 @@ def adjust_observed_assets(observed_states_dict, params, model_class):
         second_cont_state_vars = observed_states_dict[second_cont_state_name]
         observed_states_dict_int.pop(second_cont_state_name)
 
-        adjusted_assets = vmap(
-            calc_assets_beginning_of_period_2cont_vec,
-            in_axes=(0, 0, 0, None, None, None, None),
-        )(
-            observed_states_dict_int,
-            second_cont_state_vars,
-            assets_end_last_period,
-            jnp.array(0.0, dtype=jnp.float64),
-            params,
-            model_funcs["compute_assets_begin_of_period"],
-            False,
-        )
-
+        all_states = {
+            **observed_states_dict_int,
+            "continuous_state": second_cont_state_vars,
+        }
     else:
-        adjusted_assets = vmap(
-            calc_beginning_of_period_assets_1cont_vec,
-            in_axes=(0, 0, None, None, None, None),
-        )(
-            observed_states_dict,
-            assets_end_last_period,
-            jnp.array(0.0, dtype=jnp.float64),
-            params,
-            model_funcs["compute_assets_begin_of_period"],
-            False,
-        )
+        all_states = observed_states_dict_int
+
+    adjusted_assets = vmap(
+        calc_beginning_of_period_assets_for_single_state,
+        in_axes=(0, 0, None, None, None, None),
+    )(
+        all_states,
+        assets_end_last_period,
+        jnp.array(0.0, dtype=jnp.float64),
+        params,
+        model_funcs["compute_assets_begin_of_period"],
+        aux_outs,
+    )
 
     return adjusted_assets

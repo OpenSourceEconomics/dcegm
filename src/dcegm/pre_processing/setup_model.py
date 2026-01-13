@@ -2,6 +2,7 @@ import pickle
 from typing import Callable, Dict
 
 import jax
+import jax.numpy as jnp
 
 from dcegm.pre_processing.batches.batch_creation import create_batches_and_information
 from dcegm.pre_processing.check_model_config import check_model_config_and_process
@@ -13,9 +14,13 @@ from dcegm.pre_processing.model_functions.process_model_functions import (
 from dcegm.pre_processing.model_structure.model_structure import create_model_structure
 from dcegm.pre_processing.model_structure.state_space import create_state_space
 from dcegm.pre_processing.model_structure.stochastic_states import (
+    create_sparse_stochastic_trans_map,
     create_stochastic_state_mapping,
 )
-from dcegm.pre_processing.shared import create_array_with_smallest_int_dtype
+from dcegm.pre_processing.shared import (
+    create_array_with_smallest_int_dtype,
+    try_jax_array,
+)
 
 
 def create_model_dict(
@@ -28,6 +33,7 @@ def create_model_dict(
     stochastic_states_transitions: Dict[str, Callable] = None,
     shock_functions: Dict[str, Callable] = None,
     debug_info: str = None,
+    use_stochastic_sparsity=False,
 ):
     """Set up the model for dcegm.
 
@@ -90,6 +96,26 @@ def create_model_dict(
         model_funcs=model_funcs,
     )
 
+    if use_stochastic_sparsity:
+        n_stochastic_original = model_structure[
+            "map_state_choice_to_child_states"
+        ].shape[1]
+        (
+            model_structure["map_state_choice_to_child_states"],
+            model_structure["state_choice_space_dict"],
+            model_funcs["compute_stochastic_transition_vec"],
+            model_funcs["sparse_processed_stochastic_funcs"],
+        ) = create_sparse_stochastic_trans_map(
+            model_structure=model_structure,
+            model_funcs=model_funcs,
+            model_config_processed=model_config_processed,
+            from_saved=False,
+        )
+        n_sparse = model_structure["map_state_choice_to_child_states"].shape[1]
+        print(
+            f"Stochastic transition mapping sparsified from {n_stochastic_original} to {n_sparse} "
+        )
+
     model_funcs["stochastic_state_mapping"] = create_stochastic_state_mapping(
         model_structure["stochastic_state_space"],
         model_structure["stochastic_states_names"],
@@ -109,12 +135,14 @@ def create_model_dict(
         model_structure.pop("map_state_choice_to_child_states")
         model_structure.pop("map_state_choice_to_index")
 
+    batch_info = jax.tree.map(create_array_with_smallest_int_dtype, batch_info)
     print("Model setup complete.\n")
     return {
         "model_config": model_config_processed,
         "model_funcs": model_funcs,
-        "model_structure": model_structure,
-        "batch_info": jax.tree.map(create_array_with_smallest_int_dtype, batch_info),
+        # Model structure are also lists, therefore we use try function
+        "model_structure": jax.tree.map(try_jax_array, model_structure),
+        "batch_info": jax.tree.map(jnp.asarray, batch_info),
     }
 
 
@@ -129,6 +157,7 @@ def create_model_dict_and_save(
     shock_functions: Dict[str, Callable] = None,
     path: str = "model.pkl",
     debug_info=None,
+    use_stochastic_sparsity=False,
 ):
     """Set up the model and save.
 
@@ -148,6 +177,7 @@ def create_model_dict_and_save(
         stochastic_states_transitions=stochastic_states_transitions,
         shock_functions=shock_functions,
         debug_info=debug_info,
+        use_stochastic_sparsity=use_stochastic_sparsity,
     )
 
     dict_to_save = {
@@ -169,6 +199,7 @@ def load_model_dict(
     stochastic_states_transitions: Dict[str, Callable] = None,
     shock_functions: Dict[str, Callable] = None,
     path: str = "model.pkl",
+    use_stochastic_sparsity=False,
 ):
     """Load the model from file."""
 
@@ -196,6 +227,18 @@ def load_model_dict(
         **model["model_config"]["params_check_info"],
         **specs_params_info,
     }
+
+    # Save full and then create sparsity
+    if use_stochastic_sparsity:
+        (
+            model["model_funcs"]["compute_stochastic_transition_vec"],
+            model["model_funcs"]["sparse_processed_stochastic_funcs"],
+        ) = create_sparse_stochastic_trans_map(
+            model_structure=model["model_structure"],
+            model_funcs=model["model_funcs"],
+            model_config_processed=model["model_config"],
+            from_saved=True,
+        )
 
     model["model_funcs"]["stochastic_state_mapping"] = create_stochastic_state_mapping(
         stochastic_state_space=model["model_structure"]["stochastic_state_space"],

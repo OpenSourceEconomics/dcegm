@@ -11,6 +11,7 @@ def create_single_segment_of_batches(bool_state_choices_to_batch, model_structur
     """
 
     state_choice_space = model_structure["state_choice_space"]
+    state_choice_space_dict = model_structure["state_choice_space_dict"]
 
     state_space = model_structure["state_space"]
     discrete_states_names = model_structure["discrete_states_names"]
@@ -48,9 +49,8 @@ def create_single_segment_of_batches(bool_state_choices_to_batch, model_structur
         child_states_to_integrate_stochastic_list,
         child_state_choices_to_aggr_choice_list,
         child_state_choice_idxs_to_interp_list,
-        state_choice_space,
+        state_choice_space_dict,
         map_state_choice_to_parent_state,
-        discrete_states_names,
     )
 
     single_batch_segment_info = prepare_and_align_batch_arrays(
@@ -58,7 +58,7 @@ def create_single_segment_of_batches(bool_state_choices_to_batch, model_structur
         child_states_to_integrate_stochastic_list,
         child_state_choices_to_aggr_choice_list,
         child_state_choice_idxs_to_interp_list,
-        state_choice_space,
+        state_choice_space_dict,
         map_state_choice_to_parent_state,
         discrete_states_names,
     )
@@ -74,9 +74,8 @@ def correct_for_uneven_last_batch(
     child_states_to_integrate_stochastic_list,
     child_state_choices_to_aggr_choice_list,
     child_state_choice_idxs_to_interp_list,
-    state_choice_space,
+    state_choice_space_dict,
     map_state_choice_to_parent_state,
-    discrete_states_names,
 ):
     """Check if the last batch has the same length as the others.
 
@@ -108,12 +107,11 @@ def correct_for_uneven_last_batch(
         last_child_state_idx_interp = child_state_choice_idxs_to_interp_list[-1]
 
         last_state_choices = {
-            key: state_choice_space[:, i][last_batch]
-            for i, key in enumerate(discrete_states_names + ["choice"])
+            key: var[last_batch] for key, var in state_choice_space_dict.items()
         }
         last_state_choices_childs = {
-            key: state_choice_space[:, i][last_child_state_idx_interp]
-            for i, key in enumerate(discrete_states_names + ["choice"])
+            key: var[last_child_state_idx_interp]
+            for key, var in state_choice_space_dict.items()
         }
         last_parent_state_idx_of_state_choice = map_state_choice_to_parent_state[
             last_child_state_idx_interp
@@ -154,7 +152,7 @@ def prepare_and_align_batch_arrays(
     child_states_to_integrate_stochastic_list,
     child_state_choices_to_aggr_choice_list,
     child_state_choice_idxs_to_interp_list,
-    state_choice_space,
+    state_choice_space_dict,
     map_state_choice_to_parent_state,
     discrete_states_names,
 ):
@@ -165,15 +163,14 @@ def prepare_and_align_batch_arrays(
 
     """
     # Get out of bound state choice idx, by taking the number of state choices + 1
-    out_of_bounds_state_choice_idx = state_choice_space.shape[0] + 1
+    out_of_bounds_state_choice_idx = state_choice_space_dict["period"].shape[0] + 1
 
     # First convert batch information
     batch_array = np.array(batches_list)
     child_states_to_integrate_exog = np.array(child_states_to_integrate_stochastic_list)
 
     state_choices_batches = {
-        key: state_choice_space[:, i][batch_array]
-        for i, key in enumerate(discrete_states_names + ["choice"])
+        key: var[batch_array] for key, var in state_choice_space_dict.items()
     }
 
     # Now create the child state arrays. As these can have different shapes than the
@@ -192,8 +189,8 @@ def prepare_and_align_batch_arrays(
         child_state_choice_idxs_to_interp
     ]
     state_choices_childs = {
-        key: state_choice_space[:, i][child_state_choice_idxs_to_interp]
-        for i, key in enumerate(discrete_states_names + ["choice"])
+        key: var[child_state_choice_idxs_to_interp]
+        for key, var in state_choice_space_dict.items()
     }
 
     batch_info = {

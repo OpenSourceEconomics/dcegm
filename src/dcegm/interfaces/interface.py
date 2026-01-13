@@ -3,20 +3,20 @@
 import jax
 import jax.numpy as jnp
 import pandas as pd
+from jax import numpy as jnp
 
-from dcegm.interpolation.interp1d import (
-    interp1d_policy_and_value_on_wealth,
-    interp_policy_on_wealth,
-    interp_value_on_wealth,
+from dcegm.interfaces.index_functions import (
+    get_state_choice_index_per_discrete_states_and_choices,
 )
-from dcegm.interpolation.interp2d import (
-    interp2d_policy_and_value_on_wealth_and_regular_grid,
-    interp2d_policy_on_wealth_and_regular_grid,
-    interp2d_value_on_wealth_and_regular_grid,
+from dcegm.interfaces.interface_checks import check_states_and_choices
+from dcegm.interpolation.interp_interfaces import (
+    interpolate_policy_and_value_for_state_and_choice,
+    interpolate_policy_for_state_and_choice,
+    interpolate_value_for_state_and_choice,
 )
 
 
-def get_n_state_choice_period(model):
+def get_n_state_choice_period(model_structure):
     """Get the number of state-choice periods from the model.
 
     Args:
@@ -29,15 +29,15 @@ def get_n_state_choice_period(model):
 
     """
     return (
-        pd.Series(model["model_structure"]["state_choice_space"][:, 0])
+        pd.Series(model_structure["state_choice_space"][:, 0])
         .value_counts()
         .sort_index()
     )
 
 
-def policy_and_value_for_state_choice_vec(
+def policy_and_value_for_states_and_choices(
     states,
-    choice,
+    choices,
     params,
     endog_grid_solved,
     value_solved,
@@ -67,68 +67,38 @@ def policy_and_value_for_state_choice_vec(
         choice.
 
     """
-    # ToDo: Check if states contains relevant structure
-    map_state_choice_to_index = model_structure["map_state_choice_to_index_with_proxy"]
-    discrete_states_names = model_structure["discrete_states_names"]
-
-    if "dummy_stochastic" in discrete_states_names:
-        state_choice_vec = {
-            **states,
-            "choice": choice,
-            "dummy_stochastic": 0,
-        }
-
-    else:
-        state_choice_vec = {
-            **states,
-            "choice": choice,
-        }
-
-    state_choice_tuple = tuple(
-        state_choice_vec[st] for st in discrete_states_names + ["choice"]
+    state_choices = check_states_and_choices(
+        states=states, choices=choices, model_structure=model_structure
     )
-    state_choice_index = map_state_choice_to_index[state_choice_tuple]
-    continuous_states_info = model_config["continuous_states_info"]
 
-    compute_utility = model_funcs["compute_utility"]
-    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
+    state_choice_idx = get_state_choice_index_per_discrete_states_and_choices(
+        states=state_choices, choices=choices, model_structure=model_structure
+    )
+    endog_grid_state_choice = jnp.take(endog_grid_solved, state_choice_idx, axis=0)
+    value_grid_state_choice = jnp.take(value_solved, state_choice_idx, axis=0)
+    policy_grid_state_choice = jnp.take(policy_solved, state_choice_idx, axis=0)
 
-    if continuous_states_info["second_continuous_exists"]:
-
-        second_continuous = state_choice_vec[
-            continuous_states_info["second_continuous_state_name"]
-        ]
-
-        policy, value = interp2d_policy_and_value_on_wealth_and_regular_grid(
-            regular_grid=continuous_states_info["second_continuous_grid"],
-            wealth_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
-            value_grid=jnp.take(value_solved, state_choice_index, axis=0),
-            policy_grid=jnp.take(policy_solved, state_choice_index, axis=0),
-            regular_point_to_interp=second_continuous,
-            wealth_point_to_interp=state_choice_vec["assets_begin_of_period"],
-            compute_utility=compute_utility,
-            state_choice_vec=state_choice_vec,
-            params=params,
-            discount_factor=discount_factor,
-        )
-    else:
-        policy, value = interp1d_policy_and_value_on_wealth(
-            wealth=state_choice_vec["assets_begin_of_period"],
-            endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
-            policy=jnp.take(policy_solved, state_choice_index, axis=0),
-            value=jnp.take(value_solved, state_choice_index, axis=0),
-            compute_utility=compute_utility,
-            state_choice_vec=state_choice_vec,
-            params=params,
-            discount_factor=discount_factor,
-        )
-
-    return policy, value
+    policy, value = jax.vmap(
+        interpolate_policy_and_value_for_state_and_choice,
+        in_axes=(0, 0, 0, 0, None, None, None),
+    )(
+        value_grid_state_choice,
+        policy_grid_state_choice,
+        endog_grid_state_choice,
+        state_choices,
+        params,
+        model_config,
+        model_funcs,
+    )
+    return (
+        jnp.squeeze(policy),
+        jnp.squeeze(value),
+    )
 
 
-def value_for_state_choice_vec(
+def value_for_state_and_choice(
     states,
-    choice,
+    choices,
     params,
     endog_grid_solved,
     value_solved,
@@ -153,65 +123,33 @@ def value_for_state_choice_vec(
         float: The value at the given state and choice.
 
     """
-    map_state_choice_to_index = model_structure["map_state_choice_to_index_with_proxy"]
-    discrete_states_names = model_structure["discrete_states_names"]
-
-    if "dummy_stochastic" in discrete_states_names:
-        state_choice_vec = {
-            **states,
-            "choice": choice,
-            "dummy_stochastic": 0,
-        }
-
-    else:
-        state_choice_vec = {
-            **states,
-            "choice": choice,
-        }
-
-    state_choice_tuple = tuple(
-        state_choice_vec[st] for st in discrete_states_names + ["choice"]
+    state_choices = check_states_and_choices(
+        states=states, choices=choices, model_structure=model_structure
     )
-    state_choice_index = map_state_choice_to_index[state_choice_tuple]
-    continuous_states_info = model_config["continuous_states_info"]
-    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
 
-    compute_utility = model_funcs["compute_utility"]
+    state_choice_idx = get_state_choice_index_per_discrete_states_and_choices(
+        states=state_choices, choices=choices, model_structure=model_structure
+    )
+    endog_grid_state_choice = jnp.take(endog_grid_solved, state_choice_idx, axis=0)
+    value_grid_state_choice = jnp.take(value_solved, state_choice_idx, axis=0)
 
-    if continuous_states_info["second_continuous_exists"]:
-        second_continuous = state_choice_vec[
-            continuous_states_info["second_continuous_state_name"]
-        ]
-
-        value = interp2d_value_on_wealth_and_regular_grid(
-            regular_grid=continuous_states_info["second_continuous_grid"],
-            wealth_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
-            value_grid=jnp.take(value_solved, state_choice_index, axis=0),
-            regular_point_to_interp=second_continuous,
-            wealth_point_to_interp=state_choice_vec["assets_begin_of_period"],
-            compute_utility=compute_utility,
-            state_choice_vec=state_choice_vec,
-            params=params,
-            discount_factor=discount_factor,
-        )
-    else:
-
-        value = interp_value_on_wealth(
-            wealth=state_choice_vec["assets_begin_of_period"],
-            endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
-            value=jnp.take(value_solved, state_choice_index, axis=0),
-            compute_utility=compute_utility,
-            state_choice_vec=state_choice_vec,
-            params=params,
-            discount_factor=discount_factor,
-        )
-
-    return value
+    value = jax.vmap(
+        interpolate_value_for_state_and_choice,
+        in_axes=(0, 0, 0, None, None, None),
+    )(
+        value_grid_state_choice,
+        endog_grid_state_choice,
+        state_choices,
+        params,
+        model_config,
+        model_funcs,
+    )
+    return jnp.squeeze(value)
 
 
 def policy_for_state_choice_vec(
     states,
-    choice,
+    choices,
     endog_grid_solved,
     policy_solved,
     model_structure,
@@ -233,51 +171,26 @@ def policy_for_state_choice_vec(
         float: The policy at the given state and choice.
 
     """
-    map_state_choice_to_index = model_structure["map_state_choice_to_index_with_proxy"]
-    discrete_states_names = model_structure["discrete_states_names"]
-
-    if "dummy_stochastic" in discrete_states_names:
-        state_choice_vec = {
-            **states,
-            "choice": choice,
-            "dummy_stochastic": 0,
-        }
-
-    else:
-        state_choice_vec = {
-            **states,
-            "choice": choice,
-        }
-
-    state_choice_tuple = tuple(
-        state_choice_vec[st] for st in discrete_states_names + ["choice"]
+    state_choices = check_states_and_choices(
+        states=states, choices=choices, model_structure=model_structure
     )
-    state_choice_index = map_state_choice_to_index[state_choice_tuple]
-    continuous_states_info = model_config["continuous_states_info"]
 
-    if continuous_states_info["second_continuous_exists"]:
-        second_continuous = states[
-            continuous_states_info["second_continuous_state_name"]
-        ]
+    state_choice_idx = get_state_choice_index_per_discrete_states_and_choices(
+        states=state_choices, choices=choices, model_structure=model_structure
+    )
+    endog_grid_state_choice = jnp.take(endog_grid_solved, state_choice_idx, axis=0)
+    policy_grid_state_choice = jnp.take(policy_solved, state_choice_idx, axis=0)
 
-        policy = interp2d_policy_on_wealth_and_regular_grid(
-            regular_grid=model_config["continuous_states_info"][
-                "second_continuous_grid"
-            ],
-            wealth_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
-            policy_grid=jnp.take(policy_solved, state_choice_index, axis=0),
-            regular_point_to_interp=second_continuous,
-            wealth_point_to_interp=states["assets_begin_of_period"],
-        )
-
-    else:
-        policy = interp_policy_on_wealth(
-            wealth=states["assets_begin_of_period"],
-            endog_grid=jnp.take(endog_grid_solved, state_choice_index, axis=0),
-            policy=jnp.take(policy_solved, state_choice_index, axis=0),
-        )
-
-    return policy
+    policy = jax.vmap(
+        interpolate_policy_for_state_and_choice,
+        in_axes=(0, 0, 0, None),
+    )(
+        policy_grid_state_choice,
+        endog_grid_state_choice,
+        state_choices,
+        model_config,
+    )
+    return jnp.squeeze(policy)
 
 
 def validate_stochastic_transition(params, model_config, model_funcs, model_structure):
@@ -377,3 +290,117 @@ def stochastic_transition_vec(state_choice_vec_dict, func, params):
 
     """
     return func(**state_choice_vec_dict, params=params)
+
+
+def choice_values_for_states(
+    value_solved,
+    endog_grid_solved,
+    state_choice_indexes,
+    params,
+    states,
+    model_config,
+    model_funcs,
+):
+    value_grid_states = jnp.take(
+        value_solved,
+        state_choice_indexes,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
+    endog_grid_states = jnp.take(
+        endog_grid_solved,
+        state_choice_indexes,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
+
+    def wrapper_interp_value_for_choice(
+        state,
+        value_grid_state_choice,
+        endog_grid_state_choice,
+        choice,
+    ):
+        state_choice_vec = {**state, "choice": choice}
+
+        return interpolate_value_for_state_and_choice(
+            value_grid_state_choice=value_grid_state_choice,
+            endog_grid_state_choice=endog_grid_state_choice,
+            state_choice_vec=state_choice_vec,
+            params=params,
+            model_config=model_config,
+            model_funcs=model_funcs,
+        )
+
+    # Read out choice range to loop over
+    choice_range = model_config["choices"]
+
+    choice_values_per_state = jax.vmap(
+        jax.vmap(
+            wrapper_interp_value_for_choice,
+            in_axes=(None, 0, 0, 0),
+        ),
+        in_axes=(0, 0, 0, None),
+    )(
+        states,
+        value_grid_states,
+        endog_grid_states,
+        choice_range,
+    )
+    return choice_values_per_state
+
+
+def choice_policies_for_states(
+    policy_solved,
+    endog_grid_solved,
+    state_choice_indexes,
+    states,
+    model_config,
+):
+    policy_grid_states = jnp.take(
+        policy_solved,
+        state_choice_indexes,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
+    endog_grid_states = jnp.take(
+        endog_grid_solved,
+        state_choice_indexes,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
+
+    def wrapper_interp_value_for_choice(
+        state,
+        policy_grid_state_choice,
+        endog_grid_state_choice,
+        choice,
+    ):
+        state_choice_vec = {**state, "choice": choice}
+
+        return interpolate_policy_for_state_and_choice(
+            policy_grid_state_choice=policy_grid_state_choice,
+            endog_grid_state_choice=endog_grid_state_choice,
+            state_choice_vec=state_choice_vec,
+            model_config=model_config,
+        )
+
+    # Read out choice range to loop over
+    choice_range = model_config["choices"]
+
+    choice_values_per_state = jax.vmap(
+        jax.vmap(
+            wrapper_interp_value_for_choice,
+            in_axes=(None, 0, 0, 0),
+        ),
+        in_axes=(0, 0, 0, None),
+    )(
+        states,
+        policy_grid_states,
+        endog_grid_states,
+        choice_range,
+    )
+    return choice_values_per_state
