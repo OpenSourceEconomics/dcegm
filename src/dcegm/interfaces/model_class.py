@@ -1,5 +1,6 @@
 import pickle as pkl
 from functools import partial
+from grp import struct_group
 from typing import Callable, Dict
 
 import jax
@@ -143,15 +144,15 @@ class setup_model:
         )
         self.alternative_sim_funcs = alternative_sim_funcs
 
-    def backward_induction_inner_jit(self, params):
+    def backward_induction_inner_jit(self, params, model_structure, batch_info):
         return backward_induction(
             params=params,
             income_shock_draws_unscaled=self.income_shock_draws_unscaled,
             income_shock_weights=self.income_shock_weights,
             model_config=self.model_config,
-            batch_info=self.batch_info,
+            batch_info=batch_info,
             model_funcs=self.model_funcs,
-            model_structure=self.model_structure,
+            model_structure=model_structure,
         )
 
     def get_fast_solve_func(self):
@@ -281,7 +282,7 @@ class setup_model:
         slow_version=False,
     ):
 
-        sim_func = lambda params, value, policy, endog_gid: simulate_all_periods(
+        sim_func = lambda params, value, policy, endog_gid, model_structure: simulate_all_periods(
             states_initial=states_initial,
             n_periods=self.model_config["n_periods"],
             params=params,
@@ -290,16 +291,68 @@ class setup_model:
             policy_solved=policy,
             value_solved=value,
             model_config=self.model_config,
-            model_structure=self.model_structure,
+            model_structure=model_structure,
             model_funcs=self.model_funcs,
             alt_model_funcs_sim=self.alternative_sim_funcs,
         )
 
-        def solve_and_simulate_function_to_jit(params):
+        struct_keys_not_for_jit = [
+            "discrete_states_names",
+            "state_names_without_stochastic",
+            "stochastic_states_names",
+        ]
+        model_structure_non_jit = {
+            key: self.model_structure[key] for key in struct_keys_not_for_jit
+        }
+        model_structure_jit = self.model_structure.copy()
+        # Remove non-jittable items
+        for key in struct_keys_not_for_jit:
+            model_structure_jit.pop(key, None)
+
+        # Remove non-jittable items from batch_info
+        batch_info_jit = self.batch_info.copy()
+        batch_info_non_jit = {
+            "two_period_model": self.batch_info["two_period_model"],
+        }
+        batch_info_jit.pop("two_period_model", None)
+        # If it is not a two period model, there is more
+        if not self.batch_info["two_period_model"]:
+            batch_info_non_jit["n_segments"] = self.batch_info["n_segments"]
+            batch_info_jit.pop("n_segments", None)
+            for batch_id in range(batch_info_non_jit["n_segments"]):
+                batch_key = f"batches_info_segment_{batch_id}"
+                batch_info_non_jit[batch_key] = {}
+                batch_info_non_jit[batch_key]["batches_cover_all"] = self.batch_info[
+                    batch_key
+                ]["batches_cover_all"]
+                batch_info_jit[batch_key].pop("batches_cover_all", None)
+
+        def solve_and_simulate_function_to_jit(
+            params, model_structure_jit, batch_info_jit
+        ):
             params_processed = process_params(params, self.params_check_info)
+
+            model_structure = {
+                **model_structure_jit,
+                **model_structure_non_jit,
+            }
+            batch_info = {
+                **batch_info_jit,
+                "two_period_model": batch_info_non_jit["two_period_model"],
+            }
+            if not batch_info_non_jit["two_period_model"]:
+                batch_info["n_segments"] = batch_info_non_jit["n_segments"]
+                for batch_id in range(batch_info_non_jit["n_segments"]):
+                    batch_key = f"batches_info_segment_{batch_id}"
+                    batch_info[batch_key]["batches_cover_all"] = batch_info_non_jit[
+                        batch_key
+                    ]["batches_cover_all"]
+
             # Solve the model
             value, policy, endog_grid = self.backward_induction_inner_jit(
-                params_processed
+                params_processed,
+                model_structure=model_structure,
+                batch_info=batch_info,
             )
 
             sim_dict = sim_func(
@@ -307,6 +360,7 @@ class setup_model:
                 value=value,
                 policy=policy,
                 endog_gid=endog_grid,
+                model_structure=model_structure,
             )
 
             return sim_dict
@@ -317,7 +371,7 @@ class setup_model:
             solve_simulate_func = jax.jit(solve_and_simulate_function_to_jit)
 
         def solve_and_simulate_function(params):
-            sim_dict = solve_simulate_func(params)
+            sim_dict = solve_simulate_func(params, model_structure_jit, batch_info_jit)
             df = create_simulation_df(sim_dict)
             return df
 
