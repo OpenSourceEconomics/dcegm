@@ -275,12 +275,12 @@ def create_choice_prob_func_unobserved_states(
         lambda x: jnp.asarray(x), weighting_vars_for_possible_states
     )
 
-    def choice_prob_func(value_in, endog_grid_in, params_in, data_for_choice_funcs):
+    def choice_prob_func(value_in, endog_grid_in, params_in, data_from_observed):
         choice_probs_final = jnp.zeros(n_obs, dtype=jnp.float64)
         integrate_out_weights = jnp.zeros(n_obs, dtype=jnp.float64)
         for partial_choice_prob, data_for_choice_func, weighting_vars in zip(
             partial_choice_probs_unobserved_states,
-            data_for_choice_funcs,
+            data_from_observed,
             weighting_vars_for_possible_states,
         ):
             unobserved_weights = jax.vmap(
