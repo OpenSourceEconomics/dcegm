@@ -12,6 +12,7 @@ import jax.numpy as jnp
 import numpy as np
 from jax import vmap
 
+from dcegm.backward_induction import backward_induction
 from dcegm.egm.aggregate_marginal_utility import (
     calculate_choice_probs_and_unsqueezed_logsum,
 )
@@ -20,11 +21,13 @@ from dcegm.interfaces.interface import choice_values_for_states
 
 
 def create_individual_likelihood_function(
+    income_shock_draws_unscaled,
+    income_shock_weights,
+    batch_info,
     model_structure,
     model_config,
     model_funcs,
     model_specs,
-    backwards_induction_inner_jit,
     observed_states: Dict[str, int],
     observed_choices,
     params_all,
@@ -50,7 +53,15 @@ def create_individual_likelihood_function(
         params_update = params_all.copy()
         params_update.update(params)
 
-        value, policy, endog_grid = backwards_induction_inner_jit(params_update)
+        value, policy, endog_grid = backward_induction(
+            params=params_update,
+            income_shock_draws_unscaled=income_shock_draws_unscaled,
+            income_shock_weights=income_shock_weights,
+            model_config=model_config,
+            model_funcs=model_funcs,
+            model_structure=model_structure,
+            batch_info=batch_info,
+        )
 
         choice_probs = choice_prob_func(
             value_in=value,
