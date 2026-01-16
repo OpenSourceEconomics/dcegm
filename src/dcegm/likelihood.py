@@ -18,6 +18,11 @@ from dcegm.egm.aggregate_marginal_utility import (
 )
 from dcegm.interfaces.index_functions import get_state_choice_index_per_discrete_states
 from dcegm.interfaces.interface import choice_values_for_states
+from dcegm.interfaces.jit_large_arrays import (
+    merg_non_jit_batch_info_and_jit_batch_info,
+    merge_non_jit_and_jit_model_structure,
+    split_structure_and_batch_info,
+)
 
 
 def create_individual_likelihood_function(
@@ -37,7 +42,7 @@ def create_individual_likelihood_function(
     slow_version=False,
 ):
 
-    choice_prob_func = create_choice_prob_function(
+    choice_prob_func, data_from_observed_states = create_choice_prob_function(
         model_structure=model_structure,
         model_config=model_config,
         model_funcs=model_funcs,
@@ -49,9 +54,24 @@ def create_individual_likelihood_function(
         return_weight_func=False,
     )
 
-    def individual_likelihood(params):
+    (
+        model_structure_for_jit,
+        batch_info_for_jit,
+        model_structure_non_jit,
+        batch_info_non_jit,
+    ) = split_structure_and_batch_info(model_structure, batch_info)
+
+    def individual_likelihood_to_jit(params, model_structure_jit, batch_info_jit):
         params_update = params_all.copy()
         params_update.update(params)
+
+        # Merge back parts together. The non_jit objects are fixed in the closure.
+        model_structure_merged = merge_non_jit_and_jit_model_structure(
+            model_structure_jit, model_structure_non_jit
+        )
+        batch_info_merged = merg_non_jit_batch_info_and_jit_batch_info(
+            batch_info_jit, batch_info_non_jit
+        )
 
         value, policy, endog_grid = backward_induction(
             params=params_update,
@@ -59,14 +79,15 @@ def create_individual_likelihood_function(
             income_shock_weights=income_shock_weights,
             model_config=model_config,
             model_funcs=model_funcs,
-            model_structure=model_structure,
-            batch_info=batch_info,
+            model_structure=model_structure_merged,
+            batch_info=batch_info_merged,
         )
 
         choice_probs = choice_prob_func(
             value_in=value,
             endog_grid_in=endog_grid,
             params_in=params_update,
+            data_from_observed=data_from_observed_states,
         )
         # Negative ll contributions are positive numbers. The smaller the better the fit
         # Add high fixed punishment for not explained choices
@@ -83,9 +104,18 @@ def create_individual_likelihood_function(
             return neg_likelihood_contributions
 
     if slow_version:
-        return individual_likelihood
+        likelihood_function_int = individual_likelihood_to_jit
     else:
-        return jax.jit(individual_likelihood)
+        likelihood_function_int = jax.jit(individual_likelihood_to_jit)
+
+    def likelihood_function(params):
+        return likelihood_function_int(
+            params=params,
+            model_structure_jit=model_structure_for_jit,
+            batch_info_jit=batch_info_for_jit,
+        )
+
+    return likelihood_function
 
 
 def create_choice_prob_function(
@@ -100,28 +130,32 @@ def create_choice_prob_function(
     return_weight_func,
 ):
     if unobserved_state_specs is None:
-        choice_prob_func = create_partial_choice_prob_calculation(
-            observed_states=observed_states,
-            observed_choices=observed_choices,
-            model_structure=model_structure,
-            model_config=model_config,
-            model_funcs=model_funcs,
+        choice_prob_func, data_from_observed_states = (
+            create_partial_choice_prob_calculation(
+                observed_states=observed_states,
+                observed_choices=observed_choices,
+                model_structure=model_structure,
+                model_config=model_config,
+                model_funcs=model_funcs,
+            )
         )
     else:
 
-        choice_prob_func = create_choice_prob_func_unobserved_states(
-            model_structure=model_structure,
-            model_config=model_config,
-            model_funcs=model_funcs,
-            model_specs=model_specs,
-            observed_states=observed_states,
-            observed_choices=observed_choices,
-            unobserved_state_specs=unobserved_state_specs,
-            use_probability_of_observed_states=use_probability_of_observed_states,
-            return_weight_func=return_weight_func,
+        choice_prob_func, data_from_observed_states = (
+            create_choice_prob_func_unobserved_states(
+                model_structure=model_structure,
+                model_config=model_config,
+                model_funcs=model_funcs,
+                model_specs=model_specs,
+                observed_states=observed_states,
+                observed_choices=observed_choices,
+                unobserved_state_specs=unobserved_state_specs,
+                use_probability_of_observed_states=use_probability_of_observed_states,
+                return_weight_func=return_weight_func,
+            )
         )
 
-    return choice_prob_func
+    return choice_prob_func, data_from_observed_states
 
 
 def create_choice_prob_func_unobserved_states(
@@ -212,16 +246,18 @@ def create_choice_prob_func_unobserved_states(
     # Create a list of partial choice probability functions for each unique
     # combination of unobserved states.
     partial_choice_probs_unobserved_states = []
+    data_for_unobserved_states = []
     for states in possible_states:
-        partial_choice_probs_unobserved_states.append(
-            create_partial_choice_prob_calculation(
-                observed_states=states,
-                observed_choices=observed_choices,
-                model_structure=model_structure,
-                model_config=model_config,
-                model_funcs=model_funcs,
-            )
+        choice_func, data = create_partial_choice_prob_calculation(
+            observed_states=states,
+            observed_choices=observed_choices,
+            model_structure=model_structure,
+            model_config=model_config,
+            model_funcs=model_funcs,
         )
+        partial_choice_probs_unobserved_states.append(choice_func)
+        data_for_unobserved_states.append(data)
+
     partial_weight_func = (
         lambda params_in, weight_vars: calculate_weights_for_each_state(
             params=params_in,
@@ -239,12 +275,12 @@ def create_choice_prob_func_unobserved_states(
         lambda x: jnp.asarray(x), weighting_vars_for_possible_states
     )
 
-    def choice_prob_func(value_in, endog_grid_in, params_in):
+    def choice_prob_func(value_in, endog_grid_in, params_in, data_for_choice_funcs):
         choice_probs_final = jnp.zeros(n_obs, dtype=jnp.float64)
         integrate_out_weights = jnp.zeros(n_obs, dtype=jnp.float64)
-        for partial_choice_prob, unobserved_state, weighting_vars in zip(
+        for partial_choice_prob, data_for_choice_func, weighting_vars in zip(
             partial_choice_probs_unobserved_states,
-            possible_states,
+            data_for_choice_funcs,
             weighting_vars_for_possible_states,
         ):
             unobserved_weights = jax.vmap(
@@ -259,6 +295,7 @@ def create_choice_prob_func_unobserved_states(
                 value_in=value_in,
                 endog_grid_in=endog_grid_in,
                 params_in=params_in,
+                data_from_observed=data_for_choice_func,
             )
 
             weighted_choice_prob = jnp.nan_to_num(
@@ -277,11 +314,7 @@ def create_choice_prob_func_unobserved_states(
     def weight_only_func(params_in):
         weights = np.zeros((n_obs, len(possible_states)), dtype=np.float64)
         count = 0
-        for partial_choice_prob, unobserved_state, weighting_vars in zip(
-            partial_choice_probs_unobserved_states,
-            possible_states,
-            weighting_vars_for_possible_states,
-        ):
+        for weighting_vars in weighting_vars_for_possible_states:
             unobserved_weights = jax.vmap(
                 partial_weight_func,
                 in_axes=(None, 0),
@@ -300,9 +333,9 @@ def create_choice_prob_func_unobserved_states(
         )
 
     if return_weight_func:
-        return choice_prob_func, weight_only_func
+        return choice_prob_func, weight_only_func, data_for_unobserved_states
     else:
-        return choice_prob_func
+        return choice_prob_func, data_for_unobserved_states
 
 
 def create_partial_choice_prob_calculation(
@@ -320,19 +353,27 @@ def create_partial_choice_prob_calculation(
         discrete_states_names=model_structure["discrete_states_names"],
     )
 
-    def partial_choice_prob_func(value_in, endog_grid_in, params_in):
+    data_from_observed_wrapped = (
+        observed_states,
+        observed_choices,
+        discrete_observed_state_choice_indexes,
+    )
+
+    def partial_choice_prob_func(
+        value_in, endog_grid_in, params_in, data_from_observed
+    ):
         return calc_choice_prob_for_state_choices(
             value_solved=value_in,
             endog_grid_solved=endog_grid_in,
             params=params_in,
-            states=observed_states,
-            choices=observed_choices,
-            state_choice_indexes=discrete_observed_state_choice_indexes,
+            states=data_from_observed[0],
+            choices=data_from_observed[1],
+            state_choice_indexes=data_from_observed[2],
             model_config=model_config,
             model_funcs=model_funcs,
         )
 
-    return partial_choice_prob_func
+    return partial_choice_prob_func, data_from_observed_wrapped
 
 
 def calc_choice_prob_for_state_choices(
