@@ -76,9 +76,7 @@ def test_partial_solve_func():
     ]
     aaae(model_solved.policy[:, 5], policy_choices)
 
-    value_solved_fast, policy_solved_fast, endog_grid_solved_fast = (
-        model.get_fast_solve_func()(params)
-    )
-    aaae(model_solved.value, value_solved_fast)
-    aaae(model_solved.policy, policy_solved_fast)
-    aaae(model_solved.endog_grid, endog_grid_solved_fast)
+    model_solved_fast = model.get_solve_func()(params)
+    aaae(model_solved.value, model_solved_fast.value)
+    aaae(model_solved.policy, model_solved_fast.policy)
+    aaae(model_solved.endog_grid, model_solved_fast.endog_grid)
