@@ -144,3 +144,7 @@ jax_max.ipynb
 
 # Debugging files should be ignored
 *.png
+
+
+# copilot instructions
+copilot-instructions.md
