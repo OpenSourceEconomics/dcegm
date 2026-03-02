@@ -125,7 +125,7 @@ def test_benchmark_models():
         state: state_choices_sparse[:, id]
         for id, state in enumerate(discrete_states_names + ["choice"])
     }
-    (endog_grid_full, policy_full, value_full) = (
+    endog_grid_full, policy_full, value_full = (
         model_solved_full.get_solution_for_discrete_state_choice(
             states=states_dict, choices=state_choices_sparse[:, -1]
         )
