@@ -4,7 +4,7 @@
 [project]
 name = "dcegm"
 description = "Python package for solving and simulating finite-horizon stochastic discrete-continuous dynamic choice models using the DC-EGM algorithm from Iskhakov, Jørgensen, Rust, and Schjerning (QE, 2017)."
-version = "0.1.0.dev0"
+dynamic = ["version"]
 requires-python = ">=3.10"
 dependencies = [
   "numpy",
@@ -54,8 +54,11 @@ Github = "https://github.com/OpenSourceEconomics/dcegm"
 # Build system configuration
 # ======================================================================================
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/dcegm/_version.py"
 
 [tool.hatch.build.targets.sdist]
 exclude = ["tests"]
@@ -65,11 +68,11 @@ only-packages = true
 only-include = ["src"]
 sources = ["src"]
 
+[tool.hatch.version]
+source = "vcs"
+
 [tool.hatch.metadata]
 allow-direct-references = true
-
-[tool.setuptools.package-data]
-"dcegm" = ["templates/**/*"]
 
 
 # ======================================================================================

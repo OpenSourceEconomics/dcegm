@@ -131,14 +131,12 @@ def check_model_config_and_process(model_config):
         n_assets_end_of_period * (1 + tuning_params["extra_wealth_grid_factor"])
         < n_assets_end_of_period + tuning_params["n_constrained_points_to_add"]
     ):
-        raise ValueError(
-            f"""\n\n
+        raise ValueError(f"""\n\n
             When preparing the tuning parameters for the upper
             envelope, we found the following contradicting parameters: \n
             The extra wealth grid factor of {tuning_params["extra_wealth_grid_factor"]} is too small
             to cover the {tuning_params["n_constrained_points_to_add"]} wealth points which are added in
-            the credit constrained part of the wealth grid. \n\n"""
-        )
+            the credit constrained part of the wealth grid. \n\n""")
     tuning_params["n_total_wealth_grid"] = int(
         n_assets_end_of_period * (1 + tuning_params["extra_wealth_grid_factor"])
     )
