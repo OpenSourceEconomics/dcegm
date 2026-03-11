@@ -37,7 +37,7 @@ authors = [
     { name = "Max Blesch, Sebastian Gsell", email = "gsell.sebastian@gmail.com" }
 ]
 maintainers = [
-    { name = "Max Blesch, Sebastian Gsell", email = "maximilian.blesch@hu-berlin.de" }
+    { name = "Max Blesch, Sebastian Gsell", email = "maxblesch@gmail.com" }
 ]
 
 [project.readme]

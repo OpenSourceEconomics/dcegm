@@ -1,5 +1,5 @@
 from jax import numpy as jnp
-from upper_envelope import fues_jax
+from upper_envelope.jax import fues_jax
 
 
 def create_upper_envelope_function(model_config, continuous_state=None):
