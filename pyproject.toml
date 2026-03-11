@@ -36,7 +36,7 @@ authors = [
     { name = "Max Blesch, Sebastian Gsell", email = "gsell.sebastian@gmail.com" }
 ]
 maintainers = [
-    { name = "Max Blesch, Sebastian Gsell", email = "maximilian.blesch@hu-berlin.de" }
+    { name = "Max Blesch, Sebastian Gsell", email = "maxblesch@gmail.com" }
 ]
 
 [project.readme]
@@ -73,6 +73,9 @@ source = "vcs"
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.setuptools.package-data]
+"dcegm" = ["templates/**/*"]
 
 
 # ======================================================================================
