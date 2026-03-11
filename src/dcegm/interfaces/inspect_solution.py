@@ -70,7 +70,7 @@ def partially_solve(
         n_assets_end_of_period = model_config["continuous_states_info"][
             "assets_grid_end_of_period"
         ].shape[0]
-        (value_candidates, policy_candidates, endog_grid_candidates) = (
+        value_candidates, policy_candidates, endog_grid_candidates = (
             create_solution_container(
                 continuous_states_info=model_config["continuous_states_info"],
                 n_total_wealth_grid=n_assets_end_of_period,

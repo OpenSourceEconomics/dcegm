@@ -18,7 +18,7 @@ def solve_single_period(
     debug_info,
 ):
     """Solve a single period of the model using DCEGM."""
-    (value_solved, policy_solved, endog_grid_solved) = carry
+    value_solved, policy_solved, endog_grid_solved = carry
 
     (
         state_choices_idxs,
