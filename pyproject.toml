@@ -9,6 +9,7 @@ requires-python = ">=3.10"
 dependencies = [
   "numpy",
   "jax",
+    "upper-envelope",
 ]
 keywords = [
   "Economics",
@@ -68,9 +69,16 @@ sources = ["src"]
 [tool.hatch.metadata]
 allow-direct-references = true
 
+
+# ======================================================================================
+# Templates
+# ======================================================================================
+
 [tool.setuptools.package-data]
 "dcegm" = ["templates/**/*"]
 
+[project.scripts]
+dcegm = "dcegm.cli:cli"
 
 # ======================================================================================
 # Misc configuration

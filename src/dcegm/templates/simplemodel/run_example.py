@@ -1,5 +1,6 @@
 # packages needed
 import jax.numpy as jnp
+import matplotlib.pyplot as plt
 from jax import config
 
 # import model_funcs
@@ -27,6 +28,7 @@ params = {
     "exp_squared": -0.0002,
     # Shock parameters of income
     "income_shock_std": 0.35,
+    "income_shock_mean": 0.0,
     "taste_shock_scale": 0.2,
     "interest_rate": 0.05,
     "consumption_floor": 0.001,
@@ -73,4 +75,17 @@ states_initial = {
     "assets_begin_of_period": jnp.ones(n_agents) * 10,
 }
 
-model_solved.simulate(states_initial=states_initial, seed=42)
+sim_df = model_solved.simulate(states_initial=states_initial, seed=42)
+
+sim_df.groupby("period").choice.value_counts().unstack().plot(
+    kind="bar",
+    stacked=True,
+    title="Choice by period",
+    xlabel="Period",
+    ylabel="Count",
+    figsize=(10, 5),
+    rot=0,
+)
+# label choices work and retire in legend
+plt.legend(["Work", "Retire"])
+plt.show()
