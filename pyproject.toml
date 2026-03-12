@@ -9,6 +9,7 @@ requires-python = ">=3.10"
 dependencies = [
   "numpy",
   "jax",
+    "upper-envelope"
 ]
 keywords = [
   "Economics",
@@ -36,7 +37,7 @@ authors = [
     { name = "Max Blesch, Sebastian Gsell", email = "gsell.sebastian@gmail.com" }
 ]
 maintainers = [
-    { name = "Max Blesch, Sebastian Gsell", email = "maximilian.blesch@hu-berlin.de" }
+    { name = "Max Blesch, Sebastian Gsell", email = "maxblesch@gmail.com" }
 ]
 
 [project.readme]
@@ -73,6 +74,17 @@ source = "vcs"
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+
+# ======================================================================================
+# Templates
+# ======================================================================================
+
+[tool.setuptools.package-data]
+"dcegm" = ["templates/**/*"]
+
+[project.scripts]
+dcegm = "dcegm.cli:cli"
 
 
 # ======================================================================================
