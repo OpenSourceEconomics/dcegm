@@ -188,7 +188,7 @@ In particular, make sure that your budget constraint, utility functions, and tra
 
 **Model Sparsity**
 
-Thanks to it's efficient JAX implementation, `dcegm` is capable of solving and simulating large models. Nonetheless, it usually makes sense to exclude unreachable states from the state space for faster solution to the model. 
+Thanks to it's efficient JAX implementation, `dcegm` is capable of solving and simulating large models. Nonetheless, it usually makes sense to exclude unreachable states from the state space for faster solution to the model.
 
 `dcegm` constructs the (discrete) state space by building the cartesian product of the model state variables. It is up to the user to exclude undesired states. To this end, `dcegm` requires users to specify sparsity conditions. These should be defined carefully and must be customized for your model. Refer to guidance on sparsity conditions in the documentation for help: :ref:`sparsity_conditions`.
 
@@ -196,13 +196,13 @@ Thanks to it's efficient JAX implementation, `dcegm` is capable of solving and s
 
 **Model Timing**
 
-When specifying the model, pay heed to the timing structure underlying the implementation which is important for the realization of choices, payoffs, and state transitions. For details, please refer to Iskhakov et al. (2017). 
+When specifying the model, pay heed to the timing structure underlying the implementation which is important for the realization of choices, payoffs, and state transitions. For details, please refer to Iskhakov et al. (2017).
 
 This implementation currently supports the following timing of events where each period :math:`t` unfolds in the following sequence:
 
 
 1. Agent observes the current state :math:`s_t` (including beginning-of-period
-   assets) and choice specific taste shocks. 
+   assets) and choice specific taste shocks.
 
 2. The agent makes a **discrete choice** :math:`d_t`
    (e.g. whether to work or retire).
