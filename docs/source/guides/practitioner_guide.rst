@@ -168,3 +168,50 @@ This guide explains how to specify, solve, simulate and potentially estimate str
         - state_name (any key of `deterministic_states`, `stochastic_states`, `continuous_states`)
 
     The interfaces of `marginal_utility` and `inverse_marginal_utility` are accept the same inputs, except `inverse_marginal_utility` where naturally consumption is not accepted, but instead `marginal_utility`.
+
+
+
+
+Tips and Suggestions
+.....................
+
+
+
+
+**Jax Compatibility**
+
+`dcegm` is fully `JAX <https://docs.jax.dev/en/latest/notebooks/thinking_in_jax.html>`_ compatible. When specifying your model, pay attention that your user-supplied functions are jax compatible as well.
+
+In particular, make sure that your budget constraint, utility functions, and transition functions are fully JAX compatible and try to avoid if conditions and for loops wherever possible to speed up the code. Note that all user specified state space objects (the sparisty condition, next period determinist state functions, and state specific choice set) on the other hand should avoid using jax functions.
+
+
+
+**Model Sparsity**
+
+Thanks to it's efficient JAX implementation, `dcegm` is capable of solving and simulating large models. Nonetheless, it usually makes sense to exclude unreachable states from the state space for faster solution to the model. 
+
+`dcegm` constructs the (discrete) state space by building the cartesian product of the model state variables. It is up to the user to exclude undesired states. To this end, `dcegm` requires users to specify sparsity conditions. These should be defined carefully and must be customized for your model. Refer to guidance on sparsity conditions in the documentation for help: :ref:`sparsity_conditions`.
+
+
+
+**Model Timing**
+
+When specifying the model, pay heed to the timing structure underlying the implementation which is important for the realization of choices, payoffs, and state transitions. For details, please refer to Iskhakov et al. (2017). 
+
+This implementation currently supports the following timing of events where each period :math:`t` unfolds in the following sequence:
+
+
+1. Agent observes the current state :math:`s_t` (including beginning-of-period
+   assets) and choice specific taste shocks. 
+
+2. The agent makes a **discrete choice** :math:`d_t`
+   (e.g. whether to work or retire).
+
+3. The agent makes a **continuous choice** :math:`c_t` (e.g. how much to
+   consume).
+
+4. **Utility** :math:`u(c_t, d_t)` realizes. It depends on the continuous
+   and discrete choices but not on next-period states.
+
+5. State transitions that affect next-period states realize
+   (e.g. health shocks and income shocks), determining :math:`s_{t+1}`.
