@@ -17,6 +17,7 @@ def solve_last_two_periods(
     cont_grids_next_period: Dict[str, jnp.ndarray],
     income_shock_weights: jnp.ndarray,
     model_funcs: Dict[str, Callable],
+    model_config: Dict[str, Any],
     last_two_period_batch_info,
     value_solved,
     policy_solved,
@@ -104,6 +105,7 @@ def solve_last_two_periods(
         income_shock_weights=income_shock_weights,
         continuous_grids_info=continuous_states_info,
         model_funcs=model_funcs,
+        model_config=model_config,
         debug_info=debug_info,
     )
 
