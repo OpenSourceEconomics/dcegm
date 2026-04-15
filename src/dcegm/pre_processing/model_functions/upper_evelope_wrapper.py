@@ -133,7 +133,7 @@ def create_upper_envelope_function(model_config, continuous_state=None):
 
 
 def no_upper_envelope_dummy_function(
-    endog_grid, policy, value, expected_value_zero_savings, *args
+    model_config, endog_grid, policy, value, expected_value_zero_savings, *args
 ):
     """This is a dummy function for the case of only one discrete choice."""
     n_nans = int(0.2 * endog_grid.shape[0])
