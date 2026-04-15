@@ -61,7 +61,9 @@ def backward_induction(
     ) = create_solution_container(
         continuous_states_info=model_config["continuous_states_info"],
         # Read out grid size
-        n_total_wealth_grid=model_config["upper_envelope"]["tuning_params"]["n_total_wealth_grid"],
+        n_total_wealth_grid=model_config["upper_envelope"]["tuning_params"][
+            "n_total_wealth_grid"
+        ],
         n_state_choices=model_structure["state_choice_space"].shape[0],
     )
 

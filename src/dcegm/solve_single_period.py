@@ -215,7 +215,18 @@ def run_upper_envelope(
         return vmap(
             vmap(
                 compute_upper_envelope_for_state_choice,
-                in_axes=(None, 0, 0, 0, 0, 0, None, None, None, None),  # continuous state
+                in_axes=(
+                    None,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    None,
+                    None,
+                    None,
+                    None,
+                ),  # continuous state
             ),
             in_axes=(
                 None,

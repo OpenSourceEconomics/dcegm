@@ -154,14 +154,16 @@ def check_model_config_and_process(model_config):
     # Set jump threshold to default 2 if it is not given
     tuning_params["fues_jump_thresh"] = int(
         tuning_params["fues_jump_threshold"]
-        if ("fues_jump_threshold" in tuning_params) & (upper_envelope["method"] == "fues")
+        if ("fues_jump_threshold" in tuning_params)
+        & (upper_envelope["method"] == "fues")
         else 2
     )
 
     # Set fues_n_points_to_scan to 10 if not given
     tuning_params["fues_n_points_to_scan"] = int(
         tuning_params["fues_n_points_to_scan"]
-        if ("fues_n_points_to_scan" in tuning_params) & (upper_envelope["method"] == "fues")
+        if ("fues_n_points_to_scan" in tuning_params)
+        & (upper_envelope["method"] == "fues")
         else 10
     )
 
