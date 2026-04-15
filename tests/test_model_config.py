@@ -25,7 +25,9 @@ def valid_model_config():
             },
         },
         "n_quad_points": 5,
-        "tuning_params": {},
+        "upper_envelope": {
+            "tuning_params": {}
+        },
     }
 
 
@@ -87,15 +89,15 @@ def test_missing_continuous_states(valid_model_config):
 
 
 def test_tuning_params_defaults(valid_model_config):
-    del valid_model_config["tuning_params"]
+    del valid_model_config["upper_envelope"]["tuning_params"]
     options = check_model_config_and_process(valid_model_config)
-    assert options["tuning_params"]["extra_wealth_grid_factor"] == 0.2
-    assert options["tuning_params"]["n_constrained_points_to_add"] == 1
+    assert options["upper_envelope"]["tuning_params"]["extra_wealth_grid_factor"] == 0.2
+    assert options["upper_envelope"]["tuning_params"]["n_constrained_points_to_add"] == 1
 
 
 def test_tuning_params_invalid_grid_factors(valid_model_config):
-    valid_model_config["tuning_params"]["extra_wealth_grid_factor"] = 0.01
-    valid_model_config["tuning_params"]["n_constrained_points_to_add"] = 100
+    valid_model_config["upper_envelope"]["tuning_params"]["extra_wealth_grid_factor"] = 0.01
+    valid_model_config["upper_envelope"]["tuning_params"]["n_constrained_points_to_add"] = 100
     with pytest.raises(
         ValueError, match="The extra wealth grid factor .* is too small"
     ):
@@ -110,3 +112,6 @@ def test_second_continuous_state_handling(valid_model_config):
     assert continuous_states_info["n_second_continuous_grid"] == len(
         valid_model_config["continuous_states"]["experience"]
     )
+
+def test_upper_envelope_method_default(valid_model_config):
+    return check_model_config_and_process(valid_model_config)["upper_envelope"]["method"] == "fues"

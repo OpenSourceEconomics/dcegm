@@ -111,10 +111,20 @@ def check_model_config_and_process(model_config):
 
     processed_model_config["continuous_states_info"] = continuous_states_info
 
-    if "tuning_params" not in model_config:
+    # Set default upper envelope method if not given.
+    if "upper_envelope" not in model_config:
+        upper_envelope = {}
+        upper_envelope["method"] = "fues"
+    elif "method" not in model_config["upper_envelope"]:
+        upper_envelope = model_config["upper_envelope"]
+        upper_envelope["method"] = "fues"
+    else:
+        upper_envelope = model_config["upper_envelope"]
+
+    if "tuning_params" not in upper_envelope:
         tuning_params = {}
     else:
-        tuning_params = model_config["tuning_params"]
+        tuning_params = model_config["upper_envelope"]["tuning_params"]
 
     tuning_params["extra_wealth_grid_factor"] = (
         tuning_params["extra_wealth_grid_factor"]
@@ -144,18 +154,25 @@ def check_model_config_and_process(model_config):
     # Set jump threshold to default 2 if it is not given
     tuning_params["fues_jump_thresh"] = int(
         tuning_params["fues_jump_threshold"]
-        if "fues_jump_threshold" in tuning_params
+        if ("fues_jump_threshold" in tuning_params) & (upper_envelope["method"] == "fues")
         else 2
     )
 
     # Set fues_n_points_to_scan to 10 if not given
     tuning_params["fues_n_points_to_scan"] = int(
         tuning_params["fues_n_points_to_scan"]
-        if "fues_n_points_to_scan" in tuning_params
+        if ("fues_n_points_to_scan" in tuning_params) & (upper_envelope["method"] == "fues")
         else 10
     )
 
-    processed_model_config["tuning_params"] = tuning_params
+    # Set m_grid to 10 if not given
+    tuning_params["m_grid"] = int(
+        tuning_params["m_grid"]
+        if ("m_grid" in tuning_params) & (upper_envelope["method"] == "drued_jorg")
+        else 10
+    )
+    upper_envelope["tuning_params"] = tuning_params
+    processed_model_config["upper_envelope"] = upper_envelope
 
     if "min_period_batch_segments" in model_config.keys():
         processed_model_config["min_period_batch_segments"] = model_config[

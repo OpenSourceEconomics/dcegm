@@ -62,7 +62,7 @@ def partially_solve(
     ) = create_solution_container(
         continuous_states_info=model_config["continuous_states_info"],
         # Read out grid size
-        n_total_wealth_grid=model_config["tuning_params"]["n_total_wealth_grid"],
+        n_total_wealth_grid=model_config["upper_envelope"]["tuning_params"]["n_total_wealth_grid"],
         n_state_choices=relevant_state_choice_space.shape[0],
     )
 
@@ -213,6 +213,7 @@ def partially_solve(
                 continuous_grids_info=continuous_states_info,
                 cont_grids_next_period=cont_grids_next_period,
                 model_funcs=model_funcs,
+                model_config=model_config,
                 income_shock_weights=income_shock_weights,
                 debug_info=debug_info,
             )
