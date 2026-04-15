@@ -369,6 +369,7 @@ class setup_model:
             solve_simulate_func = solve_and_simulate_function_to_jit
         else:
             solve_simulate_func = jax.jit(solve_and_simulate_function_to_jit)
+
         # Generate the function. The user only needs to provide params, but we call with the objects for jit.
         def solve_and_simulate_function(params):
             sim_dict = solve_simulate_func(
