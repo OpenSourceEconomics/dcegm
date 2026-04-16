@@ -75,7 +75,6 @@ def backward_induction(
             cont_grids_next_period=cont_grids,
             income_shock_weights=weights,
             model_funcs=model_funcs,
-            model_config=model_config,
             last_two_period_batch_info=batch_info["last_two_period_info"],
             value_solved=val_solved,
             policy_solved=pol_solved,
@@ -109,7 +108,6 @@ def backward_induction(
         continuous_grids_info=continuous_states_info,
         cont_grids_next_period=cont_grids_next_period,
         model_funcs=model_funcs,
-        model_config=model_config,
         income_shock_weights=income_shock_weights,
         debug_info=None,
     )

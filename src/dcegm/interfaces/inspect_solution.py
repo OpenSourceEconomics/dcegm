@@ -40,7 +40,6 @@ def partially_solve(
 
     cont_grids_next_period = calc_cont_grids_next_period(
         model_structure=model_structure,
-        model_config=model_config,
         income_shock_draws_unscaled=income_shock_draws_unscaled,
         params=params,
         model_funcs=model_funcs,
@@ -101,7 +100,6 @@ def partially_solve(
         cont_grids_next_period=cont_grids_next_period,
         income_shock_weights=income_shock_weights,
         model_funcs=model_funcs,
-        model_config=model_config,
         last_two_period_batch_info=last_two_period_batch_info,
         value_solved=value_solved,
         policy_solved=policy_solved,

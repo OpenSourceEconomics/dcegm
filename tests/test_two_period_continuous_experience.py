@@ -308,7 +308,6 @@ def create_test_inputs():
         income_shock_weights=income_shock_weights,
         continuous_grids_info=model_config["continuous_states_info"],
         model_funcs=model_funcs_cont,
-        model_config=model_config,
         debug_info=None,
     )
 

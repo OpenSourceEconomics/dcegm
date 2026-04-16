@@ -14,7 +14,6 @@ def solve_single_period(
     continuous_grids_info,
     cont_grids_next_period,
     model_funcs,
-    model_config,
     income_shock_weights,
     debug_info,
 ):
@@ -74,7 +73,6 @@ def solve_single_period(
         income_shock_weights=income_shock_weights,
         continuous_grids_info=continuous_grids_info,
         model_funcs=model_funcs,
-        model_config=model_config,
         debug_info=debug_info,
     )
     value_solved = value_solved.at[state_choices_idxs, :].set(out_dict_period["value"])
@@ -121,7 +119,6 @@ def solve_for_interpolated_values(
     income_shock_weights,
     continuous_grids_info,
     model_funcs,
-    model_config,
     debug_info,
 ):
     # EGM step 2)
@@ -162,7 +159,6 @@ def solve_for_interpolated_values(
         policy_state_choice,
         value_state_choice,
     ) = run_upper_envelope(
-        model_config=model_config,
         endog_grid_candidate=endog_grid_candidate,
         policy_candidate=policy_candidate,
         value_candidate=value_candidate,
@@ -192,7 +188,6 @@ def solve_for_interpolated_values(
 
 
 def run_upper_envelope(
-    model_config,
     endog_grid_candidate,
     policy_candidate,
     value_candidate,
@@ -216,7 +211,6 @@ def run_upper_envelope(
             vmap(
                 compute_upper_envelope_for_state_choice,
                 in_axes=(
-                    None,
                     0,
                     0,
                     0,
@@ -229,7 +223,6 @@ def run_upper_envelope(
                 ),  # continuous state
             ),
             in_axes=(
-                None,
                 0,
                 0,
                 0,
@@ -241,7 +234,6 @@ def run_upper_envelope(
                 None,
             ),  # discrete states and choices
         )(
-            model_config,
             endog_grid_candidate,
             policy_candidate,
             value_candidate,
@@ -257,7 +249,6 @@ def run_upper_envelope(
         return vmap(
             compute_upper_envelope_for_state_choice,
             in_axes=(
-                None,
                 0,
                 0,
                 0,
@@ -268,7 +259,6 @@ def run_upper_envelope(
                 None,
             ),  # discrete states and choice combs
         )(
-            model_config,
             endog_grid_candidate,
             policy_candidate,
             value_candidate,
