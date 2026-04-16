@@ -64,7 +64,7 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                         n_points_to_scan=tuning_params["fues_n_points_to_scan"],
                     )
 
-                elif model_config["upper_envelope"]["method"] == "drued_jorg":
+                elif model_config["upper_envelope"]["method"] == "druedahl_jorgensen":
                     return drued_jorg_jax(
                         endog_grid=endog_grid,
                         policy=policy,
@@ -72,11 +72,13 @@ def create_upper_envelope_function(model_config, continuous_state=None):
                         expected_value_zero_savings=expected_value_zero_assets,
                         value_function=value_function,
                         value_function_kwargs=value_kwargs,
-                        m_grid=tuning_params["m_grid"],
+                        m_grid=model_config["continuous_states_info"][
+                            "assets_begin_of_period"
+                        ],
                     )
                 else:
                     raise ValueError(
-                        f"Unknown upper envelope method: {model_config['upper_envelope_method']}. Choose 'fues' or 'drued_jorg'."
+                        f"Unknown upper envelope method: {model_config['upper_envelope_method']}. Choose 'fues' or 'druedahl_jorgensen'."
                     )
 
         else:

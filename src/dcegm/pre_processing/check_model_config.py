@@ -123,6 +123,8 @@ def check_model_config_and_process(model_config):
 
     if "tuning_params" not in upper_envelope:
         tuning_params = {}
+    elif "tuning_params" in model_config:
+        ValueError("tuning_params should be nested in model_config['upper_envelope']")
     else:
         tuning_params = model_config["upper_envelope"]["tuning_params"]
 
@@ -167,14 +169,18 @@ def check_model_config_and_process(model_config):
         else 10
     )
 
-    # Set m_grid to 10 if not given
-    tuning_params["m_grid"] = int(
-        tuning_params["m_grid"]
-        if ("m_grid" in tuning_params) & (upper_envelope["method"] == "drued_jorg")
-        else 10
-    )
     upper_envelope["tuning_params"] = tuning_params
     processed_model_config["upper_envelope"] = upper_envelope
+
+    if upper_envelope["method"] == "druedahl_jorgensen":
+        if "assets_begin_of_period" not in model_config["continuous_states"]:
+            raise ValueError(
+                "Specify 'assets_begin_of_period' in model_config['continuous_states'] when using "
+                "the 'druedahl_jorgensen' upper envelope method."
+            )
+        processed_model_config["continuous_states_info"]["assets_begin_of_period"] = (
+            model_config["continuous_states"]["assets_begin_of_period"]
+        )
 
     if "min_period_batch_segments" in model_config.keys():
         processed_model_config["min_period_batch_segments"] = model_config[
