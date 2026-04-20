@@ -191,8 +191,9 @@ def check_model_config_and_process(model_config):
             "n_total_wealth_grid"
         ]
     elif upper_envelope["method"] == "druedahl_jorgensen":
-        processed_model_config["n_total_wealth_grid"] = len(
-            model_config["continuous_states"]["assets_begin_of_period"]
+        # Expected value at 0, so add 1
+        processed_model_config["n_total_wealth_grid"] = (
+            len(model_config["continuous_states"]["assets_begin_of_period"]) + 1
         )
     else:
         raise ValueError("Something wrong internally")
