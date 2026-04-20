@@ -12,15 +12,15 @@ from dcegm.interpolation.interp2d_irregular import (
 def interpolate_value_and_marg_util(
     model_funcs,
     state_choice_vec: Dict[str, int],
-    upper_envelope_method: str,
     continuous_grids_info: Dict[str, Any],
-    continuous_state_space: Dict[str, jnp.ndarray],
     cont_grids_next_period: Dict[str, jnp.ndarray],
     endog_grid_child_state_choice: jnp.ndarray,
     policy_child_state_choice: jnp.ndarray,
     value_child_state_choice: jnp.ndarray,
     child_state_idxs: jnp.ndarray,
+    continuous_state_space,
     params: Dict[str, float],
+    upper_envelope_method: str,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Interpolate value and policy for all child states and compute marginal utility.
 
@@ -62,47 +62,59 @@ def interpolate_value_and_marg_util(
     compute_utility = model_funcs["compute_utility"]
     discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
 
-    if upper_envelope_method == "fues":
-        if continuous_grids_info["second_continuous_exists"]:
-            continuous_state_child_states = cont_grids_next_period["second_continuous"][
-                child_state_idxs
-            ]
-            regular_grid = continuous_grids_info["second_continuous_grid"]
+    # Check if interpolation needs to be multidimensional and irregular
+    multi_dim = continuous_grids_info["has_additional_continuous_state"]
+    irregular = upper_envelope_method == "fues"
 
-            interp_for_single_state_choice = vmap(
-                interp2d_value_and_marg_util_for_state_choice,
-                in_axes=(
-                    None,
-                    None,
-                    0,
-                    None,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    None,
-                    None,
-                ),
-            )
+    if multi_dim & irregular:
+        # Here we only have one continuous state. Get name and select child states and grid
+        continuous_state_name = continuous_grids_info[
+            "additional_continuous_state_names"
+        ][0]
 
-            return interp_for_single_state_choice(
-                compute_marginal_utility,
-                compute_utility,
-                state_choice_vec,
-                regular_grid,
-                wealth_child_states,
-                continuous_state_child_states,
-                endog_grid_child_state_choice,
-                policy_child_state_choice,
-                value_child_state_choice,
-                params,
-                discount_factor,
-            )
+        continuous_state_child_states = cont_grids_next_period["continuous_states"][
+            continuous_state_name
+        ][child_state_idxs]
 
         interp_for_single_state_choice = vmap(
+            interp2d_value_and_marg_util_for_state_choice,
+            in_axes=(
+                None,
+                None,
+                0,
+                None,
+                0,
+                0,
+                0,
+                0,
+                0,
+                None,
+                None,
+            ),  # discrete state-choice
+        )
+
+        return interp_for_single_state_choice(
+            compute_marginal_utility,
+            compute_utility,
+            state_choice_vec,
+            continuous_state_space,
+            wealth_child_states,
+            continuous_state_child_states,
+            endog_grid_child_state_choice,
+            policy_child_state_choice,
+            value_child_state_choice,
+            params,
+            discount_factor,
+        )
+
+    elif multi_dim & irregular:
+        raise NotImplementedError(
+            "Multi-dimensional continuous state variables are not supported."
+        )
+    else:
+        interp_for_single_state_choice = vmap(
             interp1d_value_and_marg_util_for_state_choice,
-            in_axes=(None, None, 0, 0, 0, 0, 0, None, None),
+            in_axes=(None, None, 0, 0, 0, 0, 0, None, None),  # discrete state-choice
         )
 
         return interp_for_single_state_choice(
@@ -116,15 +128,6 @@ def interpolate_value_and_marg_util(
             params,
             discount_factor,
         )
-
-    if upper_envelope_method == "druedahl_jorgensen":
-        raise NotImplementedError(
-            "Regular-grid interpolation for 'druedahl_jorgensen' is not implemented yet."
-        )
-
-    raise ValueError(
-        "Unknown upper envelope method. Use 'fues' or 'druedahl_jorgensen'."
-    )
 
 
 def interp1d_value_and_marg_util_for_state_choice(
