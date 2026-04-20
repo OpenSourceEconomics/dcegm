@@ -29,39 +29,24 @@ def calc_cont_grids_next_period(
         income_shock_draws_unscaled * income_shock_std + income_shock_mean
     )
 
-    # Generate result dict
-    cont_grids_next_period = {}
-
-    if has_additional_continuous_states:
-
-        continuous_state_next_period = calculate_continuous_state(
-            discrete_states_beginning_of_period=state_space_dict,
-            continuous_states_end_of_last_period=model_structure[
-                "continuous_state_space"
-            ],
-            params=params,
-            compute_continuous_state=model_funcs["next_period_continuous_state"],
-        )
-        # Fill in result dict
-        cont_grids_next_period["second_continuous"] = continuous_state_next_period
-
-        # Prepare dict used to calculate beginning of period assets
-        state_specific_grids = {
-            "states": state_space_dict,
-            "continuous_state": continuous_state_next_period,
-        }
-    else:
-        state_specific_grids = {
-            "states": state_space_dict,
-        }
+    continuous_state_space = model_structure["continuous_state_space"]
+    continuous_state_next_period = _get_continuous_state_next_period(
+        has_additional_continuous_states=has_additional_continuous_states,
+        state_space_dict=state_space_dict,
+        continuous_state_space=continuous_state_space,
+        params=params,
+        model_funcs=model_funcs,
+    )
 
     def fix_assets_and_shocks_for_broadcast(
         states,
+        continuous_state_vec,
         asset_end_of_previous_period,
         income_draw,
     ):
+        all_states = {**states, **continuous_state_vec}
         assets_begin_of_period = calc_beginning_of_period_assets_for_single_state(
-            state_vec=states,
+            state_vec=all_states,
             asset_end_of_previous_period=asset_end_of_previous_period,
             income_shock_draw=income_draw,
             params=params,
@@ -72,50 +57,67 @@ def calc_cont_grids_next_period(
         )
         return assets_begin_of_period
 
-    broadcast_function = lambda states: vmap(
+    assets_begin_of_next_period = vmap(
         vmap(
-            fix_assets_and_shocks_for_broadcast,
-            in_axes=(None, None, 0),  # income shocks
+            vmap(
+                vmap(
+                    fix_assets_and_shocks_for_broadcast,
+                    in_axes=(None, None, None, 0),
+                ),
+                in_axes=(None, None, 0, None),
+            ),
+            in_axes=(None, 0, None, None),
         ),
-        in_axes=(None, 0, None),  # assets
+        in_axes=(0, 0, None, None),
     )(
-        states,
+        state_space_dict,
+        continuous_state_next_period,
         continuous_states_info["assets_grid_end_of_period"],
         income_shocks_scaled,
     )
 
-    final_args = ()
-    # Default is no chaining of vmaps. Then I add consequently vmap over specific grids
-    vmap_chain = broadcast_function
-
-    for grid_name in state_specific_grids.keys():
-        if grid_name != "states":
-            # Use default argument to capture current values
-            vmap_chain = add_vmap_chain_for_grid(vmap_chain, grid_name)
-            final_args += (state_specific_grids[grid_name],)
-
-    final_args = (state_specific_grids["states"],) + final_args
-    assets_begin_of_next_period = vmap(vmap_chain)(*final_args)
-    cont_grids_next_period["assets_begin_of_period"] = assets_begin_of_next_period
-    return cont_grids_next_period
+    # Generate result dict
+    return {
+        "continuous_state_space": continuous_state_next_period,
+        "assets_begin_of_period": assets_begin_of_next_period,
+    }
 
 
-def add_vmap_chain_for_grid(inner_func, gname):
-    """The function adds a vmap layer for a specific grid.
+def _get_continuous_state_next_period(
+    has_additional_continuous_states,
+    state_space_dict,
+    continuous_state_space,
+    params,
+    model_funcs,
+):
+    if not has_additional_continuous_states:
+        # Use dummy continuous state space to keep shapes constant.
+        return continuous_state_space
 
-    It vmaps over the remaining dimension of the grid. So if we have a grid that is
-    (n_discrete_states, n_grid_points), we can later vmap over the discrete states and
-    this function will add the n_grid_points dimension to be vmapped over. The function
-    only expects later the grid to arrive in n_grid_points. So we can also use the
-    function in the final period calculation.
+    continuous_state_next_period = calculate_continuous_state(
+        discrete_states_beginning_of_period=state_space_dict,
+        continuous_states_end_of_last_period=continuous_state_space,
+        params=params,
+        compute_continuous_state=model_funcs["next_period_continuous_state"],
+    )
+    _check_continuous_state_output_keys(
+        continuous_state_output=continuous_state_next_period,
+        continuous_state_space=continuous_state_space,
+    )
+    return continuous_state_next_period
 
-    """
 
-    def grid_wrapper(states, new_state_grid):
-        all_states = {**states, gname: new_state_grid}
-        return inner_func(all_states)
-
-    return vmap(grid_wrapper, in_axes=(None, 0))
+def _check_continuous_state_output_keys(
+    continuous_state_output,
+    continuous_state_space,
+):
+    expected_keys = set(continuous_state_space.keys())
+    output_keys = set(continuous_state_output.keys())
+    if output_keys != expected_keys:
+        raise ValueError(
+            "next_period_continuous_state output keys must match continuous_state_space keys. "
+            f"Expected {sorted(expected_keys)}, got {sorted(output_keys)}."
+        )
 
 
 def calc_beginning_of_period_assets_for_single_state(

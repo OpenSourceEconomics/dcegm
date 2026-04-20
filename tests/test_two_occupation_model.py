@@ -75,15 +75,15 @@ def next_period_deterministic_state_cont(
 
 
 def next_period_continuous_state(
-    choice,
+    lagged_choice,
     period,
     exp_green,
     exp_red,
 ):
     exp_red_years = period * exp_red
     exp_green_years = period * exp_green
-    add_red = choice == 0
-    add_green = choice == 1
+    add_red = lagged_choice == 0
+    add_green = lagged_choice == 1
 
     period_scale = period.clip(min=1)
     exp_red_lag_years = exp_red_years * (period_scale - 1).clip(min=0)
