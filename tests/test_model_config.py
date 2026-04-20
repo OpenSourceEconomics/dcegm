@@ -119,7 +119,7 @@ def test_second_continuous_state_handling(valid_model_config):
 
 
 def test_upper_envelope_method_default(valid_model_config):
-    return (
+    assert (
         check_model_config_and_process(valid_model_config)["upper_envelope"]["method"]
         == "fues"
     )
