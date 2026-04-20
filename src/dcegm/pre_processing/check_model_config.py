@@ -92,29 +92,6 @@ def check_model_config_and_process(model_config):
         continuous_states_info["n_additional_continuous_states"] > 0
     )
 
-    if continuous_states_info["has_additional_continuous_state"]:
-        continuous_state_names = continuous_states_info[
-            "additional_continuous_state_names"
-        ]
-        continuous_grids = [
-            continuous_states_info["additional_continuous_state_grids"][name]
-            for name in continuous_state_names
-        ]
-
-        continuous_state_mesh = jnp.meshgrid(*continuous_grids, indexing="ij")
-        continuous_states_info["continuous_state_space"] = {
-            name: grid.ravel()
-            for name, grid in zip(continuous_state_names, continuous_state_mesh)
-        }
-        continuous_states_info["n_continuous_state_combinations"] = int(
-            continuous_states_info["continuous_state_space"][
-                continuous_state_names[0]
-            ].shape[0]
-        )
-    else:
-        continuous_states_info["continuous_state_space"] = {"dummy_cont": jnp.zeros(1)}
-        continuous_states_info["n_continuous_state_combinations"] = 1
-
     processed_model_config["continuous_states_info"] = continuous_states_info
 
     # Set default upper envelope method if not given.

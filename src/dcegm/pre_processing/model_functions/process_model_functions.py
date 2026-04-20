@@ -132,6 +132,7 @@ def process_model_functions_and_extract_info(
             state_space_functions,
             model_config=model_config,
             model_specs=model_specs,
+            additional_continuous_state_names=additional_continuous_state_names,
         )
     )
 
@@ -189,6 +190,7 @@ def process_state_space_functions(
     state_space_functions,
     model_config,
     model_specs,
+    additional_continuous_state_names=None,
 ):
 
     state_space_functions = (
@@ -205,10 +207,15 @@ def process_state_space_functions(
             return jnp.array(model_config["choices"])
 
     else:
+        not_allowed_state_choices = ["assets_begin_of_period"]
+        if additional_continuous_state_names is not None:
+            not_allowed_state_choices += list(additional_continuous_state_names)
+
         state_specific_choice_set = (
             determine_function_arguments_and_partial_model_specs(
                 func=state_space_functions["state_specific_choice_set"],
                 model_specs=model_specs,
+                not_allowed_state_choices=not_allowed_state_choices,
             )
         )
 
@@ -268,14 +275,14 @@ def process_second_continuous_update_function(
     if has_continuous_states:
         if state_space_functions is None:
             state_space_functions = {}
-        if "next_period_continuous_states" not in state_space_functions:
+        if "next_period_continuous_state" not in state_space_functions:
             raise ValueError(
                 "If additional continuous states are defined, provide "
-                "'next_period_continuous_states' in state_space_functions."
+                "'next_period_continuous_state' in state_space_functions."
             )
         next_period_continuous_state = (
             determine_function_arguments_and_partial_model_specs(
-                func=state_space_functions["next_period_continuous_states"],
+                func=state_space_functions["next_period_continuous_state"],
                 model_specs=model_specs,
             )
         )
