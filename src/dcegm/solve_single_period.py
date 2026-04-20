@@ -146,7 +146,6 @@ def solve_for_interpolated_values(
         state_choice_mat=state_choice_mat,
         idx_post_decision_child_states=child_state_idxs,
         model_funcs=model_funcs,
-        has_second_continuous_state=continuous_grids_info["second_continuous_exists"],
         params=params,
     )
 
