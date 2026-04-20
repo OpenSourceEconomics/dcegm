@@ -79,7 +79,7 @@ def calc_cont_grids_next_period(
 
     # Generate result dict
     return {
-        "continuous_state_space": continuous_state_next_period,
+        "continuous_states": continuous_state_next_period,
         "assets_begin_of_period": assets_begin_of_next_period,
     }
 

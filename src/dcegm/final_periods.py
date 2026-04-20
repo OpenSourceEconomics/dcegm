@@ -186,7 +186,7 @@ def solve_final_period(
     ]
     continuous_state_final = {
         key: value[idx_parent_states_final_period]
-        for key, value in cont_grids_next_period["continuous_state_space"].items()
+        for key, value in cont_grids_next_period["continuous_states"].items()
     }
 
     n_assets = wealth_child_states_final_period.shape[-2]

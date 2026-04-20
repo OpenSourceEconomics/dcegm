@@ -115,6 +115,7 @@ def backward_induction(
         cont_grids_next_period=cont_grids_next_period,
         model_funcs=model_funcs,
         income_shock_weights=income_shock_weights,
+        upper_envelope_method=model_config["upper_envelope"]["method"],
         debug_info=None,
     )
 

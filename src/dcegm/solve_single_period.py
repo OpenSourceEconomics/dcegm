@@ -17,6 +17,7 @@ def solve_single_period(
     cont_grids_next_period,
     model_funcs,
     income_shock_weights,
+    upper_envelope_method,
     debug_info,
 ):
     """Solve a single period of the model using DCEGM."""
@@ -41,10 +42,12 @@ def solve_single_period(
         endog_grid_child_state_choice=endog_grid_solved[
             child_state_choice_idxs_to_interp
         ],
+        continuous_state_space=continuous_state_space,
         policy_child_state_choice=policy_solved[child_state_choice_idxs_to_interp],
         value_child_state_choice=value_solved[child_state_choice_idxs_to_interp],
         child_state_idxs=child_state_idxs,
         params=params,
+        upper_envelope_method=upper_envelope_method,
     )
 
     # Check if we have a scalar taste shock scale or state specific. Extract in each of the cases.

@@ -6,7 +6,7 @@ from jax import vmap
 
 from dcegm.interfaces.index_functions import get_state_choice_index_per_discrete_states
 from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
-from dcegm.interpolation.interp2d import (
+from dcegm.interpolation.interp2d_irregular import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
 from dcegm.law_of_motion import (

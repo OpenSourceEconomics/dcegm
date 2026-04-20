@@ -4,7 +4,7 @@ from jax import numpy as jnp
 from jax import vmap
 
 from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
-from dcegm.interpolation.interp2d import (
+from dcegm.interpolation.interp2d_irregular import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
 
@@ -12,7 +12,9 @@ from dcegm.interpolation.interp2d import (
 def interpolate_value_and_marg_util(
     model_funcs,
     state_choice_vec: Dict[str, int],
+    upper_envelope_method: str,
     continuous_grids_info: Dict[str, Any],
+    continuous_state_space: Dict[str, jnp.ndarray],
     cont_grids_next_period: Dict[str, jnp.ndarray],
     endog_grid_child_state_choice: jnp.ndarray,
     policy_child_state_choice: jnp.ndarray,
@@ -60,47 +62,47 @@ def interpolate_value_and_marg_util(
     compute_utility = model_funcs["compute_utility"]
     discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
 
-    if continuous_grids_info["second_continuous_exists"]:
-        continuous_state_child_states = cont_grids_next_period["second_continuous"][
-            child_state_idxs
-        ]
-        regular_grid = continuous_grids_info["second_continuous_grid"]
+    if upper_envelope_method == "fues":
+        if continuous_grids_info["second_continuous_exists"]:
+            continuous_state_child_states = cont_grids_next_period["second_continuous"][
+                child_state_idxs
+            ]
+            regular_grid = continuous_grids_info["second_continuous_grid"]
 
-        interp_for_single_state_choice = vmap(
-            interp2d_value_and_marg_util_for_state_choice,
-            in_axes=(
-                None,
-                None,
-                0,
-                None,
-                0,
-                0,
-                0,
-                0,
-                0,
-                None,
-                None,
-            ),  # discrete state-choice
-        )
+            interp_for_single_state_choice = vmap(
+                interp2d_value_and_marg_util_for_state_choice,
+                in_axes=(
+                    None,
+                    None,
+                    0,
+                    None,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    None,
+                    None,
+                ),
+            )
 
-        return interp_for_single_state_choice(
-            compute_marginal_utility,
-            compute_utility,
-            state_choice_vec,
-            regular_grid,
-            wealth_child_states,
-            continuous_state_child_states,
-            endog_grid_child_state_choice,
-            policy_child_state_choice,
-            value_child_state_choice,
-            params,
-            discount_factor,
-        )
+            return interp_for_single_state_choice(
+                compute_marginal_utility,
+                compute_utility,
+                state_choice_vec,
+                regular_grid,
+                wealth_child_states,
+                continuous_state_child_states,
+                endog_grid_child_state_choice,
+                policy_child_state_choice,
+                value_child_state_choice,
+                params,
+                discount_factor,
+            )
 
-    else:
         interp_for_single_state_choice = vmap(
             interp1d_value_and_marg_util_for_state_choice,
-            in_axes=(None, None, 0, 0, 0, 0, 0, None, None),  # discrete state-choice
+            in_axes=(None, None, 0, 0, 0, 0, 0, None, None),
         )
 
         return interp_for_single_state_choice(
@@ -114,6 +116,15 @@ def interpolate_value_and_marg_util(
             params,
             discount_factor,
         )
+
+    if upper_envelope_method == "druedahl_jorgensen":
+        raise NotImplementedError(
+            "Regular-grid interpolation for 'druedahl_jorgensen' is not implemented yet."
+        )
+
+    raise ValueError(
+        "Unknown upper envelope method. Use 'fues' or 'druedahl_jorgensen'."
+    )
 
 
 def interp1d_value_and_marg_util_for_state_choice(
@@ -164,9 +175,9 @@ def interp1d_value_and_marg_util_for_state_choice(
     def interp_on_single_wealth_point(wealth_point):
         policy_interp, value_interp = interp1d_policy_and_value_on_wealth(
             wealth=wealth_point,
-            wealth_grid=endog_grid_child_state_choice,
-            policy_grid=policy_child_state_choice,
-            value_grid=value_child_state_choice,
+            wealth_grid=endog_grid_child_state_choice[0],
+            policy_grid=policy_child_state_choice[0],
+            value_grid=value_child_state_choice[0],
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
@@ -182,18 +193,20 @@ def interp1d_value_and_marg_util_for_state_choice(
         vmap(interp_on_single_wealth_point)  # income shocks
     )  # wealth grid
 
+    # Select dummy dimension
     value_interp, marg_util_interp = interp_over_single_wealth_and_income_shock_draw(
-        assets_beginning_of_next_period
+        assets_beginning_of_next_period[0]
     )
 
-    return value_interp, marg_util_interp
+    # Add it back in the beginning
+    return value_interp[None, :, :], marg_util_interp[None, :, :]
 
 
 def interp2d_value_and_marg_util_for_state_choice(
     compute_marginal_utility: Callable,
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
-    regular_grid: jnp.ndarray,
+    continuous_state_space: Dict[str, jnp.ndarray],
     assets_beginning_of_next_period: jnp.ndarray,
     continuous_state_beginning_of_next_period: jnp.ndarray,
     endog_grid_child_state_choice: jnp.ndarray,
@@ -240,7 +253,7 @@ def interp2d_value_and_marg_util_for_state_choice(
 
         policy_interp, value_interp = (
             interp2d_policy_and_value_on_wealth_and_regular_grid(
-                regular_grid=regular_grid,
+                continuous_state_space=continuous_state_space,
                 wealth_grid=endog_grid_child_state_choice,
                 policy_grid=policy_child_state_choice,
                 value_grid=value_child_state_choice,

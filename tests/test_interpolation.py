@@ -17,7 +17,7 @@ from numpy.testing import assert_allclose
 from numpy.testing import assert_array_almost_equal as aaae
 from scipy.interpolate import griddata, interp1d
 
-from dcegm.interpolation.interp2d import (
+from dcegm.interpolation.interp2d_irregular import (
     interp2d_policy_on_wealth_and_regular_grid,
     interp2d_value_on_wealth_and_regular_grid,
 )

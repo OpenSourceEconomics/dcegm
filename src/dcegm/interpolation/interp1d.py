@@ -63,7 +63,6 @@ def interp1d_policy_and_value_on_wealth(
         - value_interp (float): Interpolated value for wealth.
 
     """
-
     # For all choices, the wealth is the same in the solution
     ind_high, ind_low = get_index_high_and_low(x=wealth_grid, x_new=wealth)
 
