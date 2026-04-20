@@ -1,3 +1,4 @@
+import jax.numpy as jnp
 from jax import vmap
 
 from dcegm.check_func_outputs import (
@@ -91,8 +92,14 @@ def _get_continuous_state_next_period(
     model_funcs,
 ):
     if not has_additional_continuous_states:
-        # Use dummy continuous state space to keep shapes constant.
-        return continuous_state_space
+        # Use dummy continuous state space and broadcast over discrete states
+        # to keep shapes constant.
+        n_states = next(iter(state_space_dict.values())).shape[0]
+        dummy_states = {
+            key: jnp.broadcast_to(value, (n_states, value.shape[0]))
+            for key, value in continuous_state_space.items()
+        }
+        return dummy_states
 
     continuous_state_next_period = calculate_continuous_state(
         discrete_states_beginning_of_period=state_space_dict,

@@ -8,6 +8,7 @@ from jax import vmap
 
 def calculate_candidate_solutions_from_euler_equation(
     continuous_grids_info: Dict[str, Any],
+    continuous_state_space: Dict[str, jnp.ndarray],
     marg_util_next: jnp.ndarray,
     emax_next: jnp.ndarray,
     state_choice_mat: Dict[str, jnp.ndarray],
@@ -39,7 +40,7 @@ def calculate_candidate_solutions_from_euler_equation(
     )(
         feasible_marg_utils_child,
         feasible_emax_child,
-        continuous_grids_info["continuous_state_space"],
+        continuous_state_space,
         continuous_grids_info["assets_grid_end_of_period"],
         state_choice_mat,
         model_funcs,

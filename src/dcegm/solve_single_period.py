@@ -1,3 +1,4 @@
+import jax.numpy as jnp
 from jax import vmap
 
 from dcegm.egm.aggregate_marginal_utility import aggregate_marg_utils_and_exp_values
@@ -12,6 +13,7 @@ def solve_single_period(
     xs,
     params,
     continuous_grids_info,
+    continuous_state_space,
     cont_grids_next_period,
     model_funcs,
     income_shock_weights,
@@ -72,6 +74,7 @@ def solve_single_period(
         taste_shock_scale_is_scalar=taste_shock_scale_is_scalar,
         income_shock_weights=income_shock_weights,
         continuous_grids_info=continuous_grids_info,
+        continuous_state_space=continuous_state_space,
         model_funcs=model_funcs,
         debug_info=debug_info,
     )
@@ -118,9 +121,11 @@ def solve_for_interpolated_values(
     taste_shock_scale_is_scalar,
     income_shock_weights,
     continuous_grids_info,
+    continuous_state_space,
     model_funcs,
     debug_info,
 ):
+
     # EGM step 2)
     # Aggregate the marginal utilities and expected values over all child state-choice
     # combinations and income shock draws
@@ -141,6 +146,7 @@ def solve_for_interpolated_values(
         expected_values,
     ) = calculate_candidate_solutions_from_euler_equation(
         continuous_grids_info=continuous_grids_info,
+        continuous_state_space=continuous_state_space,
         marg_util_next=marg_util,
         emax_next=emax,
         state_choice_mat=state_choice_mat,
@@ -162,7 +168,7 @@ def solve_for_interpolated_values(
         policy_candidate=policy_candidate,
         value_candidate=value_candidate,
         expected_values=expected_values,
-        continuous_grid_info=continuous_grids_info,
+        continuous_state_space=continuous_state_space,
         state_choice_mat=state_choice_mat,
         compute_utility=model_funcs["compute_utility"],
         params=params,
@@ -190,7 +196,7 @@ def run_upper_envelope(
     policy_candidate,
     value_candidate,
     expected_values,
-    continuous_grid_info,
+    continuous_state_space,
     state_choice_mat,
     compute_utility,
     params,
@@ -234,7 +240,7 @@ def run_upper_envelope(
         policy_candidate,
         value_candidate,
         expected_values[:, :, 0],
-        continuous_grid_info["continuous_state_space"],
+        continuous_state_space,
         state_choice_mat,
         compute_utility,
         params,

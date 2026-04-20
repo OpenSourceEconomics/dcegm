@@ -292,6 +292,8 @@ def create_test_inputs():
             "state_choice_mat_final_period"
         ],
         cont_grids_next_period=cont_grids_next_period,
+        continuous_states_info=model_config["continuous_states_info"],
+        model_structure=model.model_structure,
         params=params,
         model_funcs=model_funcs_cont,
         value_solved=value_solved,
@@ -316,6 +318,7 @@ def create_test_inputs():
         taste_shock_scale_is_scalar=True,
         income_shock_weights=income_shock_weights,
         continuous_grids_info=model_config["continuous_states_info"],
+        continuous_state_space=model.model_structure["continuous_state_space"],
         model_funcs=model_funcs_cont,
         debug_info=None,
     )

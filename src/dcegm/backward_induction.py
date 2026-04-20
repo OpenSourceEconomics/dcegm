@@ -76,6 +76,7 @@ def backward_induction(
         lambda params_inner, cont_grids, weights, val_solved, pol_solved, endog_solved: solve_last_two_periods(
             params=params_inner,
             continuous_states_info=continuous_states_info,
+            model_structure=model_structure,
             cont_grids_next_period=cont_grids,
             income_shock_weights=weights,
             model_funcs=model_funcs,
@@ -110,6 +111,7 @@ def backward_induction(
         xs=xs,
         params=params,
         continuous_grids_info=continuous_states_info,
+        continuous_state_space=model_structure["continuous_state_space"],
         cont_grids_next_period=cont_grids_next_period,
         model_funcs=model_funcs,
         income_shock_weights=income_shock_weights,

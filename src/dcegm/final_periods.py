@@ -11,6 +11,7 @@ from dcegm.solve_single_period import solve_for_interpolated_values
 def solve_last_two_periods(
     params: Dict[str, float],
     continuous_states_info: Dict[str, Any],
+    model_structure: Dict[str, Any],
     cont_grids_next_period: Dict[str, Any],
     income_shock_weights: jnp.ndarray,
     model_funcs: Dict[str, Any],
@@ -57,6 +58,8 @@ def solve_last_two_periods(
         idx_parent_states_final_period=batch_info["idxs_parent_states_final_period"],
         state_choice_mat_final_period=batch_info["state_choice_mat_final_period"],
         cont_grids_next_period=cont_grids_next_period,
+        continuous_states_info=continuous_states_info,
+        model_structure=model_structure,
         params=params,
         model_funcs=model_funcs,
         value_solved=value_solved,
@@ -94,6 +97,7 @@ def solve_last_two_periods(
         params=params,
         income_shock_weights=income_shock_weights,
         continuous_grids_info=continuous_states_info,
+        continuous_state_space=model_structure["continuous_state_space"],
         model_funcs=model_funcs,
         debug_info=debug_info,
     )
@@ -144,6 +148,7 @@ def solve_final_period(
     state_choice_mat_final_period,
     cont_grids_next_period: Dict[str, Any],
     continuous_states_info: Dict[str, Any],
+    model_structure: Dict[str, Any],
     params: Dict[str, float],
     model_funcs: Dict[str, Any],
     value_solved,
@@ -213,15 +218,15 @@ def solve_final_period(
             vmap(
                 vmap(
                     calc_value_and_budget_for_each_gridpoint,
-                    in_axes=(None, 0, None, None, None, None),
+                    in_axes=(None, None, 0, None, None, None),
                 ),
-                in_axes=(None, None, 0, None, None, None),
+                in_axes=(None, 0, None, None, None, None),
             ),
             in_axes=(0, None, None, None, None, None),
         )(
             state_choice_mat_final_period,
+            model_structure["continuous_state_space"],
             continuous_states_info["assets_grid_end_of_period"],
-            continuous_states_info["continuous_state_space"],
             params,
             compute_utility,
             model_funcs["compute_assets_begin_of_period"],

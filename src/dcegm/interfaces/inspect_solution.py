@@ -104,6 +104,7 @@ def partially_solve(
     last_two_period_sols = solve_last_two_periods(
         params=params,
         continuous_states_info=continuous_states_info,
+        model_structure=model_structure,
         cont_grids_next_period=cont_grids_next_period,
         income_shock_weights=income_shock_weights,
         model_funcs=model_funcs,
