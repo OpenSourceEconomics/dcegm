@@ -62,7 +62,6 @@ def solve_last_two_periods(
             "state_choice_mat_final_period"
         ],
         cont_grids_next_period=cont_grids_next_period,
-        continuous_states_info=continuous_states_info,
         params=params,
         model_funcs=model_funcs,
         value_solved=value_solved,
@@ -149,7 +148,6 @@ def solve_final_period(
     idx_parent_states_final_period,
     state_choice_mat_final_period,
     cont_grids_next_period: Dict[str, Any],
-    continuous_states_info: Dict[str, Any] | None,
     params: Dict[str, float],
     model_funcs: Dict[str, Any],
     value_solved,
@@ -178,8 +176,6 @@ def solve_final_period(
             income shocks.
 
     """
-
-    del continuous_states_info
 
     compute_utility = model_funcs["compute_utility_final"]
     compute_marginal_utility = model_funcs["compute_marginal_utility_final"]
