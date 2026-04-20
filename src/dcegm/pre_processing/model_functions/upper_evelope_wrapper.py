@@ -4,14 +4,9 @@ from upper_envelope.jax import drued_jorg_jax, fues_jax
 
 def create_upper_envelope_function(
     model_config,
-    continuous_state=None,
-    has_additional_continuous_states=None,
 ):
     if len(model_config["choices"]) < 2:
         return no_upper_envelope_dummy_function
-
-    if has_additional_continuous_states is None:
-        has_additional_continuous_states = bool(continuous_state)
 
     tuning_params = model_config["upper_envelope"]["tuning_params"]
     method = model_config["upper_envelope"]["method"]
@@ -27,9 +22,6 @@ def create_upper_envelope_function(
         params,
         discount_factor,
     ):
-        continuous_state_dict = (
-            {} if continuous_state_dict is None else continuous_state_dict
-        )
         state_choice_vars = {**state_choice_dict, **continuous_state_dict}
 
         value_kwargs = {

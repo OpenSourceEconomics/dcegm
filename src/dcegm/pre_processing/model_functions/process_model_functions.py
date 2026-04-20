@@ -153,7 +153,6 @@ def process_model_functions_and_extract_info(
     # Upper envelope function
     compute_upper_envelope = create_upper_envelope_function(
         model_config=model_config,
-        has_additional_continuous_states=has_additional_continuous_states,
     )
 
     taste_shock_function_processed, taste_shock_scale_in_params = (
@@ -263,16 +262,12 @@ def process_sparsity_condition(state_space_functions, model_specs):
 
 
 def process_second_continuous_update_function(
-    continuous_state_name=None,
     state_space_functions=None,
     model_specs=None,
     has_additional_continuous_states=False,
 ):
-    has_continuous_states = has_additional_continuous_states or (
-        continuous_state_name is not None
-    )
 
-    if has_continuous_states:
+    if has_additional_continuous_states:
         if state_space_functions is None:
             state_space_functions = {}
         if "next_period_continuous_state" not in state_space_functions:

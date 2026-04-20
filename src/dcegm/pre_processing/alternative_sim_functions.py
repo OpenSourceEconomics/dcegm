@@ -128,13 +128,6 @@ def process_alternative_sim_functions(
 
     """
     continuous_states_info = model_config["continuous_states_info"]
-    # Assign name
-    if continuous_states_info["second_continuous_exists"]:
-        second_continuous_state_name = continuous_states_info[
-            "second_continuous_state_name"
-        ]
-    else:
-        second_continuous_state_name = None
 
     # Now exogenous transition function if present
     compute_stochastic_transition_vec, processed_stochastic_funcs_dict = (
@@ -151,19 +144,21 @@ def process_alternative_sim_functions(
             state_space_functions,
             model_config=model_config,
             model_specs=model_specs,
-            continuous_state_name=second_continuous_state_name,
         )
     )
 
     next_period_continuous_state = process_second_continuous_update_function(
-        second_continuous_state_name, state_space_functions, model_specs=model_specs_jax
+        state_space_functions,
+        model_specs=model_specs_jax,
+        has_additional_continuous_states=continuous_states_info[
+            "has_additional_continuous_state"
+        ],
     )
 
     # Budget equation
     compute_assets_begin_of_period = (
         determine_function_arguments_and_partial_model_specs(
             func=budget_constraint,
-            continuous_state_name=second_continuous_state_name,
             model_specs=model_specs_jax,
         )
     )
@@ -171,7 +166,6 @@ def process_alternative_sim_functions(
     # Upper envelope function
     compute_upper_envelope = create_upper_envelope_function(
         model_config=model_config,
-        continuous_state=second_continuous_state_name,
     )
 
     taste_shock_function_processed, taste_shock_scale_in_params = (
@@ -179,7 +173,9 @@ def process_alternative_sim_functions(
             shock_functions=shock_functions,
             model_specs=model_specs,
             model_specs_jax=model_specs_jax,
-            continuous_state_name=second_continuous_state_name,
+            additional_continuous_state_names=continuous_states_info[
+                "additional_continuous_state_names"
+            ],
         )
     )
 
