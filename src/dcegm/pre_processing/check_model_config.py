@@ -92,20 +92,6 @@ def check_model_config_and_process(model_config):
         continuous_states_info["n_additional_continuous_states"] > 0
     )
 
-    if continuous_states_info["has_additional_continuous_state"]:
-        first_continuous_state_name = continuous_states_info[
-            "additional_continuous_state_names"
-        ][0]
-        continuous_states_info["primary_continuous_state_name"] = (
-            first_continuous_state_name
-        )
-        continuous_states_info["primary_continuous_grid"] = continuous_states_info[
-            "additional_continuous_state_grids"
-        ][first_continuous_state_name]
-    else:
-        continuous_states_info["primary_continuous_state_name"] = None
-        continuous_states_info["primary_continuous_grid"] = None
-
     processed_model_config["continuous_states_info"] = continuous_states_info
 
     # Set default upper envelope method if not given.

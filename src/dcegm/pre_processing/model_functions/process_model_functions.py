@@ -67,9 +67,9 @@ def process_model_functions_and_extract_info(
             transition probabilities for each state.
 
     """
-    # Assign continuous state name
-    second_continuous_state_name = model_config["continuous_states_info"][
-        "second_continuous_state_name"
+    # Assign continuous-state information.
+    additional_continuous_state_names = model_config["continuous_states_info"][
+        "additional_continuous_state_names"
     ]
 
     # We use this for functions which are called later in the jitted code
