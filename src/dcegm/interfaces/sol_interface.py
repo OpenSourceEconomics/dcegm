@@ -241,6 +241,7 @@ class model_solved:
             states=states,
             model_config=self.model_config,
             model_funcs=self.model_funcs,
+            model_structure=self.model_structure,
         )
 
     def choice_policies_for_states(self, states):
@@ -267,4 +268,5 @@ class model_solved:
             state_choice_indexes=state_choice_idxs,
             states=states,
             model_config=self.model_config,
+            model_structure=self.model_structure,
         )

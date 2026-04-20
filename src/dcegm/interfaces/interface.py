@@ -80,7 +80,7 @@ def policy_and_value_for_states_and_choices(
 
     policy, value = jax.vmap(
         interpolate_policy_and_value_for_state_and_choice,
-        in_axes=(0, 0, 0, 0, None, None, None),
+        in_axes=(0, 0, 0, 0, None, None, None, None),
     )(
         value_grid_state_choice,
         policy_grid_state_choice,
@@ -89,6 +89,7 @@ def policy_and_value_for_states_and_choices(
         params,
         model_config,
         model_funcs,
+        model_structure,
     )
     return (
         jnp.squeeze(policy),
@@ -135,7 +136,7 @@ def value_for_state_and_choice(
 
     value = jax.vmap(
         interpolate_value_for_state_and_choice,
-        in_axes=(0, 0, 0, None, None, None),
+        in_axes=(0, 0, 0, None, None, None, None),
     )(
         value_grid_state_choice,
         endog_grid_state_choice,
@@ -143,6 +144,7 @@ def value_for_state_and_choice(
         params,
         model_config,
         model_funcs,
+        model_structure,
     )
     return jnp.squeeze(value)
 
@@ -183,12 +185,13 @@ def policy_for_state_choice_vec(
 
     policy = jax.vmap(
         interpolate_policy_for_state_and_choice,
-        in_axes=(0, 0, 0, None),
+        in_axes=(0, 0, 0, None, None),
     )(
         policy_grid_state_choice,
         endog_grid_state_choice,
         state_choices,
         model_config,
+        model_structure,
     )
     return jnp.squeeze(policy)
 
@@ -300,6 +303,7 @@ def choice_values_for_states(
     states,
     model_config,
     model_funcs,
+    model_structure,
 ):
     value_grid_states = jnp.take(
         value_solved,
@@ -331,6 +335,7 @@ def choice_values_for_states(
             params=params,
             model_config=model_config,
             model_funcs=model_funcs,
+            model_structure=model_structure,
         )
 
     # Read out choice range to loop over
@@ -357,6 +362,7 @@ def choice_policies_for_states(
     state_choice_indexes,
     states,
     model_config,
+    model_structure,
 ):
     policy_grid_states = jnp.take(
         policy_solved,
@@ -386,6 +392,7 @@ def choice_policies_for_states(
             endog_grid_state_choice=endog_grid_state_choice,
             state_choice_vec=state_choice_vec,
             model_config=model_config,
+            model_structure=model_structure,
         )
 
     # Read out choice range to loop over
