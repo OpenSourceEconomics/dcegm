@@ -45,6 +45,7 @@ def solve_last_two_periods(
             for all states, end of period assets, and income shocks.
 
     """
+    batch_info = last_two_period_batch_info
     (
         value_solved,
         policy_solved,
@@ -52,15 +53,9 @@ def solve_last_two_periods(
         value_interp_final_period,
         marginal_utility_final_last_period,
     ) = solve_final_period(
-        idx_state_choices_final_period=last_two_period_batch_info[
-            "idx_state_choices_final_period"
-        ],
-        idx_parent_states_final_period=last_two_period_batch_info[
-            "idxs_parent_states_final_period"
-        ],
-        state_choice_mat_final_period=last_two_period_batch_info[
-            "state_choice_mat_final_period"
-        ],
+        idx_state_choices_final_period=batch_info["idx_state_choices_final_period"],
+        idx_parent_states_final_period=batch_info["idxs_parent_states_final_period"],
+        state_choice_mat_final_period=batch_info["state_choice_mat_final_period"],
         cont_grids_next_period=cont_grids_next_period,
         params=params,
         model_funcs=model_funcs,
@@ -148,6 +143,7 @@ def solve_final_period(
     idx_parent_states_final_period,
     state_choice_mat_final_period,
     cont_grids_next_period: Dict[str, Any],
+    continuous_states_info: Dict[str, Any],
     params: Dict[str, float],
     model_funcs: Dict[str, Any],
     value_solved,
@@ -210,13 +206,38 @@ def solve_final_period(
         compute_utility,
         compute_marginal_utility,
     )
-    middle_of_draws = int((value.shape[3] - 1) / 2)
-    value_final = value[:, :, :, middle_of_draws]
 
-    wealth_to_save = wealth_child_states_final_period[:, :, :, middle_of_draws]
-    sort_idx = jnp.argsort(wealth_to_save, axis=2)
-    wealth_sorted = jnp.take_along_axis(wealth_to_save, sort_idx, axis=2)
-    values_sorted = jnp.take_along_axis(value_final, sort_idx, axis=2)
+    if continuous_states_info["has_additional_continuous_state"]:
+        # We also need to solve at the state space and the child states to store correctly
+        values_regular, wealth_at_regular = vmap(
+            vmap(
+                vmap(
+                    calc_value_and_budget_for_each_gridpoint,
+                    in_axes=(None, 0, None, None, None, None),
+                ),
+                in_axes=(None, None, 0, None, None, None),
+            ),
+            in_axes=(0, None, None, None, None, None),
+        )(
+            state_choice_mat_final_period,
+            continuous_states_info["assets_grid_end_of_period"],
+            continuous_states_info["continuous_state_space"],
+            params,
+            compute_utility,
+            model_funcs["compute_assets_begin_of_period"],
+        )
+
+        sort_idx = jnp.argsort(wealth_at_regular, axis=2)
+        wealth_sorted = jnp.take_along_axis(wealth_at_regular, sort_idx, axis=2)
+        values_sorted = jnp.take_along_axis(values_regular, sort_idx, axis=2)
+    else:
+        middle_of_draws = int((value.shape[3] - 1) / 2)
+        value_final = value[:, :, :, middle_of_draws]
+
+        wealth_to_save = wealth_child_states_final_period[:, :, :, middle_of_draws]
+        sort_idx = jnp.argsort(wealth_to_save, axis=2)
+        wealth_sorted = jnp.take_along_axis(wealth_to_save, sort_idx, axis=2)
+        values_sorted = jnp.take_along_axis(value_final, sort_idx, axis=2)
 
     zeros_to_append = jnp.zeros(values_sorted.shape[:-1])
 
@@ -268,3 +289,32 @@ def calc_value_and_marg_util_for_each_gridpoint(
     )
 
     return value, marg_util
+
+
+def calc_value_and_budget_for_each_gridpoint(
+    state_choice_vec,
+    continuous_state_vec,
+    asset_grid_point_end_of_previous_period,
+    params,
+    compute_utility,
+    compute_assets_begin_of_period,
+):
+    state_vec = state_choice_vec.copy()
+    state_vec.pop("choice")
+
+    wealth_final_period = compute_assets_begin_of_period(
+        **state_vec,
+        **continuous_state_vec,
+        asset_end_of_previous_period=asset_grid_point_end_of_previous_period,
+        income_shock_previous_period=jnp.array(0.0),
+        params=params,
+    )
+
+    value = compute_utility(
+        **state_choice_vec,
+        **continuous_state_vec,
+        wealth=wealth_final_period,
+        params=params,
+    )
+
+    return value, wealth_final_period
