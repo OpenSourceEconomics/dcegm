@@ -57,7 +57,7 @@ def test_partial_solve_func():
             model_solved.model_structure["discrete_states_names"]
         )
     }
-    states_dict["assets_begin_of_period"] = model_solved.endog_grid[:, 5]
+    states_dict["assets_begin_of_period"] = model_solved.endog_grid[:, 0, 5]
     value_states_all_choices = model_solved.choice_values_for_states(states=states_dict)
 
     # Take in each row the value corresponding to the choice made
@@ -65,7 +65,7 @@ def test_partial_solve_func():
         np.arange(value_states_all_choices.shape[0]), choices
     ]
 
-    aaae(model_solved.value[:, 5], value_choices)
+    aaae(model_solved.value[:, 0, 5], value_choices)
 
     # Same for policies
     policy_states_all_choices = model_solved.choice_policies_for_states(
@@ -74,9 +74,9 @@ def test_partial_solve_func():
     policy_choices = policy_states_all_choices[
         np.arange(policy_states_all_choices.shape[0]), choices
     ]
-    aaae(model_solved.policy[:, 5], policy_choices)
+    aaae(model_solved.policy[:, 0, 5], policy_choices)
 
-    model_solved_fast = model.get_solve_func()(params)
+    model_solved_fast = model.solve(params)
     aaae(model_solved.value, model_solved_fast.value)
     aaae(model_solved.policy, model_solved_fast.policy)
     aaae(model_solved.endog_grid, model_solved_fast.endog_grid)

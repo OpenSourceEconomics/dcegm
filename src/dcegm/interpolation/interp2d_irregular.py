@@ -110,6 +110,7 @@ def interp2d_value_on_wealth_and_regular_grid(
     state_choice_vec: Dict[str, int],
     params: dict,
     discount_factor,
+    cont_state_name: str = "continuous_state",
 ):
     """Interpolate the value function on a 2D grid.
 
@@ -160,6 +161,7 @@ def interp2d_value_on_wealth_and_regular_grid(
         wealth_min_unconstrained=wealth_grid[:, 1],
         value_at_zero_wealth=value_grid[:, 0],
         state_choice_vec=state_choice_vec,
+        cont_state_name=cont_state_name,
         params=params,
         discount_factor=discount_factor,
     )

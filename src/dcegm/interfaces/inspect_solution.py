@@ -60,7 +60,6 @@ def partially_solve(
         policy_solved,
         endog_grid_solved,
     ) = create_solution_container(
-        continuous_states_info=model_config["continuous_states_info"],
         # Read out grid size
         n_total_wealth_grid=model_config["upper_envelope"]["tuning_params"][
             "n_total_wealth_grid"
@@ -77,7 +76,6 @@ def partially_solve(
         ].shape[0]
         value_candidates, policy_candidates, endog_grid_candidates = (
             create_solution_container(
-                continuous_states_info=model_config["continuous_states_info"],
                 n_total_wealth_grid=n_assets_end_of_period,
                 n_state_choices=relevant_state_choice_space.shape[0],
                 n_continuous_state_combinations=model_structure[
@@ -220,9 +218,11 @@ def partially_solve(
                 xs=xs,
                 params=params,
                 continuous_grids_info=continuous_states_info,
+                continuous_state_space=model_structure["continuous_state_space"],
                 cont_grids_next_period=cont_grids_next_period,
                 model_funcs=model_funcs,
                 income_shock_weights=income_shock_weights,
+                upper_envelope_method=model_config["upper_envelope"]["method"],
                 debug_info=debug_info,
             )
 

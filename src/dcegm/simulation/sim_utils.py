@@ -1,138 +1,12 @@
 import jax
 import numpy as np
 import pandas as pd
-from jax import numpy as jnp
 from jax import vmap
 
-from dcegm.interfaces.index_functions import get_state_choice_index_per_discrete_states
-from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
-from dcegm.interpolation.interp2d_irregular import (
-    interp2d_policy_and_value_on_wealth_and_regular_grid,
-)
 from dcegm.law_of_motion import (
     calculate_assets_begin_of_period_for_all_agents,
     calculate_second_continuous_state_for_all_agents,
 )
-
-
-def interpolate_policy_and_value_for_all_agents(
-    discrete_states_beginning_of_period,
-    continuous_state_beginning_of_period,
-    assets_begin_of_period,
-    value_solved,
-    policy_solved,
-    endog_grid_solved,
-    map_state_choice_to_index,
-    choice_range,
-    params,
-    discrete_states_names,
-    compute_utility,
-    continuous_grid,
-    discount_factor,
-):
-
-    if continuous_state_beginning_of_period is not None:
-
-        discrete_state_choice_indexes = get_state_choice_index_per_discrete_states(
-            states=discrete_states_beginning_of_period,
-            map_state_choice_to_index=map_state_choice_to_index,
-            discrete_states_names=discrete_states_names,
-        )
-
-        value_grid_agent = jnp.take(
-            value_solved,
-            discrete_state_choice_indexes,
-            axis=0,
-            mode="fill",
-            fill_value=jnp.nan,
-        )
-        policy_grid_agent = jnp.take(
-            policy_solved, discrete_state_choice_indexes, axis=0
-        )
-        endog_grid_agent = jnp.take(
-            endog_grid_solved, discrete_state_choice_indexes, axis=0
-        )
-
-        vectorized_interp = vmap(
-            vmap(
-                interp2d_policy_and_value_function,
-                in_axes=(
-                    None,
-                    None,
-                    None,
-                    None,
-                    0,
-                    0,
-                    0,
-                    0,
-                    None,
-                    None,
-                    None,
-                ),  # choices
-            ),
-            in_axes=(0, 0, 0, None, 0, 0, 0, None, None, None, None),  # agents
-        )
-
-        # =================================================================================
-
-        policy_agent, value_agent = vectorized_interp(
-            assets_begin_of_period,
-            continuous_state_beginning_of_period,
-            discrete_states_beginning_of_period,
-            continuous_grid,
-            endog_grid_agent,
-            value_grid_agent,
-            policy_grid_agent,
-            choice_range,
-            params,
-            compute_utility,
-            discount_factor,
-        )
-
-        return policy_agent, value_agent
-
-    else:
-        discrete_state_choice_indexes = get_state_choice_index_per_discrete_states(
-            states=discrete_states_beginning_of_period,
-            map_state_choice_to_index=map_state_choice_to_index,
-            discrete_states_names=discrete_states_names,
-        )
-
-        value_grid_agent = jnp.take(
-            value_solved,
-            discrete_state_choice_indexes,
-            axis=0,
-            mode="fill",
-            fill_value=jnp.nan,
-        )
-        policy_grid_agent = jnp.take(
-            policy_solved, discrete_state_choice_indexes, axis=0
-        )
-        endog_grid_agent = jnp.take(
-            endog_grid_solved, discrete_state_choice_indexes, axis=0
-        )
-
-        vectorized_interp = vmap(
-            vmap(
-                interp1d_policy_and_value_function,
-                in_axes=(None, None, 0, 0, 0, 0, None, None, None),  # choices
-            ),
-            in_axes=(0, 0, 0, 0, 0, None, None, None, None),  # agents
-        )
-
-        policy_agent, value_agent = vectorized_interp(
-            assets_begin_of_period,
-            discrete_states_beginning_of_period,
-            endog_grid_agent,
-            value_grid_agent,
-            policy_grid_agent,
-            choice_range,
-            params,
-            compute_utility,
-            discount_factor,
-        )
-
-        return policy_agent, value_agent
 
 
 def transition_to_next_period(
@@ -205,7 +79,7 @@ def transition_to_next_period(
 
         all_states_next_period = {
             **discrete_states_next_period,
-            "continuous_state": continuous_state_next_period,
+            **continuous_state_next_period,
         }
     else:
         all_states_next_period = discrete_states_next_period.copy()
@@ -281,64 +155,6 @@ def realize_stochastic_states(state, choice, key, params, processed_stochastic_f
             key=subkey, a=state_vec.shape[0], p=state_vec
         )
     return stochastic_states_next_period
-
-
-def interp1d_policy_and_value_function(
-    wealth_beginning_of_period,
-    state,
-    endog_grid_agent,
-    value_agent,
-    policy_agent,
-    choice,
-    params,
-    compute_utility,
-    discount_factor,
-):
-    state_choice_vec = {**state, "choice": choice}
-
-    policy_interp, value_interp = interp1d_policy_and_value_on_wealth(
-        wealth=wealth_beginning_of_period,
-        wealth_grid=endog_grid_agent,
-        policy_grid=policy_agent,
-        value_grid=value_agent,
-        compute_utility=compute_utility,
-        state_choice_vec=state_choice_vec,
-        params=params,
-        discount_factor=discount_factor,
-    )
-
-    return policy_interp, value_interp
-
-
-def interp2d_policy_and_value_function(
-    wealth_beginning_of_period,
-    continuous_state_beginning_of_period,
-    state,
-    regular_grid,
-    endog_grid_agent,
-    value_agent,
-    policy_agent,
-    choice,
-    params,
-    compute_utility,
-    discount_factor,
-):
-    state_choice_vec = {**state, "choice": choice}
-
-    policy_interp, value_interp = interp2d_policy_and_value_on_wealth_and_regular_grid(
-        regular_grid=regular_grid,
-        wealth_grid=endog_grid_agent,
-        policy_grid=policy_agent,
-        value_grid=value_agent,
-        wealth_point_to_interp=wealth_beginning_of_period,
-        regular_point_to_interp=continuous_state_beginning_of_period,
-        compute_utility=compute_utility,
-        state_choice_vec=state_choice_vec,
-        params=params,
-        discount_factor=discount_factor,
-    )
-
-    return policy_interp, value_interp
 
 
 def create_simulation_df(sim_dict):

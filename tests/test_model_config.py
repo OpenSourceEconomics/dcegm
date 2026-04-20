@@ -112,10 +112,10 @@ def test_second_continuous_state_handling(valid_model_config):
     processed_model_config = check_model_config_and_process(valid_model_config)
     continuous_states_info = processed_model_config["continuous_states_info"]
 
-    assert continuous_states_info["second_continuous_state_name"] == "experience"
-    assert continuous_states_info["n_second_continuous_grid"] == len(
-        valid_model_config["continuous_states"]["experience"]
-    )
+    assert continuous_states_info["additional_continuous_state_names"] == ["experience"]
+    assert len(
+        continuous_states_info["additional_continuous_state_grids"]["experience"]
+    ) == len(valid_model_config["continuous_states"]["experience"])
 
 
 def test_upper_envelope_method_default(valid_model_config):

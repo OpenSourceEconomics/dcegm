@@ -63,12 +63,12 @@ def backward_induction(
         policy_solved,
         endog_grid_solved,
     ) = create_solution_container(
+        n_continuous_state_combinations=next(
+            iter(model_structure["continuous_state_space"].values())
+        ).shape[0],
         # Read out grid size
         n_total_wealth_grid=model_config["n_total_wealth_grid"],
         n_state_choices=model_structure["state_choice_space"].shape[0],
-        n_continuous_state_combinations=model_structure[
-            "n_continuous_state_combinations"
-        ],
     )
 
     # Solve the last two periods using lambda to capture static arguments
