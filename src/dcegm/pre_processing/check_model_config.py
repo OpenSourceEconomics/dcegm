@@ -118,6 +118,16 @@ def check_model_config_and_process(model_config):
     elif "method" not in model_config["upper_envelope"]:
         upper_envelope = model_config["upper_envelope"]
         upper_envelope["method"] = "fues"
+    elif (
+        "upper_envelope" in model_config
+        and "method" == "druedahl_jorgensen"
+        and "tuning_params" in model_config["upper_envelope"]
+    ):
+        raise ValueError(
+            "'tuning_params' cannot be used with the 'druedahl_jorgensen',"
+            " specify 'begin_of_period_assets_grid' in 'continuous_states' instead and delete 'tuning_params' "
+            "from the model_config['upper_envelope']"
+        )
     else:
         upper_envelope = model_config["upper_envelope"]
 
