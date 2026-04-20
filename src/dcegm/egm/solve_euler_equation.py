@@ -30,14 +30,7 @@ def calculate_candidate_solutions_from_euler_equation(
     ) = vmap(
         vmap(
             vmap(
-                lambda marg_util_next_vec, emax_next_vec, continuous_state_vec, assets_grid_end_of_period, state_choice_vec, model_funcs, params: compute_optimal_policy_and_value(
-                    marg_util_next=marg_util_next_vec,
-                    emax_next=emax_next_vec,
-                    assets_grid_end_of_period=assets_grid_end_of_period,
-                    state_choice_vec={**state_choice_vec, **continuous_state_vec},
-                    model_funcs=model_funcs,
-                    params=params,
-                ),
+                compute_optimal_policy_and_value,
                 in_axes=(1, 1, None, 0, None, None, None),
             ),
             in_axes=(1, 1, 0, None, None, None, None),
@@ -64,6 +57,7 @@ def calculate_candidate_solutions_from_euler_equation(
 def compute_optimal_policy_and_value(
     marg_util_next: jnp.ndarray,
     emax_next: jnp.ndarray,
+    continuous_state_vec: Any,
     assets_grid_end_of_period: jnp.ndarray,
     state_choice_vec: Any,
     model_funcs: Dict[str, Any],
@@ -74,8 +68,9 @@ def compute_optimal_policy_and_value(
     Args:
         marg_util_next: Marginal utilities in child states for one assets grid point.
         emax_next: Expected maximum values in child states for one assets grid point.
+        continuous_state_vec: Continuous-state values for one continuous-state point.
         assets_grid_end_of_period: Exogenous end-of-period asset grid.
-        state_choice_vec: Merged dictionary of discrete/continuous states and choice.
+        state_choice_vec: Dictionary of discrete states and choice.
         model_funcs: Processed model functions used by the EGM step.
         params: Model parameter dictionary.
 
@@ -84,6 +79,8 @@ def compute_optimal_policy_and_value(
         state-choice specific on the assets grid.
 
     """
+    state_choice_vec = {**state_choice_vec, **continuous_state_vec}
+
     compute_inverse_marginal_utility = model_funcs["compute_inverse_marginal_utility"]
     compute_utility = model_funcs["compute_utility"]
     compute_stochastic_transition_vec = model_funcs["compute_stochastic_transition_vec"]

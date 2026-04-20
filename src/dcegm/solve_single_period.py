@@ -167,7 +167,6 @@ def solve_for_interpolated_values(
         compute_utility=model_funcs["compute_utility"],
         params=params,
         discount_factor=discount_factor,
-        has_second_continuous_state=continuous_grids_info["second_continuous_exists"],
         compute_upper_envelope_for_state_choice=model_funcs["compute_upper_envelope"],
     )
     out_dict = {
@@ -196,7 +195,6 @@ def run_upper_envelope(
     compute_utility,
     params,
     discount_factor,
-    has_second_continuous_state,
     compute_upper_envelope_for_state_choice,
 ):
     """Run upper envelope to remove suboptimal candidates.
@@ -205,47 +203,8 @@ def run_upper_envelope(
 
     """
 
-    if has_second_continuous_state:
-        return vmap(
-            vmap(
-                compute_upper_envelope_for_state_choice,
-                in_axes=(
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    None,
-                    None,
-                    None,
-                    None,
-                ),  # continuous state
-            ),
-            in_axes=(
-                0,
-                0,
-                0,
-                0,
-                None,
-                0,
-                None,
-                None,
-                None,
-            ),  # discrete states and choices
-        )(
-            endog_grid_candidate,
-            policy_candidate,
-            value_candidate,
-            expected_values[:, :, 0],
-            continuous_grid_info["second_continuous_grid"],
-            state_choice_mat,
-            compute_utility,
-            params,
-            discount_factor,
-        )
-
-    else:
-        return vmap(
+    return vmap(
+        vmap(
             compute_upper_envelope_for_state_choice,
             in_axes=(
                 0,
@@ -256,14 +215,28 @@ def run_upper_envelope(
                 None,
                 None,
                 None,
-            ),  # discrete states and choice combs
-        )(
-            endog_grid_candidate,
-            policy_candidate,
-            value_candidate,
-            expected_values[:, 0],
-            state_choice_mat,
-            compute_utility,
-            params,
-            discount_factor,
-        )
+                None,
+            ),
+        ),
+        in_axes=(
+            0,
+            0,
+            0,
+            0,
+            None,
+            0,
+            None,
+            None,
+            None,
+        ),
+    )(
+        endog_grid_candidate,
+        policy_candidate,
+        value_candidate,
+        expected_values[:, :, 0],
+        continuous_grid_info["continuous_state_space"],
+        state_choice_mat,
+        compute_utility,
+        params,
+        discount_factor,
+    )
