@@ -11,10 +11,16 @@ def calc_cont_grids_next_period(
     model_structure,
     model_config,
     model_funcs,
+    has_additional_continuous_states=None,
 ):
 
     continuous_states_info = model_config["continuous_states_info"]
     state_space_dict = model_structure["state_space_dict"]
+
+    if has_additional_continuous_states is None:
+        has_additional_continuous_states = continuous_states_info[
+            "has_additional_continuous_state"
+        ]
 
     # Scale income shock draws
     income_shock_mean = model_funcs["read_funcs"]["income_shock_mean"](params)
@@ -26,10 +32,13 @@ def calc_cont_grids_next_period(
     # Generate result dict
     cont_grids_next_period = {}
 
-    if continuous_states_info["second_continuous_exists"]:
+    if has_additional_continuous_states:
+
         continuous_state_next_period = calculate_continuous_state(
             discrete_states_beginning_of_period=state_space_dict,
-            continuous_grid=continuous_states_info["second_continuous_grid"],
+            continuous_states_end_of_last_period=model_structure[
+                "continuous_state_space"
+            ],
             params=params,
             compute_continuous_state=model_funcs["next_period_continuous_state"],
         )
@@ -160,7 +169,7 @@ def calc_assets_beginning_of_period_2cont_vec(
 
 def calculate_continuous_state(
     discrete_states_beginning_of_period,
-    continuous_grid,
+    continuous_states_end_of_last_period,
     params,
     compute_continuous_state,
 ):
@@ -172,7 +181,7 @@ def calculate_continuous_state(
         in_axes=(0, None, None, None),  # discrete states
     )(
         discrete_states_beginning_of_period,
-        continuous_grid,
+        continuous_states_end_of_last_period,
         params,
         compute_continuous_state,
     )
@@ -181,13 +190,13 @@ def calculate_continuous_state(
 
 def calc_continuous_state_for_each_grid_point(
     state_vec,
-    exog_continuous_grid_point,
+    continuous_state_vec,
     params,
     compute_continuous_state,
 ):
     out = compute_continuous_state(
         **state_vec,
-        continuous_state=exog_continuous_grid_point,
+        **continuous_state_vec,
         params=params,
     )
     return out

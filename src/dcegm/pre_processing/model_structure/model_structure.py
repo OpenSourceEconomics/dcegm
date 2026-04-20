@@ -46,9 +46,7 @@ def create_model_structure(
             for name, grid in zip(continuous_state_names, continuous_state_mesh)
         }
         n_continuous_state_combinations = int(
-            continuous_states_info["continuous_state_space"][
-                continuous_state_names[0]
-            ].shape[0]
+            continuous_state_space[continuous_state_names[0]].shape[0]
         )
     else:
         continuous_state_space = {"dummy_cont": jnp.zeros(1)}

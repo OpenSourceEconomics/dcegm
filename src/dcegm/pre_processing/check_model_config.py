@@ -186,6 +186,17 @@ def check_model_config_and_process(model_config):
             jnp.asarray(model_config["continuous_states"]["assets_begin_of_period"])
         )
 
+    if upper_envelope["method"] == "fues":
+        processed_model_config["n_total_wealth_grid"] = tuning_params[
+            "n_total_wealth_grid"
+        ]
+    elif upper_envelope["method"] == "druedahl_jorgensen":
+        processed_model_config["n_total_wealth_grid"] = len(
+            model_config["continuous_states"]["assets_begin_of_period"]
+        )
+    else:
+        raise ValueError("Something wrong internally")
+
     if "min_period_batch_segments" in model_config.keys():
         processed_model_config["min_period_batch_segments"] = model_config[
             "min_period_batch_segments"

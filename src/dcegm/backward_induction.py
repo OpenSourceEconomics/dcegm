@@ -40,6 +40,9 @@ def backward_induction(
 
     """
     continuous_states_info = model_config["continuous_states_info"]
+    has_additional_continuous_states = continuous_states_info[
+        "has_additional_continuous_state"
+    ]
 
     #
     calc_grids_jit = jax.jit(
@@ -49,6 +52,7 @@ def backward_induction(
             income_shock_draws_unscaled=income_shock_draws,
             params=params_inner,
             model_funcs=model_funcs,
+            has_additional_continuous_states=has_additional_continuous_states,
         )
     )
 
@@ -59,12 +63,12 @@ def backward_induction(
         policy_solved,
         endog_grid_solved,
     ) = create_solution_container(
-        continuous_states_info=model_config["continuous_states_info"],
         # Read out grid size
-        n_total_wealth_grid=model_config["upper_envelope"]["tuning_params"][
-            "n_total_wealth_grid"
-        ],
+        n_total_wealth_grid=model_config["n_total_wealth_grid"],
         n_state_choices=model_structure["state_choice_space"].shape[0],
+        n_continuous_state_combinations=model_structure[
+            "n_continuous_state_combinations"
+        ],
     )
 
     # Solve the last two periods using lambda to capture static arguments

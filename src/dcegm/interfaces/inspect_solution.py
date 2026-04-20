@@ -66,6 +66,9 @@ def partially_solve(
             "n_total_wealth_grid"
         ],
         n_state_choices=relevant_state_choice_space.shape[0],
+        n_continuous_state_combinations=model_structure[
+            "n_continuous_state_combinations"
+        ],
     )
 
     if return_candidates:
@@ -77,6 +80,9 @@ def partially_solve(
                 continuous_states_info=model_config["continuous_states_info"],
                 n_total_wealth_grid=n_assets_end_of_period,
                 n_state_choices=relevant_state_choice_space.shape[0],
+                n_continuous_state_combinations=model_structure[
+                    "n_continuous_state_combinations"
+                ],
             )
         )
 
