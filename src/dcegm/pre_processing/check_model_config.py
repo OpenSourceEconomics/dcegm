@@ -112,8 +112,8 @@ def check_model_config_and_process(model_config):
             ].shape[0]
         )
     else:
-        continuous_states_info["continuous_state_space"] = {}
-        continuous_states_info["n_continuous_state_combinations"] = 0
+        continuous_states_info["continuous_state_space"] = {"dummy_cont": jnp.zeros(1)}
+        continuous_states_info["n_continuous_state_combinations"] = 1
 
     processed_model_config["continuous_states_info"] = continuous_states_info
 

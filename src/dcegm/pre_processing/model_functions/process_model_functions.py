@@ -72,11 +72,6 @@ def process_model_functions_and_extract_info(
         "additional_continuous_state_names"
     ]
     has_additional_continuous_states = len(additional_continuous_state_names) > 0
-    single_additional_continuous_state_name = (
-        additional_continuous_state_names[0]
-        if len(additional_continuous_state_names) == 1
-        else None
-    )
 
     # We use this for functions which are called later in the jitted code
     model_specs_jax = jax.tree_util.tree_map(try_jax_array, model_specs)
@@ -85,23 +80,17 @@ def process_model_functions_and_extract_info(
     compute_utility = determine_function_arguments_and_partial_model_specs(
         func=utility_functions["utility"],
         model_specs=model_specs_jax,
-        continuous_state_name=single_additional_continuous_state_name,
-        additional_continuous_state_names=additional_continuous_state_names,
     )
 
     compute_marginal_utility = determine_function_arguments_and_partial_model_specs(
         func=utility_functions["marginal_utility"],
         model_specs=model_specs_jax,
-        continuous_state_name=single_additional_continuous_state_name,
-        additional_continuous_state_names=additional_continuous_state_names,
     )
 
     compute_inverse_marginal_utility = (
         determine_function_arguments_and_partial_model_specs(
             func=utility_functions["inverse_marginal_utility"],
             model_specs=model_specs_jax,
-            continuous_state_name=single_additional_continuous_state_name,
-            additional_continuous_state_names=additional_continuous_state_names,
         )
     )
 
@@ -114,16 +103,12 @@ def process_model_functions_and_extract_info(
     compute_utility_final = determine_function_arguments_and_partial_model_specs(
         func=utility_functions_final_period["utility"],
         model_specs=model_specs_jax,
-        continuous_state_name=single_additional_continuous_state_name,
-        additional_continuous_state_names=additional_continuous_state_names,
     )
 
     compute_marginal_utility_final = (
         determine_function_arguments_and_partial_model_specs(
             func=utility_functions_final_period["marginal_utility"],
             model_specs=model_specs_jax,
-            continuous_state_name=single_additional_continuous_state_name,
-            additional_continuous_state_names=additional_continuous_state_names,
         )
     )
 
@@ -138,7 +123,6 @@ def process_model_functions_and_extract_info(
             stochastic_states_transitions,
             model_config=model_config,
             model_specs=model_specs_jax,
-            continuous_state_name=single_additional_continuous_state_name,
         )
     )
 
@@ -148,22 +132,19 @@ def process_model_functions_and_extract_info(
             state_space_functions,
             model_config=model_config,
             model_specs=model_specs,
-            additional_continuous_state_names=additional_continuous_state_names,
         )
     )
 
     next_period_continuous_state = process_second_continuous_update_function(
         state_space_functions=state_space_functions,
         model_specs=model_specs_jax,
-        additional_continuous_state_names=additional_continuous_state_names,
+        has_additional_continuous_states=has_additional_continuous_states,
     )
 
     # Budget equation
     compute_assets_begin_of_period = (
         determine_function_arguments_and_partial_model_specs(
             func=budget_constraint,
-            continuous_state_name=single_additional_continuous_state_name,
-            additional_continuous_state_names=additional_continuous_state_names,
             model_specs=model_specs_jax,
         )
     )
@@ -171,7 +152,7 @@ def process_model_functions_and_extract_info(
     # Upper envelope function
     compute_upper_envelope = create_upper_envelope_function(
         model_config=model_config,
-        continuous_state=has_additional_continuous_states,
+        has_additional_continuous_states=has_additional_continuous_states,
     )
 
     taste_shock_function_processed, taste_shock_scale_in_params = (
@@ -179,7 +160,7 @@ def process_model_functions_and_extract_info(
             shock_functions=shock_functions,
             model_specs=model_specs,
             model_specs_jax=model_specs_jax,
-            continuous_state_name=single_additional_continuous_state_name,
+            additional_continuous_state_names=additional_continuous_state_names,
         )
     )
     model_config_processed = model_config
@@ -208,7 +189,6 @@ def process_state_space_functions(
     state_space_functions,
     model_config,
     model_specs,
-    additional_continuous_state_names=None,
 ):
 
     state_space_functions = (
@@ -229,7 +209,6 @@ def process_state_space_functions(
             determine_function_arguments_and_partial_model_specs(
                 func=state_space_functions["state_specific_choice_set"],
                 model_specs=model_specs,
-                additional_continuous_state_names=additional_continuous_state_names,
             )
         )
 
@@ -247,7 +226,6 @@ def process_state_space_functions(
             determine_function_arguments_and_partial_model_specs(
                 func=state_space_functions["next_period_deterministic_state"],
                 model_specs=model_specs,
-                additional_continuous_state_names=additional_continuous_state_names,
             )
         )
 
@@ -281,9 +259,13 @@ def process_second_continuous_update_function(
     continuous_state_name=None,
     state_space_functions=None,
     model_specs=None,
-    additional_continuous_state_names=None,
+    has_additional_continuous_states=False,
 ):
-    if additional_continuous_state_names:
+    has_continuous_states = has_additional_continuous_states or (
+        continuous_state_name is not None
+    )
+
+    if has_continuous_states:
         if state_space_functions is None:
             state_space_functions = {}
         if "next_period_continuous_states" not in state_space_functions:
@@ -295,7 +277,6 @@ def process_second_continuous_update_function(
             determine_function_arguments_and_partial_model_specs(
                 func=state_space_functions["next_period_continuous_states"],
                 model_specs=model_specs,
-                additional_continuous_state_names=additional_continuous_state_names,
             )
         )
     else:

@@ -142,7 +142,6 @@ def process_alternative_sim_functions(
             stochastic_states_transition,
             model_config=model_config,
             model_specs=model_specs_jax,
-            continuous_state_name=second_continuous_state_name,
         )
     )
 
