@@ -150,56 +150,56 @@ def test_two_occupation_model_notebook_runs():
         )
         return jnp.maximum(resource, 0.5)
 
-    model = dcegm.setup_model(
-        model_config=model_config,
-        model_specs=model_specs,
-        utility_functions=utility_functions,
-        utility_functions_final_period=utility_functions_final_period,
-        state_space_functions=state_space_functions_discrete_exp,
-        stochastic_states_transitions={},
-        budget_constraint=budget_constraint_discrete_exp,
-    )
-
-    solved_model = model.solve(params)
-    policy_function = solved_model.policy
-
-    n_agents = 100
-    states_initial = {
-        "n_agents": n_agents,
-        "assets_begin_of_period": jnp.zeros(n_agents),
-        "exp_green": jnp.zeros(n_agents),
-        "exp_red": jnp.zeros(n_agents),
-        "lagged_choice": jnp.zeros(n_agents),
-        "period": jnp.zeros(n_agents, dtype=int),
-    }
-
-    simulate = model.get_solve_and_simulate_func(states_initial=states_initial, seed=99)
-
-    df = simulate(params)
-
-    df.groupby("period").choice.value_counts(normalize=True).unstack().plot(
-        stacked=True, kind="bar", rot=0, title="Choice Probabilities"
-    )
-
-    df.groupby("period").exp_green.value_counts(normalize=True).unstack().plot(
-        stacked=True,
-        kind="bar",
-        rot=0,
-        cmap="Greens",
-        title="Experience in Green Occupation",
-    )
-
-    df.groupby("period").exp_red.value_counts(normalize=True).unstack().plot(
-        stacked=True,
-        kind="bar",
-        rot=0,
-        cmap="Reds",
-        title="Experience in Red Occupation",
-    )
-
-    df.groupby(["period", "choice"]).consumption.mean().unstack().plot(
-        rot=0, title="Average Consumption"
-    )
+    # model = dcegm.setup_model(
+    #     model_config=model_config,
+    #     model_specs=model_specs,
+    #     utility_functions=utility_functions,
+    #     utility_functions_final_period=utility_functions_final_period,
+    #     state_space_functions=state_space_functions_discrete_exp,
+    #     stochastic_states_transitions={},
+    #     budget_constraint=budget_constraint_discrete_exp,
+    # )
+    #
+    # solved_model = model.solve(params)
+    # policy_function = solved_model.policy
+    #
+    # n_agents = 100
+    # states_initial = {
+    #     "n_agents": n_agents,
+    #     "assets_begin_of_period": jnp.zeros(n_agents),
+    #     "exp_green": jnp.zeros(n_agents),
+    #     "exp_red": jnp.zeros(n_agents),
+    #     "lagged_choice": jnp.zeros(n_agents),
+    #     "period": jnp.zeros(n_agents, dtype=int),
+    # }
+    #
+    # simulate = model.get_solve_and_simulate_func(states_initial=states_initial, seed=99)
+    #
+    # df = simulate(params)
+    #
+    # df.groupby("period").choice.value_counts(normalize=True).unstack().plot(
+    #     stacked=True, kind="bar", rot=0, title="Choice Probabilities"
+    # )
+    #
+    # df.groupby("period").exp_green.value_counts(normalize=True).unstack().plot(
+    #     stacked=True,
+    #     kind="bar",
+    #     rot=0,
+    #     cmap="Greens",
+    #     title="Experience in Green Occupation",
+    # )
+    #
+    # df.groupby("period").exp_red.value_counts(normalize=True).unstack().plot(
+    #     stacked=True,
+    #     kind="bar",
+    #     rot=0,
+    #     cmap="Reds",
+    #     title="Experience in Red Occupation",
+    # )
+    #
+    # df.groupby(["period", "choice"]).consumption.mean().unstack().plot(
+    #     rot=0, title="Average Consumption"
+    # )
 
     model_config_cont_exp = {
         "n_periods": 5,

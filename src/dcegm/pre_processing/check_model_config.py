@@ -73,41 +73,38 @@ def check_model_config_and_process(model_config):
         continuous_states_grids["assets_end_of_period"], dtype=float
     )
 
-    if len(continuous_states_grids) > 2:
-        raise ValueError("At most two continuous states are supported.")
+    additional_continuous_states = {
+        key: value
+        for key, value in continuous_states_grids.items()
+        if key not in ("assets_end_of_period", "assets_begin_of_period")
+    }
 
-    elif len(continuous_states_grids) == 2:
-        second_continuous_state = next(
-            (
-                {key: value}
-                for key, value in model_config["continuous_states"].items()
-                if key != "assets_end_of_period"
-            ),
-            None,
+    continuous_states_info["additional_continuous_state_names"] = list(
+        additional_continuous_states.keys()
+    )
+    continuous_states_info["additional_continuous_state_grids"] = {
+        key: jnp.asarray(value) for key, value in additional_continuous_states.items()
+    }
+    continuous_states_info["n_additional_continuous_states"] = len(
+        additional_continuous_states
+    )
+    continuous_states_info["has_additional_continuous_state"] = (
+        continuous_states_info["n_additional_continuous_states"] > 0
+    )
+
+    if continuous_states_info["has_additional_continuous_state"]:
+        first_continuous_state_name = continuous_states_info[
+            "additional_continuous_state_names"
+        ][0]
+        continuous_states_info["primary_continuous_state_name"] = (
+            first_continuous_state_name
         )
-
-        continuous_states_info["second_continuous_exists"] = True
-
-        second_continuous_state_name = list(second_continuous_state.keys())[0]
-        continuous_states_info["second_continuous_state_name"] = (
-            second_continuous_state_name
-        )
-
-        second_continuous_state_grid = jnp.asarray(
-            continuous_states_grids[second_continuous_state_name]
-        )
-        continuous_states_info["second_continuous_grid"] = second_continuous_state_grid
-        # ToDo: Check if grid is array or list and monotonic increasing
-
-        continuous_states_info["n_second_continuous_grid"] = len(
-            second_continuous_state_grid
-        )
-
+        continuous_states_info["primary_continuous_grid"] = continuous_states_info[
+            "additional_continuous_state_grids"
+        ][first_continuous_state_name]
     else:
-        continuous_states_info["second_continuous_exists"] = False
-        continuous_states_info["second_continuous_state_name"] = None
-        continuous_states_info["n_second_continuous_grid"] = None
-        continuous_states_info["second_continuous_grid"] = None
+        continuous_states_info["primary_continuous_state_name"] = None
+        continuous_states_info["primary_continuous_grid"] = None
 
     processed_model_config["continuous_states_info"] = continuous_states_info
 
@@ -120,7 +117,7 @@ def check_model_config_and_process(model_config):
         upper_envelope["method"] = "fues"
     elif (
         "upper_envelope" in model_config
-        and "method" == "druedahl_jorgensen"
+        and model_config["upper_envelope"]["method"] == "druedahl_jorgensen"
         and "tuning_params" in model_config["upper_envelope"]
     ):
         raise ValueError(
@@ -134,7 +131,9 @@ def check_model_config_and_process(model_config):
     if "tuning_params" not in upper_envelope:
         tuning_params = {}
     elif "tuning_params" in model_config:
-        ValueError("tuning_params should be nested in model_config['upper_envelope']")
+        raise ValueError(
+            "tuning_params should be nested in model_config['upper_envelope']"
+        )
     else:
         tuning_params = model_config["upper_envelope"]["tuning_params"]
 
@@ -182,6 +181,15 @@ def check_model_config_and_process(model_config):
     upper_envelope["tuning_params"] = tuning_params
     processed_model_config["upper_envelope"] = upper_envelope
 
+    if (
+        continuous_states_info["n_additional_continuous_states"] > 1
+        and upper_envelope["method"] != "druedahl_jorgensen"
+    ):
+        raise ValueError(
+            "If more than one additional continuous state is specified, "
+            "use upper_envelope['method'] = 'druedahl_jorgensen'."
+        )
+
     if upper_envelope["method"] == "druedahl_jorgensen":
         if "assets_begin_of_period" not in model_config["continuous_states"]:
             raise ValueError(
@@ -189,7 +197,7 @@ def check_model_config_and_process(model_config):
                 "the 'druedahl_jorgensen' upper envelope method."
             )
         processed_model_config["continuous_states_info"]["assets_begin_of_period"] = (
-            model_config["continuous_states"]["assets_begin_of_period"]
+            jnp.asarray(model_config["continuous_states"]["assets_begin_of_period"])
         )
 
     if "min_period_batch_segments" in model_config.keys():
