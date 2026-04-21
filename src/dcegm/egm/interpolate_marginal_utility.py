@@ -107,7 +107,7 @@ def interpolate_value_and_marg_util(
             discount_factor,
         )
 
-    elif multi_dim & irregular:
+    elif multi_dim & ~irregular:
         raise NotImplementedError(
             "Multi-dimensional continuous state variables are not supported."
         )
