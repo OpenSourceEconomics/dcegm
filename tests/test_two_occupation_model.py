@@ -80,21 +80,9 @@ def next_period_continuous_state(
     exp_green,
     exp_red,
 ):
-    exp_red_years = period * exp_red
-    exp_green_years = period * exp_green
-    add_red = lagged_choice == 0
-    add_green = lagged_choice == 1
-
-    period_scale = period.clip(min=1)
-    exp_red_lag_years = exp_red_years * (period_scale - 1).clip(min=0)
-    exp_red_next = (exp_red_lag_years + add_red) / period_scale
-
-    exp_green_lag_years = exp_green_years * (period_scale - 1).clip(min=0)
-    exp_green_next = (exp_green_lag_years + add_green) / period_scale
-
     return {
-        "exp_red": exp_red_next,
-        "exp_green": exp_green_next,
+        "exp_red": exp_red + (lagged_choice == 0),
+        "exp_green": exp_green + (lagged_choice == 1),
     }
 
 
@@ -114,13 +102,11 @@ def budget_constraint_cont_exp(
     income_shock_previous_period,
     params,
 ):
-    exp_green_years = exp_green * period
-    exp_red_years = exp_red * period
     interest_factor = 1 + params["interest_rate"]
     wage = (
         params["wage_constant"]
-        + params["wage_exp_green"] * exp_green_years * (lagged_choice == 1)
-        + params["wage_exp_red"] * exp_red_years * (lagged_choice == 0)
+        + params["wage_exp_green"] * exp_green * (lagged_choice == 1)
+        + params["wage_exp_red"] * exp_red * (lagged_choice == 0)
     )
     resource = (
         interest_factor * asset_end_of_previous_period
@@ -300,8 +286,8 @@ def test_two_occupation_model_notebook_runs():
         "continuous_states": {
             "assets_end_of_period": jnp.linspace(0, 50, 100),
             "assets_begin_of_period": jnp.linspace(0, 50, 100),
-            "exp_green": jnp.linspace(0, 1, 5, dtype=float),
-            "exp_red": jnp.linspace(0, 1, 5, dtype=float),
+            "exp_green": jnp.arange(0, 7, dtype=float),
+            "exp_red": jnp.arange(0, 7, dtype=float),
         },
         "n_quad_points": 5,
         "upper_envelope": {"method": "druedahl_jorgensen"},
@@ -326,8 +312,8 @@ def test_two_occupation_model_notebook_runs():
     states_eval_cont = {
         "period": jnp.array([0, 1, 2], dtype=int),
         "lagged_choice": jnp.array([2, 0, 1], dtype=int),
-        "exp_green": jnp.array([0.0, 0.25, 0.5]),
-        "exp_red": jnp.array([0.0, 0.25, 0.5]),
+        "exp_green": jnp.array([0.0, 1.0, 1.0]),
+        "exp_red": jnp.array([0.0, 0.0, 1.0]),
         "assets_begin_of_period": jnp.array([0.5, 4.0, 9.0]),
     }
     choices_eval_cont = jnp.array([2, 0, 1], dtype=int)
@@ -364,10 +350,8 @@ def test_two_occupation_model_notebook_runs():
     aligned_states_cont = {
         "period": aligned_states_discrete["period"],
         "lagged_choice": aligned_states_discrete["lagged_choice"],
-        "exp_green": aligned_states_discrete["exp_green"]
-        / aligned_states_discrete["period"],
-        "exp_red": aligned_states_discrete["exp_red"]
-        / aligned_states_discrete["period"],
+        "exp_green": aligned_states_discrete["exp_green"].astype(float),
+        "exp_red": aligned_states_discrete["exp_red"].astype(float),
         "assets_begin_of_period": aligned_states_discrete["assets_begin_of_period"],
     }
 
@@ -395,8 +379,8 @@ def test_two_occupation_model_notebook_runs():
     policy_gap = jnp.abs(policy_disc_aligned - policy_cont_aligned)
     value_gap = jnp.abs(value_disc_aligned - value_cont_aligned)
 
-    assert jnp.mean(policy_gap[finite_policy]) < 2.5
-    assert jnp.mean(value_gap[finite_value]) < 7.5
+    assert jnp.mean(policy_gap[finite_policy]) < 1.25
+    assert jnp.mean(value_gap[finite_value]) < 1.1
 
     n_agents = 100
     states_initial = {

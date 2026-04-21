@@ -40,9 +40,6 @@ def backward_induction(
 
     """
     continuous_states_info = model_config["continuous_states_info"]
-    has_additional_continuous_states = continuous_states_info[
-        "has_additional_continuous_state"
-    ]
 
     #
     calc_grids_jit = jax.jit(
@@ -52,7 +49,6 @@ def backward_induction(
             income_shock_draws_unscaled=income_shock_draws,
             params=params_inner,
             model_funcs=model_funcs,
-            has_additional_continuous_states=has_additional_continuous_states,
         )
     )
 
