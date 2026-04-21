@@ -148,10 +148,13 @@ class model_solved:
         return policy_for_state_choice_vec(
             states=states,
             choices=choices,
+            params=self.params,
             model_config=self.model_config,
             model_structure=self.model_structure,
+            model_funcs=self.model_funcs,
             endog_grid_solved=self.endog_grid,
             policy_solved=self.policy,
+            value_solved=self.value,
         )
 
     def get_solution_for_discrete_state_choice(self, states, choices):
@@ -264,9 +267,12 @@ class model_solved:
         )
         return choice_policies_for_states(
             policy_solved=self.policy,
+            value_solved=self.value,
             endog_grid_solved=self.endog_grid,
             state_choice_indexes=state_choice_idxs,
             states=states,
+            params=self.params,
             model_config=self.model_config,
+            model_funcs=self.model_funcs,
             model_structure=self.model_structure,
         )

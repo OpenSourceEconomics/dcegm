@@ -268,7 +268,7 @@ def interp1d_value_and_marg_util_for_state_choice(
     )  # wealth grid
 
     # Select dummy dimension
-    assets_points = jnp.ravel(jnp.asarray(assets_beginning_of_next_period))
+    assets_points = jnp.asarray(assets_beginning_of_next_period)[0]
     value_interp, marg_util_interp = interp_over_single_wealth_and_income_shock_draw(
         assets_points
     )

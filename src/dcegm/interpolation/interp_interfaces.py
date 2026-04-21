@@ -1,3 +1,5 @@
+import jax.numpy as jnp
+
 from dcegm.interpolation.interp1d import (
     interp1d_policy_and_value_on_wealth,
     interp_policy_on_wealth,
@@ -5,6 +7,10 @@ from dcegm.interpolation.interp1d import (
 )
 from dcegm.interpolation.interp2d_irregular import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
+)
+from dcegm.interpolation.interpnd_regular import (
+    interpnd_policy_and_value_for_child_states_on_regular_grids,
+    interpnd_value_for_child_states_on_regular_grids,
 )
 
 
@@ -48,9 +54,31 @@ def interpolate_value_for_state_and_choice(
         )
 
     elif (upper_envelope_method == "druedahl_jorgensen") & multidim:
-        raise NotImplementedError(
-            "Interface interpolation for 'druedahl_jorgensen' is not implemented yet."
-        )
+        continuous_state_names = continuous_states_info[
+            "additional_continuous_state_names"
+        ]
+        continuous_state_child_states = {
+            name: jnp.asarray(state_choice_vec[name])[None, None]
+            for name in continuous_state_names
+        }
+        state_choice_child_states = {
+            key: jnp.asarray(value)[None]
+            for key, value in state_choice_vec.items()
+            if key not in {"assets_begin_of_period", *continuous_state_names}
+        }
+        value = interpnd_value_for_child_states_on_regular_grids(
+            additional_continuous_state_grids=continuous_state_space,
+            wealth_grid=endog_grid_state_choice[0],
+            value_grid_child_states=value_grid_state_choice[None, ...],
+            continuous_state_child_states=continuous_state_child_states,
+            wealth_child_states=jnp.asarray(state_choice_vec["assets_begin_of_period"])[
+                None, None, None, None
+            ],
+            state_choice_child_states=state_choice_child_states,
+            compute_utility=compute_utility,
+            params=params,
+            discount_factor=discount_factor,
+        )[0, 0, 0, 0]
     else:
         value = interp_value_on_wealth(
             wealth=state_choice_vec["assets_begin_of_period"],
@@ -66,9 +94,12 @@ def interpolate_value_for_state_and_choice(
 
 def interpolate_policy_for_state_and_choice(
     policy_grid_state_choice,
+    value_grid_state_choice,
     endog_grid_state_choice,
     state_choice_vec,
+    params,
     model_config,
+    model_funcs,
     model_structure,
 ):
     """Interpolate the value for a state and choice given the respective grids."""
@@ -95,8 +126,15 @@ def interpolate_policy_for_state_and_choice(
             discount_factor=0.0,
         )
     elif (upper_envelope_method == "druedahl_jorgensen") & multidim:
-        raise NotImplementedError(
-            "Interface interpolation for 'druedahl_jorgensen' is not implemented yet."
+        policy, _ = interpolate_policy_and_value_for_state_and_choice(
+            value_grid_state_choice=value_grid_state_choice,
+            policy_grid_state_choice=policy_grid_state_choice,
+            endog_grid_state_choice=endog_grid_state_choice,
+            state_choice_vec=state_choice_vec,
+            params=params,
+            model_config=model_config,
+            model_funcs=model_funcs,
+            model_structure=model_structure,
         )
     else:
         policy = interp_policy_on_wealth(
@@ -145,9 +183,34 @@ def interpolate_policy_and_value_for_state_and_choice(
             discount_factor=discount_factor,
         )
     elif (upper_envelope_method == "druedahl_jorgensen") & multidim:
-        raise NotImplementedError(
-            "Interface interpolation for 'druedahl_jorgensen' is not implemented yet."
+        continuous_state_names = continuous_states_info[
+            "additional_continuous_state_names"
+        ]
+        continuous_state_child_states = {
+            name: jnp.asarray(state_choice_vec[name])[None, None]
+            for name in continuous_state_names
+        }
+        state_choice_child_states = {
+            key: jnp.asarray(value)[None]
+            for key, value in state_choice_vec.items()
+            if key not in {"assets_begin_of_period", *continuous_state_names}
+        }
+        policy, value = interpnd_policy_and_value_for_child_states_on_regular_grids(
+            additional_continuous_state_grids=continuous_state_space,
+            wealth_grid=endog_grid_state_choice[0],
+            policy_grid_child_states=policy_grid_state_choice[None, ...],
+            value_grid_child_states=value_grid_state_choice[None, ...],
+            continuous_state_child_states=continuous_state_child_states,
+            wealth_child_states=jnp.asarray(state_choice_vec["assets_begin_of_period"])[
+                None, None, None, None
+            ],
+            state_choice_child_states=state_choice_child_states,
+            compute_utility=compute_utility,
+            params=params,
+            discount_factor=discount_factor,
         )
+        policy = policy[0, 0, 0, 0]
+        value = value[0, 0, 0, 0]
     else:
         policy, value = interp1d_policy_and_value_on_wealth(
             wealth=state_choice_vec["assets_begin_of_period"],
