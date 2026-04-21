@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Tuple
+from typing import Any, Callable, Dict, Tuple, cast
 
 from jax import numpy as jnp
 from jax import vmap
@@ -6,6 +6,9 @@ from jax import vmap
 from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
 from dcegm.interpolation.interp2d_irregular import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
+)
+from dcegm.interpolation.interpnd_regular import (
+    interpnd_policy_and_value_for_child_states_on_regular_grids,
 )
 
 
@@ -77,9 +80,13 @@ def interpolate_value_and_marg_util(
         #   (n_child_state_choices, n_continuous_combinations, n_wealth, n_quad_points)
         # - continuous_state_child_states (single additional continuous state):
         #   (n_child_state_choices, n_continuous_combinations)
-        continuous_states_next = cont_grids_next_period.get(
-            "continuous_state_space",
-            cont_grids_next_period.get("continuous_states"),
+        continuous_states_next_raw = cont_grids_next_period.get(
+            "continuous_state_space"
+        )
+        if continuous_states_next_raw is None:
+            continuous_states_next_raw = cont_grids_next_period["continuous_states"]
+        continuous_states_next = cast(
+            Dict[str, jnp.ndarray], continuous_states_next_raw
         )
         continuous_state_child_states = continuous_states_next[continuous_state_name][
             child_state_idxs
@@ -117,9 +124,59 @@ def interpolate_value_and_marg_util(
         )
 
     elif multi_dim & (not irregular):
-        raise NotImplementedError(
-            "Multi-dimensional continuous state variables are not supported."
+        continuous_state_names = continuous_grids_info[
+            "additional_continuous_state_names"
+        ]
+        continuous_states_next_raw = cont_grids_next_period.get(
+            "continuous_state_space"
         )
+        if continuous_states_next_raw is None:
+            continuous_states_next_raw = cont_grids_next_period["continuous_states"]
+        continuous_states_next = cast(
+            Dict[str, jnp.ndarray], continuous_states_next_raw
+        )
+        continuous_state_child_states = {
+            name: continuous_states_next[name][child_state_idxs]
+            for name in continuous_state_names
+        }
+
+        policy_interp, value_interp = (
+            interpnd_policy_and_value_for_child_states_on_regular_grids(
+                additional_continuous_state_grids=continuous_grids_info[
+                    "additional_continuous_state_grids"
+                ],
+                wealth_grid=endog_grid_child_state_choice[0, 0],
+                policy_grid_child_states=policy_child_state_choice,
+                value_grid_child_states=value_child_state_choice,
+                continuous_state_child_states=continuous_state_child_states,
+                wealth_child_states=wealth_child_states,
+                state_choice_child_states=state_choice_vec,
+                compute_utility=compute_utility,
+                params=params,
+                discount_factor=discount_factor,
+            )
+        )
+
+        state_choice_child_states_marg = {}
+        for key, value in state_choice_vec.items():
+            arr = jnp.asarray(value)
+            if arr.ndim == 1 and arr.shape[0] == wealth_child_states.shape[0]:
+                state_choice_child_states_marg[key] = arr[:, None, None, None]
+            else:
+                state_choice_child_states_marg[key] = arr
+
+        continuous_state_child_states_marg = {
+            key: jnp.asarray(value)[:, :, None, None]
+            for key, value in continuous_state_child_states.items()
+        }
+
+        marg_util_interp = compute_marginal_utility(
+            consumption=policy_interp,
+            params=params,
+            **state_choice_child_states_marg,
+            **continuous_state_child_states_marg,
+        )
+        return value_interp, marg_util_interp
     else:
         interp_for_single_state_choice = vmap(
             interp1d_value_and_marg_util_for_state_choice,
@@ -184,6 +241,11 @@ def interp1d_value_and_marg_util_for_state_choice(
 
     """
 
+    endog_grid_child_state_choice = jnp.asarray(endog_grid_child_state_choice)
+    policy_child_state_choice = jnp.asarray(policy_child_state_choice)
+    value_child_state_choice = jnp.asarray(value_child_state_choice)
+    assets_beginning_of_next_period = jnp.asarray(assets_beginning_of_next_period)
+
     def interp_on_single_wealth_point(wealth_point):
         policy_interp, value_interp = interp1d_policy_and_value_on_wealth(
             wealth=wealth_point,
@@ -206,9 +268,12 @@ def interp1d_value_and_marg_util_for_state_choice(
     )  # wealth grid
 
     # Select dummy dimension
+    assets_points = jnp.ravel(jnp.asarray(assets_beginning_of_next_period))
     value_interp, marg_util_interp = interp_over_single_wealth_and_income_shock_draw(
-        assets_beginning_of_next_period[0]
+        assets_points
     )
+    value_interp = jnp.asarray(value_interp)
+    marg_util_interp = jnp.asarray(marg_util_interp)
 
     # Add it back in the beginning
     return value_interp[None, :, :], marg_util_interp[None, :, :]

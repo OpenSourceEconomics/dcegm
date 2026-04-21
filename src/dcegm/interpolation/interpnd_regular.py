@@ -1,17 +1,16 @@
-"""N-dimensional regular-grid interpolation for policy (minimal).
+"""N-dimensional regular-grid interpolation for policy/value.
 
-Assumptions for this module:
-- Wealth grid is shared across all regular-grid combinations.
-- Policy grid for child states has shape
+Assumptions:
+- Shared 1D wealth grid across all regular-grid combinations.
+- Child-state policy/value grids are flattened in regular dimensions:
   ``(n_child_state_choices, n_continuous_combinations, n_wealth)``.
-- Continuous child states are passed as a dictionary with values of shape
+- Child-state interpolation points are provided as
+  ``continuous_state_child_states[name]`` with shape
   ``(n_child_state_choices, n_continuous_combinations)``.
-- Additional continuous-state grids are passed as a dictionary with one 1D grid
-  per continuous state name.
 
 """
 
-from typing import Dict
+from typing import Any, Callable, Dict
 
 import jax.numpy as jnp
 from jax import vmap
@@ -26,68 +25,63 @@ def interpnd_policy_for_child_states_on_regular_grids(
     additional_continuous_state_grids: Dict[str, jnp.ndarray],
     wealth_grid: jnp.ndarray,
     policy_grid_child_states: jnp.ndarray,
+    value_grid_child_states: jnp.ndarray,
     continuous_state_child_states: Dict[str, jnp.ndarray],
     wealth_child_states: jnp.ndarray,
+    state_choice_child_states: Dict[str, Any],
+    compute_utility: Callable,
+    params: Dict[str, Any],
+    discount_factor: float,
 ) -> jnp.ndarray:
-    """Interpolate policy for all child states and all interpolation points.
+    """Interpolate policy, using value-based overwrite logic.
 
-    Args:
-        additional_continuous_state_grids: Dict[name -> 1D grid].
-        wealth_grid: Shared 1D wealth grid, shape ``(n_wealth,)``.
-        policy_grid_child_states: Policy in child states,
-            shape ``(n_child_state_choices, n_continuous_combinations, n_wealth)``.
-        continuous_state_child_states: Dict[name -> values], with shape
-            ``(n_child_state_choices, n_continuous_combinations)`` per value.
-        wealth_child_states: Wealth interpolation points,
-            shape ``(n_child_state_choices, n_continuous_combinations, n_wealth, n_quad_points)``.
-
-    Returns:
-        Interpolated policy with shape
-        ``(n_child_state_choices, n_continuous_combinations, n_wealth, n_quad_points)``.
+    Returns shape
+    ``(n_child_state_choices, n_continuous_combinations, n_wealth, n_quad_points)``.
 
     """
-    # `state_names` defines the interpolation axes ordering.
-    # The same ordering is used for:
-    # - the meshgrid flattening in preprocessing,
-    # - stride construction below,
-    # - corner index aggregation.
-    state_names = list(additional_continuous_state_grids.keys())
-    # Number of grid points per regular axis, shape: (n_dims,).
-    # Example with exp_green(5), exp_red(4): regular_shape = [5, 4].
-    regular_shape = [
-        int(additional_continuous_state_grids[name].shape[0]) for name in state_names
-    ]
-    # Row-major strides map an N-D index to the flattened
-    # `n_continuous_combinations` index.
-    strides = jnp.asarray(_compute_row_major_strides(regular_shape), dtype=jnp.int32)
-
-    # -------------------------------------------------------------------------
-    # Precompute index brackets and weights for ALL regular child points.
-    # Shapes (per returned array):
-    #   (n_dims, n_child_state_choices, n_continuous_combinations)
-    # -------------------------------------------------------------------------
-    regular_low_idxs, regular_high_idxs, regular_low_weights, regular_high_weights = (
-        _precompute_regular_indices_and_weights(
-            additional_continuous_state_grids=additional_continuous_state_grids,
-            continuous_state_child_states=continuous_state_child_states,
-            state_names=state_names,
-        )
+    policy, _ = interpnd_policy_and_value_for_child_states_on_regular_grids(
+        additional_continuous_state_grids=additional_continuous_state_grids,
+        wealth_grid=wealth_grid,
+        policy_grid_child_states=policy_grid_child_states,
+        value_grid_child_states=value_grid_child_states,
+        continuous_state_child_states=continuous_state_child_states,
+        wealth_child_states=wealth_child_states,
+        state_choice_child_states=state_choice_child_states,
+        compute_utility=compute_utility,
+        params=params,
+        discount_factor=discount_factor,
     )
+    return policy
 
-    # -------------------------------------------------------------------------
-    # Precompute wealth brackets for ALL wealth child points.
-    # Shapes:
-    #   (n_child_state_choices, n_continuous_combinations, n_wealth, n_quad_points)
-    # -------------------------------------------------------------------------
-    wealth_high_idxs, wealth_low_idxs = get_index_high_and_low(
-        wealth_grid,
-        wealth_child_states,
+
+def interpnd_policy_and_value_for_child_states_on_regular_grids(
+    additional_continuous_state_grids: Dict[str, jnp.ndarray],
+    wealth_grid: jnp.ndarray,
+    policy_grid_child_states: jnp.ndarray,
+    value_grid_child_states: jnp.ndarray,
+    continuous_state_child_states: Dict[str, jnp.ndarray],
+    wealth_child_states: jnp.ndarray,
+    state_choice_child_states: Dict[str, Any],
+    compute_utility: Callable,
+    params: Dict[str, Any],
+    discount_factor: float,
+) -> tuple[jnp.ndarray, jnp.ndarray]:
+    """Interpolate policy/value and apply consume-all overwrite.
+
+    If consume-all value dominates interpolated value at a point, overwrite policy with
+    consume-all policy (=wealth point).
+
+    """
+    objs = _precompute_interp_objects(
+        additional_continuous_state_grids=additional_continuous_state_grids,
+        continuous_state_child_states=continuous_state_child_states,
+        wealth_grid=wealth_grid,
+        wealth_child_states=wealth_child_states,
     )
-
-    corner_table = _corner_table(len(state_names))
 
     def _interp_one_child_state(
         policy_grid_one_child,
+        value_grid_one_child,
         regular_low_idxs_one_child,
         regular_high_idxs_one_child,
         regular_low_weights_one_child,
@@ -96,13 +90,10 @@ def interpnd_policy_for_child_states_on_regular_grids(
         wealth_low_idxs_one_child,
         wealth_high_idxs_one_child,
     ):
-        # policy_grid_one_child: (n_continuous_combinations, n_wealth)
-        # *_one_child regular arrays: (n_dims, n_continuous_combinations)
-        # wealth_points_one_child / wealth idxs one child:
-        #   (n_continuous_combinations, n_wealth, n_quad_points)
         return vmap(
-            _interp_one_continuous_combination,
+            _interp_policy_and_value_one_comb,
             in_axes=(
+                None,
                 None,
                 1,
                 1,
@@ -117,6 +108,7 @@ def interpnd_policy_for_child_states_on_regular_grids(
             ),
         )(
             policy_grid_one_child,
+            value_grid_one_child,
             regular_low_idxs_one_child,
             regular_high_idxs_one_child,
             regular_low_weights_one_child,
@@ -124,31 +116,215 @@ def interpnd_policy_for_child_states_on_regular_grids(
             wealth_points_one_child,
             wealth_low_idxs_one_child,
             wealth_high_idxs_one_child,
-            strides,
-            corner_table,
+            objs["strides"],
+            objs["corner_table"],
             wealth_grid,
         )
 
-    # -------------------------------------------------------------------------
-    # vmap over n_child_state_choices (outer-most axis)
-    # -------------------------------------------------------------------------
-    return vmap(
+    policy_interp, value_interp = vmap(
+        _interp_one_child_state,
+        in_axes=(0, 0, 1, 1, 1, 1, 0, 0, 0),
+    )(
+        policy_grid_child_states,
+        value_grid_child_states,
+        objs["regular_low_idxs"],
+        objs["regular_high_idxs"],
+        objs["regular_low_weights"],
+        objs["regular_high_weights"],
+        wealth_child_states,
+        objs["wealth_low_idxs"],
+        objs["wealth_high_idxs"],
+    )
+
+    # We need to interpolate the expected value at zero savings, because we only know it for the regular
+    # grid corners
+    expected_value_zero_savings = _interp_regular_only_all(
+        values_over_regular_grid_child_states=value_grid_child_states[..., 0],
+        regular_low_idxs=objs["regular_low_idxs"],
+        regular_high_idxs=objs["regular_high_idxs"],
+        regular_low_weights=objs["regular_low_weights"],
+        regular_high_weights=objs["regular_high_weights"],
+        strides=objs["strides"],
+        corner_table=objs["corner_table"],
+    )
+
+    consume_all_value = _compute_consume_all_value(
+        expected_value_zero_savings=expected_value_zero_savings,
+        wealth_child_states=wealth_child_states,
+        state_choice_child_states=state_choice_child_states,
+        continuous_state_child_states=continuous_state_child_states,
+        compute_utility=compute_utility,
+        params=params,
+        discount_factor=discount_factor,
+    )
+
+    overwrite_mask = consume_all_value > value_interp
+    policy_final = jnp.where(overwrite_mask, wealth_child_states, policy_interp)
+    value_final = jnp.where(overwrite_mask, consume_all_value, value_interp)
+    return policy_final, value_final
+
+
+def interpnd_value_for_child_states_on_regular_grids(
+    additional_continuous_state_grids: Dict[str, jnp.ndarray],
+    wealth_grid: jnp.ndarray,
+    value_grid_child_states: jnp.ndarray,
+    continuous_state_child_states: Dict[str, jnp.ndarray],
+    wealth_child_states: jnp.ndarray,
+    state_choice_child_states: Dict[str, Any],
+    compute_utility: Callable,
+    params: Dict[str, Any],
+    discount_factor: float,
+) -> jnp.ndarray:
+    """Interpolate value and apply consume-all overwrite.
+
+    Returns shape
+    ``(n_child_state_choices, n_continuous_combinations, n_wealth, n_quad_points)``.
+
+    """
+    objs = _precompute_interp_objects(
+        additional_continuous_state_grids=additional_continuous_state_grids,
+        continuous_state_child_states=continuous_state_child_states,
+        wealth_grid=wealth_grid,
+        wealth_child_states=wealth_child_states,
+    )
+
+    def _interp_one_child_state(
+        value_grid_one_child,
+        regular_low_idxs_one_child,
+        regular_high_idxs_one_child,
+        regular_low_weights_one_child,
+        regular_high_weights_one_child,
+        wealth_points_one_child,
+        wealth_low_idxs_one_child,
+        wealth_high_idxs_one_child,
+    ):
+        def _interp_one_comb(
+            regular_low_idxs_one_comb,
+            regular_high_idxs_one_comb,
+            regular_low_weights_one_comb,
+            regular_high_weights_one_comb,
+            wealth_points_one_comb,
+            wealth_low_idxs_one_comb,
+            wealth_high_idxs_one_comb,
+        ):
+            corner_linear_idxs, corner_weights = _corner_linear_indices_and_weights(
+                regular_low_idxs_one_comb=regular_low_idxs_one_comb,
+                regular_high_idxs_one_comb=regular_high_idxs_one_comb,
+                regular_low_weights_one_comb=regular_low_weights_one_comb,
+                regular_high_weights_one_comb=regular_high_weights_one_comb,
+                strides=objs["strides"],
+                corner_table=objs["corner_table"],
+            )
+            return _interp_single_grid_one_comb(
+                grid_one_child=value_grid_one_child,
+                corner_linear_idxs=corner_linear_idxs,
+                corner_weights=corner_weights,
+                wealth_points_one_comb=wealth_points_one_comb,
+                wealth_low_idxs_one_comb=wealth_low_idxs_one_comb,
+                wealth_high_idxs_one_comb=wealth_high_idxs_one_comb,
+                wealth_grid=wealth_grid,
+            )
+
+        return vmap(
+            _interp_one_comb,
+            in_axes=(1, 1, 1, 1, 0, 0, 0),
+        )(
+            regular_low_idxs_one_child,
+            regular_high_idxs_one_child,
+            regular_low_weights_one_child,
+            regular_high_weights_one_child,
+            wealth_points_one_child,
+            wealth_low_idxs_one_child,
+            wealth_high_idxs_one_child,
+        )
+
+    value_interp = vmap(
         _interp_one_child_state,
         in_axes=(0, 1, 1, 1, 1, 0, 0, 0),
     )(
-        policy_grid_child_states,
-        regular_low_idxs,
-        regular_high_idxs,
-        regular_low_weights,
-        regular_high_weights,
+        value_grid_child_states,
+        objs["regular_low_idxs"],
+        objs["regular_high_idxs"],
+        objs["regular_low_weights"],
+        objs["regular_high_weights"],
         wealth_child_states,
-        wealth_low_idxs,
-        wealth_high_idxs,
+        objs["wealth_low_idxs"],
+        objs["wealth_high_idxs"],
+    )
+
+    expected_value_zero_savings = _interp_regular_only_all(
+        values_over_regular_grid_child_states=value_grid_child_states[..., 0],
+        regular_low_idxs=objs["regular_low_idxs"],
+        regular_high_idxs=objs["regular_high_idxs"],
+        regular_low_weights=objs["regular_low_weights"],
+        regular_high_weights=objs["regular_high_weights"],
+        strides=objs["strides"],
+        corner_table=objs["corner_table"],
+    )
+
+    consume_all_value = _compute_consume_all_value(
+        expected_value_zero_savings=expected_value_zero_savings,
+        wealth_child_states=wealth_child_states,
+        state_choice_child_states=state_choice_child_states,
+        continuous_state_child_states=continuous_state_child_states,
+        compute_utility=compute_utility,
+        params=params,
+        discount_factor=discount_factor,
+    )
+
+    return jnp.asarray(
+        jnp.where(consume_all_value > value_interp, consume_all_value, value_interp)
     )
 
 
-def _interp_one_continuous_combination(
+def _compute_consume_all_value(
+    expected_value_zero_savings: jnp.ndarray,
+    wealth_child_states: jnp.ndarray,
+    state_choice_child_states: Dict[str, Any],
+    continuous_state_child_states: Dict[str, jnp.ndarray],
+    compute_utility: Callable,
+    params: Dict[str, Any],
+    discount_factor: float,
+) -> jnp.ndarray:
+
+    def _utility_at_point(
+        consumption_point: jnp.ndarray,
+        state_choice_point: Dict[str, jnp.ndarray],
+        continuous_state_point: Dict[str, jnp.ndarray],
+    ) -> jnp.ndarray:
+        out = compute_utility(
+            consumption=consumption_point,
+            params=params,
+            **state_choice_point,
+            **continuous_state_point,
+        )
+        return out
+
+    consume_all_utility = vmap(
+        vmap(
+            vmap(
+                vmap(
+                    _utility_at_point,
+                    in_axes=(0, None, None),
+                ),
+                in_axes=(0, None, None),
+            ),
+            in_axes=(0, None, 0),
+        ),
+        in_axes=(0, 0, 0),
+    )(
+        wealth_child_states,
+        state_choice_child_states,
+        continuous_state_child_states,
+    )
+
+    expected_value_zero_savings = expected_value_zero_savings[:, :, None, None]
+    return consume_all_utility + discount_factor * expected_value_zero_savings
+
+
+def _interp_policy_and_value_one_comb(
     policy_grid_one_child: jnp.ndarray,
+    value_grid_one_child: jnp.ndarray,
     regular_low_idxs_one_comb: jnp.ndarray,
     regular_high_idxs_one_comb: jnp.ndarray,
     regular_low_weights_one_comb: jnp.ndarray,
@@ -159,22 +335,131 @@ def _interp_one_continuous_combination(
     strides: jnp.ndarray,
     corner_table: jnp.ndarray,
     wealth_grid: jnp.ndarray,
+) -> tuple[jnp.ndarray, jnp.ndarray]:
+    corner_linear_idxs, corner_weights = _corner_linear_indices_and_weights(
+        regular_low_idxs_one_comb=regular_low_idxs_one_comb,
+        regular_high_idxs_one_comb=regular_high_idxs_one_comb,
+        regular_low_weights_one_comb=regular_low_weights_one_comb,
+        regular_high_weights_one_comb=regular_high_weights_one_comb,
+        strides=strides,
+        corner_table=corner_table,
+    )
+
+    policy_interp = _interp_single_grid_one_comb(
+        grid_one_child=policy_grid_one_child,
+        corner_linear_idxs=corner_linear_idxs,
+        corner_weights=corner_weights,
+        wealth_points_one_comb=wealth_points_one_comb,
+        wealth_low_idxs_one_comb=wealth_low_idxs_one_comb,
+        wealth_high_idxs_one_comb=wealth_high_idxs_one_comb,
+        wealth_grid=wealth_grid,
+    )
+    value_interp = _interp_single_grid_one_comb(
+        grid_one_child=value_grid_one_child,
+        corner_linear_idxs=corner_linear_idxs,
+        corner_weights=corner_weights,
+        wealth_points_one_comb=wealth_points_one_comb,
+        wealth_low_idxs_one_comb=wealth_low_idxs_one_comb,
+        wealth_high_idxs_one_comb=wealth_high_idxs_one_comb,
+        wealth_grid=wealth_grid,
+    )
+    return policy_interp, value_interp
+
+
+def _interp_single_grid_one_comb(
+    grid_one_child: jnp.ndarray,
+    corner_linear_idxs: jnp.ndarray,
+    corner_weights: jnp.ndarray,
+    wealth_points_one_comb: jnp.ndarray,
+    wealth_low_idxs_one_comb: jnp.ndarray,
+    wealth_high_idxs_one_comb: jnp.ndarray,
+    wealth_grid: jnp.ndarray,
 ) -> jnp.ndarray:
-    """Interpolate one (child choice, continuous combination) block.
+    corner_rows = grid_one_child[corner_linear_idxs]
+    corner_values = vmap(
+        _interp_wealth_for_corner,
+        in_axes=(0, None, None, None, None),
+    )(
+        corner_rows,
+        wealth_points_one_comb,
+        wealth_low_idxs_one_comb,
+        wealth_high_idxs_one_comb,
+        wealth_grid,
+    )
+    return jnp.sum(corner_weights[:, None, None] * corner_values, axis=0)
 
-    Returns shape ``(n_wealth, n_quad_points)``.
 
-    """
-    # `n_dims` is the number of additional continuous-state axes.
-    # For K additional continuous states, n_dims = K and
-    # n_corners = 2**K.
+def _interp_wealth_for_corner(
+    grid_row: jnp.ndarray,
+    wealth_points_one_comb: jnp.ndarray,
+    wealth_low_idxs_one_comb: jnp.ndarray,
+    wealth_high_idxs_one_comb: jnp.ndarray,
+    wealth_grid: jnp.ndarray,
+) -> jnp.ndarray:
+    high = _take_last_axis(grid_row, wealth_high_idxs_one_comb)
+    low = _take_last_axis(grid_row, wealth_low_idxs_one_comb)
+    out = linear_interpolation_formula(
+        y_high=high,
+        y_low=low,
+        x_high=wealth_grid[wealth_high_idxs_one_comb],
+        x_low=wealth_grid[wealth_low_idxs_one_comb],
+        x_new=wealth_points_one_comb,
+    )
+    return jnp.asarray(out)
 
-    # corner_table: (n_corners, n_dims), values in {0,1}
-    # 0 means choose low index on that axis, 1 means choose high index.
+
+def _interp_regular_only_all(
+    values_over_regular_grid_child_states: jnp.ndarray,
+    regular_low_idxs: jnp.ndarray,
+    regular_high_idxs: jnp.ndarray,
+    regular_low_weights: jnp.ndarray,
+    regular_high_weights: jnp.ndarray,
+    strides: jnp.ndarray,
+    corner_table: jnp.ndarray,
+) -> jnp.ndarray:
+    """Interpolate values over regular dimensions only."""
+
+    def _interp_one_child_state(
+        values_over_regular_grid_one_child,
+        regular_low_idxs_one_child,
+        regular_high_idxs_one_child,
+        regular_low_weights_one_child,
+        regular_high_weights_one_child,
+    ):
+        return vmap(
+            _interp_regular_only,
+            in_axes=(None, 1, 1, 1, 1, None, None),
+        )(
+            values_over_regular_grid_one_child,
+            regular_low_idxs_one_child,
+            regular_high_idxs_one_child,
+            regular_low_weights_one_child,
+            regular_high_weights_one_child,
+            strides,
+            corner_table,
+        )
+
+    return vmap(
+        _interp_one_child_state,
+        in_axes=(0, 1, 1, 1, 1),
+    )(
+        values_over_regular_grid_child_states,
+        regular_low_idxs,
+        regular_high_idxs,
+        regular_low_weights,
+        regular_high_weights,
+    )
+
+
+def _corner_linear_indices_and_weights(
+    regular_low_idxs_one_comb: jnp.ndarray,
+    regular_high_idxs_one_comb: jnp.ndarray,
+    regular_low_weights_one_comb: jnp.ndarray,
+    regular_high_weights_one_comb: jnp.ndarray,
+    strides: jnp.ndarray,
+    corner_table: jnp.ndarray,
+) -> tuple[jnp.ndarray, jnp.ndarray]:
     choose_high = corner_table.astype(bool)
-
-    # Vectorized corner index selection.
-    # selected_* shapes: (n_corners, n_dims)
     selected_idxs = jnp.where(
         choose_high,
         regular_high_idxs_one_comb[None, :],
@@ -185,37 +470,65 @@ def _interp_one_continuous_combination(
         regular_high_weights_one_comb[None, :],
         regular_low_weights_one_comb[None, :],
     )
-
-    # Corner linear indices and tensor-product weights.
-    # corner_linear_idxs: (n_corners,)
-    # corner_weights: (n_corners,)
     corner_linear_idxs = jnp.sum(selected_idxs * strides[None, :], axis=1)
     corner_weights = jnp.prod(selected_weights, axis=1)
+    return corner_linear_idxs, corner_weights
 
-    # Gather all corner rows in one shot: (n_corners, n_wealth).
-    # Each row corresponds to one regular-grid corner.
-    policy_rows = policy_grid_one_child[corner_linear_idxs]
 
-    # Interpolate in wealth for each corner.
-    def _interp_wealth_for_corner(policy_row):
-        policy_high = _take_last_axis(policy_row, wealth_high_idxs_one_comb)
-        policy_low = _take_last_axis(policy_row, wealth_low_idxs_one_comb)
-        return linear_interpolation_formula(
-            y_high=policy_high,
-            y_low=policy_low,
-            x_high=wealth_grid[wealth_high_idxs_one_comb],
-            x_low=wealth_grid[wealth_low_idxs_one_comb],
-            x_new=wealth_points_one_comb,
-        )
-
-    # policy_corner_values: (n_corners, n_wealth, n_quad_points)
-    policy_corner_values = vmap(_interp_wealth_for_corner, in_axes=0)(policy_rows)
-
-    # Aggregate corners.
-    return jnp.sum(
-        corner_weights[:, None, None] * policy_corner_values,
-        axis=0,
+def _interp_regular_only(
+    values_over_regular_grid: jnp.ndarray,
+    regular_low_idxs_one_comb: jnp.ndarray,
+    regular_high_idxs_one_comb: jnp.ndarray,
+    regular_low_weights_one_comb: jnp.ndarray,
+    regular_high_weights_one_comb: jnp.ndarray,
+    strides: jnp.ndarray,
+    corner_table: jnp.ndarray,
+) -> jnp.ndarray:
+    corner_linear_idxs, corner_weights = _corner_linear_indices_and_weights(
+        regular_low_idxs_one_comb=regular_low_idxs_one_comb,
+        regular_high_idxs_one_comb=regular_high_idxs_one_comb,
+        regular_low_weights_one_comb=regular_low_weights_one_comb,
+        regular_high_weights_one_comb=regular_high_weights_one_comb,
+        strides=strides,
+        corner_table=corner_table,
     )
+    corner_vals = values_over_regular_grid[corner_linear_idxs]
+    return jnp.sum(corner_weights * corner_vals)
+
+
+def _precompute_interp_objects(
+    additional_continuous_state_grids: Dict[str, jnp.ndarray],
+    continuous_state_child_states: Dict[str, jnp.ndarray],
+    wealth_grid: jnp.ndarray,
+    wealth_child_states: jnp.ndarray,
+) -> Dict[str, jnp.ndarray]:
+    """Precompute reusable interpolation objects for policy/value paths."""
+    state_names = list(additional_continuous_state_grids.keys())
+    regular_shape = [
+        int(additional_continuous_state_grids[name].shape[0]) for name in state_names
+    ]
+    strides = jnp.asarray(_compute_row_major_strides(regular_shape), dtype=jnp.int32)
+    regular_low_idxs, regular_high_idxs, regular_low_weights, regular_high_weights = (
+        _precompute_regular_indices_and_weights(
+            additional_continuous_state_grids=additional_continuous_state_grids,
+            continuous_state_child_states=continuous_state_child_states,
+            state_names=state_names,
+        )
+    )
+    wealth_high_idxs, wealth_low_idxs = get_index_high_and_low(
+        wealth_grid, wealth_child_states
+    )
+    corner_table = _corner_table(len(state_names))
+    return {
+        "strides": strides,
+        "regular_low_idxs": regular_low_idxs,
+        "regular_high_idxs": regular_high_idxs,
+        "regular_low_weights": regular_low_weights,
+        "regular_high_weights": regular_high_weights,
+        "wealth_low_idxs": wealth_low_idxs,
+        "wealth_high_idxs": wealth_high_idxs,
+        "corner_table": corner_table,
+    }
 
 
 def _precompute_regular_indices_and_weights(
@@ -225,7 +538,7 @@ def _precompute_regular_indices_and_weights(
 ):
     """Precompute low/high idx and weights for all regular child points.
 
-    Returns four arrays of shape
+    Returns arrays of shape
     ``(n_dims, n_child_state_choices, n_continuous_combinations)``.
 
     """
@@ -238,12 +551,10 @@ def _precompute_regular_indices_and_weights(
         grid_1d = additional_continuous_state_grids[name]
         points = continuous_state_child_states[name]
         high_idx, low_idx = get_index_high_and_low(grid_1d, points)
-
         x_low = grid_1d[low_idx]
         x_high = grid_1d[high_idx]
         high_w = (points - x_low) / (x_high - x_low)
         low_w = 1.0 - high_w
-
         low_idxs.append(low_idx)
         high_idxs.append(high_idx)
         low_weights.append(low_w)
@@ -278,77 +589,13 @@ def _compute_row_major_strides(shape):
 def _corner_table(n_dims: int) -> jnp.ndarray:
     """Return binary corner table of shape ``(2**n_dims, n_dims)``.
 
-    `n_dims` is the number of additional continuous-state axes.
-    Example for n_dims=2, returned rows are:
-    [0,0], [1,0], [0,1], [1,1].
-
-    Pseudo-code equivalent (more readable but less vectorized):
+    Pseudo-code equivalent:
 
     for corner in range(2**n_dims):
         for dim in range(n_dims):
             table[corner, dim] = (corner >> dim) & 1
 
-    Here, value 0 means "use low index" and 1 means "use high index" on that
-    regular axis.
-
     """
     corners = jnp.arange(2**n_dims, dtype=jnp.int32)
     shifts = jnp.arange(n_dims, dtype=jnp.int32)
     return ((corners[:, None] >> shifts[None, :]) & 1).astype(jnp.int32)
-
-
-if __name__ == "__main__":
-    # Minimal executable shape example.
-    # Regular grids (2 dimensions): 3 x 2 => 6 combinations.
-    additional_cont_grids = {
-        "exp_green": jnp.array([0.0, 0.5, 1.0]),
-        "exp_red": jnp.array([0.0, 1.0]),
-    }
-    m_grid = jnp.array([0.0, 5.0, 10.0, 20.0])
-
-    n_child_state_choices = 2
-    n_cont = 6
-    n_wealth = 2
-    n_quad = 3
-
-    policy_grid_child = jnp.arange(
-        n_child_state_choices * n_cont * m_grid.shape[0],
-        dtype=jnp.float32,
-    ).reshape(n_child_state_choices, n_cont, m_grid.shape[0])
-
-    continuous_child = {
-        "exp_green": jnp.array(
-            [[0.1, 0.4, 0.7, 0.2, 0.5, 0.8], [0.1, 0.4, 0.7, 0.2, 0.5, 0.8]]
-        ),
-        "exp_red": jnp.array(
-            [[0.2, 0.2, 0.2, 0.7, 0.7, 0.7], [0.2, 0.2, 0.2, 0.7, 0.7, 0.7]]
-        ),
-    }
-    wealth_child = jnp.array(
-        [
-            [
-                [[2.0, 3.0, 4.0], [6.0, 7.0, 8.0]],
-            ]
-            * n_cont,
-            [
-                [[2.0, 3.0, 4.0], [6.0, 7.0, 8.0]],
-            ]
-            * n_cont,
-        ]
-    )
-
-    out = interpnd_policy_for_child_states_on_regular_grids(
-        additional_continuous_state_grids=additional_cont_grids,
-        wealth_grid=m_grid,
-        policy_grid_child_states=policy_grid_child,
-        continuous_state_child_states=continuous_child,
-        wealth_child_states=wealth_child,
-    )
-
-    print("policy_grid_child_states shape:", tuple(policy_grid_child.shape))
-    print(
-        "continuous_state_child_states shape (per key):",
-        {k: tuple(v.shape) for k, v in continuous_child.items()},
-    )
-    print("wealth_child_states shape:", tuple(wealth_child.shape))
-    print("output shape:", tuple(out.shape))
