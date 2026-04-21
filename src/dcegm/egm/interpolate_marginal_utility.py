@@ -72,9 +72,18 @@ def interpolate_value_and_marg_util(
             "additional_continuous_state_names"
         ][0]
 
-        continuous_state_child_states = cont_grids_next_period["continuous_states"][
-            continuous_state_name
-        ][child_state_idxs]
+        # Shape convention:
+        # - wealth_child_states:
+        #   (n_child_state_choices, n_continuous_combinations, n_wealth, n_quad_points)
+        # - continuous_state_child_states (single additional continuous state):
+        #   (n_child_state_choices, n_continuous_combinations)
+        continuous_states_next = cont_grids_next_period.get(
+            "continuous_state_space",
+            cont_grids_next_period.get("continuous_states"),
+        )
+        continuous_state_child_states = continuous_states_next[continuous_state_name][
+            child_state_idxs
+        ]
 
         interp_for_single_state_choice = vmap(
             interp2d_value_and_marg_util_for_state_choice,
@@ -107,7 +116,7 @@ def interpolate_value_and_marg_util(
             discount_factor,
         )
 
-    elif multi_dim & ~irregular:
+    elif multi_dim & (not irregular):
         raise NotImplementedError(
             "Multi-dimensional continuous state variables are not supported."
         )
