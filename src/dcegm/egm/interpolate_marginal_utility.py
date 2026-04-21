@@ -4,6 +4,7 @@ from jax import numpy as jnp
 from jax import vmap
 
 from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
+from dcegm.interpolation.interp1d_dj import interp1d_policy_and_value_on_wealth_dj
 from dcegm.interpolation.interp2d_irregular import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
@@ -180,7 +181,7 @@ def interpolate_value_and_marg_util(
     else:
         interp_for_single_state_choice = vmap(
             interp1d_value_and_marg_util_for_state_choice,
-            in_axes=(None, None, 0, 0, 0, 0, 0, None, None),  # discrete state-choice
+            in_axes=(None, None, 0, 0, 0, 0, 0, None, None, None),
         )
 
         return interp_for_single_state_choice(
@@ -193,6 +194,7 @@ def interpolate_value_and_marg_util(
             value_child_state_choice,
             params,
             discount_factor,
+            upper_envelope_method == "druedahl_jorgensen",
         )
 
 
@@ -206,6 +208,7 @@ def interp1d_value_and_marg_util_for_state_choice(
     value_child_state_choice: jnp.ndarray,
     params: Dict[str, float],
     discount_factor: float,
+    use_dj_interpolation: bool,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Interpolate value and policy for given child state and compute marginal utility.
 
@@ -247,16 +250,28 @@ def interp1d_value_and_marg_util_for_state_choice(
     assets_beginning_of_next_period = jnp.asarray(assets_beginning_of_next_period)
 
     def interp_on_single_wealth_point(wealth_point):
-        policy_interp, value_interp = interp1d_policy_and_value_on_wealth(
-            wealth=wealth_point,
-            wealth_grid=endog_grid_child_state_choice[0],
-            policy_grid=policy_child_state_choice[0],
-            value_grid=value_child_state_choice[0],
-            compute_utility=compute_utility,
-            state_choice_vec=state_choice_vec,
-            params=params,
-            discount_factor=discount_factor,
-        )
+        if use_dj_interpolation:
+            policy_interp, value_interp = interp1d_policy_and_value_on_wealth_dj(
+                wealth=wealth_point,
+                wealth_grid=endog_grid_child_state_choice[0],
+                policy_grid=policy_child_state_choice[0],
+                value_grid=value_child_state_choice[0],
+                compute_utility=compute_utility,
+                state_choice_vec=state_choice_vec,
+                params=params,
+                discount_factor=discount_factor,
+            )
+        else:
+            policy_interp, value_interp = interp1d_policy_and_value_on_wealth(
+                wealth=wealth_point,
+                wealth_grid=endog_grid_child_state_choice[0],
+                policy_grid=policy_child_state_choice[0],
+                value_grid=value_child_state_choice[0],
+                compute_utility=compute_utility,
+                state_choice_vec=state_choice_vec,
+                params=params,
+                discount_factor=discount_factor,
+            )
         marg_util_interp = compute_marginal_utility(
             consumption=policy_interp, params=params, **state_choice_vec
         )

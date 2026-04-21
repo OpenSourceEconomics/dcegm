@@ -5,6 +5,10 @@ from dcegm.interpolation.interp1d import (
     interp_policy_on_wealth,
     interp_value_on_wealth,
 )
+from dcegm.interpolation.interp1d_dj import (
+    interp1d_policy_and_value_on_wealth_dj,
+    interp1d_value_on_wealth_dj,
+)
 from dcegm.interpolation.interp2d_irregular import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
@@ -79,6 +83,16 @@ def interpolate_value_for_state_and_choice(
             params=params,
             discount_factor=discount_factor,
         )[0, 0, 0, 0]
+    elif upper_envelope_method == "druedahl_jorgensen":
+        value = interp1d_value_on_wealth_dj(
+            wealth=state_choice_vec["assets_begin_of_period"],
+            wealth_grid=endog_grid_state_choice[0],
+            value_grid=value_grid_state_choice[0],
+            compute_utility=compute_utility,
+            state_choice_vec=state_choice_vec,
+            params=params,
+            discount_factor=discount_factor,
+        )
     else:
         value = interp_value_on_wealth(
             wealth=state_choice_vec["assets_begin_of_period"],
@@ -135,6 +149,17 @@ def interpolate_policy_for_state_and_choice(
             model_config=model_config,
             model_funcs=model_funcs,
             model_structure=model_structure,
+        )
+    elif upper_envelope_method == "druedahl_jorgensen":
+        policy, _ = interp1d_policy_and_value_on_wealth_dj(
+            wealth=state_choice_vec["assets_begin_of_period"],
+            wealth_grid=endog_grid_state_choice[0],
+            policy_grid=policy_grid_state_choice[0],
+            value_grid=value_grid_state_choice[0],
+            compute_utility=model_funcs["compute_utility"],
+            state_choice_vec=state_choice_vec,
+            params=params,
+            discount_factor=model_funcs["read_funcs"]["discount_factor"](params),
         )
     else:
         policy = interp_policy_on_wealth(
@@ -211,6 +236,17 @@ def interpolate_policy_and_value_for_state_and_choice(
         )
         policy = policy[0, 0, 0, 0]
         value = value[0, 0, 0, 0]
+    elif upper_envelope_method == "druedahl_jorgensen":
+        policy, value = interp1d_policy_and_value_on_wealth_dj(
+            wealth=state_choice_vec["assets_begin_of_period"],
+            wealth_grid=endog_grid_state_choice[0],
+            policy_grid=policy_grid_state_choice[0],
+            value_grid=value_grid_state_choice[0],
+            compute_utility=compute_utility,
+            state_choice_vec=state_choice_vec,
+            params=params,
+            discount_factor=discount_factor,
+        )
     else:
         policy, value = interp1d_policy_and_value_on_wealth(
             wealth=state_choice_vec["assets_begin_of_period"],

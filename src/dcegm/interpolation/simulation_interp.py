@@ -3,6 +3,7 @@ from jax import vmap
 
 from dcegm.interfaces.index_functions import get_state_choice_index_per_discrete_states
 from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
+from dcegm.interpolation.interp1d_dj import interp1d_policy_and_value_on_wealth_dj
 from dcegm.interpolation.interp2d_irregular import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
@@ -55,9 +56,20 @@ def interpolate_policy_and_value_for_all_agents(
         vectorized_interp = vmap(
             vmap(
                 interp1d_policy_and_value_function,
-                in_axes=(None, None, 0, 0, 0, 0, None, None, None),  # choices
+                in_axes=(
+                    None,
+                    None,
+                    0,
+                    0,
+                    0,
+                    0,
+                    None,
+                    None,
+                    None,
+                    None,
+                ),
             ),
-            in_axes=(0, 0, 0, 0, 0, None, None, None, None),  # agents
+            in_axes=(0, 0, 0, 0, 0, None, None, None, None, None),
         )
 
         policy_agent, value_agent = vectorized_interp(
@@ -70,6 +82,7 @@ def interpolate_policy_and_value_for_all_agents(
             params,
             compute_utility,
             discount_factor,
+            upper_envelope_method == "druedahl_jorgensen",
         )
 
         return policy_agent, value_agent
@@ -240,19 +253,32 @@ def interp1d_policy_and_value_function(
     params,
     compute_utility,
     discount_factor,
+    use_dj_interpolation,
 ):
     state_choice_vec = {**state, "choice": choice}
 
-    policy_interp, value_interp = interp1d_policy_and_value_on_wealth(
-        wealth=wealth_beginning_of_period,
-        wealth_grid=endog_grid_agent,
-        policy_grid=policy_agent,
-        value_grid=value_agent,
-        compute_utility=compute_utility,
-        state_choice_vec=state_choice_vec,
-        params=params,
-        discount_factor=discount_factor,
-    )
+    if use_dj_interpolation:
+        policy_interp, value_interp = interp1d_policy_and_value_on_wealth_dj(
+            wealth=wealth_beginning_of_period,
+            wealth_grid=endog_grid_agent,
+            policy_grid=policy_agent,
+            value_grid=value_agent,
+            compute_utility=compute_utility,
+            state_choice_vec=state_choice_vec,
+            params=params,
+            discount_factor=discount_factor,
+        )
+    else:
+        policy_interp, value_interp = interp1d_policy_and_value_on_wealth(
+            wealth=wealth_beginning_of_period,
+            wealth_grid=endog_grid_agent,
+            policy_grid=policy_agent,
+            value_grid=value_agent,
+            compute_utility=compute_utility,
+            state_choice_vec=state_choice_vec,
+            params=params,
+            discount_factor=discount_factor,
+        )
 
     return policy_interp, value_interp
 
