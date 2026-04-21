@@ -14,7 +14,6 @@ from dcegm.interpolation.interp2d_irregular import (
 )
 from dcegm.interpolation.interpnd_regular import (
     interpnd_policy_and_value_for_child_states_on_regular_grids,
-    interpnd_value_for_child_states_on_regular_grids,
 )
 
 
@@ -58,31 +57,19 @@ def interpolate_value_for_state_and_choice(
         )
 
     elif (upper_envelope_method == "druedahl_jorgensen") & multidim:
-        continuous_state_names = continuous_states_info[
-            "additional_continuous_state_names"
-        ]
-        continuous_state_child_states = {
-            name: jnp.asarray(state_choice_vec[name])[None, None]
-            for name in continuous_state_names
-        }
-        state_choice_child_states = {
-            key: jnp.asarray(value)[None]
-            for key, value in state_choice_vec.items()
-            if key not in {"assets_begin_of_period", *continuous_state_names}
-        }
-        value = interpnd_value_for_child_states_on_regular_grids(
-            additional_continuous_state_grids=continuous_state_space,
-            wealth_grid=endog_grid_state_choice[0],
-            value_grid_child_states=value_grid_state_choice[None, ...],
-            continuous_state_child_states=continuous_state_child_states,
-            wealth_child_states=jnp.asarray(state_choice_vec["assets_begin_of_period"])[
-                None, None, None, None
+        _, value = _interp_policy_and_value_multidim_dj_for_state_choice(
+            policy_grid_state_choice=value_grid_state_choice,
+            value_grid_state_choice=value_grid_state_choice,
+            endog_grid_state_choice=endog_grid_state_choice,
+            state_choice_vec=state_choice_vec,
+            continuous_state_space=continuous_state_space,
+            continuous_state_names=continuous_states_info[
+                "additional_continuous_state_names"
             ],
-            state_choice_child_states=state_choice_child_states,
             compute_utility=compute_utility,
             params=params,
             discount_factor=discount_factor,
-        )[0, 0, 0, 0]
+        )
     elif upper_envelope_method == "druedahl_jorgensen":
         value = interp1d_value_on_wealth_dj(
             wealth=state_choice_vec["assets_begin_of_period"],
@@ -208,34 +195,19 @@ def interpolate_policy_and_value_for_state_and_choice(
             discount_factor=discount_factor,
         )
     elif (upper_envelope_method == "druedahl_jorgensen") & multidim:
-        continuous_state_names = continuous_states_info[
-            "additional_continuous_state_names"
-        ]
-        continuous_state_child_states = {
-            name: jnp.asarray(state_choice_vec[name])[None, None]
-            for name in continuous_state_names
-        }
-        state_choice_child_states = {
-            key: jnp.asarray(value)[None]
-            for key, value in state_choice_vec.items()
-            if key not in {"assets_begin_of_period", *continuous_state_names}
-        }
-        policy, value = interpnd_policy_and_value_for_child_states_on_regular_grids(
-            additional_continuous_state_grids=continuous_state_space,
-            wealth_grid=endog_grid_state_choice[0],
-            policy_grid_child_states=policy_grid_state_choice[None, ...],
-            value_grid_child_states=value_grid_state_choice[None, ...],
-            continuous_state_child_states=continuous_state_child_states,
-            wealth_child_states=jnp.asarray(state_choice_vec["assets_begin_of_period"])[
-                None, None, None, None
+        policy, value = _interp_policy_and_value_multidim_dj_for_state_choice(
+            policy_grid_state_choice=policy_grid_state_choice,
+            value_grid_state_choice=value_grid_state_choice,
+            endog_grid_state_choice=endog_grid_state_choice,
+            state_choice_vec=state_choice_vec,
+            continuous_state_space=continuous_state_space,
+            continuous_state_names=continuous_states_info[
+                "additional_continuous_state_names"
             ],
-            state_choice_child_states=state_choice_child_states,
             compute_utility=compute_utility,
             params=params,
             discount_factor=discount_factor,
         )
-        policy = policy[0, 0, 0, 0]
-        value = value[0, 0, 0, 0]
     elif upper_envelope_method == "druedahl_jorgensen":
         policy, value = interp1d_policy_and_value_on_wealth_dj(
             wealth=state_choice_vec["assets_begin_of_period"],
@@ -259,4 +231,66 @@ def interpolate_policy_and_value_for_state_and_choice(
             discount_factor=discount_factor,
         )
 
+    return policy, value
+
+
+def _interp_policy_and_value_multidim_dj_for_state_choice(
+    policy_grid_state_choice,
+    value_grid_state_choice,
+    endog_grid_state_choice,
+    state_choice_vec,
+    continuous_state_space,
+    continuous_state_names,
+    compute_utility,
+    params,
+    discount_factor,
+):
+    continuous_state_child_states = {
+        name: jnp.asarray(state_choice_vec[name])[None, None]
+        for name in continuous_state_names
+    }
+    state_choice_child_states = {
+        key: jnp.asarray(value)[None]
+        for key, value in state_choice_vec.items()
+        if key not in {"assets_begin_of_period", *continuous_state_names}
+    }
+    policy_nd, value_nd = interpnd_policy_and_value_for_child_states_on_regular_grids(
+        additional_continuous_state_grids=continuous_state_space,
+        wealth_grid=endog_grid_state_choice[0],
+        policy_grid_child_states=policy_grid_state_choice[None, ...],
+        value_grid_child_states=value_grid_state_choice[None, ...],
+        continuous_state_child_states=continuous_state_child_states,
+        wealth_child_states=jnp.asarray(state_choice_vec["assets_begin_of_period"])[
+            None, None, None, None
+        ],
+        state_choice_child_states=state_choice_child_states,
+        compute_utility=compute_utility,
+        params=params,
+        discount_factor=discount_factor,
+    )
+    policy_nd = policy_nd[0, 0, 0, 0]
+    value_nd = value_nd[0, 0, 0, 0]
+
+    exact_mask = jnp.ones_like(next(iter(continuous_state_space.values())), dtype=bool)
+    for name in continuous_state_names:
+        exact_mask = exact_mask & jnp.isclose(
+            continuous_state_space[name],
+            state_choice_vec[name],
+        )
+    has_exact_combo = jnp.any(exact_mask)
+    combo_idx = jnp.argmax(exact_mask)
+
+    policy_exact, value_exact = interp1d_policy_and_value_on_wealth_dj(
+        wealth=state_choice_vec["assets_begin_of_period"],
+        wealth_grid=endog_grid_state_choice[combo_idx],
+        policy_grid=policy_grid_state_choice[combo_idx],
+        value_grid=value_grid_state_choice[combo_idx],
+        compute_utility=compute_utility,
+        state_choice_vec=state_choice_vec,
+        params=params,
+        discount_factor=discount_factor,
+    )
+
+    policy = jnp.where(has_exact_combo, policy_exact, policy_nd)
+    value = jnp.where(has_exact_combo, value_exact, value_nd)
     return policy, value

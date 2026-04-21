@@ -379,8 +379,8 @@ def test_two_occupation_model_notebook_runs():
     policy_gap = jnp.abs(policy_disc_aligned - policy_cont_aligned)
     value_gap = jnp.abs(value_disc_aligned - value_cont_aligned)
 
-    assert jnp.mean(policy_gap[finite_policy]) < 1.25
-    assert jnp.mean(value_gap[finite_value]) < 1.1
+    assert jnp.mean(policy_gap[finite_policy]) < 1e-10
+    assert jnp.mean(value_gap[finite_value]) < 1e-10
 
     n_agents = 100
     states_initial = {
@@ -397,6 +397,97 @@ def test_two_occupation_model_notebook_runs():
     )
 
     df_cont_exp = simulate_cont_exp(params)
+
+    # With aligned state grids and identical model logic, simulated choices should
+    # coincide exactly (same seed and same initial states).
+    assert (df["choice"].to_numpy() == df_cont_exp["choice"].to_numpy()).all()
+
+    choice_shares_discrete = (
+        df.groupby("period").choice.value_counts(normalize=True).unstack(fill_value=0.0)
+    )
+    choice_shares_cont = (
+        df_cont_exp.groupby("period")
+        .choice.value_counts(normalize=True)
+        .unstack(fill_value=0.0)
+    )
+    assert choice_shares_discrete.equals(choice_shares_cont)
+
+    # Third model: continuous experience grid that does not align with integer years.
+    model_config_cont_exp_offgrid = {
+        "n_periods": 5,
+        "choices": [0, 1, 2],
+        "continuous_states": {
+            "assets_end_of_period": jnp.linspace(0, 50, 100),
+            "assets_begin_of_period": jnp.linspace(0, 50, 100),
+            "exp_green": jnp.linspace(0.0, 6.0, 11, dtype=float),
+            "exp_red": jnp.linspace(0.0, 6.0, 11, dtype=float),
+        },
+        "n_quad_points": 5,
+        "upper_envelope": {"method": "druedahl_jorgensen"},
+    }
+
+    model_cont_exp_offgrid = dcegm.setup_model(
+        model_config=model_config_cont_exp_offgrid,
+        model_specs=model_specs,
+        utility_functions=utility_functions,
+        utility_functions_final_period=utility_functions_final_period,
+        state_space_functions=state_space_functions_cont_exp,
+        stochastic_states_transitions={},
+        budget_constraint=budget_constraint_cont_exp,
+    )
+    solved_model_cont_exp_offgrid = model_cont_exp_offgrid.solve(params)
+
+    policy_cont_offgrid, value_cont_offgrid = (
+        solved_model_cont_exp_offgrid.policy_and_value_for_states_and_choices(
+            states=aligned_states_cont,
+            choices=aligned_choices,
+        )
+    )
+
+    finite_policy_offgrid = jnp.isfinite(policy_disc_aligned) & jnp.isfinite(
+        policy_cont_offgrid
+    )
+    finite_value_offgrid = jnp.isfinite(value_disc_aligned) & jnp.isfinite(
+        value_cont_offgrid
+    )
+    policy_gap_offgrid = jnp.abs(policy_disc_aligned - policy_cont_offgrid)
+    value_gap_offgrid = jnp.abs(value_disc_aligned - value_cont_offgrid)
+
+    # Off-grid experience interpolation introduces bounded approximation error in
+    # queried policy/value while still preserving behavior in simulation.
+    assert jnp.mean(policy_gap_offgrid[finite_policy_offgrid]) < 1.25
+    assert jnp.mean(value_gap_offgrid[finite_value_offgrid]) < 0.55
+
+    simulate_cont_exp_offgrid = model_cont_exp_offgrid.get_solve_and_simulate_func(
+        states_initial=states_initial,
+        seed=99,
+    )
+    df_cont_exp_offgrid = simulate_cont_exp_offgrid(params)
+
+    choice_shares_offgrid = (
+        df_cont_exp_offgrid.groupby("period")
+        .choice.value_counts(normalize=True)
+        .unstack(fill_value=0.0)
+    )
+    all_choices = sorted(
+        set(choice_shares_discrete.columns).union(set(choice_shares_offgrid.columns))
+    )
+    choice_shares_discrete_aligned = choice_shares_discrete.reindex(
+        columns=all_choices,
+        fill_value=0.0,
+    )
+    choice_shares_offgrid_aligned = choice_shares_offgrid.reindex(
+        columns=all_choices,
+        fill_value=0.0,
+    )
+    choice_share_gap_offgrid = (
+        choice_shares_discrete_aligned - choice_shares_offgrid_aligned
+    ).abs()
+
+    # Simulated choices match exactly in this setup despite off-grid experience.
+    assert (df["choice"].to_numpy() == df_cont_exp_offgrid["choice"].to_numpy()).all()
+    assert choice_share_gap_offgrid.to_numpy().mean() == 0.0
+    assert choice_share_gap_offgrid.to_numpy().max() == 0.0
 
     assert policy_function is not None
     assert not df.empty
