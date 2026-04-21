@@ -12,16 +12,14 @@ def calc_cont_grids_next_period(
     model_structure,
     model_config,
     model_funcs,
-    has_additional_continuous_states=None,
 ):
 
     continuous_states_info = model_config["continuous_states_info"]
     state_space_dict = model_structure["state_space_dict"]
 
-    if has_additional_continuous_states is None:
-        has_additional_continuous_states = continuous_states_info[
-            "has_additional_continuous_state"
-        ]
+    has_additional_continuous_states = continuous_states_info[
+        "has_additional_continuous_state"
+    ]
 
     # Scale income shock draws
     income_shock_mean = model_funcs["read_funcs"]["income_shock_mean"](params)
@@ -92,12 +90,13 @@ def _get_continuous_state_next_period(
     model_funcs,
 ):
     if not has_additional_continuous_states:
-        # Use dummy continuous state space and broadcast over discrete states
-        # to keep shapes constant.
+        # Use an explicit zero-valued dummy continuous state with stable shape
+        # (n_states, 1) to keep downstream shapes constant.
         n_states = next(iter(state_space_dict.values())).shape[0]
+        dummy_name = "dummy_cont"
+        dummy_dtype = continuous_state_space[dummy_name].dtype
         dummy_states = {
-            key: jnp.broadcast_to(value, (n_states, value.shape[0]))
-            for key, value in continuous_state_space.items()
+            dummy_name: jnp.zeros((n_states, 1), dtype=dummy_dtype),
         }
         return dummy_states
 
