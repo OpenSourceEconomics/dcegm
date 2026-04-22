@@ -3,7 +3,7 @@ import jax.numpy as jnp
 
 import dcegm
 
-SHOW_DEBUG_PLOTS = False
+SHOW_DEBUG_PLOTS = True
 
 
 # Utility functions
@@ -468,6 +468,7 @@ def test_two_occupation_model_notebook_runs():
         .choice.value_counts(normalize=True)
         .unstack(fill_value=0.0)
     )
+
     all_choices = sorted(
         set(choice_shares_discrete.columns).union(set(choice_shares_offgrid.columns))
     )
@@ -475,10 +476,12 @@ def test_two_occupation_model_notebook_runs():
         columns=all_choices,
         fill_value=0.0,
     )
+
     choice_shares_offgrid_aligned = choice_shares_offgrid.reindex(
         columns=all_choices,
         fill_value=0.0,
     )
+
     choice_share_gap_offgrid = (
         choice_shares_discrete_aligned - choice_shares_offgrid_aligned
     ).abs()
@@ -556,4 +559,13 @@ def test_two_occupation_model_notebook_runs():
         ax_value.set_ylabel("Value")
         ax_value.legend()
 
+        plt.show()
+
+        choice_shares_offgrid.plot(
+            kind="bar", stacked=True, title="Choice Shares - Off-grid Experience"
+        )
+        plt.show()
+        choice_shares_discrete_aligned.plot(
+            kind="bar", stacked=True, title="Choice Shares - Discrete Experience"
+        )
         plt.show()

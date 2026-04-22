@@ -112,7 +112,7 @@ def check_model_config_and_process(model_config):
             "from the model_config['upper_envelope']"
         )
     else:
-        upper_envelope = model_config["upper_envelope"]
+        upper_envelope = dict(model_config["upper_envelope"])
 
     if "tuning_params" not in upper_envelope:
         tuning_params = {}
