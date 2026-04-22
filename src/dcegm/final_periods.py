@@ -15,6 +15,7 @@ def solve_last_two_periods(
     cont_grids_next_period: Dict[str, Any],
     income_shock_weights: jnp.ndarray,
     model_funcs: Dict[str, Any],
+    upper_envelope_method: str,
     last_two_period_batch_info,
     value_solved,
     policy_solved,
@@ -59,6 +60,7 @@ def solve_last_two_periods(
         state_choice_mat_final_period=batch_info["state_choice_mat_final_period"],
         cont_grids_next_period=cont_grids_next_period,
         continuous_states_info=continuous_states_info,
+        upper_envelope_method=upper_envelope_method,
         model_structure=model_structure,
         params=params,
         model_funcs=model_funcs,
@@ -148,6 +150,7 @@ def solve_final_period(
     state_choice_mat_final_period,
     cont_grids_next_period: Dict[str, Any],
     continuous_states_info: Dict[str, Any],
+    upper_envelope_method: str,
     model_structure: Dict[str, Any],
     params: Dict[str, float],
     model_funcs: Dict[str, Any],
@@ -214,6 +217,12 @@ def solve_final_period(
 
     if continuous_states_info["has_additional_continuous_state"]:
         # We also need to solve at the state space and the child states to store correctly
+        # For Druedahl Jorgensen wealth needs to be assets_begin_of_period
+        if upper_envelope_method == "druedahl_jorgensen":
+            asset_grid = continuous_states_info["assets_begin_of_period"]
+        else:
+            asset_grid = continuous_states_info["assets_begin_of_period"]
+
         values_regular, wealth_at_regular = vmap(
             vmap(
                 vmap(
@@ -226,7 +235,7 @@ def solve_final_period(
         )(
             state_choice_mat_final_period,
             model_structure["continuous_state_space"],
-            continuous_states_info["assets_grid_end_of_period"],
+            asset_grid,
             params,
             compute_utility,
             model_funcs["compute_assets_begin_of_period"],

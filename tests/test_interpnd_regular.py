@@ -244,7 +244,8 @@ def test_interpnd_regular_policy_random_against_scipy(interpnd_inputs):
             inputs["wealth_grid"].size,
         ),
     )
-
+    # Set value grid to very high values to ensure policy interpolation dominates and no overwrite happens.
+    # Interpolation always yields 1e8 and in consume all we have 0.95 * 1e8
     value_grid_child_states = np.full_like(policy_grid_child_states, 1e8)
     out = _run_interpnd(policy_grid_child_states, value_grid_child_states, inputs)
     expected = _scipy_expected(policy_grid_child_states, inputs)

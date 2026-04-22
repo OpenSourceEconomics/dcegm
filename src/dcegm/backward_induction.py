@@ -59,9 +59,7 @@ def backward_induction(
         policy_solved,
         endog_grid_solved,
     ) = create_solution_container(
-        n_continuous_state_combinations=next(
-            iter(model_structure["continuous_state_space"].values())
-        ).shape[0],
+        n_continuous_state_combinations=model_config["n_continuous_state_combinations"],
         # Read out grid size
         n_total_wealth_grid=model_config["n_total_wealth_grid"],
         n_state_choices=model_structure["state_choice_space"].shape[0],
@@ -76,6 +74,7 @@ def backward_induction(
             cont_grids_next_period=cont_grids,
             income_shock_weights=weights,
             model_funcs=model_funcs,
+            upper_envelope_method=model_config["upper_envelope"]["method"],
             last_two_period_batch_info=batch_info["last_two_period_info"],
             value_solved=val_solved,
             policy_solved=pol_solved,
