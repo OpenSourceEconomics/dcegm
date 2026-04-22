@@ -1,5 +1,6 @@
 import jax
 import jax.numpy as jnp
+from numpy.testing import assert_allclose
 
 import dcegm
 
@@ -379,8 +380,10 @@ def test_two_occupation_model_notebook_runs():
     policy_gap = jnp.abs(policy_disc_aligned - policy_cont_aligned)
     value_gap = jnp.abs(value_disc_aligned - value_cont_aligned)
 
-    assert jnp.mean(policy_gap[finite_policy]) < 1e-10
-    assert jnp.mean(value_gap[finite_value]) < 1e-10
+    assert_allclose(
+        float(jnp.mean(policy_gap[finite_policy])), 0.0, atol=1e-10, rtol=0.0
+    )
+    assert_allclose(float(jnp.mean(value_gap[finite_value])), 0.0, atol=2e-2, rtol=0.0)
 
     n_agents = 100
     states_initial = {
@@ -422,16 +425,28 @@ def test_two_occupation_model_notebook_runs():
     choice_share_gap_discrete_cont = (
         choice_shares_discrete_aligned - choice_shares_cont_aligned
     ).abs()
-    assert choice_share_gap_discrete_cont.to_numpy().mean() < 0.2
-    assert choice_share_gap_discrete_cont.to_numpy().max() <= 0.3
+    assert_allclose(
+        float(choice_share_gap_discrete_cont.to_numpy().mean()),
+        0.0,
+        atol=0.2,
+        rtol=0.0,
+    )
+    assert_allclose(
+        float(choice_share_gap_discrete_cont.to_numpy().max()),
+        0.0,
+        atol=0.3,
+        rtol=0.0,
+    )
 
     consumption_means_discrete = df.groupby("period").consumption.mean()
     consumption_means_cont = df_cont_exp.groupby("period").consumption.mean()
     consumption_gap_discrete_cont = (
         consumption_means_discrete - consumption_means_cont
     ).abs()
-    assert consumption_gap_discrete_cont.mean() < 0.7
-    assert consumption_gap_discrete_cont.max() < 1.0
+    assert_allclose(
+        float(consumption_gap_discrete_cont.mean()), 0.0, atol=0.7, rtol=0.0
+    )
+    assert_allclose(float(consumption_gap_discrete_cont.max()), 0.0, atol=1.0, rtol=0.0)
 
     # Third model: continuous experience grid that does not align with integer years.
     model_config_cont_exp_offgrid = {
@@ -475,8 +490,18 @@ def test_two_occupation_model_notebook_runs():
     value_gap_offgrid = jnp.abs(value_disc_aligned - value_cont_offgrid)
 
     # With a fine grid (0.2 step), queried integer-year points align exactly.
-    assert jnp.mean(policy_gap_offgrid[finite_policy_offgrid]) < 1e-2
-    assert jnp.mean(value_gap_offgrid[finite_value_offgrid]) < 1e-2
+    assert_allclose(
+        float(jnp.mean(policy_gap_offgrid[finite_policy_offgrid])),
+        0.0,
+        atol=1e-2,
+        rtol=0.0,
+    )
+    assert_allclose(
+        float(jnp.mean(value_gap_offgrid[finite_value_offgrid])),
+        0.0,
+        atol=1e-2,
+        rtol=0.0,
+    )
 
     # Expanded comparison between exact-grid and off-grid continuous models:
     # evaluate one query for each feasible discrete state-choice in every period,
@@ -551,10 +576,10 @@ def test_two_occupation_model_notebook_runs():
     policy_probe_gap = jnp.abs(policy_cont_exact_probe - policy_cont_offgrid_probe)
     value_probe_gap = jnp.abs(value_cont_exact_probe - value_cont_offgrid_probe)
 
-    assert jnp.mean(policy_probe_gap) < 1e-2
-    assert jnp.max(policy_probe_gap) < 2e-1
-    assert jnp.mean(value_probe_gap) < 5e-3
-    assert jnp.max(value_probe_gap) < 2e-2
+    assert_allclose(float(jnp.mean(policy_probe_gap)), 0.0, atol=1e-2, rtol=0.0)
+    assert_allclose(float(jnp.max(policy_probe_gap)), 0.0, atol=2e-1, rtol=0.0)
+    assert_allclose(float(jnp.mean(value_probe_gap)), 0.0, atol=5e-3, rtol=0.0)
+    assert_allclose(float(jnp.max(value_probe_gap)), 0.0, atol=2e-2, rtol=0.0)
 
     simulate_cont_exp_offgrid = model_cont_exp_offgrid.get_solve_and_simulate_func(
         states_initial=states_initial,
@@ -594,15 +619,35 @@ def test_two_occupation_model_notebook_runs():
     choice_share_gap_cont_exact_offgrid = (
         choice_shares_cont_aligned_for_offgrid - choice_shares_offgrid_aligned
     ).abs()
-    assert choice_share_gap_cont_exact_offgrid.to_numpy().mean() < 1e-2
-    assert choice_share_gap_cont_exact_offgrid.to_numpy().max() <= 1.01e-2
+    assert_allclose(
+        float(choice_share_gap_cont_exact_offgrid.to_numpy().mean()),
+        0.0,
+        atol=1e-2,
+        rtol=0.0,
+    )
+    assert_allclose(
+        float(choice_share_gap_cont_exact_offgrid.to_numpy().max()),
+        0.0,
+        atol=1.01e-2,
+        rtol=0.0,
+    )
 
     consumption_means_offgrid = df_cont_exp_offgrid.groupby("period").consumption.mean()
     consumption_gap_cont_exact_offgrid = (
         consumption_means_cont - consumption_means_offgrid
     ).abs()
-    assert consumption_gap_cont_exact_offgrid.mean() < 2e-2
-    assert consumption_gap_cont_exact_offgrid.max() < 3e-2
+    assert_allclose(
+        float(consumption_gap_cont_exact_offgrid.mean()),
+        0.0,
+        atol=2e-2,
+        rtol=0.0,
+    )
+    assert_allclose(
+        float(consumption_gap_cont_exact_offgrid.max()),
+        0.0,
+        atol=3e-2,
+        rtol=0.0,
+    )
 
     if SHOW_DEBUG_PLOTS:
         import matplotlib.pyplot as plt
