@@ -460,12 +460,15 @@ def _get_solve_last_two_periods_args(model, params, has_second_continuous_state)
         model_funcs=model_funcs,
     )
 
+    n_continuous_state_combinations = model_structure["continuous_state_space"][
+        next(iter(model_structure["continuous_state_space"]))
+    ].shape[0]
     (
         value_solved,
         policy_solved,
         endog_grid_solved,
     ) = create_solution_container(
-        n_continuous_state_combinations=model_config["n_continuous_state_combinations"],
+        n_continuous_state_combinations=n_continuous_state_combinations,
         # Read out grid size
         n_total_wealth_grid=model_config["n_total_wealth_grid"],
         n_state_choices=model_structure["state_choice_space"].shape[0],

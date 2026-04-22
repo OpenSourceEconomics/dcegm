@@ -55,6 +55,9 @@ def partially_solve(
         relevant_state_choices_mask
     ]
 
+    n_continuous_state_combinations = model_structure["continuous_state_space"][
+        next(iter(model_structure["continuous_state_space"]))
+    ].shape[0]
     (
         value_solved,
         policy_solved,
@@ -63,7 +66,7 @@ def partially_solve(
         # Read out grid size
         n_total_wealth_grid=model_config["n_total_wealth_grid"],
         n_state_choices=relevant_state_choice_space.shape[0],
-        n_continuous_state_combinations=model_config["n_continuous_state_combinations"],
+        n_continuous_state_combinations=n_continuous_state_combinations,
     )
 
     if return_candidates:
@@ -74,9 +77,7 @@ def partially_solve(
             create_solution_container(
                 n_total_wealth_grid=n_assets_end_of_period,
                 n_state_choices=relevant_state_choice_space.shape[0],
-                n_continuous_state_combinations=model_config[
-                    "n_continuous_state_combinations"
-                ],
+                n_continuous_state_combinations=n_continuous_state_combinations,
             )
         )
 
