@@ -3,7 +3,7 @@ import jax.numpy as jnp
 
 import dcegm
 
-SHOW_DEBUG_PLOTS = True
+SHOW_DEBUG_PLOTS = False
 
 
 # Utility functions
@@ -419,8 +419,8 @@ def test_two_occupation_model_notebook_runs():
         "continuous_states": {
             "assets_end_of_period": jnp.linspace(0, 50, 100),
             "assets_begin_of_period": jnp.linspace(0, 50, 100),
-            "exp_green": jnp.arange(0.0, 6.0 + 1e-8, 0.3, dtype=float),
-            "exp_red": jnp.arange(0.0, 6.0 + 1e-8, 0.3, dtype=float),
+            "exp_green": jnp.arange(0.0, 6.0 + 1e-8, 1.8, dtype=float),
+            "exp_red": jnp.arange(0.0, 6.0 + 1e-8, 1.8, dtype=float),
         },
         "n_quad_points": 5,
         "upper_envelope": {"method": "druedahl_jorgensen"},
@@ -454,8 +454,8 @@ def test_two_occupation_model_notebook_runs():
     value_gap_offgrid = jnp.abs(value_disc_aligned - value_cont_offgrid)
 
     # With a fine grid (0.2 step), queried integer-year points align exactly.
-    # assert jnp.mean(policy_gap_offgrid[finite_policy_offgrid]) < 1e-10
-    # assert jnp.mean(value_gap_offgrid[finite_value_offgrid]) < 1e-10
+    assert jnp.mean(policy_gap_offgrid[finite_policy_offgrid]) < 1e-2
+    assert jnp.mean(value_gap_offgrid[finite_value_offgrid]) < 1e-2
 
     simulate_cont_exp_offgrid = model_cont_exp_offgrid.get_solve_and_simulate_func(
         states_initial=states_initial,

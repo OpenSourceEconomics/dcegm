@@ -62,6 +62,9 @@ def interpolate_value_for_state_and_choice(
             value_grid_state_choice=value_grid_state_choice,
             endog_grid_state_choice=endog_grid_state_choice,
             state_choice_vec=state_choice_vec,
+            additional_continuous_state_grids=continuous_states_info[
+                "additional_continuous_state_grids"
+            ],
             continuous_state_space=continuous_state_space,
             continuous_state_names=continuous_states_info[
                 "additional_continuous_state_names"
@@ -200,6 +203,9 @@ def interpolate_policy_and_value_for_state_and_choice(
             value_grid_state_choice=value_grid_state_choice,
             endog_grid_state_choice=endog_grid_state_choice,
             state_choice_vec=state_choice_vec,
+            additional_continuous_state_grids=continuous_states_info[
+                "additional_continuous_state_grids"
+            ],
             continuous_state_space=continuous_state_space,
             continuous_state_names=continuous_states_info[
                 "additional_continuous_state_names"
@@ -239,6 +245,7 @@ def _interp_policy_and_value_multidim_dj_for_state_choice(
     value_grid_state_choice,
     endog_grid_state_choice,
     state_choice_vec,
+    additional_continuous_state_grids,
     continuous_state_space,
     continuous_state_names,
     compute_utility,
@@ -255,7 +262,7 @@ def _interp_policy_and_value_multidim_dj_for_state_choice(
         if key not in {"assets_begin_of_period", *continuous_state_names}
     }
     policy_nd, value_nd = interpnd_policy_and_value_for_child_states_on_regular_grids(
-        additional_continuous_state_grids=continuous_state_space,
+        additional_continuous_state_grids=additional_continuous_state_grids,
         wealth_grid=endog_grid_state_choice[0],
         policy_grid_child_states=policy_grid_state_choice[None, ...],
         value_grid_child_states=value_grid_state_choice[None, ...],
