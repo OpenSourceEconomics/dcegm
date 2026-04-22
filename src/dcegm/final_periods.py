@@ -221,7 +221,7 @@ def solve_final_period(
         if upper_envelope_method == "druedahl_jorgensen":
             asset_grid = continuous_states_info["assets_begin_of_period"]
         else:
-            asset_grid = continuous_states_info["assets_begin_of_period"]
+            asset_grid = continuous_states_info["assets_grid_end_of_period"]
 
         values_regular, wealth_at_regular = vmap(
             vmap(
