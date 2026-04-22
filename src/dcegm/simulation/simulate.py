@@ -192,6 +192,9 @@ def simulate_single_period(
         discrete_states_names=model_structure_sol["discrete_states_names"],
         compute_utility=compute_utility,
         continuous_state_space=model_structure_sol["continuous_state_space"],
+        additional_continuous_state_grids=continuous_states_info[
+            "additional_continuous_state_grids"
+        ],
         upper_envelope_method=model_config["upper_envelope"]["method"],
         has_additional_continuous_state=has_additional_continuous_state,
         discount_factor=discount_factor,

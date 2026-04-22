@@ -25,6 +25,7 @@ def interpolate_policy_and_value_for_all_agents(
     discrete_states_names,
     compute_utility,
     continuous_state_space,
+    additional_continuous_state_grids,
     upper_envelope_method,
     has_additional_continuous_state,
     discount_factor,
@@ -203,6 +204,7 @@ def interpolate_policy_and_value_for_all_agents(
                     None,
                     None,
                     None,
+                    None,
                 ),
             ),
             in_axes=(
@@ -212,6 +214,7 @@ def interpolate_policy_and_value_for_all_agents(
                 0,
                 0,
                 0,
+                None,
                 None,
                 None,
                 None,
@@ -230,6 +233,7 @@ def interpolate_policy_and_value_for_all_agents(
             policy_grid_agent,
             choice_range,
             continuous_state_space,
+            additional_continuous_state_grids,
             additional_continuous_state_names,
             params,
             compute_utility,
@@ -326,6 +330,7 @@ def interpnd_policy_and_value_function(
     policy_agent,
     choice,
     continuous_state_space,
+    additional_continuous_state_grids,
     additional_continuous_state_names,
     params,
     compute_utility,
@@ -343,7 +348,7 @@ def interpnd_policy_and_value_function(
 
     policy_interp, value_interp = (
         interpnd_policy_and_value_for_child_states_on_regular_grids(
-            additional_continuous_state_grids=continuous_state_space,
+            additional_continuous_state_grids=additional_continuous_state_grids,
             wealth_grid=endog_grid_agent[0],
             policy_grid_child_states=policy_agent[None, ...],
             value_grid_child_states=value_agent[None, ...],
@@ -356,4 +361,26 @@ def interpnd_policy_and_value_function(
         )
     )
 
-    return policy_interp[0, 0, 0, 0], value_interp[0, 0, 0, 0]
+    exact_mask = jnp.ones_like(next(iter(continuous_state_space.values())), dtype=bool)
+    for name in additional_continuous_state_names:
+        exact_mask = exact_mask & jnp.isclose(
+            continuous_state_space[name], continuous_state_beginning_of_period[name]
+        )
+    has_exact_combo = jnp.any(exact_mask)
+    combo_idx = jnp.argmax(exact_mask)
+
+    policy_exact, value_exact = interp1d_policy_and_value_on_wealth_dj(
+        wealth=wealth_beginning_of_period,
+        wealth_grid=endog_grid_agent[combo_idx],
+        policy_grid=policy_agent[combo_idx],
+        value_grid=value_agent[combo_idx],
+        compute_utility=compute_utility,
+        state_choice_vec=state_choice_vec,
+        params=params,
+        discount_factor=discount_factor,
+    )
+
+    policy = jnp.where(has_exact_combo, policy_exact, policy_interp[0, 0, 0, 0])
+    value = jnp.where(has_exact_combo, value_exact, value_interp[0, 0, 0, 0])
+
+    return policy, value

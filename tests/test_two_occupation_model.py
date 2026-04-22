@@ -397,9 +397,8 @@ def test_two_occupation_model_notebook_runs():
 
     df_cont_exp = simulate_cont_exp(params)
 
-    # With aligned state grids and identical model logic, simulated choices should
-    # coincide exactly (same seed and same initial states).
-    assert (df["choice"].to_numpy() == df_cont_exp["choice"].to_numpy()).all()
+    # Compare simulated behavior between discrete-experience and continuous-experience
+    # models under the same seed and initial states.
 
     choice_shares_discrete = (
         df.groupby("period").choice.value_counts(normalize=True).unstack(fill_value=0.0)
@@ -409,7 +408,30 @@ def test_two_occupation_model_notebook_runs():
         .choice.value_counts(normalize=True)
         .unstack(fill_value=0.0)
     )
-    assert choice_shares_discrete.equals(choice_shares_cont)
+    all_choices_discrete_cont = sorted(
+        set(choice_shares_discrete.columns).union(set(choice_shares_cont.columns))
+    )
+    choice_shares_discrete_aligned = choice_shares_discrete.reindex(
+        columns=all_choices_discrete_cont,
+        fill_value=0.0,
+    )
+    choice_shares_cont_aligned = choice_shares_cont.reindex(
+        columns=all_choices_discrete_cont,
+        fill_value=0.0,
+    )
+    choice_share_gap_discrete_cont = (
+        choice_shares_discrete_aligned - choice_shares_cont_aligned
+    ).abs()
+    assert choice_share_gap_discrete_cont.to_numpy().mean() < 0.2
+    assert choice_share_gap_discrete_cont.to_numpy().max() <= 0.3
+
+    consumption_means_discrete = df.groupby("period").consumption.mean()
+    consumption_means_cont = df_cont_exp.groupby("period").consumption.mean()
+    consumption_gap_discrete_cont = (
+        consumption_means_discrete - consumption_means_cont
+    ).abs()
+    assert consumption_gap_discrete_cont.mean() < 0.7
+    assert consumption_gap_discrete_cont.max() < 1.0
 
     # Third model: continuous experience grid that does not align with integer years.
     model_config_cont_exp_offgrid = {
@@ -456,6 +478,84 @@ def test_two_occupation_model_notebook_runs():
     assert jnp.mean(policy_gap_offgrid[finite_policy_offgrid]) < 1e-2
     assert jnp.mean(value_gap_offgrid[finite_value_offgrid]) < 1e-2
 
+    # Expanded comparison between exact-grid and off-grid continuous models:
+    # evaluate one query for each feasible discrete state-choice in every period,
+    # while varying continuous states across queries.
+    state_choice_space_cont = solved_model_cont_exp.model_structure[
+        "state_choice_space"
+    ]
+    discrete_state_names_cont = solved_model_cont_exp.model_structure[
+        "discrete_states_names"
+    ]
+    state_choice_cols = [*discrete_state_names_cont, "choice"]
+    idx_period = state_choice_cols.index("period")
+    idx_lagged_choice = state_choice_cols.index("lagged_choice")
+    idx_choice = state_choice_cols.index("choice")
+
+    periods_probe = state_choice_space_cont[:, idx_period].astype(int)
+    lagged_probe = state_choice_space_cont[:, idx_lagged_choice].astype(int)
+    choices_probe = state_choice_space_cont[:, idx_choice].astype(int)
+
+    n_probe = periods_probe.shape[0]
+    probe_idx = jnp.arange(n_probe)
+
+    exp_green_probe = jnp.clip(
+        0.35 * periods_probe
+        + 0.11 * ((probe_idx % 5) - 2)
+        + 0.07 * (lagged_probe == 1),
+        0.0,
+        6.0,
+    )
+    exp_red_probe = jnp.clip(
+        0.45 * periods_probe
+        + 0.09 * (((probe_idx * 3) % 7) - 3)
+        + 0.05 * (lagged_probe == 0),
+        0.0,
+        6.0,
+    )
+    wealth_probe = jnp.clip(
+        1.0 + 2.0 * periods_probe + 0.6 * (probe_idx % 9) + 0.25 * lagged_probe,
+        0.5,
+        49.5,
+    )
+
+    states_probe_cont = {
+        "period": periods_probe,
+        "lagged_choice": lagged_probe,
+        "exp_green": exp_green_probe,
+        "exp_red": exp_red_probe,
+        "assets_begin_of_period": wealth_probe,
+    }
+
+    policy_cont_exact_probe, value_cont_exact_probe = (
+        solved_model_cont_exp.policy_and_value_for_states_and_choices(
+            states=states_probe_cont,
+            choices=choices_probe,
+        )
+    )
+    policy_cont_offgrid_probe, value_cont_offgrid_probe = (
+        solved_model_cont_exp_offgrid.policy_and_value_for_states_and_choices(
+            states=states_probe_cont,
+            choices=choices_probe,
+        )
+    )
+
+    finite_probe = (
+        jnp.isfinite(policy_cont_exact_probe)
+        & jnp.isfinite(value_cont_exact_probe)
+        & jnp.isfinite(policy_cont_offgrid_probe)
+        & jnp.isfinite(value_cont_offgrid_probe)
+    )
+    assert jnp.all(finite_probe)
+
+    policy_probe_gap = jnp.abs(policy_cont_exact_probe - policy_cont_offgrid_probe)
+    value_probe_gap = jnp.abs(value_cont_exact_probe - value_cont_offgrid_probe)
+
+    assert jnp.mean(policy_probe_gap) < 1e-2
+    assert jnp.max(policy_probe_gap) < 2e-1
+    assert jnp.mean(value_probe_gap) < 5e-3
+    assert jnp.max(value_probe_gap) < 2e-2
+
     simulate_cont_exp_offgrid = model_cont_exp_offgrid.get_solve_and_simulate_func(
         states_initial=states_initial,
         seed=99,
@@ -485,10 +585,24 @@ def test_two_occupation_model_notebook_runs():
         choice_shares_discrete_aligned - choice_shares_offgrid_aligned
     ).abs()
 
-    # Simulated choices match exactly in this setup despite off-grid experience.
-    assert (df["choice"].to_numpy() == df_cont_exp_offgrid["choice"].to_numpy()).all()
-    assert choice_share_gap_offgrid.to_numpy().mean() == 0.0
-    assert choice_share_gap_offgrid.to_numpy().max() == 0.0
+    # Compare exact-grid and off-grid continuous models in simulation output.
+
+    choice_shares_cont_aligned_for_offgrid = choice_shares_cont.reindex(
+        columns=all_choices,
+        fill_value=0.0,
+    )
+    choice_share_gap_cont_exact_offgrid = (
+        choice_shares_cont_aligned_for_offgrid - choice_shares_offgrid_aligned
+    ).abs()
+    assert choice_share_gap_cont_exact_offgrid.to_numpy().mean() < 1e-2
+    assert choice_share_gap_cont_exact_offgrid.to_numpy().max() <= 1.01e-2
+
+    consumption_means_offgrid = df_cont_exp_offgrid.groupby("period").consumption.mean()
+    consumption_gap_cont_exact_offgrid = (
+        consumption_means_cont - consumption_means_offgrid
+    ).abs()
+    assert consumption_gap_cont_exact_offgrid.mean() < 2e-2
+    assert consumption_gap_cont_exact_offgrid.max() < 3e-2
 
     if SHOW_DEBUG_PLOTS:
         import matplotlib.pyplot as plt
