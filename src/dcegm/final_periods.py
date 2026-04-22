@@ -218,6 +218,7 @@ def solve_final_period(
     if continuous_states_info["has_additional_continuous_state"]:
         # We also need to solve at the state space and the child states to store correctly
         # For Druedahl Jorgensen wealth needs to be assets_begin_of_period
+        assets_begin = continuous_states_info["assets_begin_of_period"]
         if upper_envelope_method == "druedahl_jorgensen":
             asset_grid = continuous_states_info["assets_begin_of_period"]
         else:
@@ -239,6 +240,7 @@ def solve_final_period(
             params,
             compute_utility,
             model_funcs["compute_assets_begin_of_period"],
+            assets_begin,
         )
 
         sort_idx = jnp.argsort(wealth_at_regular, axis=2)
@@ -312,17 +314,22 @@ def calc_value_and_budget_for_each_gridpoint(
     params,
     compute_utility,
     compute_assets_begin_of_period,
+    assets_begin,
 ):
     state_vec = state_choice_vec.copy()
     state_vec.pop("choice")
 
-    wealth_final_period = compute_assets_begin_of_period(
-        **state_vec,
-        **continuous_state_vec,
-        asset_end_of_previous_period=asset_grid_point_end_of_previous_period,
-        income_shock_previous_period=jnp.array(0.0),
-        params=params,
-    )
+    if assets_begin:
+        # If assets begin, the grid is directly the assets we start from
+        wealth_final_period = asset_grid_point_end_of_previous_period
+    else:
+        wealth_final_period = compute_assets_begin_of_period(
+            **state_vec,
+            **continuous_state_vec,
+            asset_end_of_previous_period=asset_grid_point_end_of_previous_period,
+            income_shock_previous_period=jnp.array(0.0),
+            params=params,
+        )
 
     value = compute_utility(
         **state_choice_vec,
