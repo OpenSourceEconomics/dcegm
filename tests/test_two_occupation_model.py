@@ -162,8 +162,8 @@ def test_two_occupation_model_notebook_runs():
         exp_green,
         exp_red,
     ):
-        next_exp_green = exp_green + (choice == 1)
-        next_exp_red = exp_red + (choice == 0)
+        next_exp_green = exp_green + (lagged_choice == 1)
+        next_exp_red = exp_red + (lagged_choice == 0)
         return {
             "period": period + 1,
             "exp_green": next_exp_green,
@@ -179,12 +179,12 @@ def test_two_occupation_model_notebook_runs():
     ):
         if (exp_green + exp_red) > period:
             return False
-        elif (exp_green > 0) & (lagged_choice == 0) & (period == 1):
-            return False
-        elif (exp_red > 0) & (lagged_choice == 1) & (period == 1):
-            return False
-        elif ((exp_red + exp_green) == 0) & (lagged_choice != 2):
-            return False
+        # elif (exp_green > 0) & (lagged_choice == 0) & (period == 1):
+        #    return False
+        # elif (exp_red > 0) & (lagged_choice == 1) & (period == 1):
+        #    return False
+        # elif ((exp_red + exp_green) == 0) & (lagged_choice != 2):
+        #    return False
         else:
             return True
 
@@ -270,7 +270,7 @@ def test_two_occupation_model_notebook_runs():
     n_agents = 100
     states_initial = {
         "n_agents": n_agents,
-        "assets_begin_of_period": jnp.zeros(n_agents),
+        "assets_begin_of_period": jnp.ones(n_agents),
         "exp_green": jnp.zeros(n_agents),
         "exp_red": jnp.zeros(n_agents),
         "lagged_choice": jnp.zeros(n_agents),
@@ -385,13 +385,12 @@ def test_two_occupation_model_notebook_runs():
     n_agents = 100
     states_initial = {
         "n_agents": n_agents,
-        "assets_begin_of_period": jnp.zeros(n_agents),
+        "assets_begin_of_period": jnp.ones(n_agents),
         "exp_green": jnp.zeros(n_agents),
         "exp_red": jnp.zeros(n_agents),
         "lagged_choice": jnp.zeros(n_agents),
         "period": jnp.zeros(n_agents, dtype=int),
     }
-
     simulate_cont_exp = model_cont_exp.get_solve_and_simulate_func(
         states_initial=states_initial, seed=99
     )
