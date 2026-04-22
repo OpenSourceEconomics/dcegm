@@ -218,7 +218,7 @@ def solve_final_period(
     if continuous_states_info["has_additional_continuous_state"]:
         # We also need to solve at the state space and the child states to store correctly
         # For Druedahl Jorgensen wealth needs to be assets_begin_of_period
-        assets_begin = continuous_states_info["assets_begin_of_period"]
+        assets_begin = "assets_begin_of_period" in continuous_states_info.keys()
         if upper_envelope_method == "druedahl_jorgensen":
             asset_grid = continuous_states_info["assets_begin_of_period"]
         else:
@@ -228,11 +228,11 @@ def solve_final_period(
             vmap(
                 vmap(
                     calc_value_and_budget_for_each_gridpoint,
-                    in_axes=(None, None, 0, None, None, None),
+                    in_axes=(None, None, 0, None, None, None, None),
                 ),
-                in_axes=(None, 0, None, None, None, None),
+                in_axes=(None, 0, None, None, None, None, None),
             ),
-            in_axes=(0, None, None, None, None, None),
+            in_axes=(0, None, None, None, None, None, None),
         )(
             state_choice_mat_final_period,
             model_structure["continuous_state_space"],

@@ -295,6 +295,7 @@ def create_test_inputs():
         continuous_states_info=model_config["continuous_states_info"],
         model_structure=model.model_structure,
         params=params,
+        upper_envelope_method=model_config["upper_envelope"]["method"],
         model_funcs=model_funcs_cont,
         value_solved=value_solved,
         policy_solved=policy_solved,
@@ -459,15 +460,15 @@ def _get_solve_last_two_periods_args(model, params, has_second_continuous_state)
         model_funcs=model_funcs,
     )
 
-    # Create solution containers for value, policy, and endogenous grids
-    value_solved, policy_solved, endog_grid_solved = create_solution_container(
-        n_total_wealth_grid=model_config["upper_envelope"]["tuning_params"][
-            "n_total_wealth_grid"
-        ],
+    (
+        value_solved,
+        policy_solved,
+        endog_grid_solved,
+    ) = create_solution_container(
+        n_continuous_state_combinations=model_config["n_continuous_state_combinations"],
+        # Read out grid size
+        n_total_wealth_grid=model_config["n_total_wealth_grid"],
         n_state_choices=model_structure["state_choice_space"].shape[0],
-        n_continuous_state_combinations=model_structure[
-            "n_continuous_state_combinations"
-        ],
     )
 
     return (
