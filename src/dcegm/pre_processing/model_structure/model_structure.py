@@ -45,12 +45,12 @@ def create_model_structure(
             name: grid.ravel()
             for name, grid in zip(continuous_state_names, continuous_state_mesh)
         }
-        n_continuous_state_combinations = int(
-            continuous_state_space[continuous_state_names[0]].shape[0]
-        )
+        # n_continuous_state_combinations = int(
+        #    continuous_state_space[continuous_state_names[0]].shape[0]
+        # )
     else:
         continuous_state_space = {"dummy_cont": jnp.zeros(1)}
-        n_continuous_state_combinations = 1
+        # n_continuous_state_combinations = 1
 
     print("Starting state space creation")
     state_space_objects = create_state_space(
@@ -79,6 +79,6 @@ def create_model_structure(
         **state_choice_and_child_state_objects,
         "choice_range": jnp.asarray(model_config["choices"]),
         "continuous_state_space": continuous_state_space,
-        "n_continuous_state_combinations": n_continuous_state_combinations,
+        # "n_continuous_state_combinations": n_continuous_state_combinations,
     }
     return jax.tree.map(create_array_with_smallest_int_dtype, model_structure)

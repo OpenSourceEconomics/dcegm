@@ -54,12 +54,17 @@ def backward_induction(
 
     cont_grids_next_period = calc_grids_jit(income_shock_draws_unscaled, params)
 
+    # Infer n_continuous_state_combinations from model structure
+    n_continuous_state_combinations = model_structure["continuous_state_space"][
+        next(iter(model_structure["continuous_state_space"]))
+    ].shape[0]
+
     (
         value_solved,
         policy_solved,
         endog_grid_solved,
     ) = create_solution_container(
-        n_continuous_state_combinations=model_config["n_continuous_state_combinations"],
+        n_continuous_state_combinations=n_continuous_state_combinations,
         # Read out grid size
         n_total_wealth_grid=model_config["n_total_wealth_grid"],
         n_state_choices=model_structure["state_choice_space"].shape[0],
