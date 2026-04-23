@@ -22,9 +22,10 @@ def transition_to_next_period(
     n_agents = assets_end_of_period.shape[0]
 
     stochastic_states_next_period = vmap(
-        realize_stochastic_states, in_axes=(0, 0, 0, None, None)
+        realize_stochastic_states, in_axes=(0, 0, 0, 0, None, None)
     )(
         discrete_states_beginning_of_period,
+        continuous_state_beginning_of_period,
         choice,
         sim_keys["stochastic_state_keys"],
         params,
@@ -125,18 +126,6 @@ def update_discrete_states_for_one_agent(update_func, state, choice, params):
     return update_func(**state, choice=choice, params=params)
 
 
-def next_period_continuous_state_for_one_agent(
-    update_func, discrete_states, continuous_state, choice, params
-):
-
-    return update_func(
-        **discrete_states,
-        continuous_state=continuous_state,
-        choice=choice,
-        params=params,
-    )
-
-
 def vectorized_utility(consumption_period, state, choice, params, compute_utility):
     utility = compute_utility(
         consumption=consumption_period, params=params, choice=choice, **state
@@ -144,12 +133,18 @@ def vectorized_utility(consumption_period, state, choice, params, compute_utilit
     return utility
 
 
-def realize_stochastic_states(state, choice, key, params, processed_stochastic_funcs):
+def realize_stochastic_states(
+    state, cont_state, choice, key, params, processed_stochastic_funcs
+):
+    if cont_state is not None:
+        all_states = {**state, **cont_state}
+    else:
+        all_states = state
     stochastic_states_next_period = {}
     for state_name in processed_stochastic_funcs.keys():
         key, subkey = jax.random.split(key)
         state_vec = processed_stochastic_funcs[state_name](
-            params=params, **state, choice=choice
+            params=params, **all_states, choice=choice
         )
         stochastic_states_next_period[state_name] = jax.random.choice(
             key=subkey, a=state_vec.shape[0], p=state_vec

@@ -153,9 +153,6 @@ def simulate_single_period(
 
     if has_additional_continuous_state:
         continuous_state_name = additional_continuous_state_names[0]
-        continuous_grid = continuous_states_info["additional_continuous_state_grids"][
-            continuous_state_name
-        ]
 
         continuous_state_beginning_of_period = {
             name: states_beginning_of_period[name]
@@ -169,7 +166,6 @@ def simulate_single_period(
     else:
         discrete_states_beginning_of_period = states_beginning_of_period
         continuous_state_beginning_of_period = None
-        continuous_grid = None
 
     assets_begin_of_period = states_beginning_of_period["assets_begin_of_period"]
 
