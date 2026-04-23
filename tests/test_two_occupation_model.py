@@ -4,7 +4,7 @@ from numpy.testing import assert_allclose
 
 import dcegm
 
-SHOW_DEBUG_PLOTS = True
+SHOW_DEBUG_PLOTS = False
 
 
 # Utility functions
@@ -163,8 +163,8 @@ def test_two_occupation_model_notebook_runs():
         exp_green,
         exp_red,
     ):
-        next_exp_green = exp_green + (lagged_choice == 1)
-        next_exp_red = exp_red + (lagged_choice == 0)
+        next_exp_green = exp_green + (choice == 1)
+        next_exp_red = exp_red + (choice == 0)
         return {
             "period": period + 1,
             "exp_green": next_exp_green,
@@ -448,6 +448,62 @@ def test_two_occupation_model_notebook_runs():
     )
     assert_allclose(float(consumption_gap_discrete_cont.max()), 0.0, atol=1.0, rtol=0.0)
 
+    # Test consumption by period and choice
+    consumption_by_choice_discrete = (
+        df.groupby(["period", "choice"]).consumption.mean().unstack(fill_value=0)
+    )
+    consumption_by_choice_cont = (
+        df_cont_exp.groupby(["period", "choice"])
+        .consumption.mean()
+        .unstack(fill_value=0)
+    )
+    all_choices_cons = sorted(
+        set(consumption_by_choice_discrete.columns).union(
+            set(consumption_by_choice_cont.columns)
+        )
+    )
+    consumption_by_choice_discrete_aligned = consumption_by_choice_discrete.reindex(
+        columns=all_choices_cons, fill_value=0
+    )
+    consumption_by_choice_cont_aligned = consumption_by_choice_cont.reindex(
+        columns=all_choices_cons, fill_value=0
+    )
+    consumption_by_choice_gap = (
+        consumption_by_choice_discrete_aligned - consumption_by_choice_cont_aligned
+    ).abs()
+    assert_allclose(
+        float(consumption_by_choice_gap.to_numpy().mean()), 0.0, atol=0.5, rtol=0.0
+    )
+    assert_allclose(
+        float(consumption_by_choice_gap.to_numpy().max()), 0.0, atol=1.0, rtol=0.0
+    )
+
+    # Test exp_green distribution by period
+    exp_green_dist_discrete = (
+        df.groupby("period")
+        .exp_green.value_counts(normalize=True)
+        .unstack(fill_value=0)
+    )
+    exp_green_dist_cont = (
+        df_cont_exp.groupby("period")
+        .exp_green.value_counts(normalize=True)
+        .unstack(fill_value=0)
+    )
+    all_exp_levels = sorted(
+        set(exp_green_dist_discrete.columns).union(set(exp_green_dist_cont.columns))
+    )
+    exp_green_dist_discrete_aligned = exp_green_dist_discrete.reindex(
+        columns=all_exp_levels, fill_value=0
+    )
+    exp_green_dist_cont_aligned = exp_green_dist_cont.reindex(
+        columns=all_exp_levels, fill_value=0
+    )
+    exp_green_gap = (
+        exp_green_dist_discrete_aligned - exp_green_dist_cont_aligned
+    ).abs()
+    assert_allclose(float(exp_green_gap.to_numpy().mean()), 0.0, atol=0.1, rtol=0.0)
+    assert_allclose(float(exp_green_gap.to_numpy().max()), 0.0, atol=0.2, rtol=0.0)
+
     # Third model: continuous experience grid that does not align with integer years.
     model_config_cont_exp_offgrid = {
         "n_periods": 5,
@@ -726,4 +782,38 @@ def test_two_occupation_model_notebook_runs():
         choice_shares_discrete_aligned.plot(
             kind="bar", stacked=True, title="Choice Shares - Discrete Experience"
         )
+        plt.show()
+
+        fig, ax = plt.subplots(1, 2, figsize=(13, 5))
+        df.groupby(["period", "choice"]).consumption.mean().unstack().fillna(0).plot(
+            rot=0, title="Consumption - Discrete Experience Stocks", ax=ax[0]
+        )
+
+        df_cont_exp.groupby(["period", "choice"]).consumption.mean().unstack().fillna(
+            0
+        ).plot(rot=0, title="Consumption - Continuous Experience Stocks", ax=ax[1])
+
+        plt.show()
+
+        fig, ax = plt.subplots(1, 2, figsize=(13, 5))
+        df.groupby("period").exp_green.value_counts(normalize=True).unstack().plot(
+            stacked=True,
+            kind="bar",
+            rot=0,
+            title="Experience Green - Discrete Experience Stocks",
+            ax=ax[0],
+            cmap="Greens",
+        )
+
+        df_cont_exp.groupby("period").exp_green.value_counts(
+            normalize=True
+        ).unstack().plot(
+            stacked=True,
+            kind="bar",
+            rot=0,
+            title="Experience Green - Continuous Experience Stocks",
+            ax=ax[1],
+            cmap="Greens",
+        )
+
         plt.show()
