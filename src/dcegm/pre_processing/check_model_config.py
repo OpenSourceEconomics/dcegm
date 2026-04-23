@@ -205,6 +205,18 @@ def check_model_config_and_process(model_config):
     else:
         processed_model_config["min_period_batch_segments"] = None
 
+    if "batch_mode" in model_config.keys():
+        batch_mode = model_config["batch_mode"]
+        if not isinstance(batch_mode, (str, list)):
+            raise ValueError("batch_mode must be a string or a list of strings.")
+        if isinstance(batch_mode, list) and not all(
+            isinstance(mode, str) for mode in batch_mode
+        ):
+            raise ValueError("If batch_mode is a list, all entries must be strings.")
+        processed_model_config["batch_mode"] = batch_mode
+    else:
+        processed_model_config["batch_mode"] = "largest_block"
+
     if "stochastic_states" in model_config.keys():
         processed_model_config["stochastic_states"] = model_config["stochastic_states"]
 
