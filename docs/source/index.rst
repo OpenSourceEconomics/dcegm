@@ -30,6 +30,7 @@ Check out our :ref:`guides<guides/index.rst>` to find information on getting sta
    :hidden:
 
    guides/practitioner_guide
+   guides/batching
    guides/templates
    guides/minimal_example.ipynb
 
