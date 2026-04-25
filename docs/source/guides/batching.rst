@@ -20,6 +20,7 @@ Two batching modes
   - Finds large dependency-safe batches.
   - Typically yields fewer and larger batches.
   - Good default for smooth state-choice profiles.
+  - **Default configuration**: ``dcegm`` uses this batching mode with no segmentation if batching is not configured otherwise.
 
 - ``period_max``:
 
