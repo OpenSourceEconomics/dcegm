@@ -26,11 +26,7 @@ Two batching modes
   - Uses one batch per period within a segment.
   - Pads smaller period batches to the segment-specific maximum number of state choices per period.
   - Useful when state-choice counts vary strongly by period.
-
-Padding rule in ``period_max``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-If a period has fewer state choices than the segment maximum, the batch is padded with a valid state-choice index from the same batch (deterministically the first one). This keeps shapes aligned and does not change the solution logic.
+  - **Padding rule**: If a period has fewer state choices than the segment maximum, the batch is padded with a valid dummy state-choice index from the same batch (deterministically the first one). This keeps shapes aligned and does not change the solution logic.
 
 Segmenting the horizon
 ----------------------
@@ -78,10 +74,10 @@ With segmentation:
         "batch_mode": ["period_max", "largest_block", "period_max"],
     }
 
-Using ``get_n_state_choices_per_period`` to choose segments
-------------------------------------------------------------
+Tipp: Use ``get_n_state_choices_per_period`` to choose segments
+----------------------------------------------------------------
 
-After model setup, inspect how many state-choice combinations exist in each period:
+To determine sensible segments for batching, inspect the number of state-choice combinations per period.
 
 .. code-block:: python
 
@@ -98,15 +94,15 @@ After model setup, inspect how many state-choice combinations exist in each peri
     n_state_choices = model.get_n_state_choices_per_period()
     print(n_state_choices)
 
-Use this series to detect structural breaks in complexity. Typical heuristics:
+This series can be used to detect structural breaks in complexity. Typical heuristics are:
 
 - Keep periods with similar counts in one segment.
 - Split where there are abrupt jumps/drops.
 - Use ``period_max`` in highly uneven segments.
 - Keep ``largest_block`` in smoother segments.
 
-Worked example: experience growth and retirement regimes
---------------------------------------------------------
+Example: experience growth and retirement regimes
+-------------------------------------------------
 
 Consider a model with a discrete experience state where:
 
@@ -152,12 +148,4 @@ This pattern is a good reason to separate segments around the two regime changes
     model_config["min_period_batch_segments"] = [8, 14]
     model_config["batch_mode"] = ["period_max", "largest_block", "period_max"]
 
-Validation recommendation
--------------------------
-
-When changing batching setup, compare solutions across configurations (for the same model and parameters):
-
-- baseline ``largest_block`` everywhere,
-- your segmented/mixed ``batch_mode`` setup.
-
-Then compare ``value``, ``policy``, and ``endog_grid`` arrays with ``assert_allclose(..., equal_nan=True)``.
+We suggest testing different segmentation choices to determine the fastest solution for your model.
