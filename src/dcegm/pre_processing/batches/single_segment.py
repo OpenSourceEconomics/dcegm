@@ -3,7 +3,11 @@ import numpy as np
 from dcegm.pre_processing.batches.algo_batch_size import determine_optimal_batch_size
 
 
-def create_single_segment_of_batches(bool_state_choices_to_batch, model_structure):
+def create_single_segment_of_batches(
+    bool_state_choices_to_batch,
+    model_structure,
+    batch_mode="largest_block",
+):
     """Create a single segment of evenly sized batches.
 
     If the last batch is not evenly we correct it.
@@ -24,34 +28,54 @@ def create_single_segment_of_batches(bool_state_choices_to_batch, model_structur
     ]
     map_state_choice_to_index = model_structure["map_state_choice_to_index_with_proxy"]
 
-    (
-        batches_list,
-        child_state_choice_idxs_to_interp_list,
-        child_state_choices_to_aggr_choice_list,
-        child_states_to_integrate_stochastic_list,
-    ) = determine_optimal_batch_size(
-        bool_state_choices_to_batch=bool_state_choices_to_batch,
-        state_choice_space=state_choice_space,
-        map_state_choice_to_child_states=map_state_choice_to_child_states,
-        map_state_choice_to_index=map_state_choice_to_index,
-        state_space=state_space,
-    )
+    if batch_mode == "largest_block":
+        (
+            batches_list,
+            child_state_choice_idxs_to_interp_list,
+            child_state_choices_to_aggr_choice_list,
+            child_states_to_integrate_stochastic_list,
+        ) = determine_optimal_batch_size(
+            bool_state_choices_to_batch=bool_state_choices_to_batch,
+            state_choice_space=state_choice_space,
+            map_state_choice_to_child_states=map_state_choice_to_child_states,
+            map_state_choice_to_index=map_state_choice_to_index,
+            state_space=state_space,
+        )
 
-    (
-        batches_list,
-        child_states_to_integrate_stochastic_list,
-        child_state_choices_to_aggr_choice_list,
-        child_state_choice_idxs_to_interp_list,
-        batches_cover_all,
-        last_batch_info,
-    ) = correct_for_uneven_last_batch(
-        batches_list,
-        child_states_to_integrate_stochastic_list,
-        child_state_choices_to_aggr_choice_list,
-        child_state_choice_idxs_to_interp_list,
-        state_choice_space_dict,
-        map_state_choice_to_parent_state,
-    )
+        (
+            batches_list,
+            child_states_to_integrate_stochastic_list,
+            child_state_choices_to_aggr_choice_list,
+            child_state_choice_idxs_to_interp_list,
+            batches_cover_all,
+            last_batch_info,
+        ) = correct_for_uneven_last_batch(
+            batches_list,
+            child_states_to_integrate_stochastic_list,
+            child_state_choices_to_aggr_choice_list,
+            child_state_choice_idxs_to_interp_list,
+            state_choice_space_dict,
+            map_state_choice_to_parent_state,
+        )
+    elif batch_mode == "period_max":
+        (
+            batches_list,
+            child_state_choice_idxs_to_interp_list,
+            child_state_choices_to_aggr_choice_list,
+            child_states_to_integrate_stochastic_list,
+        ) = determine_period_max_batch_size(
+            bool_state_choices_to_batch=bool_state_choices_to_batch,
+            state_choice_space=state_choice_space,
+            map_state_choice_to_child_states=map_state_choice_to_child_states,
+            map_state_choice_to_index=map_state_choice_to_index,
+            state_space=state_space,
+        )
+        batches_cover_all = True
+        last_batch_info = None
+    else:
+        raise ValueError(
+            f"Unknown batch_mode {batch_mode}. Use 'largest_block' or 'period_max'."
+        )
 
     single_batch_segment_info = prepare_and_align_batch_arrays(
         batches_list,
@@ -67,6 +91,94 @@ def create_single_segment_of_batches(bool_state_choices_to_batch, model_structur
         single_batch_segment_info["last_batch_info"] = last_batch_info
 
     return single_batch_segment_info
+
+
+def determine_period_max_batch_size(
+    bool_state_choices_to_batch,
+    state_choice_space,
+    map_state_choice_to_child_states,
+    map_state_choice_to_index,
+    state_space,
+):
+    invalid_state_idx = np.iinfo(map_state_choice_to_index.dtype).max
+    out_of_bounds_state_choice_idx = state_choice_space.shape[0] + 1
+
+    idx_state_choice_raw = np.where(bool_state_choices_to_batch)[0]
+    if idx_state_choice_raw.size == 0:
+        raise ValueError("No state choices to batch in segment.")
+
+    periods_to_batch = state_choice_space[idx_state_choice_raw, 0]
+    periods_unique_desc = np.sort(np.unique(periods_to_batch))[::-1]
+
+    n_state_vars = state_space.shape[1]
+
+    batches_to_check = []
+    child_states_to_integrate_exog = []
+    child_state_choices_to_aggr_choice = []
+    child_state_choice_idxs_to_interpolate = []
+
+    for period in periods_unique_desc:
+        batch = idx_state_choice_raw[periods_to_batch == period]
+        batches_to_check += [batch]
+
+        child_states_idxs = map_state_choice_to_child_states[batch]
+        unique_child_states, inverse_ids = np.unique(
+            child_states_idxs, return_index=False, return_inverse=True
+        )
+        child_states_to_integrate_exog += [inverse_ids.reshape(child_states_idxs.shape)]
+
+        child_states_batch = np.take(state_space, unique_child_states, axis=0)
+        child_states_tuple = tuple(
+            child_states_batch[:, i] for i in range(n_state_vars)
+        )
+        unique_state_choice_idxs_childs = map_state_choice_to_index[child_states_tuple]
+
+        (
+            unique_child_state_choice_idxs,
+            inverse_child_state_choice_ids,
+        ) = np.unique(
+            unique_state_choice_idxs_childs, return_index=False, return_inverse=True
+        )
+
+        if (
+            len(unique_child_state_choice_idxs) > 0
+            and unique_child_state_choice_idxs[-1] == invalid_state_idx
+        ):
+            unique_child_state_choice_idxs = unique_child_state_choice_idxs[:-1]
+            inverse_child_state_choice_ids[
+                inverse_child_state_choice_ids >= np.max(inverse_child_state_choice_ids)
+            ] = out_of_bounds_state_choice_idx
+
+        child_state_choices_to_aggr_choice += [
+            inverse_child_state_choice_ids.reshape(
+                unique_state_choice_idxs_childs.shape
+            )
+        ]
+        child_state_choice_idxs_to_interpolate += [unique_child_state_choice_idxs]
+
+    max_batch_size = max(len(batch) for batch in batches_to_check)
+
+    for id_batch, batch in enumerate(batches_to_check):
+        n_to_add = max_batch_size - len(batch)
+        if n_to_add > 0:
+            pad_state_choice_idx = np.full(n_to_add, batch[0], dtype=batch.dtype)
+            batches_to_check[id_batch] = np.concatenate([batch, pad_state_choice_idx])
+
+            first_row = child_states_to_integrate_exog[id_batch][0:1, :]
+            child_states_to_integrate_exog[id_batch] = np.concatenate(
+                [
+                    child_states_to_integrate_exog[id_batch],
+                    np.repeat(first_row, repeats=n_to_add, axis=0),
+                ],
+                axis=0,
+            )
+
+    return (
+        batches_to_check,
+        child_state_choice_idxs_to_interpolate,
+        child_state_choices_to_aggr_choice,
+        child_states_to_integrate_exog,
+    )
 
 
 def correct_for_uneven_last_batch(

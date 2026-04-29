@@ -10,6 +10,7 @@ def create_batches_and_information(
     model_structure,
     n_periods,
     min_period_batch_segments=None,
+    batch_mode="largest_block",
 ):
     """Batches are used instead of periods to have chunks of equal sized state choices.
     The batch inparams=paramsformation dictionary contains the following arrays
@@ -64,10 +65,22 @@ def create_batches_and_information(
     state_choice_space = model_structure["state_choice_space"]
     bool_state_choices_to_batch = state_choice_space[:, 0] < n_periods - 2
 
+    valid_batch_modes = {"largest_block", "period_max"}
+
     if min_period_batch_segments is None:
+        if isinstance(batch_mode, list):
+            raise ValueError(
+                "If min_period_batch_segments is not supplied, batch_mode must be a string."
+            )
+        if batch_mode not in valid_batch_modes:
+            raise ValueError(
+                f"batch_mode must be one of {valid_batch_modes}. Got {batch_mode}."
+            )
 
         single_batch_segment_info = create_single_segment_of_batches(
-            bool_state_choices_to_batch, model_structure
+            bool_state_choices_to_batch,
+            model_structure,
+            batch_mode=batch_mode,
         )
         segment_infos = {
             "n_segments": 1,
@@ -97,6 +110,24 @@ def create_batches_and_information(
                 "The periods to split the batches have to be increasing and at least two periods apart."
             )
 
+        if isinstance(batch_mode, str):
+            if batch_mode not in valid_batch_modes:
+                raise ValueError(
+                    f"batch_mode must be one of {valid_batch_modes}. Got {batch_mode}."
+                )
+            batch_mode = [batch_mode] * n_segments
+        elif isinstance(batch_mode, list):
+            if len(batch_mode) != n_segments:
+                raise ValueError(
+                    "If min_period_batch_segments is supplied, batch_mode must be a list with one entry per segment."
+                )
+            if not all(mode in valid_batch_modes for mode in batch_mode):
+                raise ValueError(
+                    f"All entries in batch_mode must be one of {valid_batch_modes}."
+                )
+        else:
+            raise ValueError("batch_mode must be a string or a list of strings.")
+
         segment_infos = {
             "n_segments": n_segments,
         }
@@ -111,7 +142,9 @@ def create_batches_and_information(
             bool_state_choices_segment = bool_state_choices_to_batch & (~split_cond)
 
             segment_batch_info = create_single_segment_of_batches(
-                bool_state_choices_segment, model_structure
+                bool_state_choices_segment,
+                model_structure,
+                batch_mode=batch_mode[id_segment],
             )
             segment_infos[f"batches_info_segment_{id_segment}"] = segment_batch_info
 
@@ -119,7 +152,9 @@ def create_batches_and_information(
             bool_state_choices_to_batch = bool_state_choices_to_batch & split_cond
 
         last_segment_batch_info = create_single_segment_of_batches(
-            bool_state_choices_to_batch, model_structure
+            bool_state_choices_to_batch,
+            model_structure,
+            batch_mode=batch_mode[n_segments - 1],
         )
 
         # We loop until n_segments - 2 and then add the last segment
