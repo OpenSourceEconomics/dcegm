@@ -127,6 +127,12 @@ def next_period_deterministic_state_discrete(
 def sparsity_condition(period, lagged_choice, exp_green, exp_red):
     if (exp_green + exp_red) > period:
         return False
+    # elif (exp_green > 0) & (lagged_choice == 0) & (period == 1):
+    #    return False
+    # elif (exp_red > 0) & (lagged_choice == 1) & (period == 1):
+    #    return False
+    # elif ((exp_red + exp_green) == 0) & (lagged_choice != 2):
+    #    return False
     else:
         return True
 
