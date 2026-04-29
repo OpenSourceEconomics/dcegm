@@ -15,7 +15,6 @@ query points.
 
 import jax
 import jax.numpy as jnp
-import matplotlib.pyplot as plt
 import pytest
 from numpy.testing import assert_allclose
 
@@ -267,6 +266,10 @@ def show_debug_plots(
     df_cont_exp,
 ):
     """Visual comparison of policy, value, and choice shares."""
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError:
+        pytest.skip("matplotlib needs to be installed to show debug plots")
 
     wealth_eval = jnp.linspace(0.5, 20.0, 300)
     choices_plot = jnp.zeros(wealth_eval.shape[0], dtype=int)
