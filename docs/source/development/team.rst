@@ -49,6 +49,8 @@ Blesch, M. and Veltri, B. (2025). Life-Cycle Responses to Pension Reform: The Ro
 
 Gehlen (2026). Occupations, Disability Insurance, and Career Choices. (Work in Progress)
 
+Gsell (2026). The Career Costs of Elderly Parent Care. (Work in Progress)
+
 Theses
 ........
 
