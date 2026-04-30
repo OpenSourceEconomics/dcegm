@@ -47,9 +47,9 @@ Research Projects
 
 Blesch, M. and Veltri, B. (2025). Life-Cycle Responses to Pension Reform: The Role of Subjective Policy Beliefs . `Working Paper <https://brunoveltri.github.io/papers/pension_beliefs.pdf>`_.
 
-Gehlen (2026). Occupations, Disability Insurance, and Career Choices. (Work in Progress)
+Gehlen, A. (2026). Occupations, Disability Insurance, and Career Choices. (Work in Progress)
 
-Gsell (2026). The Career Costs of Elderly Parent Care. (Work in Progress)
+Gsell, S. (2026). The Career Costs of Elderly Parent Care. (Work in Progress)
 
 Theses
 ........
