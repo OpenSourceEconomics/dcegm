@@ -73,48 +73,55 @@ def check_model_config_and_process(model_config):
         continuous_states_grids["assets_end_of_period"], dtype=float
     )
 
-    if len(continuous_states_grids) > 2:
-        raise ValueError("At most two continuous states are supported.")
+    additional_continuous_states = {
+        key: value
+        for key, value in continuous_states_grids.items()
+        if key not in ("assets_end_of_period", "assets_begin_of_period")
+    }
 
-    elif len(continuous_states_grids) == 2:
-        second_continuous_state = next(
-            (
-                {key: value}
-                for key, value in model_config["continuous_states"].items()
-                if key != "assets_end_of_period"
-            ),
-            None,
-        )
-
-        continuous_states_info["second_continuous_exists"] = True
-
-        second_continuous_state_name = list(second_continuous_state.keys())[0]
-        continuous_states_info["second_continuous_state_name"] = (
-            second_continuous_state_name
-        )
-
-        second_continuous_state_grid = jnp.asarray(
-            continuous_states_grids[second_continuous_state_name]
-        )
-        continuous_states_info["second_continuous_grid"] = second_continuous_state_grid
-        # ToDo: Check if grid is array or list and monotonic increasing
-
-        continuous_states_info["n_second_continuous_grid"] = len(
-            second_continuous_state_grid
-        )
-
-    else:
-        continuous_states_info["second_continuous_exists"] = False
-        continuous_states_info["second_continuous_state_name"] = None
-        continuous_states_info["n_second_continuous_grid"] = None
-        continuous_states_info["second_continuous_grid"] = None
+    continuous_states_info["additional_continuous_state_names"] = list(
+        additional_continuous_states.keys()
+    )
+    continuous_states_info["additional_continuous_state_grids"] = {
+        key: jnp.asarray(value) for key, value in additional_continuous_states.items()
+    }
+    continuous_states_info["n_additional_continuous_states"] = len(
+        additional_continuous_states
+    )
+    continuous_states_info["has_additional_continuous_state"] = (
+        continuous_states_info["n_additional_continuous_states"] > 0
+    )
 
     processed_model_config["continuous_states_info"] = continuous_states_info
 
-    if "tuning_params" not in model_config:
-        tuning_params = {}
+    # Set default upper envelope method if not given.
+    if "upper_envelope" not in model_config:
+        upper_envelope = {}
+        upper_envelope["method"] = "fues"
+    elif "method" not in model_config["upper_envelope"]:
+        upper_envelope = model_config["upper_envelope"]
+        upper_envelope["method"] = "fues"
+    elif (
+        "upper_envelope" in model_config
+        and model_config["upper_envelope"]["method"] == "druedahl_jorgensen"
+        and "tuning_params" in model_config["upper_envelope"]
+    ):
+        raise ValueError(
+            "'tuning_params' cannot be used with the 'druedahl_jorgensen',"
+            " specify 'begin_of_period_assets_grid' in 'continuous_states' instead and delete 'tuning_params' "
+            "from the model_config['upper_envelope']"
+        )
     else:
-        tuning_params = model_config["tuning_params"]
+        upper_envelope = dict(model_config["upper_envelope"])
+
+    if "tuning_params" not in upper_envelope:
+        tuning_params = {}
+    elif "tuning_params" in model_config:
+        raise ValueError(
+            "tuning_params should be nested in model_config['upper_envelope']"
+        )
+    else:
+        tuning_params = model_config["upper_envelope"]["tuning_params"]
 
     tuning_params["extra_wealth_grid_factor"] = (
         tuning_params["extra_wealth_grid_factor"]
@@ -144,18 +151,52 @@ def check_model_config_and_process(model_config):
     # Set jump threshold to default 2 if it is not given
     tuning_params["fues_jump_thresh"] = int(
         tuning_params["fues_jump_threshold"]
-        if "fues_jump_threshold" in tuning_params
+        if ("fues_jump_threshold" in tuning_params)
+        & (upper_envelope["method"] == "fues")
         else 2
     )
 
     # Set fues_n_points_to_scan to 10 if not given
     tuning_params["fues_n_points_to_scan"] = int(
         tuning_params["fues_n_points_to_scan"]
-        if "fues_n_points_to_scan" in tuning_params
+        if ("fues_n_points_to_scan" in tuning_params)
+        & (upper_envelope["method"] == "fues")
         else 10
     )
 
-    processed_model_config["tuning_params"] = tuning_params
+    upper_envelope["tuning_params"] = tuning_params
+    processed_model_config["upper_envelope"] = upper_envelope
+
+    if (
+        continuous_states_info["n_additional_continuous_states"] > 1
+        and upper_envelope["method"] != "druedahl_jorgensen"
+    ):
+        raise ValueError(
+            "If more than one additional continuous state is specified, "
+            "use upper_envelope['method'] = 'druedahl_jorgensen'."
+        )
+
+    if upper_envelope["method"] == "druedahl_jorgensen":
+        if "assets_begin_of_period" not in model_config["continuous_states"]:
+            raise ValueError(
+                "Specify 'assets_begin_of_period' in model_config['continuous_states'] when using "
+                "the 'druedahl_jorgensen' upper envelope method."
+            )
+        processed_model_config["continuous_states_info"]["assets_begin_of_period"] = (
+            jnp.asarray(model_config["continuous_states"]["assets_begin_of_period"])
+        )
+
+    if upper_envelope["method"] == "fues":
+        processed_model_config["n_total_wealth_grid"] = tuning_params[
+            "n_total_wealth_grid"
+        ]
+    elif upper_envelope["method"] == "druedahl_jorgensen":
+        # Expected value at 0, so add 1
+        processed_model_config["n_total_wealth_grid"] = (
+            len(model_config["continuous_states"]["assets_begin_of_period"]) + 1
+        )
+    else:
+        raise ValueError("Something wrong internally")
 
     if "min_period_batch_segments" in model_config.keys():
         processed_model_config["min_period_batch_segments"] = model_config[

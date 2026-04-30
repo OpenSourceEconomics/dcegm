@@ -55,15 +55,18 @@ def partially_solve(
         relevant_state_choices_mask
     ]
 
+    n_continuous_state_combinations = model_structure["continuous_state_space"][
+        next(iter(model_structure["continuous_state_space"]))
+    ].shape[0]
     (
         value_solved,
         policy_solved,
         endog_grid_solved,
     ) = create_solution_container(
-        continuous_states_info=model_config["continuous_states_info"],
         # Read out grid size
-        n_total_wealth_grid=model_config["tuning_params"]["n_total_wealth_grid"],
+        n_total_wealth_grid=model_config["n_total_wealth_grid"],
         n_state_choices=relevant_state_choice_space.shape[0],
+        n_continuous_state_combinations=n_continuous_state_combinations,
     )
 
     if return_candidates:
@@ -72,9 +75,9 @@ def partially_solve(
         ].shape[0]
         value_candidates, policy_candidates, endog_grid_candidates = (
             create_solution_container(
-                continuous_states_info=model_config["continuous_states_info"],
                 n_total_wealth_grid=n_assets_end_of_period,
                 n_state_choices=relevant_state_choice_space.shape[0],
+                n_continuous_state_combinations=n_continuous_state_combinations,
             )
         )
 
@@ -96,9 +99,11 @@ def partially_solve(
     last_two_period_sols = solve_last_two_periods(
         params=params,
         continuous_states_info=continuous_states_info,
+        model_structure=model_structure,
         cont_grids_next_period=cont_grids_next_period,
         income_shock_weights=income_shock_weights,
         model_funcs=model_funcs,
+        upper_envelope_method=model_config["upper_envelope"]["method"],
         last_two_period_batch_info=last_two_period_batch_info,
         value_solved=value_solved,
         policy_solved=policy_solved,
@@ -211,9 +216,11 @@ def partially_solve(
                 xs=xs,
                 params=params,
                 continuous_grids_info=continuous_states_info,
+                continuous_state_space=model_structure["continuous_state_space"],
                 cont_grids_next_period=cont_grids_next_period,
                 model_funcs=model_funcs,
                 income_shock_weights=income_shock_weights,
+                upper_envelope_method=model_config["upper_envelope"]["method"],
                 debug_info=debug_info,
             )
 

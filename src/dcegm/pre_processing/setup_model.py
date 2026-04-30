@@ -95,6 +95,10 @@ def create_model_dict(
         model_config=model_config_processed,
         model_funcs=model_funcs,
     )
+    # model_config_processed["n_continuous_state_combinations"] = model_structure[
+    #    "n_continuous_state_combinations"
+    # ]
+    # del model_structure["n_continuous_state_combinations"]
 
     if use_stochastic_sparsity:
         n_stochastic_original = model_structure[

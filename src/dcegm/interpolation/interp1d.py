@@ -15,7 +15,8 @@ def linear_interpolation_formula(
     interpolate_dist = x_new - x_low
     interpolate_slope = (y_high - y_low) / (x_high - x_low)
     interpol_res = (interpolate_slope * interpolate_dist) + y_low
-
+    nan_slope = jnp.isnan(interpolate_slope)
+    interpol_res = nan_slope * y_low + (1 - nan_slope) * interpol_res
     return interpol_res
 
 
@@ -63,7 +64,6 @@ def interp1d_policy_and_value_on_wealth(
         - value_interp (float): Interpolated value for wealth.
 
     """
-
     # For all choices, the wealth is the same in the solution
     ind_high, ind_low = get_index_high_and_low(x=wealth_grid, x_new=wealth)
 

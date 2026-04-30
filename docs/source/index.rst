@@ -43,6 +43,7 @@ Check out our :ref:`guides<guides/index.rst>` to find information on getting sta
    background/limitations
    background/literature
    background/interface_plots.ipynb
+   background/two_occupation_model.ipynb
    background/two_period_model_tutorial.ipynb
    background/specify_exogenous_processes.md
    background/sparsity_conditions

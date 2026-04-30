@@ -26,6 +26,32 @@ def create_model_structure(
             - "transform_between_state_and_state_choice_vec" (callable)
 
     """
+    # Create continuous state space
+    continuous_states_info = model_config["continuous_states_info"]
+    additional_continuous_state_grids = continuous_states_info.get(
+        "additional_continuous_state_grids", {}
+    )
+
+    if continuous_states_info["has_additional_continuous_state"]:
+        continuous_state_names = continuous_states_info[
+            "additional_continuous_state_names"
+        ]
+        continuous_grids = [
+            additional_continuous_state_grids[name] for name in continuous_state_names
+        ]
+
+        continuous_state_mesh = jnp.meshgrid(*continuous_grids, indexing="ij")
+        continuous_state_space = {
+            name: grid.ravel()
+            for name, grid in zip(continuous_state_names, continuous_state_mesh)
+        }
+        # n_continuous_state_combinations = int(
+        #    continuous_state_space[continuous_state_names[0]].shape[0]
+        # )
+    else:
+        continuous_state_space = {"dummy_cont": jnp.zeros(1)}
+        # n_continuous_state_combinations = 1
+
     print("Starting state space creation")
     state_space_objects = create_state_space(
         model_config=model_config,
@@ -52,5 +78,7 @@ def create_model_structure(
         **state_space_objects,
         **state_choice_and_child_state_objects,
         "choice_range": jnp.asarray(model_config["choices"]),
+        "continuous_state_space": continuous_state_space,
+        # "n_continuous_state_combinations": n_continuous_state_combinations,
     }
     return jax.tree.map(create_array_with_smallest_int_dtype, model_structure)

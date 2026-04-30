@@ -2,7 +2,7 @@ def create_state_space_functions():
     """Return dict with state space functions."""
     out = {
         "state_specific_choice_set": state_specific_choice_set,
-        "next_period_experience": next_period_experience,
+        "next_period_continuous_state": next_period_continuous_state,
         "sparsity_condition": sparsity_condition,
         "next_period_deterministic_state": next_period_deterministic_state,
     }
@@ -103,3 +103,13 @@ def next_period_experience(lagged_choice, experience, model_specs):
     """If working add one year of experience years (1/exp_scale)"""
     working = lagged_choice == 2
     return experience + working * (1 / model_specs["exp_scale"])
+
+
+def next_period_continuous_state(lagged_choice, experience, model_specs):
+    return {
+        "experience": next_period_experience(
+            lagged_choice=lagged_choice,
+            experience=experience,
+            model_specs=model_specs,
+        )
+    }

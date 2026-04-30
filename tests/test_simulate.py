@@ -116,9 +116,11 @@ def test_simulate_second_continuous_choice(model_setup):
     noise = jax.random.normal(key, shape=(24, 6, 120)) * 0
     model_solved = model_setup["model_solved"]
 
-    value = jnp.repeat(model_solved.value[:, None, :], 6, axis=1) + noise
-    policy = jnp.repeat(model_solved.policy[:, None, :], 6, axis=1) + noise
-    endog_grid = jnp.repeat(model_solved.endog_grid[:, None, :], 6, axis=1) + noise
+    value = jnp.repeat(model_solved.value[:, 0, :][:, None, :], 6, axis=1) + noise
+    policy = jnp.repeat(model_solved.policy[:, 0, :][:, None, :], 6, axis=1) + noise
+    endog_grid = (
+        jnp.repeat(model_solved.endog_grid[:, 0, :][:, None, :], 6, axis=1) + noise
+    )
 
     n_agents = 100_000
 

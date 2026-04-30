@@ -1,3 +1,4 @@
+import jax.numpy as jnp
 from jax import vmap
 
 from dcegm.egm.aggregate_marginal_utility import aggregate_marg_utils_and_exp_values
@@ -12,9 +13,11 @@ def solve_single_period(
     xs,
     params,
     continuous_grids_info,
+    continuous_state_space,
     cont_grids_next_period,
     model_funcs,
     income_shock_weights,
+    upper_envelope_method,
     debug_info,
 ):
     """Solve a single period of the model using DCEGM."""
@@ -39,10 +42,12 @@ def solve_single_period(
         endog_grid_child_state_choice=endog_grid_solved[
             child_state_choice_idxs_to_interp
         ],
+        continuous_state_space=continuous_state_space,
         policy_child_state_choice=policy_solved[child_state_choice_idxs_to_interp],
         value_child_state_choice=value_solved[child_state_choice_idxs_to_interp],
         child_state_idxs=child_state_idxs,
         params=params,
+        upper_envelope_method=upper_envelope_method,
     )
 
     # Check if we have a scalar taste shock scale or state specific. Extract in each of the cases.
@@ -72,6 +77,7 @@ def solve_single_period(
         taste_shock_scale_is_scalar=taste_shock_scale_is_scalar,
         income_shock_weights=income_shock_weights,
         continuous_grids_info=continuous_grids_info,
+        continuous_state_space=continuous_state_space,
         model_funcs=model_funcs,
         debug_info=debug_info,
     )
@@ -118,9 +124,11 @@ def solve_for_interpolated_values(
     taste_shock_scale_is_scalar,
     income_shock_weights,
     continuous_grids_info,
+    continuous_state_space,
     model_funcs,
     debug_info,
 ):
+
     # EGM step 2)
     # Aggregate the marginal utilities and expected values over all child state-choice
     # combinations and income shock draws
@@ -141,12 +149,12 @@ def solve_for_interpolated_values(
         expected_values,
     ) = calculate_candidate_solutions_from_euler_equation(
         continuous_grids_info=continuous_grids_info,
+        continuous_state_space=continuous_state_space,
         marg_util_next=marg_util,
         emax_next=emax,
         state_choice_mat=state_choice_mat,
         idx_post_decision_child_states=child_state_idxs,
         model_funcs=model_funcs,
-        has_second_continuous_state=continuous_grids_info["second_continuous_exists"],
         params=params,
     )
 
@@ -163,12 +171,11 @@ def solve_for_interpolated_values(
         policy_candidate=policy_candidate,
         value_candidate=value_candidate,
         expected_values=expected_values,
-        continuous_grid_info=continuous_grids_info,
+        continuous_state_space=continuous_state_space,
         state_choice_mat=state_choice_mat,
         compute_utility=model_funcs["compute_utility"],
         params=params,
         discount_factor=discount_factor,
-        has_second_continuous_state=continuous_grids_info["second_continuous_exists"],
         compute_upper_envelope_for_state_choice=model_funcs["compute_upper_envelope"],
     )
     out_dict = {
@@ -192,12 +199,11 @@ def run_upper_envelope(
     policy_candidate,
     value_candidate,
     expected_values,
-    continuous_grid_info,
+    continuous_state_space,
     state_choice_mat,
     compute_utility,
     params,
     discount_factor,
-    has_second_continuous_state,
     compute_upper_envelope_for_state_choice,
 ):
     """Run upper envelope to remove suboptimal candidates.
@@ -206,37 +212,8 @@ def run_upper_envelope(
 
     """
 
-    if has_second_continuous_state:
-        return vmap(
-            vmap(
-                compute_upper_envelope_for_state_choice,
-                in_axes=(0, 0, 0, 0, 0, None, None, None, None),  # continuous state
-            ),
-            in_axes=(
-                0,
-                0,
-                0,
-                0,
-                None,
-                0,
-                None,
-                None,
-                None,
-            ),  # discrete states and choices
-        )(
-            endog_grid_candidate,
-            policy_candidate,
-            value_candidate,
-            expected_values[:, :, 0],
-            continuous_grid_info["second_continuous_grid"],
-            state_choice_mat,
-            compute_utility,
-            params,
-            discount_factor,
-        )
-
-    else:
-        return vmap(
+    return vmap(
+        vmap(
             compute_upper_envelope_for_state_choice,
             in_axes=(
                 0,
@@ -247,14 +224,28 @@ def run_upper_envelope(
                 None,
                 None,
                 None,
-            ),  # discrete states and choice combs
-        )(
-            endog_grid_candidate,
-            policy_candidate,
-            value_candidate,
-            expected_values[:, 0],
-            state_choice_mat,
-            compute_utility,
-            params,
-            discount_factor,
-        )
+                None,
+            ),
+        ),
+        in_axes=(
+            0,
+            0,
+            0,
+            0,
+            None,
+            0,
+            None,
+            None,
+            None,
+        ),
+    )(
+        endog_grid_candidate,
+        policy_candidate,
+        value_candidate,
+        expected_values[:, :, 0],
+        continuous_state_space,
+        state_choice_mat,
+        compute_utility,
+        params,
+        discount_factor,
+    )
