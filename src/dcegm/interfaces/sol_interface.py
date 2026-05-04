@@ -121,7 +121,6 @@ class model_solved:
             The value for the given state and choice.
 
         """
-
         return value_for_state_and_choice(
             states=states,
             choices=choices,
@@ -144,7 +143,6 @@ class model_solved:
             The policy for the given state and choice.
 
         """
-
         return policy_for_state_choice_vec(
             states=states,
             choices=choices,

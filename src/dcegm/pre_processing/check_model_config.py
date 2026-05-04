@@ -4,7 +4,6 @@ import numpy as np
 
 def check_model_config_and_process(model_config):
     """Check if options are valid and set defaults."""
-
     processed_model_config = {}
 
     if not isinstance(model_config, dict):

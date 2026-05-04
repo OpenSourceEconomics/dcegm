@@ -5,7 +5,6 @@ from dcegm.pre_processing.shared import get_smallest_int_type
 
 def create_indexer_for_space(space, max_var_values=None):
     """Create indexer for space."""
-
     # Indexer has always unsigned data type with integers starting at zero
     # Leave one additional value for the invalid number
     data_type = get_smallest_int_type(space.shape[0] + 1)

@@ -9,7 +9,6 @@ def create_single_segment_of_batches(bool_state_choices_to_batch, model_structur
     If the last batch is not evenly we correct it.
 
     """
-
     state_choice_space = model_structure["state_choice_space"]
     state_choice_space_dict = model_structure["state_choice_space_dict"]
 

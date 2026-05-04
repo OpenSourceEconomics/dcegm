@@ -14,7 +14,6 @@ def create_state_space_function_dict():
 
 def state_specific_choice_set(period, lagged_choice, job_offer, model_specs):
     """Return available choices depending on state."""
-
     # Retirement is absorbing
     if lagged_choice == 0:
         return [0]

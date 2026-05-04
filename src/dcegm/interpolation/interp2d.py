@@ -62,7 +62,6 @@ def interp2d_policy_and_value_on_wealth_and_regular_grid(
             value function.
 
     """
-
     regular_points, wealth_points, coords_idxs = find_grid_coords_for_interp(
         regular_grid=regular_grid,
         wealth_grid=wealth_grid,
@@ -139,7 +138,6 @@ def interp2d_value_on_wealth_and_regular_grid(
             (regular, wealth) point.
 
     """
-
     regular_points, wealth_points, coords_idxs = find_grid_coords_for_interp(
         regular_grid=regular_grid,
         wealth_grid=wealth_grid,
@@ -197,7 +195,6 @@ def interp2d_policy_on_wealth_and_regular_grid(
             (regular, wealth) point.
 
     """
-
     regular_points, wealth_points, coords_idxs = find_grid_coords_for_interp(
         regular_grid=regular_grid,
         wealth_grid=wealth_grid,
@@ -249,7 +246,6 @@ def interp2d_policy(
             (regular, wealth) point.
 
     """
-
     policy_known = policy_grid[coords_idxs[:, 0], coords_idxs[:, 1]]
 
     policy_interp = interp2d(
@@ -402,7 +398,6 @@ def find_grid_coords_for_interp(
         - The fourth element is the upper left point.
 
     """
-
     # Determine the closest points in the regular direction
     regular_idx_right, regular_idx_left = get_index_high_and_low(
         regular_grid, regular_point_to_interp
@@ -459,7 +454,6 @@ def interp2d(x_coords, y_coords, z_vals, x_new, y_new):
         float: The interpolated value at the point (x_new, y_new).
 
     """
-
     # Map the irregular quadrilateral onto a canonical unit square
     x_vec, y_vec = TRANSFORMATION_MAT @ x_coords, TRANSFORMATION_MAT @ y_coords
 
@@ -496,7 +490,6 @@ def determine_coordinates_in_unit_square(x, y, x_vec, y_vec):
             the x-axis, and `y_rel` is the relative position along the y-axis.
 
     """
-
     x_rel = (x - x_vec[0]) / x_vec[1]
     y_rel = (y - y_vec[0] - y_vec[1] * x_rel) / (y_vec[2] + y_vec[3] * x_rel)
 
@@ -521,5 +514,4 @@ def compute_vertex_weights(x, y):
             unit square, respectively.
 
     """
-
     return jnp.array([(1 - x) * (1 - y), x * (1 - y), x * y, (1 - x) * y])
