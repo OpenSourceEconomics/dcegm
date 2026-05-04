@@ -62,7 +62,6 @@ class setup_model:
             use_stochastic_sparsity (bool, optional): EXPERIMENTAL: Use stochastic transition sparsity.
 
         """
-
         if model_load_path is not None:
             model_dict = load_model_dict(
                 model_config=model_config,
@@ -152,7 +151,6 @@ class setup_model:
                 state a transition matrix vector.
 
         """
-
         params_processed = process_params(
             params, params_check_info=self.params_check_info
         )
@@ -249,7 +247,6 @@ class setup_model:
 
     def get_solve_func(self):
         """Create a fast function for solving that is jit compiled in the first call."""
-
         (
             model_structure_for_jit,
             batch_info_for_jit,
@@ -307,7 +304,6 @@ class setup_model:
     ):
         """Create a fast function for solving and simulation that is jit compiled in the
         first call."""
-
         # Fix everything except params, solution of the model and model_structure which contains large arrays.
         sim_func = lambda params, value, policy, endog_gid, model_structure: simulate_all_periods(
             states_initial=states_initial,

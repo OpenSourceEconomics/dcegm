@@ -205,7 +205,6 @@ def run_upper_envelope(
     Vectorized over all state-choice combinations.
 
     """
-
     if has_second_continuous_state:
         return vmap(
             vmap(

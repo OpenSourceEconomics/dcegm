@@ -17,7 +17,6 @@ def calculate_candidate_solutions_from_euler_equation(
     params: Dict[str, float],
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Calculate candidates for the optimal policy and value function."""
-
     feasible_marg_utils_child = jnp.take(
         marg_util_next, idx_post_decision_child_states, axis=0
     )
@@ -208,7 +207,6 @@ def solve_euler_equation(
             choice-specific expected value. Has shape (n_grid_wealth,).
 
     """
-
     transition_vec = compute_stochastic_transition_vec(
         params=params, **state_choice_vec
     )

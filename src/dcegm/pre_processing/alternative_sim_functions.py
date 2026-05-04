@@ -48,7 +48,6 @@ def generate_alternative_sim_functions(
         budget_constraint (Callable): User supplied budget constraint.
 
     """
-
     model_config = check_model_config_and_process(model_config)
 
     model_funcs, _ = process_alternative_sim_functions(

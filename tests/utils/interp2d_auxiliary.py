@@ -34,7 +34,6 @@ def custom_interp2d_quad(x_grids, y_grid, values, points):
         Output array that contains the interpolated values
 
     """
-
     n_y_grid = y_grid.shape[0]
     n_points = points.shape[0]
     z = np.empty((n_points, 4))
@@ -98,7 +97,6 @@ def custom_interp2d_quad_value_function(
         Output array that contains the interpolated values
 
     """
-
     n_y_grid = y_grid.shape[0]
     n_points = points.shape[0]
 
@@ -178,7 +176,6 @@ def compute_weights(l, m):
 def search(grid_length, sorted_grid, element):
     """This function searches the element on the specific grid that is used for the
     interpolation."""
-
     # if the element is outside the bounds
     # use the border elements for interpolation
 

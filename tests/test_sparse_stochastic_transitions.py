@@ -17,7 +17,8 @@ from dcegm.toy_models.cons_ret_model_dcegm_paper import (
 
 
 def prob_exog_health_father(health_mother):
-    """Sparse transition: can only go to 2 out of 3 states depending on mother's health."""
+    """Sparse transition: can only go to 2 out of 3 states depending on mother's
+    health."""
     # health_mother == 0: can go to states 0, 1 (not 2)
     # health_mother == 1: can go to states 1, 2 (not 0)
     # health_mother == 2: can go to states 0, 2 (not 1)
@@ -40,7 +41,8 @@ def prob_exog_health_father(health_mother):
 
 
 def prob_exog_health_mother(health_father):
-    """Sparse transition: can only go to 2 out of 3 states depending on father's health."""
+    """Sparse transition: can only go to 2 out of 3 states depending on father's
+    health."""
     # health_father == 0: can go to states 0, 1 (not 2)
     # health_father == 1: can go to states 0, 2 (not 1)
     # health_father == 2: can go to states 1, 2 (not 0)
@@ -108,7 +110,6 @@ def util_new(
 
 def test_sparse_stochastic_transitions():
     """Test that solving with sparse transitions gives same results."""
-
     params = {
         "rho": 2,
         "delta": 0.5,

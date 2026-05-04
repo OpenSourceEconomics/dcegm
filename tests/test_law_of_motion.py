@@ -55,7 +55,6 @@ def _calc_stochastic_income_for_experience(
     params: Dict[str, float],
 ) -> float:
     """Computes the current level of deterministic and stochastic income."""
-
     log_wage = (
         params["constant"]
         + params["exp"] * experience
