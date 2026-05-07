@@ -132,6 +132,7 @@ def create_model_dict(
         model_structure=model_structure,
         n_periods=model_config_processed["n_periods"],
         min_period_batch_segments=model_config_processed["min_period_batch_segments"],
+        batch_mode=model_config_processed["batch_mode"],
     )
     if not debug_info == "all":
         # Delete large arrays which is not needed. Not if all is requested

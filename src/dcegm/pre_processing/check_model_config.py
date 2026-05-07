@@ -205,6 +205,51 @@ def check_model_config_and_process(model_config):
     else:
         processed_model_config["min_period_batch_segments"] = None
 
+    if "batch_mode" in model_config.keys():
+        batch_mode = model_config["batch_mode"]
+        valid_batch_modes = {"largest_block", "period_max"}
+        if not isinstance(batch_mode, (str, list)):
+            raise ValueError("batch_mode must be a string or a list of strings.")
+
+        if isinstance(batch_mode, str):
+            if batch_mode not in valid_batch_modes:
+                raise ValueError(
+                    f"batch_mode must be one of {valid_batch_modes}. Got {batch_mode}."
+                )
+        else:
+            if not all(isinstance(mode, str) for mode in batch_mode):
+                raise ValueError(
+                    "If batch_mode is a list, all entries must be strings."
+                )
+            if not all(mode in valid_batch_modes for mode in batch_mode):
+                raise ValueError(
+                    f"All entries in batch_mode must be one of {valid_batch_modes}."
+                )
+
+            min_period_batch_segments = processed_model_config[
+                "min_period_batch_segments"
+            ]
+            if min_period_batch_segments is None:
+                expected_n_segments = 1
+            elif isinstance(min_period_batch_segments, int):
+                expected_n_segments = 2
+            elif isinstance(min_period_batch_segments, list):
+                expected_n_segments = len(min_period_batch_segments) + 1
+            else:
+                raise ValueError(
+                    "min_period_batch_segments must be None, int, or list."
+                )
+
+            if len(batch_mode) != expected_n_segments:
+                raise ValueError(
+                    "If batch_mode is a list, it must have one entry per segment. "
+                    f"Expected {expected_n_segments}, got {len(batch_mode)}."
+                )
+
+        processed_model_config["batch_mode"] = batch_mode
+    else:
+        processed_model_config["batch_mode"] = "largest_block"
+
     if "stochastic_states" in model_config.keys():
         processed_model_config["stochastic_states"] = model_config["stochastic_states"]
 
