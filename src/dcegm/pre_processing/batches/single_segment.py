@@ -10,7 +10,7 @@ def create_single_segment_of_batches(
 ):
     """Create a single segment of evenly sized batches.
 
-    If the last batch is not evenly we correct it.
+    If the last batch is not evenly sized we correct it.
 
     """
 
