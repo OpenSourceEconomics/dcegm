@@ -16,7 +16,8 @@ def create_batches_and_information(
     The returned batch information dictionary contains the following arrays
     reflecting steps in the backward induction:
 
-        - batches_state_choice_idx: The state choice indexes in each batch to be solved. To solve the state choices in the egm step, we have to look at the child states
+        - batches_state_choice_idx: The state choice indexes in each batch to be solved.
+            To solve the state choices in the egm step, we have to look at the child states
             and the corresponding state choice indexes in the child states. For that we save
             the following:
         - child_state_choice_idxs_to_interp: The state choice indexes in we need to
