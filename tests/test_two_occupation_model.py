@@ -123,15 +123,29 @@ def next_period_deterministic_state_discrete(
     }
 
 
-def sparsity_condition(period, lagged_choice, exp_green, exp_red):
+def sparsity_condition(
+    period,
+    lagged_choice,
+    exp_green,
+    exp_red,
+):
+    """Define sparsity condition to rule out state space points that are not feasible
+    given the model structure."""
+    # Experience cannot exceed the period
     if (exp_green + exp_red) > period:
         return False
-    # elif (exp_green > 0) & (lagged_choice == 0) & (period == 1):
-    #    return False
-    # elif (exp_red > 0) & (lagged_choice == 1) & (period == 1):
-    #    return False
-    # elif ((exp_red + exp_green) == 0) & (lagged_choice != 2):
-    #    return False
+    # If retired, experience sum can not be the same as period
+    elif (lagged_choice == 2) and ((exp_green + exp_red) == period) & (period > 0):
+        return False
+    # # As retirement is absorbing and there is no non-employment, experience sum must be at least one less than period in later periods.
+    elif (lagged_choice != 2) and ((exp_green + exp_red) < period):
+        return False
+    # In later periods, if last period chosen an occupation experience must be positive
+    elif (lagged_choice == 1) and (exp_green == 0) and (period > 0):
+        return False
+    # In later periods, if last period choosen an occupation experience must be positive
+    elif (lagged_choice == 0) and (exp_red == 0) and (period > 0):
+        return False
     else:
         return True
 
@@ -534,8 +548,8 @@ def aligned_states():
     discrete = {
         "period": jnp.array([2, 3, 3], dtype=int),
         "lagged_choice": jnp.array([0, 1, 0], dtype=int),
-        "exp_green": jnp.array([0, 2, 1], dtype=int),
-        "exp_red": jnp.array([1, 0, 1], dtype=int),
+        "exp_green": jnp.array([1, 2, 2], dtype=int),
+        "exp_red": jnp.array([1, 1, 1], dtype=int),
         "assets_begin_of_period": jnp.array([3.0, 6.0, 8.0]),
     }
     continuous = {
