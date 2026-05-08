@@ -10,7 +10,7 @@ from numpy.testing import assert_array_almost_equal as aaae
 import dcegm
 import dcegm.toy_models as toy_models
 from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
-from dcegm.interpolation.interp2d import (
+from dcegm.interpolation.interp2d_irregular import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
 from dcegm.pre_processing.setup_model import create_model_dict
@@ -373,7 +373,7 @@ def test_replication_discrete_versus_continuous_experience(
 
             policy_cont_interp, value_cont_interp = (
                 interp2d_policy_and_value_on_wealth_and_regular_grid(
-                    regular_grid=experience_grid,
+                    continuous_state_space={"experience": experience_grid},
                     wealth_grid=endog_grid_cont[idx_state_choice_cont],
                     policy_grid=policy_cont[idx_state_choice_cont],
                     value_grid=value_cont[idx_state_choice_cont],
@@ -388,9 +388,9 @@ def test_replication_discrete_versus_continuous_experience(
 
             policy_disc_interp, value_disc_interp = interp1d_policy_and_value_on_wealth(
                 wealth=jnp.array(wealth_to_test),
-                wealth_grid=endog_grid_disc[idx_state_choice_disc],
-                policy_grid=policy_disc[idx_state_choice_disc],
-                value_grid=value_disc[idx_state_choice_disc],
+                wealth_grid=endog_grid_disc[idx_state_choice_disc, 0],
+                policy_grid=policy_disc[idx_state_choice_disc, 0],
+                value_grid=value_disc[idx_state_choice_disc, 0],
                 compute_utility=model_disc.model_funcs["compute_utility"],
                 state_choice_vec=state_choice_disc_dict,
                 params=PARAMS,

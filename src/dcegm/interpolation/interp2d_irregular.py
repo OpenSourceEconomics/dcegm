@@ -18,7 +18,7 @@ TRANSFORMATION_MAT = jnp.array(
 
 
 def interp2d_policy_and_value_on_wealth_and_regular_grid(
-    regular_grid: jnp.ndarray,
+    continuous_state_space: Dict[str, jnp.ndarray],
     wealth_grid: jnp.ndarray,
     policy_grid: jnp.ndarray,
     value_grid: jnp.ndarray,
@@ -62,9 +62,11 @@ def interp2d_policy_and_value_on_wealth_and_regular_grid(
             value function.
 
     """
+    # We only call this function for one continuous state besides assets_begin_of_period
+    cont_state_name = list(continuous_state_space.keys())[0]
 
     regular_points, wealth_points, coords_idxs = find_grid_coords_for_interp(
-        regular_grid=regular_grid,
+        regular_grid=continuous_state_space[cont_state_name],
         wealth_grid=wealth_grid,
         regular_point_to_interp=regular_point_to_interp,
         wealth_point_to_interp=wealth_point_to_interp,
@@ -90,6 +92,7 @@ def interp2d_policy_and_value_on_wealth_and_regular_grid(
         wealth_min_unconstrained=wealth_grid[:, 1],
         value_at_zero_wealth=value_grid[:, 0],
         state_choice_vec=state_choice_vec,
+        cont_state_name=cont_state_name,
         params=params,
         discount_factor=discount_factor,
     )
@@ -107,6 +110,7 @@ def interp2d_value_on_wealth_and_regular_grid(
     state_choice_vec: Dict[str, int],
     params: dict,
     discount_factor,
+    cont_state_name: str = "continuous_state",
 ):
     """Interpolate the value function on a 2D grid.
 
@@ -157,6 +161,7 @@ def interp2d_value_on_wealth_and_regular_grid(
         wealth_min_unconstrained=wealth_grid[:, 1],
         value_at_zero_wealth=value_grid[:, 0],
         state_choice_vec=state_choice_vec,
+        cont_state_name=cont_state_name,
         params=params,
         discount_factor=discount_factor,
     )
@@ -274,6 +279,7 @@ def interp2d_value_and_check_creditconstraint(
     wealth_min_unconstrained,
     value_at_zero_wealth,
     state_choice_vec,
+    cont_state_name,
     params,
     discount_factor,
 ):
@@ -315,12 +321,15 @@ def interp2d_value_and_check_creditconstraint(
         wealth_point_to_interp <= wealth_min_unconstrained[regular_idx_left]
     )
 
+    state_choice_vec = {
+        **state_choice_vec,
+        cont_state_name: regular_point_to_interp,
+    }
     # Now recalculate the closed-form value of consuming all wealth
     value_calc_left = (
         compute_utility(
             consumption=wealth_point_to_interp,
             params=params,
-            continuous_state=regular_point_to_interp,
             **state_choice_vec,
         )
         + discount_factor * value_at_zero_wealth[regular_idx_left]
@@ -333,7 +342,6 @@ def interp2d_value_and_check_creditconstraint(
     value_calc_right = (
         compute_utility(
             consumption=wealth_point_to_interp,
-            continuous_state=regular_point_to_interp,
             params=params,
             **state_choice_vec,
         )

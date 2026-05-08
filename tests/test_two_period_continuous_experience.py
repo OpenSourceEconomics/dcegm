@@ -187,6 +187,17 @@ def next_period_experience(period, lagged_choice, experience, params):
     return (1 / period) * ((period - 1) * experience + (lagged_choice == 0))
 
 
+def next_period_continuous_state(period, lagged_choice, experience, params):
+    return {
+        "experience": next_period_experience(
+            period=period,
+            lagged_choice=lagged_choice,
+            experience=experience,
+            params=params,
+        )
+    }
+
+
 # ====================================================================================
 # Test inputs
 # ====================================================================================
@@ -201,7 +212,6 @@ def create_test_inputs():
         "interest_rate": 0.04,
         "taste_shock_scale": 1,  # taste shock (scale) parameter
         "income_shock_std": 1,  # shock on labor income, standard deviation
-        "income_shock_mean": 0.0,
         "income_shock_mean": 0,  # shock on labor income, mean
         "constant": 0.75,
         "exp": 0.04,
@@ -238,7 +248,7 @@ def create_test_inputs():
     # =================================================================================
 
     state_space_functions = {
-        "next_period_experience": next_period_experience,
+        "next_period_continuous_state": next_period_continuous_state,
     }
 
     model = dcegm.setup_model(
@@ -283,7 +293,9 @@ def create_test_inputs():
         ],
         cont_grids_next_period=cont_grids_next_period,
         continuous_states_info=model_config["continuous_states_info"],
+        model_structure=model.model_structure,
         params=params,
+        upper_envelope_method=model_config["upper_envelope"]["method"],
         model_funcs=model_funcs_cont,
         value_solved=value_solved,
         policy_solved=policy_solved,
@@ -307,6 +319,7 @@ def create_test_inputs():
         taste_shock_scale_is_scalar=True,
         income_shock_weights=income_shock_weights,
         continuous_grids_info=model_config["continuous_states_info"],
+        continuous_state_space=model.model_structure["continuous_state_space"],
         model_funcs=model_funcs_cont,
         debug_info=None,
     )
@@ -447,10 +460,17 @@ def _get_solve_last_two_periods_args(model, params, has_second_continuous_state)
         model_funcs=model_funcs,
     )
 
-    # Create solution containers for value, policy, and endogenous grids
-    value_solved, policy_solved, endog_grid_solved = create_solution_container(
-        continuous_states_info=model_config["continuous_states_info"],
-        n_total_wealth_grid=model_config["tuning_params"]["n_total_wealth_grid"],
+    n_continuous_state_combinations = model_structure["continuous_state_space"][
+        next(iter(model_structure["continuous_state_space"]))
+    ].shape[0]
+    (
+        value_solved,
+        policy_solved,
+        endog_grid_solved,
+    ) = create_solution_container(
+        n_continuous_state_combinations=n_continuous_state_combinations,
+        # Read out grid size
+        n_total_wealth_grid=model_config["n_total_wealth_grid"],
         n_state_choices=model_structure["state_choice_space"].shape[0],
     )
 

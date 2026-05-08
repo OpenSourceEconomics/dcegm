@@ -1,19 +1,19 @@
 """Auxiliary functions for the EGM algorithm."""
 
-from typing import Callable, Dict, Tuple
+from typing import Any, Callable, Dict, Tuple
 
 from jax import numpy as jnp
 from jax import vmap
 
 
 def calculate_candidate_solutions_from_euler_equation(
-    continuous_grids_info: jnp.ndarray,
+    continuous_grids_info: Dict[str, Any],
+    continuous_state_space: Dict[str, jnp.ndarray],
     marg_util_next: jnp.ndarray,
     emax_next: jnp.ndarray,
-    state_choice_mat: jnp.ndarray,
+    state_choice_mat: Dict[str, jnp.ndarray],
     idx_post_decision_child_states: jnp.ndarray,
-    model_funcs: Dict[str, Callable],
-    has_second_continuous_state: bool,
+    model_funcs: Dict[str, Any],
     params: Dict[str, float],
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Calculate candidates for the optimal policy and value function."""
@@ -23,50 +23,29 @@ def calculate_candidate_solutions_from_euler_equation(
     )
     feasible_emax_child = jnp.take(emax_next, idx_post_decision_child_states, axis=0)
 
-    if has_second_continuous_state:
-        (
-            endog_grid,
-            policy,
-            value,
-            expected_value,
-        ) = vmap(
-            vmap(
-                vmap(
-                    compute_optimal_policy_and_value_wrapper,
-                    in_axes=(1, 1, None, 0, None, None, None),  # assets
-                ),
-                in_axes=(1, 1, 0, None, None, None, None),  # second continuous state
-            ),
-            in_axes=(0, 0, None, None, 0, None, None),  # discrete states choices
-        )(
-            feasible_marg_utils_child,
-            feasible_emax_child,
-            continuous_grids_info["second_continuous_grid"],
-            continuous_grids_info["assets_grid_end_of_period"],
-            state_choice_mat,
-            model_funcs,
-            params,
-        )
-    else:
-        (
-            endog_grid,
-            policy,
-            value,
-            expected_value,
-        ) = vmap(
+    (
+        endog_grid,
+        policy,
+        value,
+        expected_value,
+    ) = vmap(
+        vmap(
             vmap(
                 compute_optimal_policy_and_value,
-                in_axes=(1, 1, 0, None, None, None),  # assets grid
+                in_axes=(1, 1, None, 0, None, None, None),
             ),
-            in_axes=(0, 0, None, 0, None, None),  # states and choices
-        )(
-            feasible_marg_utils_child,
-            feasible_emax_child,
-            continuous_grids_info["assets_grid_end_of_period"],
-            state_choice_mat,
-            model_funcs,
-            params,
-        )
+            in_axes=(1, 1, 0, None, None, None, None),
+        ),
+        in_axes=(0, 0, None, None, 0, None, None),
+    )(
+        feasible_marg_utils_child,
+        feasible_emax_child,
+        continuous_state_space,
+        continuous_grids_info["assets_grid_end_of_period"],
+        state_choice_mat,
+        model_funcs,
+        params,
+    )
 
     return (
         endog_grid,
@@ -76,75 +55,33 @@ def calculate_candidate_solutions_from_euler_equation(
     )
 
 
-def compute_optimal_policy_and_value_wrapper(
-    marg_util_next: jnp.ndarray,
-    emax_next: jnp.ndarray,
-    second_continuous_grid: jnp.ndarray,
-    assets_grid_end_of_period: jnp.ndarray,
-    state_choice_vec: Dict,
-    model_funcs: Dict[str, Callable],
-    params: Dict[str, float],
-) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
-    """Write second continuous grid point into state_choice_vec."""
-    state_choice_vec["continuous_state"] = second_continuous_grid
-
-    return compute_optimal_policy_and_value(
-        marg_util_next,
-        emax_next,
-        assets_grid_end_of_period,
-        state_choice_vec,
-        model_funcs,
-        params,
-    )
-
-
 def compute_optimal_policy_and_value(
     marg_util_next: jnp.ndarray,
     emax_next: jnp.ndarray,
+    continuous_state_vec: Any,
     assets_grid_end_of_period: jnp.ndarray,
-    state_choice_vec: Dict,
-    model_funcs: Dict[str, Callable],
+    state_choice_vec: Any,
+    model_funcs: Dict[str, Any],
     params: Dict[str, float],
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
-    """Compute optimal child-state- and choice-specific policy and value function.
-
-    Given the marginal utilities of possible child states and next period wealth, we
-    compute the optimal policy and value functions by solving the euler equation
-    and using the optimal consumption level in the bellman equation.
+    """Compute EGM candidates for one state-choice and one continuous-state point.
 
     Args:
-        marg_utils (np.ndarray): 1d array of shape (n_stochastic_states,) containing
-            the state-choice specific marginal utilities for a given point on
-            the savings grid.
-        emax (np.ndarray): 1d array of shape (n_stochastic_states,) containing
-            the state-choice specific expected maximum value for a given point on
-            the savings grid.
-        assets_grid_end_of_period (np.ndarray): 1d array of shape (n_grid_wealth,)
-            containing the exogenous savings grid.
-        trans_vec_state (np.ndarray): 1d array of shape (n_stochastic_states,) containing
-            for each exogenous process state the corresponding transition probability.
-        state_choice_vec (np.ndarray): A dictionary containing the states and a
-        corresponding admissible choice of a particular state choice vector.
-        compute_inverse_marginal_utility (Callable): Function for calculating the
-            inverse marginal utility, which takes the marginal utility as only input.
-        compute_value (callable): Function for calculating the value from consumption
-            level, discrete choice and expected value. The inputs ```discount_rate```
-            and ```compute_utility``` are already partialled in.
-        params (dict): Dictionary of model parameters.
+        marg_util_next: Marginal utilities in child states for one assets grid point.
+        emax_next: Expected maximum values in child states for one assets grid point.
+        continuous_state_vec: Continuous-state values for one continuous-state point.
+        assets_grid_end_of_period: Exogenous end-of-period asset grid.
+        state_choice_vec: Dictionary of discrete states and choice.
+        model_funcs: Processed model functions used by the EGM step.
+        params: Model parameter dictionary.
 
     Returns:
-        tuple:
-
-        - endog_grid (np.ndarray): 1d array of shape (n_grid_wealth + 1,)
-            containing the current state- and choice-specific endogenous grid.
-        - policy (np.ndarray): 1d array of shape (n_grid_wealth + 1,)
-            containing the current state- and choice-specific policy function.
-        - value (np.ndarray): 1d array of shape (n_grid_wealth + 1,)
-            containing the current state- and choice-specific value function.
-        - expected_value_zero_savings (float): The agent's expected value given that
-            she saves nothing.
+        A tuple ``(endog_grid, policy, value, expected_value)`` where each array is
+        state-choice specific on the assets grid.
 
     """
+    state_choice_vec = {**state_choice_vec, **continuous_state_vec}
+
     compute_inverse_marginal_utility = model_funcs["compute_inverse_marginal_utility"]
     compute_utility = model_funcs["compute_utility"]
     compute_stochastic_transition_vec = model_funcs["compute_stochastic_transition_vec"]

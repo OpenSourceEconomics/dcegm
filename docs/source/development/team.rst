@@ -3,7 +3,7 @@
 Team
 =======
 
-`dc-egm` is a collaborative opensource project developed a team of junior researchers and students. We are located in Berlin, Munich, and Copenhagen.
+`dcegm` is a collaborative open source project developed a team of junior researchers and students. We are located in Berlin, Munich, and Copenhagen.
 
 .. list-table::
    :widths: 45 45 45 45 45
@@ -39,13 +39,17 @@ Team
 Projects & Theses
 ------------------
 
-`dc-egm` is collectively developed and used in multiple research projects as well as Undergraduate and Master theses.
+`dcegm` is collectively developed and used in multiple research projects as well as Undergraduate and Master theses.
 
 
 Research Projects
 ..................
 
-Blesch, M. and Veltri, B. (2025). Policy Uncertainty, Misinformation, and Statutory Retirement Age Reform. Working Paper.
+Blesch, M. and Veltri, B. (2025). Life-Cycle Responses to Pension Reform: The Role of Subjective Policy Beliefs . `Working Paper <https://brunoveltri.github.io/papers/pension_beliefs.pdf>`_.
+
+Gehlen, A. (2026). Occupations, Disability Insurance, and Career Choices. (Work in Progress)
+
+Gsell, S. (2026). The Career Costs of Elderly Parent Care. (Work in Progress)
 
 Theses
 ........

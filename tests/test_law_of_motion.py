@@ -191,7 +191,10 @@ def test_wealth_and_second_continuous_state(model_name, max_wealth, n_grid_point
     )
 
     exp_next = calculate_continuous_state(
-        child_state_dict, experience_grid, params, _next_period_continuous_state
+        child_state_dict,
+        {"continuous_state": experience_grid},
+        params,
+        _next_period_continuous_state,
     )
 
     aaae(exp_next, experience_next)

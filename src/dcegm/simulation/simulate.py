@@ -8,10 +8,12 @@ import numpy as np
 from jax import vmap
 
 from dcegm.interfaces.index_functions import get_state_choice_index_per_discrete_states
+from dcegm.interpolation.simulation_interp import (
+    interpolate_policy_and_value_for_all_agents,
+)
 from dcegm.simulation.random_keys import draw_random_keys_for_seed
 from dcegm.simulation.sim_utils import (
     compute_final_utility_for_each_choice,
-    interpolate_policy_and_value_for_all_agents,
     transition_to_next_period,
     vectorized_utility,
 )
@@ -53,11 +55,16 @@ def simulate_all_periods(
         )
 
     continuous_states_info = model_config["continuous_states_info"]
+    has_additional_continuous_state = continuous_states_info[
+        "has_additional_continuous_state"
+    ]
+    additional_continuous_state_names = continuous_states_info[
+        "additional_continuous_state_names"
+    ]
 
-    if continuous_states_info["second_continuous_exists"]:
-        states_initial_dtype[continuous_states_info["second_continuous_state_name"]] = (
-            states_initial[continuous_states_info["second_continuous_state_name"]]
-        )
+    if has_additional_continuous_state:
+        for name in additional_continuous_state_names:
+            states_initial_dtype[name] = states_initial[name]
 
     n_agents = len(states_initial["period"])
 
@@ -137,14 +144,20 @@ def simulate_single_period(
 ):
 
     continuous_states_info = model_config["continuous_states_info"]
+    has_additional_continuous_state = continuous_states_info[
+        "has_additional_continuous_state"
+    ]
+    additional_continuous_state_names = continuous_states_info[
+        "additional_continuous_state_names"
+    ]
 
-    if continuous_states_info["second_continuous_exists"]:
-        continuous_state_name = continuous_states_info["second_continuous_state_name"]
-        continuous_grid = continuous_states_info["second_continuous_grid"]
+    if has_additional_continuous_state:
+        continuous_state_name = additional_continuous_state_names[0]
 
-        continuous_state_beginning_of_period = states_beginning_of_period[
-            continuous_state_name
-        ]
+        continuous_state_beginning_of_period = {
+            name: states_beginning_of_period[name]
+            for name in additional_continuous_state_names
+        }
         discrete_states_beginning_of_period = {
             key: value
             for key, value in states_beginning_of_period.items()
@@ -153,7 +166,6 @@ def simulate_single_period(
     else:
         discrete_states_beginning_of_period = states_beginning_of_period
         continuous_state_beginning_of_period = None
-        continuous_grid = None
 
     assets_begin_of_period = states_beginning_of_period["assets_begin_of_period"]
 
@@ -175,7 +187,12 @@ def simulate_single_period(
         params=params,
         discrete_states_names=model_structure_sol["discrete_states_names"],
         compute_utility=compute_utility,
-        continuous_grid=continuous_grid,
+        continuous_state_space=model_structure_sol["continuous_state_space"],
+        additional_continuous_state_grids=continuous_states_info[
+            "additional_continuous_state_grids"
+        ],
+        upper_envelope_method=model_config["upper_envelope"]["method"],
+        has_additional_continuous_state=has_additional_continuous_state,
         discount_factor=discount_factor,
     )
 
@@ -227,8 +244,9 @@ def simulate_single_period(
 
     states_next_period = discrete_states_next_period
 
-    if continuous_states_info["second_continuous_exists"]:
-        states_next_period[continuous_state_name] = continuous_state_next_period
+    if has_additional_continuous_state:
+        for name in additional_continuous_state_names:
+            states_next_period[name] = continuous_state_next_period[name]
 
     states_next_period["assets_begin_of_period"] = assets_beginning_of_next_period
 
@@ -273,17 +291,18 @@ def simulate_final_period(
         "assets_begin_of_period"
     ]
 
-    if continuous_states_info["second_continuous_exists"]:
-        continuous_state_name = continuous_states_info["second_continuous_state_name"]
-
-        continuous_state_beginning_of_period = states_begin_of_final_period[
-            continuous_state_name
+    if continuous_states_info["has_additional_continuous_state"]:
+        additional_continuous_state_names = continuous_states_info[
+            "additional_continuous_state_names"
         ]
+        continuous_states_beginning_of_period = {
+            name: states_begin_of_final_period[name]
+            for name in additional_continuous_state_names
+        }
         states_begin_of_final_period = {
             **discrete_states_begin_last_period,
-            continuous_state_name: continuous_state_beginning_of_period,
+            **continuous_states_beginning_of_period,
         }
-
     else:
         states_begin_of_final_period = discrete_states_begin_last_period
 

@@ -7,7 +7,9 @@ from jax import numpy as jnp
 
 
 def determine_function_arguments_and_partial_model_specs(
-    func, model_specs, not_allowed_state_choices=None, continuous_state_name=None
+    func,
+    model_specs,
+    not_allowed_state_choices=None,
 ):
     signature = set(inspect.signature(func).parameters)
     not_allowed_state_choices = (
@@ -28,9 +30,6 @@ def determine_function_arguments_and_partial_model_specs(
 
     @functools.wraps(func)
     def processed_func(**kwargs):
-
-        if continuous_state_name:
-            kwargs[continuous_state_name] = kwargs.get("continuous_state")
 
         func_kwargs = {key: kwargs[key] for key in signature}
 

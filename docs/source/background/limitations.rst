@@ -9,7 +9,7 @@ However, there are limitations to what kind of features can be implemented and h
 
 Below we discuss what kind of models `dcegm` is designed for and importantly what limitations to be aware of when implementing a model.
 
-What can dcegm do?
+What can `dcegm` do?
 ---------------------
 
 The package follows Ishakov et al. (2017) and implements the discrete-continuous endogenous grid method (DC-EGM) for solving dynamic stochastic optimization problems with both discrete and continuous choices. Our code originated as a Python replication of their Matlab code and has since been extended to include additional features and improvements (such as used in Iskhakov and Keane (2021)).
@@ -25,7 +25,6 @@ What can `dcegm` not be used for?
 ---------------------------------
 
 - Purely discrete choice models (see e.g. Keane and Wolpin; 1997)
-- Models with more than two continuous state variables.
 - Models with more than one continuous state variable with a normally distributed idiosyncratic shock.
 
 

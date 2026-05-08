@@ -187,8 +187,21 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
     model_specs = {"savings_rate": 0.04}
     params = {}
 
+    def next_period_continuous_state(
+        period, lagged_choice, experience, model_specs, params
+    ):
+        return {
+            "experience": get_next_experience(
+                period=period,
+                lagged_choice=lagged_choice,
+                experience=experience,
+                model_specs=model_specs,
+                params=params,
+            )
+        }
+
     state_space_functions = create_state_space_function_dict()
-    state_space_functions["next_period_experience"] = get_next_experience
+    state_space_functions["next_period_continuous_state"] = next_period_continuous_state
 
     model_config = check_model_config_and_process(model_config)
 
@@ -206,7 +219,7 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
     got = next_period_continuous_state(
         period=period,
         lagged_choice=lagged_choice,
-        continuous_state=continuous_state,
+        experience=continuous_state,
         model_config=model_config,
         params=params,
     )
@@ -218,4 +231,4 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
         params=params,
     )
 
-    np.testing.assert_allclose(got, expected)
+    np.testing.assert_allclose(got["experience"], expected)

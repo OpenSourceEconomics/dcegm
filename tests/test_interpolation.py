@@ -17,7 +17,7 @@ from numpy.testing import assert_allclose
 from numpy.testing import assert_array_almost_equal as aaae
 from scipy.interpolate import griddata, interp1d
 
-from dcegm.interpolation.interp2d import (
+from dcegm.interpolation.interp2d_irregular import (
     interp2d_policy_on_wealth_and_regular_grid,
     interp2d_value_on_wealth_and_regular_grid,
 )
@@ -119,7 +119,6 @@ def test_cases():
         compute_utility = determine_function_arguments_and_partial_model_specs(
             utility_crra,
             model_specs={},
-            continuous_state_name="continuous_state",
         )
 
         test_cases[test_id]["test_points"] = test_points
