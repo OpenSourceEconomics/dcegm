@@ -392,7 +392,6 @@ def calc_choice_prob_for_state_choices(
     and then interpolates the wealth at the beginning of period on them.
 
     """
-
     choice_prob_across_choices = calc_choice_probs_for_states(
         value_solved=value_solved,
         endog_grid_solved=endog_grid_solved,

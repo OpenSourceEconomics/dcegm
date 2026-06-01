@@ -2,7 +2,6 @@ def split_structure_and_batch_info(model_structure, batch_info):
     """Splits the model structure and batch info into static parts, which we can not jit
     compile and (large) arrays that we want to include in the function call for
     jitting."""
-
     struct_keys_not_for_jit = [
         "discrete_states_names",
         "state_names_without_stochastic",

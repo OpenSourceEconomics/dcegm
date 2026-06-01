@@ -166,7 +166,6 @@ def create_model_dict_and_save(
     than recreating the model from scratch.
 
     """
-
     model_dict = create_model_dict(
         model_config=model_config,
         model_specs=model_specs,
@@ -202,7 +201,6 @@ def load_model_dict(
     use_stochastic_sparsity=False,
 ):
     """Load the model from file."""
-
     model = pickle.load(open(path, "rb"))
 
     model["model_config"] = check_model_config_and_process(model_config)

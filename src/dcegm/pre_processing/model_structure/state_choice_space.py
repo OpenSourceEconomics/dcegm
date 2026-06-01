@@ -59,7 +59,6 @@ def create_state_choice_space_and_child_state_mapping(
             (ii) to expand state level arrays to the state-choice level.
 
     """
-
     state_names_without_stochastic = state_space_arrays[
         "state_names_without_stochastic"
     ]
