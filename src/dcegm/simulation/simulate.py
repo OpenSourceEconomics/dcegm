@@ -279,7 +279,10 @@ def simulate_final_period(
     continuous_states_info,
     model_structure_sol,
 ):
-    invalid_number = np.iinfo(map_state_choice_to_index.dtype).max
+    invalid_number = np.array(
+        np.iinfo(map_state_choice_to_index.dtype).max,
+        dtype=map_state_choice_to_index.dtype,
+    )
 
     n_agents = len(states_begin_of_final_period["period"])
     discrete_states_begin_last_period = {
