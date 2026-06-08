@@ -5,9 +5,6 @@ Roadmap
 
 Below is a list of features that are currently planned for `dcegm` as well as associated issues and pull requests.
 
-- **Alternative batching** (`#200 <https://github.com/OpenSourceEconomics/dcegm/issues/200>`_)
-  The current solver relies on batching to handle large state spaces efficiently. We can add an alternative execution path that avoids batching, which may be more suitable for certain model specifications and/or and option to fill in dummy states for larger batches.
-
 - **Generalized income timing** (`#199 <https://github.com/OpenSourceEconomics/dcegm/issues/199>`_)
   The classic `dcegm` implementation applies the income shock at the beginning of the period so that income is a function of last period's choice. Consequently, wealth determining the consumption choice is the same across all discrete choices. We plan to make income timing more flexible, allowing users to specify when income is received relative to the continuous (consumption) decisions.
 
@@ -16,7 +13,7 @@ Below is a list of features that are currently planned for `dcegm` as well as as
 
 
 Recent Developments
-===================
+...................
 
 June 2026:  **Multiple deterministic continuous state variables**
 
