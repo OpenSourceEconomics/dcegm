@@ -61,4 +61,4 @@ Theses
 Contact
 .........
 
-Feel free to contact us with any questions or feedback on `dcegm`! The best way to comment on specific features is by opening an `issue on Github <https://github.com/OpenSourceEconomics/dcegm/issues>`. You can also shoot us an email (current email addresses and contact information can be found on our team members' individual websites.)
+Feel free to contact us with any questions or feedback on `dcegm`! The best way to comment on specific features is by opening an `issue on Github <https://github.com/OpenSourceEconomics/dcegm/issues>`_. You can also shoot us an email (current email addresses and contact information can be found on our team members' individual websites.)
