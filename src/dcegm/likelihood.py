@@ -174,7 +174,7 @@ def create_choice_prob_func_unobserved_states(
     observed_bools = unobserved_state_specs["observed_bools_states"]
 
     # Create weighting vars by extracting states and choices
-    weighting_vars = unobserved_state_specs["weighting_vars"]
+    weighting_vars = copy.deepcopy(unobserved_state_specs["weighting_vars"])
 
     # Add unobserved states with appendix new and bools indicating if state is observed
     for state_name in unobserved_state_names:
@@ -209,7 +209,7 @@ def create_choice_prob_func_unobserved_states(
     # Now create a list which contains dictionaries with ach dictionary
     # containing a unique combination of unobserved states. Note that this is
     # only tested for one state with two values.
-    possible_states = [observed_states]
+    possible_states = [copy.deepcopy(observed_states)]
     weighting_vars_for_possible_states = [weighting_vars]
     for state_name in unobserved_state_names:
         # Create bool indicating if state is unobserved

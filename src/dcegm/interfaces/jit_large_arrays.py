@@ -1,3 +1,6 @@
+import copy
+
+
 def split_structure_and_batch_info(model_structure, batch_info):
     """Splits the model structure and batch info into static parts, which we can not jit
     compile and (large) arrays that we want to include in the function call for
@@ -17,7 +20,7 @@ def split_structure_and_batch_info(model_structure, batch_info):
         model_structure_jit.pop(key, None)
 
     # Remove non-jittable items from batch_info
-    batch_info_jit = batch_info.copy()
+    batch_info_jit = copy.deepcopy(batch_info)
     batch_info_non_jit = {
         "two_period_model": batch_info["two_period_model"],
     }

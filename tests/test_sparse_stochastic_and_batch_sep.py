@@ -1,3 +1,5 @@
+import copy
+
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -102,7 +104,7 @@ def test_benchmark_models():
         model_config=model_config, model_specs=model_specs, **model_funcs
     )
 
-    model_funcs_sparse = model_funcs.copy()
+    model_funcs_sparse = copy.deepcopy(model_funcs)
     model_funcs_sparse["state_space_functions"][
         "sparsity_condition"
     ] = sparsity_condition

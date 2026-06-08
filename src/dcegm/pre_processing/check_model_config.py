@@ -1,3 +1,5 @@
+import copy
+
 import jax.numpy as jnp
 import numpy as np
 
@@ -99,7 +101,7 @@ def check_model_config_and_process(model_config):
         upper_envelope = {}
         upper_envelope["method"] = "fues"
     elif "method" not in model_config["upper_envelope"]:
-        upper_envelope = model_config["upper_envelope"]
+        upper_envelope = copy.deepcopy(model_config["upper_envelope"])
         upper_envelope["method"] = "fues"
     elif (
         "upper_envelope" in model_config
@@ -112,7 +114,7 @@ def check_model_config_and_process(model_config):
             "from the model_config['upper_envelope']"
         )
     else:
-        upper_envelope = dict(model_config["upper_envelope"])
+        upper_envelope = copy.deepcopy(model_config["upper_envelope"])
 
     if "tuning_params" not in upper_envelope:
         tuning_params = {}
@@ -121,7 +123,7 @@ def check_model_config_and_process(model_config):
             "tuning_params should be nested in model_config['upper_envelope']"
         )
     else:
-        tuning_params = model_config["upper_envelope"]["tuning_params"]
+        tuning_params = upper_envelope["tuning_params"]
 
     tuning_params["extra_wealth_grid_factor"] = (
         tuning_params["extra_wealth_grid_factor"]
