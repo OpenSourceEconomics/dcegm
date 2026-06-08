@@ -193,6 +193,10 @@ Thanks to it's efficient JAX implementation, `dcegm` is capable of solving and s
 `dcegm` constructs the (discrete) state space by building the cartesian product of the model state variables. It is up to the user to exclude undesired states. To this end, `dcegm` requires users to specify sparsity conditions. These should be defined carefully and must be customized for your model. Refer to guidance on sparsity conditions in the documentation for help: :ref:`sparsity_conditions`.
 
 
+**Initial Conditions**
+
+Model simulation requires user provided *initial_conditions*. In contrast to the sparsity conditions, `dcegm` currently does not perform checks on initial conditions. Badly specified initial conditions may result in errors in the simulation. For instance, the user should make sure that `assets_begin_of_period` is not set to zero in the first period and that initial conditions do not violate the sparsity conditions (for example by providing more initial experience that the sparsity conditions allows for an agent to have in a given period).
+
 
 **Model Timing**
 

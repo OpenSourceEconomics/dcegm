@@ -18,6 +18,11 @@ Below is a list of features that are currently planned for `dcegm` as well as as
 Recent Developments
 ===================
 
-April 2026:  **Multiple deterministic continuous state variables**
+June 2026:  **Multiple deterministic continuous state variables**
 
 Previously, `dcegm` only supported a single deterministic continuous state variable. We extended the solver to handle multiple deterministic continuous states, including support for the Druedahl–Jørgensen upper envelope algorithm. See PR `#197 <https://github.com/OpenSourceEconomics/dcegm/pull/197>`_ & `#198 <https://github.com/OpenSourceEconomics/dcegm/pull/198>`_ for more information.
+
+
+June 2026: **Alternative batching** (`#200 <https://github.com/OpenSourceEconomics/dcegm/issues/200>`_)
+
+The previous solver relied on batching to handle large state spaces efficiently. We added an alternative batching options and a guide on batching to the documentation.
