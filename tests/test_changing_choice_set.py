@@ -86,7 +86,7 @@ def test_model():
         "pension_per_experience": 0.3,
         "unemployment_benefits": 0.4,
         "health_costs": 0.5,
-        "consumption_floor": 0,
+        "consumption_floor": 0.5,
         # stochastic processes
         "p_bad_health_given_good_health": 0.2,
         "p_bad_health_given_bad_health": 1,
