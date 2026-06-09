@@ -210,7 +210,11 @@ def create_state_choice_space_and_child_state_mapping(
     states_proxy_to_tuple = tuple(
         states_proxy_to[:, i] for i in range(n_state_and_stochastic_variables)
     )
-    map_state_choice_to_index_with_proxy = np.empty_like(map_state_choice_to_index)
+    invalid_state_choice_idx = np.iinfo(map_state_choice_to_index.dtype).max
+    map_state_choice_to_index_with_proxy = np.full_like(
+        map_state_choice_to_index,
+        fill_value=invalid_state_choice_idx,
+    )
     map_state_choice_to_index_with_proxy[state_space_incl_proxies_tuple] = (
         map_state_choice_to_index[states_proxy_to_tuple]
     )

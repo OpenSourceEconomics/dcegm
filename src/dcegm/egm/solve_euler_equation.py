@@ -19,9 +19,19 @@ def calculate_candidate_solutions_from_euler_equation(
     """Calculate candidates for the optimal policy and value function."""
 
     feasible_marg_utils_child = jnp.take(
-        marg_util_next, idx_post_decision_child_states, axis=0
+        marg_util_next,
+        idx_post_decision_child_states,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
     )
-    feasible_emax_child = jnp.take(emax_next, idx_post_decision_child_states, axis=0)
+    feasible_emax_child = jnp.take(
+        emax_next,
+        idx_post_decision_child_states,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
 
     (
         endog_grid,

@@ -182,9 +182,27 @@ class model_solved:
             choices=state_choices["choice"],
         )
 
-        endog_grid = jnp.take(self.endog_grid, state_choice_index, axis=0)
-        value_grid = jnp.take(self.value, state_choice_index, axis=0)
-        policy_grid = jnp.take(self.policy, state_choice_index, axis=0)
+        endog_grid = jnp.take(
+            self.endog_grid,
+            state_choice_index,
+            axis=0,
+            mode="fill",
+            fill_value=jnp.nan,
+        )
+        value_grid = jnp.take(
+            self.value,
+            state_choice_index,
+            axis=0,
+            mode="fill",
+            fill_value=jnp.nan,
+        )
+        policy_grid = jnp.take(
+            self.policy,
+            state_choice_index,
+            axis=0,
+            mode="fill",
+            fill_value=jnp.nan,
+        )
 
         return endog_grid, value_grid, policy_grid
 

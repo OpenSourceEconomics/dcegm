@@ -631,6 +631,24 @@ def test_discrete_interface_choice_values_match(solved_discrete):
     )
 
 
+def test_discrete_invalid_sparse_state_returns_nan(solved_discrete):
+    """States ruled out by sparsity map to nan in the solved interface."""
+    states_eval = {
+        "period": 0,
+        "lagged_choice": 0,
+        "exp_green": 1,
+        "exp_red": 1,
+        "assets_begin_of_period": 0.5,
+    }
+
+    value = solved_discrete.value_for_states_and_choices(
+        states=states_eval,
+        choices=2,
+    )
+
+    assert jnp.isnan(value)
+
+
 def test_discrete_simulation_runs(df_discrete):
     """Discrete model simulation completes and returns a non-empty DataFrame."""
     assert len(df_discrete) > 0

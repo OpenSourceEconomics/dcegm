@@ -48,10 +48,18 @@ def interpolate_policy_and_value_for_all_agents(
             fill_value=jnp.nan,
         )[:, :, 0, :]
         policy_grid_agent = jnp.take(
-            policy_solved, discrete_state_choice_indexes, axis=0
+            policy_solved,
+            discrete_state_choice_indexes,
+            axis=0,
+            mode="fill",
+            fill_value=jnp.nan,
         )[:, :, 0, :]
         endog_grid_agent = jnp.take(
-            endog_grid_solved, discrete_state_choice_indexes, axis=0
+            endog_grid_solved,
+            discrete_state_choice_indexes,
+            axis=0,
+            mode="fill",
+            fill_value=jnp.nan,
         )[:, :, 0, :]
 
         vectorized_interp = vmap(
@@ -104,10 +112,18 @@ def interpolate_policy_and_value_for_all_agents(
             fill_value=jnp.nan,
         )
         policy_grid_agent = jnp.take(
-            policy_solved, discrete_state_choice_indexes, axis=0
+            policy_solved,
+            discrete_state_choice_indexes,
+            axis=0,
+            mode="fill",
+            fill_value=jnp.nan,
         )
         endog_grid_agent = jnp.take(
-            endog_grid_solved, discrete_state_choice_indexes, axis=0
+            endog_grid_solved,
+            discrete_state_choice_indexes,
+            axis=0,
+            mode="fill",
+            fill_value=jnp.nan,
         )
 
         continuous_state_name = list(continuous_state_beginning_of_period.keys())[0]
@@ -180,10 +196,18 @@ def interpolate_policy_and_value_for_all_agents(
             fill_value=jnp.nan,
         )
         policy_grid_agent = jnp.take(
-            policy_solved, discrete_state_choice_indexes, axis=0
+            policy_solved,
+            discrete_state_choice_indexes,
+            axis=0,
+            mode="fill",
+            fill_value=jnp.nan,
         )
         endog_grid_agent = jnp.take(
-            endog_grid_solved, discrete_state_choice_indexes, axis=0
+            endog_grid_solved,
+            discrete_state_choice_indexes,
+            axis=0,
+            mode="fill",
+            fill_value=jnp.nan,
         )
 
         additional_continuous_state_names = list(continuous_state_space.keys())

@@ -74,9 +74,27 @@ def policy_and_value_for_states_and_choices(
     state_choice_idx = get_state_choice_index_per_discrete_states_and_choices(
         states=state_choices, choices=choices, model_structure=model_structure
     )
-    endog_grid_state_choice = jnp.take(endog_grid_solved, state_choice_idx, axis=0)
-    value_grid_state_choice = jnp.take(value_solved, state_choice_idx, axis=0)
-    policy_grid_state_choice = jnp.take(policy_solved, state_choice_idx, axis=0)
+    endog_grid_state_choice = jnp.take(
+        endog_grid_solved,
+        state_choice_idx,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
+    value_grid_state_choice = jnp.take(
+        value_solved,
+        state_choice_idx,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
+    policy_grid_state_choice = jnp.take(
+        policy_solved,
+        state_choice_idx,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
 
     policy, value = jax.vmap(
         interpolate_policy_and_value_for_state_and_choice,
@@ -131,8 +149,20 @@ def value_for_state_and_choice(
     state_choice_idx = get_state_choice_index_per_discrete_states_and_choices(
         states=state_choices, choices=choices, model_structure=model_structure
     )
-    endog_grid_state_choice = jnp.take(endog_grid_solved, state_choice_idx, axis=0)
-    value_grid_state_choice = jnp.take(value_solved, state_choice_idx, axis=0)
+    endog_grid_state_choice = jnp.take(
+        endog_grid_solved,
+        state_choice_idx,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
+    value_grid_state_choice = jnp.take(
+        value_solved,
+        state_choice_idx,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
 
     value = jax.vmap(
         interpolate_value_for_state_and_choice,
@@ -183,9 +213,27 @@ def policy_for_state_choice_vec(
     state_choice_idx = get_state_choice_index_per_discrete_states_and_choices(
         states=state_choices, choices=choices, model_structure=model_structure
     )
-    endog_grid_state_choice = jnp.take(endog_grid_solved, state_choice_idx, axis=0)
-    policy_grid_state_choice = jnp.take(policy_solved, state_choice_idx, axis=0)
-    value_grid_state_choice = jnp.take(value_solved, state_choice_idx, axis=0)
+    endog_grid_state_choice = jnp.take(
+        endog_grid_solved,
+        state_choice_idx,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
+    policy_grid_state_choice = jnp.take(
+        policy_solved,
+        state_choice_idx,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
+    value_grid_state_choice = jnp.take(
+        value_solved,
+        state_choice_idx,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
 
     policy = jax.vmap(
         interpolate_policy_for_state_and_choice,
