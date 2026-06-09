@@ -17,7 +17,9 @@ from numpy.testing import assert_allclose
 from numpy.testing import assert_array_almost_equal as aaae
 from scipy.interpolate import griddata, interp1d
 
+from dcegm.interpolation.interp1d import linear_interpolation_formula
 from dcegm.interpolation.interp2d_irregular import (
+    interp2d,
     interp2d_policy_on_wealth_and_regular_grid,
     interp2d_value_on_wealth_and_regular_grid,
 )
@@ -75,6 +77,42 @@ def test_linear_interpolation_with_missing_values(random_test_data):
     expected = interp1d(x, y, bounds_error=False, fill_value=missing_value)(x_new)
 
     assert_allclose(got, expected)
+
+
+def test_linear_interpolation_zero_width_interval_returns_low_value():
+    got = linear_interpolation_formula(
+        y_high=jnp.array([2.0, 3.0]),
+        y_low=jnp.array([1.0, 3.0]),
+        x_high=jnp.array([0.0, 0.0]),
+        x_low=jnp.array([0.0, 0.0]),
+        x_new=jnp.array([0.0, 0.0]),
+    )
+
+    assert_allclose(got, jnp.array([1.0, 3.0]))
+
+
+def test_interp2d_degenerate_x_direction_returns_finite_left_edge_value():
+    got = interp2d(
+        x_coords=jnp.array([0.0, 0.0, 0.0, 0.0]),
+        y_coords=jnp.array([0.0, 0.0, 1.0, 1.0]),
+        z_vals=jnp.array([1.0, 2.0, 4.0, 3.0]),
+        x_new=0.0,
+        y_new=0.0,
+    )
+
+    assert_allclose(got, 1.0)
+
+
+def test_interp2d_degenerate_y_direction_returns_finite_lower_edge_value():
+    got = interp2d(
+        x_coords=jnp.array([0.0, 1.0, 1.0, 0.0]),
+        y_coords=jnp.array([0.0, 0.0, 0.0, 0.0]),
+        z_vals=jnp.array([1.0, 2.0, 4.0, 3.0]),
+        x_new=0.0,
+        y_new=0.0,
+    )
+
+    assert_allclose(got, 1.0)
 
 
 N_TEST_CASES = 20

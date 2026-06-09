@@ -16,6 +16,7 @@ import pytest
 from scipy.interpolate import RegularGridInterpolator
 
 from dcegm.interpolation.interpnd_regular import (
+    _precompute_regular_indices_and_weights,
     interpnd_policy_and_value_for_child_states_on_regular_grids,
     interpnd_policy_for_child_states_on_regular_grids,
     interpnd_value_for_child_states_on_regular_grids,
@@ -96,6 +97,19 @@ def _run_interpnd(policy_grid_child_states, value_grid_child_states, inputs):
         params={"u_scale": 2.0},
         discount_factor=0.95,
     )
+
+
+def test_interpnd_regular_zero_width_interval_weights_fall_back_to_low_point():
+    _, _, low_weights, high_weights = _precompute_regular_indices_and_weights(
+        additional_continuous_state_grids={"exp_green": jnp.array([0.0, 0.0])},
+        continuous_state_child_states={"exp_green": jnp.array([[0.0, 0.0]])},
+        state_names=["exp_green"],
+    )
+
+    assert jnp.all(jnp.isfinite(low_weights))
+    assert jnp.all(jnp.isfinite(high_weights))
+    assert jnp.allclose(low_weights, 1.0)
+    assert jnp.allclose(high_weights, 0.0)
 
 
 def _scipy_expected(policy_grid_child_states, inputs):

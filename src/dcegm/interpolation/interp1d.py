@@ -14,13 +14,12 @@ def linear_interpolation_formula(
     """Linear interpolation formula."""
     interpolate_dist = x_new - x_low
     interpolate_slope = (y_high - y_low) / (x_high - x_low)
-    interpol_res = (interpolate_slope * interpolate_dist) + y_low
-    nan_slope = jnp.isnan(interpolate_slope)
-    interpol_res = jnp.where(
-        nan_slope,
-        y_low,
-        interpol_res,
+    interpolate_slope = jnp.where(
+        jnp.isfinite(interpolate_slope),
+        interpolate_slope,
+        0.0,
     )
+    interpol_res = (interpolate_slope * interpolate_dist) + y_low
 
     return interpol_res
 

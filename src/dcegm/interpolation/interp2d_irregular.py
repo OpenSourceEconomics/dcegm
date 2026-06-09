@@ -506,7 +506,11 @@ def determine_coordinates_in_unit_square(x, y, x_vec, y_vec):
     """
 
     x_rel = (x - x_vec[0]) / x_vec[1]
-    y_rel = (y - y_vec[0] - y_vec[1] * x_rel) / (y_vec[2] + y_vec[3] * x_rel)
+    x_rel = jnp.where(jnp.isfinite(x_rel), x_rel, 0.0)
+
+    y_denom = y_vec[2] + y_vec[3] * x_rel
+    y_rel = (y - y_vec[0] - y_vec[1] * x_rel) / y_denom
+    y_rel = jnp.where(jnp.isfinite(y_rel), y_rel, 0.0)
 
     return x_rel, y_rel
 

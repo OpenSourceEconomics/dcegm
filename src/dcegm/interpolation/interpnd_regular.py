@@ -554,6 +554,7 @@ def _precompute_regular_indices_and_weights(
         x_low = grid_1d[low_idx]
         x_high = grid_1d[high_idx]
         high_w = (points - x_low) / (x_high - x_low)
+        high_w = jnp.where(jnp.isfinite(high_w), high_w, 0.0)
         low_w = 1.0 - high_w
         low_idxs.append(low_idx)
         high_idxs.append(high_idx)
