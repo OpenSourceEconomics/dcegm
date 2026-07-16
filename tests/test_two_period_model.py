@@ -22,6 +22,11 @@ from tests.utils.euler_equation_two_period import (
 RANDOM_TEST_WEALTH = np.random.choice(list(range(100)), size=10, replace=False)
 
 
+def _align_dummy_continuous_state_space_with_states(model):
+    """No-op helper kept for local test compatibility."""
+    return
+
+
 @pytest.fixture(scope="session")
 def toy_model_exog_ltc_and_job_offer():
 
@@ -39,6 +44,7 @@ def toy_model_exog_ltc_and_job_offer():
         model_specs=model_specs,
         **model_funcs,
     )
+    _align_dummy_continuous_state_space_with_states(model)
 
     out["marginal_utility"] = model_funcs["utility_functions"]["marginal_utility"]
 
@@ -66,6 +72,7 @@ def toy_model_exog_ltc():
         model_specs=model_specs,
         **model_funcs,
     )
+    _align_dummy_continuous_state_space_with_states(model)
 
     out["model_solved"] = model.solve(params)
     out["marginal_utility"] = model_funcs["utility_functions"]["marginal_utility"]
@@ -127,8 +134,8 @@ def test_two_period(
         initial_conditions["bad_health"] = state_space_dict["ltc"][state_idx]
 
     for state_choice_idx in parent_states_of_state:
-        endog_grid = endog_grid_period[state_choice_idx, wealth_idx + 1]
-        cons_calc = policy_period[state_choice_idx, wealth_idx + 1]
+        endog_grid = endog_grid_period[state_choice_idx, 0, wealth_idx + 1]
+        cons_calc = policy_period[state_choice_idx, 0, wealth_idx + 1]
         choice = state_choice_space_0[state_choice_idx, -1]
 
         if ~np.isnan(endog_grid) and endog_grid > 0:

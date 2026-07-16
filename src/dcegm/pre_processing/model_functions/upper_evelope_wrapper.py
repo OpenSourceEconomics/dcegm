@@ -1,115 +1,83 @@
 from jax import numpy as jnp
-from upper_envelope.jax import fues_jax
+from upper_envelope.jax import drued_jorg_jax, fues_jax
 
 
-def create_upper_envelope_function(model_config, continuous_state=None):
+def create_upper_envelope_function(
+    model_config,
+):
     if len(model_config["choices"]) < 2:
-        compute_upper_envelope = no_upper_envelope_dummy_function
-    else:
+        return no_upper_envelope_dummy_function
 
-        tuning_params = model_config["tuning_params"]
+    tuning_params = model_config["upper_envelope"]["tuning_params"]
+    method = model_config["upper_envelope"]["method"]
 
-        if continuous_state:
+    def compute_upper_envelope(
+        endog_grid,
+        policy,
+        value,
+        expected_value_zero_assets,
+        continuous_state_dict,
+        state_choice_dict,
+        utility_function,
+        params,
+        discount_factor,
+    ):
+        state_choice_vars = {**state_choice_dict, **continuous_state_dict}
 
-            def compute_upper_envelope(
-                endog_grid,
-                policy,
-                value,
-                expected_value_zero_assets,
-                second_continuous_state,
-                state_choice_dict,
-                utility_function,
-                params,
-                discount_factor,
-            ):
-                value_kwargs = {
-                    "second_continuous_state": second_continuous_state,
-                    "expected_value_zero_assets": expected_value_zero_assets,
-                    "params": params,
-                    "discount_factor": discount_factor,
-                    **state_choice_dict,
-                }
+        value_kwargs = {
+            "expected_value_zero_assets": expected_value_zero_assets,
+            "params": params,
+            "discount_factor": discount_factor,
+        }
 
-                def value_function(
-                    consumption,
-                    second_continuous_state,
-                    expected_value_zero_assets,
-                    params,
-                    discount_factor,
-                    **state_choice_dict,
-                ):
-                    return (
-                        utility_function(
-                            consumption=consumption,
-                            continuous_state=second_continuous_state,
-                            params=params,
-                            **state_choice_dict,
-                        )
-                        + discount_factor * expected_value_zero_assets
-                    )
-
-                return fues_jax(
-                    endog_grid=endog_grid,
-                    policy=policy,
-                    value=value,
-                    expected_value_zero_savings=expected_value_zero_assets,
-                    value_function=value_function,
-                    value_function_kwargs=value_kwargs,
-                    n_constrained_points_to_add=tuning_params[
-                        "n_constrained_points_to_add"
-                    ],
-                    n_final_wealth_grid=tuning_params["n_total_wealth_grid"],
-                    jump_thresh=tuning_params["fues_jump_thresh"],
-                    n_points_to_scan=tuning_params["fues_n_points_to_scan"],
+        def value_function(
+            consumption,
+            expected_value_zero_assets,
+            params,
+            discount_factor,
+        ):
+            return (
+                utility_function(
+                    consumption=consumption,
+                    params=params,
+                    **state_choice_vars,
                 )
+                + discount_factor * expected_value_zero_assets
+            )
+
+        # --- method dispatch ---
+        if method == "fues":
+            return fues_jax(
+                endog_grid=endog_grid,
+                policy=policy,
+                value=value,
+                expected_value_zero_savings=expected_value_zero_assets,
+                value_function=value_function,
+                value_function_kwargs=value_kwargs,
+                n_constrained_points_to_add=tuning_params[
+                    "n_constrained_points_to_add"
+                ],
+                n_final_wealth_grid=tuning_params["n_total_wealth_grid"],
+                jump_thresh=tuning_params["fues_jump_thresh"],
+                n_points_to_scan=tuning_params["fues_n_points_to_scan"],
+            )
+
+        elif method == "druedahl_jorgensen":
+            return drued_jorg_jax(
+                endog_grid=endog_grid,
+                policy=policy,
+                value=value,
+                expected_value_zero_savings=expected_value_zero_assets,
+                value_function=value_function,
+                value_function_kwargs=value_kwargs,
+                m_grid=model_config["continuous_states_info"]["assets_begin_of_period"],
+            )
 
         else:
-
-            def compute_upper_envelope(
-                endog_grid,
-                policy,
-                value,
-                expected_value_zero_assets,
-                state_choice_dict,
-                utility_function,
-                params,
-                discount_factor,
-            ):
-                value_kwargs = {
-                    "expected_value_zero_assets": expected_value_zero_assets,
-                    "params": params,
-                    "discount_factor": discount_factor,
-                    **state_choice_dict,
-                }
-
-                def value_function(
-                    consumption,
-                    expected_value_zero_assets,
-                    params,
-                    discount_factor,
-                    **state_choice_dict,
-                ):
-                    return (
-                        utility_function(
-                            consumption=consumption, params=params, **state_choice_dict
-                        )
-                        + discount_factor * expected_value_zero_assets
-                    )
-
-                return fues_jax(
-                    endog_grid=endog_grid,
-                    policy=policy,
-                    value=value,
-                    expected_value_zero_savings=expected_value_zero_assets,
-                    value_function=value_function,
-                    value_function_kwargs=value_kwargs,
-                    n_constrained_points_to_add=tuning_params[
-                        "n_constrained_points_to_add"
-                    ],
-                    n_final_wealth_grid=tuning_params["n_total_wealth_grid"],
-                    jump_thresh=tuning_params["fues_jump_thresh"],
-                    n_points_to_scan=tuning_params["fues_n_points_to_scan"],
-                )
+            raise ValueError(
+                f"Unknown upper envelope method: {method}. "
+                "Choose 'fues' or 'druedahl_jorgensen'."
+            )
 
     return compute_upper_envelope
 

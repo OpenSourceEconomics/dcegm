@@ -148,10 +148,13 @@ class model_solved:
         return policy_for_state_choice_vec(
             states=states,
             choices=choices,
+            params=self.params,
             model_config=self.model_config,
             model_structure=self.model_structure,
+            model_funcs=self.model_funcs,
             endog_grid_solved=self.endog_grid,
             policy_solved=self.policy,
+            value_solved=self.value,
         )
 
     def get_solution_for_discrete_state_choice(self, states, choices):
@@ -179,9 +182,27 @@ class model_solved:
             choices=state_choices["choice"],
         )
 
-        endog_grid = jnp.take(self.endog_grid, state_choice_index, axis=0)
-        value_grid = jnp.take(self.value, state_choice_index, axis=0)
-        policy_grid = jnp.take(self.policy, state_choice_index, axis=0)
+        endog_grid = jnp.take(
+            self.endog_grid,
+            state_choice_index,
+            axis=0,
+            mode="fill",
+            fill_value=jnp.nan,
+        )
+        value_grid = jnp.take(
+            self.value,
+            state_choice_index,
+            axis=0,
+            mode="fill",
+            fill_value=jnp.nan,
+        )
+        policy_grid = jnp.take(
+            self.policy,
+            state_choice_index,
+            axis=0,
+            mode="fill",
+            fill_value=jnp.nan,
+        )
 
         return endog_grid, value_grid, policy_grid
 
@@ -241,6 +262,7 @@ class model_solved:
             states=states,
             model_config=self.model_config,
             model_funcs=self.model_funcs,
+            model_structure=self.model_structure,
         )
 
     def choice_policies_for_states(self, states):
@@ -263,8 +285,12 @@ class model_solved:
         )
         return choice_policies_for_states(
             policy_solved=self.policy,
+            value_solved=self.value,
             endog_grid_solved=self.endog_grid,
             state_choice_indexes=state_choice_idxs,
             states=states,
+            params=self.params,
             model_config=self.model_config,
+            model_funcs=self.model_funcs,
+            model_structure=self.model_structure,
         )

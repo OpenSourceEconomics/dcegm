@@ -14,7 +14,7 @@ from dcegm.pre_processing.shared import (
 
 
 def create_stochastic_transition_function(
-    stochastic_states_transitions, model_config, model_specs, continuous_state_name
+    stochastic_states_transitions, model_config, model_specs
 ):
     """Create the stochastic process transition function.
 
@@ -31,7 +31,6 @@ def create_stochastic_transition_function(
             stochastic_states_transitions,
             model_config=model_config,
             model_specs=model_specs,
-            continuous_state_name=continuous_state_name,
         )
 
         trans_func_list = [func_dict[name] for name in func_dict.keys()]
@@ -44,7 +43,7 @@ def create_stochastic_transition_function(
 
 
 def process_stochastic_transitions(
-    stochastic_states_transitions, model_config, model_specs, continuous_state_name
+    stochastic_states_transitions, model_config, model_specs
 ):
     """Process stochastic functions.
 
@@ -63,7 +62,6 @@ def process_stochastic_transitions(
             processed_exog_func = determine_function_arguments_and_partial_model_specs(
                 func=func,
                 model_specs=model_specs,
-                continuous_state_name=continuous_state_name,
             )
             func_list += [processed_exog_func]
             func_dict[name] = processed_exog_func

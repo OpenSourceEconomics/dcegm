@@ -74,13 +74,31 @@ def policy_and_value_for_states_and_choices(
     state_choice_idx = get_state_choice_index_per_discrete_states_and_choices(
         states=state_choices, choices=choices, model_structure=model_structure
     )
-    endog_grid_state_choice = jnp.take(endog_grid_solved, state_choice_idx, axis=0)
-    value_grid_state_choice = jnp.take(value_solved, state_choice_idx, axis=0)
-    policy_grid_state_choice = jnp.take(policy_solved, state_choice_idx, axis=0)
+    endog_grid_state_choice = jnp.take(
+        endog_grid_solved,
+        state_choice_idx,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
+    value_grid_state_choice = jnp.take(
+        value_solved,
+        state_choice_idx,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
+    policy_grid_state_choice = jnp.take(
+        policy_solved,
+        state_choice_idx,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
 
     policy, value = jax.vmap(
         interpolate_policy_and_value_for_state_and_choice,
-        in_axes=(0, 0, 0, 0, None, None, None),
+        in_axes=(0, 0, 0, 0, None, None, None, None),
     )(
         value_grid_state_choice,
         policy_grid_state_choice,
@@ -89,6 +107,7 @@ def policy_and_value_for_states_and_choices(
         params,
         model_config,
         model_funcs,
+        model_structure,
     )
     return (
         jnp.squeeze(policy),
@@ -130,12 +149,24 @@ def value_for_state_and_choice(
     state_choice_idx = get_state_choice_index_per_discrete_states_and_choices(
         states=state_choices, choices=choices, model_structure=model_structure
     )
-    endog_grid_state_choice = jnp.take(endog_grid_solved, state_choice_idx, axis=0)
-    value_grid_state_choice = jnp.take(value_solved, state_choice_idx, axis=0)
+    endog_grid_state_choice = jnp.take(
+        endog_grid_solved,
+        state_choice_idx,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
+    value_grid_state_choice = jnp.take(
+        value_solved,
+        state_choice_idx,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
 
     value = jax.vmap(
         interpolate_value_for_state_and_choice,
-        in_axes=(0, 0, 0, None, None, None),
+        in_axes=(0, 0, 0, None, None, None, None),
     )(
         value_grid_state_choice,
         endog_grid_state_choice,
@@ -143,6 +174,7 @@ def value_for_state_and_choice(
         params,
         model_config,
         model_funcs,
+        model_structure,
     )
     return jnp.squeeze(value)
 
@@ -150,8 +182,11 @@ def value_for_state_and_choice(
 def policy_for_state_choice_vec(
     states,
     choices,
+    params,
     endog_grid_solved,
     policy_solved,
+    value_solved,
+    model_funcs,
     model_structure,
     model_config,
 ):
@@ -178,17 +213,40 @@ def policy_for_state_choice_vec(
     state_choice_idx = get_state_choice_index_per_discrete_states_and_choices(
         states=state_choices, choices=choices, model_structure=model_structure
     )
-    endog_grid_state_choice = jnp.take(endog_grid_solved, state_choice_idx, axis=0)
-    policy_grid_state_choice = jnp.take(policy_solved, state_choice_idx, axis=0)
+    endog_grid_state_choice = jnp.take(
+        endog_grid_solved,
+        state_choice_idx,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
+    policy_grid_state_choice = jnp.take(
+        policy_solved,
+        state_choice_idx,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
+    value_grid_state_choice = jnp.take(
+        value_solved,
+        state_choice_idx,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
 
     policy = jax.vmap(
         interpolate_policy_for_state_and_choice,
-        in_axes=(0, 0, 0, None),
+        in_axes=(0, 0, 0, 0, None, None, None, None),
     )(
         policy_grid_state_choice,
+        value_grid_state_choice,
         endog_grid_state_choice,
         state_choices,
+        params,
         model_config,
+        model_funcs,
+        model_structure,
     )
     return jnp.squeeze(policy)
 
@@ -300,6 +358,7 @@ def choice_values_for_states(
     states,
     model_config,
     model_funcs,
+    model_structure,
 ):
     value_grid_states = jnp.take(
         value_solved,
@@ -331,6 +390,7 @@ def choice_values_for_states(
             params=params,
             model_config=model_config,
             model_funcs=model_funcs,
+            model_structure=model_structure,
         )
 
     # Read out choice range to loop over
@@ -353,10 +413,14 @@ def choice_values_for_states(
 
 def choice_policies_for_states(
     policy_solved,
+    value_solved,
     endog_grid_solved,
     state_choice_indexes,
     states,
+    params,
     model_config,
+    model_funcs,
+    model_structure,
 ):
     policy_grid_states = jnp.take(
         policy_solved,
@@ -372,10 +436,18 @@ def choice_policies_for_states(
         mode="fill",
         fill_value=jnp.nan,
     )
+    value_grid_states = jnp.take(
+        value_solved,
+        state_choice_indexes,
+        axis=0,
+        mode="fill",
+        fill_value=jnp.nan,
+    )
 
     def wrapper_interp_value_for_choice(
         state,
         policy_grid_state_choice,
+        value_grid_state_choice,
         endog_grid_state_choice,
         choice,
     ):
@@ -383,9 +455,13 @@ def choice_policies_for_states(
 
         return interpolate_policy_for_state_and_choice(
             policy_grid_state_choice=policy_grid_state_choice,
+            value_grid_state_choice=value_grid_state_choice,
             endog_grid_state_choice=endog_grid_state_choice,
             state_choice_vec=state_choice_vec,
+            params=params,
             model_config=model_config,
+            model_funcs=model_funcs,
+            model_structure=model_structure,
         )
 
     # Read out choice range to loop over
@@ -394,12 +470,13 @@ def choice_policies_for_states(
     choice_values_per_state = jax.vmap(
         jax.vmap(
             wrapper_interp_value_for_choice,
-            in_axes=(None, 0, 0, 0),
+            in_axes=(None, 0, 0, 0, 0),
         ),
-        in_axes=(0, 0, 0, None),
+        in_axes=(0, 0, 0, 0, None),
     )(
         states,
         policy_grid_states,
+        value_grid_states,
         endog_grid_states,
         choice_range,
     )

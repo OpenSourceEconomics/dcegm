@@ -1,5 +1,7 @@
 """Tests for simulation of consumption-retirement model with exogenous processes."""
 
+import copy
+
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -92,8 +94,8 @@ def test_simulate_second_continuous_choice(model_setup):
     model_functions_cont = toy_models.load_example_model_functions("with_cont_exp")
     model_functions_ltc = toy_models.load_example_model_functions("with_stochastic_ltc")
 
-    model_config_cont = model_setup["model_config"].copy()
-    model_specs_cont = model_setup["model_specs"].copy()
+    model_config_cont = copy.deepcopy(model_setup["model_config"])
+    model_specs_cont = copy.deepcopy(model_setup["model_specs"])
 
     model_config_cont["continuous_states"]["experience"] = jnp.linspace(0, 1, 6)
     model_specs_cont["max_init_experience"] = 1
@@ -116,9 +118,11 @@ def test_simulate_second_continuous_choice(model_setup):
     noise = jax.random.normal(key, shape=(24, 6, 120)) * 0
     model_solved = model_setup["model_solved"]
 
-    value = jnp.repeat(model_solved.value[:, None, :], 6, axis=1) + noise
-    policy = jnp.repeat(model_solved.policy[:, None, :], 6, axis=1) + noise
-    endog_grid = jnp.repeat(model_solved.endog_grid[:, None, :], 6, axis=1) + noise
+    value = jnp.repeat(model_solved.value[:, 0, :][:, None, :], 6, axis=1) + noise
+    policy = jnp.repeat(model_solved.policy[:, 0, :][:, None, :], 6, axis=1) + noise
+    endog_grid = (
+        jnp.repeat(model_solved.endog_grid[:, 0, :][:, None, :], 6, axis=1) + noise
+    )
 
     n_agents = 100_000
 

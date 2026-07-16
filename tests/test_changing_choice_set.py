@@ -86,7 +86,7 @@ def test_model():
         "pension_per_experience": 0.3,
         "unemployment_benefits": 0.4,
         "health_costs": 0.5,
-        "consumption_floor": 0,
+        "consumption_floor": 0.5,
         # stochastic processes
         "p_bad_health_given_good_health": 0.2,
         "p_bad_health_given_bad_health": 1,
@@ -264,7 +264,7 @@ def test_extended_choice_set_model(
         # We can't use the last period
         if state_choice_space[i, 0] < 4:
             # Read out relevant row of arrays and compare first two elements
-            value_i = value[i]
+            value_i = value[i, 0]
             value_expec_i = value_expec_reindexed[i]
             assert_allclose(value_i[:2], value_expec_i[:2])
             # Now check all elements that are not nan in the arrays and do not equal the

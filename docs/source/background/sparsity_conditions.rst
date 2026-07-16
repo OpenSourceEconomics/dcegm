@@ -15,6 +15,8 @@ To ensure that only **feasible** and **logically consistent** states are evaluat
 1. **Filters** out invalid state combinations that violate model logic (e.g., working while dead).
 2. **Returns** cleaned or adjusted versions of the state variables to account for absorbing states (e.g., setting `job_offer = 0` when dead).
 
+Note that sparsity conditions can only be defined for discrete state variables.
+
 Basic Structure of a Sparsity Condition
 ---------------------------------------
 

@@ -6,7 +6,7 @@ from dcegm.pre_processing.shared import (
 
 
 def process_shock_functions(
-    shock_functions, model_specs, model_specs_jax, continuous_state_name
+    shock_functions, model_specs, model_specs_jax, additional_continuous_state_names
 ):
     taste_shock_function_processed = {}
     shock_functions = {} if shock_functions is None else shock_functions
@@ -14,7 +14,7 @@ def process_shock_functions(
         taste_shock_scale_per_state = get_taste_shock_function_for_state(
             draw_function_taste_shocks=shock_functions["taste_shock_scale_per_state"],
             model_specs=model_specs_jax,
-            continuous_state_name=continuous_state_name,
+            additional_continuous_state_names=additional_continuous_state_names,
         )
         taste_shock_function_processed["taste_shock_scale_per_state"] = (
             taste_shock_scale_per_state
@@ -49,17 +49,16 @@ def process_shock_functions(
 
 
 def get_taste_shock_function_for_state(
-    draw_function_taste_shocks, continuous_state_name, model_specs
+    draw_function_taste_shocks, additional_continuous_state_names, model_specs
 ):
     not_allowed_states = ["assets_begin_of_period", "choice"]
-    if continuous_state_name is not None:
-        not_allowed_states += [continuous_state_name]
+    if additional_continuous_state_names is not None:
+        not_allowed_states += additional_continuous_state_names
     taste_shock_scale_per_state_function = (
         determine_function_arguments_and_partial_model_specs(
             func=draw_function_taste_shocks,
             model_specs=model_specs,
             not_allowed_state_choices=not_allowed_states,
-            continuous_state_name=continuous_state_name,
         )
     )
 

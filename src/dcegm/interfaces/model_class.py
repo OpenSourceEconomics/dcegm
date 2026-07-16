@@ -304,6 +304,7 @@ class setup_model:
         self,
         states_initial,
         seed,
+        slow_version=False,
     ):
         """Create a fast function for solving and simulation that is jit compiled in the
         first call."""
@@ -364,7 +365,10 @@ class setup_model:
 
             return sim_dict
 
-        solve_simulate_func = jax.jit(solve_and_simulate_function_to_jit)
+        if slow_version:
+            solve_simulate_func = solve_and_simulate_function_to_jit
+        else:
+            solve_simulate_func = jax.jit(solve_and_simulate_function_to_jit)
 
         # Generate the function. The user only needs to provide params, but we call with the objects for jit.
         def solve_and_simulate_function(params):
