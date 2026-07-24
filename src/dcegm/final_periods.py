@@ -19,6 +19,7 @@ def solve_last_two_periods(
     income_shock_weights: jnp.ndarray,
     model_funcs: Dict[str, Any],
     upper_envelope_method: str,
+    skip_endog_grid_storage: bool,
     last_two_period_batch_info,
     value_solved,
     policy_solved,
@@ -64,6 +65,7 @@ def solve_last_two_periods(
         cont_grids_next_period=cont_grids_next_period,
         continuous_states_info=continuous_states_info,
         upper_envelope_method=upper_envelope_method,
+        skip_endog_grid_storage=skip_endog_grid_storage,
         model_structure=model_structure,
         params=params,
         model_funcs=model_funcs,
@@ -115,9 +117,10 @@ def solve_last_two_periods(
     policy_solved = policy_solved.at[idx_second_last, ...].set(
         out_dict_second_last["policy"]
     )
-    endog_grid_solved = endog_grid_solved.at[idx_second_last, ...].set(
-        out_dict_second_last["endog_grid"]
-    )
+    if not skip_endog_grid_storage:
+        endog_grid_solved = endog_grid_solved.at[idx_second_last, ...].set(
+            out_dict_second_last["endog_grid"]
+        )
 
     # If we do not call the function in debug mode. Assign everything and return
     if debug_info is None:
@@ -154,6 +157,7 @@ def solve_final_period(
     cont_grids_next_period: Dict[str, Any],
     continuous_states_info: Dict[str, Any],
     upper_envelope_method: str,
+    skip_endog_grid_storage: bool,
     model_structure: Dict[str, Any],
     params: Dict[str, float],
     model_funcs: Dict[str, Any],
@@ -273,9 +277,10 @@ def solve_final_period(
     policy_solved = policy_solved.at[
         idx_state_choices_final_period, :, : n_assets + 1
     ].set(wealth_with_zeros)
-    endog_grid_solved = endog_grid_solved.at[
-        idx_state_choices_final_period, :, : n_assets + 1
-    ].set(wealth_with_zeros)
+    if not skip_endog_grid_storage:
+        endog_grid_solved = endog_grid_solved.at[
+            idx_state_choices_final_period, :, : n_assets + 1
+        ].set(wealth_with_zeros)
 
     return (
         value_solved,

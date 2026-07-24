@@ -40,6 +40,7 @@ def backward_induction(
 
     """
     continuous_states_info = model_config["continuous_states_info"]
+    skip_endog_grid_storage = model_config["upper_envelope"]["skip_endog_grid_storage"]
 
     #
     calc_grids_jit = jax.jit(
@@ -68,6 +69,7 @@ def backward_induction(
         # Read out grid size
         n_total_wealth_grid=model_config["n_total_wealth_grid"],
         n_state_choices=model_structure["state_choice_space"].shape[0],
+        store_endog_grid=not skip_endog_grid_storage,
     )
 
     # Solve the last two periods using lambda to capture static arguments
@@ -80,6 +82,7 @@ def backward_induction(
             income_shock_weights=weights,
             model_funcs=model_funcs,
             upper_envelope_method=model_config["upper_envelope"]["method"],
+            skip_endog_grid_storage=skip_endog_grid_storage,
             last_two_period_batch_info=batch_info["last_two_period_info"],
             value_solved=val_solved,
             policy_solved=pol_solved,
@@ -116,6 +119,7 @@ def backward_induction(
         model_funcs=model_funcs,
         income_shock_weights=income_shock_weights,
         upper_envelope_method=model_config["upper_envelope"]["method"],
+        skip_endog_grid_storage=skip_endog_grid_storage,
         debug_info=None,
     )
 

@@ -37,6 +37,7 @@ def partially_solve(
         raise ValueError("You must at least solve for two periods.")
 
     continuous_states_info = model_config["continuous_states_info"]
+    skip_endog_grid_storage = model_config["upper_envelope"]["skip_endog_grid_storage"]
 
     cont_grids_next_period = calc_cont_grids_next_period(
         model_structure=model_structure,
@@ -67,6 +68,7 @@ def partially_solve(
         n_total_wealth_grid=model_config["n_total_wealth_grid"],
         n_state_choices=relevant_state_choice_space.shape[0],
         n_continuous_state_combinations=n_continuous_state_combinations,
+        store_endog_grid=not skip_endog_grid_storage,
     )
 
     if return_candidates:
@@ -104,6 +106,7 @@ def partially_solve(
         income_shock_weights=income_shock_weights,
         model_funcs=model_funcs,
         upper_envelope_method=model_config["upper_envelope"]["method"],
+        skip_endog_grid_storage=skip_endog_grid_storage,
         last_two_period_batch_info=last_two_period_batch_info,
         value_solved=value_solved,
         policy_solved=policy_solved,
@@ -221,6 +224,7 @@ def partially_solve(
                 model_funcs=model_funcs,
                 income_shock_weights=income_shock_weights,
                 upper_envelope_method=model_config["upper_envelope"]["method"],
+                skip_endog_grid_storage=skip_endog_grid_storage,
                 debug_info=debug_info,
             )
 

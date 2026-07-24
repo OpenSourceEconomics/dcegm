@@ -123,3 +123,37 @@ def test_upper_envelope_method_default(valid_model_config):
         check_model_config_and_process(valid_model_config)["upper_envelope"]["method"]
         == "fues"
     )
+
+
+def test_skip_endog_grid_storage_false_for_fues(valid_model_config):
+    options = check_model_config_and_process(valid_model_config)
+    assert options["upper_envelope"]["skip_endog_grid_storage"] is False
+
+
+def test_dj_wealth_grid_and_skip_flag(valid_model_config):
+    valid_model_config["upper_envelope"] = {"method": "druedahl_jorgensen"}
+    valid_model_config["continuous_states"]["assets_begin_of_period"] = np.linspace(
+        0, 10, 11
+    )
+    options = check_model_config_and_process(valid_model_config)
+
+    dj_wealth_grid = options["continuous_states_info"]["dj_wealth_grid"]
+    expected = np.concatenate(
+        ([0.0], valid_model_config["continuous_states"]["assets_begin_of_period"])
+    )
+    assert_array_equal(np.asarray(dj_wealth_grid), expected)
+    assert dj_wealth_grid.shape[0] == options["n_total_wealth_grid"]
+    assert options["upper_envelope"]["skip_endog_grid_storage"] is True
+
+
+def test_skip_endog_grid_storage_false_for_single_choice_dj(valid_model_config):
+    # With a single discrete choice, the upper envelope is skipped entirely, so the
+    # stored endog_grid is not the fixed Druedahl-Jorgensen grid and must still be
+    # stored/read normally, even though the method is "druedahl_jorgensen".
+    valid_model_config["choices"] = [1]
+    valid_model_config["upper_envelope"] = {"method": "druedahl_jorgensen"}
+    valid_model_config["continuous_states"]["assets_begin_of_period"] = np.linspace(
+        0, 10, 11
+    )
+    options = check_model_config_and_process(valid_model_config)
+    assert options["upper_envelope"]["skip_endog_grid_storage"] is False

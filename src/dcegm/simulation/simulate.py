@@ -194,6 +194,10 @@ def simulate_single_period(
         upper_envelope_method=model_config["upper_envelope"]["method"],
         has_additional_continuous_state=has_additional_continuous_state,
         discount_factor=discount_factor,
+        skip_endog_grid_storage=model_config["upper_envelope"][
+            "skip_endog_grid_storage"
+        ],
+        dj_wealth_grid=continuous_states_info.get("dj_wealth_grid"),
     )
 
     # Draw taste shocks and calculate final value.
