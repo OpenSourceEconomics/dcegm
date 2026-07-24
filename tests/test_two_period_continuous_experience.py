@@ -296,6 +296,9 @@ def create_test_inputs():
         model_structure=model.model_structure,
         params=params,
         upper_envelope_method=model_config["upper_envelope"]["method"],
+        skip_endog_grid_storage=model_config["upper_envelope"][
+            "skip_endog_grid_storage"
+        ],
         model_funcs=model_funcs_cont,
         value_solved=value_solved,
         policy_solved=policy_solved,

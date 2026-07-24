@@ -14,6 +14,7 @@ from dcegm.interpolation.interp_interfaces import (
     interpolate_policy_for_state_and_choice,
     interpolate_value_for_state_and_choice,
 )
+from dcegm.pre_processing.sol_container import broadcast_dj_wealth_grid
 
 
 def get_n_state_choice_period(model_structure):
@@ -74,13 +75,6 @@ def policy_and_value_for_states_and_choices(
     state_choice_idx = get_state_choice_index_per_discrete_states_and_choices(
         states=state_choices, choices=choices, model_structure=model_structure
     )
-    endog_grid_state_choice = jnp.take(
-        endog_grid_solved,
-        state_choice_idx,
-        axis=0,
-        mode="fill",
-        fill_value=jnp.nan,
-    )
     value_grid_state_choice = jnp.take(
         value_solved,
         state_choice_idx,
@@ -95,6 +89,18 @@ def policy_and_value_for_states_and_choices(
         mode="fill",
         fill_value=jnp.nan,
     )
+    if model_config["upper_envelope"]["skip_endog_grid_storage"]:
+        endog_grid_state_choice = broadcast_dj_wealth_grid(
+            model_config["continuous_states_info"], value_grid_state_choice.shape
+        )
+    else:
+        endog_grid_state_choice = jnp.take(
+            endog_grid_solved,
+            state_choice_idx,
+            axis=0,
+            mode="fill",
+            fill_value=jnp.nan,
+        )
 
     policy, value = jax.vmap(
         interpolate_policy_and_value_for_state_and_choice,
@@ -149,13 +155,6 @@ def value_for_state_and_choice(
     state_choice_idx = get_state_choice_index_per_discrete_states_and_choices(
         states=state_choices, choices=choices, model_structure=model_structure
     )
-    endog_grid_state_choice = jnp.take(
-        endog_grid_solved,
-        state_choice_idx,
-        axis=0,
-        mode="fill",
-        fill_value=jnp.nan,
-    )
     value_grid_state_choice = jnp.take(
         value_solved,
         state_choice_idx,
@@ -163,6 +162,18 @@ def value_for_state_and_choice(
         mode="fill",
         fill_value=jnp.nan,
     )
+    if model_config["upper_envelope"]["skip_endog_grid_storage"]:
+        endog_grid_state_choice = broadcast_dj_wealth_grid(
+            model_config["continuous_states_info"], value_grid_state_choice.shape
+        )
+    else:
+        endog_grid_state_choice = jnp.take(
+            endog_grid_solved,
+            state_choice_idx,
+            axis=0,
+            mode="fill",
+            fill_value=jnp.nan,
+        )
 
     value = jax.vmap(
         interpolate_value_for_state_and_choice,
@@ -213,13 +224,6 @@ def policy_for_state_choice_vec(
     state_choice_idx = get_state_choice_index_per_discrete_states_and_choices(
         states=state_choices, choices=choices, model_structure=model_structure
     )
-    endog_grid_state_choice = jnp.take(
-        endog_grid_solved,
-        state_choice_idx,
-        axis=0,
-        mode="fill",
-        fill_value=jnp.nan,
-    )
     policy_grid_state_choice = jnp.take(
         policy_solved,
         state_choice_idx,
@@ -234,6 +238,18 @@ def policy_for_state_choice_vec(
         mode="fill",
         fill_value=jnp.nan,
     )
+    if model_config["upper_envelope"]["skip_endog_grid_storage"]:
+        endog_grid_state_choice = broadcast_dj_wealth_grid(
+            model_config["continuous_states_info"], value_grid_state_choice.shape
+        )
+    else:
+        endog_grid_state_choice = jnp.take(
+            endog_grid_solved,
+            state_choice_idx,
+            axis=0,
+            mode="fill",
+            fill_value=jnp.nan,
+        )
 
     policy = jax.vmap(
         interpolate_policy_for_state_and_choice,
@@ -367,13 +383,18 @@ def choice_values_for_states(
         mode="fill",
         fill_value=jnp.nan,
     )
-    endog_grid_states = jnp.take(
-        endog_grid_solved,
-        state_choice_indexes,
-        axis=0,
-        mode="fill",
-        fill_value=jnp.nan,
-    )
+    if model_config["upper_envelope"]["skip_endog_grid_storage"]:
+        endog_grid_states = broadcast_dj_wealth_grid(
+            model_config["continuous_states_info"], value_grid_states.shape
+        )
+    else:
+        endog_grid_states = jnp.take(
+            endog_grid_solved,
+            state_choice_indexes,
+            axis=0,
+            mode="fill",
+            fill_value=jnp.nan,
+        )
 
     def wrapper_interp_value_for_choice(
         state,
@@ -429,13 +450,6 @@ def choice_policies_for_states(
         mode="fill",
         fill_value=jnp.nan,
     )
-    endog_grid_states = jnp.take(
-        endog_grid_solved,
-        state_choice_indexes,
-        axis=0,
-        mode="fill",
-        fill_value=jnp.nan,
-    )
     value_grid_states = jnp.take(
         value_solved,
         state_choice_indexes,
@@ -443,6 +457,18 @@ def choice_policies_for_states(
         mode="fill",
         fill_value=jnp.nan,
     )
+    if model_config["upper_envelope"]["skip_endog_grid_storage"]:
+        endog_grid_states = broadcast_dj_wealth_grid(
+            model_config["continuous_states_info"], value_grid_states.shape
+        )
+    else:
+        endog_grid_states = jnp.take(
+            endog_grid_solved,
+            state_choice_indexes,
+            axis=0,
+            mode="fill",
+            fill_value=jnp.nan,
+        )
 
     def wrapper_interp_value_for_choice(
         state,

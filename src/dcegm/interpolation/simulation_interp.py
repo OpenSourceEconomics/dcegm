@@ -29,6 +29,8 @@ def interpolate_policy_and_value_for_all_agents(
     upper_envelope_method,
     has_additional_continuous_state,
     discount_factor,
+    skip_endog_grid_storage=False,
+    dj_wealth_grid=None,
 ):
 
     # 1D interpolation path is independent of upper-envelope method and only
@@ -54,13 +56,16 @@ def interpolate_policy_and_value_for_all_agents(
             mode="fill",
             fill_value=jnp.nan,
         )[:, :, 0, :]
-        endog_grid_agent = jnp.take(
-            endog_grid_solved,
-            discrete_state_choice_indexes,
-            axis=0,
-            mode="fill",
-            fill_value=jnp.nan,
-        )[:, :, 0, :]
+        if skip_endog_grid_storage:
+            endog_grid_agent = jnp.broadcast_to(dj_wealth_grid, value_grid_agent.shape)
+        else:
+            endog_grid_agent = jnp.take(
+                endog_grid_solved,
+                discrete_state_choice_indexes,
+                axis=0,
+                mode="fill",
+                fill_value=jnp.nan,
+            )[:, :, 0, :]
 
         vectorized_interp = vmap(
             vmap(
@@ -202,13 +207,16 @@ def interpolate_policy_and_value_for_all_agents(
             mode="fill",
             fill_value=jnp.nan,
         )
-        endog_grid_agent = jnp.take(
-            endog_grid_solved,
-            discrete_state_choice_indexes,
-            axis=0,
-            mode="fill",
-            fill_value=jnp.nan,
-        )
+        if skip_endog_grid_storage:
+            endog_grid_agent = jnp.broadcast_to(dj_wealth_grid, value_grid_agent.shape)
+        else:
+            endog_grid_agent = jnp.take(
+                endog_grid_solved,
+                discrete_state_choice_indexes,
+                axis=0,
+                mode="fill",
+                fill_value=jnp.nan,
+            )
 
         additional_continuous_state_names = list(continuous_state_space.keys())
 

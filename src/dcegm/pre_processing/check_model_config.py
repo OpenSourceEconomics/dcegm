@@ -187,6 +187,20 @@ def check_model_config_and_process(model_config):
         processed_model_config["continuous_states_info"]["assets_begin_of_period"] = (
             jnp.asarray(model_config["continuous_states"]["assets_begin_of_period"])
         )
+        # The Druedahl-Jorgensen upper envelope always evaluates on this fixed grid
+        # (see upper_envelope.jax.drued_jorg_jax), so the resulting "endogenous" grid
+        # is not actually endogenous. We precompute it once here so callers can reuse
+        # it instead of reading a stored (and redundant) endog_grid array.
+        processed_model_config["continuous_states_info"]["dj_wealth_grid"] = (
+            jnp.concatenate(
+                (
+                    jnp.zeros(1),
+                    processed_model_config["continuous_states_info"][
+                        "assets_begin_of_period"
+                    ],
+                )
+            )
+        )
 
     if upper_envelope["method"] == "fues":
         processed_model_config["n_total_wealth_grid"] = tuning_params[
@@ -199,6 +213,19 @@ def check_model_config_and_process(model_config):
         )
     else:
         raise ValueError("Something wrong internally")
+
+    # With a single discrete choice, the upper envelope is skipped entirely (see
+    # create_upper_envelope_function), so the stored endog_grid is not the fixed
+    # Druedahl-Jorgensen grid in that case and must still be stored/read normally.
+    upper_envelope["skip_endog_grid_storage"] = (
+        upper_envelope["method"] == "druedahl_jorgensen"
+        and len(processed_model_config["choices"]) >= 2
+    )
+    if upper_envelope["skip_endog_grid_storage"]:
+        assert (
+            processed_model_config["continuous_states_info"]["dj_wealth_grid"].shape[0]
+            == processed_model_config["n_total_wealth_grid"]
+        )
 
     if "min_period_batch_segments" in model_config.keys():
         processed_model_config["min_period_batch_segments"] = model_config[

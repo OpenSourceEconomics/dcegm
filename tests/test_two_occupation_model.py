@@ -568,6 +568,14 @@ def aligned_states():
 # ====================================================================================
 
 
+def test_dj_models_do_not_store_endog_grid(solved_discrete, solved_cont_exp):
+    """Druedahl-Jorgensen solutions skip storing the (redundant) endog_grid array."""
+    for solved in (solved_discrete, solved_cont_exp):
+        assert solved.endog_grid is None
+        assert solved.value.shape == solved.policy.shape
+        assert jnp.isfinite(solved.value).any()
+
+
 def test_discrete_interface_joint_vs_separate(solved_discrete):
     """Joint policy+value query matches individual queries for the discrete model."""
     states_eval = {
