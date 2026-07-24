@@ -25,6 +25,7 @@ def interpolate_value_and_marg_util(
     continuous_state_space,
     params: Dict[str, float],
     upper_envelope_method: str,
+    skip_endog_grid_storage: bool = False,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Interpolate value and policy for all child states and compute marginal utility.
 
@@ -100,12 +101,27 @@ def interpolate_value_and_marg_util(
             value_child_state_choice=value_child_state_choice,
             params=params,
             discount_factor=discount_factor,
+            skip_endog_grid_storage=skip_endog_grid_storage,
         )
     else:
         # Selects inside if jorgensen_druedahl or fues (different treatment of budget constraint)
+        # Under DJ, the wealth grid is a fixed constant (not batched over children), so
+        # it is passed with in_axes=None, broadcast only across the (small) continuous
+        # combo axis rather than the (potentially large) children axis.
+        if skip_endog_grid_storage:
+            dj_wealth_grid = continuous_grids_info["dj_wealth_grid"]
+            endog_grid_arg = jnp.broadcast_to(
+                dj_wealth_grid,
+                (policy_child_state_choice.shape[1], dj_wealth_grid.shape[0]),
+            )
+            endog_grid_in_axes = None
+        else:
+            endog_grid_arg = endog_grid_child_state_choice
+            endog_grid_in_axes = 0
+
         interp_for_single_state_choice = vmap(
             interp1d_value_and_marg_util_for_state_choice,
-            in_axes=(None, None, 0, 0, 0, 0, 0, None, None, None),
+            in_axes=(None, None, 0, 0, endog_grid_in_axes, 0, 0, None, None, None),
         )
 
         return interp_for_single_state_choice(
@@ -113,7 +129,7 @@ def interpolate_value_and_marg_util(
             compute_utility,
             state_choice_vec,
             wealth_child_states,
-            endog_grid_child_state_choice,
+            endog_grid_arg,
             policy_child_state_choice,
             value_child_state_choice,
             params,
@@ -293,6 +309,7 @@ def _interpolate_value_and_marg_util_nd_regular(
     value_child_state_choice: jnp.ndarray,
     params: Dict[str, float],
     discount_factor: float,
+    skip_endog_grid_storage: bool = False,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Interpolate value and marginal utility on the regular n-D grid.
 
@@ -307,12 +324,21 @@ def _interpolate_value_and_marg_util_nd_regular(
         for name in continuous_state_names
     }
 
+    # interpnd_policy_and_value_for_child_states_on_regular_grids already treats
+    # wealth_grid as a single unbatched 1D array (it is not itself a mapped vmap
+    # argument), so under DJ we can pass the fixed grid directly with no broadcast.
+    wealth_grid = (
+        continuous_grids_info["dj_wealth_grid"]
+        if skip_endog_grid_storage
+        else endog_grid_child_state_choice[0, 0]
+    )
+
     policy_interp, value_interp = (
         interpnd_policy_and_value_for_child_states_on_regular_grids(
             additional_continuous_state_grids=continuous_grids_info[
                 "additional_continuous_state_grids"
             ],
-            wealth_grid=endog_grid_child_state_choice[0, 0],
+            wealth_grid=wealth_grid,
             policy_grid_child_states=policy_child_state_choice,
             value_grid_child_states=value_child_state_choice,
             continuous_state_child_states=continuous_state_child_states,
