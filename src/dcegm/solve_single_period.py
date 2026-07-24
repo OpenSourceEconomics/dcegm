@@ -6,7 +6,6 @@ from dcegm.egm.interpolate_marginal_utility import interpolate_value_and_marg_ut
 from dcegm.egm.solve_euler_equation import (
     calculate_candidate_solutions_from_euler_equation,
 )
-from dcegm.pre_processing.sol_container import broadcast_dj_wealth_grid
 
 
 def solve_single_period(
@@ -36,15 +35,11 @@ def solve_single_period(
     ) = xs
 
     policy_child_state_choice = policy_solved[child_state_choice_idxs_to_interp]
-    if skip_endog_grid_storage:
-        endog_grid_child_state_choice = broadcast_dj_wealth_grid(
-            continuous_grids_info,
-            policy_child_state_choice.shape,
-        )
-    else:
-        endog_grid_child_state_choice = endog_grid_solved[
-            child_state_choice_idxs_to_interp
-        ]
+    endog_grid_child_state_choice = (
+        None
+        if skip_endog_grid_storage
+        else endog_grid_solved[child_state_choice_idxs_to_interp]
+    )
 
     # EGM step 1)
     value_interpolated, marginal_utility_interpolated = interpolate_value_and_marg_util(
@@ -59,6 +54,7 @@ def solve_single_period(
         child_state_idxs=child_state_idxs,
         params=params,
         upper_envelope_method=upper_envelope_method,
+        skip_endog_grid_storage=skip_endog_grid_storage,
     )
 
     # Check if we have a scalar taste shock scale or state specific. Extract in each of the cases.
