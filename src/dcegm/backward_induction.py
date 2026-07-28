@@ -7,7 +7,6 @@ import jax.lax
 import jax.numpy as jnp
 
 from dcegm.final_periods import solve_last_two_periods
-from dcegm.law_of_motion import calc_cont_grids_next_period
 from dcegm.pre_processing.sol_container import create_solution_container
 from dcegm.solve_single_period import solve_single_period
 
@@ -42,18 +41,15 @@ def backward_induction(
     continuous_states_info = model_config["continuous_states_info"]
     skip_endog_grid_storage = model_config["upper_envelope"]["skip_endog_grid_storage"]
 
-    #
-    calc_grids_jit = jax.jit(
-        lambda income_shock_draws, params_inner: calc_cont_grids_next_period(
-            model_structure=model_structure,
-            model_config=model_config,
-            income_shock_draws_unscaled=income_shock_draws,
-            params=params_inner,
-            model_funcs=model_funcs,
-        )
+    # Scale income shock draws once. This is cheap (shape (n_quad,)) and shared by
+    # every batch/period; the actual (large) child continuous-state/wealth
+    # transitions are computed on demand per batch/period instead of upfront for the
+    # whole state space (see solve_single_period.py / final_periods.py).
+    income_shock_mean = model_funcs["read_funcs"]["income_shock_mean"](params)
+    income_shock_std = model_funcs["read_funcs"]["income_shock_std"](params)
+    income_shocks_scaled = (
+        income_shock_draws_unscaled * income_shock_std + income_shock_mean
     )
-
-    cont_grids_next_period = calc_grids_jit(income_shock_draws_unscaled, params)
 
     # Infer n_continuous_state_combinations from model structure
     n_continuous_state_combinations = model_structure["continuous_state_space"][
@@ -74,11 +70,11 @@ def backward_induction(
 
     # Solve the last two periods using lambda to capture static arguments
     solve_last_two_period_jit = jax.jit(
-        lambda params_inner, cont_grids, weights, val_solved, pol_solved, endog_solved: solve_last_two_periods(
+        lambda params_inner, shocks_scaled, weights, val_solved, pol_solved, endog_solved: solve_last_two_periods(
             params=params_inner,
             continuous_states_info=continuous_states_info,
             model_structure=model_structure,
-            cont_grids_next_period=cont_grids,
+            income_shocks_scaled=shocks_scaled,
             income_shock_weights=weights,
             model_funcs=model_funcs,
             upper_envelope_method=model_config["upper_envelope"]["method"],
@@ -97,7 +93,7 @@ def backward_induction(
         endog_grid_solved,
     ) = solve_last_two_period_jit(
         params,
-        cont_grids_next_period,
+        income_shocks_scaled,
         income_shock_weights,
         value_solved,
         policy_solved,
@@ -115,7 +111,7 @@ def backward_induction(
         params=params,
         continuous_grids_info=continuous_states_info,
         continuous_state_space=model_structure["continuous_state_space"],
-        cont_grids_next_period=cont_grids_next_period,
+        income_shocks_scaled=income_shocks_scaled,
         model_funcs=model_funcs,
         income_shock_weights=income_shock_weights,
         upper_envelope_method=model_config["upper_envelope"]["method"],

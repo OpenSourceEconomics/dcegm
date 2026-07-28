@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Tuple, cast
+from typing import Any, Callable, Dict, Tuple
 
 from jax import numpy as jnp
 from jax import vmap
@@ -11,17 +11,17 @@ from dcegm.interpolation.interp2d_irregular import (
 from dcegm.interpolation.interpnd_regular import (
     interpnd_policy_and_value_for_child_states_on_regular_grids,
 )
+from dcegm.law_of_motion import calc_law_of_motion_for_state_choices
 
 
 def interpolate_value_and_marg_util(
     model_funcs,
     state_choice_vec: Dict[str, int],
     continuous_grids_info: Dict[str, Any],
-    cont_grids_next_period: Dict[str, jnp.ndarray],
+    income_shocks_scaled: jnp.ndarray,
     endog_grid_child_state_choice: jnp.ndarray,
     policy_child_state_choice: jnp.ndarray,
     value_child_state_choice: jnp.ndarray,
-    child_state_idxs: jnp.ndarray,
     continuous_state_space,
     params: Dict[str, float],
     upper_envelope_method: str,
@@ -60,16 +60,28 @@ def interpolate_value_and_marg_util(
             income shock.
 
     """
-    wealth_child_states = cont_grids_next_period["assets_begin_of_period"][
-        child_state_idxs
-    ]
-    compute_marginal_utility = model_funcs["compute_marginal_utility"]
-    compute_utility = model_funcs["compute_utility"]
-    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
-
     # Check if interpolation needs to be multidimensional and irregular
     multi_dim = continuous_grids_info["has_additional_continuous_state"]
     irregular = upper_envelope_method == "fues"
+
+    # Compute the child continuous-state/wealth transitions on demand for exactly
+    # this batch's children, instead of reading from a precomputed whole-state-space
+    # structure (see law_of_motion.py).
+    law_of_motion = calc_law_of_motion_for_state_choices(
+        state_choice_vec=state_choice_vec,
+        continuous_state_space=continuous_state_space,
+        assets_grid_end_of_period=continuous_grids_info["assets_grid_end_of_period"],
+        income_shocks_scaled=income_shocks_scaled,
+        params=params,
+        model_funcs=model_funcs,
+        has_additional_continuous_states=multi_dim,
+    )
+    wealth_child_states = law_of_motion["assets_begin_of_period"]
+    continuous_states_next = law_of_motion["continuous_states"]
+
+    compute_marginal_utility = model_funcs["compute_marginal_utility"]
+    compute_utility = model_funcs["compute_utility"]
+    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
 
     if multi_dim & irregular:
         return _interpolate_value_and_marg_util_2d_irregular(
@@ -77,8 +89,7 @@ def interpolate_value_and_marg_util(
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             continuous_grids_info=continuous_grids_info,
-            cont_grids_next_period=cont_grids_next_period,
-            child_state_idxs=child_state_idxs,
+            continuous_states_next=continuous_states_next,
             wealth_child_states=wealth_child_states,
             endog_grid_child_state_choice=endog_grid_child_state_choice,
             policy_child_state_choice=policy_child_state_choice,
@@ -93,8 +104,7 @@ def interpolate_value_and_marg_util(
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             continuous_grids_info=continuous_grids_info,
-            cont_grids_next_period=cont_grids_next_period,
-            child_state_idxs=child_state_idxs,
+            continuous_states_next=continuous_states_next,
             wealth_child_states=wealth_child_states,
             endog_grid_child_state_choice=endog_grid_child_state_choice,
             policy_child_state_choice=policy_child_state_choice,
@@ -238,8 +248,7 @@ def _interpolate_value_and_marg_util_2d_irregular(
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
     continuous_grids_info: Dict[str, Any],
-    cont_grids_next_period: Dict[str, jnp.ndarray],
-    child_state_idxs: jnp.ndarray,
+    continuous_states_next: Dict[str, jnp.ndarray],
     wealth_child_states: jnp.ndarray,
     endog_grid_child_state_choice: jnp.ndarray,
     policy_child_state_choice: jnp.ndarray,
@@ -259,10 +268,7 @@ def _interpolate_value_and_marg_util_2d_irregular(
     continuous_state_name = continuous_grids_info["additional_continuous_state_names"][
         0
     ]
-    continuous_states_next = _get_continuous_states_next(cont_grids_next_period)
-    continuous_state_child_states = continuous_states_next[continuous_state_name][
-        child_state_idxs
-    ]
+    continuous_state_child_states = continuous_states_next[continuous_state_name]
 
     interp_for_single_state_choice = vmap(
         interp2d_value_and_marg_util_for_state_choice,
@@ -301,8 +307,7 @@ def _interpolate_value_and_marg_util_nd_regular(
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
     continuous_grids_info: Dict[str, Any],
-    cont_grids_next_period: Dict[str, jnp.ndarray],
-    child_state_idxs: jnp.ndarray,
+    continuous_states_next: Dict[str, jnp.ndarray],
     wealth_child_states: jnp.ndarray,
     endog_grid_child_state_choice: jnp.ndarray,
     policy_child_state_choice: jnp.ndarray,
@@ -318,10 +323,8 @@ def _interpolate_value_and_marg_util_nd_regular(
 
     """
     continuous_state_names = continuous_grids_info["additional_continuous_state_names"]
-    continuous_states_next = _get_continuous_states_next(cont_grids_next_period)
     continuous_state_child_states = {
-        name: continuous_states_next[name][child_state_idxs]
-        for name in continuous_state_names
+        name: continuous_states_next[name] for name in continuous_state_names
     }
 
     # interpnd_policy_and_value_for_child_states_on_regular_grids already treats
@@ -358,17 +361,6 @@ def _interpolate_value_and_marg_util_nd_regular(
         params=params,
     )
     return value_interp, marg_util_interp
-
-
-def _get_continuous_states_next(
-    cont_grids_next_period: Dict[str, jnp.ndarray],
-) -> Dict[str, jnp.ndarray]:
-    if "continuous_states" not in cont_grids_next_period:
-        raise KeyError(
-            "Expected key 'continuous_states' in cont_grids_next_period. "
-            "This object should come from law_of_motion.calc_cont_grids_next_period()."
-        )
-    return cast(Dict[str, jnp.ndarray], cont_grids_next_period["continuous_states"])
 
 
 def _compute_nd_marginal_utility(
