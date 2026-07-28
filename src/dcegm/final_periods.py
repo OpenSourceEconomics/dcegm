@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, Tuple
 import jax.numpy as jnp
 from jax import vmap
 
+from dcegm.law_of_motion import calc_law_of_motion_for_state_choices
 from dcegm.solve_single_period import solve_for_interpolated_values
 
 
@@ -12,7 +13,7 @@ def solve_last_two_periods(
     params: Dict[str, float],
     continuous_states_info: Dict[str, Any],
     model_structure: Dict[str, Any],
-    cont_grids_next_period: Dict[str, Any],
+    income_shocks_scaled: jnp.ndarray,
     income_shock_weights: jnp.ndarray,
     model_funcs: Dict[str, Any],
     upper_envelope_method: str,
@@ -57,9 +58,8 @@ def solve_last_two_periods(
         marginal_utility_final_last_period,
     ) = solve_final_period(
         idx_state_choices_final_period=batch_info["idx_state_choices_final_period"],
-        idx_parent_states_final_period=batch_info["idxs_parent_states_final_period"],
         state_choice_mat_final_period=batch_info["state_choice_mat_final_period"],
-        cont_grids_next_period=cont_grids_next_period,
+        income_shocks_scaled=income_shocks_scaled,
         continuous_states_info=continuous_states_info,
         upper_envelope_method=upper_envelope_method,
         skip_endog_grid_storage=skip_endog_grid_storage,
@@ -149,9 +149,8 @@ def solve_last_two_periods(
 
 def solve_final_period(
     idx_state_choices_final_period,
-    idx_parent_states_final_period,
     state_choice_mat_final_period,
-    cont_grids_next_period: Dict[str, Any],
+    income_shocks_scaled: jnp.ndarray,
     continuous_states_info: Dict[str, Any],
     upper_envelope_method: str,
     skip_endog_grid_storage: bool,
@@ -188,13 +187,21 @@ def solve_final_period(
     compute_utility = model_funcs["compute_utility_final"]
     compute_marginal_utility = model_funcs["compute_marginal_utility_final"]
 
-    wealth_child_states_final_period = cont_grids_next_period["assets_begin_of_period"][
-        idx_parent_states_final_period
+    law_of_motion_final_period = calc_law_of_motion_for_state_choices(
+        state_choice_vec=state_choice_mat_final_period,
+        continuous_state_space=model_structure["continuous_state_space"],
+        assets_grid_end_of_period=continuous_states_info["assets_grid_end_of_period"],
+        income_shocks_scaled=income_shocks_scaled,
+        params=params,
+        model_funcs=model_funcs,
+        has_additional_continuous_states=continuous_states_info[
+            "has_additional_continuous_state"
+        ],
+    )
+    wealth_child_states_final_period = law_of_motion_final_period[
+        "assets_begin_of_period"
     ]
-    continuous_state_final = {
-        key: value[idx_parent_states_final_period]
-        for key, value in cont_grids_next_period["continuous_states"].items()
-    }
+    continuous_state_final = law_of_motion_final_period["continuous_states"]
 
     n_assets = wealth_child_states_final_period.shape[-2]
 

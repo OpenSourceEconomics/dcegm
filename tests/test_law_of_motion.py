@@ -10,8 +10,13 @@ from numpy.testing import assert_array_almost_equal as aaae
 from scipy.special import roots_sh_legendre
 from scipy.stats import norm
 
+import dcegm
 import dcegm.toy_models as toy_models
-from dcegm.law_of_motion import calculate_continuous_state
+from dcegm.law_of_motion import (
+    calc_cont_grids_next_period,
+    calc_law_of_motion_for_state_choices,
+    calculate_continuous_state,
+)
 from dcegm.pre_processing.check_params import process_params
 from dcegm.toy_models.cons_ret_model_dcegm_paper import budget_constraint
 
@@ -198,3 +203,108 @@ def test_wealth_and_second_continuous_state(model_name, max_wealth, n_grid_point
     )
 
     aaae(exp_next, experience_next)
+
+
+# =====================================================================================
+# On-demand vs. full-state-space law of motion equivalence
+# =====================================================================================
+
+
+def _check_subset_matches_full(model, params):
+    """calc_law_of_motion_for_state_choices on a state-choice subset must match
+    calc_cont_grids_next_period's full-state-space computation for the same underlying
+    states -- and must be identical across different choices sharing the same state
+    (confirming the choice-drop / no-dedup behavior is correct)."""
+    model_structure = model.model_structure
+    model_config = model.model_config
+    model_funcs = model.model_funcs
+    continuous_states_info = model_config["continuous_states_info"]
+
+    full = calc_cont_grids_next_period(
+        params=params,
+        income_shock_draws_unscaled=model.income_shock_draws_unscaled,
+        model_structure=model_structure,
+        model_config=model_config,
+        model_funcs=model_funcs,
+    )
+
+    state_choice_space_dict = model_structure["state_choice_space_dict"]
+    map_state_choice_to_parent_state = model_structure[
+        "map_state_choice_to_parent_state"
+    ]
+
+    # Pick >=2 state-choice indices sharing the same parent state (different
+    # choices, same state) plus a few others, to test the no-dedup property.
+    values, counts = np.unique(map_state_choice_to_parent_state, return_counts=True)
+    shared_parent_state = values[counts >= 2][0]
+    idx_sharing_state = np.where(
+        map_state_choice_to_parent_state == shared_parent_state
+    )[0][:2]
+    other_idx = np.where(map_state_choice_to_parent_state != shared_parent_state)[0][:3]
+    test_idx = np.concatenate([idx_sharing_state, other_idx])
+
+    state_choice_subset = {
+        key: jnp.asarray(var[test_idx]) for key, var in state_choice_space_dict.items()
+    }
+
+    income_shock_std = model_funcs["read_funcs"]["income_shock_std"](params)
+    income_shock_mean = model_funcs["read_funcs"]["income_shock_mean"](params)
+    income_shocks_scaled = (
+        model.income_shock_draws_unscaled * income_shock_std + income_shock_mean
+    )
+
+    subset_result = calc_law_of_motion_for_state_choices(
+        state_choice_vec=state_choice_subset,
+        continuous_state_space=model_structure["continuous_state_space"],
+        assets_grid_end_of_period=continuous_states_info["assets_grid_end_of_period"],
+        income_shocks_scaled=income_shocks_scaled,
+        params=params,
+        model_funcs=model_funcs,
+        has_additional_continuous_states=continuous_states_info[
+            "has_additional_continuous_state"
+        ],
+    )
+
+    expected_parent_states = map_state_choice_to_parent_state[test_idx]
+    expected = full["assets_begin_of_period"][expected_parent_states]
+    np.testing.assert_allclose(
+        np.asarray(subset_result["assets_begin_of_period"]), np.asarray(expected)
+    )
+    if continuous_states_info["has_additional_continuous_state"]:
+        for key, expected_cont in full["continuous_states"].items():
+            np.testing.assert_allclose(
+                np.asarray(subset_result["continuous_states"][key]),
+                np.asarray(expected_cont[expected_parent_states]),
+            )
+
+    # Two indices sharing the same parent state (different choices) must give
+    # IDENTICAL wealth transitions -- confirms "choice" has no effect, as intended.
+    np.testing.assert_array_equal(
+        np.asarray(subset_result["assets_begin_of_period"][0]),
+        np.asarray(subset_result["assets_begin_of_period"][1]),
+    )
+
+
+def _build_model(model_name):
+    model_funcs = toy_models.load_example_model_functions(model_name)
+    params, model_specs, model_config = (
+        toy_models.load_example_params_model_specs_and_config(model_name)
+    )
+    model = dcegm.setup_model(
+        model_config=model_config,
+        model_specs=model_specs,
+        **model_funcs,
+    )
+    return model, params
+
+
+def test_law_of_motion_subset_matches_full_discrete():
+    # Retirement model: >=2 choices per state, no additional continuous state.
+    model, params = _build_model("dcegm_paper_retirement_no_shocks")
+    _check_subset_matches_full(model, params)
+
+
+def test_law_of_motion_subset_matches_full_cont_exp():
+    # >=2 choices per state, plus an additional continuous state ("experience").
+    model, params = _build_model("with_cont_exp")
+    _check_subset_matches_full(model, params)

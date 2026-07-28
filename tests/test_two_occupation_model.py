@@ -13,8 +13,12 @@ query points.
 
 """
 
+import pickle
+from pathlib import Path
+
 import jax
 import jax.numpy as jnp
+import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
@@ -23,6 +27,9 @@ import dcegm
 jax.config.update("jax_enable_x64", True)
 
 SHOW_DEBUG_PLOTS = False
+
+TEST_DIR = Path(__file__).parent
+LAW_OF_MOTION_REFACTOR_RESOURCES_DIR = TEST_DIR / "resources" / "law_of_motion_refactor"
 
 
 # ====================================================================================
@@ -574,6 +581,36 @@ def test_dj_models_do_not_store_endog_grid(solved_discrete, solved_cont_exp):
         assert solved.endog_grid is None
         assert solved.value.shape == solved.policy.shape
         assert jnp.isfinite(solved.value).any()
+
+
+@pytest.mark.parametrize(
+    "fixture_name", ["discrete_model", "cont_exp_model", "offgrid_model"]
+)
+def test_law_of_motion_refactor_golden_values(
+    fixture_name, solved_discrete, solved_cont_exp, solved_offgrid
+):
+    """Solved value/policy must match snapshots captured before the on-demand law-of-
+    motion refactor (computing child continuous-state/wealth transitions per batch
+    instead of precomputing them upfront for the whole state space)."""
+    solved_by_name = {
+        "discrete_model": solved_discrete,
+        "cont_exp_model": solved_cont_exp,
+        "offgrid_model": solved_offgrid,
+    }
+    solved = solved_by_name[fixture_name]
+    resource_dir = LAW_OF_MOTION_REFACTOR_RESOURCES_DIR / fixture_name
+
+    with (resource_dir / "value.pkl").open("rb") as f:
+        value_expected = pickle.load(f)
+    with (resource_dir / "policy.pkl").open("rb") as f:
+        policy_expected = pickle.load(f)
+
+    np.testing.assert_allclose(
+        np.asarray(solved.value), np.asarray(value_expected), equal_nan=True
+    )
+    np.testing.assert_allclose(
+        np.asarray(solved.policy), np.asarray(policy_expected), equal_nan=True
+    )
 
 
 def test_discrete_interface_joint_vs_separate(solved_discrete):
