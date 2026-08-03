@@ -4,7 +4,6 @@ import jax.numpy as jnp
 
 def draw_random_keys_for_seed(n_agents, n_periods, taste_shock_scale_is_scalar, seed):
     """Draw the random keys jax uses for a given seed."""
-
     # We start by determining the number of keys per period  for the three stochastic components
     # of the model. We will draw all keys together and assign them then based on index.
     # First: The transition of the exogenous processes. This happens vectorized over all

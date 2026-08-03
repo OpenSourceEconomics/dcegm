@@ -1,15 +1,13 @@
 """Tests for the two-occupation retirement model.
 
-The agent chooses between two occupations -- red (choice 0) and
-green (choice 1) -- or retirement (choice 2, absorbing). Each
-occupation accumulates its own experience stock (exp_red,
-exp_green), which enters the wage equation.
+The agent chooses between two occupations -- red (choice 0) and green (choice 1) -- or
+retirement (choice 2, absorbing). Each occupation accumulates its own experience stock
+(exp_red, exp_green), which enters the wage equation.
 
-Three model variants are compared: (1) discrete experience as
-deterministic state variables, (2) continuous experience on an
-integer-aligned grid, and (3) continuous experience on an
-off-grid (step 1.8) that requires interpolation at integer
-query points.
+Three model variants are compared: (1) discrete experience as deterministic state
+variables, (2) continuous experience on an integer-aligned grid, and (3) continuous
+experience on an off-grid (step 1.8) that requires interpolation at integer query
+points.
 
 """
 
