@@ -167,7 +167,6 @@ def interp1d_value_and_marg_util_for_state_choice(
             containing the interpolated value function.
 
     """
-
     endog_grid_child_state_choice = jnp.asarray(endog_grid_child_state_choice)
     policy_child_state_choice = jnp.asarray(policy_child_state_choice)
     value_child_state_choice = jnp.asarray(value_child_state_choice)

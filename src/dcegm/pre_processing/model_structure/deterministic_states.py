@@ -8,7 +8,6 @@ from dcegm.pre_processing.shared import (
 
 def process_endog_state_specifications(state_space_options):
     """Get number of endog states which we loop over when creating the state space."""
-
     if state_space_options.get("deterministic_states"):
 
         endog_states_names = list(state_space_options["deterministic_states"].keys())
