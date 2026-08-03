@@ -13,7 +13,6 @@ def create_single_segment_of_batches(
     If the last batch is not evenly sized we correct it.
 
     """
-
     state_choice_space = model_structure["state_choice_space"]
     state_choice_space_dict = model_structure["state_choice_space_dict"]
 
