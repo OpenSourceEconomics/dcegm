@@ -5,6 +5,9 @@ from typing import Any, Callable, Dict, Tuple
 import jax.numpy as jnp
 from jax import vmap
 
+from dcegm.check_func_outputs import (
+    check_budget_equation_and_return_wealth_plus_optional_aux,
+)
 from dcegm.solve_single_period import solve_for_interpolated_values
 
 
@@ -323,12 +326,15 @@ def calc_value_and_budget_for_each_gridpoint(
         # If assets begin, the grid is directly the assets we start from
         wealth_final_period = asset_grid_point_end_of_previous_period
     else:
-        wealth_final_period = compute_assets_begin_of_period(
+        out_budget = compute_assets_begin_of_period(
             **state_vec,
             **continuous_state_vec,
             asset_end_of_previous_period=asset_grid_point_end_of_previous_period,
             income_shock_previous_period=jnp.array(0.0),
             params=params,
+        )
+        wealth_final_period = check_budget_equation_and_return_wealth_plus_optional_aux(
+            out_budget, optional_aux=False
         )
 
     value = compute_utility(
