@@ -77,6 +77,9 @@ repos:
     hooks:
       - id: docformatter
         language_version: python3.13
+        # v1.7.8 mangles the triple-quoted SVG string in conf.py (misread as a
+        # docstring) and fights with black over it.
+        exclude: docs/source/conf.py
         args:
           - --in-place
           - --wrap-summaries
