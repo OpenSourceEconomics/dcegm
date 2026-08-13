@@ -470,28 +470,32 @@ class setup_model:
 
         child_continuous_states = self.compute_law_of_motions(params=params)
 
-        if "second_continuous" in child_continuous_states.keys():
+        continuous_states_info = self.model_config["continuous_states_info"]
+
+        if continuous_states_info["has_additional_continuous_state"]:
             if second_continuous_id is None:
                 raise ValueError("second_continuous_id must be provided.")
             else:
                 quad_wealth = child_continuous_states["assets_begin_of_period"][
                     child_idx, second_continuous_id, asset_id, :
                 ]
-                next_period_second_continuous = child_continuous_states[
-                    "second_continuous"
-                ][child_idx, second_continuous_id]
 
-                second_continuous_name = self.model_config["continuous_states_info"][
-                    "second_continuous_state_name"
-                ]
+                second_continuous_name = continuous_states_info[
+                    "additional_continuous_state_names"
+                ][0]
+                next_period_second_continuous = child_continuous_states[
+                    "continuous_states"
+                ][second_continuous_name][child_idx, second_continuous_id]
+
                 child_states_df[second_continuous_name] = next_period_second_continuous
 
         else:
             if second_continuous_id is not None:
                 raise ValueError("second_continuous_id must not be provided.")
             else:
+                # Wealth-only models carry a size-1 dummy continuous dimension
                 quad_wealth = child_continuous_states["assets_begin_of_period"][
-                    child_idx, asset_id, :
+                    child_idx, 0, asset_id, :
                 ]
 
         for id_quad in range(quad_wealth.shape[1]):
