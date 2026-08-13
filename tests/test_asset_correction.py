@@ -1,22 +1,3 @@
-"""Regression tests for adjust_observed_assets.
-
-PR #198 renamed the keys in the processed continuous_states_info
-(second_continuous_exists -> has_additional_continuous_state, etc.) and removed
-the continuous_state= kwarg alias that used to be injected into every processed
-user function. asset_correction.py was not migrated:
-
-- Wealth-only models raised KeyError: 'second_continuous_exists' (the config
-  lookup throws regardless of which branch would be taken).
-- Models with an additional continuous state passed the state under the dead
-  "continuous_state" alias, so budget constraints declaring the real state name
-  (e.g. experience) raised KeyError at trace time.
-
-Expected values are computed by calling the raw toy budget constraints directly
-per observation with asset_end_of_previous_period = observed_wealth / (1 + r)
-and a zero income shock, independent of the vmap plumbing under test.
-
-"""
-
 import jax.numpy as jnp
 from numpy.testing import assert_array_almost_equal as aaae
 
@@ -81,8 +62,7 @@ def test_adjust_observed_assets_wealth_only():
 
 
 def test_adjust_observed_assets_second_continuous_state():
-    """Second continuous state: the budget constraint declares the state by its
-    real name (experience), so it must not be passed under the dead alias."""
+    """The budget constraint declares the second continuous state by its real name."""
 
     model_funcs = toy_models.load_example_model_functions("with_cont_exp")
     params, model_specs, model_config = (

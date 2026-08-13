@@ -86,9 +86,6 @@ def test_partial_solve_func():
 
 
 def test_get_full_child_states_by_asset_id_and_probs_wealth_only():
-    """Since #198, calc_cont_grids_next_period always returns a 4-D wealth array
-    (n_states, n_cont, n_assets, n_shocks) with a size-1 dummy continuous dimension for
-    wealth-only models, which the debug helper must index."""
     model_funcs = toy_models.load_example_model_functions("dcegm_paper")
     params, model_specs, model_config = (
         toy_models.load_example_params_model_specs_and_config(
