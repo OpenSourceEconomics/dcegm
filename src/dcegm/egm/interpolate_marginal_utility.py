@@ -425,7 +425,6 @@ def interp2d_value_and_marg_util_for_state_choice(
             containing the interpolated value function.
 
     """
-
     # We only call this function for one continuous state besides
     # assets_begin_of_period. Pass it under its actual state name.
     cont_state_name = list(continuous_state_space.keys())[0]
