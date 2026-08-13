@@ -63,7 +63,6 @@ def test_adjust_observed_assets_wealth_only():
 
 def test_adjust_observed_assets_second_continuous_state():
     """The budget constraint declares the second continuous state by its real name."""
-
     model_funcs = toy_models.load_example_model_functions("with_cont_exp")
     params, model_specs, model_config = (
         toy_models.load_example_params_model_specs_and_config("with_cont_exp")
