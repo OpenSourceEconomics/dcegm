@@ -81,9 +81,8 @@ def test_adjust_observed_assets_wealth_only():
 
 
 def test_adjust_observed_assets_second_continuous_state():
-    """Second continuous state: the budget constraint declares the state by its
-    real name (experience), so it must not be passed under the dead alias."""
-
+    """Second continuous state: the budget constraint declares the state by its real
+    name (experience), so it must not be passed under the dead alias."""
     model_funcs = toy_models.load_example_model_functions("with_cont_exp")
     params, model_specs, model_config = (
         toy_models.load_example_params_model_specs_and_config("with_cont_exp")
