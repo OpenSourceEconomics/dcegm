@@ -13,7 +13,6 @@ from dcegm.interpolation.interp1d import interp1d_policy_and_value_on_wealth
 from dcegm.interpolation.interp2d_irregular import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
-from dcegm.pre_processing.setup_model import create_model_dict
 
 N_PERIODS = 5
 N_DISCRETE_CHOICES = 2
@@ -215,16 +214,18 @@ def test_setup():
         toy_models.load_example_params_model_specs_and_config("with_exp")
     )
 
-    # utility_functions_discrete = {
-    #     "utility": utility_exp,
-    #     "marginal_utility": marg_utility_exp,
-    #     "inverse_marginal_utility": inverse_marg_utility_exp,
-    # }
+    # Overwrite the toy model utility functions with experience-dependent ones,
+    # so that utility and marginal utility depend on the second continuous state
+    model_funcs_discr_exp["utility_functions"] = {
+        "utility": utility_exp,
+        "marginal_utility": marg_utility_exp,
+        "inverse_marginal_utility": inverse_marg_utility_exp,
+    }
 
-    # utility_functions_final_period_discrete = {
-    #     "utility": utility_final_consume_all_with_exp,
-    #     "marginal_utility": marginal_utility_final_consume_all_with_exp,
-    # }
+    model_funcs_discr_exp["utility_functions_final_period"] = {
+        "utility": utility_final_consume_all_with_exp,
+        "marginal_utility": marginal_utility_final_consume_all_with_exp,
+    }
 
     model_disc = dcegm.setup_model(
         model_config=model_config_disc,
@@ -249,25 +250,16 @@ def test_setup():
     experience_grid = jnp.linspace(0, 1, exp_grid_points)
     model_config_cont["continuous_states"]["experience"] = experience_grid
 
-    # utility_functions_cont_exp = {
-    #     "utility": utility_cont_exp,
-    #     "marginal_utility": marginal_utility_cont_exp,
-    #     "inverse_marginal_utility": inverse_marginal_utility_cont_exp,
-    # }
+    model_funcs_cont_exp["utility_functions"] = {
+        "utility": utility_cont_exp,
+        "marginal_utility": marginal_utility_cont_exp,
+        "inverse_marginal_utility": inverse_marginal_utility_cont_exp,
+    }
 
-    # utility_functions_final_period_cont_exp = {
-    #     "utility": utility_final_consume_all_with_cont_exp,
-    #     "marginal_utility": marginal_utility_final_consume_all_with_cont_exp,
-    # }
-
-    # model_cont = create_model_dict(
-    #     model_specs=model_specs_cont,
-    #     model_config=model_config_cont,
-    #     state_space_functions=model_funcs_cont_exp["state_space_functions"],
-    #     utility_functions=utility_functions_cont_exp,
-    #     utility_functions_final_period=utility_functions_final_period_cont_exp,
-    #     budget_constraint=model_funcs_cont_exp["budget_constraint"],
-    # )
+    model_funcs_cont_exp["utility_functions_final_period"] = {
+        "utility": utility_final_consume_all_with_cont_exp,
+        "marginal_utility": marginal_utility_final_consume_all_with_cont_exp,
+    }
 
     model_cont = dcegm.setup_model(
         model_config=model_config_cont,
