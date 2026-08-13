@@ -30,15 +30,17 @@ def adjust_observed_assets(observed_states_dict, params, model_class, aux_outs=F
     model_funcs = model_class.model_funcs
     continuous_states_info = model_class.model_config["continuous_states_info"]
 
-    if continuous_states_info["second_continuous_exists"]:
+    if continuous_states_info["has_additional_continuous_state"]:
         # If there are two continuous states, we need to read out the second var
-        second_cont_state_name = continuous_states_info["second_continuous_state_name"]
+        # and pass it to the budget function under its actual state name
+        second_cont_state_name = continuous_states_info[
+            "additional_continuous_state_names"
+        ][0]
         second_cont_state_vars = observed_states_dict[second_cont_state_name]
-        observed_states_dict_int.pop(second_cont_state_name)
 
         all_states = {
             **observed_states_dict_int,
-            "continuous_state": second_cont_state_vars,
+            second_cont_state_name: second_cont_state_vars,
         }
     else:
         all_states = observed_states_dict_int

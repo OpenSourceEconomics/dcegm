@@ -427,6 +427,10 @@ def interp2d_value_and_marg_util_for_state_choice(
 
     """
 
+    # We only call this function for one continuous state besides
+    # assets_begin_of_period. Pass it under its actual state name.
+    cont_state_name = list(continuous_state_space.keys())[0]
+
     def interp_on_single_wealth_point(wealth_point, second_cont_grid_point):
 
         policy_interp, value_interp = (
@@ -445,9 +449,9 @@ def interp2d_value_and_marg_util_for_state_choice(
         )
         marg_util_interp = compute_marginal_utility(
             consumption=policy_interp,
-            continuous_state=second_cont_grid_point,
             params=params,
             **state_choice_vec,
+            **{cont_state_name: second_cont_grid_point},
         )
 
         return value_interp, marg_util_interp
