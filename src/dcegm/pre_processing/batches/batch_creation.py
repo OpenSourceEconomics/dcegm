@@ -45,7 +45,6 @@ def create_batches_and_information(
             batch arrays from the step before.
 
     """
-
     last_two_period_info = add_last_two_period_information(
         n_periods=n_periods,
         model_structure=model_structure,

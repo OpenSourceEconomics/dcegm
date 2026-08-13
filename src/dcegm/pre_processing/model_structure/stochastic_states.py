@@ -51,7 +51,6 @@ def process_stochastic_transitions(
         options (dict): Options dictionary.
 
     """
-
     func_list = []
     func_dict = {}
 
