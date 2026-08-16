@@ -231,6 +231,15 @@ def _interpolate_value_and_marg_util_2d_irregular(
     params: Dict[str, float],
     discount_factor: float,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    """Interpolate value and marginal utility on the irregular FUES 2D grid.
+
+    Reached only for the FUES (irregular) upper envelope, which check_model_config.py
+    restricts to at most one additional continuous state (n > 1 requires
+    upper_envelope["method"] == "druedahl_jorgensen", handled by
+    _interpolate_value_and_marg_util_nd_regular instead). So indexing [0] below covers
+    the only additional continuous state that can exist on this path.
+
+    """
     continuous_state_name = continuous_grids_info["additional_continuous_state_names"][
         0
     ]
@@ -285,6 +294,12 @@ def _interpolate_value_and_marg_util_nd_regular(
     params: Dict[str, float],
     discount_factor: float,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    """Interpolate value and marginal utility on the regular n-D grid.
+
+    Reached for the Druedahl-Jorgensen upper envelope, which supports an arbitrary
+    number of additional continuous states.
+
+    """
     continuous_state_names = continuous_grids_info["additional_continuous_state_names"]
     continuous_states_next = _get_continuous_states_next(cont_grids_next_period)
     continuous_state_child_states = {
@@ -425,7 +440,8 @@ def interp2d_value_and_marg_util_for_state_choice(
             containing the interpolated value function.
 
     """
-    # We only call this function for one continuous state besides
+    # FUES-only (irregular) branch: check_model_config.py enforces at most one
+    # additional continuous state here, so this is the only continuous state besides
     # assets_begin_of_period. Pass it under its actual state name.
     cont_state_name = list(continuous_state_space.keys())[0]
 

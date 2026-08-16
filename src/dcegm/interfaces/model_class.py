@@ -480,14 +480,16 @@ class setup_model:
                     child_idx, second_continuous_id, asset_id, :
                 ]
 
-                second_continuous_name = continuous_states_info[
+                for continuous_state_name in continuous_states_info[
                     "additional_continuous_state_names"
-                ][0]
-                next_period_second_continuous = child_continuous_states[
-                    "continuous_states"
-                ][second_continuous_name][child_idx, second_continuous_id]
+                ]:
+                    next_period_continuous_state = child_continuous_states[
+                        "continuous_states"
+                    ][continuous_state_name][child_idx, second_continuous_id]
 
-                child_states_df[second_continuous_name] = next_period_second_continuous
+                    child_states_df[continuous_state_name] = (
+                        next_period_continuous_state
+                    )
 
         else:
             if second_continuous_id is not None:
