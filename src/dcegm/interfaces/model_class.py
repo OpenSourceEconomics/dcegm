@@ -62,7 +62,6 @@ class setup_model:
             use_stochastic_sparsity (bool, optional): EXPERIMENTAL: Use stochastic transition sparsity.
 
         """
-
         if model_load_path is not None:
             model_dict = load_model_dict(
                 model_config=model_config,
@@ -152,7 +151,6 @@ class setup_model:
                 state a transition matrix vector.
 
         """
-
         params_processed = process_params(
             params, params_check_info=self.params_check_info
         )
@@ -249,7 +247,6 @@ class setup_model:
 
     def get_solve_func(self):
         """Create a fast function for solving that is jit compiled in the first call."""
-
         (
             model_structure_for_jit,
             batch_info_for_jit,
@@ -308,7 +305,6 @@ class setup_model:
     ):
         """Create a fast function for solving and simulation that is jit compiled in the
         first call."""
-
         # Fix everything except params, solution of the model and model_structure which contains large arrays.
         sim_func = lambda params, value, policy, endog_gid, model_structure: simulate_all_periods(
             states_initial=states_initial,
@@ -474,28 +470,34 @@ class setup_model:
 
         child_continuous_states = self.compute_law_of_motions(params=params)
 
-        if "second_continuous" in child_continuous_states.keys():
+        continuous_states_info = self.model_config["continuous_states_info"]
+
+        if continuous_states_info["has_additional_continuous_state"]:
             if second_continuous_id is None:
                 raise ValueError("second_continuous_id must be provided.")
             else:
                 quad_wealth = child_continuous_states["assets_begin_of_period"][
                     child_idx, second_continuous_id, asset_id, :
                 ]
-                next_period_second_continuous = child_continuous_states[
-                    "second_continuous"
-                ][child_idx, second_continuous_id]
 
-                second_continuous_name = self.model_config["continuous_states_info"][
-                    "second_continuous_state_name"
-                ]
-                child_states_df[second_continuous_name] = next_period_second_continuous
+                for continuous_state_name in continuous_states_info[
+                    "additional_continuous_state_names"
+                ]:
+                    next_period_continuous_state = child_continuous_states[
+                        "continuous_states"
+                    ][continuous_state_name][child_idx, second_continuous_id]
+
+                    child_states_df[continuous_state_name] = (
+                        next_period_continuous_state
+                    )
 
         else:
             if second_continuous_id is not None:
                 raise ValueError("second_continuous_id must not be provided.")
             else:
+                # Wealth-only models carry a size-1 dummy continuous dimension
                 quad_wealth = child_continuous_states["assets_begin_of_period"][
-                    child_idx, asset_id, :
+                    child_idx, 0, asset_id, :
                 ]
 
         for id_quad in range(quad_wealth.shape[1]):

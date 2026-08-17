@@ -211,7 +211,6 @@ def run_upper_envelope(
     Vectorized over all state-choice combinations.
 
     """
-
     return vmap(
         vmap(
             compute_upper_envelope_for_state_choice,

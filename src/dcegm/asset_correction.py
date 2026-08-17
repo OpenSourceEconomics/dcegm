@@ -28,20 +28,11 @@ def adjust_observed_assets(observed_states_dict, params, model_class, aux_outs=F
     assets_end_last_period = jnp.asarray(wealth_int / (1 + interest_rate))
 
     model_funcs = model_class.model_funcs
-    continuous_states_info = model_class.model_config["continuous_states_info"]
 
-    if continuous_states_info["second_continuous_exists"]:
-        # If there are two continuous states, we need to read out the second var
-        second_cont_state_name = continuous_states_info["second_continuous_state_name"]
-        second_cont_state_vars = observed_states_dict[second_cont_state_name]
-        observed_states_dict_int.pop(second_cont_state_name)
-
-        all_states = {
-            **observed_states_dict_int,
-            "continuous_state": second_cont_state_vars,
-        }
-    else:
-        all_states = observed_states_dict_int
+    # Additional continuous states (e.g. experience) are already present in
+    # observed_states_dict under their own names, and compute_assets_begin_of_period
+    # only picks out the kwargs matching its own signature, so no remapping is needed.
+    all_states = observed_states_dict_int
 
     adjusted_assets = vmap(
         calc_beginning_of_period_assets_for_single_state,

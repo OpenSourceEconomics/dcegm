@@ -1,11 +1,11 @@
 """Tests for N-dimensional regular-grid interpolation of policy and value functions.
 
-Validates interpnd_policy, interpnd_value, and joint interpnd_policy_and_value
-against scipy.interpolate.RegularGridInterpolator on a two-continuous-state setup
-(exp_green x exp_red) with extrapolation.
+Validates interpnd_policy, interpnd_value, and joint interpnd_policy_and_value against
+scipy.interpolate.RegularGridInterpolator on a two-continuous-state setup (exp_green x
+exp_red) with extrapolation.
 
-Also verifies the consume-all overwrite logic: when consuming all wealth dominates
-the interpolated continuation value, the policy must be replaced with the wealth point
+Also verifies the consume-all overwrite logic: when consuming all wealth dominates the
+interpolated continuation value, the policy must be replaced with the wealth point
 (credit-constrained case).
 
 """
@@ -268,7 +268,6 @@ def _scipy_expected_value_with_consume_all(value_grid_child_states, inputs):
 
 def test_interpnd_regular_policy_random_against_scipy(interpnd_inputs):
     """Policy interpolation matches scipy RegularGridInterpolator with extrapolation."""
-
     inputs = interpnd_inputs
     rng = np.random.default_rng(321)
 
@@ -294,7 +293,6 @@ def test_interpnd_regular_policy_wrapper_matches_policy_from_joint_path(
 ):
     """Policy-only wrapper returns the same result as the joint policy-and-value
     path."""
-
     inputs = interpnd_inputs
     rng = np.random.default_rng(111)
 
@@ -333,7 +331,6 @@ def test_interpnd_regular_policy_wrapper_matches_policy_from_joint_path(
 
 def test_interpnd_regular_policy_wrapper_overwrite_case(interpnd_inputs):
     """Policy is overwritten to wealth when consume-all value dominates."""
-
     inputs = interpnd_inputs
     rng = np.random.default_rng(222)
 
@@ -368,7 +365,6 @@ def test_interpnd_regular_policy_wrapper_overwrite_case(interpnd_inputs):
 
 def test_interpnd_regular_policy_and_value_random(interpnd_inputs):
     """Joint policy and value interpolation matches scipy with consume-all overwrite."""
-
     inputs = interpnd_inputs
     rng = np.random.default_rng(654)
 
@@ -412,7 +408,6 @@ def test_interpnd_regular_policy_and_value_random(interpnd_inputs):
 
 def test_interpnd_regular_value_only_random(interpnd_inputs):
     """Value-only interpolation matches scipy with consume-all max applied."""
-
     inputs = interpnd_inputs
     rng = np.random.default_rng(987)
 

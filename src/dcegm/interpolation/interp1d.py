@@ -118,7 +118,6 @@ def interp_value_on_wealth(
         jnp.ndarray | float: Interpolated value for wealth.
 
     """
-
     ind_high, ind_low = get_index_high_and_low(x=wealth_grid, x_new=wealth)
 
     value_interp = interp_value_and_check_creditconstraint(
@@ -156,7 +155,6 @@ def interp_policy_on_wealth(
         float: Interpolated value for wealth.
 
     """
-
     ind_high, ind_low = get_index_high_and_low(x=endog_grid, x_new=wealth)
 
     policy_interp = linear_interpolation_formula(
@@ -211,7 +209,6 @@ def interp_value_and_check_creditconstraint(
         - value_interp (float): Interpolated value function.
 
     """
-
     value_interp_on_grid = linear_interpolation_formula(
         y_high=value_high,
         y_low=value_low,

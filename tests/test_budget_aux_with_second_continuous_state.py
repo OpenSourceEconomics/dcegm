@@ -1,5 +1,5 @@
-"""Regression test: budget equation returning (wealth, aux) together with a
-second continuous state (has_additional_continuous_state=True).
+"""Regression test: budget equation returning (wealth, aux) together with a second
+continuous state (has_additional_continuous_state=True).
 
 final_periods.calc_value_and_budget_for_each_gridpoint calls
 compute_assets_begin_of_period(...) directly and assigns the result to
@@ -20,6 +20,7 @@ Neither existing regression test covers this combination:
 The two models below are economically identical (same budget equation), one
 returning aux and one not. They must produce identical solved value/policy/
 endog_grid arrays.
+
 """
 
 import jax.numpy as jnp
