@@ -17,11 +17,11 @@ def calc_law_of_motion_for_state_choices(
 ):
     """Compute continuous-state and wealth transitions for a set of state-choices.
 
-    ``state_choice_vec`` may or may not contain a ``"choice"`` key. It is dropped
-    (via a no-op-if-absent pop) before being passed to the user-supplied
-    law-of-motion functions, since the transition does not depend on it -- this is
-    what lets ``calc_cont_grids_next_period`` below reuse this function unchanged
-    with the full (choice-less) state space.
+    ``state_choice_vec`` may or may not contain a ``"choice"`` key. It is dropped (via a
+    no-op-if-absent pop) before being passed to the user-supplied law-of-motion
+    functions, since the transition does not depend on it -- this is what lets
+    ``calc_cont_grids_next_period`` below reuse this function unchanged with the full
+    (choice-less) state space.
 
     """
     state_vec = dict(state_choice_vec)
