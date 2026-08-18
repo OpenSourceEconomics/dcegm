@@ -81,6 +81,7 @@ BETA = 0.96
 R = 0.02
 TASTE_SHOCK_SCALE = 0.2
 Y_WORK = 30.0
+Y_PARTNER = 20.0  # added whenever partnered *this* period, no lagged_choice
 A_GRID_MAX = 300.0
 A_GRID_POINTS = 200
 PROB_MARRY = 0.3  # P(married next | single now)
@@ -140,9 +141,14 @@ def budget_constraint(
 ):
     multiplier = jnp.where(partner_state == 1, 2.0, 1.0)
     own_income = params["y_work"] * (lagged_choice == 0)
+    # Partner income depends on *this* period's own partner_state directly
+    # (no lagged_choice involved -- we don't model the partner's own labor
+    # supply), added unscaled just like own_income.
+    partner_income = params["y_partner"] * (partner_state == 1)
     wealth = (
         multiplier * asset_end_of_previous_period * (1 + params["interest_rate"])
         + own_income
+        + partner_income
     )
     return jnp.maximum(wealth, params["consumption_floor"]) / multiplier
 
@@ -176,6 +182,7 @@ PARAMS = {
     "income_shock_mean": 0.0,
     "consumption_floor": 1e-8,
     "y_work": Y_WORK,
+    "y_partner": Y_PARTNER,
     "prob_marry": PROB_MARRY,
     "persistence_married": PERSISTENCE_MARRIED,
 }
@@ -229,14 +236,17 @@ def resources_after_transition(a, partner_state_0, partner_state_1, own_income, 
     the period-0-to-1 partner transition: halved on divorce (lose the
     ex-partner's share), doubled on marriage (new partner matches wealth),
     unchanged otherwise. No scaling anywhere else -- not on staying
-    partnered, not on income, not in utility.
+    partnered, not on income, not in utility. Partner income is added
+    whenever partnered in period 1 (partner_state_1), unscaled, exactly
+    like own_income.
     """
     if partner_state_0 == 1 and partner_state_1 == 0:
         a = a / 2  # divorce
     elif partner_state_0 == 0 and partner_state_1 == 1:
         a = a * 2  # marriage
 
-    wealth = a * (1 + r) + own_income
+    partner_income = Y_PARTNER if partner_state_1 == 1 else 0.0
+    wealth = a * (1 + r) + own_income + partner_income
     return max(wealth, PARAMS["consumption_floor"])
 
 
@@ -394,37 +404,42 @@ def test_budget_constraint_doubles_then_divides_so_the_asset_return_is_plain():
     """
     model, _ = build_and_solve()
     compute_wealth = model.model_funcs["compute_assets_begin_of_period"]
-    for partner_state in (0, 1):
-        wealth_no_income = compute_wealth(
+
+    def wealth(asset, lagged_choice, partner_state):
+        return compute_wealth(
             period=1,
-            lagged_choice=1,  # no income this period
+            lagged_choice=lagged_choice,
             partner_state=partner_state,
-            asset_end_of_previous_period=100.0,
+            asset_end_of_previous_period=asset,
             income_shock_previous_period=0.0,
             params=PARAMS,
         )
-        np.testing.assert_allclose(wealth_no_income, 100.0 * (1 + R))
 
-    # Income, in contrast, still gets divided by the multiplier when partnered.
-    wealth_income_single = compute_wealth(
-        period=1,
-        lagged_choice=0,
-        partner_state=0,
-        asset_end_of_previous_period=100.0,
-        income_shock_previous_period=0.0,
-        params=PARAMS,
-    )
-    wealth_income_married = compute_wealth(
-        period=1,
-        lagged_choice=0,
-        partner_state=1,
-        asset_end_of_previous_period=100.0,
-        income_shock_previous_period=0.0,
-        params=PARAMS,
-    )
+    # The asset *return* (the slope of wealth in `a`) is exactly 1+r for
+    # both partner states -- income (own and/or partner) is a constant
+    # w.r.t. `a`, so it drops out of the slope regardless of its value.
+    for partner_state in (0, 1):
+        for lagged_choice in (0, 1):
+            slope = (
+                wealth(200.0, lagged_choice, partner_state)
+                - wealth(100.0, lagged_choice, partner_state)
+            ) / 100.0
+            np.testing.assert_allclose(slope, 1 + R)
+
+    # Own income (lagged_choice == 0) and partner income (partner_state == 1)
+    # both still get divided by the multiplier when partnered.
+    wealth_single_no_income = wealth(100.0, 1, 0)
+    wealth_married_no_income = wealth(100.0, 1, 1)
     np.testing.assert_allclose(
-        wealth_income_married - 100.0 * (1 + R),
-        (wealth_income_single - 100.0 * (1 + R)) / 2,
+        wealth_married_no_income - 100.0 * (1 + R), Y_PARTNER / 2
+    )
+    np.testing.assert_allclose(wealth_single_no_income, 100.0 * (1 + R))
+
+    wealth_single_income = wealth(100.0, 0, 0)
+    wealth_married_income = wealth(100.0, 0, 1)
+    np.testing.assert_allclose(wealth_single_income - wealth_single_no_income, Y_WORK)
+    np.testing.assert_allclose(
+        wealth_married_income - wealth_married_no_income, Y_WORK / 2
     )
 
 
