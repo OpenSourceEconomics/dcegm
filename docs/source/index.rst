@@ -34,6 +34,7 @@ Check out our :ref:`guides<guides/index.rst>` to find information on getting sta
    guides/minimal_example.ipynb
    guides/two_period_model_tutorial.ipynb
    guides/two_occupation_model.ipynb
+   guides/divorce_transition_without_lagged_state.md
 
 
 
