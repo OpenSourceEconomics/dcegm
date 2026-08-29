@@ -64,7 +64,13 @@ def interpolate_value_and_marg_util(
     ]
     compute_marginal_utility = model_funcs["compute_marginal_utility"]
     compute_utility = model_funcs["compute_utility"]
-    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
+    # `state_choice_vec` here is the *full batch*, not a single state-choice
+    # (each branch below only reduces it to scalar via its own internal
+    # vmap), so we pass the (unevaluated) read function through and let it
+    # be resolved deep inside each branch, at the point state_choice_vec is
+    # actually scalar/consumed -- see interp1d.py, interp1d_dj.py,
+    # interp2d_irregular.py and interpnd_regular.py.
+    read_discount_factor = model_funcs["read_funcs"]["discount_factor"]
 
     # Check if interpolation needs to be multidimensional and irregular
     multi_dim = continuous_grids_info["has_additional_continuous_state"]
@@ -83,7 +89,7 @@ def interpolate_value_and_marg_util(
             policy_child_state_choice=policy_child_state_choice,
             value_child_state_choice=value_child_state_choice,
             params=params,
-            discount_factor=discount_factor,
+            read_discount_factor=read_discount_factor,
         )
 
     elif multi_dim & (not irregular):
@@ -99,7 +105,7 @@ def interpolate_value_and_marg_util(
             policy_child_state_choice=policy_child_state_choice,
             value_child_state_choice=value_child_state_choice,
             params=params,
-            discount_factor=discount_factor,
+            read_discount_factor=read_discount_factor,
         )
     else:
         # Selects inside if jorgensen_druedahl or fues (different treatment of budget constraint)
@@ -117,7 +123,7 @@ def interpolate_value_and_marg_util(
             policy_child_state_choice,
             value_child_state_choice,
             params,
-            discount_factor,
+            read_discount_factor,
             upper_envelope_method == "druedahl_jorgensen",
         )
 
@@ -131,7 +137,7 @@ def interp1d_value_and_marg_util_for_state_choice(
     policy_child_state_choice: jnp.ndarray,
     value_child_state_choice: jnp.ndarray,
     params: Dict[str, float],
-    discount_factor: float,
+    read_discount_factor: Callable,
     use_dj_interpolation: bool,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Interpolate value and policy for given child state and compute marginal utility.
@@ -182,7 +188,7 @@ def interp1d_value_and_marg_util_for_state_choice(
                 compute_utility=compute_utility,
                 state_choice_vec=state_choice_vec,
                 params=params,
-                discount_factor=discount_factor,
+                read_discount_factor=read_discount_factor,
             )
         else:
             policy_interp, value_interp = interp1d_policy_and_value_on_wealth(
@@ -193,7 +199,7 @@ def interp1d_value_and_marg_util_for_state_choice(
                 compute_utility=compute_utility,
                 state_choice_vec=state_choice_vec,
                 params=params,
-                discount_factor=discount_factor,
+                read_discount_factor=read_discount_factor,
             )
         marg_util_interp = compute_marginal_utility(
             consumption=policy_interp, params=params, **state_choice_vec
@@ -229,7 +235,7 @@ def _interpolate_value_and_marg_util_2d_irregular(
     policy_child_state_choice: jnp.ndarray,
     value_child_state_choice: jnp.ndarray,
     params: Dict[str, float],
-    discount_factor: float,
+    read_discount_factor: Callable,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Interpolate value and marginal utility on the irregular FUES 2D grid.
 
@@ -276,7 +282,7 @@ def _interpolate_value_and_marg_util_2d_irregular(
         policy_child_state_choice,
         value_child_state_choice,
         params,
-        discount_factor,
+        read_discount_factor,
     )
 
 
@@ -292,7 +298,7 @@ def _interpolate_value_and_marg_util_nd_regular(
     policy_child_state_choice: jnp.ndarray,
     value_child_state_choice: jnp.ndarray,
     params: Dict[str, float],
-    discount_factor: float,
+    read_discount_factor: Callable,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Interpolate value and marginal utility on the regular n-D grid.
 
@@ -320,7 +326,7 @@ def _interpolate_value_and_marg_util_nd_regular(
             state_choice_child_states=state_choice_vec,
             compute_utility=compute_utility,
             params=params,
-            discount_factor=discount_factor,
+            read_discount_factor=read_discount_factor,
         )
     )
 
@@ -405,7 +411,7 @@ def interp2d_value_and_marg_util_for_state_choice(
     policy_child_state_choice: jnp.ndarray,
     value_child_state_choice: jnp.ndarray,
     params: Dict[str, float],
-    discount_factor: float,
+    read_discount_factor: Callable,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Interpolate value and policy for given child state and compute marginal utility.
 
@@ -458,7 +464,7 @@ def interp2d_value_and_marg_util_for_state_choice(
                 compute_utility=compute_utility,
                 state_choice_vec=state_choice_vec,
                 params=params,
-                discount_factor=discount_factor,
+                read_discount_factor=read_discount_factor,
             )
         )
         marg_util_interp = compute_marginal_utility(

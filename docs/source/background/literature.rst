@@ -10,3 +10,5 @@ Below you find related literature to provide a background of the `dc-egm` algori
 - Iskhakov, Jørgensen, Rust, & Schjerning (2017). `The Endogenous Grid Method for Discrete-Continuous Dynamic Choice Models with (or without) Taste Shocks <http://onlinelibrary.wiley.com/doi/10.3982/QE643/full>`_. *Quantitative Economics*
 
 - Loretti I. Dobrescu & Akshay Shanker (2022). `Fast Upper-Envelope Scan for Discrete-Continuous Dynamic Programming <https://dx.doi.org/10.2139/ssrn.4181302>`_.
+
+- Fedor Iskhakov & Michael Keane (2021). `Effects of Taxes and Safety Net Pensions on Life-Cycle Labor Supply, Savings and Human Capital: The Case of Australia <https://doi.org/10.1016/j.jeconom.2020.01.017>`_. *Journal of Econometrics*. See :ref:`replications` for a `dcegm` replication.

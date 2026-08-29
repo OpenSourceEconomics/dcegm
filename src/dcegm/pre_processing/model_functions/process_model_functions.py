@@ -3,6 +3,9 @@ from typing import Callable, Dict, Optional
 import jax
 import jax.numpy as jnp
 
+from dcegm.pre_processing.model_functions.discount_factor_function import (
+    process_discount_factor_function,
+)
 from dcegm.pre_processing.model_functions.taste_shock_function import (
     process_shock_functions,
 )
@@ -163,6 +166,17 @@ def process_model_functions_and_extract_info(
             additional_continuous_state_names=additional_continuous_state_names,
         )
     )
+
+    # State-choice-dependent discount factor (optional). Returns None if the
+    # user did not supply `shock_functions["discount_factor_per_state"]`, in
+    # which case the default single-scalar discount_factor is used instead
+    # (set up later in `extract_model_specs_info`).
+    discount_factor_per_state_func = process_discount_factor_function(
+        shock_functions=shock_functions,
+        model_specs=model_specs_jax,
+        additional_continuous_state_names=additional_continuous_state_names,
+    )
+
     model_config_processed = model_config
     model_config_processed["params_check_info"] = {
         "taste_shock_scale_in_params": taste_shock_scale_in_params
@@ -180,6 +194,7 @@ def process_model_functions_and_extract_info(
         "next_period_deterministic_state": next_period_deterministic_state,
         "compute_upper_envelope": compute_upper_envelope,
         "taste_shock_function": taste_shock_function_processed,
+        "discount_factor_per_state_func": discount_factor_per_state_func,
     }
 
     return model_funcs, model_config_processed

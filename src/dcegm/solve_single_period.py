@@ -158,10 +158,12 @@ def solve_for_interpolated_values(
         params=params,
     )
 
-    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
-
     # Run upper envelope over all state-choice combinations to remove suboptimal
-    # candidates
+    # candidates. `discount_factor` may be state-choice dependent, so we pass
+    # the (unevaluated) read function through and call it inside
+    # `compute_upper_envelope_for_state_choice`, where it already has access
+    # to a single state-choice's own values -- exactly like `compute_utility`
+    # and `params`, which are also broadcast (not mapped) into that vmap.
     (
         endog_grid_state_choice,
         policy_state_choice,
@@ -175,7 +177,7 @@ def solve_for_interpolated_values(
         state_choice_mat=state_choice_mat,
         compute_utility=model_funcs["compute_utility"],
         params=params,
-        discount_factor=discount_factor,
+        read_discount_factor=model_funcs["read_funcs"]["discount_factor"],
         compute_upper_envelope_for_state_choice=model_funcs["compute_upper_envelope"],
     )
     out_dict = {
@@ -203,12 +205,15 @@ def run_upper_envelope(
     state_choice_mat,
     compute_utility,
     params,
-    discount_factor,
+    read_discount_factor,
     compute_upper_envelope_for_state_choice,
 ):
     """Run upper envelope to remove suboptimal candidates.
 
-    Vectorized over all state-choice combinations.
+    Vectorized over all state-choice combinations. `read_discount_factor` is broadcast
+    (not mapped) like `compute_utility` and `params`; it is called inside
+    `compute_upper_envelope_for_state_choice` with that call's own state-choice values,
+    which is where a state-choice-dependent discount factor is actually evaluated.
 
     """
     return vmap(
@@ -246,5 +251,5 @@ def run_upper_envelope(
         state_choice_mat,
         compute_utility,
         params,
-        discount_factor,
+        read_discount_factor,
     )

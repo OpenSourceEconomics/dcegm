@@ -16,7 +16,7 @@ def interp1d_policy_and_value_on_wealth_dj(
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
     params: Dict[str, float],
-    discount_factor: float,
+    read_discount_factor: Callable,
 ) -> Tuple[jnp.ndarray | float, jnp.ndarray | float]:
     """1D interpolation for DJ with consume-all overwrite for policy and value."""
     ind_high, ind_low = get_index_high_and_low(x=wealth_grid, x_new=wealth)
@@ -42,7 +42,7 @@ def interp1d_policy_and_value_on_wealth_dj(
         compute_utility=compute_utility,
         state_choice_vec=state_choice_vec,
         params=params,
-        discount_factor=discount_factor,
+        read_discount_factor=read_discount_factor,
     )
     overwrite_mask = consume_all_value > value_interp_on_grid
     policy = jnp.where(overwrite_mask, wealth, policy_interp)
@@ -57,7 +57,7 @@ def interp1d_value_on_wealth_dj(
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
     params: Dict[str, float],
-    discount_factor: float,
+    read_discount_factor: Callable,
 ) -> jnp.ndarray | float:
     """1D value interpolation for DJ with consume-all overwrite."""
     _, value = interp1d_policy_and_value_on_wealth_dj(
@@ -68,7 +68,7 @@ def interp1d_value_on_wealth_dj(
         compute_utility=compute_utility,
         state_choice_vec=state_choice_vec,
         params=params,
-        discount_factor=discount_factor,
+        read_discount_factor=read_discount_factor,
     )
     return value
 
@@ -79,9 +79,10 @@ def _consume_all_value(
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
     params: Dict[str, float],
-    discount_factor: float,
+    read_discount_factor: Callable,
 ) -> jnp.ndarray:
     util = compute_utility(consumption=wealth, params=params, **state_choice_vec)
     if isinstance(util, tuple):
         util = util[0]
+    discount_factor = read_discount_factor(params=params, **state_choice_vec)
     return jnp.asarray(util) + discount_factor * value_at_zero_wealth

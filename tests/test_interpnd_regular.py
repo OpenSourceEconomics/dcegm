@@ -95,7 +95,7 @@ def _run_interpnd(policy_grid_child_states, value_grid_child_states, inputs):
         },
         compute_utility=_compute_utility,
         params={"u_scale": 2.0},
-        discount_factor=0.95,
+        read_discount_factor=lambda params, **kwargs: 0.95,
     )
 
 
@@ -178,7 +178,7 @@ def _run_interpnd_policy_value(
         },
         compute_utility=_compute_utility,
         params={"u_scale": 2.0},
-        discount_factor=0.95,
+        read_discount_factor=lambda params, **kwargs: 0.95,
     )
 
 
@@ -202,7 +202,7 @@ def _run_interpnd_value_only(value_grid_child_states, inputs):
         },
         compute_utility=_compute_utility,
         params={"u_scale": 2.0},
-        discount_factor=0.95,
+        read_discount_factor=lambda params, **kwargs: 0.95,
     )
 
 

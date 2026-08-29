@@ -29,7 +29,7 @@ def interpolate_value_for_state_and_choice(
     """Interpolate the value for a state and choice given the respective grids."""
     continuous_states_info = model_config["continuous_states_info"]
     upper_envelope_method = model_config["upper_envelope"]["method"]
-    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
+    read_discount_factor = model_funcs["read_funcs"]["discount_factor"]
 
     compute_utility = model_funcs["compute_utility"]
 
@@ -53,7 +53,7 @@ def interpolate_value_for_state_and_choice(
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
-            discount_factor=discount_factor,
+            read_discount_factor=read_discount_factor,
         )
 
     elif (upper_envelope_method == "druedahl_jorgensen") & multidim:
@@ -71,7 +71,7 @@ def interpolate_value_for_state_and_choice(
             ],
             compute_utility=compute_utility,
             params=params,
-            discount_factor=discount_factor,
+            read_discount_factor=read_discount_factor,
         )
     elif upper_envelope_method == "druedahl_jorgensen":
         value = interp1d_value_on_wealth_dj(
@@ -81,7 +81,7 @@ def interpolate_value_for_state_and_choice(
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
-            discount_factor=discount_factor,
+            read_discount_factor=read_discount_factor,
         )
     else:
         value = interp_value_on_wealth(
@@ -91,7 +91,7 @@ def interpolate_value_for_state_and_choice(
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
-            discount_factor=discount_factor,
+            read_discount_factor=read_discount_factor,
         )
     return value
 
@@ -127,7 +127,7 @@ def interpolate_policy_for_state_and_choice(
             compute_utility=lambda consumption, params, **kwargs: consumption,
             state_choice_vec=state_choice_vec,
             params={},
-            discount_factor=0.0,
+            read_discount_factor=lambda params, **kwargs: 0.0,
         )
     elif (upper_envelope_method == "druedahl_jorgensen") & multidim:
         policy, _ = interpolate_policy_and_value_for_state_and_choice(
@@ -149,7 +149,7 @@ def interpolate_policy_for_state_and_choice(
             compute_utility=model_funcs["compute_utility"],
             state_choice_vec=state_choice_vec,
             params=params,
-            discount_factor=model_funcs["read_funcs"]["discount_factor"](params),
+            read_discount_factor=model_funcs["read_funcs"]["discount_factor"],
         )
     else:
         policy = interp_policy_on_wealth(
@@ -175,7 +175,7 @@ def interpolate_policy_and_value_for_state_and_choice(
     upper_envelope_method = model_config["upper_envelope"]["method"]
 
     compute_utility = model_funcs["compute_utility"]
-    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
+    read_discount_factor = model_funcs["read_funcs"]["discount_factor"]
     continuous_state_space = model_structure["continuous_state_space"]
 
     multidim = continuous_states_info["has_additional_continuous_state"]
@@ -195,7 +195,7 @@ def interpolate_policy_and_value_for_state_and_choice(
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
-            discount_factor=discount_factor,
+            read_discount_factor=read_discount_factor,
         )
     elif (upper_envelope_method == "druedahl_jorgensen") & multidim:
         policy, value = _interp_policy_and_value_multidim_dj_for_state_choice(
@@ -212,7 +212,7 @@ def interpolate_policy_and_value_for_state_and_choice(
             ],
             compute_utility=compute_utility,
             params=params,
-            discount_factor=discount_factor,
+            read_discount_factor=read_discount_factor,
         )
     elif upper_envelope_method == "druedahl_jorgensen":
         policy, value = interp1d_policy_and_value_on_wealth_dj(
@@ -223,7 +223,7 @@ def interpolate_policy_and_value_for_state_and_choice(
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
-            discount_factor=discount_factor,
+            read_discount_factor=read_discount_factor,
         )
     else:
         policy, value = interp1d_policy_and_value_on_wealth(
@@ -234,7 +234,7 @@ def interpolate_policy_and_value_for_state_and_choice(
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
-            discount_factor=discount_factor,
+            read_discount_factor=read_discount_factor,
         )
 
     return policy, value
@@ -250,7 +250,7 @@ def _interp_policy_and_value_multidim_dj_for_state_choice(
     continuous_state_names,
     compute_utility,
     params,
-    discount_factor,
+    read_discount_factor,
 ):
     continuous_state_child_states = {
         name: jnp.asarray(state_choice_vec[name])[None, None]
@@ -273,7 +273,7 @@ def _interp_policy_and_value_multidim_dj_for_state_choice(
         state_choice_child_states=state_choice_child_states,
         compute_utility=compute_utility,
         params=params,
-        discount_factor=discount_factor,
+        read_discount_factor=read_discount_factor,
     )
     policy_nd = policy_nd[0, 0, 0, 0]
     value_nd = value_nd[0, 0, 0, 0]
@@ -295,7 +295,7 @@ def _interp_policy_and_value_multidim_dj_for_state_choice(
         compute_utility=compute_utility,
         state_choice_vec=state_choice_vec,
         params=params,
-        discount_factor=discount_factor,
+        read_discount_factor=read_discount_factor,
     )
 
     policy = jnp.where(has_exact_combo, policy_exact, policy_nd)

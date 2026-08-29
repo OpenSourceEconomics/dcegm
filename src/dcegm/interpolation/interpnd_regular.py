@@ -31,7 +31,7 @@ def interpnd_policy_for_child_states_on_regular_grids(
     state_choice_child_states: Dict[str, Any],
     compute_utility: Callable,
     params: Dict[str, Any],
-    discount_factor: float,
+    read_discount_factor: Callable,
 ) -> jnp.ndarray:
     """Interpolate policy, using value-based overwrite logic.
 
@@ -49,7 +49,7 @@ def interpnd_policy_for_child_states_on_regular_grids(
         state_choice_child_states=state_choice_child_states,
         compute_utility=compute_utility,
         params=params,
-        discount_factor=discount_factor,
+        read_discount_factor=read_discount_factor,
     )
     return policy
 
@@ -64,7 +64,7 @@ def interpnd_policy_and_value_for_child_states_on_regular_grids(
     state_choice_child_states: Dict[str, Any],
     compute_utility: Callable,
     params: Dict[str, Any],
-    discount_factor: float,
+    read_discount_factor: Callable,
 ) -> tuple[jnp.ndarray, jnp.ndarray]:
     """Interpolate policy/value and apply consume-all overwrite.
 
@@ -155,7 +155,7 @@ def interpnd_policy_and_value_for_child_states_on_regular_grids(
         continuous_state_child_states=continuous_state_child_states,
         compute_utility=compute_utility,
         params=params,
-        discount_factor=discount_factor,
+        read_discount_factor=read_discount_factor,
     )
 
     overwrite_mask = consume_all_value > value_interp
@@ -173,7 +173,7 @@ def interpnd_value_for_child_states_on_regular_grids(
     state_choice_child_states: Dict[str, Any],
     compute_utility: Callable,
     params: Dict[str, Any],
-    discount_factor: float,
+    read_discount_factor: Callable,
 ) -> jnp.ndarray:
     """Interpolate value and apply consume-all overwrite.
 
@@ -269,7 +269,7 @@ def interpnd_value_for_child_states_on_regular_grids(
         continuous_state_child_states=continuous_state_child_states,
         compute_utility=compute_utility,
         params=params,
-        discount_factor=discount_factor,
+        read_discount_factor=read_discount_factor,
     )
 
     return jnp.asarray(
@@ -284,8 +284,20 @@ def _compute_consume_all_value(
     continuous_state_child_states: Dict[str, jnp.ndarray],
     compute_utility: Callable,
     params: Dict[str, Any],
-    discount_factor: float,
+    read_discount_factor: Callable,
 ) -> jnp.ndarray:
+    # `state_choice_child_states` only varies along the leading
+    # (child-state-choice) axis -- see the `in_axes` below, where it is
+    # `None` (broadcast) for every other vmapped axis. So a discount factor
+    # read from it varies along that same axis only, and we resolve it with
+    # a single vmap over that axis rather than inside `_utility_at_point`
+    # (which runs *after* `state_choice_child_states` has been consumed and
+    # is no longer available point-by-point).
+    discount_factor = vmap(
+        lambda state_choice_point: read_discount_factor(
+            params=params, **state_choice_point
+        )
+    )(state_choice_child_states)
 
     def _utility_at_point(
         consumption_point: jnp.ndarray,
@@ -319,7 +331,10 @@ def _compute_consume_all_value(
     )
 
     expected_value_zero_savings = expected_value_zero_savings[:, :, None, None]
-    return consume_all_utility + discount_factor * expected_value_zero_savings
+    return (
+        consume_all_utility
+        + discount_factor[:, None, None, None] * expected_value_zero_savings
+    )
 
 
 def _interp_policy_and_value_one_comb(

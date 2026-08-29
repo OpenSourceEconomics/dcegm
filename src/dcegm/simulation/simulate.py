@@ -171,8 +171,10 @@ def simulate_single_period(
 
     choice_range = model_structure_sol["choice_range"]
 
-    discount_factor = read_funcs["discount_factor"](params)
-    # Interpolate policy and value function for all agents.
+    # Interpolate policy and value function for all agents. `discount_factor`
+    # may be state-choice dependent, so we pass the (unevaluated) read
+    # function through and let it be resolved per-agent, using each agent's
+    # own state, deep inside the interpolation vmap.
     policy, values_pre_taste_shock = interpolate_policy_and_value_for_all_agents(
         discrete_states_beginning_of_period=discrete_states_beginning_of_period,
         continuous_state_beginning_of_period=continuous_state_beginning_of_period,
@@ -193,7 +195,7 @@ def simulate_single_period(
         ],
         upper_envelope_method=model_config["upper_envelope"]["method"],
         has_additional_continuous_state=has_additional_continuous_state,
-        discount_factor=discount_factor,
+        read_discount_factor=read_funcs["discount_factor"],
     )
 
     # Draw taste shocks and calculate final value.

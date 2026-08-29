@@ -1,0 +1,107 @@
+---
+# Calibration for the Iskhakov & Keane (2021) replication notebook.
+#
+# All monetary values are in $1000 AUD, matching the paper. Values are the
+# paper's own published point estimates (not re-estimated here):
+#   - Table 5 (preference parameters), Table 6 (human capital), Table 7 (misc)
+#     of the supplementary material.
+#   - Eq. (27) tax function, main paper page 20.
+#   - Eq. (2)/(3) survival + pension function, supplementary material page 15-16
+#     (we use the post-2010 pension regime constant throughout; see notebook).
+#   - Table 1 (main paper) bottom panel for fixed/calibrated constants.
+#
+# Education groups are indexed 0=dropout, 1=highschool, 2=college throughout
+# the notebook, matching the key order below.
+education_groups:
+  - dropout
+  - highschool
+  - college
+hours_by_choice:
+  - 0.0
+  - 1000.0
+  - 2000.0
+  - 2250.0
+  - 2500.0
+  - 3000.0
+t0: 19  # model period 0 = age 19 for everyone; college students are
+# choice-restricted to h=0 (in school) until age 23, see notebook.
+t_retire: 85  # compulsory retirement age (last period agents may work)
+college_start_age: 23
+# --- Table 5: preference parameters ---
+preferences:
+  zeta: 0.79488  # CRRA coefficient in consumption
+  gamma:  # disutility by hours level (gamma_0=0, unused)
+    - 0.0
+    - 1.4139
+    - 2.0088
+    - 2.9213
+    - 2.8639
+    - 3.8775
+  kappa_1: 0.50321  # low-type disutility correction
+  kappa_2: 0.00008  # quadratic age term (older workers)
+  kappa_3: 0.05083  # linear age term (younger workers)
+  xi: 0.48834  # CRRA coefficient of bequest
+  b_scale: 0.68659  # bequest scale
+  taste_shock_scale: 0.29950  # lambda
+  beta_by_education:
+    dropout: 0.96806
+    highschool: 0.96732
+    college: 0.96963
+# --- Table 6: human capital production function, eq. (4) ---
+human_capital:
+  eta0_high_type: 0.39311
+  eta3: 0.02676
+  eta4: -0.00076
+  eta0_by_education:
+    dropout: 2.45647
+    highschool: 2.56761
+    college: 2.78766
+  eta1_by_education:
+    dropout: 0.01974
+    highschool: 0.02164
+    college: 0.03041
+  eta2_by_education:
+    dropout: 0.00000
+    highschool: -0.00002
+    college: -0.00017
+# --- Table 7: misc structural parameters ---
+misc:
+  sigma0: 0.24485  # wage shock std: constant
+  sigma1: 0.00421  # wage shock std: age slope
+  tr: 5.51308  # parental transfer ($1000/year, up to age 23)
+  rho_super_by_education:
+    dropout: 6.47838
+    highschool: 5.43473
+    college: 6.30347
+  high_type_share_by_education:  # only used to draw simulated agents' types
+    dropout: 0.69306
+    highschool: 0.80130
+    college: 0.90089
+# --- Eq. (27): income tax. NB the printed additive constant for the top
+# bracket (rate1*thld1) creates a small downward jump in tax liability right
+# at the second threshold; we use the continuity-preserving constant
+# rate1*(thld2-thld1) instead, as is standard for bracket-style tax rules. ---
+tax:
+  thld1: 17.39184
+  thld2: 73.17661
+  rate1: 0.29907
+  rate2: 0.37930
+# --- Supplementary eq. (3): pension function. We fix the post-2010 regime
+# constant throughout (see notebook scope discussion). ---
+pension:
+  benefit_max: 12.60665  # 10.75973 + 1.84692
+  income_taper: 0.27794
+  asset_taper: 0.00499
+  asset_threshold: 117.08260
+  pension_age: 65
+# --- Supplementary eq. (2): survival function ---
+survival:
+  age_threshold: 40
+  a: 0.0006569
+  b: 0.1078507
+# --- Table 1 bottom panel: fixed/calibrated ---
+fixed:
+  credit_constraint: 20.0  # a0, in $1000
+  interest_rate: 0.04
+  consumption_floor: 0.05  # numerical safety floor, not in the paper
+  superannuation_age: 65

@@ -26,7 +26,12 @@ def process_params(params, params_check_info) -> Dict[str, float]:
                 "not an element of model_specs or params."
             )
 
-    if params_check_info["discount_factor_in_params"]:
+    if params_check_info.get("discount_factor_is_per_state", False):
+        # discount_factor is computed by a user-supplied
+        # `discount_factor_per_state` function instead of a single scalar;
+        # no fixed "discount_factor" key is expected in params or model_specs.
+        pass
+    elif params_check_info["discount_factor_in_params"]:
         if "discount_factor" not in params.keys():
             raise ValueError(
                 "discount_factor must be provided in model_specs or params."
