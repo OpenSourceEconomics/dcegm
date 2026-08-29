@@ -84,6 +84,14 @@ def create_model_dict(
     )
 
     specs_read_funcs, specs_params_info = extract_model_specs_info(model_specs)
+    if model_funcs["discount_factor_per_state_func"] is not None:
+        specs_read_funcs["discount_factor"] = model_funcs[
+            "discount_factor_per_state_func"
+        ]
+        specs_params_info["discount_factor_in_params"] = False
+        specs_params_info["discount_factor_is_per_state"] = True
+    else:
+        specs_params_info["discount_factor_is_per_state"] = False
     model_funcs["read_funcs"] = specs_read_funcs
 
     model_config_processed["params_check_info"] = {
@@ -220,6 +228,14 @@ def load_model_dict(
     )
 
     specs_read_funcs, specs_params_info = extract_model_specs_info(model_specs)
+    if model["model_funcs"]["discount_factor_per_state_func"] is not None:
+        specs_read_funcs["discount_factor"] = model["model_funcs"][
+            "discount_factor_per_state_func"
+        ]
+        specs_params_info["discount_factor_in_params"] = False
+        specs_params_info["discount_factor_is_per_state"] = True
+    else:
+        specs_params_info["discount_factor_is_per_state"] = False
     model["model_funcs"]["read_funcs"] = specs_read_funcs
 
     model["model_config"]["params_check_info"] = {

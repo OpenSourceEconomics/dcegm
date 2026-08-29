@@ -20,9 +20,10 @@ def create_upper_envelope_function(
         state_choice_dict,
         utility_function,
         params,
-        discount_factor,
+        read_discount_factor,
     ):
         state_choice_vars = {**state_choice_dict, **continuous_state_dict}
+        discount_factor = read_discount_factor(params=params, **state_choice_vars)
 
         value_kwargs = {
             "expected_value_zero_assets": expected_value_zero_assets,

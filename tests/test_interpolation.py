@@ -266,7 +266,7 @@ def test_interp2d_against_custom(test_cases, test_id):
             compute_utility=compute_utility,
             state_choice_vec={"choice": 0},
             params=PARAMS,
-            discount_factor=PARAMS["discount_factor"],
+            read_discount_factor=lambda params, **kwargs: PARAMS["discount_factor"],
         )
     )
 

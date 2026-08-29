@@ -27,7 +27,7 @@ def interp2d_policy_and_value_on_wealth_and_regular_grid(
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
     params: dict,
-    discount_factor,
+    read_discount_factor: Callable,
 ):
     """Linear 2D interpolation on two grids where wealth has irregular spacing.
 
@@ -94,7 +94,7 @@ def interp2d_policy_and_value_on_wealth_and_regular_grid(
         state_choice_vec=state_choice_vec,
         cont_state_name=cont_state_name,
         params=params,
-        discount_factor=discount_factor,
+        read_discount_factor=read_discount_factor,
     )
 
     return policy_interp, value_interp
@@ -109,7 +109,7 @@ def interp2d_value_on_wealth_and_regular_grid(
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
     params: dict,
-    discount_factor,
+    read_discount_factor: Callable,
     cont_state_name: str = "continuous_state",
 ):
     """Interpolate the value function on a 2D grid.
@@ -162,7 +162,7 @@ def interp2d_value_on_wealth_and_regular_grid(
         state_choice_vec=state_choice_vec,
         cont_state_name=cont_state_name,
         params=params,
-        discount_factor=discount_factor,
+        read_discount_factor=read_discount_factor,
     )
     return value_interp
 
@@ -278,7 +278,7 @@ def interp2d_value_and_check_creditconstraint(
     state_choice_vec,
     cont_state_name,
     params,
-    discount_factor,
+    read_discount_factor,
 ):
     """Interpolate the value function on a 2D grid and check for credit constraints.
 
@@ -322,6 +322,8 @@ def interp2d_value_and_check_creditconstraint(
         **state_choice_vec,
         cont_state_name: regular_point_to_interp,
     }
+    discount_factor = read_discount_factor(params=params, **state_choice_vec)
+
     # Now recalculate the closed-form value of consuming all wealth
     value_calc_left = (
         compute_utility(

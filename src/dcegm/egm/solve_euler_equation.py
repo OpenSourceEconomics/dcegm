@@ -95,7 +95,9 @@ def compute_optimal_policy_and_value(
     compute_utility = model_funcs["compute_utility"]
     compute_stochastic_transition_vec = model_funcs["compute_stochastic_transition_vec"]
 
-    discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
+    discount_factor = model_funcs["read_funcs"]["discount_factor"](
+        params=params, **state_choice_vec
+    )
     interest_rate = model_funcs["read_funcs"]["interest_rate"](params)
 
     policy, expected_value = solve_euler_equation(

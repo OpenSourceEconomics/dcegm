@@ -38,6 +38,14 @@ Check out our :ref:`guides<guides/index.rst>` to find information on getting sta
 
 
 .. toctree::
+   :maxdepth: 1
+   :caption: Replications
+   :hidden:
+
+   replications/index
+
+
+.. toctree::
    :maxdepth: 2
    :caption: Background
    :hidden:

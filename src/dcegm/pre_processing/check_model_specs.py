@@ -9,13 +9,17 @@ def extract_model_specs_info(model_specs):
     if not isinstance(model_specs, dict):
         raise ValueError("model_specs must be a dictionary.")
 
-    # discount_factor processing
+    # discount_factor processing. Accepts and ignores extra state-choice
+    # kwargs so the same read function can be called uniformly whether or
+    # not a `discount_factor_per_state` function is registered (see
+    # dcegm.pre_processing.setup_model, which may override this read
+    # function with a state-dependent one).
     if "discount_factor" in model_specs:
         discount_factor = jnp.asarray(model_specs["discount_factor"])
-        read_func_discount_factor = lambda params: discount_factor
+        read_func_discount_factor = lambda params, **kwargs: discount_factor
         discount_factor_in_params = False
     else:
-        read_func_discount_factor = lambda params: params["discount_factor"]
+        read_func_discount_factor = lambda params, **kwargs: params["discount_factor"]
         discount_factor_in_params = True
 
     # interest_rate processing

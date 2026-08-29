@@ -28,7 +28,7 @@ def interpolate_policy_and_value_for_all_agents(
     additional_continuous_state_grids,
     upper_envelope_method,
     has_additional_continuous_state,
-    discount_factor,
+    read_discount_factor,
 ):
 
     # 1D interpolation path is independent of upper-envelope method and only
@@ -90,7 +90,7 @@ def interpolate_policy_and_value_for_all_agents(
             choice_range,
             params,
             compute_utility,
-            discount_factor,
+            read_discount_factor,
             upper_envelope_method == "druedahl_jorgensen",
         )
 
@@ -176,7 +176,7 @@ def interpolate_policy_and_value_for_all_agents(
             continuous_state_name,
             params,
             compute_utility,
-            discount_factor,
+            read_discount_factor,
         )
 
         return policy_agent, value_agent
@@ -261,7 +261,7 @@ def interpolate_policy_and_value_for_all_agents(
             additional_continuous_state_names,
             params,
             compute_utility,
-            discount_factor,
+            read_discount_factor,
         )
 
         return policy_agent, value_agent
@@ -280,7 +280,7 @@ def interp1d_policy_and_value_function(
     choice,
     params,
     compute_utility,
-    discount_factor,
+    read_discount_factor,
     use_dj_interpolation,
 ):
     state_choice_vec = {**state, "choice": choice}
@@ -294,7 +294,7 @@ def interp1d_policy_and_value_function(
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
-            discount_factor=discount_factor,
+            read_discount_factor=read_discount_factor,
         )
     else:
         policy_interp, value_interp = interp1d_policy_and_value_on_wealth(
@@ -305,7 +305,7 @@ def interp1d_policy_and_value_function(
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
             params=params,
-            discount_factor=discount_factor,
+            read_discount_factor=read_discount_factor,
         )
 
     return policy_interp, value_interp
@@ -323,7 +323,7 @@ def interp2d_policy_and_value_function(
     continuous_state_name,
     params,
     compute_utility,
-    discount_factor,
+    read_discount_factor,
 ):
     state_choice_vec = {**state, "choice": choice}
 
@@ -339,7 +339,7 @@ def interp2d_policy_and_value_function(
         compute_utility=compute_utility,
         state_choice_vec=state_choice_vec,
         params=params,
-        discount_factor=discount_factor,
+        read_discount_factor=read_discount_factor,
     )
 
     return policy_interp, value_interp
@@ -358,7 +358,7 @@ def interpnd_policy_and_value_function(
     additional_continuous_state_names,
     params,
     compute_utility,
-    discount_factor,
+    read_discount_factor,
 ):
     state_choice_vec = {**state, "choice": choice}
 
@@ -381,7 +381,7 @@ def interpnd_policy_and_value_function(
             state_choice_child_states=state_choice_child_states,
             compute_utility=compute_utility,
             params=params,
-            discount_factor=discount_factor,
+            read_discount_factor=read_discount_factor,
         )
     )
 
@@ -401,7 +401,7 @@ def interpnd_policy_and_value_function(
         compute_utility=compute_utility,
         state_choice_vec=state_choice_vec,
         params=params,
-        discount_factor=discount_factor,
+        read_discount_factor=read_discount_factor,
     )
 
     policy = jnp.where(has_exact_combo, policy_exact, policy_interp[0, 0, 0, 0])
