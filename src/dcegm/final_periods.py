@@ -206,8 +206,6 @@ def solve_final_period(
     ]
     continuous_state_final = law_of_motion_final_period["continuous_states"]
 
-    n_assets = wealth_child_states_final_period.shape[-2]
-
     value, marg_util = vmap(
         vmap(
             vmap(
@@ -278,15 +276,21 @@ def solve_final_period(
         (zeros_to_append[..., None], wealth_sorted), axis=2
     )
 
+    # Width of the actual final-period wealth grid just built above -- for
+    # druedahl_jorgensen this is len(assets_begin_of_period) + 1 (matching
+    # n_total_wealth_grid, see check_model_config.py); for fues it's
+    # len(assets_grid_end_of_period) + 1.
+    n_wealth_final = values_with_zeros.shape[-1]
+
     value_solved = value_solved.at[
-        idx_state_choices_final_period, :, : n_assets + 1
+        idx_state_choices_final_period, :, :n_wealth_final
     ].set(values_with_zeros)
     policy_solved = policy_solved.at[
-        idx_state_choices_final_period, :, : n_assets + 1
+        idx_state_choices_final_period, :, :n_wealth_final
     ].set(wealth_with_zeros)
     if not skip_endog_grid_storage:
         endog_grid_solved = endog_grid_solved.at[
-            idx_state_choices_final_period, :, : n_assets + 1
+            idx_state_choices_final_period, :, :n_wealth_final
         ].set(wealth_with_zeros)
 
     return (
