@@ -181,7 +181,7 @@ def solve_final_period(
     value_solved,
     policy_solved,
     endog_grid_solved,
-    grid_source_state_choice_vec_final_period=None,
+    grid_source_state_choice_vec_final_period,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Compute solution to final period for policy and value function.
 

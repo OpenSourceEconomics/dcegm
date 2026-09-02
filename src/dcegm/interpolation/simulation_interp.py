@@ -32,8 +32,8 @@ def interpolate_policy_and_value_for_all_agents(
     upper_envelope_method,
     has_additional_continuous_state,
     discount_factor,
-    skip_endog_grid_storage=False,
-    dj_wealth_grid=None,
+    skip_endog_grid_storage,
+    dj_wealth_grid,
 ):
 
     # 1D interpolation path is independent of upper-envelope method and only

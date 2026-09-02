@@ -25,9 +25,9 @@ def process_model_functions_and_extract_info(
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
-    stochastic_states_transitions: Optional[Dict[str, Callable]] = None,
-    shock_functions: Optional[Dict[str, Callable]] = None,
-    continuous_grid_functions: Optional[Dict[str, Callable]] = None,
+    stochastic_states_transitions: Optional[Dict[str, Callable]],
+    shock_functions: Optional[Dict[str, Callable]],
+    continuous_grid_functions: Optional[Dict[str, Callable]],
 ):
     """Create wrapped functions from user supplied functions.
 
@@ -81,17 +81,20 @@ def process_model_functions_and_extract_info(
     compute_utility = determine_function_arguments_and_partial_model_specs(
         func=utility_functions["utility"],
         model_specs=model_specs_jax,
+        not_allowed_state_choices=[],
     )
 
     compute_marginal_utility = determine_function_arguments_and_partial_model_specs(
         func=utility_functions["marginal_utility"],
         model_specs=model_specs_jax,
+        not_allowed_state_choices=[],
     )
 
     compute_inverse_marginal_utility = (
         determine_function_arguments_and_partial_model_specs(
             func=utility_functions["inverse_marginal_utility"],
             model_specs=model_specs_jax,
+            not_allowed_state_choices=[],
         )
     )
 
@@ -104,12 +107,14 @@ def process_model_functions_and_extract_info(
     compute_utility_final = determine_function_arguments_and_partial_model_specs(
         func=utility_functions_final_period["utility"],
         model_specs=model_specs_jax,
+        not_allowed_state_choices=[],
     )
 
     compute_marginal_utility_final = (
         determine_function_arguments_and_partial_model_specs(
             func=utility_functions_final_period["marginal_utility"],
             model_specs=model_specs_jax,
+            not_allowed_state_choices=[],
         )
     )
 
@@ -156,6 +161,7 @@ def process_model_functions_and_extract_info(
         determine_function_arguments_and_partial_model_specs(
             func=budget_constraint,
             model_specs=model_specs_jax,
+            not_allowed_state_choices=[],
         )
     )
 
@@ -200,7 +206,7 @@ def process_state_space_functions(
     state_space_functions,
     model_config,
     model_specs,
-    additional_continuous_state_names=None,
+    additional_continuous_state_names,
 ):
 
     state_space_functions = (
@@ -217,9 +223,9 @@ def process_state_space_functions(
             return jnp.array(model_config["choices"])
 
     else:
-        not_allowed_state_choices = ["assets_begin_of_period"]
-        if additional_continuous_state_names is not None:
-            not_allowed_state_choices += list(additional_continuous_state_names)
+        not_allowed_state_choices = ["assets_begin_of_period"] + list(
+            additional_continuous_state_names
+        )
 
         state_specific_choice_set = (
             determine_function_arguments_and_partial_model_specs(
@@ -243,6 +249,7 @@ def process_state_space_functions(
             determine_function_arguments_and_partial_model_specs(
                 func=state_space_functions["next_period_deterministic_state"],
                 model_specs=model_specs,
+                not_allowed_state_choices=[],
             )
         )
 
@@ -260,7 +267,9 @@ def process_state_space_functions(
 def process_sparsity_condition(state_space_functions, model_specs):
     if "sparsity_condition" in state_space_functions.keys():
         sparsity_condition = determine_function_arguments_and_partial_model_specs(
-            func=state_space_functions["sparsity_condition"], model_specs=model_specs
+            func=state_space_functions["sparsity_condition"],
+            model_specs=model_specs,
+            not_allowed_state_choices=[],
         )
         # ToDo: Error if sparsity condition takes second continuous state as input
     else:
@@ -273,9 +282,9 @@ def process_sparsity_condition(state_space_functions, model_specs):
 
 
 def process_second_continuous_update_function(
-    state_space_functions=None,
-    model_specs=None,
-    has_additional_continuous_states=False,
+    state_space_functions,
+    model_specs,
+    has_additional_continuous_states,
 ):
 
     if has_additional_continuous_states:
@@ -290,6 +299,7 @@ def process_second_continuous_update_function(
             determine_function_arguments_and_partial_model_specs(
                 func=state_space_functions["next_period_continuous_state"],
                 model_specs=model_specs,
+                not_allowed_state_choices=[],
             )
         )
     else:
@@ -367,6 +377,7 @@ def process_continuous_grid_functions(
                 determine_function_arguments_and_partial_model_specs(
                     func=continuous_grid_functions[name],
                     model_specs=model_specs,
+                    not_allowed_state_choices=[],
                 )
             )
         else:

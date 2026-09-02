@@ -9,8 +9,8 @@ from dcegm.pre_processing.batches.single_segment import create_single_segment_of
 def create_batches_and_information(
     model_structure,
     n_periods,
-    min_period_batch_segments=None,
-    batch_mode="largest_block",
+    min_period_batch_segments,
+    batch_mode,
 ):
     """Batches are used instead of periods to have chunks of equal sized state choices.
     The returned batch information dictionary contains the following arrays

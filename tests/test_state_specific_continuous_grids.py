@@ -217,7 +217,9 @@ def _build_state_choice_objects(grid_func_dict, group_resets_on_choice=False):
         state_space_functions={}, model_specs={}
     )
     state_space_objects = create_state_space(
-        model_config=processed_config, sparsity_condition=sparsity_condition
+        model_config=processed_config,
+        sparsity_condition=sparsity_condition,
+        debugging=False,
     )
 
     def next_period_deterministic_state(**kwargs):
@@ -379,6 +381,8 @@ def test_no_state_specific_grids_is_a_no_op():
         state_specific_choice_set=state_specific_choice_set,
         next_period_deterministic_state=next_period_deterministic_state,
         state_space_arrays=state_space_objects,
+        continuous_grid_functions=None,
+        state_specific_continuous_grid_names=None,
     )
 
 

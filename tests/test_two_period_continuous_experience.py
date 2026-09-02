@@ -299,6 +299,9 @@ def create_test_inputs():
         value_solved=value_solved,
         policy_solved=policy_solved,
         endog_grid_solved=endog_grid_solved,
+        grid_source_state_choice_vec_final_period=last_two_period_batch_info_cont[
+            "state_choice_mat_final_period"
+        ],
     )
 
     out_dict_second_last = solve_for_interpolated_values(
@@ -469,6 +472,7 @@ def _get_solve_last_two_periods_args(model, params, has_second_continuous_state)
         # Read out grid size
         n_total_wealth_grid=model_config["n_total_wealth_grid"],
         n_state_choices=model_structure["state_choice_space"].shape[0],
+        store_endog_grid=True,
     )
 
     return (

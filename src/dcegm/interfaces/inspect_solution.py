@@ -18,7 +18,7 @@ def partially_solve(
     model_structure,
     params,
     n_periods,
-    return_candidates=False,
+    return_candidates,
 ):
     """Partially solve the model for the last n_periods.
 
@@ -80,6 +80,7 @@ def partially_solve(
                 n_total_wealth_grid=n_assets_end_of_period,
                 n_state_choices=relevant_state_choice_space.shape[0],
                 n_continuous_state_combinations=n_continuous_state_combinations,
+                store_endog_grid=True,
             )
         )
 

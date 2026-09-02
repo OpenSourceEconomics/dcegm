@@ -15,8 +15,8 @@ def create_state_choice_space_and_child_state_mapping(
     state_specific_choice_set,
     next_period_deterministic_state,
     state_space_arrays,
-    continuous_grid_functions=None,
-    state_specific_continuous_grid_names=None,
+    continuous_grid_functions,
+    state_specific_continuous_grid_names,
 ):
     """Create state choice space of all feasible state-choice combinations.
 
@@ -202,7 +202,9 @@ def create_state_choice_space_and_child_state_mapping(
     map_state_choice_to_parent_state = map_state_choice_to_parent_state[:idx]
     map_state_choice_to_child_states = map_state_choice_to_child_states[:idx, :]
 
-    map_state_choice_to_index, _ = create_indexer_for_space(state_choice_space)
+    map_state_choice_to_index, _ = create_indexer_for_space(
+        state_choice_space, max_var_values=np.max(state_choice_space, axis=0)
+    )
 
     # Create indexer with proxy
     state_space_incl_proxies = state_space_arrays["state_space_incl_proxies"]

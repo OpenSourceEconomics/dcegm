@@ -13,7 +13,7 @@ from dcegm.pre_processing.model_structure.stochastic_states import (
 from dcegm.pre_processing.shared import create_array_with_smallest_int_dtype
 
 
-def create_state_space(model_config, sparsity_condition, debugging=False):
+def create_state_space(model_config, sparsity_condition, debugging):
     """Create state space object and indexer.
 
     We need to add the convention for the state space objects.
@@ -218,7 +218,9 @@ def create_state_space(model_config, sparsity_condition, debugging=False):
                 array_of_states_proxied_to[:, i]
                 for i in range(array_of_states_proxied_to.shape[1])
             )
-            full_indexer, _ = create_indexer_for_space(state_space_full)
+            full_indexer, _ = create_indexer_for_space(
+                state_space_full, max_var_values=max_values_unrestricted
+            )
             idxs_proxied_to = full_indexer[tuple_of_states_proxied_from]
             debug_df["idxs_proxied_to"] = -9999
             debug_df.loc[debug_df["is_proxied"], "idxs_proxied_to"] = idxs_proxied_to

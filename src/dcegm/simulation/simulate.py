@@ -31,7 +31,7 @@ def simulate_all_periods(
     model_structure,
     model_funcs,
     model_config,
-    alt_model_funcs_sim=None,
+    alt_model_funcs_sim,
 ):
     alt_model_funcs_sim = (
         model_funcs if alt_model_funcs_sim is None else alt_model_funcs_sim

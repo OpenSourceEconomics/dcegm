@@ -7,7 +7,7 @@ from dcegm.pre_processing.batches.child_state_dedup import compute_child_dedup_f
 def create_single_segment_of_batches(
     bool_state_choices_to_batch,
     model_structure,
-    batch_mode="largest_block",
+    batch_mode,
 ):
     """Create a single segment of evenly sized batches.
 

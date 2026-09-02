@@ -7,7 +7,7 @@ def create_solution_container(
     n_total_wealth_grid: int,
     n_state_choices: int,
     n_continuous_state_combinations: int,
-    store_endog_grid: bool = True,
+    store_endog_grid: bool,
 ):
     """Create solution containers for value, policy, and endog_grid.
 

@@ -262,6 +262,11 @@ def _check_subset_matches_full(model, params):
         has_additional_continuous_states=continuous_states_info[
             "has_additional_continuous_state"
         ],
+        additional_continuous_state_names=continuous_states_info[
+            "additional_continuous_state_names"
+        ],
+        # No parent/child distinction being tested here.
+        grid_source_state_choice_vec=state_choice_subset,
     )
 
     expected_parent_states = map_state_choice_to_parent_state[test_idx]

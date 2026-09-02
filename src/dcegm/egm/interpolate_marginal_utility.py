@@ -29,8 +29,8 @@ def interpolate_value_and_marg_util(
     continuous_state_space,
     params: Dict[str, float],
     upper_envelope_method: str,
-    skip_endog_grid_storage: bool = False,
-    grid_source_state_choice_vec: Dict[str, int] = None,
+    skip_endog_grid_storage: bool,
+    grid_source_state_choice_vec: Dict[str, int],
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Interpolate value and policy for all child states and compute marginal utility.
 
@@ -338,8 +338,8 @@ def _interpolate_value_and_marg_util_nd_regular(
     value_child_state_choice: jnp.ndarray,
     params: Dict[str, float],
     discount_factor: float,
-    skip_endog_grid_storage: bool = False,
-    continuous_grid_functions: Dict[str, Callable] = None,
+    skip_endog_grid_storage: bool,
+    continuous_grid_functions: Dict[str, Callable],
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Interpolate value and marginal utility on the regular n-D grid.
 
