@@ -20,6 +20,7 @@ from dcegm.pre_processing.alternative_sim_functions import (
     generate_alternative_sim_functions,
 )
 from dcegm.pre_processing.shared import try_jax_array
+from dcegm.pre_processing.sol_container import broadcast_dj_wealth_grid
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
 
@@ -180,13 +181,6 @@ class model_solved:
             choices=state_choices["choice"],
         )
 
-        endog_grid = jnp.take(
-            self.endog_grid,
-            state_choice_index,
-            axis=0,
-            mode="fill",
-            fill_value=jnp.nan,
-        )
         value_grid = jnp.take(
             self.value,
             state_choice_index,
@@ -201,6 +195,18 @@ class model_solved:
             mode="fill",
             fill_value=jnp.nan,
         )
+        if self.model_config["upper_envelope"]["skip_endog_grid_storage"]:
+            endog_grid = broadcast_dj_wealth_grid(
+                self.model_config["continuous_states_info"], value_grid.shape
+            )
+        else:
+            endog_grid = jnp.take(
+                self.endog_grid,
+                state_choice_index,
+                axis=0,
+                mode="fill",
+                fill_value=jnp.nan,
+            )
 
         return endog_grid, value_grid, policy_grid
 

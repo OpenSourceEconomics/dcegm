@@ -8,6 +8,7 @@ from jax import vmap
 from dcegm.check_func_outputs import (
     check_budget_equation_and_return_wealth_plus_optional_aux,
 )
+from dcegm.law_of_motion import calc_law_of_motion_for_state_choices
 from dcegm.solve_single_period import solve_for_interpolated_values
 
 
@@ -15,10 +16,11 @@ def solve_last_two_periods(
     params: Dict[str, float],
     continuous_states_info: Dict[str, Any],
     model_structure: Dict[str, Any],
-    cont_grids_next_period: Dict[str, Any],
+    income_shocks_scaled: jnp.ndarray,
     income_shock_weights: jnp.ndarray,
     model_funcs: Dict[str, Any],
     upper_envelope_method: str,
+    skip_endog_grid_storage: bool,
     last_two_period_batch_info,
     value_solved,
     policy_solved,
@@ -59,11 +61,11 @@ def solve_last_two_periods(
         marginal_utility_final_last_period,
     ) = solve_final_period(
         idx_state_choices_final_period=batch_info["idx_state_choices_final_period"],
-        idx_parent_states_final_period=batch_info["idxs_parent_states_final_period"],
         state_choice_mat_final_period=batch_info["state_choice_mat_final_period"],
-        cont_grids_next_period=cont_grids_next_period,
+        income_shocks_scaled=income_shocks_scaled,
         continuous_states_info=continuous_states_info,
         upper_envelope_method=upper_envelope_method,
+        skip_endog_grid_storage=skip_endog_grid_storage,
         model_structure=model_structure,
         params=params,
         model_funcs=model_funcs,
@@ -115,9 +117,10 @@ def solve_last_two_periods(
     policy_solved = policy_solved.at[idx_second_last, ...].set(
         out_dict_second_last["policy"]
     )
-    endog_grid_solved = endog_grid_solved.at[idx_second_last, ...].set(
-        out_dict_second_last["endog_grid"]
-    )
+    if not skip_endog_grid_storage:
+        endog_grid_solved = endog_grid_solved.at[idx_second_last, ...].set(
+            out_dict_second_last["endog_grid"]
+        )
 
     # If we do not call the function in debug mode. Assign everything and return
     if debug_info is None:
@@ -149,11 +152,11 @@ def solve_last_two_periods(
 
 def solve_final_period(
     idx_state_choices_final_period,
-    idx_parent_states_final_period,
     state_choice_mat_final_period,
-    cont_grids_next_period: Dict[str, Any],
+    income_shocks_scaled: jnp.ndarray,
     continuous_states_info: Dict[str, Any],
     upper_envelope_method: str,
+    skip_endog_grid_storage: bool,
     model_structure: Dict[str, Any],
     params: Dict[str, float],
     model_funcs: Dict[str, Any],
@@ -187,15 +190,21 @@ def solve_final_period(
     compute_utility = model_funcs["compute_utility_final"]
     compute_marginal_utility = model_funcs["compute_marginal_utility_final"]
 
-    wealth_child_states_final_period = cont_grids_next_period["assets_begin_of_period"][
-        idx_parent_states_final_period
+    law_of_motion_final_period = calc_law_of_motion_for_state_choices(
+        state_choice_vec=state_choice_mat_final_period,
+        continuous_state_space=model_structure["continuous_state_space"],
+        assets_grid_end_of_period=continuous_states_info["assets_grid_end_of_period"],
+        income_shocks_scaled=income_shocks_scaled,
+        params=params,
+        model_funcs=model_funcs,
+        has_additional_continuous_states=continuous_states_info[
+            "has_additional_continuous_state"
+        ],
+    )
+    wealth_child_states_final_period = law_of_motion_final_period[
+        "assets_begin_of_period"
     ]
-    continuous_state_final = {
-        key: value[idx_parent_states_final_period]
-        for key, value in cont_grids_next_period["continuous_states"].items()
-    }
-
-    n_assets = wealth_child_states_final_period.shape[-2]
+    continuous_state_final = law_of_motion_final_period["continuous_states"]
 
     value, marg_util = vmap(
         vmap(
@@ -267,15 +276,22 @@ def solve_final_period(
         (zeros_to_append[..., None], wealth_sorted), axis=2
     )
 
+    # Width of the actual final-period wealth grid just built above -- for
+    # druedahl_jorgensen this is len(assets_begin_of_period) + 1 (matching
+    # n_total_wealth_grid, see check_model_config.py); for fues it's
+    # len(assets_grid_end_of_period) + 1.
+    n_wealth_final = values_with_zeros.shape[-1]
+
     value_solved = value_solved.at[
-        idx_state_choices_final_period, :, : n_assets + 1
+        idx_state_choices_final_period, :, :n_wealth_final
     ].set(values_with_zeros)
     policy_solved = policy_solved.at[
-        idx_state_choices_final_period, :, : n_assets + 1
+        idx_state_choices_final_period, :, :n_wealth_final
     ].set(wealth_with_zeros)
-    endog_grid_solved = endog_grid_solved.at[
-        idx_state_choices_final_period, :, : n_assets + 1
-    ].set(wealth_with_zeros)
+    if not skip_endog_grid_storage:
+        endog_grid_solved = endog_grid_solved.at[
+            idx_state_choices_final_period, :, :n_wealth_final
+        ].set(wealth_with_zeros)
 
     return (
         value_solved,

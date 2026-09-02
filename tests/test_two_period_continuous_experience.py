@@ -10,7 +10,6 @@ from numpy.testing import assert_array_almost_equal as aaae
 import dcegm
 import dcegm.toy_models as toy_models
 from dcegm.final_periods import solve_final_period
-from dcegm.law_of_motion import calc_cont_grids_next_period
 from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.sol_container import create_solution_container
 from dcegm.solve_single_period import solve_for_interpolated_values
@@ -262,7 +261,7 @@ def create_test_inputs():
     model_config = model.model_config
 
     (
-        cont_grids_next_period,
+        income_shocks_scaled,
         income_shock_draws_unscaled,
         income_shock_weights,
         taste_shock_scale,
@@ -285,17 +284,17 @@ def create_test_inputs():
         idx_state_choices_final_period=last_two_period_batch_info_cont[
             "idx_state_choices_final_period"
         ],
-        idx_parent_states_final_period=last_two_period_batch_info_cont[
-            "idxs_parent_states_final_period"
-        ],
         state_choice_mat_final_period=last_two_period_batch_info_cont[
             "state_choice_mat_final_period"
         ],
-        cont_grids_next_period=cont_grids_next_period,
+        income_shocks_scaled=income_shocks_scaled,
         continuous_states_info=model_config["continuous_states_info"],
         model_structure=model.model_structure,
         params=params,
         upper_envelope_method=model_config["upper_envelope"]["method"],
+        skip_endog_grid_storage=model_config["upper_envelope"][
+            "skip_endog_grid_storage"
+        ],
         model_funcs=model_funcs_cont,
         value_solved=value_solved,
         policy_solved=policy_solved,
@@ -452,12 +451,10 @@ def _get_solve_last_two_periods_args(model, params, has_second_continuous_state)
     model_structure = model.model_structure
     model_funcs = model.model_funcs
 
-    cont_grids_next_period = calc_cont_grids_next_period(
-        params=params,
-        income_shock_draws_unscaled=income_shock_draws_unscaled,
-        model_structure=model_structure,
-        model_config=model_config,
-        model_funcs=model_funcs,
+    income_shock_mean = model_funcs["read_funcs"]["income_shock_mean"](params)
+    income_shock_std = model_funcs["read_funcs"]["income_shock_std"](params)
+    income_shocks_scaled = (
+        income_shock_draws_unscaled * income_shock_std + income_shock_mean
     )
 
     n_continuous_state_combinations = model_structure["continuous_state_space"][
@@ -475,7 +472,7 @@ def _get_solve_last_two_periods_args(model, params, has_second_continuous_state)
     )
 
     return (
-        cont_grids_next_period,
+        income_shocks_scaled,
         income_shock_draws_unscaled,
         income_shock_weights,
         taste_shock_scale,

@@ -14,10 +14,11 @@ def solve_single_period(
     params,
     continuous_grids_info,
     continuous_state_space,
-    cont_grids_next_period,
+    income_shocks_scaled,
     model_funcs,
     income_shock_weights,
     upper_envelope_method,
+    skip_endog_grid_storage,
     debug_info,
 ):
     """Solve a single period of the model using DCEGM."""
@@ -33,21 +34,26 @@ def solve_single_period(
         state_choice_mat_child,
     ) = xs
 
+    policy_child_state_choice = policy_solved[child_state_choice_idxs_to_interp]
+    endog_grid_child_state_choice = (
+        None
+        if skip_endog_grid_storage
+        else endog_grid_solved[child_state_choice_idxs_to_interp]
+    )
+
     # EGM step 1)
     value_interpolated, marginal_utility_interpolated = interpolate_value_and_marg_util(
         model_funcs=model_funcs,
         state_choice_vec=state_choice_mat_child,
         continuous_grids_info=continuous_grids_info,
-        cont_grids_next_period=cont_grids_next_period,
-        endog_grid_child_state_choice=endog_grid_solved[
-            child_state_choice_idxs_to_interp
-        ],
+        income_shocks_scaled=income_shocks_scaled,
+        endog_grid_child_state_choice=endog_grid_child_state_choice,
         continuous_state_space=continuous_state_space,
-        policy_child_state_choice=policy_solved[child_state_choice_idxs_to_interp],
+        policy_child_state_choice=policy_child_state_choice,
         value_child_state_choice=value_solved[child_state_choice_idxs_to_interp],
-        child_state_idxs=child_state_idxs,
         params=params,
         upper_envelope_method=upper_envelope_method,
+        skip_endog_grid_storage=skip_endog_grid_storage,
     )
 
     # Check if we have a scalar taste shock scale or state specific. Extract in each of the cases.
@@ -85,9 +91,10 @@ def solve_single_period(
     policy_solved = policy_solved.at[state_choices_idxs, :].set(
         out_dict_period["policy"]
     )
-    endog_grid_solved = endog_grid_solved.at[state_choices_idxs, :].set(
-        out_dict_period["endog_grid"]
-    )
+    if not skip_endog_grid_storage:
+        endog_grid_solved = endog_grid_solved.at[state_choices_idxs, :].set(
+            out_dict_period["endog_grid"]
+        )
 
     # If we are not in the debug mode, we only return the solution as a tuple and an empty tuple.
     if debug_info is None:

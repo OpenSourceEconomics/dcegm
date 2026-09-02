@@ -36,7 +36,6 @@ Check out our :ref:`guides<guides/index.rst>` to find information on getting sta
    guides/two_occupation_model.ipynb
 
 
-
 .. toctree::
    :maxdepth: 2
    :caption: Background
@@ -57,6 +56,7 @@ Check out our :ref:`guides<guides/index.rst>` to find information on getting sta
    development/team
    development/changes
    development/roadmap
+   development/internals/batching
 
 
 .. toctree::

@@ -5,7 +5,6 @@ import jax.numpy as jnp
 import numpy as np
 
 from dcegm.final_periods import solve_last_two_periods
-from dcegm.law_of_motion import calc_cont_grids_next_period
 from dcegm.pre_processing.sol_container import create_solution_container
 from dcegm.solve_single_period import solve_single_period
 
@@ -37,13 +36,15 @@ def partially_solve(
         raise ValueError("You must at least solve for two periods.")
 
     continuous_states_info = model_config["continuous_states_info"]
+    skip_endog_grid_storage = model_config["upper_envelope"]["skip_endog_grid_storage"]
 
-    cont_grids_next_period = calc_cont_grids_next_period(
-        model_structure=model_structure,
-        model_config=model_config,
-        income_shock_draws_unscaled=income_shock_draws_unscaled,
-        params=params,
-        model_funcs=model_funcs,
+    # Scale income shock draws once (cheap, shared by every batch/period); the
+    # actual (large) child continuous-state/wealth transitions are computed on
+    # demand per batch/period instead of upfront for the whole state space.
+    income_shock_mean = model_funcs["read_funcs"]["income_shock_mean"](params)
+    income_shock_std = model_funcs["read_funcs"]["income_shock_std"](params)
+    income_shocks_scaled = (
+        income_shock_draws_unscaled * income_shock_std + income_shock_mean
     )
     # Determine the last period we need to solve for.
     last_relevant_period = model_config["n_periods"] - n_periods
@@ -67,6 +68,7 @@ def partially_solve(
         n_total_wealth_grid=model_config["n_total_wealth_grid"],
         n_state_choices=relevant_state_choice_space.shape[0],
         n_continuous_state_combinations=n_continuous_state_combinations,
+        store_endog_grid=not skip_endog_grid_storage,
     )
 
     if return_candidates:
@@ -100,10 +102,11 @@ def partially_solve(
         params=params,
         continuous_states_info=continuous_states_info,
         model_structure=model_structure,
-        cont_grids_next_period=cont_grids_next_period,
+        income_shocks_scaled=income_shocks_scaled,
         income_shock_weights=income_shock_weights,
         model_funcs=model_funcs,
         upper_envelope_method=model_config["upper_envelope"]["method"],
+        skip_endog_grid_storage=skip_endog_grid_storage,
         last_two_period_batch_info=last_two_period_batch_info,
         value_solved=value_solved,
         policy_solved=policy_solved,
@@ -217,10 +220,11 @@ def partially_solve(
                 params=params,
                 continuous_grids_info=continuous_states_info,
                 continuous_state_space=model_structure["continuous_state_space"],
-                cont_grids_next_period=cont_grids_next_period,
+                income_shocks_scaled=income_shocks_scaled,
                 model_funcs=model_funcs,
                 income_shock_weights=income_shock_weights,
                 upper_envelope_method=model_config["upper_envelope"]["method"],
+                skip_endog_grid_storage=skip_endog_grid_storage,
                 debug_info=debug_info,
             )
 

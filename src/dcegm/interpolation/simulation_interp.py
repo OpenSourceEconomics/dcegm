@@ -29,6 +29,8 @@ def interpolate_policy_and_value_for_all_agents(
     upper_envelope_method,
     has_additional_continuous_state,
     discount_factor,
+    skip_endog_grid_storage=False,
+    dj_wealth_grid=None,
 ):
 
     # 1D interpolation path is independent of upper-envelope method and only
@@ -54,13 +56,21 @@ def interpolate_policy_and_value_for_all_agents(
             mode="fill",
             fill_value=jnp.nan,
         )[:, :, 0, :]
-        endog_grid_agent = jnp.take(
-            endog_grid_solved,
-            discrete_state_choice_indexes,
-            axis=0,
-            mode="fill",
-            fill_value=jnp.nan,
-        )[:, :, 0, :]
+        if skip_endog_grid_storage:
+            # DJ-constant: never batch the wealth grid over agents/choices. Already
+            # matches the shape a single agent-choice item needs, so no broadcast at
+            # all is needed here.
+            endog_grid_agent = dj_wealth_grid
+            endog_grid_in_axes = None
+        else:
+            endog_grid_agent = jnp.take(
+                endog_grid_solved,
+                discrete_state_choice_indexes,
+                axis=0,
+                mode="fill",
+                fill_value=jnp.nan,
+            )[:, :, 0, :]
+            endog_grid_in_axes = 0
 
         vectorized_interp = vmap(
             vmap(
@@ -68,7 +78,7 @@ def interpolate_policy_and_value_for_all_agents(
                 in_axes=(
                     None,
                     None,
-                    0,
+                    endog_grid_in_axes,
                     0,
                     0,
                     0,
@@ -78,7 +88,7 @@ def interpolate_policy_and_value_for_all_agents(
                     None,
                 ),
             ),
-            in_axes=(0, 0, 0, 0, 0, None, None, None, None, None),
+            in_axes=(0, 0, endog_grid_in_axes, 0, 0, None, None, None, None, None),
         )
 
         policy_agent, value_agent = vectorized_interp(
@@ -202,13 +212,22 @@ def interpolate_policy_and_value_for_all_agents(
             mode="fill",
             fill_value=jnp.nan,
         )
-        endog_grid_agent = jnp.take(
-            endog_grid_solved,
-            discrete_state_choice_indexes,
-            axis=0,
-            mode="fill",
-            fill_value=jnp.nan,
-        )
+        if skip_endog_grid_storage:
+            # DJ-constant: broadcast only across the combo axis, never across
+            # agents/choices.
+            endog_grid_agent = jnp.broadcast_to(
+                dj_wealth_grid, value_grid_agent.shape[2:]
+            )
+            endog_grid_in_axes = None
+        else:
+            endog_grid_agent = jnp.take(
+                endog_grid_solved,
+                discrete_state_choice_indexes,
+                axis=0,
+                mode="fill",
+                fill_value=jnp.nan,
+            )
+            endog_grid_in_axes = 0
 
         additional_continuous_state_names = list(continuous_state_space.keys())
 
@@ -219,7 +238,7 @@ def interpolate_policy_and_value_for_all_agents(
                     None,
                     None,
                     None,
-                    0,
+                    endog_grid_in_axes,
                     0,
                     0,
                     0,
@@ -235,7 +254,7 @@ def interpolate_policy_and_value_for_all_agents(
                 0,
                 0,
                 0,
-                0,
+                endog_grid_in_axes,
                 0,
                 0,
                 None,

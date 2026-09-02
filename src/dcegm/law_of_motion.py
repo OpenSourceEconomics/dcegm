@@ -6,32 +6,30 @@ from dcegm.check_func_outputs import (
 )
 
 
-def calc_cont_grids_next_period(
+def calc_law_of_motion_for_state_choices(
+    state_choice_vec,
+    continuous_state_space,
+    assets_grid_end_of_period,
+    income_shocks_scaled,
     params,
-    income_shock_draws_unscaled,
-    model_structure,
-    model_config,
     model_funcs,
+    has_additional_continuous_states,
 ):
+    """Compute continuous-state and wealth transitions for a set of state-choices.
 
-    continuous_states_info = model_config["continuous_states_info"]
-    state_space_dict = model_structure["state_space_dict"]
+    ``state_choice_vec`` may or may not contain a ``"choice"`` key. It is dropped (via a
+    no-op-if-absent pop) before being passed to the user-supplied law-of-motion
+    functions, since the transition does not depend on it -- this is what lets
+    ``calc_cont_grids_next_period`` below reuse this function unchanged with the full
+    (choice-less) state space.
 
-    has_additional_continuous_states = continuous_states_info[
-        "has_additional_continuous_state"
-    ]
+    """
+    state_vec = dict(state_choice_vec)
+    state_vec.pop("choice", None)
 
-    # Scale income shock draws
-    income_shock_mean = model_funcs["read_funcs"]["income_shock_mean"](params)
-    income_shock_std = model_funcs["read_funcs"]["income_shock_std"](params)
-    income_shocks_scaled = (
-        income_shock_draws_unscaled * income_shock_std + income_shock_mean
-    )
-
-    continuous_state_space = model_structure["continuous_state_space"]
     continuous_state_next_period = _get_continuous_state_next_period(
         has_additional_continuous_states=has_additional_continuous_states,
-        state_space_dict=state_space_dict,
+        state_space_dict=state_vec,
         continuous_state_space=continuous_state_space,
         params=params,
         model_funcs=model_funcs,
@@ -69,9 +67,9 @@ def calc_cont_grids_next_period(
         ),
         in_axes=(0, 0, None, None),
     )(
-        state_space_dict,
+        state_vec,
         continuous_state_next_period,
-        continuous_states_info["assets_grid_end_of_period"],
+        assets_grid_end_of_period,
         income_shocks_scaled,
     )
 
@@ -80,6 +78,44 @@ def calc_cont_grids_next_period(
         "continuous_states": continuous_state_next_period,
         "assets_begin_of_period": assets_begin_of_next_period,
     }
+
+
+def calc_cont_grids_next_period(
+    params,
+    income_shock_draws_unscaled,
+    model_structure,
+    model_config,
+    model_funcs,
+):
+    """Compute continuous-state and wealth transitions for the entire state space.
+
+    Thin wrapper around ``calc_law_of_motion_for_state_choices``. Kept only for the
+    debug/inspection entry points in ``interfaces/model_class.py`` that need the full
+    structure; the main solve path computes this on demand, per batch/period, instead
+    (see ``solve_single_period.py``/``final_periods.py``).
+
+    """
+    continuous_states_info = model_config["continuous_states_info"]
+    state_space_dict = model_structure["state_space_dict"]
+
+    # Scale income shock draws
+    income_shock_mean = model_funcs["read_funcs"]["income_shock_mean"](params)
+    income_shock_std = model_funcs["read_funcs"]["income_shock_std"](params)
+    income_shocks_scaled = (
+        income_shock_draws_unscaled * income_shock_std + income_shock_mean
+    )
+
+    return calc_law_of_motion_for_state_choices(
+        state_choice_vec=state_space_dict,
+        continuous_state_space=model_structure["continuous_state_space"],
+        assets_grid_end_of_period=continuous_states_info["assets_grid_end_of_period"],
+        income_shocks_scaled=income_shocks_scaled,
+        params=params,
+        model_funcs=model_funcs,
+        has_additional_continuous_states=continuous_states_info[
+            "has_additional_continuous_state"
+        ],
+    )
 
 
 def _get_continuous_state_next_period(
