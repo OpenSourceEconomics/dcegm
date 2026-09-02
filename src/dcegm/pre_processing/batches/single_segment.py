@@ -326,8 +326,8 @@ def prepare_and_align_batch_arrays(
         "state_choices_childs": state_choices_childs,
         # State-choice index of a representative parent for each unique child --
         # used only to pick which state-choice's own continuous grid to feed the
-        # law of motion (see law_of_motion.py / the implementation plan). Not to
-        # be confused with "child_states_idxs" above, which despite the name of
+        # law of motion (see law_of_motion.py). Not to be confused with
+        # "child_states_idxs" above, which despite the name of
         # the underlying map_state_choice_to_parent_state array means "the state
         # this child state-choice belongs to" (its own state, dropping its
         # choice) -- an unrelated, pre-existing field.

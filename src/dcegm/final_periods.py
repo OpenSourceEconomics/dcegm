@@ -60,11 +60,13 @@ def solve_last_two_periods(
     # A representative second-to-last-period state-choice for each final-period
     # state-choice, gathered into a state-choice dict -- used only to pick which
     # state-choice's own continuous grid feeds the law of motion (see
-    # add_last_two_period_information / law_of_motion.py / the implementation
-    # plan). Not the same as state_choice_mat_final_period (the final period's own
-    # identity, used for the law-of-motion function call itself).
-    representative_parent_state_choice_dict_final_period = {
-        key: var[batch_info["representative_parent_state_choice_idx_final_period"]]
+    # add_last_two_period_information / law_of_motion.py). Not the same as
+    # state_choice_mat_final_period (the final period's own identity, used for the
+    # law-of-motion function call itself).
+    representative_second_last_period_parent_state_choice_dict = {
+        key: var[
+            batch_info["representative_second_last_period_parent_idx_for_final_period"]
+        ]
         for key, var in model_structure["state_choice_space_dict"].items()
     }
 
@@ -77,7 +79,7 @@ def solve_last_two_periods(
     ) = solve_final_period(
         idx_state_choices_final_period=batch_info["idx_state_choices_final_period"],
         state_choice_mat_final_period=batch_info["state_choice_mat_final_period"],
-        grid_state_dict_final_period=representative_parent_state_choice_dict_final_period,
+        grid_source_state_choice_vec_final_period=representative_second_last_period_parent_state_choice_dict,
         income_shocks_scaled=income_shocks_scaled,
         continuous_states_info=continuous_states_info,
         upper_envelope_method=upper_envelope_method,
@@ -179,7 +181,7 @@ def solve_final_period(
     value_solved,
     policy_solved,
     endog_grid_solved,
-    grid_state_dict_final_period=None,
+    grid_source_state_choice_vec_final_period=None,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Compute solution to final period for policy and value function.
 
@@ -220,7 +222,7 @@ def solve_final_period(
         additional_continuous_state_names=continuous_states_info[
             "additional_continuous_state_names"
         ],
-        grid_state_dict=grid_state_dict_final_period,
+        grid_source_state_choice_vec=grid_source_state_choice_vec_final_period,
     )
     wealth_child_states_final_period = law_of_motion_final_period[
         "assets_begin_of_period"
@@ -354,19 +356,16 @@ def calc_value_and_budget_for_state_choice(
 ):
     """Compute the final period's own value/budget for one state-choice.
 
-    Builds this state-choice's own combo axis (what its own solve/storage is
-    indexed against) on demand *after* vmapping down to a single state-choice --
-    the final-period analog of solve_euler_equation.py's job for every other
-    period, on its own separate code path since the final period has no
-    continuation value and so doesn't go through solve_euler_equation.py at all.
-    ``state_choice_vec`` already is each row's own identity here (no parent/child
-    ambiguity, we're solving each row's own terminal problem), so no
-    representative-parent selection is needed, unlike law_of_motion.py's grid
-    selection for a transition *into* a state. Grids live on the state-choice
-    space (that's where the solution itself lives), so ``state_choice_vec`` --
-    including "choice" -- is exactly the identity a grid may depend on. See the
-    implementation plan at
-    docs/source/development/internals/state_specific_continuous_grids_plan.md.
+    Builds this state-choice's own combo axis (what its own solve/storage is indexed
+    against) on demand *after* vmapping down to a single state-choice -- the final-
+    period analog of solve_euler_equation.py's job for every other period, on its own
+    separate code path since the final period has no continuation value and so doesn't
+    go through solve_euler_equation.py at all. ``state_choice_vec`` already is each
+    row's own identity here (no parent/child ambiguity, we're solving each row's own
+    terminal problem), so no representative-parent selection is needed, unlike
+    law_of_motion.py's grid selection for a transition *into* a state. Grids live on the
+    state-choice space (that's where the solution itself lives), so ``state_choice_vec``
+    -- including "choice" -- is exactly the identity a grid may depend on.
 
     """
     own_continuous_state_vec = compute_own_continuous_grid_combos(

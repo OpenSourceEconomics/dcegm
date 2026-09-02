@@ -188,8 +188,7 @@ def interpnd_policy_and_value_for_child_states_on_own_regular_grids(
     precomputation differs (see ``_precompute_interp_objects_own_grids``). Kept as
     a separate function rather than changing the original's contract, since that's
     directly tested (``tests/test_interpnd_regular.py``) with the shared-grid
-    contract. See the implementation plan at
-    docs/source/development/internals/state_specific_continuous_grids_plan.md.
+    contract.
 
     """
     objs = _precompute_interp_objects_own_grids(
@@ -699,9 +698,10 @@ def _precompute_interp_objects_own_grids(
 
     ``strides``/``corner_table`` only depend on the *number* of grid points per
     dimension, which is the same for every child by construction (state-specific grids
-    may vary in value, not size -- see the implementation plan), so those are computed
-    exactly as before, just reading the size off the last axis of the now-per-child grid
-    arrays instead of the only axis of a 1d array.
+    may vary in value, not size -- enforced by
+    ``evaluate_state_specific_continuous_grids`` in ``continuous_state_grids.py``), so
+    those are computed exactly as before, just reading the size off the last axis of the
+    now-per-child grid arrays instead of the only axis of a 1d array.
 
     """
     state_names = list(additional_continuous_state_grids_per_child.keys())

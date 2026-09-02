@@ -21,10 +21,9 @@ def compute_child_dedup_for_batch(
     child (deduplicated purely by discrete-state index, see the two ``np.unique``
     calls below) and reuses it for every parent state-choice that maps to it. That
     computation needs the *parent's* own continuous grid as input to the child's
-    law-of-motion function (see ``law_of_motion.py`` / the implementation plan at
-    docs/source/development/internals/state_specific_continuous_grids_plan.md) --
-    not the child's. Since the computation runs once per unique child rather than
-    once per parent, it needs *a* representative parent for each unique child; any
+    law-of-motion function (see ``law_of_motion.py``) -- not the child's. Since
+    the computation runs once per unique child rather than once per parent, it
+    needs *a* representative parent for each unique child; any
     one of them works, because
     ``check_continuous_grid_consistency_across_shared_children`` (run once at
     model-build time, before batching) already guarantees every parent state-choice

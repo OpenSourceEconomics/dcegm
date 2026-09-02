@@ -1,25 +1,22 @@
-"""Phase 7 ground-truth validation for state-specific continuous grids.
+"""Ground-truth validation for state-specific continuous grids.
 
 Solves the same economics two ways and checks they agree bit-for-bit: once as one
 model with a genuine discrete "type" state (`group`, via `deterministic_states` --
 a built-in `dcegm` mechanism whose default law of motion already leaves it
-unchanged across periods, so it structurally satisfies the Phase 1 consistency
-check) whose `continuous_grid_functions` grid depends on that type; once as two
-fully separate single-type models, each declaring its own type's grid directly via
-`model_config["continuous_states"]` (today's unmodified, pre-existing mechanism).
-`group` doesn't enter `with_cont_exp`'s utility, budget, or law-of-motion functions
-at all, so the two groups' economics are identical except for which grid the
-solution is stored/interpolated on -- meaning a combined solve must reproduce the
-two separate solves exactly, for each group.
+unchanged across periods, so it structurally satisfies the consistency check in
+continuous_state_grids.py) whose `continuous_grid_functions` grid depends on that
+type; once as two fully separate single-type models, each declaring its own
+type's grid directly via `model_config["continuous_states"]` (the pre-existing
+mechanism). `group` doesn't enter `with_cont_exp`'s utility, budget, or
+law-of-motion functions at all, so the two groups' economics are identical except
+for which grid the solution is stored/interpolated on -- meaning a combined solve
+must reproduce the two separate solves exactly, for each group.
 
-The negative-test half of Phase 7 (a grid depending on a variable that does not
-survive the parent->child transition 1:1 must be rejected at build time) is
-already covered by test_grid_depending_on_lagged_choice_fails and
+The negative case (a grid depending on a variable that does not survive the
+parent->child transition 1:1 must be rejected at build time) is covered by
+test_grid_depending_on_lagged_choice_fails and
 test_grid_on_state_that_does_not_pass_through_1to1_fails in
-test_state_specific_continuous_grids.py -- built during Phase 1, using the same
-"group" mechanism as here.
-
-See docs/source/development/internals/state_specific_continuous_grids_plan.md.
+test_state_specific_continuous_grids.py, using the same "group" mechanism as here.
 
 """
 

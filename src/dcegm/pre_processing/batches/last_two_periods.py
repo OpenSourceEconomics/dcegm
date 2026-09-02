@@ -68,15 +68,14 @@ def add_last_two_period_information(
 
     # A representative second-to-last-period *state-choice* for each final-period
     # state-choice -- used only to pick which state-choice's own continuous grid
-    # feeds the law of motion in solve_final_period (see law_of_motion.py / the
-    # implementation plan). Grids live on the state-choice space (that's where the
-    # solution itself lives), so the representative parent is a state-choice
-    # index, not a bare state. Mirrors the same computation the main backward
-    # induction loop does per batch (see child_state_dedup.py), specialized for
-    # the (undeduplicated) two-period case: solve_final_period computes the law of
-    # motion for every final-period state-choice individually, so we need a
-    # representative parent aligned with every entry of
-    # idx_state_choice_final_period, not just a deduplicated subset.
+    # feeds the law of motion in solve_final_period (see law_of_motion.py). Grids
+    # live on the state-choice space (that's where the solution itself lives), so
+    # the representative parent is a state-choice index, not a bare state. Mirrors
+    # the same computation the main backward induction loop does per batch (see
+    # child_state_dedup.py), specialized for the (undeduplicated) two-period case:
+    # solve_final_period computes the law of motion for every final-period
+    # state-choice individually, so we need a representative parent aligned with
+    # every entry of idx_state_choice_final_period, not just a deduplicated subset.
     child_states_idxs_from_second_last = map_state_choice_to_child_states[
         idx_state_choice_second_last_period
     ]
@@ -103,8 +102,8 @@ def add_last_two_period_information(
     # reachable from the second-to-last period (e.g. an absorbing/initial-like
     # state; already flagged elsewhere via a warning in test_child_state_mapping,
     # not an error) falls back to its own state-choice identity, mirroring
-    # calc_law_of_motion_for_state_choices's own grid_state_dict=None -> self
-    # fallback.
+    # calc_law_of_motion_for_state_choices's own
+    # grid_source_state_choice_vec=None -> self fallback.
     insert_pos = np.clip(
         np.searchsorted(unique_final_states, parent_states_final_period),
         0,
@@ -113,7 +112,7 @@ def add_last_two_period_information(
     found_mask = (
         unique_final_states[insert_pos] == parent_states_final_period
     ) & valid_mask[insert_pos]
-    representative_parent_state_choice_idx_final_period = np.where(
+    representative_second_last_period_parent_idx_for_final_period = np.where(
         found_mask,
         representative_parent_state_choice_of_unique_final_state[insert_pos],
         idx_state_choice_final_period,
@@ -125,8 +124,8 @@ def add_last_two_period_information(
         "idxs_parent_states_final_period": parent_states_final_period,
         "state_to_choices_final_period": state_to_choices_final_period,
         "child_states_second_last_period": child_states_second_last_period,
-        "representative_parent_state_choice_idx_final_period": (
-            representative_parent_state_choice_idx_final_period
+        "representative_second_last_period_parent_idx_for_final_period": (
+            representative_second_last_period_parent_idx_for_final_period
         ),
     }
 

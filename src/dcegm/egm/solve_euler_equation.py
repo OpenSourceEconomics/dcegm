@@ -20,12 +20,10 @@ def calculate_candidate_solutions_from_euler_equation(
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Calculate candidates for the optimal policy and value function.
 
-    This solves/stores each state-choice in ``state_choice_mat``'s *own* problem
-    (as opposed to interpolating someone else's child, where the parent/child
-    distinction in law_of_motion.py matters) -- so the combo grid used here is
-    just each row's own grid, no representative-parent selection needed. See the
-    implementation plan at
-    docs/source/development/internals/state_specific_continuous_grids_plan.md.
+    This solves/stores each state-choice in ``state_choice_mat``'s *own* problem (as
+    opposed to interpolating someone else's child, where the parent/child distinction in
+    law_of_motion.py matters) -- so the combo grid used here is just each row's own
+    grid, no representative-parent selection needed.
 
     """
     feasible_marg_utils_child = jnp.take(
@@ -83,15 +81,13 @@ def compute_optimal_policy_and_value_for_state_choice(
     """Compute EGM candidates for one state-choice, across its own combo/wealth grid.
 
     Builds this state-choice's own combo grid on demand *after* vmapping down to a
-    single state-choice, instead of precomputing the whole batch's grids upfront in
-    a separate vmap and feeding the result in as a paired array. This state-choice
-    is solving/storing its *own* problem (not interpolating someone else's child),
-    so its own grid is used directly -- no representative-parent selection needed,
-    unlike law_of_motion.py's grid selection for a transition *into* a state.
-    Grids live on the state-choice space (that's where the solution itself
-    lives), so ``state_choice_vec`` -- including "choice" -- is exactly the
-    identity a grid may depend on. See the implementation plan at
-    docs/source/development/internals/state_specific_continuous_grids_plan.md.
+    single state-choice, instead of precomputing the whole batch's grids upfront in a
+    separate vmap and feeding the result in as a paired array. This state-choice is
+    solving/storing its *own* problem (not interpolating someone else's child), so its
+    own grid is used directly -- no representative-parent selection needed, unlike
+    law_of_motion.py's grid selection for a transition *into* a state. Grids live on the
+    state-choice space (that's where the solution itself lives), so ``state_choice_vec``
+    -- including "choice" -- is exactly the identity a grid may depend on.
 
     """
     if continuous_grids_info["has_additional_continuous_state"]:

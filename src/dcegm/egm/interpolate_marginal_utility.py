@@ -30,7 +30,7 @@ def interpolate_value_and_marg_util(
     params: Dict[str, float],
     upper_envelope_method: str,
     skip_endog_grid_storage: bool = False,
-    grid_state_dict: Dict[str, int] = None,
+    grid_source_state_choice_vec: Dict[str, int] = None,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Interpolate value and policy for all child states and compute marginal utility.
 
@@ -40,12 +40,12 @@ def interpolate_value_and_marg_util(
         compute_utility (callable): Function for calculating the utility of consumption.
         state_choice_vec (dict): Dictionary containing the state and choice of the agent
             (the child, in the main solve path).
-        grid_state_dict (dict): Discrete-state dict of a representative parent, used
-            only to select which state's own continuous grid to feed the law of
-            motion -- see the docstring of calc_law_of_motion_for_state_choices for
-            why this must be the parent, not state_choice_vec (the child). Falls
-            back to state_choice_vec itself when not given (today's global-grid
-            behavior).
+        grid_source_state_choice_vec (dict): State-choice dict of a representative
+            parent, used only to select which state's own continuous grid to feed
+            the law of motion -- see the docstring of
+            calc_law_of_motion_for_state_choices for why this must be the parent,
+            not state_choice_vec (the child). Falls back to state_choice_vec itself
+            when not given (today's global-grid behavior).
         assets_beginning_of_next_period (jnp.ndarray): 2d array of shape
             (n_quad_stochastic, n_grid_wealth,) containing the agent's beginning of
             period wealth.
@@ -90,7 +90,7 @@ def interpolate_value_and_marg_util(
         additional_continuous_state_names=continuous_grids_info[
             "additional_continuous_state_names"
         ],
-        grid_state_dict=grid_state_dict,
+        grid_source_state_choice_vec=grid_source_state_choice_vec,
     )
     wealth_child_states = law_of_motion["assets_begin_of_period"]
     continuous_states_next = law_of_motion["continuous_states"]
@@ -353,13 +353,13 @@ def _interpolate_value_and_marg_util_nd_regular(
     }
 
     # Each child's own grid on demand, instead of reading the shared/global
-    # additional_continuous_state_grids -- see law_of_motion.py / the
-    # implementation plan. state_choice_vec is the CHILD's own identity here (we're
-    # reading each child's own stored solution, interpolated on its own grid), not
-    # a parent -- unlike law_of_motion.py's grid selection for the *transition
-    # into* a child, which needs a representative parent. Unmeshed (per-dimension)
-    # grids, since interpnd's index/weight math handles each dimension
-    # separately before combining via strides/corner tables.
+    # additional_continuous_state_grids -- see law_of_motion.py. state_choice_vec
+    # is the CHILD's own identity here (we're reading each child's own stored
+    # solution, interpolated on its own grid), not a parent -- unlike
+    # law_of_motion.py's grid selection for the *transition into* a child, which
+    # needs a representative parent. Unmeshed (per-dimension) grids, since
+    # interpnd's index/weight math handles each dimension separately before
+    # combining via strides/corner tables.
     own_continuous_state_grids_per_child = vmap(
         compute_own_continuous_grids_raw,
         in_axes=(0, None, None),
@@ -509,8 +509,7 @@ def interp2d_value_and_marg_util_for_state_choice(
     # *transition into* a child, which needs a representative parent. Grids live
     # on the state-choice space (that's where the solution itself lives), so
     # "choice" is a legitimate part of that identity, same as for
-    # compute_utility/compute_marginal_utility below. See the implementation plan
-    # at docs/source/development/internals/state_specific_continuous_grids_plan.md.
+    # compute_utility/compute_marginal_utility below.
     continuous_state_space = compute_own_continuous_grid_combos(
         state_choice_vec, continuous_grid_functions, additional_continuous_state_names
     )

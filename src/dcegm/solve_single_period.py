@@ -45,12 +45,12 @@ def solve_single_period(
 
     # A representative parent's own state-choice, for each of this batch's
     # deduplicated children -- used only to pick which state-choice's own
-    # continuous grid feeds the law of motion (see law_of_motion.py / the
-    # implementation plan). Grids live on the state-choice space (that's where the
-    # solution itself lives), so this is a state-choice index, not a bare state.
-    # Any one parent works: check_continuous_grid_consistency_across_shared_children
-    # (run once at model-build time) guarantees every parent sharing a child agrees
-    # on its own grid.
+    # continuous grid feeds the law of motion (see law_of_motion.py). Grids live on
+    # the state-choice space (that's where the solution itself lives), so this is a
+    # state-choice index, not a bare state. Any one parent works:
+    # check_continuous_grid_consistency_across_shared_children (run once at
+    # model-build time) guarantees every parent sharing a child agrees on its own
+    # grid.
     representative_parent_state_choice_dict = {
         key: var[representative_parent_state_choice_idx]
         for key, var in state_choice_space_dict.items()
@@ -69,7 +69,7 @@ def solve_single_period(
         params=params,
         upper_envelope_method=upper_envelope_method,
         skip_endog_grid_storage=skip_endog_grid_storage,
-        grid_state_dict=representative_parent_state_choice_dict,
+        grid_source_state_choice_vec=representative_parent_state_choice_dict,
     )
 
     # Check if we have a scalar taste shock scale or state specific. Extract in each of the cases.

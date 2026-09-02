@@ -322,9 +322,9 @@ def process_continuous_grid_functions(
     declared in ``model_config["continuous_states"]``.
 
     These are evaluated on demand wherever a batch needs a state-choice's own
-    grid during solving, not precomputed for the whole state-choice space -- see
-    docs/source/development/internals/state_specific_continuous_grids_plan.md for
-    why. The one exception is the one-time, NumPy-side consistency check in
+    grid during solving, not precomputed for the whole state-choice space, to
+    avoid materializing an ``(n_state_choices, n_points)`` table. The one
+    exception is the one-time, NumPy-side consistency check in
     ``continuous_state_grids.py``, run once during model-structure construction,
     for which this function also returns the list of state-specific names (so
     that check can skip names left at their default, which are trivially

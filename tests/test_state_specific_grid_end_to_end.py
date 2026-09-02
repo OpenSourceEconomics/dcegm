@@ -1,14 +1,12 @@
-"""End-to-end integration tests for state-specific continuous grids (Phases 2-5, 3).
+"""End-to-end integration tests for state-specific continuous grids.
 
 The unit tests in test_law_of_motion_state_specific_grid.py exercise the grid-
-selection mechanism in isolation and would not have caught the child-vs-parent bug
-found during development (using the child's own identity to select the grid instead
-of a representative parent's) -- that only shows up once real batching/dedup is
-involved. These tests instead run the full model-setup + backward-induction
-pipeline, exercising both the main backward-induction loop (this toy model has 5
-periods) and the last-two-periods special case in one solve.
-
-See docs/source/development/internals/state_specific_continuous_grids_plan.md.
+selection mechanism in isolation and would not catch a child-vs-parent mixup
+(using the child's own identity to select the grid instead of a representative
+parent's) -- that only shows up once real batching/dedup is involved. These tests
+instead run the full model-setup + backward-induction pipeline, exercising both
+the main backward-induction loop (this toy model has 5 periods) and the
+last-two-periods special case in one solve.
 
 """
 
@@ -114,17 +112,17 @@ def test_period_dependent_grid_solves_and_differs_from_default():
 
 
 def test_constant_but_different_grid_matches_direct_model_config_declaration():
-    # The strong correctness check for Phase 3: a *constant* grid delivered via
+    # The strong correctness check: a *constant* grid delivered via
     # continuous_grid_functions, but with different values than the model's own
     # default, must reproduce a model where that same grid is declared directly in
-    # model_config["continuous_states"] (today's unmodified global-grid mechanism)
+    # model_config["continuous_states"] (the pre-existing global-grid mechanism)
     # -- bit-for-bit. This is a stronger check than reproducing the *default* grid
     # (test above), because it can only pass if the on-demand grid is actually
-    # doing something (using the *wrong* grid, or silently falling back to the old
-    # default via a bug, would both fail this test), and it exercises both the
-    # law-of-motion transition input (Phase 2/4/5) and the interpolation axis /
-    # EGM candidate generation (Phase 3) at once, since this toy model solves via
-    # the FUES (2d irregular) upper envelope by default.
+    # doing something (using the *wrong* grid, or silently falling back to the
+    # default, would both fail this test), and it exercises both the
+    # law-of-motion transition input and the interpolation axis / EGM candidate
+    # generation at once, since this toy model solves via the FUES (2d irregular)
+    # upper envelope by default.
     model_funcs, params, model_specs, model_config = _load_with_cont_exp()
 
     scaled_grid = jnp.asarray(model_config["continuous_states"]["experience"]) * 2.0
@@ -163,11 +161,11 @@ def test_constant_but_different_grid_matches_direct_model_config_declaration():
 
 
 def test_constant_but_different_grid_matches_direct_declaration_when_simulated():
-    # Phase 6 (readers): the solve-level check above proves the *stored* solution
-    # is identical either way, but simulate() reads that solution back out via a
-    # completely separate code path (simulation_interp.py) that -- before Phase 6
-    # -- still assumed one grid shared by the whole model. A bug there would leave
-    # test_constant_but_different_grid_matches_direct_model_config_declaration
+    # The solve-level check above proves the *stored* solution is identical
+    # either way, but simulate() reads that solution back out via a completely
+    # separate code path (simulation_interp.py), which independently needs to
+    # resolve each query's own state-choice-specific grid. A bug there would
+    # leave test_constant_but_different_grid_matches_direct_model_config_declaration
     # green (it never simulates) while silently corrupting simulated
     # policy/value/choice output. Same bit-for-bit contract, applied to simulate().
     model_funcs, params, model_specs, model_config = _load_with_cont_exp()
@@ -215,10 +213,10 @@ def test_constant_but_different_grid_matches_direct_declaration_when_simulated()
 
 
 def test_constant_but_different_grid_matches_direct_declaration_for_choice_queries():
-    # Phase 6 (readers), third reader path: choice_values_for_states /
-    # choice_policies_for_states go through interp_interfaces.py, which is neither
-    # the solve path nor simulate()'s simulation_interp.py -- a separate place a
-    # leftover shared-grid read could hide.
+    # Third reader path: choice_values_for_states / choice_policies_for_states go
+    # through interp_interfaces.py, which is neither the solve path nor
+    # simulate()'s simulation_interp.py -- a separate place a leftover
+    # shared-grid read could hide.
     model_funcs, params, model_specs, model_config = _load_with_cont_exp()
 
     scaled_grid = jnp.asarray(model_config["continuous_states"]["experience"]) * 2.0

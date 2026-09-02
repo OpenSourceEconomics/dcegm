@@ -15,7 +15,7 @@ def calc_law_of_motion_for_state_choices(
     model_funcs,
     has_additional_continuous_states,
     additional_continuous_state_names=None,
-    grid_state_dict=None,
+    grid_source_state_choice_vec=None,
 ):
     """Compute continuous-state and wealth transitions for a set of state-choices.
 
@@ -27,20 +27,19 @@ def calc_law_of_motion_for_state_choices(
 
     ``state_choice_vec`` is the state-choice we are computing the *beginning-of-period*
     continuous state/wealth for -- i.e. the child, in the main solve path (see
-    ``solve_single_period.py``). ``grid_state_dict``, if given, is a *separate*
-    state-choice dict: the (representative) parent state-choice whose own
-    continuous grid supplies the values fed through the law-of-motion function.
-    These are not the same state-choice in general once continuous grids are
-    state-choice-specific: the transition function itself correctly depends on
-    the child's own identity (e.g. its ``lagged_choice``, which is the parent's
-    choice), but the grid *values* fed into it must be the parent's own grid --
-    see the implementation plan at
-    docs/source/development/internals/state_specific_continuous_grids_plan.md.
-    When ``grid_state_dict`` is not given (e.g. the whole-state-space debug entry
-    point below, which has no real parent/child relationship to trace), it falls
-    back to ``state_choice_vec`` itself (including "choice" -- grids live on the
-    state-choice space, so it's a legitimate part of the identity), matching
-    today's global-grid behavior exactly.
+    ``solve_single_period.py``). ``grid_source_state_choice_vec``, if given, is a
+    *separate* state-choice dict: the state-choice whose own continuous grid
+    supplies the values fed through the law-of-motion function (in the main solve
+    path, a representative parent). These are not the same state-choice in general
+    once continuous grids are state-choice-specific: the transition function
+    itself correctly depends on the child's own identity (e.g. its
+    ``lagged_choice``, which is the parent's choice), but the grid *values* fed
+    into it must come from the source state-choice's own grid. When
+    ``grid_source_state_choice_vec`` is not given (e.g. the whole-state-space
+    debug entry point below, which has no real parent/child relationship to
+    trace), it falls back to ``state_choice_vec`` itself (including "choice" --
+    grids live on the state-choice space, so it's a legitimate part of the
+    identity), matching today's global-grid behavior exactly.
 
     """
     state_vec = dict(state_choice_vec)
@@ -49,8 +48,10 @@ def calc_law_of_motion_for_state_choices(
     continuous_state_next_period = _get_continuous_state_next_period(
         has_additional_continuous_states=has_additional_continuous_states,
         state_space_dict=state_vec,
-        grid_state_dict=(
-            state_choice_vec if grid_state_dict is None else grid_state_dict
+        grid_source_state_choice_vec=(
+            state_choice_vec
+            if grid_source_state_choice_vec is None
+            else grid_source_state_choice_vec
         ),
         continuous_state_space=continuous_state_space,
         additional_continuous_state_names=additional_continuous_state_names,
@@ -147,7 +148,7 @@ def calc_cont_grids_next_period(
 def _get_continuous_state_next_period(
     has_additional_continuous_states,
     state_space_dict,
-    grid_state_dict,
+    grid_source_state_choice_vec,
     continuous_state_space,
     additional_continuous_state_names,
     params,
@@ -177,7 +178,7 @@ def _get_continuous_state_next_period(
         in_axes=(0, 0, None, None, None, None),
     )(
         state_space_dict,
-        grid_state_dict,
+        grid_source_state_choice_vec,
         model_funcs["continuous_grid_functions"],
         additional_continuous_state_names,
         params,
@@ -192,7 +193,7 @@ def _get_continuous_state_next_period(
 
 def _continuous_state_next_period_for_one_state(
     state_dict,
-    grid_state_dict,
+    grid_source_state_choice_vec,
     continuous_grid_functions,
     additional_continuous_state_names,
     params,
@@ -202,16 +203,16 @@ def _continuous_state_next_period_for_one_state(
 
     Builds the grid on demand *after* vmapping down to a single state, instead of
     precomputing the whole batch's grids upfront in a separate vmap and feeding the
-    result in as a paired array. Uses ``grid_state_dict`` (the representative parent
-    state-choice), not ``state_dict`` (the child) -- see the docstring of
-    ``calc_law_of_motion_for_state_choices`` above for why these differ; for state-
-    choices without a state-specific grid, ``continuous_grid_functions[name]`` ignores
-    its input and returns the same global grid for every row, so this is a no-op
+    result in as a paired array. Uses ``grid_source_state_choice_vec`` (the
+    representative parent state-choice), not ``state_dict`` (the child) -- see the
+    docstring of ``calc_law_of_motion_for_state_choices`` above for why these differ;
+    for state-choices without a state-specific grid, ``continuous_grid_functions[name]``
+    ignores its input and returns the same global grid for every row, so this is a no-op
     relative to the old behavior in that case.
 
     """
     own_continuous_state_vec = compute_own_continuous_grid_combos(
-        grid_state_dict,
+        grid_source_state_choice_vec,
         continuous_grid_functions,
         additional_continuous_state_names,
     )

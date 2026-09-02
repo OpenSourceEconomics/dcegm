@@ -1,11 +1,9 @@
-"""Tests for state-specific continuous state grids (Phases 0 and 1).
+"""Tests for state-specific continuous state grids: config plumbing and the child-
+sharing consistency check.
 
-Grids live on the state-choice space, not the bare state space -- that's where
-the solution itself lives (value_solved/policy_solved/endog_grid_solved are
-indexed by state-choice). A grid may therefore depend on the discrete state *and*
-on "choice".
-
-See docs/source/development/internals/state_specific_continuous_grids_plan.md.
+Grids live on the state-choice space, not the bare state space -- that's where the
+solution itself lives (value_solved/policy_solved/endog_grid_solved are indexed by
+state-choice). A grid may therefore depend on the discrete state *and* on "choice".
 
 """
 
@@ -41,7 +39,7 @@ def _base_model_config():
 
 
 # =====================================================================================
-# Phase 0: continuous_grid_functions plumbing
+# continuous_grid_functions plumbing
 #
 # continuous_grid_functions is a top-level argument to create_model_dict, following
 # the same convention as shock_functions/stochastic_states_transitions -- functions
@@ -202,7 +200,7 @@ def test_evaluate_state_specific_grids_skips_names_without_user_callable():
 
 
 # =====================================================================================
-# Phase 1: consistency check across state-choices sharing a child state
+# Consistency check across state-choices sharing a child state
 # =====================================================================================
 
 

@@ -7,8 +7,6 @@ variant used by the solve path once continuous grids are state-choice-specific:
 each child is interpolated against its *own* grid, not one grid shared across all
 children.
 
-See docs/source/development/internals/state_specific_continuous_grids_plan.md.
-
 """
 
 import jax.numpy as jnp

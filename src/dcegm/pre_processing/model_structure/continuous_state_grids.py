@@ -1,8 +1,5 @@
 """State-specific continuous state grids.
 
-See docs/source/development/internals/state_specific_continuous_grids_plan.md for
-the design and the reasoning behind it.
-
 Grids live on the *state-choice* space, not the bare state space: that's where
 the solution itself lives (``value_solved``/``policy_solved``/``endog_grid_solved``
 are indexed by state-choice, see ``create_solution_container``), so a grid may
@@ -31,9 +28,9 @@ def evaluate_state_specific_continuous_grids(
     Also validates that every state-choice's grid has the length declared in
     ``model_config["continuous_states"]`` for that name. Storage containers are
     rectangular (same number of grid points for every state-choice, only the
-    values differ -- see the implementation plan), so a mismatched length would
-    otherwise silently corrupt shapes downstream instead of failing here, close to
-    the user-supplied function that caused it.
+    values differ), so a mismatched length would otherwise silently corrupt
+    shapes downstream instead of failing here, close to the user-supplied
+    function that caused it.
 
     This is a one-time NumPy-side pass over the full state-choice space, done once
     during model-structure construction. The result is used to build the
@@ -101,26 +98,24 @@ def check_continuous_grid_consistency_across_shared_children(
 ):
     """Check that state-choices sharing a child state agree on their own grid.
 
-    The batch-creation code (``pre_processing/batches/``) deduplicates children
-    purely by discrete-state index (``np.unique`` on
-    ``map_state_choice_to_child_states``) and computes the continuation-value
-    interpolation once per unique child, reusing it for every parent state-choice
-    that maps to it. That shared computation is fed the *parent's* own continuous
-    grid (as "last period's grid", see ``law_of_motion.py``). If two parent
-    state-choices that share a child disagreed on their own grid, the shared
-    computation could only use one of them, silently corrupting the other's
+    The batch-creation code (``pre_processing/batches/``) deduplicates children purely
+    by discrete-state index (``np.unique`` on ``map_state_choice_to_child_states``) and
+    computes the continuation-value interpolation once per unique child, reusing it for
+    every parent state-choice that maps to it. That shared computation is fed the
+    *parent's* own continuous grid (as "last period's grid", see ``law_of_motion.py``).
+    If two parent state-choices that share a child disagreed on their own grid, the
+    shared computation could only use one of them, silently corrupting the other's
     continuation values.
 
     Grids live on the state-choice space (see
-    ``evaluate_state_specific_continuous_grids`` above), so each row's "own grid"
-    is available directly -- no collapsing to the parent's bare state needed, since
-    ``map_state_choice_to_child_states`` is already indexed by state-choice row
-    (row ``i`` of it is row ``i`` of ``state_choice_space``).
+    ``evaluate_state_specific_continuous_grids`` above), so each row's "own grid" is
+    available directly -- no collapsing to the parent's bare state needed, since
+    ``map_state_choice_to_child_states`` is already indexed by state-choice row (row
+    ``i`` of it is row ``i`` of ``state_choice_space``).
 
-    We reuse the exact same grouping mechanism the batch code uses
-    (``np.unique`` with ``return_inverse``) so this check provably guards the
-    invariant that optimization depends on, rather than an approximation of it.
-    See docs/source/development/internals/state_specific_continuous_grids_plan.md.
+    We reuse the exact same grouping mechanism the batch code uses (``np.unique`` with
+    ``return_inverse``) so this check provably guards the invariant that optimization
+    depends on, rather than an approximation of it.
 
     """
     if len(grids_per_state_choice) == 0:

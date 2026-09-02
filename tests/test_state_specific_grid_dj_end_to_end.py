@@ -1,15 +1,13 @@
 """End-to-end tests for state-specific continuous grids on the Druedahl-Jorgensen (n-D
-regular) upper envelope path -- the remaining Phase 3 gap.
+regular) upper envelope path.
 
 Reuses the existing `with_cont_exp` toy model's economic functions unchanged
 (utility, budget constraint, state transitions don't care about the upper
 envelope method), just switching `upper_envelope["method"]` to
 `"druedahl_jorgensen"` and adding the required `assets_begin_of_period` grid. No
-DJ toy model previously existed in this repo, so this is the first real exercise
-of `interpnd_policy_and_value_for_child_states_on_own_regular_grids` through an
-actual multi-period backward-induction solve.
-
-See docs/source/development/internals/state_specific_continuous_grids_plan.md.
+dedicated DJ toy model exists in this repo, so this exercises
+`interpnd_policy_and_value_for_child_states_on_own_regular_grids` through a real
+multi-period backward-induction solve without building one from scratch.
 
 """
 
@@ -105,10 +103,9 @@ def test_dj_constant_but_different_grid_matches_direct_model_config_declaration(
 
 
 def test_dj_constant_but_different_grid_matches_direct_declaration_when_simulated():
-    # Phase 6 (readers) on the DJ path: solve-level equality (test above) doesn't
-    # exercise simulation_interp.py's DJ branch, which is a fully separate reader
-    # from the interpolation used inside solve. Same bit-for-bit contract, applied
-    # to simulate().
+    # Solve-level equality (test above) doesn't exercise simulation_interp.py's DJ
+    # branch, which is a fully separate reader from the interpolation used inside
+    # solve. Same bit-for-bit contract, applied to simulate().
     model_funcs, params, model_specs, model_config = _load_with_cont_exp_dj()
 
     scaled_grid = jnp.asarray(model_config["continuous_states"]["experience"]) * 2.0
@@ -154,9 +151,9 @@ def test_dj_constant_but_different_grid_matches_direct_declaration_when_simulate
 
 
 def test_dj_constant_but_different_grid_matches_direct_declaration_for_choice_queries():
-    # Phase 6 (readers) on the DJ path, third reader: choice_values_for_states /
-    # choice_policies_for_states go through interp_interfaces.py's DJ-multidim
-    # branch, a separate code path from both solve and simulate().
+    # Third reader: choice_values_for_states / choice_policies_for_states go
+    # through interp_interfaces.py's DJ-multidim branch, a separate code path
+    # from both solve and simulate().
     model_funcs, params, model_specs, model_config = _load_with_cont_exp_dj()
 
     scaled_grid = jnp.asarray(model_config["continuous_states"]["experience"]) * 2.0
