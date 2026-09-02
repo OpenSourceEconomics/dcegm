@@ -51,10 +51,9 @@ def backward_induction(
         income_shock_draws_unscaled * income_shock_std + income_shock_mean
     )
 
-    # Infer n_continuous_state_combinations from model structure
-    n_continuous_state_combinations = model_structure["continuous_state_space"][
-        next(iter(model_structure["continuous_state_space"]))
-    ].shape[0]
+    n_continuous_state_combinations = continuous_states_info[
+        "n_continuous_state_combinations"
+    ]
 
     (
         value_solved,
@@ -110,7 +109,6 @@ def backward_induction(
         xs=xs,
         params=params,
         continuous_grids_info=continuous_states_info,
-        continuous_state_space=model_structure["continuous_state_space"],
         state_choice_space_dict=model_structure["state_choice_space_dict"],
         income_shocks_scaled=income_shocks_scaled,
         model_funcs=model_funcs,

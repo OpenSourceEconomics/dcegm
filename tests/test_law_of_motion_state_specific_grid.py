@@ -110,13 +110,11 @@ def test_get_continuous_state_next_period_dummy_path_unaffected():
     # Models without an additional continuous state never touch
     # continuous_grid_functions at all.
     state_space_dict = {"group": jnp.array([0, 1])}
-    continuous_state_space = {"dummy_cont": jnp.zeros(1)}
 
     result = _get_continuous_state_next_period(
         has_additional_continuous_states=False,
         state_space_dict=state_space_dict,
         grid_source_state_choice_vec=state_space_dict,
-        continuous_state_space=continuous_state_space,
         additional_continuous_state_names=[],
         params={},
         model_funcs={},
@@ -134,7 +132,6 @@ def test_get_continuous_state_next_period_uses_grid_source_not_state_space_dict(
     grid_source_state_choice_vec = {
         "group": jnp.array([0, 1])
     }  # representative parent's group
-    continuous_state_space = {"experience": jnp.array([0.0, 1.0])}
 
     def grid_func(group):
         return jnp.where(group == 0, jnp.array([0.0, 1.0]), jnp.array([10.0, 11.0]))
@@ -146,7 +143,6 @@ def test_get_continuous_state_next_period_uses_grid_source_not_state_space_dict(
         has_additional_continuous_states=True,
         state_space_dict=state_space_dict,
         grid_source_state_choice_vec=grid_source_state_choice_vec,
-        continuous_state_space=continuous_state_space,
         additional_continuous_state_names=["experience"],
         params={},
         model_funcs={

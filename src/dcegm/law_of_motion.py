@@ -8,7 +8,6 @@ from dcegm.check_func_outputs import (
 
 def calc_law_of_motion_for_state_choices(
     state_choice_vec,
-    continuous_state_space,
     assets_grid_end_of_period,
     income_shocks_scaled,
     params,
@@ -48,7 +47,6 @@ def calc_law_of_motion_for_state_choices(
         has_additional_continuous_states=has_additional_continuous_states,
         state_space_dict=state_vec,
         grid_source_state_choice_vec=grid_source_state_choice_vec,
-        continuous_state_space=continuous_state_space,
         additional_continuous_state_names=additional_continuous_state_names,
         params=params,
         model_funcs=model_funcs,
@@ -126,7 +124,6 @@ def calc_cont_grids_next_period(
 
     return calc_law_of_motion_for_state_choices(
         state_choice_vec=state_space_dict,
-        continuous_state_space=model_structure["continuous_state_space"],
         assets_grid_end_of_period=continuous_states_info["assets_grid_end_of_period"],
         income_shocks_scaled=income_shocks_scaled,
         params=params,
@@ -147,7 +144,6 @@ def _get_continuous_state_next_period(
     has_additional_continuous_states,
     state_space_dict,
     grid_source_state_choice_vec,
-    continuous_state_space,
     additional_continuous_state_names,
     params,
     model_funcs,
@@ -156,10 +152,8 @@ def _get_continuous_state_next_period(
         # Use an explicit zero-valued dummy continuous state with stable shape
         # (n_states, 1) to keep downstream shapes constant.
         n_states = next(iter(state_space_dict.values())).shape[0]
-        dummy_name = "dummy_cont"
-        dummy_dtype = continuous_state_space[dummy_name].dtype
         dummy_states = {
-            dummy_name: jnp.zeros((n_states, 1), dtype=dummy_dtype),
+            "dummy_cont": jnp.zeros((n_states, 1)),
         }
         return dummy_states
 
@@ -176,7 +170,7 @@ def _get_continuous_state_next_period(
     )
     _check_continuous_state_output_keys(
         continuous_state_output=continuous_state_next_period,
-        continuous_state_space=continuous_state_space,
+        expected_names=additional_continuous_state_names,
     )
     return continuous_state_next_period
 
@@ -268,13 +262,14 @@ def compute_own_continuous_grid_combos(
 
 def _check_continuous_state_output_keys(
     continuous_state_output,
-    continuous_state_space,
+    expected_names,
 ):
-    expected_keys = set(continuous_state_space.keys())
+    expected_keys = set(expected_names)
     output_keys = set(continuous_state_output.keys())
     if output_keys != expected_keys:
         raise ValueError(
-            "next_period_continuous_state output keys must match continuous_state_space keys. "
+            "next_period_continuous_state output keys must match the additional "
+            "continuous state names. "
             f"Expected {sorted(expected_keys)}, got {sorted(output_keys)}."
         )
 

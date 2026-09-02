@@ -289,7 +289,6 @@ def create_test_inputs():
         ],
         income_shocks_scaled=income_shocks_scaled,
         continuous_states_info=model_config["continuous_states_info"],
-        model_structure=model.model_structure,
         params=params,
         upper_envelope_method=model_config["upper_envelope"]["method"],
         skip_endog_grid_storage=model_config["upper_envelope"][
@@ -321,7 +320,6 @@ def create_test_inputs():
         taste_shock_scale_is_scalar=True,
         income_shock_weights=income_shock_weights,
         continuous_grids_info=model_config["continuous_states_info"],
-        continuous_state_space=model.model_structure["continuous_state_space"],
         model_funcs=model_funcs_cont,
         debug_info=None,
     )
@@ -460,9 +458,9 @@ def _get_solve_last_two_periods_args(model, params, has_second_continuous_state)
         income_shock_draws_unscaled * income_shock_std + income_shock_mean
     )
 
-    n_continuous_state_combinations = model_structure["continuous_state_space"][
-        next(iter(model_structure["continuous_state_space"]))
-    ].shape[0]
+    n_continuous_state_combinations = model_config["continuous_states_info"][
+        "n_continuous_state_combinations"
+    ]
     (
         value_solved,
         policy_solved,

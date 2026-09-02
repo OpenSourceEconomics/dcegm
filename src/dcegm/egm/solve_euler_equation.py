@@ -10,7 +10,6 @@ from dcegm.law_of_motion import compute_own_continuous_grid_combos
 
 def calculate_candidate_solutions_from_euler_equation(
     continuous_grids_info: Dict[str, Any],
-    continuous_state_space: Dict[str, jnp.ndarray],
     marg_util_next: jnp.ndarray,
     emax_next: jnp.ndarray,
     state_choice_mat: Dict[str, jnp.ndarray],
@@ -48,7 +47,7 @@ def calculate_candidate_solutions_from_euler_equation(
         expected_value,
     ) = vmap(
         compute_optimal_policy_and_value_for_state_choice,
-        in_axes=(0, 0, None, 0, None, None, None, None),
+        in_axes=(0, 0, None, 0, None, None, None),
     )(
         feasible_marg_utils_child,
         feasible_emax_child,
@@ -56,7 +55,6 @@ def calculate_candidate_solutions_from_euler_equation(
         state_choice_mat,
         model_funcs,
         params,
-        continuous_state_space,
         continuous_grids_info,
     )
 
@@ -75,7 +73,6 @@ def compute_optimal_policy_and_value_for_state_choice(
     state_choice_vec: Any,
     model_funcs: Dict[str, Any],
     params: Dict[str, float],
-    continuous_state_space: Dict[str, jnp.ndarray],
     continuous_grids_info: Dict[str, Any],
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Compute EGM candidates for one state-choice, across its own combo/wealth grid.
@@ -97,10 +94,7 @@ def compute_optimal_policy_and_value_for_state_choice(
             continuous_grids_info["additional_continuous_state_names"],
         )
     else:
-        # No additional continuous state: continuous_state_space is the
-        # {"dummy_cont": ...} placeholder, identical for every state-choice -- keep
-        # using it exactly as before.
-        own_continuous_state_vec = continuous_state_space
+        own_continuous_state_vec = {"dummy_cont": jnp.zeros(1)}
 
     return vmap(
         vmap(

@@ -254,7 +254,6 @@ def _check_subset_matches_full(model, params):
 
     subset_result = calc_law_of_motion_for_state_choices(
         state_choice_vec=state_choice_subset,
-        continuous_state_space=model_structure["continuous_state_space"],
         assets_grid_end_of_period=continuous_states_info["assets_grid_end_of_period"],
         income_shocks_scaled=income_shocks_scaled,
         params=params,

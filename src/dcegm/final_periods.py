@@ -84,7 +84,6 @@ def solve_last_two_periods(
         continuous_states_info=continuous_states_info,
         upper_envelope_method=upper_envelope_method,
         skip_endog_grid_storage=skip_endog_grid_storage,
-        model_structure=model_structure,
         params=params,
         model_funcs=model_funcs,
         value_solved=value_solved,
@@ -122,7 +121,6 @@ def solve_last_two_periods(
         params=params,
         income_shock_weights=income_shock_weights,
         continuous_grids_info=continuous_states_info,
-        continuous_state_space=model_structure["continuous_state_space"],
         model_funcs=model_funcs,
         debug_info=debug_info,
     )
@@ -175,7 +173,6 @@ def solve_final_period(
     continuous_states_info: Dict[str, Any],
     upper_envelope_method: str,
     skip_endog_grid_storage: bool,
-    model_structure: Dict[str, Any],
     params: Dict[str, float],
     model_funcs: Dict[str, Any],
     value_solved,
@@ -211,7 +208,6 @@ def solve_final_period(
 
     law_of_motion_final_period = calc_law_of_motion_for_state_choices(
         state_choice_vec=state_choice_mat_final_period,
-        continuous_state_space=model_structure["continuous_state_space"],
         assets_grid_end_of_period=continuous_states_info["assets_grid_end_of_period"],
         income_shocks_scaled=income_shocks_scaled,
         params=params,

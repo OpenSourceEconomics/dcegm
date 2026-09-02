@@ -26,7 +26,6 @@ def interpolate_value_and_marg_util(
     endog_grid_child_state_choice: jnp.ndarray,
     policy_child_state_choice: jnp.ndarray,
     value_child_state_choice: jnp.ndarray,
-    continuous_state_space,
     params: Dict[str, float],
     upper_envelope_method: str,
     skip_endog_grid_storage: bool,
@@ -81,7 +80,6 @@ def interpolate_value_and_marg_util(
     # structure (see law_of_motion.py).
     law_of_motion = calc_law_of_motion_for_state_choices(
         state_choice_vec=state_choice_vec,
-        continuous_state_space=continuous_state_space,
         assets_grid_end_of_period=continuous_grids_info["assets_grid_end_of_period"],
         income_shocks_scaled=income_shocks_scaled,
         params=params,

@@ -56,9 +56,9 @@ def partially_solve(
         relevant_state_choices_mask
     ]
 
-    n_continuous_state_combinations = model_structure["continuous_state_space"][
-        next(iter(model_structure["continuous_state_space"]))
-    ].shape[0]
+    n_continuous_state_combinations = continuous_states_info[
+        "n_continuous_state_combinations"
+    ]
     (
         value_solved,
         policy_solved,
@@ -221,7 +221,6 @@ def partially_solve(
                 xs=xs,
                 params=params,
                 continuous_grids_info=continuous_states_info,
-                continuous_state_space=model_structure["continuous_state_space"],
                 state_choice_space_dict=model_structure["state_choice_space_dict"],
                 income_shocks_scaled=income_shocks_scaled,
                 model_funcs=model_funcs,

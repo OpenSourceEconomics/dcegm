@@ -92,6 +92,21 @@ def check_model_config_and_process(model_config):
     continuous_states_info["has_additional_continuous_state"] = (
         continuous_states_info["n_additional_continuous_states"] > 0
     )
+    # Number of combo points spanned by the additional continuous states' default
+    # grids (1 -- the dummy placeholder -- when there are none). Only the *count* is
+    # needed here, for sizing solution containers: every state-choice's own grid for
+    # a given name has this same length by construction (state-specific grids may
+    # vary in value, not size), regardless of which values it actually holds.
+    continuous_states_info["n_continuous_state_combinations"] = int(
+        np.prod(
+            [
+                len(grid)
+                for grid in continuous_states_info[
+                    "additional_continuous_state_grids"
+                ].values()
+            ]
+        )
+    )
 
     processed_model_config["continuous_states_info"] = continuous_states_info
 
