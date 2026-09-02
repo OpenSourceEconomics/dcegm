@@ -2,6 +2,9 @@ import warnings
 
 import numpy as np
 
+from dcegm.pre_processing.model_structure.continuous_state_grids import (
+    check_continuous_grid_consistency_across_shared_children,
+)
 from dcegm.pre_processing.model_structure.shared import create_indexer_for_space
 from dcegm.pre_processing.shared import get_smallest_int_type
 
@@ -11,6 +14,7 @@ def create_state_choice_space_and_child_state_mapping(
     state_specific_choice_set,
     next_period_deterministic_state,
     state_space_arrays,
+    grids_per_state=None,
 ):
     """Create state choice space of all feasible state-choice combinations.
 
@@ -222,6 +226,14 @@ def create_state_choice_space_and_child_state_mapping(
         key: state_choice_space[:, i]
         for i, key in enumerate(discrete_states_names + ["choice"])
     }
+
+    check_continuous_grid_consistency_across_shared_children(
+        state_choice_space=state_choice_space,
+        discrete_states_names=discrete_states_names,
+        map_state_choice_to_parent_state=map_state_choice_to_parent_state,
+        map_state_choice_to_child_states=map_state_choice_to_child_states,
+        grids_per_state=grids_per_state or {},
+    )
 
     test_child_state_mapping(
         model_config=model_config,

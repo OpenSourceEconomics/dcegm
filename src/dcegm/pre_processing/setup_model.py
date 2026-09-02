@@ -32,6 +32,7 @@ def create_model_dict(
     state_space_functions: Dict[str, Callable] = None,
     stochastic_states_transitions: Dict[str, Callable] = None,
     shock_functions: Dict[str, Callable] = None,
+    continuous_grid_functions: Dict[str, Callable] = None,
     debug_info: str = None,
     use_stochastic_sparsity=False,
 ):
@@ -81,6 +82,7 @@ def create_model_dict(
         budget_constraint=budget_constraint,
         stochastic_states_transitions=stochastic_states_transitions,
         shock_functions=shock_functions,
+        continuous_grid_functions=continuous_grid_functions,
     )
 
     specs_read_funcs, specs_params_info = extract_model_specs_info(model_specs)
@@ -156,6 +158,7 @@ def create_model_dict_and_save(
     state_space_functions: Dict[str, Callable] = None,
     stochastic_states_transitions: Dict[str, Callable] = None,
     shock_functions: Dict[str, Callable] = None,
+    continuous_grid_functions: Dict[str, Callable] = None,
     path: str = "model.pkl",
     debug_info=None,
     use_stochastic_sparsity=False,
@@ -176,6 +179,7 @@ def create_model_dict_and_save(
         state_space_functions=state_space_functions,
         stochastic_states_transitions=stochastic_states_transitions,
         shock_functions=shock_functions,
+        continuous_grid_functions=continuous_grid_functions,
         debug_info=debug_info,
         use_stochastic_sparsity=use_stochastic_sparsity,
     )
@@ -198,6 +202,7 @@ def load_model_dict(
     state_space_functions: Dict[str, Callable] = None,
     stochastic_states_transitions: Dict[str, Callable] = None,
     shock_functions: Dict[str, Callable] = None,
+    continuous_grid_functions: Dict[str, Callable] = None,
     path: str = "model.pkl",
     use_stochastic_sparsity=False,
 ):
@@ -216,6 +221,7 @@ def load_model_dict(
             budget_constraint=budget_constraint,
             stochastic_states_transitions=stochastic_states_transitions,
             shock_functions=shock_functions,
+            continuous_grid_functions=continuous_grid_functions,
         )
     )
 

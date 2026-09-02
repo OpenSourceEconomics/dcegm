@@ -1,6 +1,9 @@
 import jax
 from jax import numpy as jnp
 
+from dcegm.pre_processing.model_structure.continuous_state_grids import (
+    evaluate_state_specific_continuous_grids,
+)
 from dcegm.pre_processing.model_structure.state_choice_space import (
     create_state_choice_space_and_child_state_mapping,
 )
@@ -57,6 +60,14 @@ def create_model_structure(
     print("State space created.\n")
     print("Starting state-choice space creation and child state mapping.")
 
+    grids_per_state = evaluate_state_specific_continuous_grids(
+        state_space=state_space_objects["state_space"],
+        discrete_states_names=state_space_objects["discrete_states_names"],
+        continuous_grid_functions=model_funcs["continuous_grid_functions"],
+        state_specific_names=model_funcs["state_specific_continuous_grid_names"],
+        continuous_states_info=continuous_states_info,
+    )
+
     state_choice_and_child_state_objects = (
         create_state_choice_space_and_child_state_mapping(
             model_config=model_config,
@@ -65,6 +76,7 @@ def create_model_structure(
                 "next_period_deterministic_state"
             ],
             state_space_arrays=state_space_objects,
+            grids_per_state=grids_per_state,
         )
     )
     state_space_objects.pop("map_state_to_index_with_proxy")

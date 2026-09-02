@@ -27,6 +27,7 @@ def process_model_functions_and_extract_info(
     budget_constraint: Callable,
     stochastic_states_transitions: Optional[Dict[str, Callable]] = None,
     shock_functions: Optional[Dict[str, Callable]] = None,
+    continuous_grid_functions: Optional[Dict[str, Callable]] = None,
 ):
     """Create wrapped functions from user supplied functions.
 
@@ -142,6 +143,14 @@ def process_model_functions_and_extract_info(
         has_additional_continuous_states=has_additional_continuous_states,
     )
 
+    continuous_grid_functions_processed, state_specific_continuous_grid_names = (
+        process_continuous_grid_functions(
+            continuous_grid_functions=continuous_grid_functions,
+            model_config=model_config,
+            model_specs=model_specs_jax,
+        )
+    )
+
     # Budget equation
     compute_assets_begin_of_period = (
         determine_function_arguments_and_partial_model_specs(
@@ -180,6 +189,8 @@ def process_model_functions_and_extract_info(
         "next_period_deterministic_state": next_period_deterministic_state,
         "compute_upper_envelope": compute_upper_envelope,
         "taste_shock_function": taste_shock_function_processed,
+        "continuous_grid_functions": continuous_grid_functions_processed,
+        "state_specific_continuous_grid_names": state_specific_continuous_grid_names,
     }
 
     return model_funcs, model_config_processed
@@ -285,3 +296,80 @@ def process_second_continuous_update_function(
         next_period_continuous_state = None
 
     return next_period_continuous_state
+
+
+def process_continuous_grid_functions(
+    continuous_grid_functions, model_config, model_specs
+):
+    """Wrap every continuous state's grid into one uniform callable.
+
+    ``continuous_grid_functions`` is an optional user-supplied
+    ``Dict[str, Callable]``, following the same convention as
+    ``shock_functions``/``stochastic_states_transitions``: a top-level argument to
+    ``create_model_dict``, not something nested inside ``model_config`` (which
+    holds data/config, never functions). Keys are continuous-state names (any of
+    the additional continuous states, ``assets_end_of_period``, or, if present,
+    ``assets_begin_of_period``); values are callables
+    ``(**discrete_state) -> 1d array``, processed the same way as
+    ``sparsity_condition``/``next_period_deterministic_state``.
+
+    Every continuous state of the model gets a callable in the returned dict,
+    state-specified or not: states left unspecified keep today's behavior via a
+    callable that ignores its input and always returns the one global grid
+    declared in ``model_config["continuous_states"]``.
+
+    These are evaluated on demand wherever a batch needs a state's own grid during
+    solving, not precomputed for the whole state space -- see
+    docs/source/development/internals/state_specific_continuous_grids_plan.md for
+    why. The one exception is the one-time, NumPy-side consistency check in
+    ``continuous_state_grids.py``, run once during model-structure construction,
+    for which this function also returns the list of state-specific names (so that
+    check can skip names left at their default, which are trivially consistent).
+
+    """
+    continuous_grid_functions = (
+        {} if continuous_grid_functions is None else continuous_grid_functions
+    )
+    if not isinstance(continuous_grid_functions, dict):
+        raise ValueError("continuous_grid_functions must be a dictionary.")
+
+    continuous_states_info = model_config["continuous_states_info"]
+    default_grids = dict(continuous_states_info["additional_continuous_state_grids"])
+    default_grids["assets_end_of_period"] = continuous_states_info[
+        "assets_grid_end_of_period"
+    ]
+    if "assets_begin_of_period" in continuous_states_info:
+        default_grids["assets_begin_of_period"] = continuous_states_info[
+            "assets_begin_of_period"
+        ]
+
+    for name, grid_func in continuous_grid_functions.items():
+        if name not in default_grids:
+            raise ValueError(
+                f"continuous_grid_functions contains the key '{name}', which is "
+                f"not a continuous state of this model. Valid keys are: "
+                f"{sorted(default_grids)}."
+            )
+        if not callable(grid_func):
+            raise ValueError(
+                f"continuous_grid_functions['{name}'] must be a callable of the "
+                "form (**discrete_state) -> 1d array."
+            )
+
+    continuous_grid_functions_processed = {}
+    for name, default_grid in default_grids.items():
+        if name in continuous_grid_functions:
+            continuous_grid_functions_processed[name] = (
+                determine_function_arguments_and_partial_model_specs(
+                    func=continuous_grid_functions[name],
+                    model_specs=model_specs,
+                )
+            )
+        else:
+
+            def constant_grid_func(default_grid=default_grid, **kwargs):
+                return default_grid
+
+            continuous_grid_functions_processed[name] = constant_grid_func
+
+    return continuous_grid_functions_processed, list(continuous_grid_functions.keys())
