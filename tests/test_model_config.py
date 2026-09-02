@@ -130,6 +130,17 @@ def test_skip_endog_grid_storage_false_for_fues(valid_model_config):
     assert options["upper_envelope"]["skip_endog_grid_storage"] is False
 
 
+def test_fues_rejects_assets_begin_of_period(valid_model_config):
+    # assets_begin_of_period is only meaningful for druedahl_jorgensen; declaring
+    # it together with fues (the default method here) used to be silently
+    # ignored rather than rejected.
+    valid_model_config["continuous_states"]["assets_begin_of_period"] = np.linspace(
+        0, 10, 11
+    )
+    with pytest.raises(ValueError, match="only used by the 'druedahl_jorgensen'"):
+        check_model_config_and_process(valid_model_config)
+
+
 def test_dj_wealth_grid_and_skip_flag(valid_model_config):
     valid_model_config["upper_envelope"] = {"method": "druedahl_jorgensen"}
     valid_model_config["continuous_states"]["assets_begin_of_period"] = np.linspace(

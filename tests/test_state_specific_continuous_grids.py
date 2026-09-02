@@ -1,5 +1,10 @@
 """Tests for state-specific continuous state grids (Phases 0 and 1).
 
+Grids live on the state-choice space, not the bare state space -- that's where
+the solution itself lives (value_solved/policy_solved/endog_grid_solved are
+indexed by state-choice). A grid may therefore depend on the discrete state *and*
+on "choice".
+
 See docs/source/development/internals/state_specific_continuous_grids_plan.md.
 
 """
@@ -45,6 +50,11 @@ def _base_model_config():
 
 
 def test_continuous_grid_functions_absent_defaults_to_constant_grids():
+    # Both "assets_end_of_period" and "experience" go through the constant-wrapper
+    # branch here (neither is state-specific), with two *different* default grids
+    # -- a regression test for a late-binding-closure-in-a-loop bug where every
+    # constant wrapper would have ended up returning the last-processed default
+    # grid instead of its own (see process_continuous_grid_functions).
     processed = check_model_config_and_process(_base_model_config())
     continuous_grid_functions, state_specific_names = process_continuous_grid_functions(
         continuous_grid_functions=None, model_config=processed, model_specs={}
@@ -53,6 +63,12 @@ def test_continuous_grid_functions_absent_defaults_to_constant_grids():
     np.testing.assert_allclose(
         continuous_grid_functions["experience"](period=0, lagged_choice=0, group=1),
         np.linspace(0, 1, 4),
+    )
+    np.testing.assert_allclose(
+        continuous_grid_functions["assets_end_of_period"](
+            period=0, lagged_choice=0, group=1
+        ),
+        np.linspace(0, 1, 10),
     )
 
 
@@ -125,9 +141,30 @@ def test_process_continuous_grid_functions_wraps_state_specific_and_default_name
     )
 
 
+def test_process_continuous_grid_functions_allows_choice_dependence():
+    # Grids live on the state-choice space, so "choice" is a legitimate parameter,
+    # unlike model_specs/state-only functions elsewhere in the codebase.
+    def grid_func(choice):
+        return np.linspace(0, 1, 4) * (choice + 1)
+
+    processed = check_model_config_and_process(_base_model_config())
+    continuous_grid_functions, state_specific_names = process_continuous_grid_functions(
+        continuous_grid_functions={"experience": grid_func},
+        model_config=processed,
+        model_specs={},
+    )
+    assert state_specific_names == ["experience"]
+    np.testing.assert_allclose(
+        continuous_grid_functions["experience"](
+            period=0, lagged_choice=0, group=1, choice=1
+        ),
+        np.linspace(0, 1, 4) * 2,
+    )
+
+
 def test_evaluate_state_specific_grids_rejects_wrong_length():
-    state_space = np.array([[0, 0, 0], [0, 0, 1]])
-    discrete_states_names = ["period", "lagged_choice", "group"]
+    state_choice_space = np.array([[0, 0, 0, 0], [0, 0, 1, 1]])
+    discrete_state_choice_names = ["period", "lagged_choice", "group", "choice"]
     continuous_states_info = {
         "additional_continuous_state_grids": {"experience": np.linspace(0, 1, 4)},
         "assets_grid_end_of_period": np.linspace(0, 1, 10),
@@ -138,8 +175,8 @@ def test_evaluate_state_specific_grids_rejects_wrong_length():
 
     with pytest.raises(ValueError, match="must be a 1d array"):
         evaluate_state_specific_continuous_grids(
-            state_space=state_space,
-            discrete_states_names=discrete_states_names,
+            state_choice_space=state_choice_space,
+            discrete_state_choice_names=discrete_state_choice_names,
             continuous_grid_functions={"experience": bad_grid_func},
             state_specific_names=["experience"],
             continuous_states_info=continuous_states_info,
@@ -147,21 +184,21 @@ def test_evaluate_state_specific_grids_rejects_wrong_length():
 
 
 def test_evaluate_state_specific_grids_skips_names_without_user_callable():
-    state_space = np.array([[0, 0, 0], [0, 0, 1]])
-    discrete_states_names = ["period", "lagged_choice", "group"]
+    state_choice_space = np.array([[0, 0, 0, 0], [0, 0, 1, 1]])
+    discrete_state_choice_names = ["period", "lagged_choice", "group", "choice"]
     continuous_states_info = {
         "additional_continuous_state_grids": {"experience": np.linspace(0, 1, 4)},
         "assets_grid_end_of_period": np.linspace(0, 1, 10),
     }
 
-    grids_per_state = evaluate_state_specific_continuous_grids(
-        state_space=state_space,
-        discrete_states_names=discrete_states_names,
+    grids_per_state_choice = evaluate_state_specific_continuous_grids(
+        state_choice_space=state_choice_space,
+        discrete_state_choice_names=discrete_state_choice_names,
         continuous_grid_functions={},
         state_specific_names=[],
         continuous_states_info=continuous_states_info,
     )
-    assert grids_per_state == {}
+    assert grids_per_state_choice == {}
 
 
 # =====================================================================================
@@ -190,7 +227,11 @@ def _build_state_choice_objects(grid_func_dict, group_resets_on_choice=False):
         # parent to child), like sex/education would be. When
         # group_resets_on_choice is True, it instead becomes a function of the
         # choice -- i.e. it no longer passes through 1:1, so two different parents
-        # can share a child while disagreeing on their own "group".
+        # can share a child while disagreeing on their own "group". "choice"
+        # itself always passes through 1:1 into the child's own "lagged_choice"
+        # (enforced by check_endog_update_function in state_choice_space.py), so a
+        # grid depending only on "choice" can never violate the consistency check,
+        # regardless of what else is going on.
         next_group = kwargs["choice"] % 3 if group_resets_on_choice else kwargs["group"]
         return {
             "period": kwargs["period"] + 1,
@@ -201,20 +242,13 @@ def _build_state_choice_objects(grid_func_dict, group_resets_on_choice=False):
     def state_specific_choice_set(**kwargs):
         return np.array([0, 1])
 
-    grids_per_state = evaluate_state_specific_continuous_grids(
-        state_space=state_space_objects["state_space"],
-        discrete_states_names=state_space_objects["discrete_states_names"],
-        continuous_grid_functions=continuous_grid_functions,
-        state_specific_names=state_specific_names,
-        continuous_states_info=processed_config["continuous_states_info"],
-    )
-
     return (
         processed_config,
         state_space_objects,
         next_period_deterministic_state,
         state_specific_choice_set,
-        grids_per_state,
+        continuous_grid_functions,
+        state_specific_names,
     )
 
 
@@ -227,7 +261,8 @@ def test_grid_depending_on_time_invariant_state_passes():
         state_space_objects,
         next_period_deterministic_state,
         state_specific_choice_set,
-        grids_per_state,
+        continuous_grid_functions,
+        state_specific_names,
     ) = _build_state_choice_objects({"experience": grid_func})
 
     # "group" is time invariant and shared by parent and child by construction, so
@@ -237,7 +272,39 @@ def test_grid_depending_on_time_invariant_state_passes():
         state_specific_choice_set=state_specific_choice_set,
         next_period_deterministic_state=next_period_deterministic_state,
         state_space_arrays=state_space_objects,
-        grids_per_state=grids_per_state,
+        continuous_grid_functions=continuous_grid_functions,
+        state_specific_continuous_grid_names=state_specific_names,
+    )
+
+
+def test_grid_depending_on_choice_always_passes():
+    # "choice" always passes through 1:1 into the child (it becomes the child's
+    # own "lagged_choice") -- so two parents sharing a child are guaranteed to
+    # have made the same choice, and a grid depending only on "choice" can never
+    # violate the consistency check. Combined with group_resets_on_choice=True,
+    # which *would* break a group-dependent grid (see the test below), to show
+    # this holds regardless of what else varies.
+    def grid_func(choice):
+        return np.linspace(0, 1, 4) * (choice + 1)
+
+    (
+        processed_config,
+        state_space_objects,
+        next_period_deterministic_state,
+        state_specific_choice_set,
+        continuous_grid_functions,
+        state_specific_names,
+    ) = _build_state_choice_objects(
+        {"experience": grid_func}, group_resets_on_choice=True
+    )
+
+    create_state_choice_space_and_child_state_mapping(
+        model_config=processed_config,
+        state_specific_choice_set=state_specific_choice_set,
+        next_period_deterministic_state=next_period_deterministic_state,
+        state_space_arrays=state_space_objects,
+        continuous_grid_functions=continuous_grid_functions,
+        state_specific_continuous_grid_names=state_specific_names,
     )
 
 
@@ -250,19 +317,23 @@ def test_grid_depending_on_lagged_choice_fails():
         state_space_objects,
         next_period_deterministic_state,
         state_specific_choice_set,
-        grids_per_state,
+        continuous_grid_functions,
+        state_specific_names,
     ) = _build_state_choice_objects({"experience": grid_func})
 
     # A parent with lagged_choice=0 and one with lagged_choice=1 both choosing
     # choice=1 land on the same child (period+1, lagged_choice=1, same group), but
-    # disagree on their own grid (indexed by their own lagged_choice) -- must raise.
+    # disagree on their own grid (indexed by their own lagged_choice -- note this
+    # is the *parent's* pre-existing state, not "choice" itself, which always
+    # passes through consistently) -- must raise.
     with pytest.raises(ValueError, match="different grids"):
         create_state_choice_space_and_child_state_mapping(
             model_config=processed_config,
             state_specific_choice_set=state_specific_choice_set,
             next_period_deterministic_state=next_period_deterministic_state,
             state_space_arrays=state_space_objects,
-            grids_per_state=grids_per_state,
+            continuous_grid_functions=continuous_grid_functions,
+            state_specific_continuous_grid_names=state_specific_names,
         )
 
 
@@ -275,7 +346,8 @@ def test_grid_on_state_that_does_not_pass_through_1to1_fails():
         state_space_objects,
         next_period_deterministic_state,
         state_specific_choice_set,
-        grids_per_state,
+        continuous_grid_functions,
+        state_specific_names,
     ) = _build_state_choice_objects(
         {"experience": grid_func}, group_resets_on_choice=True
     )
@@ -289,17 +361,18 @@ def test_grid_on_state_that_does_not_pass_through_1to1_fails():
             state_specific_choice_set=state_specific_choice_set,
             next_period_deterministic_state=next_period_deterministic_state,
             state_space_arrays=state_space_objects,
-            grids_per_state=grids_per_state,
+            continuous_grid_functions=continuous_grid_functions,
+            state_specific_continuous_grid_names=state_specific_names,
         )
 
 
 def test_no_state_specific_grids_is_a_no_op():
-    # grids_per_state=None (the default) must behave exactly like grids_per_state={}.
     (
         processed_config,
         state_space_objects,
         next_period_deterministic_state,
         state_specific_choice_set,
+        _,
         _,
     ) = _build_state_choice_objects({})
 
@@ -321,13 +394,12 @@ def test_check_function_directly_with_hand_built_mapping():
         ]
     )
     discrete_states_names = ["period", "lagged_choice", "group"]
-    map_state_choice_to_parent_state = np.array([0, 1])
     map_state_choice_to_child_states = np.array([[5], [5]])
-    grids_per_state = {
+    grids_per_state_choice = {
         "experience": np.array(
             [
-                [0.0, 1.0],  # parent state 0's own grid
-                [0.0, 2.0],  # parent state 1's own grid -- disagrees
+                [0.0, 1.0],  # row 0's own grid
+                [0.0, 2.0],  # row 1's own grid -- disagrees
             ]
         )
     }
@@ -336,9 +408,8 @@ def test_check_function_directly_with_hand_built_mapping():
         check_continuous_grid_consistency_across_shared_children(
             state_choice_space=state_choice_space,
             discrete_states_names=discrete_states_names,
-            map_state_choice_to_parent_state=map_state_choice_to_parent_state,
             map_state_choice_to_child_states=map_state_choice_to_child_states,
-            grids_per_state=grids_per_state,
+            grids_per_state_choice=grids_per_state_choice,
         )
 
 
@@ -350,9 +421,8 @@ def test_check_function_directly_passes_when_grids_agree():
         ]
     )
     discrete_states_names = ["period", "lagged_choice", "group"]
-    map_state_choice_to_parent_state = np.array([0, 1])
     map_state_choice_to_child_states = np.array([[5], [5]])
-    grids_per_state = {
+    grids_per_state_choice = {
         "experience": np.array(
             [
                 [0.0, 1.0],
@@ -364,7 +434,6 @@ def test_check_function_directly_passes_when_grids_agree():
     check_continuous_grid_consistency_across_shared_children(
         state_choice_space=state_choice_space,
         discrete_states_names=discrete_states_names,
-        map_state_choice_to_parent_state=map_state_choice_to_parent_state,
         map_state_choice_to_child_states=map_state_choice_to_child_states,
-        grids_per_state=grids_per_state,
+        grids_per_state_choice=grids_per_state_choice,
     )

@@ -111,6 +111,7 @@ def backward_induction(
         params=params,
         continuous_grids_info=continuous_states_info,
         continuous_state_space=model_structure["continuous_state_space"],
+        state_choice_space_dict=model_structure["state_choice_space_dict"],
         income_shocks_scaled=income_shocks_scaled,
         model_funcs=model_funcs,
         income_shock_weights=income_shock_weights,
@@ -139,6 +140,7 @@ def backward_induction(
                 segment_info["child_states_idxs"],
                 segment_info["state_choices"],
                 segment_info["state_choices_childs"],
+                segment_info["representative_parent_state_choice_idx"],
             ),
         )
 
@@ -154,6 +156,7 @@ def backward_induction(
                     last_batch_info["child_states_idxs"],
                     last_batch_info["state_choices"],
                     last_batch_info["state_choices_childs"],
+                    last_batch_info["representative_parent_state_choice_idx"],
                 ),
             )
 

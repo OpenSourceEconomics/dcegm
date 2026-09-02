@@ -1,5 +1,7 @@
 import numpy as np
 
+from dcegm.pre_processing.batches.child_state_dedup import compute_child_dedup_for_batch
+
 
 def determine_optimal_batch_size(
     bool_state_choices_to_batch,
@@ -62,53 +64,31 @@ def determine_optimal_batch_size(
         child_states_to_integrate_exog = []
         child_state_choices_to_aggr_choice = []
         child_state_choice_idxs_to_interpolate = []
+        representative_parent_state_choice_for_child = []
 
         for i, batch in enumerate(batches_to_check):
-            # First get all child states and a mapping from the state-choice to the
-            # different child states due to exogenous change of states.
-            child_states_idxs = map_state_choice_to_child_states[batch]
-            unique_child_states, inverse_ids = np.unique(
-                child_states_idxs, return_index=False, return_inverse=True
-            )
-            child_states_to_integrate_exog += [
-                inverse_ids.reshape(child_states_idxs.shape)
-            ]
-
-            # Next we use the child state indexes to get all unique child states and
-            # their corresponding state-choices.
-            child_states_batch = np.take(state_space, unique_child_states, axis=0)
-            child_states_tuple = tuple(
-                child_states_batch[:, i] for i in range(n_state_vars)
-            )
-            unique_state_choice_idxs_childs = map_state_choice_to_index[
-                child_states_tuple
-            ]
-
-            # Now we create a mapping from the child-state choices back to the states
-            # with state-choices in columns for the choices
             (
+                child_states_to_integrate_exog_batch,
+                child_state_choices_to_aggr_choice_batch,
                 unique_child_state_choice_idxs,
-                inverse_child_state_choice_ids,
-            ) = np.unique(
-                unique_state_choice_idxs_childs, return_index=False, return_inverse=True
+                representative_parent_state_choice_batch,
+            ) = compute_child_dedup_for_batch(
+                batch=batch,
+                map_state_choice_to_child_states=map_state_choice_to_child_states,
+                map_state_choice_to_index=map_state_choice_to_index,
+                state_space=state_space,
+                n_state_vars=n_state_vars,
+                invalid_state_idx=invalid_state_idx,
+                out_of_bounds_state_choice_idx=out_of_bounds_state_choice_idx,
             )
-
-            # Treat invalid choices:
-            if unique_child_state_choice_idxs[-1] == invalid_state_idx:
-                unique_child_state_choice_idxs = unique_child_state_choice_idxs[:-1]
-                inverse_child_state_choice_ids[
-                    inverse_child_state_choice_ids
-                    >= np.max(inverse_child_state_choice_ids)
-                ] = out_of_bounds_state_choice_idx
-
-            # Save the mapping from child-state-choices to child-states
+            child_states_to_integrate_exog += [child_states_to_integrate_exog_batch]
             child_state_choices_to_aggr_choice += [
-                inverse_child_state_choice_ids.reshape(
-                    unique_state_choice_idxs_childs.shape
-                )
+                child_state_choices_to_aggr_choice_batch
             ]
-            # And the list of the unique child states.
             child_state_choice_idxs_to_interpolate += [unique_child_state_choice_idxs]
+            representative_parent_state_choice_for_child += [
+                representative_parent_state_choice_batch
+            ]
 
             # Now check if the smallest index of the child state choices is larger than
             # the maximum index of the batch, i.e. if all state choice relevant to
@@ -129,4 +109,5 @@ def determine_optimal_batch_size(
         child_state_choice_idxs_to_interpolate,
         child_state_choices_to_aggr_choice,
         child_states_to_integrate_exog,
+        representative_parent_state_choice_for_child,
     )

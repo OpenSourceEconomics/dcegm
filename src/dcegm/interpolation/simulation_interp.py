@@ -10,6 +10,10 @@ from dcegm.interpolation.interp2d_irregular import (
 from dcegm.interpolation.interpnd_regular import (
     interpnd_policy_and_value_for_child_states_on_regular_grids,
 )
+from dcegm.law_of_motion import (
+    compute_own_continuous_grid_combos,
+    compute_own_continuous_grids_raw,
+)
 
 
 def interpolate_policy_and_value_for_all_agents(
@@ -24,8 +28,7 @@ def interpolate_policy_and_value_for_all_agents(
     params,
     discrete_states_names,
     compute_utility,
-    continuous_state_space,
-    additional_continuous_state_grids,
+    continuous_grid_functions,
     upper_envelope_method,
     has_additional_continuous_state,
     discount_factor,
@@ -182,7 +185,7 @@ def interpolate_policy_and_value_for_all_agents(
             value_grid_agent,
             policy_grid_agent,
             choice_range,
-            continuous_state_space,
+            continuous_grid_functions,
             continuous_state_name,
             params,
             compute_utility,
@@ -229,7 +232,9 @@ def interpolate_policy_and_value_for_all_agents(
             )
             endog_grid_in_axes = 0
 
-        additional_continuous_state_names = list(continuous_state_space.keys())
+        additional_continuous_state_names = list(
+            continuous_state_beginning_of_period.keys()
+        )
 
         vectorized_interp = vmap(
             vmap(
@@ -242,7 +247,6 @@ def interpolate_policy_and_value_for_all_agents(
                     0,
                     0,
                     0,
-                    None,
                     None,
                     None,
                     None,
@@ -263,7 +267,6 @@ def interpolate_policy_and_value_for_all_agents(
                 None,
                 None,
                 None,
-                None,
             ),
         )
 
@@ -275,8 +278,7 @@ def interpolate_policy_and_value_for_all_agents(
             value_grid_agent,
             policy_grid_agent,
             choice_range,
-            continuous_state_space,
-            additional_continuous_state_grids,
+            continuous_grid_functions,
             additional_continuous_state_names,
             params,
             compute_utility,
@@ -338,7 +340,7 @@ def interp2d_policy_and_value_function(
     value_agent,
     policy_agent,
     choice,
-    continuous_state_space,
+    continuous_grid_functions,
     continuous_state_name,
     params,
     compute_utility,
@@ -346,8 +348,16 @@ def interp2d_policy_and_value_function(
 ):
     state_choice_vec = {**state, "choice": choice}
 
+    # Self-referential: the stored solution for this state-choice was solved on
+    # its own grid, so evaluating the grid function on itself reproduces it.
+    own_continuous_state_space = {
+        continuous_state_name: continuous_grid_functions[continuous_state_name](
+            **state_choice_vec
+        )
+    }
+
     policy_interp, value_interp = interp2d_policy_and_value_on_wealth_and_regular_grid(
-        continuous_state_space=continuous_state_space,
+        continuous_state_space=own_continuous_state_space,
         wealth_grid=endog_grid_agent,
         policy_grid=policy_agent,
         value_grid=value_agent,
@@ -372,14 +382,22 @@ def interpnd_policy_and_value_function(
     value_agent,
     policy_agent,
     choice,
-    continuous_state_space,
-    additional_continuous_state_grids,
+    continuous_grid_functions,
     additional_continuous_state_names,
     params,
     compute_utility,
     discount_factor,
 ):
     state_choice_vec = {**state, "choice": choice}
+
+    # Self-referential: the stored solution for this state-choice was solved on
+    # its own grid, so evaluating the grid function on itself reproduces it.
+    own_continuous_state_grids = compute_own_continuous_grids_raw(
+        state_choice_vec, continuous_grid_functions, additional_continuous_state_names
+    )
+    own_continuous_state_space = compute_own_continuous_grid_combos(
+        state_choice_vec, continuous_grid_functions, additional_continuous_state_names
+    )
 
     continuous_state_child_states = {
         name: continuous_state_beginning_of_period[name][None, None]
@@ -391,7 +409,7 @@ def interpnd_policy_and_value_function(
 
     policy_interp, value_interp = (
         interpnd_policy_and_value_for_child_states_on_regular_grids(
-            additional_continuous_state_grids=additional_continuous_state_grids,
+            additional_continuous_state_grids=own_continuous_state_grids,
             wealth_grid=endog_grid_agent[0],
             policy_grid_child_states=policy_agent[None, ...],
             value_grid_child_states=value_agent[None, ...],
@@ -404,10 +422,13 @@ def interpnd_policy_and_value_function(
         )
     )
 
-    exact_mask = jnp.ones_like(next(iter(continuous_state_space.values())), dtype=bool)
+    exact_mask = jnp.ones_like(
+        next(iter(own_continuous_state_space.values())), dtype=bool
+    )
     for name in additional_continuous_state_names:
         exact_mask = exact_mask & jnp.isclose(
-            continuous_state_space[name], continuous_state_beginning_of_period[name]
+            own_continuous_state_space[name],
+            continuous_state_beginning_of_period[name],
         )
     has_exact_combo = jnp.any(exact_mask)
     combo_idx = jnp.argmax(exact_mask)

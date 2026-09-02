@@ -88,6 +88,7 @@ def simulate_all_periods(
         model_funcs_sim=alt_model_funcs_sim,
         compute_utility=model_funcs["compute_utility"],
         read_funcs=model_funcs["read_funcs"],
+        continuous_grid_functions=model_funcs["continuous_grid_functions"],
         model_config=model_config,
     )
 
@@ -140,6 +141,7 @@ def simulate_single_period(
     model_funcs_sim,
     compute_utility,
     read_funcs,
+    continuous_grid_functions,
     model_config,
 ):
 
@@ -187,10 +189,7 @@ def simulate_single_period(
         params=params,
         discrete_states_names=model_structure_sol["discrete_states_names"],
         compute_utility=compute_utility,
-        continuous_state_space=model_structure_sol["continuous_state_space"],
-        additional_continuous_state_grids=continuous_states_info[
-            "additional_continuous_state_grids"
-        ],
+        continuous_grid_functions=continuous_grid_functions,
         upper_envelope_method=model_config["upper_envelope"]["method"],
         has_additional_continuous_state=has_additional_continuous_state,
         discount_factor=discount_factor,

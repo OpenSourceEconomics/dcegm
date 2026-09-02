@@ -1,6 +1,7 @@
 import numpy as np
 
 from dcegm.pre_processing.batches.algo_batch_size import determine_optimal_batch_size
+from dcegm.pre_processing.batches.child_state_dedup import compute_child_dedup_for_batch
 
 
 def create_single_segment_of_batches(
@@ -33,6 +34,7 @@ def create_single_segment_of_batches(
             child_state_choice_idxs_to_interp_list,
             child_state_choices_to_aggr_choice_list,
             child_states_to_integrate_stochastic_list,
+            representative_parent_state_choice_for_child_list,
         ) = determine_optimal_batch_size(
             bool_state_choices_to_batch=bool_state_choices_to_batch,
             state_choice_space=state_choice_space,
@@ -46,6 +48,7 @@ def create_single_segment_of_batches(
             child_states_to_integrate_stochastic_list,
             child_state_choices_to_aggr_choice_list,
             child_state_choice_idxs_to_interp_list,
+            representative_parent_state_choice_for_child_list,
             batches_cover_all,
             last_batch_info,
         ) = correct_for_uneven_last_batch(
@@ -53,6 +56,7 @@ def create_single_segment_of_batches(
             child_states_to_integrate_stochastic_list,
             child_state_choices_to_aggr_choice_list,
             child_state_choice_idxs_to_interp_list,
+            representative_parent_state_choice_for_child_list,
             state_choice_space_dict,
             map_state_choice_to_parent_state,
         )
@@ -62,6 +66,7 @@ def create_single_segment_of_batches(
             child_state_choice_idxs_to_interp_list,
             child_state_choices_to_aggr_choice_list,
             child_states_to_integrate_stochastic_list,
+            representative_parent_state_choice_for_child_list,
         ) = determine_period_max_batch_size(
             bool_state_choices_to_batch=bool_state_choices_to_batch,
             state_choice_space=state_choice_space,
@@ -81,6 +86,7 @@ def create_single_segment_of_batches(
         child_states_to_integrate_stochastic_list,
         child_state_choices_to_aggr_choice_list,
         child_state_choice_idxs_to_interp_list,
+        representative_parent_state_choice_for_child_list,
         state_choice_space_dict,
         map_state_choice_to_parent_state,
         discrete_states_names,
@@ -115,45 +121,32 @@ def determine_period_max_batch_size(
     child_states_to_integrate_exog = []
     child_state_choices_to_aggr_choice = []
     child_state_choice_idxs_to_interpolate = []
+    representative_parent_state_choice_for_child = []
 
     for period in periods_unique_desc:
         batch = idx_state_choice_raw[periods_to_batch == period]
         batches_to_check += [batch]
 
-        child_states_idxs = map_state_choice_to_child_states[batch]
-        unique_child_states, inverse_ids = np.unique(
-            child_states_idxs, return_index=False, return_inverse=True
-        )
-        child_states_to_integrate_exog += [inverse_ids.reshape(child_states_idxs.shape)]
-
-        child_states_batch = np.take(state_space, unique_child_states, axis=0)
-        child_states_tuple = tuple(
-            child_states_batch[:, i] for i in range(n_state_vars)
-        )
-        unique_state_choice_idxs_childs = map_state_choice_to_index[child_states_tuple]
-
         (
+            child_states_to_integrate_exog_batch,
+            child_state_choices_to_aggr_choice_batch,
             unique_child_state_choice_idxs,
-            inverse_child_state_choice_ids,
-        ) = np.unique(
-            unique_state_choice_idxs_childs, return_index=False, return_inverse=True
+            representative_parent_state_choice_batch,
+        ) = compute_child_dedup_for_batch(
+            batch=batch,
+            map_state_choice_to_child_states=map_state_choice_to_child_states,
+            map_state_choice_to_index=map_state_choice_to_index,
+            state_space=state_space,
+            n_state_vars=n_state_vars,
+            invalid_state_idx=invalid_state_idx,
+            out_of_bounds_state_choice_idx=out_of_bounds_state_choice_idx,
         )
-
-        if (
-            len(unique_child_state_choice_idxs) > 0
-            and unique_child_state_choice_idxs[-1] == invalid_state_idx
-        ):
-            unique_child_state_choice_idxs = unique_child_state_choice_idxs[:-1]
-            inverse_child_state_choice_ids[
-                inverse_child_state_choice_ids >= np.max(inverse_child_state_choice_ids)
-            ] = out_of_bounds_state_choice_idx
-
-        child_state_choices_to_aggr_choice += [
-            inverse_child_state_choice_ids.reshape(
-                unique_state_choice_idxs_childs.shape
-            )
-        ]
+        child_states_to_integrate_exog += [child_states_to_integrate_exog_batch]
+        child_state_choices_to_aggr_choice += [child_state_choices_to_aggr_choice_batch]
         child_state_choice_idxs_to_interpolate += [unique_child_state_choice_idxs]
+        representative_parent_state_choice_for_child += [
+            representative_parent_state_choice_batch
+        ]
 
     max_batch_size = max(len(batch) for batch in batches_to_check)
 
@@ -177,6 +170,7 @@ def determine_period_max_batch_size(
         child_state_choice_idxs_to_interpolate,
         child_state_choices_to_aggr_choice,
         child_states_to_integrate_exog,
+        representative_parent_state_choice_for_child,
     )
 
 
@@ -185,6 +179,7 @@ def correct_for_uneven_last_batch(
     child_states_to_integrate_stochastic_list,
     child_state_choices_to_aggr_choice_list,
     child_state_choice_idxs_to_interp_list,
+    representative_parent_state_choice_for_child_list,
     state_choice_space_dict,
     map_state_choice_to_parent_state,
 ):
@@ -216,6 +211,9 @@ def correct_for_uneven_last_batch(
         ]
         last_idx_to_aggregate_choice = child_state_choices_to_aggr_choice_list[-1]
         last_child_state_idx_interp = child_state_choice_idxs_to_interp_list[-1]
+        last_representative_parent_state_choice_for_child = (
+            representative_parent_state_choice_for_child_list[-1]
+        )
 
         last_state_choices = {
             key: var[last_batch] for key, var in state_choice_space_dict.items()
@@ -237,6 +235,9 @@ def correct_for_uneven_last_batch(
             "child_state_choice_idxs_to_interp": last_child_state_idx_interp,
             "child_states_idxs": last_parent_state_idx_of_state_choice,
             "state_choices_childs": last_state_choices_childs,
+            "representative_parent_state_choice_idx": (
+                last_representative_parent_state_choice_for_child
+            ),
         }
         batches_list = batches_list[:-1]
         child_states_to_integrate_stochastic_list = (
@@ -248,11 +249,15 @@ def correct_for_uneven_last_batch(
         child_state_choice_idxs_to_interp_list = child_state_choice_idxs_to_interp_list[
             :-1
         ]
+        representative_parent_state_choice_for_child_list = (
+            representative_parent_state_choice_for_child_list[:-1]
+        )
     return (
         batches_list,
         child_states_to_integrate_stochastic_list,
         child_state_choices_to_aggr_choice_list,
         child_state_choice_idxs_to_interp_list,
+        representative_parent_state_choice_for_child_list,
         batches_cover_all,
         last_batch_info,
     )
@@ -263,6 +268,7 @@ def prepare_and_align_batch_arrays(
     child_states_to_integrate_stochastic_list,
     child_state_choices_to_aggr_choice_list,
     child_state_choice_idxs_to_interp_list,
+    representative_parent_state_choice_for_child_list,
     state_choice_space_dict,
     map_state_choice_to_parent_state,
     discrete_states_names,
@@ -290,10 +296,14 @@ def prepare_and_align_batch_arrays(
     (
         child_state_choice_idxs_to_interp,
         child_state_choices_to_aggr_choice,
+        representative_parent_state_choice_idx,
     ) = extend_child_state_choices_to_aggregate_choices(
         idx_to_aggregate_choice=child_state_choices_to_aggr_choice_list,
         max_child_state_index_batch=max_child_state_index_batch,
         idx_to_interpolate=child_state_choice_idxs_to_interp_list,
+        representative_parent_state_choice_for_child_list=(
+            representative_parent_state_choice_for_child_list
+        ),
         out_of_bounds_state_choice_idx=out_of_bounds_state_choice_idx,
     )
     parent_state_idx_of_state_choice = map_state_choice_to_parent_state[
@@ -314,6 +324,14 @@ def prepare_and_align_batch_arrays(
         "child_state_choice_idxs_to_interp": child_state_choice_idxs_to_interp,
         "child_states_idxs": parent_state_idx_of_state_choice,
         "state_choices_childs": state_choices_childs,
+        # State-choice index of a representative parent for each unique child --
+        # used only to pick which state-choice's own continuous grid to feed the
+        # law of motion (see law_of_motion.py / the implementation plan). Not to
+        # be confused with "child_states_idxs" above, which despite the name of
+        # the underlying map_state_choice_to_parent_state array means "the state
+        # this child state-choice belongs to" (its own state, dropping its
+        # choice) -- an unrelated, pre-existing field.
+        "representative_parent_state_choice_idx": representative_parent_state_choice_idx,
     }
     return batch_info
 
@@ -322,6 +340,7 @@ def extend_child_state_choices_to_aggregate_choices(
     idx_to_aggregate_choice,
     max_child_state_index_batch,
     idx_to_interpolate,
+    representative_parent_state_choice_for_child_list,
     out_of_bounds_state_choice_idx,
 ):
     """In case of uneven batches, we need to extend the child state objects to cover the
@@ -382,4 +401,24 @@ def extend_child_state_choices_to_aggregate_choices(
             id_batch, : len(idx_to_interpolate[id_batch])
         ] = idx_to_interpolate[id_batch]
 
-    return child_state_choice_idxs_to_interp, child_state_choices_to_aggr_choice
+    # Representative parent state-choice (for continuous-grid selection, see
+    # law_of_motion.py) is aligned 1:1 with idx_to_interpolate, so it is padded the
+    # exact same way -- padded slots are never read downstream (the corresponding
+    # padded child_state_choice_idxs_to_interp entries just duplicate a valid state,
+    # so nothing indexes into these extra rows specifically).
+    dummy_parent_state_choice = representative_parent_state_choice_for_child_list[0][0]
+    representative_parent_state_choice_idx = np.full(
+        (n_batches, max_child_state_choices),
+        fill_value=dummy_parent_state_choice,
+        dtype=int,
+    )
+    for id_batch in range(n_batches):
+        representative_parent_state_choice_idx[
+            id_batch, : len(representative_parent_state_choice_for_child_list[id_batch])
+        ] = representative_parent_state_choice_for_child_list[id_batch]
+
+    return (
+        child_state_choice_idxs_to_interp,
+        child_state_choices_to_aggr_choice,
+        representative_parent_state_choice_idx,
+    )

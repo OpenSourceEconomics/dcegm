@@ -164,6 +164,126 @@ def interpnd_policy_and_value_for_child_states_on_regular_grids(
     return policy_final, value_final
 
 
+def interpnd_policy_and_value_for_child_states_on_own_regular_grids(
+    additional_continuous_state_grids_per_child: Dict[str, jnp.ndarray],
+    wealth_grid: jnp.ndarray,
+    policy_grid_child_states: jnp.ndarray,
+    value_grid_child_states: jnp.ndarray,
+    continuous_state_child_states: Dict[str, jnp.ndarray],
+    wealth_child_states: jnp.ndarray,
+    state_choice_child_states: Dict[str, Any],
+    compute_utility: Callable,
+    params: Dict[str, Any],
+    discount_factor: float,
+) -> tuple[jnp.ndarray, jnp.ndarray]:
+    """Interpolate policy/value on each child's own regular grid, with consume-all.
+
+    Per-child-grid counterpart of
+    ``interpnd_policy_and_value_for_child_states_on_regular_grids`` above: each
+    child is interpolated against its *own* grid per continuous-state name
+    (``additional_continuous_state_grids_per_child[name]`` has shape
+    ``(n_child_state_choices, n_points)``, not one grid shared across all
+    children), reusing every downstream helper (corner weighting, wealth
+    interpolation, consume-all overwrite) unchanged -- only the index/weight
+    precomputation differs (see ``_precompute_interp_objects_own_grids``). Kept as
+    a separate function rather than changing the original's contract, since that's
+    directly tested (``tests/test_interpnd_regular.py``) with the shared-grid
+    contract. See the implementation plan at
+    docs/source/development/internals/state_specific_continuous_grids_plan.md.
+
+    """
+    objs = _precompute_interp_objects_own_grids(
+        additional_continuous_state_grids_per_child=additional_continuous_state_grids_per_child,
+        continuous_state_child_states=continuous_state_child_states,
+        wealth_grid=wealth_grid,
+        wealth_child_states=wealth_child_states,
+    )
+
+    def _interp_one_child_state(
+        policy_grid_one_child,
+        value_grid_one_child,
+        regular_low_idxs_one_child,
+        regular_high_idxs_one_child,
+        regular_low_weights_one_child,
+        regular_high_weights_one_child,
+        wealth_points_one_child,
+        wealth_low_idxs_one_child,
+        wealth_high_idxs_one_child,
+    ):
+        return vmap(
+            _interp_policy_and_value_one_comb,
+            in_axes=(
+                None,
+                None,
+                1,
+                1,
+                1,
+                1,
+                0,
+                0,
+                0,
+                None,
+                None,
+                None,
+            ),
+        )(
+            policy_grid_one_child,
+            value_grid_one_child,
+            regular_low_idxs_one_child,
+            regular_high_idxs_one_child,
+            regular_low_weights_one_child,
+            regular_high_weights_one_child,
+            wealth_points_one_child,
+            wealth_low_idxs_one_child,
+            wealth_high_idxs_one_child,
+            objs["strides"],
+            objs["corner_table"],
+            wealth_grid,
+        )
+
+    policy_interp, value_interp = vmap(
+        _interp_one_child_state,
+        in_axes=(0, 0, 1, 1, 1, 1, 0, 0, 0),
+    )(
+        policy_grid_child_states,
+        value_grid_child_states,
+        objs["regular_low_idxs"],
+        objs["regular_high_idxs"],
+        objs["regular_low_weights"],
+        objs["regular_high_weights"],
+        wealth_child_states,
+        objs["wealth_low_idxs"],
+        objs["wealth_high_idxs"],
+    )
+
+    # We need to interpolate the expected value at zero savings, because we only know it for the regular
+    # grid corners
+    expected_value_zero_savings = _interp_regular_only_all(
+        values_over_regular_grid_child_states=value_grid_child_states[..., 0],
+        regular_low_idxs=objs["regular_low_idxs"],
+        regular_high_idxs=objs["regular_high_idxs"],
+        regular_low_weights=objs["regular_low_weights"],
+        regular_high_weights=objs["regular_high_weights"],
+        strides=objs["strides"],
+        corner_table=objs["corner_table"],
+    )
+
+    consume_all_value = _compute_consume_all_value(
+        expected_value_zero_savings=expected_value_zero_savings,
+        wealth_child_states=wealth_child_states,
+        state_choice_child_states=state_choice_child_states,
+        continuous_state_child_states=continuous_state_child_states,
+        compute_utility=compute_utility,
+        params=params,
+        discount_factor=discount_factor,
+    )
+
+    overwrite_mask = consume_all_value > value_interp
+    policy_final = jnp.where(overwrite_mask, wealth_child_states, policy_interp)
+    value_final = jnp.where(overwrite_mask, consume_all_value, value_interp)
+    return policy_final, value_final
+
+
 def interpnd_value_for_child_states_on_regular_grids(
     additional_continuous_state_grids: Dict[str, jnp.ndarray],
     wealth_grid: jnp.ndarray,
@@ -553,6 +673,97 @@ def _precompute_regular_indices_and_weights(
         high_idx, low_idx = get_index_high_and_low(grid_1d, points)
         x_low = grid_1d[low_idx]
         x_high = grid_1d[high_idx]
+        high_w = (points - x_low) / (x_high - x_low)
+        high_w = jnp.where(jnp.isfinite(high_w), high_w, 0.0)
+        low_w = 1.0 - high_w
+        low_idxs.append(low_idx)
+        high_idxs.append(high_idx)
+        low_weights.append(low_w)
+        high_weights.append(high_w)
+
+    return (
+        jnp.stack(low_idxs, axis=0),
+        jnp.stack(high_idxs, axis=0),
+        jnp.stack(low_weights, axis=0),
+        jnp.stack(high_weights, axis=0),
+    )
+
+
+def _precompute_interp_objects_own_grids(
+    additional_continuous_state_grids_per_child: Dict[str, jnp.ndarray],
+    continuous_state_child_states: Dict[str, jnp.ndarray],
+    wealth_grid: jnp.ndarray,
+    wealth_child_states: jnp.ndarray,
+) -> Dict[str, jnp.ndarray]:
+    """Per-child-grid counterpart of ``_precompute_interp_objects`` above.
+
+    ``strides``/``corner_table`` only depend on the *number* of grid points per
+    dimension, which is the same for every child by construction (state-specific grids
+    may vary in value, not size -- see the implementation plan), so those are computed
+    exactly as before, just reading the size off the last axis of the now-per-child grid
+    arrays instead of the only axis of a 1d array.
+
+    """
+    state_names = list(additional_continuous_state_grids_per_child.keys())
+    regular_shape = [
+        int(additional_continuous_state_grids_per_child[name].shape[-1])
+        for name in state_names
+    ]
+    strides = jnp.asarray(_compute_row_major_strides(regular_shape), dtype=jnp.int32)
+    regular_low_idxs, regular_high_idxs, regular_low_weights, regular_high_weights = (
+        _precompute_regular_indices_and_weights_own_grids(
+            additional_continuous_state_grids_per_child=additional_continuous_state_grids_per_child,
+            continuous_state_child_states=continuous_state_child_states,
+            state_names=state_names,
+        )
+    )
+    wealth_high_idxs, wealth_low_idxs = get_index_high_and_low(
+        wealth_grid, wealth_child_states
+    )
+    corner_table = _corner_table(len(state_names))
+    return {
+        "strides": strides,
+        "regular_low_idxs": regular_low_idxs,
+        "regular_high_idxs": regular_high_idxs,
+        "regular_low_weights": regular_low_weights,
+        "regular_high_weights": regular_high_weights,
+        "wealth_low_idxs": wealth_low_idxs,
+        "wealth_high_idxs": wealth_high_idxs,
+        "corner_table": corner_table,
+    }
+
+
+def _precompute_regular_indices_and_weights_own_grids(
+    additional_continuous_state_grids_per_child: Dict[str, jnp.ndarray],
+    continuous_state_child_states: Dict[str, jnp.ndarray],
+    state_names,
+):
+    """Per-child-grid counterpart of ``_precompute_regular_indices_and_weights`` above.
+
+    Each child is interpolated against its *own* grid per continuous-state name
+    (``additional_continuous_state_grids_per_child[name]`` has shape
+    ``(n_child_state_choices, n_points)``), so ``get_index_high_and_low`` --
+    which expects one 1d grid -- is vmapped over the child axis instead of
+    broadcasting one shared grid against every child's query points.
+
+    Returns arrays of shape
+    ``(n_dims, n_child_state_choices, n_continuous_combinations)``, same as the
+    shared-grid version.
+
+    """
+    low_idxs = []
+    high_idxs = []
+    low_weights = []
+    high_weights = []
+
+    for name in state_names:
+        grid_per_child = additional_continuous_state_grids_per_child[name]
+        points = continuous_state_child_states[name]
+        high_idx, low_idx = vmap(get_index_high_and_low, in_axes=(0, 0))(
+            grid_per_child, points
+        )
+        x_low = jnp.take_along_axis(grid_per_child, low_idx, axis=1)
+        x_high = jnp.take_along_axis(grid_per_child, high_idx, axis=1)
         high_w = (points - x_low) / (x_high - x_low)
         high_w = jnp.where(jnp.isfinite(high_w), high_w, 0.0)
         low_w = 1.0 - high_w

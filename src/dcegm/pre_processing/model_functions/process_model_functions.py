@@ -310,21 +310,25 @@ def process_continuous_grid_functions(
     holds data/config, never functions). Keys are continuous-state names (any of
     the additional continuous states, ``assets_end_of_period``, or, if present,
     ``assets_begin_of_period``); values are callables
-    ``(**discrete_state) -> 1d array``, processed the same way as
-    ``sparsity_condition``/``next_period_deterministic_state``.
+    ``(**discrete_state, choice) -> 1d array``, processed the same way as
+    ``sparsity_condition``/``next_period_deterministic_state`` -- grids live on
+    the state-choice space (that's where the solution itself lives, see
+    ``continuous_state_grids.py``), so a grid may depend on ``choice`` too, not
+    just the discrete state.
 
     Every continuous state of the model gets a callable in the returned dict,
-    state-specified or not: states left unspecified keep today's behavior via a
-    callable that ignores its input and always returns the one global grid
+    state-choice-specified or not: names left unspecified keep today's behavior
+    via a callable that ignores its input and always returns the one global grid
     declared in ``model_config["continuous_states"]``.
 
-    These are evaluated on demand wherever a batch needs a state's own grid during
-    solving, not precomputed for the whole state space -- see
+    These are evaluated on demand wherever a batch needs a state-choice's own
+    grid during solving, not precomputed for the whole state-choice space -- see
     docs/source/development/internals/state_specific_continuous_grids_plan.md for
     why. The one exception is the one-time, NumPy-side consistency check in
     ``continuous_state_grids.py``, run once during model-structure construction,
-    for which this function also returns the list of state-specific names (so that
-    check can skip names left at their default, which are trivially consistent).
+    for which this function also returns the list of state-specific names (so
+    that check can skip names left at their default, which are trivially
+    consistent).
 
     """
     continuous_grid_functions = (
@@ -366,10 +370,26 @@ def process_continuous_grid_functions(
                 )
             )
         else:
-
-            def constant_grid_func(default_grid=default_grid, **kwargs):
-                return default_grid
-
-            continuous_grid_functions_processed[name] = constant_grid_func
+            continuous_grid_functions_processed[name] = _make_constant_grid_func(
+                default_grid
+            )
 
     return continuous_grid_functions_processed, list(continuous_grid_functions.keys())
+
+
+def _make_constant_grid_func(default_grid):
+    """Return a callable that ignores its input and always returns ``default_grid``.
+
+    A factory, rather than defining the closure directly in the loop above, to avoid
+    Python's late-binding-closure-in-a-loop pitfall: a closure defined inside a loop
+    body captures the loop *variable*, not its value at that iteration, so every closure
+    created across iterations would end up returning whatever ``default_grid`` was left
+    holding after the *last* iteration. Binding it as this function's own parameter
+    forces a fresh value per call.
+
+    """
+
+    def constant_grid_func(**kwargs):
+        return default_grid
+
+    return constant_grid_func

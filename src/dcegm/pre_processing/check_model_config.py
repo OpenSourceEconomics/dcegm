@@ -202,6 +202,15 @@ def check_model_config_and_process(model_config):
         )
 
     if upper_envelope["method"] == "fues":
+        if "assets_begin_of_period" in model_config["continuous_states"]:
+            raise ValueError(
+                "'assets_begin_of_period' is only used by the 'druedahl_jorgensen' "
+                "upper envelope method. It was found in "
+                "model_config['continuous_states'] together with "
+                "upper_envelope['method'] == 'fues', where it has no effect -- "
+                "either remove it or switch to "
+                "upper_envelope['method'] = 'druedahl_jorgensen'."
+            )
         processed_model_config["n_total_wealth_grid"] = tuning_params[
             "n_total_wealth_grid"
         ]

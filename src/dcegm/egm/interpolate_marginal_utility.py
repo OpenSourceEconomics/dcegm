@@ -9,9 +9,13 @@ from dcegm.interpolation.interp2d_irregular import (
     interp2d_policy_and_value_on_wealth_and_regular_grid,
 )
 from dcegm.interpolation.interpnd_regular import (
-    interpnd_policy_and_value_for_child_states_on_regular_grids,
+    interpnd_policy_and_value_for_child_states_on_own_regular_grids,
 )
-from dcegm.law_of_motion import calc_law_of_motion_for_state_choices
+from dcegm.law_of_motion import (
+    calc_law_of_motion_for_state_choices,
+    compute_own_continuous_grid_combos,
+    compute_own_continuous_grids_raw,
+)
 
 
 def interpolate_value_and_marg_util(
@@ -26,6 +30,7 @@ def interpolate_value_and_marg_util(
     params: Dict[str, float],
     upper_envelope_method: str,
     skip_endog_grid_storage: bool = False,
+    grid_state_dict: Dict[str, int] = None,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Interpolate value and policy for all child states and compute marginal utility.
 
@@ -33,7 +38,14 @@ def interpolate_value_and_marg_util(
         compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility of consumption.
         compute_utility (callable): Function for calculating the utility of consumption.
-        state_choice_vec (dict): Dictionary containing the state and choice of the agent.
+        state_choice_vec (dict): Dictionary containing the state and choice of the agent
+            (the child, in the main solve path).
+        grid_state_dict (dict): Discrete-state dict of a representative parent, used
+            only to select which state's own continuous grid to feed the law of
+            motion -- see the docstring of calc_law_of_motion_for_state_choices for
+            why this must be the parent, not state_choice_vec (the child). Falls
+            back to state_choice_vec itself when not given (today's global-grid
+            behavior).
         assets_beginning_of_next_period (jnp.ndarray): 2d array of shape
             (n_quad_stochastic, n_grid_wealth,) containing the agent's beginning of
             period wealth.
@@ -75,6 +87,10 @@ def interpolate_value_and_marg_util(
         params=params,
         model_funcs=model_funcs,
         has_additional_continuous_states=multi_dim,
+        additional_continuous_state_names=continuous_grids_info[
+            "additional_continuous_state_names"
+        ],
+        grid_state_dict=grid_state_dict,
     )
     wealth_child_states = law_of_motion["assets_begin_of_period"]
     continuous_states_next = law_of_motion["continuous_states"]
@@ -96,6 +112,7 @@ def interpolate_value_and_marg_util(
             value_child_state_choice=value_child_state_choice,
             params=params,
             discount_factor=discount_factor,
+            continuous_grid_functions=model_funcs["continuous_grid_functions"],
         )
 
     elif multi_dim & (not irregular):
@@ -112,6 +129,7 @@ def interpolate_value_and_marg_util(
             params=params,
             discount_factor=discount_factor,
             skip_endog_grid_storage=skip_endog_grid_storage,
+            continuous_grid_functions=model_funcs["continuous_grid_functions"],
         )
     else:
         # Selects inside if jorgensen_druedahl or fues (different treatment of budget constraint)
@@ -255,6 +273,7 @@ def _interpolate_value_and_marg_util_2d_irregular(
     value_child_state_choice: jnp.ndarray,
     params: Dict[str, float],
     discount_factor: float,
+    continuous_grid_functions: Dict[str, Callable],
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Interpolate value and marginal utility on the irregular FUES 2D grid.
 
@@ -270,12 +289,16 @@ def _interpolate_value_and_marg_util_2d_irregular(
     ]
     continuous_state_child_states = continuous_states_next[continuous_state_name]
 
+    # Each child's own grid is now computed inside
+    # interp2d_value_and_marg_util_for_state_choice, on demand, after vmapping
+    # down to a single (child) state-choice -- see its docstring.
     interp_for_single_state_choice = vmap(
         interp2d_value_and_marg_util_for_state_choice,
         in_axes=(
             None,
             None,
             0,
+            None,
             None,
             0,
             0,
@@ -291,7 +314,8 @@ def _interpolate_value_and_marg_util_2d_irregular(
         compute_marginal_utility,
         compute_utility,
         state_choice_vec,
-        continuous_grids_info["additional_continuous_state_grids"],
+        continuous_grid_functions,
+        continuous_grids_info["additional_continuous_state_names"],
         wealth_child_states,
         continuous_state_child_states,
         endog_grid_child_state_choice,
@@ -315,6 +339,7 @@ def _interpolate_value_and_marg_util_nd_regular(
     params: Dict[str, float],
     discount_factor: float,
     skip_endog_grid_storage: bool = False,
+    continuous_grid_functions: Dict[str, Callable] = None,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Interpolate value and marginal utility on the regular n-D grid.
 
@@ -327,9 +352,27 @@ def _interpolate_value_and_marg_util_nd_regular(
         name: continuous_states_next[name] for name in continuous_state_names
     }
 
-    # interpnd_policy_and_value_for_child_states_on_regular_grids already treats
-    # wealth_grid as a single unbatched 1D array (it is not itself a mapped vmap
-    # argument), so under DJ we can pass the fixed grid directly with no broadcast.
+    # Each child's own grid on demand, instead of reading the shared/global
+    # additional_continuous_state_grids -- see law_of_motion.py / the
+    # implementation plan. state_choice_vec is the CHILD's own identity here (we're
+    # reading each child's own stored solution, interpolated on its own grid), not
+    # a parent -- unlike law_of_motion.py's grid selection for the *transition
+    # into* a child, which needs a representative parent. Unmeshed (per-dimension)
+    # grids, since interpnd's index/weight math handles each dimension
+    # separately before combining via strides/corner tables.
+    own_continuous_state_grids_per_child = vmap(
+        compute_own_continuous_grids_raw,
+        in_axes=(0, None, None),
+    )(
+        state_choice_vec,
+        continuous_grid_functions,
+        continuous_state_names,
+    )
+
+    # interpnd_policy_and_value_for_child_states_on_own_regular_grids already
+    # treats wealth_grid as a single unbatched 1D array (it is not itself a
+    # mapped vmap argument), so under DJ we can pass the fixed grid directly with
+    # no broadcast.
     wealth_grid = (
         continuous_grids_info["dj_wealth_grid"]
         if skip_endog_grid_storage
@@ -337,10 +380,8 @@ def _interpolate_value_and_marg_util_nd_regular(
     )
 
     policy_interp, value_interp = (
-        interpnd_policy_and_value_for_child_states_on_regular_grids(
-            additional_continuous_state_grids=continuous_grids_info[
-                "additional_continuous_state_grids"
-            ],
+        interpnd_policy_and_value_for_child_states_on_own_regular_grids(
+            additional_continuous_state_grids_per_child=own_continuous_state_grids_per_child,
             wealth_grid=wealth_grid,
             policy_grid_child_states=policy_child_state_choice,
             value_grid_child_states=value_child_state_choice,
@@ -416,7 +457,8 @@ def interp2d_value_and_marg_util_for_state_choice(
     compute_marginal_utility: Callable,
     compute_utility: Callable,
     state_choice_vec: Dict[str, int],
-    continuous_state_space: Dict[str, jnp.ndarray],
+    continuous_grid_functions: Dict[str, Callable],
+    additional_continuous_state_names,
     assets_beginning_of_next_period: jnp.ndarray,
     continuous_state_beginning_of_next_period: jnp.ndarray,
     endog_grid_child_state_choice: jnp.ndarray,
@@ -458,6 +500,21 @@ def interp2d_value_and_marg_util_for_state_choice(
             containing the interpolated value function.
 
     """
+    # This state-choice's own grid, on demand -- computed here, after vmapping
+    # down to a single (child) state-choice, instead of precomputing the whole
+    # batch's grids upfront in a separate vmap and feeding the result in as a
+    # paired array. state_choice_vec is the CHILD's own identity here (we're
+    # reading this child's own stored solution, interpolated on its own grid),
+    # not a parent -- unlike law_of_motion.py's grid selection for the
+    # *transition into* a child, which needs a representative parent. Grids live
+    # on the state-choice space (that's where the solution itself lives), so
+    # "choice" is a legitimate part of that identity, same as for
+    # compute_utility/compute_marginal_utility below. See the implementation plan
+    # at docs/source/development/internals/state_specific_continuous_grids_plan.md.
+    continuous_state_space = compute_own_continuous_grid_combos(
+        state_choice_vec, continuous_grid_functions, additional_continuous_state_names
+    )
+
     # FUES-only (irregular) branch: check_model_config.py enforces at most one
     # additional continuous state here, so this is the only continuous state besides
     # assets_begin_of_period. Pass it under its actual state name.

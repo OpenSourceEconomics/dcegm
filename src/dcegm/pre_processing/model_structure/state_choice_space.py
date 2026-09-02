@@ -4,6 +4,7 @@ import numpy as np
 
 from dcegm.pre_processing.model_structure.continuous_state_grids import (
     check_continuous_grid_consistency_across_shared_children,
+    evaluate_state_specific_continuous_grids,
 )
 from dcegm.pre_processing.model_structure.shared import create_indexer_for_space
 from dcegm.pre_processing.shared import get_smallest_int_type
@@ -14,7 +15,8 @@ def create_state_choice_space_and_child_state_mapping(
     state_specific_choice_set,
     next_period_deterministic_state,
     state_space_arrays,
-    grids_per_state=None,
+    continuous_grid_functions=None,
+    state_specific_continuous_grid_names=None,
 ):
     """Create state choice space of all feasible state-choice combinations.
 
@@ -227,12 +229,23 @@ def create_state_choice_space_and_child_state_mapping(
         for i, key in enumerate(discrete_states_names + ["choice"])
     }
 
+    # Grids live on the state-choice space (that's where the solution itself
+    # lives, see continuous_state_grids.py), so this can only be evaluated once
+    # state_choice_space itself is built -- computed here rather than passed in
+    # from model_structure.py.
+    grids_per_state_choice = evaluate_state_specific_continuous_grids(
+        state_choice_space=state_choice_space,
+        discrete_state_choice_names=discrete_states_names + ["choice"],
+        continuous_grid_functions=continuous_grid_functions or {},
+        state_specific_names=state_specific_continuous_grid_names or [],
+        continuous_states_info=model_config["continuous_states_info"],
+    )
+
     check_continuous_grid_consistency_across_shared_children(
         state_choice_space=state_choice_space,
         discrete_states_names=discrete_states_names,
-        map_state_choice_to_parent_state=map_state_choice_to_parent_state,
         map_state_choice_to_child_states=map_state_choice_to_child_states,
-        grids_per_state=grids_per_state or {},
+        grids_per_state_choice=grids_per_state_choice,
     )
 
     test_child_state_mapping(

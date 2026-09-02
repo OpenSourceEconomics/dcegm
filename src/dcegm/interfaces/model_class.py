@@ -50,6 +50,7 @@ class setup_model:
         state_space_functions: Dict[str, Callable] = None,
         stochastic_states_transitions: Dict[str, Callable] = None,
         shock_functions: Dict[str, Callable] = None,
+        continuous_grid_functions: Dict[str, Callable] = None,
         alternative_sim_specifications: Dict[str, Callable] = None,
         debug_info: str = None,
         model_save_path: str = None,
@@ -72,6 +73,7 @@ class setup_model:
                 state_space_functions=state_space_functions,
                 stochastic_states_transitions=stochastic_states_transitions,
                 shock_functions=shock_functions,
+                continuous_grid_functions=continuous_grid_functions,
                 path=model_load_path,
                 use_stochastic_sparsity=use_stochastic_sparsity,
             )
@@ -85,6 +87,7 @@ class setup_model:
                 state_space_functions=state_space_functions,
                 stochastic_states_transitions=stochastic_states_transitions,
                 shock_functions=shock_functions,
+                continuous_grid_functions=continuous_grid_functions,
                 path=model_save_path,
                 debug_info=debug_info,
                 use_stochastic_sparsity=use_stochastic_sparsity,
@@ -99,6 +102,7 @@ class setup_model:
                 state_space_functions=state_space_functions,
                 stochastic_states_transitions=stochastic_states_transitions,
                 shock_functions=shock_functions,
+                continuous_grid_functions=continuous_grid_functions,
                 debug_info=debug_info,
                 use_stochastic_sparsity=use_stochastic_sparsity,
             )
