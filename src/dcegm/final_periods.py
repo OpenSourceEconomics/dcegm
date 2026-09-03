@@ -249,40 +249,14 @@ def solve_final_period(
         # We also need to solve at the state space and the child states to store correctly
         # For Druedahl Jorgensen wealth needs to be assets_begin_of_period
         assets_begin = "assets_begin_of_period" in continuous_states_info.keys()
-        if upper_envelope_method == "druedahl_jorgensen":
-            # Own assets_begin_of_period grid, evaluated on demand per
-            # state-choice (self-referential terminal problem, same reasoning as
-            # the assets_end_of_period branch below) -- supports a state-specific
-            # grid, not just a shared array. Raw grid_func output, no zero point
-            # prepended (unlike compute_own_dj_wealth_grid): the zero point is
-            # appended once, uniformly for every branch, further down in this
-            # function (see zeros_to_append below) -- prepending one here too
-            # would double-count it.
-            asset_grid = vmap(
-                _own_assets_begin_of_period_grid_for_one_state,
-                in_axes=(0, None),
-            )(
-                state_choice_mat_final_period,
-                model_funcs["continuous_grid_functions"],
-            )
-            asset_grid_in_axes = 0
-        else:
-            # Own assets_end_of_period grid, evaluated on demand inside
-            # calc_value_and_budget_for_state_choice instead -- this state-choice
-            # is solving its own terminal problem (self-referential, no parent/
-            # child ambiguity, unlike law_of_motion.py's transition-input role for
-            # the same name), so no shared array is needed here at all.
-            asset_grid = None
-            asset_grid_in_axes = None
 
         values_regular, wealth_at_regular = vmap(
             calc_value_and_budget_for_state_choice,
-            in_axes=(0, None, None, asset_grid_in_axes, None, None, None, None),
+            in_axes=(0, None, None, None, None, None, None),
         )(
             state_choice_mat_final_period,
             model_funcs["continuous_grid_functions"],
             continuous_states_info["additional_continuous_state_names"],
-            asset_grid,
             params,
             compute_utility,
             model_funcs["compute_assets_begin_of_period"],
@@ -406,17 +380,10 @@ def _calc_dj_final_value_no_additional_state(
     return value, own_wealth_grid
 
 
-def _own_assets_begin_of_period_grid_for_one_state(
-    state_dict, continuous_grid_functions
-):
-    return continuous_grid_functions["assets_begin_of_period"](**state_dict)
-
-
 def calc_value_and_budget_for_state_choice(
     state_choice_vec,
     continuous_grid_functions,
     additional_continuous_state_names,
-    asset_grid,
     params,
     compute_utility,
     compute_assets_begin_of_period,
@@ -435,13 +402,15 @@ def calc_value_and_budget_for_state_choice(
     state-choice space (that's where the solution itself lives), so ``state_choice_vec``
     -- including "choice" -- is exactly the identity a grid may depend on.
 
-    ``asset_grid`` is only used for the ``assets_begin`` (Druedahl-Jorgensen) case,
-    already this state-choice's own grid by the time it arrives here (the caller
-    vmaps ``compute_own_dj_wealth_grid`` per state-choice). For the FUES case
-    (``assets_begin`` False), the caller passes ``asset_grid=None`` and this
-    state-choice's own ``assets_end_of_period`` grid is evaluated on demand here
-    instead, the same
-    self-referential pattern as ``own_continuous_state_vec`` below.
+    This state-choice's own asset grid (``assets_begin_of_period`` for
+    Druedahl-Jorgensen, ``assets_end_of_period`` for FUES) is evaluated on demand
+    right here, after vmapping down to a single state-choice, instead of being
+    precomputed for the whole batch upfront in a separate vmap and fed in as a
+    paired array -- same self-referential pattern as ``own_continuous_state_vec``
+    below. The zero point that Druedahl-Jorgensen prepends elsewhere
+    (``compute_own_dj_wealth_grid``) is *not* added here: this is the raw
+    grid_func output, and the caller appends a single zero point uniformly for
+    every branch further down (see ``zeros_to_append`` in ``solve_final_period``).
 
     """
     own_continuous_state_vec = compute_own_continuous_grid_combos(
@@ -449,10 +418,8 @@ def calc_value_and_budget_for_state_choice(
         continuous_grid_functions,
         additional_continuous_state_names,
     )
-    if not assets_begin:
-        asset_grid = continuous_grid_functions["assets_end_of_period"](
-            **state_choice_vec
-        )
+    grid_name = "assets_begin_of_period" if assets_begin else "assets_end_of_period"
+    asset_grid = continuous_grid_functions[grid_name](**state_choice_vec)
     return vmap(
         vmap(
             calc_value_and_budget_for_each_gridpoint,

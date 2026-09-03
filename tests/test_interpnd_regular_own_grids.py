@@ -4,8 +4,9 @@ Companion to test_interpnd_regular.py, which validates the original shared-grid
 contract (still used by direct callers -- see interpolation/interpnd_regular.py's
 docstrings for why the two are kept separate). This file validates the "own grids"
 variant used by the solve path once continuous grids are state-choice-specific:
-each child is interpolated against its *own* grid, not one grid shared across all
-children.
+each child is interpolated against its *own* grid, evaluated via a
+continuous_grid_functions-style callable rather than read from a precomputed
+per-child array, not one grid shared across all children.
 
 """
 
@@ -20,6 +21,20 @@ from dcegm.interpolation.interpnd_regular import (
 
 def _compute_utility(consumption, params, **kwargs):
     return consumption ** params["u_scale"]
+
+
+def _make_grid_func(grids_per_child):
+    # Fake continuous_grid_function: looks its child's own grid up by "child_idx"
+    # instead of computing it from economics -- lets these tests hand-pick
+    # per-child grids directly, same role a real grid_func plays in
+    # interpnd_policy_and_value_for_child_states_on_own_regular_grids's per-child
+    # vmap.
+    grids_per_child = jnp.asarray(grids_per_child)
+
+    def grid_func(child_idx, **kwargs):
+        return grids_per_child[child_idx]
+
+    return grid_func
 
 
 def _scipy_expected_policy(
@@ -119,21 +134,26 @@ def test_interpnd_own_grids_matches_scipy_per_child_with_different_grids():
     # High value grid so policy interpolation dominates, no consume-all overwrite.
     value_grid_child_states = np.full_like(policy_grid_child_states, 1e8)
 
+    state_choice_child_states = {
+        "child_idx": jnp.arange(n_child_state_choices, dtype=jnp.int32),
+        "choice": jnp.zeros(n_child_state_choices, dtype=jnp.int32),
+    }
+    wealth_grid_func_ = _make_grid_func(wealth_grids)
+
     policy_out, _ = interpnd_policy_and_value_for_child_states_on_own_regular_grids(
-        additional_continuous_state_grids_per_child={
-            "exp_green": jnp.asarray(exp_green_grids),
-            "exp_red": jnp.asarray(exp_red_grids),
+        continuous_grid_functions={
+            "exp_green": _make_grid_func(exp_green_grids),
+            "exp_red": _make_grid_func(exp_red_grids),
         },
-        wealth_grid=jnp.asarray(wealth_grids),
+        additional_continuous_state_names=["exp_green", "exp_red"],
+        wealth_grid_func=lambda state_dict: wealth_grid_func_(**state_dict),
         policy_grid_child_states=jnp.asarray(policy_grid_child_states),
         value_grid_child_states=jnp.asarray(value_grid_child_states),
         continuous_state_child_states={
             k: jnp.asarray(v) for k, v in continuous_state_child_states.items()
         },
         wealth_child_states=jnp.asarray(wealth_child_states),
-        state_choice_child_states={
-            "choice": jnp.zeros(n_child_state_choices, dtype=jnp.int32)
-        },
+        state_choice_child_states=state_choice_child_states,
         compute_utility=_compute_utility,
         params={"u_scale": 2.0},
         discount_factor=0.95,
@@ -209,11 +229,12 @@ def test_interpnd_own_grids_matches_shared_grid_path_when_grids_are_identical():
 
     own_grids_policy, own_grids_value = (
         interpnd_policy_and_value_for_child_states_on_own_regular_grids(
-            additional_continuous_state_grids_per_child={
-                "exp_green": jnp.tile(exp_green_grid, (n_child_state_choices, 1)),
-                "exp_red": jnp.tile(exp_red_grid, (n_child_state_choices, 1)),
+            continuous_grid_functions={
+                "exp_green": lambda **kwargs: jnp.asarray(exp_green_grid),
+                "exp_red": lambda **kwargs: jnp.asarray(exp_red_grid),
             },
-            wealth_grid=jnp.tile(wealth_grid, (n_child_state_choices, 1)),
+            additional_continuous_state_names=["exp_green", "exp_red"],
+            wealth_grid_func=lambda state_dict: jnp.asarray(wealth_grid),
             policy_grid_child_states=jnp.asarray(policy_grid_child_states),
             value_grid_child_states=jnp.asarray(value_grid_child_states),
             continuous_state_child_states={

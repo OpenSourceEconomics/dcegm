@@ -54,47 +54,55 @@ def calc_law_of_motion_for_state_choices(
         params=params,
         model_funcs=model_funcs,
     )
-    own_assets_grid_end_of_period = vmap(
-        _own_assets_grid_end_of_period_for_one_state,
-        in_axes=(0, None),
-    )(grid_source_state_choice_vec, model_funcs["continuous_grid_functions"])
 
-    def fix_assets_and_shocks_for_broadcast(
-        states,
-        continuous_state_vec,
-        asset_end_of_previous_period,
-        income_draw,
-    ):
-        all_states = {**states, **continuous_state_vec}
-        assets_begin_of_period = calc_beginning_of_period_assets_for_single_state(
-            state_vec=all_states,
-            asset_end_of_previous_period=asset_end_of_previous_period,
-            income_shock_draw=income_draw,
-            params=params,
-            compute_assets_begin_of_period=model_funcs[
-                "compute_assets_begin_of_period"
-            ],
-            aux_outs=False,
+    def _transitions_for_one_state(states, continuous_state_vec, grid_source_row):
+        # Own assets_end_of_period grid, evaluated here for this one state's
+        # representative parent, right next to where it's consumed below --
+        # instead of precomputing the whole batch's grids upfront in a separate
+        # vmap and feeding the result in as a paired array.
+        own_assets_grid_end_of_period = _own_assets_grid_end_of_period_for_one_state(
+            grid_source_row, model_funcs["continuous_grid_functions"]
         )
-        return assets_begin_of_period
 
-    assets_begin_of_next_period = vmap(
-        vmap(
+        def fix_assets_and_shocks_for_broadcast(
+            continuous_state_vec,
+            asset_end_of_previous_period,
+            income_draw,
+        ):
+            all_states = {**states, **continuous_state_vec}
+            return calc_beginning_of_period_assets_for_single_state(
+                state_vec=all_states,
+                asset_end_of_previous_period=asset_end_of_previous_period,
+                income_shock_draw=income_draw,
+                params=params,
+                compute_assets_begin_of_period=model_funcs[
+                    "compute_assets_begin_of_period"
+                ],
+                aux_outs=False,
+            )
+
+        return vmap(
             vmap(
                 vmap(
                     fix_assets_and_shocks_for_broadcast,
-                    in_axes=(None, None, None, 0),
+                    in_axes=(None, None, 0),
                 ),
-                in_axes=(None, None, 0, None),
+                in_axes=(None, 0, None),
             ),
-            in_axes=(None, 0, None, None),
-        ),
-        in_axes=(0, 0, 0, None),
+            in_axes=(0, None, None),
+        )(
+            continuous_state_vec,
+            own_assets_grid_end_of_period,
+            income_shocks_scaled,
+        )
+
+    assets_begin_of_next_period = vmap(
+        _transitions_for_one_state,
+        in_axes=(0, 0, 0),
     )(
         state_vec,
         continuous_state_next_period,
-        own_assets_grid_end_of_period,
-        income_shocks_scaled,
+        grid_source_state_choice_vec,
     )
 
     # Generate result dict
