@@ -25,29 +25,39 @@ def evaluate_state_specific_continuous_grids(
     their default (constant) grid are skipped, since they are trivially consistent
     across every state-choice and don't need checking.
 
-    Also validates that every state-choice's grid has the length declared in
-    ``model_config["continuous_states"]`` for that name. Storage containers are
-    rectangular (same number of grid points for every state-choice, only the
-    values differ), so a mismatched length would otherwise silently corrupt
-    shapes downstream instead of failing here, close to the user-supplied
-    function that caused it.
+    Also validates that every state-choice's grid has the expected length for that
+    name. For names with a declared default array in
+    ``model_config["continuous_states"]``, that's the declared length. For names
+    declared as ``None`` (no default array at all -- fully state-choice-specific),
+    there is nothing to read a length from yet, so it is *pinned* here instead: the
+    first state-choice's grid_func evaluation fixes the length, and every other
+    state-choice's grid is validated against that. Either way, storage containers
+    are rectangular (same number of grid points for every state-choice, only the
+    values differ), so a mismatched length would otherwise silently corrupt shapes
+    downstream instead of failing here, close to the user-supplied function that
+    caused it.
 
     This is a one-time NumPy-side pass over the full state-choice space, done once
-    during model-structure construction. The result is used to build the
+    during model-structure construction. The grids are used to build the
     child-sharing consistency check (see
-    ``check_continuous_grid_consistency_across_shared_children`` below) and is not
-    stored in ``model_structure`` or threaded through solving.
+    ``check_continuous_grid_consistency_across_shared_children`` below) and are not
+    stored in ``model_structure`` or threaded through solving. The pinned lengths
+    (for names declared as ``None``) *are* returned, for the caller to merge back
+    into ``continuous_states_info`` (e.g. ``n_continuous_state_combinations``,
+    ``n_total_wealth_grid``), since those couldn't be computed any earlier than
+    this, the first point a real state-choice exists to evaluate against.
 
     """
     if len(state_specific_names) == 0:
-        return {}
+        return {}, {}
 
     expected_lengths = _expected_grid_lengths(continuous_states_info)
+    resolved_lengths = {}
 
     grids_per_state_choice = {}
     for name in state_specific_names:
         grid_func = continuous_grid_functions[name]
-        expected_length = expected_lengths[name]
+        pinning_size = name not in expected_lengths
 
         grid_rows = []
         for row in state_choice_space:
@@ -55,22 +65,35 @@ def evaluate_state_specific_continuous_grids(
                 key: row[i] for i, key in enumerate(discrete_state_choice_names)
             }
             grid = np.asarray(grid_func(**state_choice_dict))
+
+            if pinning_size:
+                expected_lengths[name] = grid.shape[0] if grid.ndim == 1 else -1
+                resolved_lengths[name] = expected_lengths[name]
+                pinning_size = False
+
+            expected_length = expected_lengths[name]
             if grid.ndim != 1 or grid.shape[0] != expected_length:
+                length_source = (
+                    f"the length of the first state-choice evaluated, since "
+                    f"model_config['continuous_states']['{name}'] is None"
+                    if name in resolved_lengths
+                    else "the length declared in "
+                    f"model_config['continuous_states']['{name}']"
+                )
                 raise ValueError(
                     f"\n\nThe continuous grid function for '{name}' returned an "
                     f"array of shape {grid.shape} for the state-choice\n\n"
                     f"{state_choice_dict}\n\nbut every state-choice's grid for "
                     f"'{name}' must be a 1d array of length {expected_length} "
-                    "(the length declared in "
-                    f"model_config['continuous_states']['{name}']). All "
-                    "state-choices must use grids of the same size for a given "
-                    "continuous state; only the grid values may vary."
+                    f"({length_source}). All state-choices must use grids of the "
+                    "same size for a given continuous state; only the grid values "
+                    "may vary."
                 )
             grid_rows.append(grid)
 
         grids_per_state_choice[name] = np.stack(grid_rows, axis=0)
 
-    return grids_per_state_choice
+    return grids_per_state_choice, resolved_lengths
 
 
 def _expected_grid_lengths(continuous_states_info):
@@ -79,11 +102,12 @@ def _expected_grid_lengths(continuous_states_info):
         for name, grid in continuous_states_info[
             "additional_continuous_state_grids"
         ].items()
+        if grid is not None
     }
     expected_lengths["assets_end_of_period"] = len(
         continuous_states_info["assets_grid_end_of_period"]
     )
-    if "assets_begin_of_period" in continuous_states_info:
+    if continuous_states_info.get("assets_begin_of_period") is not None:
         expected_lengths["assets_begin_of_period"] = len(
             continuous_states_info["assets_begin_of_period"]
         )

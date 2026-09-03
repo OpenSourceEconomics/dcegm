@@ -101,8 +101,13 @@ def test_state_specific_grid_matches_direct_declaration_with_experience_dependen
     def constant_scaled_grid_func(period):
         return scaled_grid
 
+    state_specific_model_config = dict(model_config)
+    state_specific_model_config["continuous_states"] = dict(
+        model_config["continuous_states"]
+    )
+    state_specific_model_config["continuous_states"]["experience"] = None
     state_specific_model = dcegm.setup_model(
-        model_config=model_config,
+        model_config=state_specific_model_config,
         model_specs=model_specs,
         continuous_grid_functions={"experience": constant_scaled_grid_func},
         **model_funcs,

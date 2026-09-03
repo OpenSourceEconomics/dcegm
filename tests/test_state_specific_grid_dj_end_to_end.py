@@ -32,6 +32,15 @@ def _load_with_cont_exp_dj():
     return model_funcs, params, model_specs, model_config
 
 
+def _with_none_grid(model_config, name):
+    # A continuous_grid_functions entry now requires the matching
+    # model_config["continuous_states"] entry to be None.
+    config = dict(model_config)
+    config["continuous_states"] = dict(model_config["continuous_states"])
+    config["continuous_states"][name] = None
+    return config
+
+
 def test_dj_constant_grid_func_reproduces_default_solve_bit_for_bit():
     model_funcs, params, model_specs, model_config = _load_with_cont_exp_dj()
 
@@ -46,7 +55,7 @@ def test_dj_constant_grid_func_reproduces_default_solve_bit_for_bit():
         return default_grid
 
     state_specific_model = dcegm.setup_model(
-        model_config=model_config,
+        model_config=_with_none_grid(model_config, "experience"),
         model_specs=model_specs,
         continuous_grid_functions={"experience": constant_grid_func},
         **model_funcs,
@@ -87,7 +96,7 @@ def test_dj_constant_but_different_grid_matches_direct_model_config_declaration(
         return scaled_grid
 
     state_specific_model = dcegm.setup_model(
-        model_config=model_config,
+        model_config=_with_none_grid(model_config, "experience"),
         model_specs=model_specs,
         continuous_grid_functions={"experience": constant_scaled_grid_func},
         **model_funcs,
@@ -124,7 +133,7 @@ def test_dj_constant_but_different_grid_matches_direct_declaration_when_simulate
         return scaled_grid
 
     state_specific_model = dcegm.setup_model(
-        model_config=model_config,
+        model_config=_with_none_grid(model_config, "experience"),
         model_specs=model_specs,
         continuous_grid_functions={"experience": constant_scaled_grid_func},
         **model_funcs,
@@ -172,7 +181,7 @@ def test_dj_constant_but_different_grid_matches_direct_declaration_for_choice_qu
         return scaled_grid
 
     state_specific_model = dcegm.setup_model(
-        model_config=model_config,
+        model_config=_with_none_grid(model_config, "experience"),
         model_specs=model_specs,
         continuous_grid_functions={"experience": constant_scaled_grid_func},
         **model_funcs,

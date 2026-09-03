@@ -208,7 +208,6 @@ def solve_final_period(
 
     law_of_motion_final_period = calc_law_of_motion_for_state_choices(
         state_choice_vec=state_choice_mat_final_period,
-        assets_grid_end_of_period=continuous_states_info["assets_grid_end_of_period"],
         income_shocks_scaled=income_shocks_scaled,
         params=params,
         model_funcs=model_funcs,
@@ -251,13 +250,34 @@ def solve_final_period(
         # For Druedahl Jorgensen wealth needs to be assets_begin_of_period
         assets_begin = "assets_begin_of_period" in continuous_states_info.keys()
         if upper_envelope_method == "druedahl_jorgensen":
-            asset_grid = continuous_states_info["assets_begin_of_period"]
+            # Own assets_begin_of_period grid, evaluated on demand per
+            # state-choice (self-referential terminal problem, same reasoning as
+            # the assets_end_of_period branch below) -- supports a state-specific
+            # grid, not just a shared array. Raw grid_func output, no zero point
+            # prepended (unlike compute_own_dj_wealth_grid): the zero point is
+            # appended once, uniformly for every branch, further down in this
+            # function (see zeros_to_append below) -- prepending one here too
+            # would double-count it.
+            asset_grid = vmap(
+                _own_assets_begin_of_period_grid_for_one_state,
+                in_axes=(0, None),
+            )(
+                state_choice_mat_final_period,
+                model_funcs["continuous_grid_functions"],
+            )
+            asset_grid_in_axes = 0
         else:
-            asset_grid = continuous_states_info["assets_grid_end_of_period"]
+            # Own assets_end_of_period grid, evaluated on demand inside
+            # calc_value_and_budget_for_state_choice instead -- this state-choice
+            # is solving its own terminal problem (self-referential, no parent/
+            # child ambiguity, unlike law_of_motion.py's transition-input role for
+            # the same name), so no shared array is needed here at all.
+            asset_grid = None
+            asset_grid_in_axes = None
 
         values_regular, wealth_at_regular = vmap(
             calc_value_and_budget_for_state_choice,
-            in_axes=(0, None, None, None, None, None, None, None),
+            in_axes=(0, None, None, asset_grid_in_axes, None, None, None, None),
         )(
             state_choice_mat_final_period,
             model_funcs["continuous_grid_functions"],
@@ -272,6 +292,28 @@ def solve_final_period(
         sort_idx = jnp.argsort(wealth_at_regular, axis=2)
         wealth_sorted = jnp.take_along_axis(wealth_at_regular, sort_idx, axis=2)
         values_sorted = jnp.take_along_axis(values_regular, sort_idx, axis=2)
+    elif upper_envelope_method == "druedahl_jorgensen":
+        # No additional continuous state, so there is no combo axis to build (unlike
+        # the branch above) -- just this state-choice's own assets_begin_of_period
+        # grid, evaluated on demand (self-referential, no parent/child ambiguity,
+        # this state-choice is solving its own terminal problem). The law-of-motion
+        # computation above (wealth_child_states_final_period, from
+        # assets_end_of_period) is not used here at all: for druedahl_jorgensen the
+        # storage grid is assets_begin_of_period, not the exogenous savings grid.
+        value_final, wealth_to_save = vmap(
+            _calc_dj_final_value_no_additional_state,
+            in_axes=(0, None, None, None),
+        )(
+            state_choice_mat_final_period,
+            model_funcs["continuous_grid_functions"],
+            params,
+            compute_utility,
+        )
+        value_final = value_final[:, None, :]
+        wealth_to_save = wealth_to_save[:, None, :]
+        sort_idx = jnp.argsort(wealth_to_save, axis=2)
+        wealth_sorted = jnp.take_along_axis(wealth_to_save, sort_idx, axis=2)
+        values_sorted = jnp.take_along_axis(value_final, sort_idx, axis=2)
     else:
         middle_of_draws = int((value.shape[3] - 1) / 2)
         value_final = value[:, :, :, middle_of_draws]
@@ -340,6 +382,36 @@ def calc_value_and_marg_util_for_each_gridpoint(
     return value, marg_util
 
 
+def _calc_dj_final_value_no_additional_state(
+    state_choice_vec,
+    continuous_grid_functions,
+    params,
+    compute_utility,
+):
+    """Druedahl-Jorgensen final-period value on this state-choice's own
+    assets_begin_of_period grid, for models with no additional continuous state.
+
+    No combo axis to build here (unlike calc_value_and_budget_for_state_choice, which
+    meshes the additional continuous states' own grids) -- this state-choice is solving
+    its own terminal problem directly on its own wealth grid, evaluated on demand (self-
+    referential, no parent/child ambiguity). The law-of-motion's own combo/wealth
+    computation (assets_end_of_period-based) is irrelevant here: for druedahl_jorgensen
+    the storage grid is assets_begin_of_period.
+
+    """
+    own_wealth_grid = continuous_grid_functions["assets_begin_of_period"](
+        **state_choice_vec
+    )
+    value = compute_utility(**state_choice_vec, wealth=own_wealth_grid, params=params)
+    return value, own_wealth_grid
+
+
+def _own_assets_begin_of_period_grid_for_one_state(
+    state_dict, continuous_grid_functions
+):
+    return continuous_grid_functions["assets_begin_of_period"](**state_dict)
+
+
 def calc_value_and_budget_for_state_choice(
     state_choice_vec,
     continuous_grid_functions,
@@ -363,12 +435,24 @@ def calc_value_and_budget_for_state_choice(
     state-choice space (that's where the solution itself lives), so ``state_choice_vec``
     -- including "choice" -- is exactly the identity a grid may depend on.
 
+    ``asset_grid`` is only used for the ``assets_begin`` (Druedahl-Jorgensen) case,
+    already this state-choice's own grid by the time it arrives here (the caller
+    vmaps ``compute_own_dj_wealth_grid`` per state-choice). For the FUES case
+    (``assets_begin`` False), the caller passes ``asset_grid=None`` and this
+    state-choice's own ``assets_end_of_period`` grid is evaluated on demand here
+    instead, the same
+    self-referential pattern as ``own_continuous_state_vec`` below.
+
     """
     own_continuous_state_vec = compute_own_continuous_grid_combos(
         state_choice_vec,
         continuous_grid_functions,
         additional_continuous_state_names,
     )
+    if not assets_begin:
+        asset_grid = continuous_grid_functions["assets_end_of_period"](
+            **state_choice_vec
+        )
     return vmap(
         vmap(
             calc_value_and_budget_for_each_gridpoint,

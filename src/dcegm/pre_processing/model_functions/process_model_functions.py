@@ -168,6 +168,7 @@ def process_model_functions_and_extract_info(
     # Upper envelope function
     compute_upper_envelope = create_upper_envelope_function(
         model_config=model_config,
+        continuous_grid_functions=continuous_grid_functions_processed,
     )
 
     taste_shock_function_processed, taste_shock_scale_in_params = (
@@ -369,6 +370,36 @@ def process_continuous_grid_functions(
                 f"continuous_grid_functions['{name}'] must be a callable of the "
                 "form (**discrete_state) -> 1d array."
             )
+        if name != "assets_end_of_period" and default_grids[name] is not None:
+            raise ValueError(
+                f"continuous_grid_functions['{name}'] is given, but "
+                f"model_config['continuous_states']['{name}'] is not None. A "
+                f"declared array is unused once a continuous_grid_functions entry "
+                f"takes over -- set model_config['continuous_states']['{name}'] to "
+                "None to make that explicit. ('assets_end_of_period' is the one "
+                "exception: check_model_config.py reads its length eagerly, for "
+                "every upper_envelope method, before continuous_grid_functions is "
+                "processed and before any state-choice exists to pin a deferred "
+                "size against -- so it must always be a real array.)"
+            )
+
+    if (
+        "assets_begin_of_period" in continuous_grid_functions
+        and continuous_states_info["n_additional_continuous_states"] > 0
+        and not model_config["upper_envelope"]["skip_endog_grid_storage"]
+    ):
+        raise ValueError(
+            "continuous_grid_functions['assets_begin_of_period'] together with "
+            "additional continuous states requires skip_endog_grid_storage "
+            "(upper_envelope['method'] == 'druedahl_jorgensen' and at least two "
+            "choices). With a single choice the Druedahl-Jorgensen upper envelope "
+            "is skipped entirely (see check_model_config.py), so the stored "
+            "endogenous grid is not the fixed assets_begin_of_period grid there, "
+            "and a state-specific assets_begin_of_period has nothing to plug "
+            "into. Remove either the additional continuous state(s) or the "
+            "continuous_grid_functions['assets_begin_of_period'] entry, or add a "
+            "second choice."
+        )
 
     continuous_grid_functions_processed = {}
     for name, default_grid in default_grids.items():
@@ -379,6 +410,13 @@ def process_continuous_grid_functions(
                     model_specs=model_specs,
                     not_allowed_state_choices=[],
                 )
+            )
+        elif default_grid is None:
+            raise ValueError(
+                f"model_config['continuous_states']['{name}'] is None, but no "
+                f"matching continuous_grid_functions['{name}'] was given. A `None` "
+                "grid means there is no default to fall back to -- it must be "
+                "paired with a continuous_grid_functions entry."
             )
         else:
             continuous_grid_functions_processed[name] = _make_constant_grid_func(

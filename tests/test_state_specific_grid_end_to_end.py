@@ -12,6 +12,7 @@ last-two-periods special case in one solve.
 
 import jax.numpy as jnp
 import numpy as np
+import pytest
 
 import dcegm
 import dcegm.toy_models as toy_models
@@ -23,6 +24,16 @@ def _load_with_cont_exp():
         toy_models.load_example_params_model_specs_and_config("with_cont_exp")
     )
     return model_funcs, params, model_specs, model_config
+
+
+def _with_none_grid(model_config, name):
+    # A continuous_grid_functions entry now requires the matching
+    # model_config["continuous_states"] entry to be None -- a real array is unused
+    # once a grid_func takes over, so it must be declared explicitly absent.
+    config = dict(model_config)
+    config["continuous_states"] = dict(model_config["continuous_states"])
+    config["continuous_states"][name] = None
+    return config
 
 
 def test_constant_grid_func_reproduces_default_solve_bit_for_bit():
@@ -43,7 +54,7 @@ def test_constant_grid_func_reproduces_default_solve_bit_for_bit():
         return default_grid
 
     state_specific_model = dcegm.setup_model(
-        model_config=model_config,
+        model_config=_with_none_grid(model_config, "experience"),
         model_specs=model_specs,
         continuous_grid_functions={"experience": constant_grid_func},
         **model_funcs,
@@ -60,6 +71,28 @@ def test_constant_grid_func_reproduces_default_solve_bit_for_bit():
         np.asarray(baseline_solved.endog_grid),
         np.asarray(state_specific_solved.endog_grid),
     )
+
+
+def test_array_declared_grid_with_grid_function_raises():
+    # A continuous_grid_functions entry requires the matching
+    # model_config["continuous_states"] entry to be None -- a declared array is
+    # unused once a grid_func takes over (only its length mattered, and that's now
+    # pinned by evaluating the grid_func against a representative state-choice
+    # instead, see continuous_state_grids.py), so leaving a real array there is
+    # rejected rather than silently ignored.
+    model_funcs, params, model_specs, model_config = _load_with_cont_exp()
+    default_grid = jnp.asarray(model_config["continuous_states"]["experience"])
+
+    def constant_grid_func(period):
+        return default_grid
+
+    with pytest.raises(ValueError, match="is not None"):
+        dcegm.setup_model(
+            model_config=model_config,
+            model_specs=model_specs,
+            continuous_grid_functions={"experience": constant_grid_func},
+            **model_funcs,
+        )
 
 
 def test_period_dependent_grid_solves_and_differs_from_default():
@@ -80,7 +113,7 @@ def test_period_dependent_grid_solves_and_differs_from_default():
         return default_grid * (1.0 + 0.1 * period)
 
     varying_model = dcegm.setup_model(
-        model_config=model_config,
+        model_config=_with_none_grid(model_config, "experience"),
         model_specs=model_specs,
         continuous_grid_functions={"experience": period_dependent_grid_func},
         **model_funcs,
@@ -141,7 +174,7 @@ def test_constant_but_different_grid_matches_direct_model_config_declaration():
         return scaled_grid
 
     state_specific_model = dcegm.setup_model(
-        model_config=model_config,
+        model_config=_with_none_grid(model_config, "experience"),
         model_specs=model_specs,
         continuous_grid_functions={"experience": constant_scaled_grid_func},
         **model_funcs,
@@ -186,7 +219,7 @@ def test_constant_but_different_grid_matches_direct_declaration_when_simulated()
         return scaled_grid
 
     state_specific_model = dcegm.setup_model(
-        model_config=model_config,
+        model_config=_with_none_grid(model_config, "experience"),
         model_specs=model_specs,
         continuous_grid_functions={"experience": constant_scaled_grid_func},
         **model_funcs,
@@ -235,7 +268,7 @@ def test_constant_but_different_grid_matches_direct_declaration_for_choice_queri
         return scaled_grid
 
     state_specific_model = dcegm.setup_model(
-        model_config=model_config,
+        model_config=_with_none_grid(model_config, "experience"),
         model_specs=model_specs,
         continuous_grid_functions={"experience": constant_scaled_grid_func},
         **model_funcs,

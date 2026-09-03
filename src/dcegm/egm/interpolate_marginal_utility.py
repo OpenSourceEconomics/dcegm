@@ -15,6 +15,7 @@ from dcegm.law_of_motion import (
     calc_law_of_motion_for_state_choices,
     compute_own_continuous_grid_combos,
     compute_own_continuous_grids_raw,
+    compute_own_dj_wealth_grid,
 )
 
 
@@ -80,7 +81,6 @@ def interpolate_value_and_marg_util(
     # structure (see law_of_motion.py).
     law_of_motion = calc_law_of_motion_for_state_choices(
         state_choice_vec=state_choice_vec,
-        assets_grid_end_of_period=continuous_grids_info["assets_grid_end_of_period"],
         income_shocks_scaled=income_shocks_scaled,
         params=params,
         model_funcs=model_funcs,
@@ -131,16 +131,23 @@ def interpolate_value_and_marg_util(
         )
     else:
         # Selects inside if jorgensen_druedahl or fues (different treatment of budget constraint)
-        # Under DJ, the wealth grid is a fixed constant (not batched over children), so
-        # it is passed with in_axes=None, broadcast only across the (small) continuous
-        # combo axis rather than the (potentially large) children axis.
+        # Under DJ, each child's own wealth grid, evaluated on demand -- state_choice_vec
+        # is the CHILD's own identity here (reading each child's own stored solution,
+        # interpolated on its own grid), not a parent, same reasoning as
+        # compute_own_continuous_grid_combos elsewhere in this file.
         if skip_endog_grid_storage:
-            dj_wealth_grid = continuous_grids_info["dj_wealth_grid"]
-            endog_grid_arg = jnp.broadcast_to(
-                dj_wealth_grid,
-                (policy_child_state_choice.shape[1], dj_wealth_grid.shape[0]),
+            own_dj_wealth_grid = vmap(compute_own_dj_wealth_grid, in_axes=(0, None))(
+                state_choice_vec, model_funcs["continuous_grid_functions"]
             )
-            endog_grid_in_axes = None
+            endog_grid_arg = jnp.broadcast_to(
+                own_dj_wealth_grid[:, None, :],
+                (
+                    own_dj_wealth_grid.shape[0],
+                    policy_child_state_choice.shape[1],
+                    own_dj_wealth_grid.shape[1],
+                ),
+            )
+            endog_grid_in_axes = 0
         else:
             endog_grid_arg = endog_grid_child_state_choice
             endog_grid_in_axes = 0
@@ -367,12 +374,20 @@ def _interpolate_value_and_marg_util_nd_regular(
         continuous_state_names,
     )
 
-    # interpnd_policy_and_value_for_child_states_on_own_regular_grids already
-    # treats wealth_grid as a single unbatched 1D array (it is not itself a
-    # mapped vmap argument), so under DJ we can pass the fixed grid directly with
-    # no broadcast.
+    # Each child's own wealth grid on demand, same reasoning as
+    # own_continuous_state_grids_per_child above: state_choice_vec is the CHILD's
+    # own identity here, since we're reading each child's own stored solution
+    # (mirrors the simple-1D-DJ branch's own_dj_wealth_grid computation). Only
+    # reachable when skip_endog_grid_storage -- with a single choice the DJ upper
+    # envelope is skipped entirely (see check_model_config.py), so the stored
+    # endog_grid is a genuinely different (non-fixed) grid there instead, handled
+    # by the else branch below (see process_continuous_grid_functions, which
+    # forbids a state-specific assets_begin_of_period whenever
+    # skip_endog_grid_storage is False and additional continuous states exist).
     wealth_grid = (
-        continuous_grids_info["dj_wealth_grid"]
+        vmap(compute_own_dj_wealth_grid, in_axes=(0, None))(
+            state_choice_vec, continuous_grid_functions
+        )
         if skip_endog_grid_storage
         else endog_grid_child_state_choice[0, 0]
     )

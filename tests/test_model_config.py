@@ -157,6 +157,22 @@ def test_dj_wealth_grid_and_skip_flag(valid_model_config):
     assert options["upper_envelope"]["skip_endog_grid_storage"] is True
 
 
+def test_none_assets_begin_of_period_defers_dj_wealth_grid(valid_model_config):
+    # `None` means the grid is fully state-choice-specific -- no default array to
+    # read a length from, so dj_wealth_grid/n_total_wealth_grid are left unresolved
+    # (None) here, pinned later once a real state-choice can be evaluated against.
+    valid_model_config["upper_envelope"] = {"method": "druedahl_jorgensen"}
+    valid_model_config["continuous_states"]["assets_begin_of_period"] = None
+    options = check_model_config_and_process(valid_model_config)
+
+    assert options["continuous_states_info"]["assets_begin_of_period"] is None
+    assert options["continuous_states_info"]["dj_wealth_grid"] is None
+    assert options["n_total_wealth_grid"] is None
+    # skip_endog_grid_storage itself only depends on method/n_choices, not on
+    # whether the grid is resolved yet, so it's still known immediately.
+    assert options["upper_envelope"]["skip_endog_grid_storage"] is True
+
+
 def test_skip_endog_grid_storage_false_for_single_choice_dj(valid_model_config):
     # With a single discrete choice, the upper envelope is skipped entirely, so the
     # stored endog_grid is not the fixed Druedahl-Jorgensen grid and must still be

@@ -41,6 +41,8 @@ def test_state_specific_grid_by_group_matches_separate_per_group_models():
 
     grouped_config = dict(model_config)
     grouped_config["deterministic_states"] = {"group": [0, 1]}
+    grouped_config["continuous_states"] = dict(model_config["continuous_states"])
+    grouped_config["continuous_states"]["experience"] = None
     grouped_model = dcegm.setup_model(
         model_config=grouped_config,
         model_specs=model_specs,

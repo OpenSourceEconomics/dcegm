@@ -190,6 +190,11 @@ def interpnd_policy_and_value_for_child_states_on_own_regular_grids(
     directly tested (``tests/test_interpnd_regular.py``) with the shared-grid
     contract.
 
+    ``wealth_grid`` is per-child here too, shape ``(n_child_state_choices,
+    n_wealth)`` -- each child may store its solution on its own
+    ``assets_begin_of_period``-derived grid, not one grid shared across all
+    children (mirrors ``additional_continuous_state_grids_per_child`` above).
+
     """
     objs = _precompute_interp_objects_own_grids(
         additional_continuous_state_grids_per_child=additional_continuous_state_grids_per_child,
@@ -208,6 +213,7 @@ def interpnd_policy_and_value_for_child_states_on_own_regular_grids(
         wealth_points_one_child,
         wealth_low_idxs_one_child,
         wealth_high_idxs_one_child,
+        wealth_grid_one_child,
     ):
         return vmap(
             _interp_policy_and_value_one_comb,
@@ -237,12 +243,12 @@ def interpnd_policy_and_value_for_child_states_on_own_regular_grids(
             wealth_high_idxs_one_child,
             objs["strides"],
             objs["corner_table"],
-            wealth_grid,
+            wealth_grid_one_child,
         )
 
     policy_interp, value_interp = vmap(
         _interp_one_child_state,
-        in_axes=(0, 0, 1, 1, 1, 1, 0, 0, 0),
+        in_axes=(0, 0, 1, 1, 1, 1, 0, 0, 0, 0),
     )(
         policy_grid_child_states,
         value_grid_child_states,
@@ -253,6 +259,7 @@ def interpnd_policy_and_value_for_child_states_on_own_regular_grids(
         wealth_child_states,
         objs["wealth_low_idxs"],
         objs["wealth_high_idxs"],
+        wealth_grid,
     )
 
     # We need to interpolate the expected value at zero savings, because we only know it for the regular
@@ -703,6 +710,10 @@ def _precompute_interp_objects_own_grids(
     those are computed exactly as before, just reading the size off the last axis of the
     now-per-child grid arrays instead of the only axis of a 1d array.
 
+    ``wealth_grid`` is per-child too (shape ``(n_child_state_choices, n_wealth)``), so
+    ``get_index_high_and_low`` -- which expects one 1d grid -- is vmapped over the
+    child axis, same treatment as the additional-continuous-state grids below.
+
     """
     state_names = list(additional_continuous_state_grids_per_child.keys())
     regular_shape = [
@@ -717,7 +728,7 @@ def _precompute_interp_objects_own_grids(
             state_names=state_names,
         )
     )
-    wealth_high_idxs, wealth_low_idxs = get_index_high_and_low(
+    wealth_high_idxs, wealth_low_idxs = vmap(get_index_high_and_low, in_axes=(0, 0))(
         wealth_grid, wealth_child_states
     )
     corner_table = _corner_table(len(state_names))

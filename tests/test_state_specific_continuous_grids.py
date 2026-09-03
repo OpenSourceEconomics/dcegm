@@ -98,11 +98,211 @@ def test_continuous_grid_functions_rejects_non_callable():
         )
 
 
+def test_none_grid_without_matching_grid_function_raises():
+    # A `None` grid means there is no default to fall back to -- it must be paired
+    # with a continuous_grid_functions entry, or there is nothing to build the grid
+    # from at all.
+    config = _base_model_config()
+    config["continuous_states"]["experience"] = None
+    processed = check_model_config_and_process(config)
+    with pytest.raises(ValueError, match="no matching continuous_grid_functions"):
+        process_continuous_grid_functions(
+            continuous_grid_functions=None, model_config=processed, model_specs={}
+        )
+
+
+def test_none_grid_paired_with_grid_function_is_accepted():
+    config = _base_model_config()
+    config["continuous_states"]["experience"] = None
+    processed = check_model_config_and_process(config)
+
+    # No default array to read a length from -- pending until a representative
+    # state-choice can be evaluated against.
+    assert (
+        processed["continuous_states_info"]["additional_continuous_state_grids"][
+            "experience"
+        ]
+        is None
+    )
+    assert processed["continuous_states_info"]["state_specific_size_names"] == [
+        "experience"
+    ]
+    assert (
+        processed["continuous_states_info"]["n_continuous_state_combinations"] is None
+    )
+
+    def grid_func(group):
+        return np.linspace(0, 1, 4) * (group + 1)
+
+    continuous_grid_functions, state_specific_names = process_continuous_grid_functions(
+        continuous_grid_functions={"experience": grid_func},
+        model_config=processed,
+        model_specs={},
+    )
+    assert state_specific_names == ["experience"]
+    np.testing.assert_allclose(
+        continuous_grid_functions["experience"](
+            period=0, lagged_choice=0, group=1, choice=0
+        ),
+        np.linspace(0, 1, 4) * 2,
+    )
+
+
+def test_none_grid_size_pinned_via_representative_state_choice():
+    # No default array for "experience" at all -- n_continuous_state_combinations
+    # can't be known until create_state_choice_space_and_child_state_mapping
+    # evaluates the grid function against a real state-choice.
+    config = _base_model_config()
+    config["continuous_states"]["experience"] = None
+    processed_config = check_model_config_and_process(config)
+    assert (
+        processed_config["continuous_states_info"]["n_continuous_state_combinations"]
+        is None
+    )
+
+    def grid_func(group):
+        return np.linspace(0, 1, 4) * (group + 1)
+
+    continuous_grid_functions, state_specific_names = process_continuous_grid_functions(
+        continuous_grid_functions={"experience": grid_func},
+        model_config=processed_config,
+        model_specs={},
+    )
+
+    sparsity_condition = process_sparsity_condition(
+        state_space_functions={}, model_specs={}
+    )
+    state_space_objects = create_state_space(
+        model_config=processed_config,
+        sparsity_condition=sparsity_condition,
+        debugging=False,
+    )
+
+    def next_period_deterministic_state(**kwargs):
+        return {
+            "period": kwargs["period"] + 1,
+            "lagged_choice": kwargs["choice"],
+            "group": kwargs["group"],
+        }
+
+    def state_specific_choice_set(**kwargs):
+        return np.array([0, 1])
+
+    create_state_choice_space_and_child_state_mapping(
+        model_config=processed_config,
+        state_specific_choice_set=state_specific_choice_set,
+        next_period_deterministic_state=next_period_deterministic_state,
+        state_space_arrays=state_space_objects,
+        continuous_grid_functions=continuous_grid_functions,
+        state_specific_continuous_grid_names=state_specific_names,
+    )
+
+    # Pinned to 4 -- the length grid_func("experience") always returns, regardless
+    # of which state-choice it was evaluated against.
+    assert (
+        processed_config["continuous_states_info"]["n_continuous_state_combinations"]
+        == 4
+    )
+
+
+def test_none_assets_begin_of_period_size_pinned_via_representative_state_choice():
+    # Same pinning mechanism, applied to assets_begin_of_period (Druedahl-Jorgensen's
+    # fixed common wealth grid) instead of an additional continuous state --
+    # n_total_wealth_grid can't be known until a real state-choice is evaluated.
+    # _base_model_config() has two choices, so skip_endog_grid_storage is True and
+    # assets_begin_of_period state-specificity coexists fine with "experience"
+    # (an additional continuous state, left at its real default array here) -- see
+    # process_continuous_grid_functions and
+    # test_assets_begin_of_period_state_specific.py for the end-to-end version and
+    # the remaining (single-choice) restriction.
+    config = _base_model_config()
+    config["continuous_states"]["assets_begin_of_period"] = None
+    config["upper_envelope"] = {"method": "druedahl_jorgensen"}
+    processed_config = check_model_config_and_process(config)
+    assert processed_config["n_total_wealth_grid"] is None
+    assert processed_config["continuous_states_info"]["dj_wealth_grid"] is None
+
+    def assets_begin_of_period_grid_func(group):
+        return np.linspace(0, 10, 6) * (group + 1)
+
+    continuous_grid_functions, state_specific_names = process_continuous_grid_functions(
+        continuous_grid_functions={
+            "assets_begin_of_period": assets_begin_of_period_grid_func
+        },
+        model_config=processed_config,
+        model_specs={},
+    )
+
+    sparsity_condition = process_sparsity_condition(
+        state_space_functions={}, model_specs={}
+    )
+    state_space_objects = create_state_space(
+        model_config=processed_config,
+        sparsity_condition=sparsity_condition,
+        debugging=False,
+    )
+
+    def next_period_deterministic_state(**kwargs):
+        return {
+            "period": kwargs["period"] + 1,
+            "lagged_choice": kwargs["choice"],
+            "group": kwargs["group"],
+        }
+
+    def state_specific_choice_set(**kwargs):
+        return np.array([0, 1])
+
+    create_state_choice_space_and_child_state_mapping(
+        model_config=processed_config,
+        state_specific_choice_set=state_specific_choice_set,
+        next_period_deterministic_state=next_period_deterministic_state,
+        state_space_arrays=state_space_objects,
+        continuous_grid_functions=continuous_grid_functions,
+        state_specific_continuous_grid_names=state_specific_names,
+    )
+
+    # Pinned to len(grid) + 1 (expected value at zero wealth prepended), the same
+    # formula check_model_config.py uses for a directly-declared grid.
+    assert processed_config["n_total_wealth_grid"] == 7
+    # dj_wealth_grid itself stays None -- there is no single shared array once
+    # assets_begin_of_period is state-choice-specific (see Task #13).
+    assert processed_config["continuous_states_info"]["dj_wealth_grid"] is None
+
+
+def test_assets_begin_of_period_state_specific_with_single_choice_raises():
+    # With a single discrete choice, skip_endog_grid_storage is False (see
+    # check_model_config.py): the Druedahl-Jorgensen upper envelope is skipped
+    # entirely, so the stored endogenous grid is not the fixed
+    # assets_begin_of_period grid there, and a state-specific
+    # assets_begin_of_period has nothing to plug into (unlike the >= 2-choices
+    # case exercised above and in test_assets_begin_of_period_state_specific.py).
+    config = _base_model_config()
+    config["choices"] = [0]
+    config["continuous_states"]["assets_begin_of_period"] = None
+    config["upper_envelope"] = {"method": "druedahl_jorgensen"}
+    processed_config = check_model_config_and_process(config)
+    assert not processed_config["upper_envelope"]["skip_endog_grid_storage"]
+
+    def assets_begin_of_period_grid_func(group):
+        return np.linspace(0, 10, 6) * (group + 1)
+
+    with pytest.raises(ValueError, match="skip_endog_grid_storage"):
+        process_continuous_grid_functions(
+            continuous_grid_functions={
+                "assets_begin_of_period": assets_begin_of_period_grid_func
+            },
+            model_config=processed_config,
+            model_specs={},
+        )
+
+
 def test_process_continuous_grid_functions_wraps_state_specific_and_default_names():
     def grid_func(group):
         return np.linspace(0, 1, 4) * (group + 1)
 
-    processed = check_model_config_and_process(_base_model_config())
+    config = _base_model_config()
+    config["continuous_states"]["experience"] = None
+    processed = check_model_config_and_process(config)
     continuous_grid_functions, state_specific_names = process_continuous_grid_functions(
         continuous_grid_functions={"experience": grid_func},
         model_config=processed,
@@ -145,7 +345,9 @@ def test_process_continuous_grid_functions_allows_choice_dependence():
     def grid_func(choice):
         return np.linspace(0, 1, 4) * (choice + 1)
 
-    processed = check_model_config_and_process(_base_model_config())
+    config = _base_model_config()
+    config["continuous_states"]["experience"] = None
+    processed = check_model_config_and_process(config)
     continuous_grid_functions, state_specific_names = process_continuous_grid_functions(
         continuous_grid_functions={"experience": grid_func},
         model_config=processed,
@@ -189,7 +391,7 @@ def test_evaluate_state_specific_grids_skips_names_without_user_callable():
         "assets_grid_end_of_period": np.linspace(0, 1, 10),
     }
 
-    grids_per_state_choice = evaluate_state_specific_continuous_grids(
+    grids_per_state_choice, resolved_lengths = evaluate_state_specific_continuous_grids(
         state_choice_space=state_choice_space,
         discrete_state_choice_names=discrete_state_choice_names,
         continuous_grid_functions={},
@@ -197,6 +399,7 @@ def test_evaluate_state_specific_grids_skips_names_without_user_callable():
         continuous_states_info=continuous_states_info,
     )
     assert grids_per_state_choice == {}
+    assert resolved_lengths == {}
 
 
 # =====================================================================================
@@ -205,7 +408,10 @@ def test_evaluate_state_specific_grids_skips_names_without_user_callable():
 
 
 def _build_state_choice_objects(grid_func_dict, group_resets_on_choice=False):
-    processed_config = check_model_config_and_process(_base_model_config())
+    config = _base_model_config()
+    for name in grid_func_dict:
+        config["continuous_states"][name] = None
+    processed_config = check_model_config_and_process(config)
 
     continuous_grid_functions, state_specific_names = process_continuous_grid_functions(
         continuous_grid_functions=grid_func_dict,

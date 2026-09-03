@@ -8,7 +8,6 @@ from dcegm.check_func_outputs import (
 
 def calc_law_of_motion_for_state_choices(
     state_choice_vec,
-    assets_grid_end_of_period,
     income_shocks_scaled,
     params,
     model_funcs,
@@ -37,7 +36,11 @@ def calc_law_of_motion_for_state_choices(
     relationship to trace (e.g. the whole-state-space debug entry point below)
     pass ``state_choice_vec`` itself here (including "choice" -- grids live on
     the state-choice space, so it's a legitimate part of the identity), matching
-    today's global-grid behavior exactly.
+    today's global-grid behavior exactly. This applies to ``assets_end_of_period``
+    just as much as to the additional continuous states: it too is a law-of-motion
+    input (the exogenous grid a parent's transition is evaluated over, feeding the
+    child's own budget equation), so it is evaluated from
+    ``grid_source_state_choice_vec`` here too, not from ``state_choice_vec``.
 
     """
     state_vec = dict(state_choice_vec)
@@ -51,6 +54,10 @@ def calc_law_of_motion_for_state_choices(
         params=params,
         model_funcs=model_funcs,
     )
+    own_assets_grid_end_of_period = vmap(
+        _own_assets_grid_end_of_period_for_one_state,
+        in_axes=(0, None),
+    )(grid_source_state_choice_vec, model_funcs["continuous_grid_functions"])
 
     def fix_assets_and_shocks_for_broadcast(
         states,
@@ -82,11 +89,11 @@ def calc_law_of_motion_for_state_choices(
             ),
             in_axes=(None, 0, None, None),
         ),
-        in_axes=(0, 0, None, None),
+        in_axes=(0, 0, 0, None),
     )(
         state_vec,
         continuous_state_next_period,
-        assets_grid_end_of_period,
+        own_assets_grid_end_of_period,
         income_shocks_scaled,
     )
 
@@ -95,6 +102,12 @@ def calc_law_of_motion_for_state_choices(
         "continuous_states": continuous_state_next_period,
         "assets_begin_of_period": assets_begin_of_next_period,
     }
+
+
+def _own_assets_grid_end_of_period_for_one_state(
+    grid_source_row, continuous_grid_functions
+):
+    return continuous_grid_functions["assets_end_of_period"](**grid_source_row)
 
 
 def calc_cont_grids_next_period(
@@ -124,7 +137,6 @@ def calc_cont_grids_next_period(
 
     return calc_law_of_motion_for_state_choices(
         state_choice_vec=state_space_dict,
-        assets_grid_end_of_period=continuous_states_info["assets_grid_end_of_period"],
         income_shocks_scaled=income_shocks_scaled,
         params=params,
         model_funcs=model_funcs,
@@ -258,6 +270,25 @@ def compute_own_continuous_grid_combos(
         name: grid.ravel()
         for name, grid in zip(additional_continuous_state_names, meshed)
     }
+
+
+def compute_own_dj_wealth_grid(state_dict, continuous_grid_functions):
+    """Evaluate one state-choice's own Druedahl-Jorgensen wealth grid on demand.
+
+    The "m_grid" (``assets_begin_of_period``) with a zero-wealth point prepended -- the
+    fixed grid every state-choice's policy/value is stored/interpolated against under
+    Druedahl-Jorgensen (see ``check_model_config.py``'s ``dj_wealth_grid``, which this
+    replaces with an on-demand, possibly state-choice-specific evaluation). Intended to
+    be called via ``vmap`` over a batch of state-choices -- one call here is one state-
+    choice's own grid, not the whole state-choice space.
+
+    """
+    return jnp.concatenate(
+        (
+            jnp.zeros(1),
+            continuous_grid_functions["assets_begin_of_period"](**state_dict),
+        )
+    )
 
 
 def _check_continuous_state_output_keys(

@@ -47,11 +47,10 @@ def calculate_candidate_solutions_from_euler_equation(
         expected_value,
     ) = vmap(
         compute_optimal_policy_and_value_for_state_choice,
-        in_axes=(0, 0, None, 0, None, None, None),
+        in_axes=(0, 0, 0, None, None, None),
     )(
         feasible_marg_utils_child,
         feasible_emax_child,
-        continuous_grids_info["assets_grid_end_of_period"],
         state_choice_mat,
         model_funcs,
         params,
@@ -69,7 +68,6 @@ def calculate_candidate_solutions_from_euler_equation(
 def compute_optimal_policy_and_value_for_state_choice(
     feasible_marg_utils_child: jnp.ndarray,
     feasible_emax_child: jnp.ndarray,
-    assets_grid_end_of_period: jnp.ndarray,
     state_choice_vec: Any,
     model_funcs: Dict[str, Any],
     params: Dict[str, float],
@@ -77,11 +75,12 @@ def compute_optimal_policy_and_value_for_state_choice(
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Compute EGM candidates for one state-choice, across its own combo/wealth grid.
 
-    Builds this state-choice's own combo grid on demand *after* vmapping down to a
-    single state-choice, instead of precomputing the whole batch's grids upfront in a
-    separate vmap and feeding the result in as a paired array. This state-choice is
-    solving/storing its *own* problem (not interpolating someone else's child), so its
-    own grid is used directly -- no representative-parent selection needed, unlike
+    Builds this state-choice's own combo grid *and* its own ``assets_end_of_period``
+    grid on demand *after* vmapping down to a single state-choice, instead of
+    precomputing the whole batch's grids upfront in a separate vmap and feeding the
+    result in as a paired array. This state-choice is solving/storing its *own*
+    problem (not interpolating someone else's child), so its own grids are used
+    directly -- no representative-parent selection needed, unlike
     law_of_motion.py's grid selection for a transition *into* a state. Grids live on the
     state-choice space (that's where the solution itself lives), so ``state_choice_vec``
     -- including "choice" -- is exactly the identity a grid may depend on.
@@ -95,6 +94,10 @@ def compute_optimal_policy_and_value_for_state_choice(
         )
     else:
         own_continuous_state_vec = {"dummy_cont": jnp.zeros(1)}
+
+    assets_grid_end_of_period = model_funcs["continuous_grid_functions"][
+        "assets_end_of_period"
+    ](**state_choice_vec)
 
     return vmap(
         vmap(

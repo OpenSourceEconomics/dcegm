@@ -26,7 +26,7 @@ def _scipy_expected_policy(
     policy_grid_child_states,
     exp_green_grids,
     exp_red_grids,
-    wealth_grid,
+    wealth_grids,
     continuous_state_child_states,
     wealth_child_states,
 ):
@@ -36,10 +36,10 @@ def _scipy_expected_policy(
     expected = np.empty_like(wealth_child_states)
     for i in range(n_child_state_choices):
         policy_grid_nd = policy_grid_child_states[i].reshape(
-            exp_green_grids[i].size, exp_red_grids[i].size, wealth_grid.size
+            exp_green_grids[i].size, exp_red_grids[i].size, wealth_grids[i].size
         )
         interp = RegularGridInterpolator(
-            (exp_green_grids[i], exp_red_grids[i], wealth_grid),
+            (exp_green_grids[i], exp_red_grids[i], wealth_grids[i]),
             policy_grid_nd,
             method="linear",
             bounds_error=False,
@@ -60,10 +60,10 @@ def _scipy_expected_policy(
 
 
 def test_interpnd_own_grids_matches_scipy_per_child_with_different_grids():
-    # Two children with *different* grids for both continuous states (child 1's
-    # grid is a scaled-up version of child 0's) -- this is exactly the scenario
-    # that would silently break if the interpolation axis were wrongly shared
-    # across children instead of read per child.
+    # Two children with *different* grids for both continuous states and for
+    # wealth (child 1's grid is a scaled-up version of child 0's) -- this is
+    # exactly the scenario that would silently break if the interpolation axis
+    # were wrongly shared across children instead of read per child.
     exp_green_grids = np.array(
         [
             [0.0, 0.3, 0.8],
@@ -76,7 +76,13 @@ def test_interpnd_own_grids_matches_scipy_per_child_with_different_grids():
             [0.0, 1.0],
         ]
     )
-    wealth_grid = np.array([0.0, 2.0, 5.0, 9.0], dtype=float)
+    wealth_grids = np.array(
+        [
+            [0.0, 2.0, 5.0, 9.0],
+            [0.0, 4.0, 10.0, 18.0],
+        ],
+        dtype=float,
+    )
 
     n_child_state_choices = 2
     n_cont_combinations = exp_green_grids.shape[1] * exp_red_grids.shape[1]
@@ -101,13 +107,14 @@ def test_interpnd_own_grids_matches_scipy_per_child_with_different_grids():
             ]
         ),
     }
-    wealth_child_states = rng.uniform(
-        -1.0,
-        10.0,
-        size=(n_child_state_choices, n_cont_combinations, n_wealth_eval, n_quad),
+    wealth_child_states = np.stack(
+        [
+            rng.uniform(-1.0, 10.0, size=(n_cont_combinations, n_wealth_eval, n_quad)),
+            rng.uniform(-2.0, 20.0, size=(n_cont_combinations, n_wealth_eval, n_quad)),
+        ]
     )
     policy_grid_child_states = rng.normal(
-        size=(n_child_state_choices, n_cont_combinations, wealth_grid.size)
+        size=(n_child_state_choices, n_cont_combinations, wealth_grids.shape[1])
     )
     # High value grid so policy interpolation dominates, no consume-all overwrite.
     value_grid_child_states = np.full_like(policy_grid_child_states, 1e8)
@@ -117,7 +124,7 @@ def test_interpnd_own_grids_matches_scipy_per_child_with_different_grids():
             "exp_green": jnp.asarray(exp_green_grids),
             "exp_red": jnp.asarray(exp_red_grids),
         },
-        wealth_grid=jnp.asarray(wealth_grid),
+        wealth_grid=jnp.asarray(wealth_grids),
         policy_grid_child_states=jnp.asarray(policy_grid_child_states),
         value_grid_child_states=jnp.asarray(value_grid_child_states),
         continuous_state_child_states={
@@ -136,7 +143,7 @@ def test_interpnd_own_grids_matches_scipy_per_child_with_different_grids():
         policy_grid_child_states,
         exp_green_grids,
         exp_red_grids,
-        wealth_grid,
+        wealth_grids,
         continuous_state_child_states,
         wealth_child_states,
     )
@@ -206,7 +213,7 @@ def test_interpnd_own_grids_matches_shared_grid_path_when_grids_are_identical():
                 "exp_green": jnp.tile(exp_green_grid, (n_child_state_choices, 1)),
                 "exp_red": jnp.tile(exp_red_grid, (n_child_state_choices, 1)),
             },
-            wealth_grid=jnp.asarray(wealth_grid),
+            wealth_grid=jnp.tile(wealth_grid, (n_child_state_choices, 1)),
             policy_grid_child_states=jnp.asarray(policy_grid_child_states),
             value_grid_child_states=jnp.asarray(value_grid_child_states),
             continuous_state_child_states={

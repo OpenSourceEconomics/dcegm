@@ -166,9 +166,13 @@ def process_alternative_sim_functions(
         )
     )
 
-    # Upper envelope function
+    # Upper envelope function. alt_model_funcs is simulation-only (behavioral
+    # counterfactuals for simulate(), never re-solving), and compute_upper_envelope
+    # is a solve-time-only construct that this path never actually calls -- no
+    # continuous_grid_functions is processed here to pass through.
     compute_upper_envelope = create_upper_envelope_function(
         model_config=model_config,
+        continuous_grid_functions={},
     )
 
     taste_shock_function_processed, taste_shock_scale_in_params = (
