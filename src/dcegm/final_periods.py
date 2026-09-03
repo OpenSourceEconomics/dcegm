@@ -245,9 +245,16 @@ def solve_final_period(
         compute_marginal_utility,
     )
 
-    if continuous_states_info["has_additional_continuous_state"]:
-        # We also need to solve at the state space and the child states to store correctly
-        # For Druedahl Jorgensen wealth needs to be assets_begin_of_period
+    if (
+        continuous_states_info["has_additional_continuous_state"]
+        or upper_envelope_method == "druedahl_jorgensen"
+    ):
+        # For Druedahl-Jorgensen the storage grid is assets_begin_of_period; for
+        # FUES with an additional continuous state it's assets_end_of_period.
+        # calc_value_and_budget_for_state_choice handles both, and also the
+        # no-additional-continuous-state Druedahl-Jorgensen case (a size-1 dummy
+        # combo axis, same convention as solve_euler_equation.py/
+        # solve_single_period.py) -- so one branch now covers what used to be two.
         assets_begin = "assets_begin_of_period" in continuous_states_info.keys()
 
         values_regular, wealth_at_regular = vmap(
@@ -266,28 +273,6 @@ def solve_final_period(
         sort_idx = jnp.argsort(wealth_at_regular, axis=2)
         wealth_sorted = jnp.take_along_axis(wealth_at_regular, sort_idx, axis=2)
         values_sorted = jnp.take_along_axis(values_regular, sort_idx, axis=2)
-    elif upper_envelope_method == "druedahl_jorgensen":
-        # No additional continuous state, so there is no combo axis to build (unlike
-        # the branch above) -- just this state-choice's own assets_begin_of_period
-        # grid, evaluated on demand (self-referential, no parent/child ambiguity,
-        # this state-choice is solving its own terminal problem). The law-of-motion
-        # computation above (wealth_child_states_final_period, from
-        # assets_end_of_period) is not used here at all: for druedahl_jorgensen the
-        # storage grid is assets_begin_of_period, not the exogenous savings grid.
-        value_final, wealth_to_save = vmap(
-            _calc_dj_final_value_no_additional_state,
-            in_axes=(0, None, None, None),
-        )(
-            state_choice_mat_final_period,
-            model_funcs["continuous_grid_functions"],
-            params,
-            compute_utility,
-        )
-        value_final = value_final[:, None, :]
-        wealth_to_save = wealth_to_save[:, None, :]
-        sort_idx = jnp.argsort(wealth_to_save, axis=2)
-        wealth_sorted = jnp.take_along_axis(wealth_to_save, sort_idx, axis=2)
-        values_sorted = jnp.take_along_axis(value_final, sort_idx, axis=2)
     else:
         middle_of_draws = int((value.shape[3] - 1) / 2)
         value_final = value[:, :, :, middle_of_draws]
@@ -356,30 +341,6 @@ def calc_value_and_marg_util_for_each_gridpoint(
     return value, marg_util
 
 
-def _calc_dj_final_value_no_additional_state(
-    state_choice_vec,
-    continuous_grid_functions,
-    params,
-    compute_utility,
-):
-    """Druedahl-Jorgensen final-period value on this state-choice's own
-    assets_begin_of_period grid, for models with no additional continuous state.
-
-    No combo axis to build here (unlike calc_value_and_budget_for_state_choice, which
-    meshes the additional continuous states' own grids) -- this state-choice is solving
-    its own terminal problem directly on its own wealth grid, evaluated on demand (self-
-    referential, no parent/child ambiguity). The law-of-motion's own combo/wealth
-    computation (assets_end_of_period-based) is irrelevant here: for druedahl_jorgensen
-    the storage grid is assets_begin_of_period.
-
-    """
-    own_wealth_grid = continuous_grid_functions["assets_begin_of_period"](
-        **state_choice_vec
-    )
-    value = compute_utility(**state_choice_vec, wealth=own_wealth_grid, params=params)
-    return value, own_wealth_grid
-
-
 def calc_value_and_budget_for_state_choice(
     state_choice_vec,
     continuous_grid_functions,
@@ -412,12 +373,24 @@ def calc_value_and_budget_for_state_choice(
     grid_func output, and the caller appends a single zero point uniformly for
     every branch further down (see ``zeros_to_append`` in ``solve_final_period``).
 
+    With no additional continuous state, ``additional_continuous_state_names`` is
+    empty and there is nothing to mesh -- a size-1 ``dummy_cont`` placeholder
+    stands in instead, the same convention ``solve_euler_equation.py`` and
+    ``solve_single_period.py`` already use, letting this one function (and the
+    vmap below) cover the Druedahl-Jorgensen no-additional-continuous-state case
+    too, rather than needing a dedicated combo-axis-free sibling. Downstream user
+    functions (``compute_utility``) silently ignore the extra ``dummy_cont``
+    kwarg, same as they already do on those other paths.
+
     """
-    own_continuous_state_vec = compute_own_continuous_grid_combos(
-        state_choice_vec,
-        continuous_grid_functions,
-        additional_continuous_state_names,
-    )
+    if additional_continuous_state_names:
+        own_continuous_state_vec = compute_own_continuous_grid_combos(
+            state_choice_vec,
+            continuous_grid_functions,
+            additional_continuous_state_names,
+        )
+    else:
+        own_continuous_state_vec = {"dummy_cont": jnp.zeros(1)}
     grid_name = "assets_begin_of_period" if assets_begin else "assets_end_of_period"
     asset_grid = continuous_grid_functions[grid_name](**state_choice_vec)
     return vmap(
