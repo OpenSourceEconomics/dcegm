@@ -149,13 +149,46 @@ def solve_reference_backward_induction(params, a_grid):
     return solved
 
 
+def grid_for(a_grid, period, choice):
+    """Resolve the end-of-period assets grid for one (period, choice).
+
+    `a_grid` is either a plain 1d array -- one grid shared by every
+    state-choice, the original behaviour -- or a callable
+    `(period, choice) -> 1d array`, which is what lets this reference mirror
+    dcegm's state-choice-specific
+    `continuous_grid_functions["assets_end_of_period"]`.
+
+    `period` and `choice` are the only things such a grid may depend on in
+    this model, so they are the only things this takes. dcegm requires every
+    parent state-choice transitioning into a shared child to agree on its own
+    grid (`check_continuous_grid_consistency_across_shared_children`).
+    `partner_state` is stochastic, so both partner states parent the same
+    children; `lagged_choice` fails for the same reason (two parents with
+    different `lagged_choice` but the same `choice` share a child). `choice`
+    itself is safe because it passes 1:1 into the child's `lagged_choice`,
+    and `period` because every parent of a given child sits in the same one.
+
+    """
+    if callable(a_grid):
+        return np.asarray(a_grid(period=period, choice=choice))
+    return np.asarray(a_grid)
+
+
 def solve_reference(n_periods, params, a_grid):
     """General n-period manual EGM backward induction, no upper envelope.
 
     Only the terminal period is analytic (consume everything). Every earlier
-    period is solved on `a_grid` and stored; the period before it reads
-    (interpolates) that stored grid for its own continuation value and
-    marginal utility, exactly as dcegm does internally.
+    period is solved on its own end-of-period assets grid (see `grid_for`)
+    and stored; the period before it reads (interpolates) that stored grid
+    for its own continuation value and marginal utility, exactly as dcegm
+    does internally.
+
+    `a_grid` may be a single shared array or a per-state-choice callable --
+    the latter is the reference counterpart of dcegm's
+    `continuous_grid_functions`. Because each (period, partner_state, choice)
+    stores its solution on whatever grid it was solved with, and the
+    continuation lookup interpolates that stored grid by wealth value, no
+    other part of this function needs to know which case it is in.
 
     Returns solved[period][(partner_state, choice)] = dict with parallel
     arrays "endog_grid", "policy", "value", for period in
@@ -233,15 +266,16 @@ def solve_reference(n_periods, params, a_grid):
             transition_probs = partner_transition_np(partner_state_now, params)
 
             for choice_now in (0, 1):
-                endog_grid = np.empty_like(a_grid)
-                policy = np.empty_like(a_grid)
-                value = np.empty_like(a_grid)
+                own_a_grid = grid_for(a_grid, period, choice_now)
+                endog_grid = np.empty_like(own_a_grid)
+                policy = np.empty_like(own_a_grid)
+                value = np.empty_like(own_a_grid)
 
                 # Income from choice_now (work vs not) arrives at the start
                 # of period + 1, dcegm-style.
                 income_next = params["y_work"] * (choice_now == 0)
 
-                for i, a_end in enumerate(a_grid):
+                for i, a_end in enumerate(own_a_grid):
                     expected_marg_util = 0.0
                     expected_value = 0.0
                     for partner_state_next, prob_partner in enumerate(transition_probs):

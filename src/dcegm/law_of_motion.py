@@ -212,10 +212,10 @@ def calc_law_of_motion_for_child_states(
     state-choices, so there is exactly one implementation of the transition math
     for both granularities. Only valid when the user's transition functions do not
     depend on ``choice`` (checked once at model-build time, see
-    ``transition_funcs_depend_on_choice`` in ``process_model_functions.py``): that
-    function pops ``"choice"`` before calling them anyway, so every state-choice
-    sharing a child state would otherwise recompute a bit-identical result
-    ``n_choices`` times.
+    ``transition_funcs_depend_on_choice`` in ``process_model_functions.py``): the
+    transition into a child is a function of the child's own state, not of the
+    choice it goes on to make, so every state-choice sharing a child state would
+    otherwise recompute a bit-identical result ``n_choices`` times.
 
     ``state_row_for_state_choice`` (built in ``child_state_dedup.py``) maps each
     child state-choice back to its row in ``child_states``, so the per-state result

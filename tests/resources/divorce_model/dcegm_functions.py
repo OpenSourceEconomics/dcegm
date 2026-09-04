@@ -91,7 +91,7 @@ def partner_transition(partner_state, params):
     return jnp.array([1 - prob_married_next, prob_married_next])
 
 
-def build_and_solve(params, n_periods, a_grid):
+def build_and_solve(params, n_periods, a_grid, continuous_grid_functions=None):
     model_specs = {"n_periods": n_periods, "n_choices": 2}
     model_config = {
         "n_periods": n_periods,
@@ -115,5 +115,6 @@ def build_and_solve(params, n_periods, a_grid):
             "marginal_utility": marginal_utility_final,
         },
         budget_constraint=budget_constraint,
+        continuous_grid_functions=continuous_grid_functions,
     )
     return model, model.solve(params)
