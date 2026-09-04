@@ -95,8 +95,7 @@ def policy_and_value_for_states_and_choices(
         # vmap treat it as invariant via in_axes=None.
         endog_grid_state_choice = broadcast_dj_wealth_grid(
             model_config["continuous_states_info"],
-            (value_grid_state_choice.shape[1],)
-            + model_config["continuous_states_info"]["dj_wealth_grid"].shape,
+            value_grid_state_choice.shape[1:],
         )
         endog_grid_in_axes = None
     else:
@@ -172,8 +171,7 @@ def value_for_state_and_choice(
     if model_config["upper_envelope"]["skip_endog_grid_storage"]:
         endog_grid_state_choice = broadcast_dj_wealth_grid(
             model_config["continuous_states_info"],
-            (value_grid_state_choice.shape[1],)
-            + model_config["continuous_states_info"]["dj_wealth_grid"].shape,
+            value_grid_state_choice.shape[1:],
         )
         endog_grid_in_axes = None
     else:
@@ -252,8 +250,7 @@ def policy_for_state_choice_vec(
     if model_config["upper_envelope"]["skip_endog_grid_storage"]:
         endog_grid_state_choice = broadcast_dj_wealth_grid(
             model_config["continuous_states_info"],
-            (value_grid_state_choice.shape[1],)
-            + model_config["continuous_states_info"]["dj_wealth_grid"].shape,
+            value_grid_state_choice.shape[1:],
         )
         endog_grid_in_axes = None
     else:

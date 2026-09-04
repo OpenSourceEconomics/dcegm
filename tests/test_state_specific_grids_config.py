@@ -111,6 +111,27 @@ def test_none_grid_without_matching_grid_function_raises():
         )
 
 
+def test_array_declared_grid_with_grid_function_raises():
+    """The other direction of the None convention.
+
+    A declared array is unused once a grid function takes over -- only its length ever
+    mattered, and that is now pinned by evaluating the grid function against a
+    representative state-choice (see continuous_state_grids.py). Leaving a real array
+    there is rejected rather than silently ignored, so the two directions together make
+    the convention unambiguous.
+
+    """
+    processed = check_model_config_and_process(_base_model_config())
+    with pytest.raises(ValueError, match="is not None"):
+        process_continuous_grid_functions(
+            continuous_grid_functions={
+                "experience": lambda group: np.linspace(0, 1, 4)
+            },
+            model_config=processed,
+            model_specs={},
+        )
+
+
 def test_none_grid_paired_with_grid_function_is_accepted():
     config = _base_model_config()
     config["continuous_states"]["experience"] = None

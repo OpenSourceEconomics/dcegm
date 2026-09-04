@@ -469,41 +469,6 @@ def test_state_specific_grid_and_choice_dependent_budget_together():
     assert n_checked > 0
 
 
-def test_none_declared_grid_matches_closed_form():
-    """The ``None``-grid convention, pinned absolutely rather than by equivalence.
-
-    ``assets_end_of_period`` cannot be declared ``None``, so the convention is exercised
-    on an additional continuous state is not available in this two-period setup; instead
-    this checks the closest analogue that is: a model whose grid function fully replaces
-    the declared array.
-
-    """
-    choices = [0, 1]
-    model, solved = _solve(
-        choices=choices,
-        budget_fn=_budget,
-        continuous_grid_functions={"assets_end_of_period": _assets_grid_by_group},
-    )
-    # The declared array's values are never read once the grid function is given.
-    declared = np.asarray(
-        model.model_config["continuous_states_info"]["assets_grid_end_of_period"]
-    )
-    idxs, rows = _period_zero_state_choices(model)
-    endog_grid = np.asarray(solved.endog_grid)
-    policy = np.asarray(solved.policy)
-
-    for state_choice_idx, row in zip(idxs, rows):
-        own_grid = np.asarray(_assets_grid_by_group(group=row["group"]))
-        implied = (
-            endog_grid[state_choice_idx, 0, 1 : len(own_grid) + 1]
-            - policy[state_choice_idx, 0, 1 : len(own_grid) + 1]
-        )
-        assert_allclose(implied, own_grid, atol=1e-6)
-        if row["group"] != 0:
-            # ... and is genuinely not what was solved on.
-            assert not np.allclose(implied, declared)
-
-
 # =====================================================================================
 # Part 2: hand-solved n-period reference (divorce model)
 # =====================================================================================

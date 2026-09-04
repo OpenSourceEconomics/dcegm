@@ -49,13 +49,23 @@ def broadcast_dj_wealth_grid(continuous_states_info: Dict[str, Any], shape):
 
     "dj_wealth_grid" is None when assets_begin_of_period is state-choice-specific
     (see check_model_config.py) -- there is no single shared array to broadcast in
-    that case. Callers of this function only reach it for the additional-
-    continuous-state (n-D regular) interpolation path, which
-    process_continuous_grid_functions already forbids combining with a
-    state-specific assets_begin_of_period; the simple 1d case computes each
-    state-choice's own grid on demand instead (see interp_interfaces.py /
-    simulation_interp.py), ignoring this value entirely. So a zero placeholder here
-    is always safe -- it is never actually read when it would be wrong.
+    that case, so a zero placeholder of the right shape is returned instead.
+
+    That placeholder is never read: every reader that receives it recomputes the
+    state-choice's own grid on demand, both on the simple 1d path
+    (_dj_wealth_grid_for_state_choice) and on the additional-continuous-state (n-D
+    regular) path (_interp_policy_and_value_multidim_dj_for_state_choice in
+    interp_interfaces.py, interpnd_policy_and_value_function in
+    simulation_interp.py). Only the array's *shape* matters here, to keep vmap's
+    in_axes=None contract.
+
+    An earlier version of this docstring justified the placeholder differently --
+    that process_continuous_grid_functions forbade combining a state-specific
+    assets_begin_of_period with additional continuous states, so the n-D readers
+    could never see it. That restriction was later lifted for the
+    skip_endog_grid_storage case, which silently invalidated the justification and
+    left those readers interpolating against zeros until the n-D recomputation
+    above was added.
 
     """
     if continuous_states_info["dj_wealth_grid"] is None:

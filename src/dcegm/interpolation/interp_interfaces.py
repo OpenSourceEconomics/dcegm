@@ -96,6 +96,9 @@ def interpolate_value_for_state_and_choice(
             compute_utility=compute_utility,
             params=params,
             discount_factor=discount_factor,
+            skip_endog_grid_storage=model_config["upper_envelope"][
+                "skip_endog_grid_storage"
+            ],
         )
     elif upper_envelope_method == "druedahl_jorgensen":
         value = interp1d_value_on_wealth_dj(
@@ -252,6 +255,9 @@ def interpolate_policy_and_value_for_state_and_choice(
             compute_utility=compute_utility,
             params=params,
             discount_factor=discount_factor,
+            skip_endog_grid_storage=model_config["upper_envelope"][
+                "skip_endog_grid_storage"
+            ],
         )
     elif upper_envelope_method == "druedahl_jorgensen":
         policy, value = interp1d_policy_and_value_on_wealth_dj(
@@ -294,7 +300,23 @@ def _interp_policy_and_value_multidim_dj_for_state_choice(
     compute_utility,
     params,
     discount_factor,
+    skip_endog_grid_storage,
 ):
+    # Under skip_endog_grid_storage the endogenous grid is not stored at all, so
+    # endog_grid_state_choice carries no usable values (callers pass a placeholder
+    # of the right shape); this state-choice's own Druedahl-Jorgensen wealth grid is
+    # computed here instead, exactly as _dj_wealth_grid_for_state_choice does for
+    # the simple 1d case. It is the same grid for every continuous-state combo of a
+    # given state-choice -- that is what makes it "the fixed common wealth grid" --
+    # so the one array serves both lookups below.
+    if skip_endog_grid_storage:
+        own_wealth_grid = compute_own_dj_wealth_grid(
+            state_choice_vec, continuous_grid_functions
+        )
+        wealth_grid_first = own_wealth_grid
+    else:
+        wealth_grid_first = endog_grid_state_choice[0]
+
     # Self-referential: this state-choice's own solution is being queried, so its
     # own grid (evaluated on itself) is the one it was solved on.
     own_continuous_state_grids = compute_own_continuous_grids_raw(
@@ -315,7 +337,7 @@ def _interp_policy_and_value_multidim_dj_for_state_choice(
     }
     policy_nd, value_nd = interpnd_policy_and_value_for_child_states_on_regular_grids(
         additional_continuous_state_grids=own_continuous_state_grids,
-        wealth_grid=endog_grid_state_choice[0],
+        wealth_grid=wealth_grid_first,
         policy_grid_child_states=policy_grid_state_choice[None, ...],
         value_grid_child_states=value_grid_state_choice[None, ...],
         continuous_state_child_states=continuous_state_child_states,
@@ -341,7 +363,11 @@ def _interp_policy_and_value_multidim_dj_for_state_choice(
 
     policy_exact, value_exact = interp1d_policy_and_value_on_wealth_dj(
         wealth=state_choice_vec["assets_begin_of_period"],
-        wealth_grid=endog_grid_state_choice[combo_idx],
+        wealth_grid=(
+            own_wealth_grid
+            if skip_endog_grid_storage
+            else endog_grid_state_choice[combo_idx]
+        ),
         policy_grid=policy_grid_state_choice[combo_idx],
         value_grid=value_grid_state_choice[combo_idx],
         compute_utility=compute_utility,
