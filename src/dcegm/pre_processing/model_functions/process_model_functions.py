@@ -1,3 +1,4 @@
+import inspect
 from typing import Callable, Dict, Optional
 
 import jax
@@ -184,6 +185,12 @@ def process_model_functions_and_extract_info(
         "taste_shock_scale_in_params": taste_shock_scale_in_params
     }
 
+    transition_funcs_depend_on_choice = _transition_funcs_depend_on_choice(
+        budget_constraint=budget_constraint,
+        state_space_functions=state_space_functions,
+        has_additional_continuous_states=has_additional_continuous_states,
+    )
+
     model_funcs = {
         **utility_functions_processed,
         **utility_functions_final_period_processed,
@@ -198,9 +205,38 @@ def process_model_functions_and_extract_info(
         "taste_shock_function": taste_shock_function_processed,
         "continuous_grid_functions": continuous_grid_functions_processed,
         "state_specific_continuous_grid_names": state_specific_continuous_grid_names,
+        "transition_funcs_depend_on_choice": transition_funcs_depend_on_choice,
     }
 
     return model_funcs, model_config_processed
+
+
+def _transition_funcs_depend_on_choice(
+    budget_constraint,
+    state_space_functions,
+    has_additional_continuous_states,
+):
+    """Does any law-of-motion function declare ``choice`` as an argument?
+
+    Decides, once at model-build time, which granularity the law of motion is
+    evaluated at during the solve (see ``law_of_motion.py``). ``False`` means every
+    state-choice sharing a child state would compute a bit-identical transition, so
+    the solve evaluates it once per unique child *state* and gathers the result out
+    to state-choices instead -- purely a cost optimization, not a behavior change.
+    ``True`` falls back to evaluating per state-choice.
+
+    Inspected on the *user's* functions, before
+    ``determine_function_arguments_and_partial_model_specs`` wraps them (the
+    wrapper's ``**kwargs`` signature would hide the real parameters).
+
+    """
+    funcs_to_check = [budget_constraint]
+    if has_additional_continuous_states:
+        funcs_to_check.append(state_space_functions["next_period_continuous_state"])
+
+    return any(
+        "choice" in set(inspect.signature(func).parameters) for func in funcs_to_check
+    )
 
 
 def process_state_space_functions(

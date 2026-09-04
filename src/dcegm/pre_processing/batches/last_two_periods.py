@@ -103,7 +103,7 @@ def add_last_two_period_information(
     # state; already flagged elsewhere via a warning in test_child_state_mapping,
     # not an error) falls back to its own state-choice identity, mirroring
     # calc_law_of_motion_for_state_choices's own
-    # grid_source_state_choice_vec=None -> self fallback.
+    # representative_parent_state_choice_vec=None -> self fallback.
     insert_pos = np.clip(
         np.searchsorted(unique_final_states, parent_states_final_period),
         0,
@@ -118,6 +118,35 @@ def add_last_two_period_information(
         idx_state_choice_final_period,
     )
 
+    # State-level counterpart of the two arrays above, for the deduplicated law of
+    # motion (see calc_law_of_motion in law_of_motion.py). Mirrors what
+    # child_state_dedup.py builds per batch in the main backward-induction loop, so
+    # the final period takes the same shortcut instead of always evaluating the
+    # transition once per state-choice.
+    #
+    # parent_states_final_period is each final-period state-choice's own bare state,
+    # so np.unique over it gives exactly the dedup we need plus the gather index
+    # mapping every final-period state-choice back to its row.
+    (
+        unique_final_period_states,
+        first_occurrence_of_final_state,
+        state_row_for_final_period_state_choice,
+    ) = np.unique(parent_states_final_period, return_index=True, return_inverse=True)
+
+    # The representative parent is a property of the child *state*, so any of that
+    # state's own choices carries the same value and the first occurrence is
+    # representative. The one exception is the `found_mask=False` fallback above,
+    # which uses each state-choice's own identity and so does differ across a
+    # state's choices -- but that branch only fires for final-period states that no
+    # second-to-last-period state-choice transitions into (already warned about in
+    # test_child_state_mapping), whose final-period values are never aggregated
+    # back, so the choice of representative there is not observable.
+    representative_second_last_period_parent_idx_per_final_state = (
+        representative_second_last_period_parent_idx_for_final_period[
+            first_occurrence_of_final_state
+        ]
+    )
+
     last_two_period_info = {
         "idx_state_choices_final_period": idx_state_choice_final_period,
         "idx_state_choices_second_last_period": idx_state_choice_second_last_period,
@@ -126,6 +155,13 @@ def add_last_two_period_information(
         "child_states_second_last_period": child_states_second_last_period,
         "representative_second_last_period_parent_idx_for_final_period": (
             representative_second_last_period_parent_idx_for_final_period
+        ),
+        "unique_final_period_states": unique_final_period_states,
+        "representative_second_last_period_parent_idx_per_final_state": (
+            representative_second_last_period_parent_idx_per_final_state
+        ),
+        "state_row_for_final_period_state_choice": (
+            state_row_for_final_period_state_choice
         ),
     }
 

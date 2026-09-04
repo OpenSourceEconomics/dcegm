@@ -12,7 +12,7 @@ from dcegm.interpolation.interpnd_regular import (
     interpnd_policy_and_value_for_child_states_on_own_regular_grids,
 )
 from dcegm.law_of_motion import (
-    calc_law_of_motion_for_state_choices,
+    calc_law_of_motion,
     compute_own_continuous_grid_combos,
     compute_own_dj_wealth_grid,
 )
@@ -20,7 +20,7 @@ from dcegm.law_of_motion import (
 
 def interpolate_value_and_marg_util(
     model_funcs,
-    state_choice_vec: Dict[str, int],
+    child_state_choices: Dict[str, int],
     continuous_grids_info: Dict[str, Any],
     income_shocks_scaled: jnp.ndarray,
     endog_grid_child_state_choice: jnp.ndarray,
@@ -29,7 +29,10 @@ def interpolate_value_and_marg_util(
     params: Dict[str, float],
     upper_envelope_method: str,
     skip_endog_grid_storage: bool,
-    grid_source_state_choice_vec: Dict[str, int],
+    representative_parent_state_choice_vec: Dict[str, int],
+    unique_child_states: Dict[str, int],
+    representative_parent_state_choices_per_child_state: Dict[str, int],
+    state_row_for_state_choice: jnp.ndarray,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Interpolate value and policy for all child states and compute marginal utility.
 
@@ -37,14 +40,13 @@ def interpolate_value_and_marg_util(
         compute_marginal_utility (callable): User-defined function to compute the
             agent's marginal utility of consumption.
         compute_utility (callable): Function for calculating the utility of consumption.
-        state_choice_vec (dict): Dictionary containing the state and choice of the agent
+        child_state_choices (dict): Dictionary containing the state and choice of the agent
             (the child, in the main solve path).
-        grid_source_state_choice_vec (dict): State-choice dict of a representative
-            parent, used only to select which state's own continuous grid to feed
-            the law of motion -- see the docstring of
+        representative_parent_state_choice_vec (dict): State-choice dict of a
+            representative parent, used only to select which state-choice's own
+            continuous grid to feed the law of motion -- see the docstring of
             calc_law_of_motion_for_state_choices for why this must be the parent,
-            not state_choice_vec (the child). Falls back to state_choice_vec itself
-            when not given (today's global-grid behavior).
+            not child_state_choices (the child).
         assets_beginning_of_next_period (jnp.ndarray): 2d array of shape
             (n_quad_stochastic, n_grid_wealth,) containing the agent's beginning of
             period wealth.
@@ -77,9 +79,17 @@ def interpolate_value_and_marg_util(
 
     # Compute the child continuous-state/wealth transitions on demand for exactly
     # this batch's children, instead of reading from a precomputed whole-state-space
-    # structure (see law_of_motion.py).
-    law_of_motion = calc_law_of_motion_for_state_choices(
-        state_choice_vec=state_choice_vec,
+    # structure. The continuous grids come from last period, via a representative
+    # parent state-choice; calc_law_of_motion picks the evaluation granularity (see
+    # law_of_motion.py).
+    law_of_motion = calc_law_of_motion(
+        child_state_choices=child_state_choices,
+        representative_parent_state_choice_vec=representative_parent_state_choice_vec,
+        unique_child_states=unique_child_states,
+        representative_parent_state_choices_per_child_state=(
+            representative_parent_state_choices_per_child_state
+        ),
+        state_row_for_state_choice=state_row_for_state_choice,
         income_shocks_scaled=income_shocks_scaled,
         params=params,
         model_funcs=model_funcs,
@@ -87,7 +97,6 @@ def interpolate_value_and_marg_util(
         additional_continuous_state_names=continuous_grids_info[
             "additional_continuous_state_names"
         ],
-        grid_source_state_choice_vec=grid_source_state_choice_vec,
     )
     wealth_child_states = law_of_motion["assets_begin_of_period"]
     continuous_states_next = law_of_motion["continuous_states"]
@@ -100,7 +109,7 @@ def interpolate_value_and_marg_util(
         return _interpolate_value_and_marg_util_2d_irregular(
             compute_marginal_utility=compute_marginal_utility,
             compute_utility=compute_utility,
-            state_choice_vec=state_choice_vec,
+            state_choice_vec=child_state_choices,
             continuous_grids_info=continuous_grids_info,
             continuous_states_next=continuous_states_next,
             wealth_child_states=wealth_child_states,
@@ -116,7 +125,7 @@ def interpolate_value_and_marg_util(
         return _interpolate_value_and_marg_util_nd_regular(
             compute_marginal_utility=compute_marginal_utility,
             compute_utility=compute_utility,
-            state_choice_vec=state_choice_vec,
+            state_choice_vec=child_state_choices,
             continuous_grids_info=continuous_grids_info,
             continuous_states_next=continuous_states_next,
             wealth_child_states=wealth_child_states,
@@ -164,7 +173,7 @@ def interpolate_value_and_marg_util(
         return interp_for_single_state_choice(
             compute_marginal_utility,
             compute_utility,
-            state_choice_vec,
+            child_state_choices,
             wealth_child_states,
             endog_grid_arg,
             policy_child_state_choice,

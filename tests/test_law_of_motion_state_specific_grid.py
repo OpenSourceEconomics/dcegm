@@ -62,7 +62,7 @@ def test_continuous_state_next_period_for_one_state_uses_each_states_own_grid():
         in_axes=(0, 0, None, None, None, None),
     )(
         state_space_dict,
-        state_space_dict,  # grid_source_state_choice_vec == state_space_dict: no parent/child distinction being tested here, see the dedicated test for that below.
+        state_space_dict,  # representative_parent_state_choice_vec == state_space_dict: no parent/child distinction being tested here, see the dedicated test for that below.
         {"experience": grid_func},
         ["experience"],
         {},
@@ -113,8 +113,8 @@ def test_get_continuous_state_next_period_dummy_path_unaffected():
 
     result = _get_continuous_state_next_period(
         has_additional_continuous_states=False,
-        state_space_dict=state_space_dict,
-        grid_source_state_choice_vec=state_space_dict,
+        child_state_choices=state_space_dict,
+        representative_last_period_parent_states=state_space_dict,
         additional_continuous_state_names=[],
         params={},
         model_funcs={},
@@ -122,14 +122,14 @@ def test_get_continuous_state_next_period_dummy_path_unaffected():
     assert result["dummy_cont"].shape == (2, 1)
 
 
-def test_get_continuous_state_next_period_uses_grid_source_not_state_space_dict():
+def test_get_continuous_state_next_period_uses_representative_parent_not_state_space_dict():
     # state_space_dict is the CHILD's own identity (used for the transition function
-    # call itself); grid_source_state_choice_vec is a representative PARENT's
+    # call itself); representative_parent_state_choice_vec is a representative PARENT's
     # identity (used only to pick which grid to feed in). These must be allowed to
     # differ -- this is the exact bug this test guards against: using the child's
     # identity to select the grid instead of the parent's.
     state_space_dict = {"group": jnp.array([9, 9])}  # child's own group -- irrelevant
-    grid_source_state_choice_vec = {
+    representative_parent_state_choice_vec = {
         "group": jnp.array([0, 1])
     }  # representative parent's group
 
@@ -141,8 +141,8 @@ def test_get_continuous_state_next_period_uses_grid_source_not_state_space_dict(
 
     result = _get_continuous_state_next_period(
         has_additional_continuous_states=True,
-        state_space_dict=state_space_dict,
-        grid_source_state_choice_vec=grid_source_state_choice_vec,
+        child_state_choices=state_space_dict,
+        representative_last_period_parent_states=representative_parent_state_choice_vec,
         additional_continuous_state_names=["experience"],
         params={},
         model_funcs={

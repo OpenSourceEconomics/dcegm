@@ -298,8 +298,26 @@ def create_test_inputs():
         value_solved=value_solved,
         policy_solved=policy_solved,
         endog_grid_solved=endog_grid_solved,
-        grid_source_state_choice_vec_final_period=last_two_period_batch_info_cont[
+        representative_parent_state_choice_vec_final_period=last_two_period_batch_info_cont[
             "state_choice_mat_final_period"
+        ],
+        # Deduplicated unique-final-state counterparts, built the same way
+        # solve_last_two_periods does (see final_periods.py). Only read when no
+        # transition function depends on "choice", which holds for this model.
+        state_mat_unique_final_period={
+            key: var[last_two_period_batch_info_cont["unique_final_period_states"]]
+            for key, var in model.model_structure["state_space_dict"].items()
+        },
+        representative_parent_state_choice_vec_per_final_period_state={
+            key: var[
+                last_two_period_batch_info_cont[
+                    "representative_second_last_period_parent_idx_per_final_state"
+                ]
+            ]
+            for key, var in model.model_structure["state_choice_space_dict"].items()
+        },
+        state_row_for_final_period_state_choice=last_two_period_batch_info_cont[
+            "state_row_for_final_period_state_choice"
         ],
     )
 

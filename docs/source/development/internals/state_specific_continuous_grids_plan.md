@@ -194,7 +194,7 @@ only after state-structure construction for names declared as `None`.
    `assets_begin_of_period`, `n_total_wealth_grid`.
 3. **`assets_end_of_period` representative-parent threading — done.**
    `calc_law_of_motion_for_state_choices` evaluates `assets_end_of_period` from
-   `grid_source_state_choice_vec` (the same representative-parent dict the
+   `representative_parent_state_choice_vec` (the same representative-parent dict the
    additional continuous states already use), replacing the old shared
    `assets_grid_end_of_period` array parameter. Its "own grid" role (this
    state-choice solving its own EGM problem in `solve_euler_equation.py`, or its own
@@ -229,6 +229,6 @@ only after state-structure construction for names declared as `None`.
   same as the pre-existing declared-length validation) — a period-dependent grid_func
   that changes size would already be caught this way, no separate check needed.
 - The representative-parent machinery for `assets_end_of_period` reuses
-  `grid_source_state_choice_vec` directly (no separate threading): it's evaluated
+  `representative_parent_state_choice_vec` directly (no separate threading): it's evaluated
   alongside the additional continuous states, from the same representative-parent
   dict, inside `calc_law_of_motion_for_state_choices`.

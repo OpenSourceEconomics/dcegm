@@ -15,6 +15,7 @@ def solve_single_period(
     params,
     continuous_grids_info,
     state_choice_space_dict,
+    state_space_dict,
     income_shocks_scaled,
     model_funcs,
     income_shock_weights,
@@ -34,6 +35,9 @@ def solve_single_period(
         state_choice_mat,
         state_choice_mat_child,
         representative_parent_state_choice_idx,
+        unique_child_states,
+        representative_parent_state_choice_idx_per_child_state,
+        state_row_for_state_choice,
     ) = xs
 
     value_child_state_choice = value_solved[child_state_choice_idxs_to_interp]
@@ -57,10 +61,18 @@ def solve_single_period(
         for key, var in state_choice_space_dict.items()
     }
 
+    # Same, at the coarser unique-child-*state* granularity, for the law-of-motion
+    # fast path taken when the user's transition functions don't depend on "choice"
+    # (see interpolate_value_and_marg_util / law_of_motion.py).
+    representative_parent_state_choice_dict_per_child_state = {
+        key: var[representative_parent_state_choice_idx_per_child_state]
+        for key, var in state_choice_space_dict.items()
+    }
+
     # EGM step 1)
     value_interpolated, marginal_utility_interpolated = interpolate_value_and_marg_util(
         model_funcs=model_funcs,
-        state_choice_vec=state_choice_mat_child,
+        child_state_choices=state_choice_mat_child,
         continuous_grids_info=continuous_grids_info,
         income_shocks_scaled=income_shocks_scaled,
         endog_grid_child_state_choice=endog_grid_child_state_choice,
@@ -69,7 +81,12 @@ def solve_single_period(
         params=params,
         upper_envelope_method=upper_envelope_method,
         skip_endog_grid_storage=skip_endog_grid_storage,
-        grid_source_state_choice_vec=representative_parent_state_choice_dict,
+        representative_parent_state_choice_vec=representative_parent_state_choice_dict,
+        unique_child_states=unique_child_states,
+        representative_parent_state_choices_per_child_state=(
+            representative_parent_state_choice_dict_per_child_state
+        ),
+        state_row_for_state_choice=state_row_for_state_choice,
     )
 
     # Check if we have a scalar taste shock scale or state specific. Extract in each of the cases.

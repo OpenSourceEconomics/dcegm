@@ -205,6 +205,11 @@ def partially_solve(
                 - rescale_idx
             )
 
+            state_choices_unique_child_states_batch = {
+                key: segment_info["state_choices_unique_child_states"][key][id_batch, :]
+                for key in segment_info["state_choices_unique_child_states"].keys()
+            }
+
             xs = (
                 idx_to_solve,
                 segment_info["child_state_choices_to_aggr_choice"][id_batch, :, :],
@@ -214,6 +219,11 @@ def partially_solve(
                 state_choices_batch,
                 state_choices_childs_batch,
                 segment_info["representative_parent_state_choice_idx"][id_batch, :],
+                state_choices_unique_child_states_batch,
+                segment_info["representative_parent_state_choice_idx_per_child_state"][
+                    id_batch, :
+                ],
+                segment_info["state_row_for_state_choice"][id_batch, :],
             )
             carry = (value_solved, policy_solved, endog_grid_solved)
             single_period_out_dict = solve_single_period(
@@ -222,6 +232,7 @@ def partially_solve(
                 params=params,
                 continuous_grids_info=continuous_states_info,
                 state_choice_space_dict=model_structure["state_choice_space_dict"],
+                state_space_dict=model_structure["state_space_dict"],
                 income_shocks_scaled=income_shocks_scaled,
                 model_funcs=model_funcs,
                 income_shock_weights=income_shock_weights,

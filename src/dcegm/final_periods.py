@@ -9,7 +9,7 @@ from dcegm.check_func_outputs import (
     check_budget_equation_and_return_wealth_plus_optional_aux,
 )
 from dcegm.law_of_motion import (
-    calc_law_of_motion_for_state_choices,
+    calc_law_of_motion,
     compute_own_continuous_grid_combos,
 )
 from dcegm.solve_single_period import solve_for_interpolated_values
@@ -70,6 +70,21 @@ def solve_last_two_periods(
         for key, var in model_structure["state_choice_space_dict"].items()
     }
 
+    # Same three objects at the deduplicated unique-final-*state* granularity, for
+    # the law-of-motion shortcut taken when no transition function depends on
+    # "choice" (see calc_law_of_motion in law_of_motion.py). Built in
+    # last_two_periods.py, mirroring what child_state_dedup.py does per batch.
+    state_mat_unique_final_period = {
+        key: var[batch_info["unique_final_period_states"]]
+        for key, var in model_structure["state_space_dict"].items()
+    }
+    representative_second_last_period_parent_state_choice_dict_per_final_state = {
+        key: var[
+            batch_info["representative_second_last_period_parent_idx_per_final_state"]
+        ]
+        for key, var in model_structure["state_choice_space_dict"].items()
+    }
+
     (
         value_solved,
         policy_solved,
@@ -79,7 +94,14 @@ def solve_last_two_periods(
     ) = solve_final_period(
         idx_state_choices_final_period=batch_info["idx_state_choices_final_period"],
         state_choice_mat_final_period=batch_info["state_choice_mat_final_period"],
-        grid_source_state_choice_vec_final_period=representative_second_last_period_parent_state_choice_dict,
+        representative_parent_state_choice_vec_final_period=representative_second_last_period_parent_state_choice_dict,
+        state_mat_unique_final_period=state_mat_unique_final_period,
+        representative_parent_state_choice_vec_per_final_period_state=(
+            representative_second_last_period_parent_state_choice_dict_per_final_state
+        ),
+        state_row_for_final_period_state_choice=batch_info[
+            "state_row_for_final_period_state_choice"
+        ],
         income_shocks_scaled=income_shocks_scaled,
         continuous_states_info=continuous_states_info,
         upper_envelope_method=upper_envelope_method,
@@ -178,7 +200,10 @@ def solve_final_period(
     value_solved,
     policy_solved,
     endog_grid_solved,
-    grid_source_state_choice_vec_final_period,
+    representative_parent_state_choice_vec_final_period,
+    state_mat_unique_final_period,
+    representative_parent_state_choice_vec_per_final_period_state,
+    state_row_for_final_period_state_choice,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Compute solution to final period for policy and value function.
 
@@ -206,8 +231,14 @@ def solve_final_period(
     compute_utility = model_funcs["compute_utility_final"]
     compute_marginal_utility = model_funcs["compute_marginal_utility_final"]
 
-    law_of_motion_final_period = calc_law_of_motion_for_state_choices(
-        state_choice_vec=state_choice_mat_final_period,
+    law_of_motion_final_period = calc_law_of_motion(
+        child_state_choices=state_choice_mat_final_period,
+        representative_parent_state_choice_vec=representative_parent_state_choice_vec_final_period,
+        unique_child_states=state_mat_unique_final_period,
+        representative_parent_state_choices_per_child_state=(
+            representative_parent_state_choice_vec_per_final_period_state
+        ),
+        state_row_for_state_choice=state_row_for_final_period_state_choice,
         income_shocks_scaled=income_shocks_scaled,
         params=params,
         model_funcs=model_funcs,
@@ -217,7 +248,6 @@ def solve_final_period(
         additional_continuous_state_names=continuous_states_info[
             "additional_continuous_state_names"
         ],
-        grid_source_state_choice_vec=grid_source_state_choice_vec_final_period,
     )
     wealth_child_states_final_period = law_of_motion_final_period[
         "assets_begin_of_period"
@@ -419,15 +449,17 @@ def calc_value_and_budget_for_each_gridpoint(
     compute_assets_begin_of_period,
     assets_begin,
 ):
-    state_vec = state_choice_vec.copy()
-    state_vec.pop("choice")
-
     if assets_begin:
         # If assets begin, the grid is directly the assets we start from
         wealth_final_period = asset_grid_point_end_of_previous_period
     else:
+        # "choice" is passed through (not stripped): a budget equation may declare
+        # it and return a different budget per choice, same as in law_of_motion.py.
+        # Functions that don't declare it are unaffected --
+        # determine_function_arguments_and_partial_model_specs filters kwargs down
+        # to each function's own signature.
         out_budget = compute_assets_begin_of_period(
-            **state_vec,
+            **state_choice_vec,
             **continuous_state_vec,
             asset_end_of_previous_period=asset_grid_point_end_of_previous_period,
             income_shock_previous_period=jnp.array(0.0),

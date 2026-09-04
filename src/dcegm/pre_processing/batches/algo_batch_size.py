@@ -65,6 +65,9 @@ def determine_optimal_batch_size(
         child_state_choices_to_aggr_choice = []
         child_state_choice_idxs_to_interpolate = []
         representative_parent_state_choice_for_child = []
+        unique_child_states_list = []
+        representative_parent_state_choice_per_child_state_list = []
+        state_row_for_state_choice_list = []
 
         for i, batch in enumerate(batches_to_check):
             (
@@ -72,6 +75,9 @@ def determine_optimal_batch_size(
                 child_state_choices_to_aggr_choice_batch,
                 unique_child_state_choice_idxs,
                 representative_parent_state_choice_batch,
+                unique_child_states_batch,
+                representative_parent_state_choice_per_child_state_batch,
+                state_row_for_state_choice_batch,
             ) = compute_child_dedup_for_batch(
                 batch=batch,
                 map_state_choice_to_child_states=map_state_choice_to_child_states,
@@ -89,6 +95,11 @@ def determine_optimal_batch_size(
             representative_parent_state_choice_for_child += [
                 representative_parent_state_choice_batch
             ]
+            unique_child_states_list += [unique_child_states_batch]
+            representative_parent_state_choice_per_child_state_list += [
+                representative_parent_state_choice_per_child_state_batch
+            ]
+            state_row_for_state_choice_list += [state_row_for_state_choice_batch]
 
             # Now check if the smallest index of the child state choices is larger than
             # the maximum index of the batch, i.e. if all state choice relevant to
@@ -110,4 +121,7 @@ def determine_optimal_batch_size(
         child_state_choices_to_aggr_choice,
         child_states_to_integrate_exog,
         representative_parent_state_choice_for_child,
+        unique_child_states_list,
+        representative_parent_state_choice_per_child_state_list,
+        state_row_for_state_choice_list,
     )

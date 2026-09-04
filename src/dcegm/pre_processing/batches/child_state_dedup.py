@@ -34,6 +34,18 @@ def compute_child_dedup_for_batch(
     state-choice space (that's where the solution itself lives), so ``batch``
     already gives us exactly the identity we need, with no extra lookup required.
 
+    Also exposes the *state*-level dedup that was already being computed internally
+    here (as an intermediate step, before broadcasting out to state-choices) but
+    previously discarded: ``unique_child_states``,
+    ``representative_parent_state_choice_per_child_state``, and
+    ``state_row_for_state_choice``. These let a caller evaluate something once per
+    unique child *state* (e.g. a law-of-motion function that doesn't depend on the
+    child's own choice) and then ``np.take``/``jnp.take`` the result out to the
+    state-choice granularity ``unique_child_state_choice_idxs`` already needs for
+    reading stored policy/value -- mirrors the existing
+    ``child_states_to_integrate_exog`` gather used one stage later, in
+    ``calculate_candidate_solutions_from_euler_equation``.
+
     Returns:
         tuple:
 
@@ -49,6 +61,18 @@ def compute_child_dedup_for_batch(
             unique_child_state_choice_idxs; for each unique child state-choice, the
             state-choice index of one parent (from this batch) that transitions to
             it.
+        - unique_child_states (np.ndarray): the deduplicated child *state* indices
+            (into ``state_space``) -- one entry per unique child state, collapsing
+            across that state's own choices.
+        - representative_parent_state_choice_per_child_state (np.ndarray): same
+            length as unique_child_states; for each unique child state, the
+            state-choice index of one parent that transitions to it (same value
+            used across all of that state's own choices in
+            representative_parent_state_choice_for_child).
+        - state_row_for_state_choice (np.ndarray): same length as
+            unique_child_state_choice_idxs; for each unique child state-choice, its
+            row position in unique_child_states -- the gather index needed to
+            expand a per-state result out to per-state-choice granularity.
 
     """
     child_states_idxs = map_state_choice_to_child_states[batch]
@@ -108,9 +132,28 @@ def compute_child_dedup_for_batch(
         unique_state_choice_idxs_childs.shape
     )
 
+    # For each unique child state-choice, which row of unique_child_states it came
+    # from -- the gather index for expanding a per-state result out to
+    # per-state-choice granularity. Every valid (state, choice) entry maps to
+    # exactly one position in unique_child_state_choice_idxs (by construction of
+    # the np.unique call above), so this scatter has no collisions.
+    n_unique_child_states = unique_child_states.shape[0]
+    state_row_repeated = np.repeat(
+        np.arange(n_unique_child_states), unique_state_choice_idxs_childs.shape[1]
+    )
+    flat_state_choice_pos = child_state_choices_to_aggr_choice.ravel()
+    valid = flat_state_choice_pos < len(unique_child_state_choice_idxs)
+    state_row_for_state_choice = np.empty(
+        len(unique_child_state_choice_idxs), dtype=state_row_repeated.dtype
+    )
+    state_row_for_state_choice[flat_state_choice_pos[valid]] = state_row_repeated[valid]
+
     return (
         child_states_to_integrate_exog,
         child_state_choices_to_aggr_choice,
         unique_child_state_choice_idxs,
         representative_parent_state_choice_for_child,
+        unique_child_states,
+        representative_parent_state_choice_per_child_state,
+        state_row_for_state_choice,
     )
