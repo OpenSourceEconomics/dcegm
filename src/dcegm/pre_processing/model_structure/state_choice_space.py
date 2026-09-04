@@ -2,6 +2,10 @@ import warnings
 
 import numpy as np
 
+from dcegm.pre_processing.model_structure.continuous_state_grids import (
+    check_continuous_grid_consistency_across_shared_children,
+    evaluate_state_specific_continuous_grids,
+)
 from dcegm.pre_processing.model_structure.shared import create_indexer_for_space
 from dcegm.pre_processing.shared import get_smallest_int_type
 
@@ -11,6 +15,8 @@ def create_state_choice_space_and_child_state_mapping(
     state_specific_choice_set,
     next_period_deterministic_state,
     state_space_arrays,
+    continuous_grid_functions,
+    state_specific_continuous_grid_names,
 ):
     """Create state choice space of all feasible state-choice combinations.
 
@@ -196,7 +202,9 @@ def create_state_choice_space_and_child_state_mapping(
     map_state_choice_to_parent_state = map_state_choice_to_parent_state[:idx]
     map_state_choice_to_child_states = map_state_choice_to_child_states[:idx, :]
 
-    map_state_choice_to_index, _ = create_indexer_for_space(state_choice_space)
+    map_state_choice_to_index, _ = create_indexer_for_space(
+        state_choice_space, max_var_values=np.max(state_choice_space, axis=0)
+    )
 
     # Create indexer with proxy
     state_space_incl_proxies = state_space_arrays["state_space_incl_proxies"]
@@ -223,6 +231,31 @@ def create_state_choice_space_and_child_state_mapping(
         for i, key in enumerate(discrete_states_names + ["choice"])
     }
 
+    # Grids live on the state-choice space (that's where the solution itself
+    # lives, see continuous_state_grids.py), so this can only be evaluated once
+    # state_choice_space itself is built -- computed here rather than passed in
+    # from model_structure.py.
+    grids_per_state_choice, resolved_state_specific_lengths = (
+        evaluate_state_specific_continuous_grids(
+            state_choice_space=state_choice_space,
+            discrete_state_choice_names=discrete_states_names + ["choice"],
+            continuous_grid_functions=continuous_grid_functions or {},
+            state_specific_names=state_specific_continuous_grid_names or [],
+            continuous_states_info=model_config["continuous_states_info"],
+        )
+    )
+    _merge_resolved_state_specific_lengths(
+        model_config=model_config,
+        resolved_state_specific_lengths=resolved_state_specific_lengths,
+    )
+
+    check_continuous_grid_consistency_across_shared_children(
+        state_choice_space=state_choice_space,
+        discrete_states_names=discrete_states_names,
+        map_state_choice_to_child_states=map_state_choice_to_child_states,
+        grids_per_state_choice=grids_per_state_choice,
+    )
+
     test_child_state_mapping(
         model_config=model_config,
         state_choice_space=state_choice_space,
@@ -241,6 +274,48 @@ def create_state_choice_space_and_child_state_mapping(
     }
 
     return dict_of_state_choice_space_objects
+
+
+def _merge_resolved_state_specific_lengths(
+    model_config, resolved_state_specific_lengths
+):
+    """Merge grid lengths pinned by evaluation back into ``model_config``.
+
+    Names declared as ``None`` in ``model_config["continuous_states"]`` have no default
+    array to compute ``n_continuous_state_combinations``/ ``n_total_wealth_grid`` from
+    ahead of time (see ``check_model_config.py``, where both are left ``None`` for this
+    reason) -- this fills them in now that ``evaluate_state_specific_continuous_grids``
+    has pinned their lengths against a real state-choice, the first point either becomes
+    knowable.
+
+    """
+    if not resolved_state_specific_lengths:
+        return
+
+    continuous_states_info = model_config["continuous_states_info"]
+
+    if continuous_states_info["n_continuous_state_combinations"] is None:
+        lengths = [
+            (
+                resolved_state_specific_lengths[name]
+                if name in continuous_states_info["state_specific_size_names"]
+                else len(
+                    continuous_states_info["additional_continuous_state_grids"][name]
+                )
+            )
+            for name in continuous_states_info["additional_continuous_state_names"]
+        ]
+        continuous_states_info["n_continuous_state_combinations"] = int(
+            np.prod(lengths)
+        )
+
+    if (
+        model_config["n_total_wealth_grid"] is None
+        and "assets_begin_of_period" in resolved_state_specific_lengths
+    ):
+        model_config["n_total_wealth_grid"] = (
+            resolved_state_specific_lengths["assets_begin_of_period"] + 1
+        )
 
 
 def test_child_state_mapping(

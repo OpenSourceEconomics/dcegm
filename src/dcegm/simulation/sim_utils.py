@@ -118,7 +118,7 @@ def compute_final_utility_for_each_choice(
     return util
 
 
-def draw_normal_shocks(key, num_agents, mean=0, std=1):
+def draw_normal_shocks(key, num_agents, mean, std):
     return jax.random.normal(key=key, shape=(num_agents,)) * std + mean
 
 

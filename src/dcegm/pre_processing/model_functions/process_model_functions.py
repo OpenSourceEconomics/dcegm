@@ -1,3 +1,4 @@
+import inspect
 from typing import Callable, Dict, Optional
 
 import jax
@@ -25,8 +26,9 @@ def process_model_functions_and_extract_info(
     utility_functions: Dict[str, Callable],
     utility_functions_final_period: Dict[str, Callable],
     budget_constraint: Callable,
-    stochastic_states_transitions: Optional[Dict[str, Callable]] = None,
-    shock_functions: Optional[Dict[str, Callable]] = None,
+    stochastic_states_transitions: Optional[Dict[str, Callable]],
+    shock_functions: Optional[Dict[str, Callable]],
+    continuous_grid_functions: Optional[Dict[str, Callable]],
 ):
     """Create wrapped functions from user supplied functions.
 
@@ -80,17 +82,20 @@ def process_model_functions_and_extract_info(
     compute_utility = determine_function_arguments_and_partial_model_specs(
         func=utility_functions["utility"],
         model_specs=model_specs_jax,
+        not_allowed_state_choices=[],
     )
 
     compute_marginal_utility = determine_function_arguments_and_partial_model_specs(
         func=utility_functions["marginal_utility"],
         model_specs=model_specs_jax,
+        not_allowed_state_choices=[],
     )
 
     compute_inverse_marginal_utility = (
         determine_function_arguments_and_partial_model_specs(
             func=utility_functions["inverse_marginal_utility"],
             model_specs=model_specs_jax,
+            not_allowed_state_choices=[],
         )
     )
 
@@ -103,12 +108,14 @@ def process_model_functions_and_extract_info(
     compute_utility_final = determine_function_arguments_and_partial_model_specs(
         func=utility_functions_final_period["utility"],
         model_specs=model_specs_jax,
+        not_allowed_state_choices=[],
     )
 
     compute_marginal_utility_final = (
         determine_function_arguments_and_partial_model_specs(
             func=utility_functions_final_period["marginal_utility"],
             model_specs=model_specs_jax,
+            not_allowed_state_choices=[],
         )
     )
 
@@ -142,17 +149,27 @@ def process_model_functions_and_extract_info(
         has_additional_continuous_states=has_additional_continuous_states,
     )
 
+    continuous_grid_functions_processed, state_specific_continuous_grid_names = (
+        process_continuous_grid_functions(
+            continuous_grid_functions=continuous_grid_functions,
+            model_config=model_config,
+            model_specs=model_specs_jax,
+        )
+    )
+
     # Budget equation
     compute_assets_begin_of_period = (
         determine_function_arguments_and_partial_model_specs(
             func=budget_constraint,
             model_specs=model_specs_jax,
+            not_allowed_state_choices=[],
         )
     )
 
     # Upper envelope function
     compute_upper_envelope = create_upper_envelope_function(
         model_config=model_config,
+        continuous_grid_functions=continuous_grid_functions_processed,
     )
 
     taste_shock_function_processed, taste_shock_scale_in_params = (
@@ -168,6 +185,12 @@ def process_model_functions_and_extract_info(
         "taste_shock_scale_in_params": taste_shock_scale_in_params
     }
 
+    transition_funcs_depend_on_choice = _transition_funcs_depend_on_choice(
+        budget_constraint=budget_constraint,
+        state_space_functions=state_space_functions,
+        has_additional_continuous_states=has_additional_continuous_states,
+    )
+
     model_funcs = {
         **utility_functions_processed,
         **utility_functions_final_period_processed,
@@ -180,16 +203,47 @@ def process_model_functions_and_extract_info(
         "next_period_deterministic_state": next_period_deterministic_state,
         "compute_upper_envelope": compute_upper_envelope,
         "taste_shock_function": taste_shock_function_processed,
+        "continuous_grid_functions": continuous_grid_functions_processed,
+        "state_specific_continuous_grid_names": state_specific_continuous_grid_names,
+        "transition_funcs_depend_on_choice": transition_funcs_depend_on_choice,
     }
 
     return model_funcs, model_config_processed
+
+
+def _transition_funcs_depend_on_choice(
+    budget_constraint,
+    state_space_functions,
+    has_additional_continuous_states,
+):
+    """Does any law-of-motion function declare ``choice`` as an argument?
+
+    Decides, once at model-build time, which granularity the law of motion is
+    evaluated at during the solve (see ``law_of_motion.py``). ``False`` means every
+    state-choice sharing a child state would compute a bit-identical transition, so
+    the solve evaluates it once per unique child *state* and gathers the result out
+    to state-choices instead -- purely a cost optimization, not a behavior change.
+    ``True`` falls back to evaluating per state-choice.
+
+    Inspected on the *user's* functions, before
+    ``determine_function_arguments_and_partial_model_specs`` wraps them (the
+    wrapper's ``**kwargs`` signature would hide the real parameters).
+
+    """
+    funcs_to_check = [budget_constraint]
+    if has_additional_continuous_states:
+        funcs_to_check.append(state_space_functions["next_period_continuous_state"])
+
+    return any(
+        "choice" in set(inspect.signature(func).parameters) for func in funcs_to_check
+    )
 
 
 def process_state_space_functions(
     state_space_functions,
     model_config,
     model_specs,
-    additional_continuous_state_names=None,
+    additional_continuous_state_names,
 ):
 
     state_space_functions = (
@@ -206,9 +260,9 @@ def process_state_space_functions(
             return jnp.array(model_config["choices"])
 
     else:
-        not_allowed_state_choices = ["assets_begin_of_period"]
-        if additional_continuous_state_names is not None:
-            not_allowed_state_choices += list(additional_continuous_state_names)
+        not_allowed_state_choices = ["assets_begin_of_period"] + list(
+            additional_continuous_state_names
+        )
 
         state_specific_choice_set = (
             determine_function_arguments_and_partial_model_specs(
@@ -232,6 +286,7 @@ def process_state_space_functions(
             determine_function_arguments_and_partial_model_specs(
                 func=state_space_functions["next_period_deterministic_state"],
                 model_specs=model_specs,
+                not_allowed_state_choices=[],
             )
         )
 
@@ -249,7 +304,9 @@ def process_state_space_functions(
 def process_sparsity_condition(state_space_functions, model_specs):
     if "sparsity_condition" in state_space_functions.keys():
         sparsity_condition = determine_function_arguments_and_partial_model_specs(
-            func=state_space_functions["sparsity_condition"], model_specs=model_specs
+            func=state_space_functions["sparsity_condition"],
+            model_specs=model_specs,
+            not_allowed_state_choices=[],
         )
         # ToDo: Error if sparsity condition takes second continuous state as input
     else:
@@ -262,9 +319,9 @@ def process_sparsity_condition(state_space_functions, model_specs):
 
 
 def process_second_continuous_update_function(
-    state_space_functions=None,
-    model_specs=None,
-    has_additional_continuous_states=False,
+    state_space_functions,
+    model_specs,
+    has_additional_continuous_states,
 ):
 
     if has_additional_continuous_states:
@@ -279,9 +336,145 @@ def process_second_continuous_update_function(
             determine_function_arguments_and_partial_model_specs(
                 func=state_space_functions["next_period_continuous_state"],
                 model_specs=model_specs,
+                not_allowed_state_choices=[],
             )
         )
     else:
         next_period_continuous_state = None
 
     return next_period_continuous_state
+
+
+def process_continuous_grid_functions(
+    continuous_grid_functions, model_config, model_specs
+):
+    """Wrap every continuous state's grid into one uniform callable.
+
+    ``continuous_grid_functions`` is an optional user-supplied
+    ``Dict[str, Callable]``, following the same convention as
+    ``shock_functions``/``stochastic_states_transitions``: a top-level argument to
+    ``create_model_dict``, not something nested inside ``model_config`` (which
+    holds data/config, never functions). Keys are continuous-state names (any of
+    the additional continuous states, ``assets_end_of_period``, or, if present,
+    ``assets_begin_of_period``); values are callables
+    ``(**discrete_state, choice) -> 1d array``, processed the same way as
+    ``sparsity_condition``/``next_period_deterministic_state`` -- grids live on
+    the state-choice space (that's where the solution itself lives, see
+    ``continuous_state_grids.py``), so a grid may depend on ``choice`` too, not
+    just the discrete state.
+
+    Every continuous state of the model gets a callable in the returned dict,
+    state-choice-specified or not: names left unspecified keep today's behavior
+    via a callable that ignores its input and always returns the one global grid
+    declared in ``model_config["continuous_states"]``.
+
+    These are evaluated on demand wherever a batch needs a state-choice's own
+    grid during solving, not precomputed for the whole state-choice space, to
+    avoid materializing an ``(n_state_choices, n_points)`` table. The one
+    exception is the one-time, NumPy-side consistency check in
+    ``continuous_state_grids.py``, run once during model-structure construction,
+    for which this function also returns the list of state-specific names (so
+    that check can skip names left at their default, which are trivially
+    consistent).
+
+    """
+    continuous_grid_functions = (
+        {} if continuous_grid_functions is None else continuous_grid_functions
+    )
+    if not isinstance(continuous_grid_functions, dict):
+        raise ValueError("continuous_grid_functions must be a dictionary.")
+
+    continuous_states_info = model_config["continuous_states_info"]
+    default_grids = dict(continuous_states_info["additional_continuous_state_grids"])
+    default_grids["assets_end_of_period"] = continuous_states_info[
+        "assets_grid_end_of_period"
+    ]
+    if "assets_begin_of_period" in continuous_states_info:
+        default_grids["assets_begin_of_period"] = continuous_states_info[
+            "assets_begin_of_period"
+        ]
+
+    for name, grid_func in continuous_grid_functions.items():
+        if name not in default_grids:
+            raise ValueError(
+                f"continuous_grid_functions contains the key '{name}', which is "
+                f"not a continuous state of this model. Valid keys are: "
+                f"{sorted(default_grids)}."
+            )
+        if not callable(grid_func):
+            raise ValueError(
+                f"continuous_grid_functions['{name}'] must be a callable of the "
+                "form (**discrete_state) -> 1d array."
+            )
+        if name != "assets_end_of_period" and default_grids[name] is not None:
+            raise ValueError(
+                f"continuous_grid_functions['{name}'] is given, but "
+                f"model_config['continuous_states']['{name}'] is not None. A "
+                f"declared array is unused once a continuous_grid_functions entry "
+                f"takes over -- set model_config['continuous_states']['{name}'] to "
+                "None to make that explicit. ('assets_end_of_period' is the one "
+                "exception: check_model_config.py reads its length eagerly, for "
+                "every upper_envelope method, before continuous_grid_functions is "
+                "processed and before any state-choice exists to pin a deferred "
+                "size against -- so it must always be a real array.)"
+            )
+
+    if (
+        "assets_begin_of_period" in continuous_grid_functions
+        and continuous_states_info["n_additional_continuous_states"] > 0
+        and not model_config["upper_envelope"]["skip_endog_grid_storage"]
+    ):
+        raise ValueError(
+            "continuous_grid_functions['assets_begin_of_period'] together with "
+            "additional continuous states requires skip_endog_grid_storage "
+            "(upper_envelope['method'] == 'druedahl_jorgensen' and at least two "
+            "choices). With a single choice the Druedahl-Jorgensen upper envelope "
+            "is skipped entirely (see check_model_config.py), so the stored "
+            "endogenous grid is not the fixed assets_begin_of_period grid there, "
+            "and a state-specific assets_begin_of_period has nothing to plug "
+            "into. Remove either the additional continuous state(s) or the "
+            "continuous_grid_functions['assets_begin_of_period'] entry, or add a "
+            "second choice."
+        )
+
+    continuous_grid_functions_processed = {}
+    for name, default_grid in default_grids.items():
+        if name in continuous_grid_functions:
+            continuous_grid_functions_processed[name] = (
+                determine_function_arguments_and_partial_model_specs(
+                    func=continuous_grid_functions[name],
+                    model_specs=model_specs,
+                    not_allowed_state_choices=[],
+                )
+            )
+        elif default_grid is None:
+            raise ValueError(
+                f"model_config['continuous_states']['{name}'] is None, but no "
+                f"matching continuous_grid_functions['{name}'] was given. A `None` "
+                "grid means there is no default to fall back to -- it must be "
+                "paired with a continuous_grid_functions entry."
+            )
+        else:
+            continuous_grid_functions_processed[name] = _make_constant_grid_func(
+                default_grid
+            )
+
+    return continuous_grid_functions_processed, list(continuous_grid_functions.keys())
+
+
+def _make_constant_grid_func(default_grid):
+    """Return a callable that ignores its input and always returns ``default_grid``.
+
+    A factory, rather than defining the closure directly in the loop above, to avoid
+    Python's late-binding-closure-in-a-loop pitfall: a closure defined inside a loop
+    body captures the loop *variable*, not its value at that iteration, so every closure
+    created across iterations would end up returning whatever ``default_grid`` was left
+    holding after the *last* iteration. Binding it as this function's own parameter
+    forces a fresh value per call.
+
+    """
+
+    def constant_grid_func(**kwargs):
+        return default_grid
+
+    return constant_grid_func

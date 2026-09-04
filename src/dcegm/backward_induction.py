@@ -51,10 +51,9 @@ def backward_induction(
         income_shock_draws_unscaled * income_shock_std + income_shock_mean
     )
 
-    # Infer n_continuous_state_combinations from model structure
-    n_continuous_state_combinations = model_structure["continuous_state_space"][
-        next(iter(model_structure["continuous_state_space"]))
-    ].shape[0]
+    n_continuous_state_combinations = continuous_states_info[
+        "n_continuous_state_combinations"
+    ]
 
     (
         value_solved,
@@ -110,7 +109,8 @@ def backward_induction(
         xs=xs,
         params=params,
         continuous_grids_info=continuous_states_info,
-        continuous_state_space=model_structure["continuous_state_space"],
+        state_choice_space_dict=model_structure["state_choice_space_dict"],
+        state_space_dict=model_structure["state_space_dict"],
         income_shocks_scaled=income_shocks_scaled,
         model_funcs=model_funcs,
         income_shock_weights=income_shock_weights,
@@ -139,6 +139,10 @@ def backward_induction(
                 segment_info["child_states_idxs"],
                 segment_info["state_choices"],
                 segment_info["state_choices_childs"],
+                segment_info["representative_parent_state_choice_idx"],
+                segment_info["state_choices_unique_child_states"],
+                segment_info["representative_parent_state_choice_idx_per_child_state"],
+                segment_info["state_row_for_state_choice"],
             ),
         )
 
@@ -154,6 +158,12 @@ def backward_induction(
                     last_batch_info["child_states_idxs"],
                     last_batch_info["state_choices"],
                     last_batch_info["state_choices_childs"],
+                    last_batch_info["representative_parent_state_choice_idx"],
+                    last_batch_info["state_choices_unique_child_states"],
+                    last_batch_info[
+                        "representative_parent_state_choice_idx_per_child_state"
+                    ],
+                    last_batch_info["state_row_for_state_choice"],
                 ),
             )
 

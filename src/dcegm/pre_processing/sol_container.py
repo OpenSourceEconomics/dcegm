@@ -7,7 +7,7 @@ def create_solution_container(
     n_total_wealth_grid: int,
     n_state_choices: int,
     n_continuous_state_combinations: int,
-    store_endog_grid: bool = True,
+    store_endog_grid: bool,
 ):
     """Create solution containers for value, policy, and endog_grid.
 
@@ -47,5 +47,17 @@ def broadcast_dj_wealth_grid(continuous_states_info: Dict[str, Any], shape):
     model_config["upper_envelope"]["skip_endog_grid_storage"] is True. Expects
     continuous_states_info = model_config["continuous_states_info"].
 
+    "dj_wealth_grid" is None when assets_begin_of_period is state-choice-specific
+    (see check_model_config.py) -- there is no single shared array to broadcast in
+    that case. Callers of this function only reach it for the additional-
+    continuous-state (n-D regular) interpolation path, which
+    process_continuous_grid_functions already forbids combining with a
+    state-specific assets_begin_of_period; the simple 1d case computes each
+    state-choice's own grid on demand instead (see interp_interfaces.py /
+    simulation_interp.py), ignoring this value entirely. So a zero placeholder here
+    is always safe -- it is never actually read when it would be wrong.
+
     """
+    if continuous_states_info["dj_wealth_grid"] is None:
+        return jnp.zeros(shape)
     return jnp.broadcast_to(continuous_states_info["dj_wealth_grid"], shape)

@@ -66,12 +66,103 @@ def add_last_two_period_information(
         idx_state_choice_final_period
     ]
 
+    # A representative second-to-last-period *state-choice* for each final-period
+    # state-choice -- used only to pick which state-choice's own continuous grid
+    # feeds the law of motion in solve_final_period (see law_of_motion.py). Grids
+    # live on the state-choice space (that's where the solution itself lives), so
+    # the representative parent is a state-choice index, not a bare state. Mirrors
+    # the same computation the main backward induction loop does per batch (see
+    # child_state_dedup.py), specialized for the (undeduplicated) two-period case:
+    # solve_final_period computes the law of motion for every final-period
+    # state-choice individually, so we need a representative parent aligned with
+    # every entry of idx_state_choice_final_period, not just a deduplicated subset.
+    child_states_idxs_from_second_last = map_state_choice_to_child_states[
+        idx_state_choice_second_last_period
+    ]
+    n_stochastic_states = child_states_idxs_from_second_last.shape[1]
+    unique_final_states, first_occurrence_flat = np.unique(
+        child_states_idxs_from_second_last, return_index=True
+    )
+    representative_second_last_row = first_occurrence_flat // n_stochastic_states
+    # idx_state_choice_second_last_period[...] is already a state-choice index --
+    # exactly the true (previous-period) parent state-choice we want, no need to
+    # collapse it down to a bare state.
+    representative_parent_state_choice_of_unique_final_state = (
+        idx_state_choice_second_last_period[representative_second_last_row]
+    )
+
+    invalid_state_idx = np.iinfo(map_state_choice_to_child_states.dtype).max
+    valid_mask = unique_final_states != invalid_state_idx
+
+    # parent_states_final_period (each final-period state-choice's own bare state)
+    # is used purely as a lookup key here, matching each final-period row to its
+    # corresponding entry in unique_final_states -- unrelated to grid selection.
+    # unique_final_states is sorted (np.unique guarantees this), so this is a
+    # vectorized lookup via searchsorted; any final-period state not actually
+    # reachable from the second-to-last period (e.g. an absorbing/initial-like
+    # state; already flagged elsewhere via a warning in test_child_state_mapping,
+    # not an error) falls back to its own state-choice identity, mirroring
+    # calc_law_of_motion_for_state_choices's own
+    # representative_parent_state_choice_vec=None -> self fallback.
+    insert_pos = np.clip(
+        np.searchsorted(unique_final_states, parent_states_final_period),
+        0,
+        len(unique_final_states) - 1,
+    )
+    found_mask = (
+        unique_final_states[insert_pos] == parent_states_final_period
+    ) & valid_mask[insert_pos]
+    representative_second_last_period_parent_idx_for_final_period = np.where(
+        found_mask,
+        representative_parent_state_choice_of_unique_final_state[insert_pos],
+        idx_state_choice_final_period,
+    )
+
+    # State-level counterpart of the two arrays above, for the deduplicated law of
+    # motion (see calc_law_of_motion in law_of_motion.py). Mirrors what
+    # child_state_dedup.py builds per batch in the main backward-induction loop, so
+    # the final period takes the same shortcut instead of always evaluating the
+    # transition once per state-choice.
+    #
+    # parent_states_final_period is each final-period state-choice's own bare state,
+    # so np.unique over it gives exactly the dedup we need plus the gather index
+    # mapping every final-period state-choice back to its row.
+    (
+        unique_final_period_states,
+        first_occurrence_of_final_state,
+        state_row_for_final_period_state_choice,
+    ) = np.unique(parent_states_final_period, return_index=True, return_inverse=True)
+
+    # The representative parent is a property of the child *state*, so any of that
+    # state's own choices carries the same value and the first occurrence is
+    # representative. The one exception is the `found_mask=False` fallback above,
+    # which uses each state-choice's own identity and so does differ across a
+    # state's choices -- but that branch only fires for final-period states that no
+    # second-to-last-period state-choice transitions into (already warned about in
+    # test_child_state_mapping), whose final-period values are never aggregated
+    # back, so the choice of representative there is not observable.
+    representative_second_last_period_parent_idx_per_final_state = (
+        representative_second_last_period_parent_idx_for_final_period[
+            first_occurrence_of_final_state
+        ]
+    )
+
     last_two_period_info = {
         "idx_state_choices_final_period": idx_state_choice_final_period,
         "idx_state_choices_second_last_period": idx_state_choice_second_last_period,
         "idxs_parent_states_final_period": parent_states_final_period,
         "state_to_choices_final_period": state_to_choices_final_period,
         "child_states_second_last_period": child_states_second_last_period,
+        "representative_second_last_period_parent_idx_for_final_period": (
+            representative_second_last_period_parent_idx_for_final_period
+        ),
+        "unique_final_period_states": unique_final_period_states,
+        "representative_second_last_period_parent_idx_per_final_state": (
+            representative_second_last_period_parent_idx_per_final_state
+        ),
+        "state_row_for_final_period_state_choice": (
+            state_row_for_final_period_state_choice
+        ),
     }
 
     state_choice_space_dict = model_structure["state_choice_space_dict"]

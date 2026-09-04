@@ -6,6 +6,7 @@ from dcegm.egm.interpolate_marginal_utility import interpolate_value_and_marg_ut
 from dcegm.egm.solve_euler_equation import (
     calculate_candidate_solutions_from_euler_equation,
 )
+from dcegm.law_of_motion import compute_own_continuous_grid_combos
 
 
 def solve_single_period(
@@ -13,7 +14,8 @@ def solve_single_period(
     xs,
     params,
     continuous_grids_info,
-    continuous_state_space,
+    state_choice_space_dict,
+    state_space_dict,
     income_shocks_scaled,
     model_funcs,
     income_shock_weights,
@@ -32,8 +34,13 @@ def solve_single_period(
         child_state_idxs,
         state_choice_mat,
         state_choice_mat_child,
+        representative_parent_state_choice_idx,
+        unique_child_states,
+        representative_parent_state_choice_idx_per_child_state,
+        state_row_for_state_choice,
     ) = xs
 
+    value_child_state_choice = value_solved[child_state_choice_idxs_to_interp]
     policy_child_state_choice = policy_solved[child_state_choice_idxs_to_interp]
     endog_grid_child_state_choice = (
         None
@@ -41,19 +48,45 @@ def solve_single_period(
         else endog_grid_solved[child_state_choice_idxs_to_interp]
     )
 
+    # A representative parent's own state-choice, for each of this batch's
+    # deduplicated children -- used only to pick which state-choice's own
+    # continuous grid feeds the law of motion (see law_of_motion.py). Grids live on
+    # the state-choice space (that's where the solution itself lives), so this is a
+    # state-choice index, not a bare state. Any one parent works:
+    # check_continuous_grid_consistency_across_shared_children (run once at
+    # model-build time) guarantees every parent sharing a child agrees on its own
+    # grid.
+    representative_parent_state_choice_dict = {
+        key: var[representative_parent_state_choice_idx]
+        for key, var in state_choice_space_dict.items()
+    }
+
+    # Same, at the coarser unique-child-*state* granularity, for the law-of-motion
+    # fast path taken when the user's transition functions don't depend on "choice"
+    # (see interpolate_value_and_marg_util / law_of_motion.py).
+    representative_parent_state_choice_dict_per_child_state = {
+        key: var[representative_parent_state_choice_idx_per_child_state]
+        for key, var in state_choice_space_dict.items()
+    }
+
     # EGM step 1)
     value_interpolated, marginal_utility_interpolated = interpolate_value_and_marg_util(
         model_funcs=model_funcs,
-        state_choice_vec=state_choice_mat_child,
+        child_state_choices=state_choice_mat_child,
         continuous_grids_info=continuous_grids_info,
         income_shocks_scaled=income_shocks_scaled,
         endog_grid_child_state_choice=endog_grid_child_state_choice,
-        continuous_state_space=continuous_state_space,
         policy_child_state_choice=policy_child_state_choice,
-        value_child_state_choice=value_solved[child_state_choice_idxs_to_interp],
+        value_child_state_choice=value_child_state_choice,
         params=params,
         upper_envelope_method=upper_envelope_method,
         skip_endog_grid_storage=skip_endog_grid_storage,
+        representative_parent_state_choice_vec=representative_parent_state_choice_dict,
+        unique_child_states=unique_child_states,
+        representative_parent_state_choices_per_child_state=(
+            representative_parent_state_choice_dict_per_child_state
+        ),
+        state_row_for_state_choice=state_row_for_state_choice,
     )
 
     # Check if we have a scalar taste shock scale or state specific. Extract in each of the cases.
@@ -83,7 +116,6 @@ def solve_single_period(
         taste_shock_scale_is_scalar=taste_shock_scale_is_scalar,
         income_shock_weights=income_shock_weights,
         continuous_grids_info=continuous_grids_info,
-        continuous_state_space=continuous_state_space,
         model_funcs=model_funcs,
         debug_info=debug_info,
     )
@@ -131,7 +163,6 @@ def solve_for_interpolated_values(
     taste_shock_scale_is_scalar,
     income_shock_weights,
     continuous_grids_info,
-    continuous_state_space,
     model_funcs,
     debug_info,
 ):
@@ -156,7 +187,6 @@ def solve_for_interpolated_values(
         expected_values,
     ) = calculate_candidate_solutions_from_euler_equation(
         continuous_grids_info=continuous_grids_info,
-        continuous_state_space=continuous_state_space,
         marg_util_next=marg_util,
         emax_next=emax,
         state_choice_mat=state_choice_mat,
@@ -178,12 +208,13 @@ def solve_for_interpolated_values(
         policy_candidate=policy_candidate,
         value_candidate=value_candidate,
         expected_values=expected_values,
-        continuous_state_space=continuous_state_space,
         state_choice_mat=state_choice_mat,
         compute_utility=model_funcs["compute_utility"],
         params=params,
         discount_factor=discount_factor,
         compute_upper_envelope_for_state_choice=model_funcs["compute_upper_envelope"],
+        continuous_grid_functions=model_funcs["continuous_grid_functions"],
+        continuous_grids_info=continuous_grids_info,
     )
     out_dict = {
         "endog_grid": endog_grid_state_choice,
@@ -206,51 +237,77 @@ def run_upper_envelope(
     policy_candidate,
     value_candidate,
     expected_values,
-    continuous_state_space,
     state_choice_mat,
     compute_utility,
     params,
     discount_factor,
     compute_upper_envelope_for_state_choice,
+    continuous_grid_functions,
+    continuous_grids_info,
 ):
     """Run upper envelope to remove suboptimal candidates.
 
-    Vectorized over all state-choice combinations.
+    Vectorized over all state-choice combinations. Builds each state-choice's own
+    continuous-state combo grid on demand, from its own identity (``state_choice_mat``
+    is each row's own state-choice here, no representative-parent selection needed --
+    same reasoning as ``solve_euler_equation.py``'s EGM step), instead of reusing one
+    grid shared across every state-choice -- a state-choice's own grid may differ once
+    continuous grids are state-choice-specific, and the upper-envelope refinement below
+    needs to agree with the EGM candidates it is refining.
 
     """
     return vmap(
-        vmap(
-            compute_upper_envelope_for_state_choice,
-            in_axes=(
-                0,
-                0,
-                0,
-                0,
-                0,
-                None,
-                None,
-                None,
-                None,
-            ),
-        ),
-        in_axes=(
-            0,
-            0,
-            0,
-            0,
-            None,
-            0,
-            None,
-            None,
-            None,
-        ),
+        _run_upper_envelope_for_state_choice,
+        in_axes=(0, 0, 0, 0, 0, None, None, None, None, None, None, None),
     )(
         endog_grid_candidate,
         policy_candidate,
         value_candidate,
         expected_values[:, :, 0],
-        continuous_state_space,
         state_choice_mat,
+        compute_utility,
+        params,
+        discount_factor,
+        compute_upper_envelope_for_state_choice,
+        continuous_grid_functions,
+        continuous_grids_info["additional_continuous_state_names"],
+        continuous_grids_info["has_additional_continuous_state"],
+    )
+
+
+def _run_upper_envelope_for_state_choice(
+    endog_grid_candidate_state_choice,
+    policy_candidate_state_choice,
+    value_candidate_state_choice,
+    expected_values_state_choice,
+    state_choice_vec,
+    compute_utility,
+    params,
+    discount_factor,
+    compute_upper_envelope_for_state_choice,
+    continuous_grid_functions,
+    additional_continuous_state_names,
+    has_additional_continuous_state,
+):
+    if has_additional_continuous_state:
+        own_continuous_state_vec = compute_own_continuous_grid_combos(
+            state_choice_vec,
+            continuous_grid_functions,
+            additional_continuous_state_names,
+        )
+    else:
+        own_continuous_state_vec = {"dummy_cont": jnp.zeros(1)}
+
+    return vmap(
+        compute_upper_envelope_for_state_choice,
+        in_axes=(0, 0, 0, 0, 0, None, None, None, None),
+    )(
+        endog_grid_candidate_state_choice,
+        policy_candidate_state_choice,
+        value_candidate_state_choice,
+        expected_values_state_choice,
+        own_continuous_state_vec,
+        state_choice_vec,
         compute_utility,
         params,
         discount_factor,

@@ -8,7 +8,10 @@ from jax import vmap
 from dcegm.check_func_outputs import (
     check_budget_equation_and_return_wealth_plus_optional_aux,
 )
-from dcegm.law_of_motion import calc_law_of_motion_for_state_choices
+from dcegm.law_of_motion import (
+    calc_law_of_motion,
+    compute_own_continuous_grid_combos,
+)
 from dcegm.solve_single_period import solve_for_interpolated_values
 
 
@@ -53,6 +56,35 @@ def solve_last_two_periods(
 
     """
     batch_info = last_two_period_batch_info
+
+    # A representative second-to-last-period state-choice for each final-period
+    # state-choice, gathered into a state-choice dict -- used only to pick which
+    # state-choice's own continuous grid feeds the law of motion (see
+    # add_last_two_period_information / law_of_motion.py). Not the same as
+    # state_choice_mat_final_period (the final period's own identity, used for the
+    # law-of-motion function call itself).
+    representative_second_last_period_parent_state_choice_dict = {
+        key: var[
+            batch_info["representative_second_last_period_parent_idx_for_final_period"]
+        ]
+        for key, var in model_structure["state_choice_space_dict"].items()
+    }
+
+    # Same three objects at the deduplicated unique-final-*state* granularity, for
+    # the law-of-motion shortcut taken when no transition function depends on
+    # "choice" (see calc_law_of_motion in law_of_motion.py). Built in
+    # last_two_periods.py, mirroring what child_state_dedup.py does per batch.
+    state_mat_unique_final_period = {
+        key: var[batch_info["unique_final_period_states"]]
+        for key, var in model_structure["state_space_dict"].items()
+    }
+    representative_second_last_period_parent_state_choice_dict_per_final_state = {
+        key: var[
+            batch_info["representative_second_last_period_parent_idx_per_final_state"]
+        ]
+        for key, var in model_structure["state_choice_space_dict"].items()
+    }
+
     (
         value_solved,
         policy_solved,
@@ -62,11 +94,18 @@ def solve_last_two_periods(
     ) = solve_final_period(
         idx_state_choices_final_period=batch_info["idx_state_choices_final_period"],
         state_choice_mat_final_period=batch_info["state_choice_mat_final_period"],
+        representative_parent_state_choice_vec_final_period=representative_second_last_period_parent_state_choice_dict,
+        state_mat_unique_final_period=state_mat_unique_final_period,
+        representative_parent_state_choice_vec_per_final_period_state=(
+            representative_second_last_period_parent_state_choice_dict_per_final_state
+        ),
+        state_row_for_final_period_state_choice=batch_info[
+            "state_row_for_final_period_state_choice"
+        ],
         income_shocks_scaled=income_shocks_scaled,
         continuous_states_info=continuous_states_info,
         upper_envelope_method=upper_envelope_method,
         skip_endog_grid_storage=skip_endog_grid_storage,
-        model_structure=model_structure,
         params=params,
         model_funcs=model_funcs,
         value_solved=value_solved,
@@ -104,7 +143,6 @@ def solve_last_two_periods(
         params=params,
         income_shock_weights=income_shock_weights,
         continuous_grids_info=continuous_states_info,
-        continuous_state_space=model_structure["continuous_state_space"],
         model_funcs=model_funcs,
         debug_info=debug_info,
     )
@@ -157,12 +195,15 @@ def solve_final_period(
     continuous_states_info: Dict[str, Any],
     upper_envelope_method: str,
     skip_endog_grid_storage: bool,
-    model_structure: Dict[str, Any],
     params: Dict[str, float],
     model_funcs: Dict[str, Any],
     value_solved,
     policy_solved,
     endog_grid_solved,
+    representative_parent_state_choice_vec_final_period,
+    state_mat_unique_final_period,
+    representative_parent_state_choice_vec_per_final_period_state,
+    state_row_for_final_period_state_choice,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Compute solution to final period for policy and value function.
 
@@ -190,15 +231,22 @@ def solve_final_period(
     compute_utility = model_funcs["compute_utility_final"]
     compute_marginal_utility = model_funcs["compute_marginal_utility_final"]
 
-    law_of_motion_final_period = calc_law_of_motion_for_state_choices(
-        state_choice_vec=state_choice_mat_final_period,
-        continuous_state_space=model_structure["continuous_state_space"],
-        assets_grid_end_of_period=continuous_states_info["assets_grid_end_of_period"],
+    law_of_motion_final_period = calc_law_of_motion(
+        child_state_choices=state_choice_mat_final_period,
+        representative_parent_state_choice_vec=representative_parent_state_choice_vec_final_period,
+        unique_child_states=state_mat_unique_final_period,
+        representative_parent_state_choices_per_child_state=(
+            representative_parent_state_choice_vec_per_final_period_state
+        ),
+        state_row_for_state_choice=state_row_for_final_period_state_choice,
         income_shocks_scaled=income_shocks_scaled,
         params=params,
         model_funcs=model_funcs,
         has_additional_continuous_states=continuous_states_info[
             "has_additional_continuous_state"
+        ],
+        additional_continuous_state_names=continuous_states_info[
+            "additional_continuous_state_names"
         ],
     )
     wealth_child_states_final_period = law_of_motion_final_period[
@@ -227,28 +275,25 @@ def solve_final_period(
         compute_marginal_utility,
     )
 
-    if continuous_states_info["has_additional_continuous_state"]:
-        # We also need to solve at the state space and the child states to store correctly
-        # For Druedahl Jorgensen wealth needs to be assets_begin_of_period
+    if (
+        continuous_states_info["has_additional_continuous_state"]
+        or upper_envelope_method == "druedahl_jorgensen"
+    ):
+        # For Druedahl-Jorgensen the storage grid is assets_begin_of_period; for
+        # FUES with an additional continuous state it's assets_end_of_period.
+        # calc_value_and_budget_for_state_choice handles both, and also the
+        # no-additional-continuous-state Druedahl-Jorgensen case (a size-1 dummy
+        # combo axis, same convention as solve_euler_equation.py/
+        # solve_single_period.py) -- so one branch now covers what used to be two.
         assets_begin = "assets_begin_of_period" in continuous_states_info.keys()
-        if upper_envelope_method == "druedahl_jorgensen":
-            asset_grid = continuous_states_info["assets_begin_of_period"]
-        else:
-            asset_grid = continuous_states_info["assets_grid_end_of_period"]
 
         values_regular, wealth_at_regular = vmap(
-            vmap(
-                vmap(
-                    calc_value_and_budget_for_each_gridpoint,
-                    in_axes=(None, None, 0, None, None, None, None),
-                ),
-                in_axes=(None, 0, None, None, None, None, None),
-            ),
+            calc_value_and_budget_for_state_choice,
             in_axes=(0, None, None, None, None, None, None),
         )(
             state_choice_mat_final_period,
-            model_structure["continuous_state_space"],
-            asset_grid,
+            model_funcs["continuous_grid_functions"],
+            continuous_states_info["additional_continuous_state_names"],
             params,
             compute_utility,
             model_funcs["compute_assets_begin_of_period"],
@@ -326,6 +371,75 @@ def calc_value_and_marg_util_for_each_gridpoint(
     return value, marg_util
 
 
+def calc_value_and_budget_for_state_choice(
+    state_choice_vec,
+    continuous_grid_functions,
+    additional_continuous_state_names,
+    params,
+    compute_utility,
+    compute_assets_begin_of_period,
+    assets_begin,
+):
+    """Compute the final period's own value/budget for one state-choice.
+
+    Builds this state-choice's own combo axis (what its own solve/storage is indexed
+    against) on demand *after* vmapping down to a single state-choice -- the final-
+    period analog of solve_euler_equation.py's job for every other period, on its own
+    separate code path since the final period has no continuation value and so doesn't
+    go through solve_euler_equation.py at all. ``state_choice_vec`` already is each
+    row's own identity here (no parent/child ambiguity, we're solving each row's own
+    terminal problem), so no representative-parent selection is needed, unlike
+    law_of_motion.py's grid selection for a transition *into* a state. Grids live on the
+    state-choice space (that's where the solution itself lives), so ``state_choice_vec``
+    -- including "choice" -- is exactly the identity a grid may depend on.
+
+    This state-choice's own asset grid (``assets_begin_of_period`` for
+    Druedahl-Jorgensen, ``assets_end_of_period`` for FUES) is evaluated on demand
+    right here, after vmapping down to a single state-choice, instead of being
+    precomputed for the whole batch upfront in a separate vmap and fed in as a
+    paired array -- same self-referential pattern as ``own_continuous_state_vec``
+    below. The zero point that Druedahl-Jorgensen prepends elsewhere
+    (``compute_own_dj_wealth_grid``) is *not* added here: this is the raw
+    grid_func output, and the caller appends a single zero point uniformly for
+    every branch further down (see ``zeros_to_append`` in ``solve_final_period``).
+
+    With no additional continuous state, ``additional_continuous_state_names`` is
+    empty and there is nothing to mesh -- a size-1 ``dummy_cont`` placeholder
+    stands in instead, the same convention ``solve_euler_equation.py`` and
+    ``solve_single_period.py`` already use, letting this one function (and the
+    vmap below) cover the Druedahl-Jorgensen no-additional-continuous-state case
+    too, rather than needing a dedicated combo-axis-free sibling. Downstream user
+    functions (``compute_utility``) silently ignore the extra ``dummy_cont``
+    kwarg, same as they already do on those other paths.
+
+    """
+    if additional_continuous_state_names:
+        own_continuous_state_vec = compute_own_continuous_grid_combos(
+            state_choice_vec,
+            continuous_grid_functions,
+            additional_continuous_state_names,
+        )
+    else:
+        own_continuous_state_vec = {"dummy_cont": jnp.zeros(1)}
+    grid_name = "assets_begin_of_period" if assets_begin else "assets_end_of_period"
+    asset_grid = continuous_grid_functions[grid_name](**state_choice_vec)
+    return vmap(
+        vmap(
+            calc_value_and_budget_for_each_gridpoint,
+            in_axes=(None, None, 0, None, None, None, None),
+        ),
+        in_axes=(None, 0, None, None, None, None, None),
+    )(
+        state_choice_vec,
+        own_continuous_state_vec,
+        asset_grid,
+        params,
+        compute_utility,
+        compute_assets_begin_of_period,
+        assets_begin,
+    )
+
+
 def calc_value_and_budget_for_each_gridpoint(
     state_choice_vec,
     continuous_state_vec,
@@ -335,15 +449,17 @@ def calc_value_and_budget_for_each_gridpoint(
     compute_assets_begin_of_period,
     assets_begin,
 ):
-    state_vec = state_choice_vec.copy()
-    state_vec.pop("choice")
-
     if assets_begin:
         # If assets begin, the grid is directly the assets we start from
         wealth_final_period = asset_grid_point_end_of_previous_period
     else:
+        # "choice" is passed through (not stripped): a budget equation may declare
+        # it and return a different budget per choice, same as in law_of_motion.py.
+        # Functions that don't declare it are unaffected --
+        # determine_function_arguments_and_partial_model_specs filters kwargs down
+        # to each function's own signature.
         out_budget = compute_assets_begin_of_period(
-            **state_vec,
+            **state_choice_vec,
             **continuous_state_vec,
             asset_end_of_previous_period=asset_grid_point_end_of_previous_period,
             income_shock_previous_period=jnp.array(0.0),

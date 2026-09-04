@@ -15,6 +15,29 @@ from dcegm.interpolation.interp2d_irregular import (
 from dcegm.interpolation.interpnd_regular import (
     interpnd_policy_and_value_for_child_states_on_regular_grids,
 )
+from dcegm.law_of_motion import (
+    compute_own_continuous_grid_combos,
+    compute_own_continuous_grids_raw,
+    compute_own_dj_wealth_grid,
+)
+
+
+def _dj_wealth_grid_for_state_choice(
+    state_choice_vec, endog_grid_state_choice, model_config, continuous_grid_functions
+):
+    """This state-choice's own Druedahl-Jorgensen wealth grid (simple 1d case).
+
+    Self-referential -- this is the exact state-choice whose own stored solution is
+    being read, so it's its own representative, same reasoning as
+    compute_own_continuous_grid_combos elsewhere in this file. Only used when
+    skip_endog_grid_storage is True (endog_grid isn't stored at all in that case,
+    since every state-choice's "endogenous" grid is by construction this fixed
+    array); otherwise the real stored grid is used unchanged.
+
+    """
+    if model_config["upper_envelope"]["skip_endog_grid_storage"]:
+        return compute_own_dj_wealth_grid(state_choice_vec, continuous_grid_functions)
+    return endog_grid_state_choice[0]
 
 
 def interpolate_value_for_state_and_choice(
@@ -35,7 +58,7 @@ def interpolate_value_for_state_and_choice(
 
     multidim = continuous_states_info["has_additional_continuous_state"]
 
-    continuous_state_space = model_structure["continuous_state_space"]
+    continuous_grid_functions = model_funcs["continuous_grid_functions"]
 
     if (upper_envelope_method == "fues") & multidim:
         continuous_state_name = continuous_states_info[
@@ -44,7 +67,11 @@ def interpolate_value_for_state_and_choice(
         continuous_state = state_choice_vec[continuous_state_name]
 
         _, value = interp2d_policy_and_value_on_wealth_and_regular_grid(
-            continuous_state_space=continuous_state_space,
+            continuous_state_space={
+                continuous_state_name: continuous_grid_functions[continuous_state_name](
+                    **state_choice_vec
+                )
+            },
             wealth_grid=endog_grid_state_choice,
             policy_grid=endog_grid_state_choice,
             value_grid=value_grid_state_choice,
@@ -62,10 +89,7 @@ def interpolate_value_for_state_and_choice(
             value_grid_state_choice=value_grid_state_choice,
             endog_grid_state_choice=endog_grid_state_choice,
             state_choice_vec=state_choice_vec,
-            additional_continuous_state_grids=continuous_states_info[
-                "additional_continuous_state_grids"
-            ],
-            continuous_state_space=continuous_state_space,
+            continuous_grid_functions=continuous_grid_functions,
             continuous_state_names=continuous_states_info[
                 "additional_continuous_state_names"
             ],
@@ -76,7 +100,12 @@ def interpolate_value_for_state_and_choice(
     elif upper_envelope_method == "druedahl_jorgensen":
         value = interp1d_value_on_wealth_dj(
             wealth=state_choice_vec["assets_begin_of_period"],
-            wealth_grid=endog_grid_state_choice[0],
+            wealth_grid=_dj_wealth_grid_for_state_choice(
+                state_choice_vec,
+                endog_grid_state_choice,
+                model_config,
+                continuous_grid_functions,
+            ),
             value_grid=value_grid_state_choice[0],
             compute_utility=compute_utility,
             state_choice_vec=state_choice_vec,
@@ -110,7 +139,7 @@ def interpolate_policy_for_state_and_choice(
     continuous_states_info = model_config["continuous_states_info"]
     upper_envelope_method = model_config["upper_envelope"]["method"]
     multidim = continuous_states_info["has_additional_continuous_state"]
-    continuous_state_space = model_structure["continuous_state_space"]
+    continuous_grid_functions = model_funcs["continuous_grid_functions"]
 
     if (upper_envelope_method == "fues") & multidim:
         continuous_state_name = continuous_states_info[
@@ -118,7 +147,11 @@ def interpolate_policy_for_state_and_choice(
         ][0]
         continuous_state = state_choice_vec[continuous_state_name]
         policy, _ = interp2d_policy_and_value_on_wealth_and_regular_grid(
-            continuous_state_space=continuous_state_space,
+            continuous_state_space={
+                continuous_state_name: continuous_grid_functions[continuous_state_name](
+                    **state_choice_vec
+                )
+            },
             wealth_grid=endog_grid_state_choice,
             policy_grid=policy_grid_state_choice,
             value_grid=policy_grid_state_choice,
@@ -143,7 +176,12 @@ def interpolate_policy_for_state_and_choice(
     elif upper_envelope_method == "druedahl_jorgensen":
         policy, _ = interp1d_policy_and_value_on_wealth_dj(
             wealth=state_choice_vec["assets_begin_of_period"],
-            wealth_grid=endog_grid_state_choice[0],
+            wealth_grid=_dj_wealth_grid_for_state_choice(
+                state_choice_vec,
+                endog_grid_state_choice,
+                model_config,
+                continuous_grid_functions,
+            ),
             policy_grid=policy_grid_state_choice[0],
             value_grid=value_grid_state_choice[0],
             compute_utility=model_funcs["compute_utility"],
@@ -176,7 +214,7 @@ def interpolate_policy_and_value_for_state_and_choice(
 
     compute_utility = model_funcs["compute_utility"]
     discount_factor = model_funcs["read_funcs"]["discount_factor"](params)
-    continuous_state_space = model_structure["continuous_state_space"]
+    continuous_grid_functions = model_funcs["continuous_grid_functions"]
 
     multidim = continuous_states_info["has_additional_continuous_state"]
 
@@ -186,7 +224,11 @@ def interpolate_policy_and_value_for_state_and_choice(
         ][0]
         continuous_state = state_choice_vec[continuous_state_name]
         policy, value = interp2d_policy_and_value_on_wealth_and_regular_grid(
-            continuous_state_space=continuous_state_space,
+            continuous_state_space={
+                continuous_state_name: continuous_grid_functions[continuous_state_name](
+                    **state_choice_vec
+                )
+            },
             wealth_grid=endog_grid_state_choice,
             policy_grid=policy_grid_state_choice,
             value_grid=value_grid_state_choice,
@@ -203,10 +245,7 @@ def interpolate_policy_and_value_for_state_and_choice(
             value_grid_state_choice=value_grid_state_choice,
             endog_grid_state_choice=endog_grid_state_choice,
             state_choice_vec=state_choice_vec,
-            additional_continuous_state_grids=continuous_states_info[
-                "additional_continuous_state_grids"
-            ],
-            continuous_state_space=continuous_state_space,
+            continuous_grid_functions=continuous_grid_functions,
             continuous_state_names=continuous_states_info[
                 "additional_continuous_state_names"
             ],
@@ -217,7 +256,12 @@ def interpolate_policy_and_value_for_state_and_choice(
     elif upper_envelope_method == "druedahl_jorgensen":
         policy, value = interp1d_policy_and_value_on_wealth_dj(
             wealth=state_choice_vec["assets_begin_of_period"],
-            wealth_grid=endog_grid_state_choice[0],
+            wealth_grid=_dj_wealth_grid_for_state_choice(
+                state_choice_vec,
+                endog_grid_state_choice,
+                model_config,
+                continuous_grid_functions,
+            ),
             policy_grid=policy_grid_state_choice[0],
             value_grid=value_grid_state_choice[0],
             compute_utility=compute_utility,
@@ -245,13 +289,21 @@ def _interp_policy_and_value_multidim_dj_for_state_choice(
     value_grid_state_choice,
     endog_grid_state_choice,
     state_choice_vec,
-    additional_continuous_state_grids,
-    continuous_state_space,
+    continuous_grid_functions,
     continuous_state_names,
     compute_utility,
     params,
     discount_factor,
 ):
+    # Self-referential: this state-choice's own solution is being queried, so its
+    # own grid (evaluated on itself) is the one it was solved on.
+    own_continuous_state_grids = compute_own_continuous_grids_raw(
+        state_choice_vec, continuous_grid_functions, continuous_state_names
+    )
+    continuous_state_space = compute_own_continuous_grid_combos(
+        state_choice_vec, continuous_grid_functions, continuous_state_names
+    )
+
     continuous_state_child_states = {
         name: jnp.asarray(state_choice_vec[name])[None, None]
         for name in continuous_state_names
@@ -262,7 +314,7 @@ def _interp_policy_and_value_multidim_dj_for_state_choice(
         if key not in {"assets_begin_of_period", *continuous_state_names}
     }
     policy_nd, value_nd = interpnd_policy_and_value_for_child_states_on_regular_grids(
-        additional_continuous_state_grids=additional_continuous_state_grids,
+        additional_continuous_state_grids=own_continuous_state_grids,
         wealth_grid=endog_grid_state_choice[0],
         policy_grid_child_states=policy_grid_state_choice[None, ...],
         value_grid_child_states=value_grid_state_choice[None, ...],

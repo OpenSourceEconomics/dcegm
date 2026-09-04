@@ -85,7 +85,7 @@ def process_alternative_sim_functions(
     stochastic_states_transition,
     state_space_functions: Dict[str, Callable],
     budget_constraint: Callable,
-    shock_functions: Dict[str, Callable] = None,
+    shock_functions: Dict[str, Callable],
 ):
     """Create wrapped functions from user supplied functions.
 
@@ -143,6 +143,9 @@ def process_alternative_sim_functions(
             state_space_functions,
             model_config=model_config,
             model_specs=model_specs,
+            additional_continuous_state_names=continuous_states_info[
+                "additional_continuous_state_names"
+            ],
         )
     )
 
@@ -159,12 +162,17 @@ def process_alternative_sim_functions(
         determine_function_arguments_and_partial_model_specs(
             func=budget_constraint,
             model_specs=model_specs_jax,
+            not_allowed_state_choices=[],
         )
     )
 
-    # Upper envelope function
+    # Upper envelope function. alt_model_funcs is simulation-only (behavioral
+    # counterfactuals for simulate(), never re-solving), and compute_upper_envelope
+    # is a solve-time-only construct that this path never actually calls -- no
+    # continuous_grid_functions is processed here to pass through.
     compute_upper_envelope = create_upper_envelope_function(
         model_config=model_config,
+        continuous_grid_functions={},
     )
 
     taste_shock_function_processed, taste_shock_scale_in_params = (

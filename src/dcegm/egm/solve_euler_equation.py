@@ -5,10 +5,11 @@ from typing import Any, Callable, Dict, Tuple
 from jax import numpy as jnp
 from jax import vmap
 
+from dcegm.law_of_motion import compute_own_continuous_grid_combos
+
 
 def calculate_candidate_solutions_from_euler_equation(
     continuous_grids_info: Dict[str, Any],
-    continuous_state_space: Dict[str, jnp.ndarray],
     marg_util_next: jnp.ndarray,
     emax_next: jnp.ndarray,
     state_choice_mat: Dict[str, jnp.ndarray],
@@ -16,7 +17,14 @@ def calculate_candidate_solutions_from_euler_equation(
     model_funcs: Dict[str, Any],
     params: Dict[str, float],
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
-    """Calculate candidates for the optimal policy and value function."""
+    """Calculate candidates for the optimal policy and value function.
+
+    This solves/stores each state-choice in ``state_choice_mat``'s *own* problem (as
+    opposed to interpolating someone else's child, where the parent/child distinction in
+    law_of_motion.py matters) -- so the combo grid used here is just each row's own
+    grid, no representative-parent selection needed.
+
+    """
     feasible_marg_utils_child = jnp.take(
         marg_util_next,
         idx_post_decision_child_states,
@@ -38,22 +46,15 @@ def calculate_candidate_solutions_from_euler_equation(
         value,
         expected_value,
     ) = vmap(
-        vmap(
-            vmap(
-                compute_optimal_policy_and_value,
-                in_axes=(1, 1, None, 0, None, None, None),
-            ),
-            in_axes=(1, 1, 0, None, None, None, None),
-        ),
-        in_axes=(0, 0, None, None, 0, None, None),
+        compute_optimal_policy_and_value_for_state_choice,
+        in_axes=(0, 0, 0, None, None, None),
     )(
         feasible_marg_utils_child,
         feasible_emax_child,
-        continuous_state_space,
-        continuous_grids_info["assets_grid_end_of_period"],
         state_choice_mat,
         model_funcs,
         params,
+        continuous_grids_info,
     )
 
     return (
@@ -61,6 +62,57 @@ def calculate_candidate_solutions_from_euler_equation(
         value,
         policy,
         expected_value,
+    )
+
+
+def compute_optimal_policy_and_value_for_state_choice(
+    feasible_marg_utils_child: jnp.ndarray,
+    feasible_emax_child: jnp.ndarray,
+    state_choice_vec: Any,
+    model_funcs: Dict[str, Any],
+    params: Dict[str, float],
+    continuous_grids_info: Dict[str, Any],
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+    """Compute EGM candidates for one state-choice, across its own combo/wealth grid.
+
+    Builds this state-choice's own combo grid *and* its own ``assets_end_of_period``
+    grid on demand *after* vmapping down to a single state-choice, instead of
+    precomputing the whole batch's grids upfront in a separate vmap and feeding the
+    result in as a paired array. This state-choice is solving/storing its *own*
+    problem (not interpolating someone else's child), so its own grids are used
+    directly -- no representative-parent selection needed, unlike
+    law_of_motion.py's grid selection for a transition *into* a state. Grids live on the
+    state-choice space (that's where the solution itself lives), so ``state_choice_vec``
+    -- including "choice" -- is exactly the identity a grid may depend on.
+
+    """
+    if continuous_grids_info["has_additional_continuous_state"]:
+        own_continuous_state_vec = compute_own_continuous_grid_combos(
+            state_choice_vec,
+            model_funcs["continuous_grid_functions"],
+            continuous_grids_info["additional_continuous_state_names"],
+        )
+    else:
+        own_continuous_state_vec = {"dummy_cont": jnp.zeros(1)}
+
+    assets_grid_end_of_period = model_funcs["continuous_grid_functions"][
+        "assets_end_of_period"
+    ](**state_choice_vec)
+
+    return vmap(
+        vmap(
+            compute_optimal_policy_and_value,
+            in_axes=(1, 1, None, 0, None, None, None),
+        ),
+        in_axes=(1, 1, 0, None, None, None, None),
+    )(
+        feasible_marg_utils_child,
+        feasible_emax_child,
+        own_continuous_state_vec,
+        assets_grid_end_of_period,
+        state_choice_vec,
+        model_funcs,
+        params,
     )
 
 
