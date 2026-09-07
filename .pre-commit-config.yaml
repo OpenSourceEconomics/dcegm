@@ -48,7 +48,7 @@ repos:
   #       args:
   #         - --py37-plus
   - repo: https://github.com/pycqa/isort
-    rev: 9.0.0b1
+    rev: 9.0.1
     hooks:
       - id: isort
         name: isort
