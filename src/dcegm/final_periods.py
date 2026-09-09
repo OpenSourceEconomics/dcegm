@@ -194,7 +194,7 @@ def solve_final_period(
         key: var[batch_info["unique_final_period_states"]]
         for key, var in model_structure["state_space_dict"].items()
     }
-    law_of_motion_final_period = calc_law_of_motion(
+    final_period_cont_states = calc_law_of_motion(
         child_state_choices=state_choice_mat_final_period,
         rep_parent_state_choice_idx_per_child_state=batch_info[
             "representative_second_last_period_parent_idx_per_final_state"
@@ -217,10 +217,8 @@ def solve_final_period(
             "additional_continuous_state_names"
         ],
     )
-    wealth_child_states_final_period = law_of_motion_final_period[
-        "assets_begin_of_period"
-    ]
-    continuous_state_final = law_of_motion_final_period["continuous_states"]
+    wealth_final_period = final_period_cont_states["assets_begin_of_period"]
+    continuous_state_final = final_period_cont_states["continuous_states"]
 
     value, marg_util = vmap(
         vmap(
