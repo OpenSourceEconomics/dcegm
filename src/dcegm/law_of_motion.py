@@ -1,3 +1,5 @@
+from typing import Any, Dict
+
 import jax.numpy as jnp
 from jax import vmap
 
@@ -7,23 +9,26 @@ from dcegm.check_func_outputs import (
 
 
 def calc_law_of_motion(
-    child_state_choices,
-    rep_parent_state_choice_idx_per_child_state_choice,
-    rep_parent_state_choice_idx_per_child_state,
-    unique_child_states,
-    state_choice_space_dict,
-    state_row_for_state_choice,
-    income_shocks_scaled,
-    params,
-    model_funcs,
-    has_additional_continuous_states,
-    additional_continuous_state_names,
-):
+    child_state_choices: Dict[str, jnp.ndarray],
+    rep_parent_state_choice_idx_per_child_state_choice: jnp.ndarray,
+    rep_parent_state_choice_idx_per_child_state: jnp.ndarray,
+    unique_child_states: Dict[str, jnp.ndarray],
+    state_choice_space_dict: Dict[str, jnp.ndarray],
+    state_row_for_state_choice: jnp.ndarray,
+    income_shocks_scaled: jnp.ndarray,
+    params: Dict[str, float],
+    model_funcs: Dict[str, Any],
+    has_additional_continuous_states: bool,
+    additional_continuous_state_names: list,
+) -> Dict[str, Any]:
     """Compute the law of motion at whichever granularity is valid for this model.
 
     Single entry point for every caller (``solve_single_period.py`` via
     ``interpolate_value_and_marg_util``, and ``final_periods.py``), so the
     granularity decision lives here rather than being repeated at each call site.
+    Callers pass the raw ingredients -- index arrays plus
+    ``state_choice_space_dict`` -- rather than pre-gathered representative-parent
+    dicts, so only the branch actually taken pays for the gather.
 
     The transition into a child does not depend on the child's own *future* choice.
     So unless a user transition function declares ``choice`` -- decided once at
@@ -35,8 +40,46 @@ def calc_law_of_motion(
     The two branches are alternatives, not nested: each calls the shared core
     ``_calc_transitions_for_rows`` with different rows -- state-choices in one
     case, deduplicated child states in the other -- so there is exactly one
-    implementation of the transition math. Callers supply both sets of arguments;
-    which set is read depends on the flag.
+    implementation of the transition math. Callers supply both sets of index
+    arrays; which set is read depends on the flag.
+
+    Args:
+        child_state_choices: State-choice dict for the children whose
+            beginning-of-period continuous state/wealth is being computed.
+            Read directly when transitions depend on ``choice``; only used to
+            infer the batch size in the deduplicated branch (the actual rows
+            evaluated there are ``unique_child_states``).
+        rep_parent_state_choice_idx_per_child_state_choice: For each child
+            state-choice, the index (into ``state_choice_space_dict``) of one
+            parent state-choice that transitions into it. Read only when
+            transitions depend on ``choice``.
+        rep_parent_state_choice_idx_per_child_state: As above, but one index
+            per unique child *state*. Read only when transitions do not
+            depend on ``choice``.
+        unique_child_states: The children deduplicated to bare states, already
+            gathered into a state dict. Read only when transitions do not
+            depend on ``choice``.
+        state_choice_space_dict: Full state-choice space; the representative-
+            parent index arrays above are gathered out of this.
+        state_row_for_state_choice: Maps each child state-choice back to its
+            row in ``unique_child_states``. Read only when transitions do not
+            depend on ``choice``.
+        income_shocks_scaled: Quadrature points for the income shock, already
+            scaled by its mean and standard deviation.
+        params: Model parameters.
+        model_funcs: Processed model functions; in particular
+            ``transition_funcs_depend_on_choice["any"]`` selects the branch.
+        has_additional_continuous_states: Whether the model has an additional
+            continuous state besides wealth.
+        additional_continuous_state_names: Names of those additional
+            continuous states, if any.
+
+    Returns:
+        dict with ``"assets_begin_of_period"`` (shape ``(n_children,
+        n_continuous_combinations, n_exog_savings, n_income_shocks)``) and
+        ``"continuous_states"`` (one array of that shape per additional
+        continuous-state name, or a size-1 ``"dummy_cont"`` placeholder when
+        there is none).
 
     """
     if model_funcs["transition_funcs_depend_on_choice"]["any"]:

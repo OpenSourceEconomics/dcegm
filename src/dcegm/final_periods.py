@@ -1,6 +1,6 @@
 """Wrapper to solve the final period of the model."""
 
-from typing import Any, Callable, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import jax.numpy as jnp
 from jax import vmap
@@ -24,35 +24,60 @@ def solve_last_two_periods(
     model_funcs: Dict[str, Any],
     upper_envelope_method: str,
     skip_endog_grid_storage: bool,
-    last_two_period_batch_info,
-    value_solved,
-    policy_solved,
-    endog_grid_solved,
-    debug_info,
-):
-    """Solves the last two periods of the model.
+    last_two_period_batch_info: Dict[str, Any],
+    value_solved: jnp.ndarray,
+    policy_solved: jnp.ndarray,
+    endog_grid_solved: Optional[jnp.ndarray],
+    debug_info: Optional[Dict[str, bool]],
+) -> Tuple[jnp.ndarray, ...]:
+    """Solve the final period and the second-to-last period.
 
-    The last two periods are solved using the EGM algorithm. The last period is
-    solved using the user-specified utility function and the second to last period
-    is solved using the user-specified utility function and the user-specified
-    bequest function.
+    Called once, outside the ``jax.lax.scan`` over the remaining periods (see
+    ``backward_induction.py``), because both periods are special:
+
+    1. The final period is solved analytically via ``solve_final_period`` --
+       everything is consumed, so there is no continuation value to
+       interpolate or Euler equation to invert.
+    2. The second-to-last period reaches its own solution the normal EGM way
+       (``solve_for_interpolated_values``), but its children (the final
+       period) are the ``value``/``marginal_utility`` just computed in step 1
+       directly, rather than the *stored*, then re-interpolated, solution
+       ``interpolate_value_and_marg_util`` reads for every other period.
 
     Args:
-        wealth_beginning_of_period (np.ndarray): 2d array of shape
-            (n_states, n_grid_wealth) of the wealth at the beginning of the
-            period.
-        params (dict): Dictionary of model parameters.
-        compute_utility (callable): User supplied utility function.
-        compute_marginal_utility (callable): User supplied marginal utility
-            function.
-        last_two_period_batch_info (dict): Dictionary containing information about the batch
-            size and the state space.
-        value_solved (np.ndarray): 3d array of shape
-            (n_states, n_grid_wealth, n_income_shocks) of the value function for
-            all states, end of period assets, and income shocks.
-        endog_grid_solved (np.ndarray): 3d array of shape
-            (n_states, n_grid_wealth, n_income_shocks) of the endogenous grid
-            for all states, end of period assets, and income shocks.
+        params: Model parameters.
+        continuous_states_info: ``model_config["continuous_states_info"]``.
+        model_structure: Model structure, in particular
+            ``state_space_dict``/``state_choice_space_dict``, used to gather
+            representative-parent and unique-child-state dicts for the law of
+            motion (see ``solve_final_period``).
+        income_shocks_scaled: Quadrature points for the income shock, already
+            scaled by its mean and standard deviation.
+        income_shock_weights: Quadrature weights matching
+            ``income_shocks_scaled``.
+        model_funcs: Processed model functions.
+        upper_envelope_method: ``"fues"`` or ``"druedahl_jorgensen"``.
+        skip_endog_grid_storage: Whether the endogenous grid is stored at all;
+            see ``endog_grid_solved``.
+        last_two_period_batch_info: Batch information for the final and
+            second-to-last period -- e.g. which final-period state-choices map
+            to which second-to-last-period parents; see
+            ``pre_processing/batches/last_two_periods.py``.
+        value_solved: The solution container, indexed by state-choice, filled
+            so far (empty at this point, since this runs before the main
+            scan). Shape ``(n_state_choices, n_continuous_state_combinations,
+            n_total_wealth_grid)``.
+        policy_solved: Same shape as ``value_solved``.
+        endog_grid_solved: Same shape as ``value_solved``, or ``None`` when
+            ``skip_endog_grid_storage`` is True.
+        debug_info: ``None`` in the normal solve. When given (with
+            ``"return_candidates"``), the pre-upper-envelope candidate
+            solutions for the second-to-last period are also returned.
+
+    Returns:
+        ``(value_solved, policy_solved, endog_grid_solved)`` with the final
+        and second-to-last period filled in, plus the three candidate arrays
+        when ``debug_info["return_candidates"]`` is True.
 
     """
     batch_info = last_two_period_batch_info
@@ -148,38 +173,74 @@ def solve_last_two_periods(
 
 
 def solve_final_period(
-    batch_info,
-    model_structure,
+    batch_info: Dict[str, Any],
+    model_structure: Dict[str, Any],
     income_shocks_scaled: jnp.ndarray,
     continuous_states_info: Dict[str, Any],
     upper_envelope_method: str,
     skip_endog_grid_storage: bool,
     params: Dict[str, float],
     model_funcs: Dict[str, Any],
-    value_solved,
-    policy_solved,
-    endog_grid_solved,
+    value_solved: jnp.ndarray,
+    policy_solved: jnp.ndarray,
+    endog_grid_solved: Optional[jnp.ndarray],
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
-    """Compute solution to final period for policy and value function.
+    """Compute the final period's solution analytically (consumption = wealth).
 
-    In the last period, everything is consumed, i.e. consumption = savings.
+    The final period's own state-choices act as *children* of the second-to-
+    last period's saving choices for the law of motion: ``calc_law_of_motion``
+    is called exactly as it would be for any other period, with the final
+    period's own state-choices as ``child_state_choices`` and the
+    second-to-last period's representative parent supplying the grid the
+    transition is evaluated over (see ``rep_parent_idx_per_state``/
+    ``rep_parent_idx_per_state_choice`` below). Since nothing is saved in the
+    final period, the resulting beginning-of-period wealth is both the
+    "child" wealth from that transition and this period's own wealth grid to
+    solve over -- there is no further recursion.
+
     Args:
-
+        batch_info: Final-period batch information -- which state-choices are
+            solved, their representative second-to-last-period parents (at
+            both state-choice and unique-state granularity), and the
+            state-level dedup gather index; see
+            ``pre_processing/batches/last_two_periods.py``.
+        model_structure: Model structure, in particular
+            ``state_space_dict``/``state_choice_space_dict``, read via
+            ``batch_info``'s index arrays to build the law-of-motion inputs.
+        income_shocks_scaled: Quadrature points for the income shock, already
+            scaled by its mean and standard deviation.
+        continuous_states_info: ``model_config["continuous_states_info"]``.
+        upper_envelope_method: ``"fues"`` or ``"druedahl_jorgensen"``; selects
+            which wealth grid (``assets_begin_of_period`` vs.
+            ``assets_end_of_period``) the final period's solution is stored
+            on.
+        skip_endog_grid_storage: Whether the endogenous grid is stored at all;
+            see ``endog_grid_solved``.
+        params: Model parameters.
+        model_funcs: Processed model functions; the final-period-specific
+            ``compute_utility_final``/``compute_marginal_utility_final`` are
+            used here instead of the regular-period ones.
+        value_solved: The solution container, indexed by state-choice, filled
+            so far. Shape ``(n_state_choices, n_continuous_state_combinations,
+            n_total_wealth_grid)``.
+        policy_solved: Same shape as ``value_solved``.
+        endog_grid_solved: Same shape as ``value_solved``, or ``None`` when
+            ``skip_endog_grid_storage`` is True.
 
     Returns:
         tuple:
-        - marginal_utilities_choices (np.ndarray): 3d array of shape
-            (n_states, n_grid_wealth, n_income_shocks) of the marginal utility of
-            consumption for all final states, end of period assets, and
-            income shocks.
-        - final_value (np.ndarray): 3d array of shape
-            (n_states, n_grid_wealth, n_income_shocks) of the optimal
-            value function for all final states, end of period assets, and
-            income shocks.
-        - final_policy (np.ndarray): 3d array of shape
-            (n_states, n_grid_wealth, n_income_shocks) of the optimal
-            policy for all final states, end of period assets, and
-            income shocks.
+
+        - value_solved: ``value_solved`` with the final period's rows filled
+          in.
+        - policy_solved: Likewise for policy.
+        - endog_grid_solved: Likewise for the endogenous grid (unchanged when
+          ``skip_endog_grid_storage``).
+        - value: The final period's own value, shape
+          ``(n_final_state_choices, n_continuous_combinations, n_exog_savings,
+          n_income_shocks)`` -- fed directly into
+          ``solve_for_interpolated_values`` for the second-to-last period,
+          bypassing the usual store-then-reinterpolate path.
+        - marg_util: The final period's own marginal utility, same shape.
 
     """
 

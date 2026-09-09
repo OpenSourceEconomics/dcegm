@@ -19,7 +19,7 @@ from dcegm.law_of_motion import (
 
 
 def interpolate_value_and_marg_util(
-    model_funcs,
+    model_funcs: Dict[str, Any],
     child_state_choices: Dict[str, int],
     continuous_grids_info: Dict[str, Any],
     income_shocks_scaled: jnp.ndarray,
@@ -76,19 +76,27 @@ def interpolate_value_and_marg_util(
         upper_envelope_method: ``"fues"`` or ``"druedahl_jorgensen"``; selects the
             interpolation routine together with the presence of a continuous state.
         skip_endog_grid_storage: See ``endog_grid_child_state_choice``.
-        representative_parent_state_choice_vec: For each child, one *parent*
-            state-choice that transitions into it. Used only to pick whose
-            continuous grid feeds the law of motion -- not the child's own, since
-            the grid values must come from the state actually transitioning. See
-            ``calc_law_of_motion_for_state_choices``.
-        unique_child_states: The same children deduplicated to bare states.
-        representative_parent_state_choices_per_child_state: As above, one per
-            unique child state.
-        state_row_for_state_choice: Maps each child state-choice back to its row in
-            ``unique_child_states``.
+        unique_child_states: The same children deduplicated to bare states,
+            already gathered into a state dict (see ``child_state_dedup.py``).
+        rep_parent_state_choice_idx_per_child_state: For each unique child
+            state, the index of one *parent* state-choice that transitions
+            into it. Used only to pick whose continuous grid feeds the law of
+            motion -- not the child's own, since the grid values must come
+            from the state actually transitioning. See
+            ``calc_law_of_motion_for_child_states``.
+        rep_parent_state_choice_idx_per_child_state_choice: As above, but one
+            index per child *state-choice* rather than per unique child state.
+            See ``calc_law_of_motion_for_state_choices``.
+        state_choice_space_dict: Full state-choice space; ``calc_law_of_motion``
+            gathers the representative-parent indices above out of this.
+        state_row_for_state_choice: Maps each child state-choice back to its
+            row in ``unique_child_states``.
 
-        The last three are read only when the law of motion is evaluated at state
-        granularity; ``representative_parent_state_choice_vec`` only otherwise.
+        The state-granularity arguments
+        (``unique_child_states``/``rep_parent_state_choice_idx_per_child_state``/
+        ``state_row_for_state_choice``) are read only when the law of motion is
+        evaluated at state granularity;
+        ``rep_parent_state_choice_idx_per_child_state_choice`` only otherwise.
         ``calc_law_of_motion`` decides, from whether any transition function
         declares ``choice``.
 

@@ -1,3 +1,5 @@
+from typing import Any, Callable, Dict, Optional, Tuple, Union
+
 import jax.numpy as jnp
 from jax import vmap
 
@@ -8,20 +10,25 @@ from dcegm.egm.solve_euler_equation import (
 )
 from dcegm.law_of_motion import compute_own_continuous_grid_combos
 
+# The three solution containers threaded through the backward-induction scan as
+# its carry: (value_solved, policy_solved, endog_grid_solved). The last is
+# `None` when `skip_endog_grid_storage` is True.
+SolutionCarry = Tuple[jnp.ndarray, jnp.ndarray, Optional[jnp.ndarray]]
+
 
 def solve_single_period(
-    carry,
-    xs,
-    params,
-    continuous_grids_info,
-    state_choice_space_dict,
-    income_shocks_scaled,
-    model_funcs,
-    income_shock_weights,
-    upper_envelope_method,
-    skip_endog_grid_storage,
-    debug_info,
-):
+    carry: SolutionCarry,
+    xs: Tuple[Any, ...],
+    params: Dict[str, float],
+    continuous_grids_info: Dict[str, Any],
+    state_choice_space_dict: Dict[str, jnp.ndarray],
+    income_shocks_scaled: jnp.ndarray,
+    model_funcs: Dict[str, Any],
+    income_shock_weights: jnp.ndarray,
+    upper_envelope_method: str,
+    skip_endog_grid_storage: bool,
+    debug_info: Optional[Dict[str, bool]],
+) -> Union[Tuple[SolutionCarry, Tuple[()]], Dict[str, jnp.ndarray]]:
     """Solve one batch of state-choices -- the body of the backward induction scan.
 
     This is the ``f`` of the ``jax.lax.scan`` in ``backward_induction.py``. One
@@ -66,28 +73,31 @@ def solve_single_period(
             5. ``state_choice_mat`` -- state-choice dict for this batch's own rows.
             6. ``state_choice_mat_child`` -- state-choice dict for the children in
                (3).
-            7. ``representative_parent_state_choice_idx`` -- for each child in (3),
-               one parent state-choice that transitions into it. Used *only* to
-               pick whose continuous grid feeds the law of motion; any parent works
-               because ``check_continuous_grid_consistency_across_shared_children``
+            7. ``rep_parent_state_choice_idx_per_child_state_choice`` -- for each
+               child in (3), the index of one parent state-choice that transitions
+               into it. Used *only* to pick whose continuous grid feeds the law of
+               motion; any parent works because
+               ``check_continuous_grid_consistency_across_shared_children``
                guarantees they agree (see ``law_of_motion.py``).
             8. ``unique_child_states`` -- the children of (3) deduplicated to bare
-               *states*, indices into the state space.
-            9. ``rep_parent_state_choice_idx_per_child_state`` -- as (7),
-               but one entry per unique child state.
+               *states*, already gathered into a state dict (see
+               ``child_state_dedup.py``).
+            9. ``rep_parent_state_choice_idx_per_child_state`` -- as (7), but one
+               index per unique child state rather than per child state-choice.
             10. ``state_row_for_state_choice`` -- for each child state-choice in
                 (3), its row in (8). The gather that expands a per-state result back
                 out to per-state-choice.
 
             Entries (8)-(10) are read only when the law of motion is evaluated at
             state granularity, i.e. when no transition function declares ``choice``
-            (see ``calc_law_of_motion``); (5)-(7) are read only otherwise. Both sets
-            are always supplied so the scan's ``xs`` structure is model-independent.
+            (see ``calc_law_of_motion``); (7) is read only otherwise -- but which
+            branch runs is decided once inside ``calc_law_of_motion``, not here, so
+            both sets are always supplied to keep the scan's ``xs`` structure
+            model-independent.
         params: Model parameters.
         continuous_grids_info: ``model_config["continuous_states_info"]``.
-        state_choice_space_dict: Full state-choice space, used to turn the index
-            arrays (7) and (9) into state-choice dicts.
-        state_space_dict: Full state space, used to turn (8) into a state dict.
+        state_choice_space_dict: Full state-choice space; ``calc_law_of_motion``
+            gathers the representative-parent index arrays (7) and (9) out of this.
         income_shocks_scaled: Quadrature points for the income shock, already
             scaled by its mean and standard deviation.
         model_funcs: Processed model functions.
@@ -207,19 +217,19 @@ def solve_single_period(
 
 
 def solve_for_interpolated_values(
-    value_interpolated,
-    marginal_utility_interpolated,
-    state_choice_mat,
-    child_state_idxs,
-    states_to_choices_child_states,
-    params,
-    taste_shock_scale,
-    taste_shock_scale_is_scalar,
-    income_shock_weights,
-    continuous_grids_info,
-    model_funcs,
-    debug_info,
-):
+    value_interpolated: jnp.ndarray,
+    marginal_utility_interpolated: jnp.ndarray,
+    state_choice_mat: Dict[str, jnp.ndarray],
+    child_state_idxs: jnp.ndarray,
+    states_to_choices_child_states: jnp.ndarray,
+    params: Dict[str, float],
+    taste_shock_scale: Union[float, jnp.ndarray],
+    taste_shock_scale_is_scalar: bool,
+    income_shock_weights: jnp.ndarray,
+    continuous_grids_info: Dict[str, Any],
+    model_funcs: Dict[str, Any],
+    debug_info: Optional[Dict[str, bool]],
+) -> Dict[str, jnp.ndarray]:
     """EGM steps 2 and 3: aggregate continuation values, then invert the Euler eq.
 
     Split out from ``solve_single_period`` because the last two periods reach it by
@@ -331,19 +341,27 @@ def solve_for_interpolated_values(
 
 
 def run_upper_envelope(
-    endog_grid_candidate,
-    policy_candidate,
-    value_candidate,
-    expected_values,
-    state_choice_mat,
-    compute_utility,
-    params,
-    discount_factor,
-    compute_upper_envelope_for_state_choice,
-    continuous_grid_functions,
-    continuous_grids_info,
-):
-    """Run upper envelope to remove suboptimal candidates.
+    endog_grid_candidate: jnp.ndarray,
+    policy_candidate: jnp.ndarray,
+    value_candidate: jnp.ndarray,
+    expected_values: jnp.ndarray,
+    state_choice_mat: Dict[str, jnp.ndarray],
+    compute_utility: Callable,
+    params: Dict[str, float],
+    discount_factor: float,
+    compute_upper_envelope_for_state_choice: Callable,
+    continuous_grid_functions: Dict[str, Any],
+    continuous_grids_info: Dict[str, Any],
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+    """DC-EGM's refinement step: discard candidates not on the upper envelope.
+
+    The last of the three EGM steps (see ``solve_for_interpolated_values``):
+    ``calculate_candidate_solutions_from_euler_equation`` (EGM step 3) can
+    produce a non-monotonic, self-intersecting candidate (endogenous grid,
+    policy, value) correspondence whenever the discrete choice set makes the
+    value function non-concave. This removes the candidates that are not on
+    the upper envelope of ``value_candidate`` -- the refinement that makes
+    this DC-EGM rather than plain EGM.
 
     Vectorized over all state-choice combinations. Builds each state-choice's own
     continuous-state combo grid on demand, from its own identity (``state_choice_mat``
@@ -352,6 +370,37 @@ def run_upper_envelope(
     grid shared across every state-choice -- a state-choice's own grid may differ once
     continuous grids are state-choice-specific, and the upper-envelope refinement below
     needs to agree with the EGM candidates it is refining.
+
+    Args:
+        endog_grid_candidate: Candidate endogenous wealth grid from EGM step 3,
+            shape ``(n_state_choices, n_continuous_combinations, n_exog_savings)``.
+        policy_candidate: Candidate policy, same shape.
+        value_candidate: Candidate value, same shape.
+        expected_values: Expected value per state-choice and continuous
+            combination, used as the value at zero wealth; only the first
+            exogenous-savings entry is read (``[:, :, 0]``) since it is
+            constant along that axis.
+        state_choice_mat: State-choice dict for the rows being refined -- each
+            row's own identity, feeding both its own continuous grid and the
+            user's ``compute_utility``/``compute_upper_envelope_for_state_choice``.
+        compute_utility: User-supplied utility function.
+        params: Model parameters.
+        discount_factor: This period's discount factor.
+        compute_upper_envelope_for_state_choice: The model's compiled upper-
+            envelope routine (FUES or Druedahl-Jorgensen), applied per
+            continuous-state combination.
+        continuous_grid_functions: Functions returning each (possibly state-
+            choice-specific) continuous grid, used to build each row's own
+            combo grid on demand.
+        continuous_grids_info: ``model_config["continuous_states_info"]``.
+
+    Returns:
+        tuple ``(endog_grid, policy, value)``, each shape ``(n_state_choices,
+        n_continuous_combinations, n_total_wealth_grid)`` -- the refined
+        solution for every state-choice, on the fixed-width storage grid
+        (``model_config["upper_envelope"]["tuning_params"]["n_total_wealth_grid"]``)
+        the underlying FUES/Druedahl-Jorgensen routine pads or truncates to,
+        which need not equal ``n_exog_savings``.
 
     """
     return vmap(

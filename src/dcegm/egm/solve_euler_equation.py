@@ -17,12 +17,40 @@ def calculate_candidate_solutions_from_euler_equation(
     model_funcs: Dict[str, Any],
     params: Dict[str, float],
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
-    """Calculate candidates for the optimal policy and value function.
+    """EGM step 3: invert the Euler equation into (endog_grid, policy, value)
+    candidates.
 
     This solves/stores each state-choice in ``state_choice_mat``'s *own* problem (as
     opposed to interpolating someone else's child, where the parent/child distinction in
     law_of_motion.py matters) -- so the combo grid used here is just each row's own
-    grid, no representative-parent selection needed.
+    grid, no representative-parent selection needed. Called once per batch from
+    ``solve_for_interpolated_values``, on the aggregate marginal utility/expected
+    value ``aggregate_marg_utils_and_exp_values`` (EGM step 2) just computed for
+    every *child* state. "Candidates" because these are not yet the final
+    solution: ``run_upper_envelope`` still has to discard the ones that are
+    not optimal (the DC-EGM refinement step).
+
+    Args:
+        continuous_grids_info: ``model_config["continuous_states_info"]``.
+        marg_util_next: Aggregate marginal utility per child state and
+            exogenous-savings grid point, shape ``(n_child_states,
+            n_exog_savings)``.
+        emax_next: Aggregate expected value per child state and exogenous-
+            savings grid point, same shape as ``marg_util_next``.
+        state_choice_mat: State-choice dict for the rows being solved -- this
+            period's own state-choices, not the children.
+        idx_post_decision_child_states: For each (row, stochastic
+            realisation), the position of the resulting child state in
+            ``marg_util_next``/``emax_next``; out-of-bounds entries (states
+            not reachable from that row) are filled with ``nan`` and
+            integrated out via ``jnp.nansum`` in ``solve_euler_equation``.
+        model_funcs: Processed model functions.
+        params: Model parameters.
+
+    Returns:
+        tuple ``(endog_grid, value, policy, expected_value)``, each shape
+        ``(n_state_choices, n_continuous_combinations, n_exog_savings)`` --
+        the pre-upper-envelope candidate solution for every state-choice.
 
     """
     feasible_marg_utils_child = jnp.take(
