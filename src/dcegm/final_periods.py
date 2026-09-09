@@ -194,28 +194,36 @@ def solve_final_period(
         key: var[batch_info["unique_final_period_states"]]
         for key, var in model_structure["state_space_dict"].items()
     }
+
+    # The representative parent indexes per final state or final state choice.
+    rep_parent_idx_per_state = batch_info[
+        "representative_second_last_period_parent_idx_per_final_state"
+    ]
+    rep_parent_idx_per_state_choice = batch_info[
+        "rep_sec_last_period_parent_idx_per_final_state_choice"
+    ]
+    # Now the state choices in the final period
+    state_row_for_state_choice = batch_info["state_row_for_final_period_state_choice"]
+    has_additional_continuous_states = continuous_states_info[
+        "has_additional_continuous_state"
+    ]
+    additional_continuous_state_names = continuous_states_info[
+        "additional_continuous_state_names"
+    ]
+
+    # Then call the law of motion to get the continuous states and wealth at the final period.
     final_period_cont_states = calc_law_of_motion(
         child_state_choices=state_choice_mat_final_period,
-        rep_parent_state_choice_idx_per_child_state=batch_info[
-            "representative_second_last_period_parent_idx_per_final_state"
-        ],
-        rep_parent_state_choice_idx_per_child_state_choice=batch_info[
-            "rep_sec_last_period_parent_idx_per_final_state_choice"
-        ],
+        rep_parent_state_choice_idx_per_child_state=rep_parent_idx_per_state,
+        rep_parent_state_choice_idx_per_child_state_choice=rep_parent_idx_per_state_choice,
         state_choice_space_dict=model_structure["state_choice_space_dict"],
         unique_child_states=state_mat_unique_final_period,
-        state_row_for_state_choice=batch_info[
-            "state_row_for_final_period_state_choice"
-        ],
+        state_row_for_state_choice=state_row_for_state_choice,
         income_shocks_scaled=income_shocks_scaled,
         params=params,
         model_funcs=model_funcs,
-        has_additional_continuous_states=continuous_states_info[
-            "has_additional_continuous_state"
-        ],
-        additional_continuous_state_names=continuous_states_info[
-            "additional_continuous_state_names"
-        ],
+        has_additional_continuous_states=has_additional_continuous_states,
+        additional_continuous_state_names=additional_continuous_state_names,
     )
     wealth_final_period = final_period_cont_states["assets_begin_of_period"]
     continuous_state_final = final_period_cont_states["continuous_states"]
@@ -235,7 +243,7 @@ def solve_final_period(
     )(
         state_choice_mat_final_period,
         continuous_state_final,
-        wealth_child_states_final_period,
+        wealth_final_period,
         params,
         compute_utility,
         compute_marginal_utility,
@@ -273,7 +281,7 @@ def solve_final_period(
         middle_of_draws = int((value.shape[3] - 1) / 2)
         value_final = value[:, :, :, middle_of_draws]
 
-        wealth_to_save = wealth_child_states_final_period[:, :, :, middle_of_draws]
+        wealth_to_save = wealth_final_period[:, :, :, middle_of_draws]
         sort_idx = jnp.argsort(wealth_to_save, axis=2)
         wealth_sorted = jnp.take_along_axis(wealth_to_save, sort_idx, axis=2)
         values_sorted = jnp.take_along_axis(value_final, sort_idx, axis=2)
