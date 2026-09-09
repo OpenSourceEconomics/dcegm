@@ -224,35 +224,21 @@ def check_model_config_and_process(model_config):
         assets_begin_of_period_grid = model_config["continuous_states"][
             "assets_begin_of_period"
         ]
-        if assets_begin_of_period_grid is None:
-            # No default grid -- must be paired with a continuous_grid_functions
-            # entry (validated in process_continuous_grid_functions). Size can only
-            # be pinned once a real state-choice exists to evaluate the grid
-            # function against; left unresolved here and merged back later, same as
-            # a `None`-declared additional continuous state.
-            processed_model_config["continuous_states_info"][
-                "assets_begin_of_period"
-            ] = None
-            processed_model_config["continuous_states_info"]["dj_wealth_grid"] = None
-        else:
-            processed_model_config["continuous_states_info"][
-                "assets_begin_of_period"
-            ] = jnp.asarray(assets_begin_of_period_grid)
-            # The Druedahl-Jorgensen upper envelope always evaluates on this fixed
-            # grid (see upper_envelope.jax.drued_jorg_jax), so the resulting
-            # "endogenous" grid is not actually endogenous. We precompute it once
-            # here so callers can reuse it instead of reading a stored (and
-            # redundant) endog_grid array.
-            processed_model_config["continuous_states_info"]["dj_wealth_grid"] = (
-                jnp.concatenate(
-                    (
-                        jnp.zeros(1),
-                        processed_model_config["continuous_states_info"][
-                            "assets_begin_of_period"
-                        ],
-                    )
-                )
-            )
+        # `None` when the grid is fully state-choice-specific (paired with a
+        # continuous_grid_functions entry, validated in
+        # process_continuous_grid_functions); its length is then pinned later, once
+        # a real state-choice can be evaluated against. Otherwise store the declared
+        # array, used to pin the wealth-grid length (see continuous_state_grids.py).
+        # Either way, the actual per-state-choice wealth grid the Druedahl-Jorgensen
+        # upper envelope evaluates on -- and that every reader interpolates against
+        # -- is recomputed on demand from
+        # continuous_grid_functions["assets_begin_of_period"] (see
+        # compute_own_dj_wealth_grid), so no shared grid is stored here.
+        processed_model_config["continuous_states_info"]["assets_begin_of_period"] = (
+            None
+            if assets_begin_of_period_grid is None
+            else jnp.asarray(assets_begin_of_period_grid)
+        )
 
     if upper_envelope["method"] == "fues":
         if "assets_begin_of_period" in model_config["continuous_states"]:
@@ -289,14 +275,6 @@ def check_model_config_and_process(model_config):
         upper_envelope["method"] == "druedahl_jorgensen"
         and len(processed_model_config["choices"]) >= 2
     )
-    if (
-        upper_envelope["skip_endog_grid_storage"]
-        and processed_model_config["n_total_wealth_grid"] is not None
-    ):
-        assert (
-            processed_model_config["continuous_states_info"]["dj_wealth_grid"].shape[0]
-            == processed_model_config["n_total_wealth_grid"]
-        )
 
     if "min_period_batch_segments" in model_config.keys():
         processed_model_config["min_period_batch_segments"] = model_config[

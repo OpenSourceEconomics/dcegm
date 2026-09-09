@@ -380,7 +380,7 @@ def test_choice_dependent_budget_matches_closed_form():
     """
     choices = [0, 1]
     model, solved = _solve(choices=choices, budget_fn=_budget_choice_dependent)
-    assert model.model_funcs["transition_funcs_depend_on_choice"]
+    assert model.model_funcs["transition_funcs_depend_on_choice"]["any"]
 
     endog_grid = np.asarray(solved.endog_grid)
     policy = np.asarray(solved.policy)
@@ -628,4 +628,235 @@ def test_grid_depending_on_stochastic_partner_state_is_rejected():
             n_periods=N_PERIODS,
             a_grid=BASE_GRID,
             continuous_grid_functions={"assets_end_of_period": bad_grid},
+        )
+
+
+def _load_with_cont_exp():
+    import dcegm.toy_models as toy_models
+
+    model_funcs = toy_models.load_example_model_functions("with_cont_exp")
+    params, model_specs, model_config = (
+        toy_models.load_example_params_model_specs_and_config("with_cont_exp")
+    )
+    return model_funcs, params, model_specs, model_config
+
+
+def _budget_with_unused_choice(
+    period,
+    lagged_choice,
+    choice,
+    experience,
+    asset_end_of_previous_period,
+    income_shock_previous_period,
+    params,
+    model_specs,
+):
+    """Identical economics to the toy model's budget, but declaring ``choice``.
+
+    ``choice`` is deliberately unused: declaring it is what routes the model down the
+    per-choice law of motion, which must not change the answer.
+
+    """
+    from dcegm.toy_models.cons_ret_model_with_cont_exp.budget_constraint import (
+        budget_constraint_cont_exp,
+    )
+
+    return budget_constraint_cont_exp(
+        period=period,
+        lagged_choice=lagged_choice,
+        experience=experience,
+        asset_end_of_previous_period=asset_end_of_previous_period,
+        income_shock_previous_period=income_shock_previous_period,
+        params=params,
+        model_specs=model_specs,
+    )
+
+
+# =====================================================================================
+# Part 3: choice-dependent budget through simulate()
+# =====================================================================================
+
+
+def test_choice_dependent_budget_simulates_and_first_period_assets_are_given():
+    """A budget declaring ``choice`` must work in simulate(), not just solve().
+
+    The law of motion is applied at the *start* of each period, for every choice,
+    before the choice is drawn -- so the agent can face a genuinely different
+    wealth per choice and pick by comparing each choice's value at its own wealth.
+    The first period is the exception: assets are given by the user, so no law of
+    motion runs and every choice shares that wealth.
+
+    Before this, such a model solved fine and then crashed in simulate() with
+    ``KeyError: 'choice'``, because simulation computed a single wealth from the
+    next period's state -- which carries ``lagged_choice`` but not ``choice``.
+
+    """
+    model_funcs, params, model_specs, model_config = _load_with_cont_exp()
+    model_funcs = dict(model_funcs)
+    model_funcs["budget_constraint"] = _budget_with_unused_choice
+
+    solved = dcegm.setup_model(
+        model_config=model_config, model_specs=model_specs, **model_funcs
+    ).solve(params)
+
+    n_agents = 200
+    given_assets = 10.0
+    states_initial = {
+        "period": np.zeros(n_agents, dtype=int),
+        "lagged_choice": np.zeros(n_agents, dtype=int),
+        "experience": np.ones(n_agents) * 0.5,
+        "assets_begin_of_period": np.ones(n_agents) * given_assets,
+    }
+    df = solved.simulate(states_initial=states_initial, seed=1)
+
+    first_period = df.xs(0, level=0)
+    assert_allclose(first_period["assets_begin_of_period"], given_assets)
+    assert np.all(np.isfinite(df["assets_begin_of_period"]))
+
+
+def test_choice_dependent_budget_matches_choice_free_one_when_the_cost_is_zero():
+    """Sensitivity anchor for the simulation path.
+
+    A budget that declares ``choice`` but does not use it routes through the per-choice
+    machinery (``budget_depends_on_choice`` is True), while an otherwise-identical
+    budget that omits ``choice`` takes the broadcast path. Both describe the same
+    economics, so simulated output must agree exactly -- which would fail if the per-
+    choice path mis-selected the realized column.
+
+    """
+    model_funcs, params, model_specs, model_config = _load_with_cont_exp()
+
+    plain = dcegm.setup_model(
+        model_config=model_config, model_specs=model_specs, **model_funcs
+    ).solve(params)
+
+    with_choice_funcs = dict(model_funcs)
+    with_choice_funcs["budget_constraint"] = _budget_with_unused_choice
+    with_choice = dcegm.setup_model(
+        model_config=model_config, model_specs=model_specs, **with_choice_funcs
+    ).solve(params)
+
+    n_agents = 200
+    states_initial = {
+        "period": np.zeros(n_agents, dtype=int),
+        "lagged_choice": np.zeros(n_agents, dtype=int),
+        "experience": np.ones(n_agents) * 0.5,
+        "assets_begin_of_period": np.ones(n_agents) * 10,
+    }
+    df_plain = plain.simulate(states_initial=states_initial, seed=7)
+    df_with_choice = with_choice.simulate(states_initial=states_initial, seed=7)
+
+    for column in df_plain.columns:
+        np.testing.assert_allclose(
+            df_plain[column].to_numpy(),
+            df_with_choice[column].to_numpy(),
+            err_msg=f"column {column}",
+        )
+
+
+def _next_experience_with_unused_choice(
+    period, lagged_choice, choice, experience, model_specs
+):
+    """Identical to the toy model's transition, but declaring ``choice``.
+
+    Declaring it routes the model down the per-choice continuous-state path; not using
+    it means the answer must be unchanged.
+
+    """
+    max_experience_period = period + model_specs["max_init_experience"]
+    return {
+        "experience": (1 / max_experience_period)
+        * ((max_experience_period - 1) * experience + (lagged_choice == 0))
+    }
+
+
+def _with_continuous_state_transition(model_funcs, transition):
+    model_funcs = dict(model_funcs)
+    state_space_functions = dict(model_funcs["state_space_functions"])
+    state_space_functions["next_period_continuous_state"] = transition
+    model_funcs["state_space_functions"] = state_space_functions
+    return model_funcs
+
+
+def test_choice_dependent_continuous_state_transition_simulates():
+    """``next_period_continuous_state`` may depend on this period's choice.
+
+    Same rule as the budget: the continuous state for a period is produced by the
+    law of motion at that period's beginning, for every choice, before the choice
+    is drawn. The first period is the exception -- its continuous state is given.
+
+    """
+    model_funcs, params, model_specs, model_config = _load_with_cont_exp()
+
+    def next_experience_using_choice(
+        period, lagged_choice, choice, experience, model_specs
+    ):
+        base = _next_experience_with_unused_choice(
+            period=period,
+            lagged_choice=lagged_choice,
+            choice=choice,
+            experience=experience,
+            model_specs=model_specs,
+        )["experience"]
+        return {"experience": base * (1.0 - 0.05 * choice)}
+
+    model_funcs = _with_continuous_state_transition(
+        model_funcs, next_experience_using_choice
+    )
+    model = dcegm.setup_model(
+        model_config=model_config, model_specs=model_specs, **model_funcs
+    )
+    assert model.model_funcs["transition_funcs_depend_on_choice"]["continuous_state"]
+    solved = model.solve(params)
+
+    n_agents = 200
+    given_experience = 0.5
+    states_initial = {
+        "period": np.zeros(n_agents, dtype=int),
+        "lagged_choice": np.zeros(n_agents, dtype=int),
+        "experience": np.ones(n_agents) * given_experience,
+        "assets_begin_of_period": np.ones(n_agents) * 10,
+    }
+    df = solved.simulate(states_initial=states_initial, seed=1)
+
+    assert_allclose(df.xs(0, level=0)["experience"], given_experience)
+    assert np.all(np.isfinite(df["experience"]))
+
+
+def test_choice_declaring_continuous_state_transition_that_ignores_choice_is_a_no_op():
+    """Sensitivity anchor for the continuous-state path.
+
+    Declaring ``choice`` without using it must leave simulated output bit-for-bit
+    unchanged -- it only switches on the per-choice machinery. A mis-selected
+    realized column would show up here immediately.
+
+    """
+    model_funcs, params, model_specs, model_config = _load_with_cont_exp()
+
+    plain = dcegm.setup_model(
+        model_config=model_config, model_specs=model_specs, **model_funcs
+    ).solve(params)
+    declaring = dcegm.setup_model(
+        model_config=model_config,
+        model_specs=model_specs,
+        **_with_continuous_state_transition(
+            model_funcs, _next_experience_with_unused_choice
+        ),
+    ).solve(params)
+
+    n_agents = 200
+    states_initial = {
+        "period": np.zeros(n_agents, dtype=int),
+        "lagged_choice": np.zeros(n_agents, dtype=int),
+        "experience": np.ones(n_agents) * 0.5,
+        "assets_begin_of_period": np.ones(n_agents) * 10,
+    }
+    df_plain = plain.simulate(states_initial=states_initial, seed=7)
+    df_declaring = declaring.simulate(states_initial=states_initial, seed=7)
+
+    for column in df_plain.columns:
+        np.testing.assert_allclose(
+            df_plain[column].to_numpy(),
+            df_declaring[column].to_numpy(),
+            err_msg=f"column {column}",
         )

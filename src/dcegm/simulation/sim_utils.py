@@ -1,4 +1,5 @@
 import jax
+import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 from jax import vmap
@@ -68,41 +69,143 @@ def transition_to_next_period(
         std=income_shock_std,
     )
 
-    next_period_wealth = model_funcs_sim["compute_assets_begin_of_period"]
-    if continuous_state_beginning_of_period is not None:
+    # Neither beginning-of-period wealth nor the additional continuous states are
+    # computed here. Both are applied at the start of the period they belong to
+    # (see assets_begin_of_period_for_each_choice and
+    # continuous_state_begin_of_period_for_each_choice), because either law-of-motion
+    # function may depend on that period's own choice -- which is not known yet at
+    # this point.
+    return discrete_states_next_period, income_shocks_next_period
 
-        continuous_state_next_period = calculate_second_continuous_state_for_all_agents(
-            discrete_states_beginning_of_period=discrete_states_next_period,
-            continuous_state_beginning_of_period=continuous_state_beginning_of_period,
+
+def continuous_state_begin_of_period_for_each_choice(
+    discrete_states_beginning_of_period,
+    continuous_state_of_previous_period,
+    choice_range,
+    params,
+    compute_continuous_state,
+    continuous_state_depends_on_choice,
+):
+    """Additional continuous states at the start of a period, for every choice.
+
+    The mirror image of ``assets_begin_of_period_for_each_choice`` below, for the
+    *other* law-of-motion function. When ``next_period_continuous_state`` declares
+    ``choice``, this period's continuous state differs by the choice about to be made,
+    so it -- like wealth -- must be evaluated for every choice before the choice is
+    drawn, and the agent then compares each choice's value at that choice's own
+    continuous state.
+
+    Returns a dict of arrays of shape ``(n_agents, n_choices)``. When the transition
+    does not declare ``choice`` the single result is repeated across the choice axis,
+    keeping one uniform shape downstream at no extra cost.
+
+    """
+    n_agents = next(iter(discrete_states_beginning_of_period.values())).shape[0]
+    n_choices = len(choice_range)
+
+    def _for_choice(choice_value):
+        states = discrete_states_beginning_of_period
+        if continuous_state_depends_on_choice:
+            states = {
+                **states,
+                "choice": jnp.full(n_agents, choice_value, dtype=choice_range.dtype),
+            }
+        return calculate_second_continuous_state_for_all_agents(
+            discrete_states_beginning_of_period=states,
+            continuous_state_beginning_of_period=continuous_state_of_previous_period,
             params=params,
-            compute_continuous_state=model_funcs_sim["next_period_continuous_state"],
+            compute_continuous_state=compute_continuous_state,
         )
 
-        all_states_next_period = {
-            **discrete_states_next_period,
-            **continuous_state_next_period,
+    if not continuous_state_depends_on_choice:
+        per_agent = _for_choice(choice_range[0])
+        return {
+            key: jnp.repeat(val[:, None], n_choices, axis=1)
+            for key, val in per_agent.items()
         }
-    else:
-        all_states_next_period = discrete_states_next_period.copy()
-        continuous_state_next_period = None
 
-    assets_beginning_of_next_period, budget_aux = (
-        calculate_assets_begin_of_period_for_all_agents(
-            states_beginning_of_period=all_states_next_period,
-            asset_grid_point_end_of_previous_period=assets_end_of_period,
-            income_shocks_of_period=income_shocks_next_period,
+    # (n_choices, n_agents) -> (n_agents, n_choices)
+    per_choice = vmap(_for_choice)(choice_range)
+    return {key: val.T for key, val in per_choice.items()}
+
+
+def assets_begin_of_period_for_each_choice(
+    states_beginning_of_period,
+    continuous_state_per_choice,
+    assets_end_of_previous_period,
+    income_shock,
+    choice_range,
+    params,
+    compute_assets_begin_of_period,
+    budget_depends_on_choice,
+):
+    """Beginning-of-period wealth for every choice, before any choice is made.
+
+    Applied at the *start* of a period, using the state that period was entered with,
+    last period's end-of-period assets, and this period's income shock.
+
+    Returns arrays of shape ``(n_agents, n_choices)``. When the budget equation declares
+    ``choice`` the agent faces a genuinely different wealth per choice (e.g. a choice-
+    specific cost), and the discrete choice is then made by comparing each choice's
+    value *at its own wealth* -- which is exactly what the solved solution is indexed
+    by. When it does not, the single wealth is repeated across the choice axis so
+    everything downstream keeps one uniform shape, without paying for redundant budget
+    evaluations.
+
+    """
+    n_choices = len(choice_range)
+
+    def _for_choice(choice_index, choice_value):
+        states = states_beginning_of_period
+        if continuous_state_per_choice is not None:
+            # The budget reads the continuous state, which is itself per choice.
+            states = {
+                **states,
+                **{
+                    name: val[:, choice_index]
+                    for name, val in continuous_state_per_choice.items()
+                },
+            }
+        if budget_depends_on_choice:
+            states = {
+                **states,
+                "choice": jnp.full(
+                    assets_end_of_previous_period.shape[0],
+                    choice_value,
+                    dtype=choice_range.dtype,
+                ),
+            }
+        return calculate_assets_begin_of_period_for_all_agents(
+            states_beginning_of_period=states,
+            asset_grid_point_end_of_previous_period=assets_end_of_previous_period,
+            income_shocks_of_period=income_shock,
             params=params,
-            compute_assets_begin_of_period=next_period_wealth,
+            compute_assets_begin_of_period=compute_assets_begin_of_period,
         )
-    )
 
-    return (
-        assets_beginning_of_next_period,
-        budget_aux,
-        discrete_states_next_period,
-        continuous_state_next_period,
-        income_shocks_next_period,
+    continuous_state_is_per_choice = continuous_state_per_choice is not None and any(
+        val.shape[1] > 1 for val in continuous_state_per_choice.values()
     )
+    if not budget_depends_on_choice and not continuous_state_is_per_choice:
+        assets, aux = _for_choice(0, choice_range[0])
+        assets = jnp.repeat(assets[:, None], n_choices, axis=1)
+        aux = {
+            key: jnp.repeat(val[:, None], n_choices, axis=1) for key, val in aux.items()
+        }
+        return assets, aux
+
+    # Python loop over the (small, static) choice axis rather than vmap: the
+    # per-choice continuous state is sliced by a concrete index.
+    per_choice = [
+        _for_choice(idx, choice_value) for idx, choice_value in enumerate(choice_range)
+    ]
+    assets = jnp.stack([a for a, _ in per_choice], axis=1)
+    aux_keys = per_choice[0][1].keys()
+    aux = {
+        key: jnp.stack([aux_j[key] for _, aux_j in per_choice], axis=1)
+        for key in aux_keys
+    }
+    return assets, aux
 
 
 def compute_final_utility_for_each_choice(

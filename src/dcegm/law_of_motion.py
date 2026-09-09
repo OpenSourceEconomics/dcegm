@@ -31,13 +31,14 @@ def calc_law_of_motion(
     compute a bit-identical transition, and it is evaluated once per unique child
     *state* and gathered out instead.
 
-    Both branches run the same transition math: the state-level one is a thin
-    dedup/gather wrapper around the state-choice one (see
-    ``calc_law_of_motion_for_child_states``). Callers must supply both sets of
-    arguments; which one is read depends on the flag.
+    The two branches are alternatives, not nested: each calls the shared core
+    ``_calc_transitions_for_rows`` with different rows -- state-choices in one
+    case, deduplicated child states in the other -- so there is exactly one
+    implementation of the transition math. Callers supply both sets of arguments;
+    which set is read depends on the flag.
 
     """
-    if model_funcs["transition_funcs_depend_on_choice"]:
+    if model_funcs["transition_funcs_depend_on_choice"]["any"]:
         return calc_law_of_motion_for_state_choices(
             child_state_choices=child_state_choices,
             representative_parent_state_choice_vec=representative_parent_state_choice_vec,
@@ -48,18 +49,19 @@ def calc_law_of_motion(
             additional_continuous_state_names=additional_continuous_state_names,
         )
 
-    return calc_law_of_motion_for_child_states(
-        child_states=unique_child_states,
-        representative_parent_state_choices=(
-            representative_parent_state_choices_per_child_state
-        ),
-        state_row_for_state_choice=state_row_for_state_choice,
-        income_shocks_scaled=income_shocks_scaled,
-        params=params,
-        model_funcs=model_funcs,
-        has_additional_continuous_states=has_additional_continuous_states,
-        additional_continuous_state_names=additional_continuous_state_names,
-    )
+    else:
+        return calc_law_of_motion_for_child_states(
+            child_states=unique_child_states,
+            representative_parent_state_choices=(
+                representative_parent_state_choices_per_child_state
+            ),
+            state_row_for_state_choice=state_row_for_state_choice,
+            income_shocks_scaled=income_shocks_scaled,
+            params=params,
+            model_funcs=model_funcs,
+            has_additional_continuous_states=has_additional_continuous_states,
+            additional_continuous_state_names=additional_continuous_state_names,
+        )
 
 
 def calc_law_of_motion_for_state_choices(
@@ -71,23 +73,55 @@ def calc_law_of_motion_for_state_choices(
     additional_continuous_state_names,
     representative_parent_state_choice_vec,
 ):
-    """Compute continuous-state and wealth transitions for a set of state-choices.
+    """Transitions for a set of child *state-choices*, one row each.
 
-    Two *different* state-choice dicts flow in here, and keeping them apart is the
-    whole point of this function's signature:
+    Used when a transition function declares ``choice``, so each of a state's choices
+    genuinely needs its own evaluation. See ``calc_law_of_motion`` for how this is
+    chosen, and ``_calc_transitions_for_rows`` for the shared math.
 
-    ``child_state_choices``
-        The state-choice whose *beginning-of-period* continuous state/wealth we are
-        computing -- i.e. the child, in the main solve path (see
-        ``solve_single_period.py``). May or may not carry a ``"choice"`` key; it is
-        passed through either way (see the comment below).
+    """
+    return _calc_transitions_for_rows(
+        rows=child_state_choices,
+        grid_source_rows=representative_parent_state_choice_vec,
+        income_shocks_scaled=income_shocks_scaled,
+        params=params,
+        model_funcs=model_funcs,
+        has_additional_continuous_states=has_additional_continuous_states,
+        additional_continuous_state_names=additional_continuous_state_names,
+    )
 
-    ``representative_parent_state_choice_vec``
-        The state-choice whose own continuous grid supplies the *values* fed
-        through the law-of-motion function -- in the main solve path, a
-        representative parent.
 
-    These are not the same state-choice in general once continuous grids are
+def _calc_transitions_for_rows(
+    rows,
+    grid_source_rows,
+    income_shocks_scaled,
+    params,
+    model_funcs,
+    has_additional_continuous_states,
+    additional_continuous_state_names,
+):
+    """Continuous-state and wealth transitions for whatever rows are given.
+
+    The single implementation of the transition math, shared by both public
+    entry points above. ``rows`` are child state-choices in one case and
+    deduplicated child states in the other; nothing here depends on which, because
+    a row is only ever used as "the state we are computing beginning-of-period
+    values for".
+
+    Two *different* dicts flow in here, and keeping them apart is the whole point
+    of this function's signature:
+
+    ``rows``
+        Whose *beginning-of-period* continuous state/wealth we are computing --
+        the child, in the main solve path (see ``solve_single_period.py``). May or
+        may not carry a ``"choice"`` key; it is passed through either way (see the
+        comment below).
+
+    ``grid_source_rows``
+        Whose own continuous grid supplies the *values* fed through the
+        law-of-motion function -- in the main solve path, a representative parent.
+
+    These are not the same row in general once continuous grids are
     state-choice-specific: the transition function itself correctly depends on the
     child's own identity (e.g. its ``lagged_choice``, which is the parent's
     choice), but the grid values fed into it must come from the parent's own grid.
@@ -102,8 +136,8 @@ def calc_law_of_motion_for_state_choices(
     grid.
 
     Callers with no real parent/child relationship to trace -- the whole-state-space
-    debug entry point ``calc_cont_grids_next_period`` below -- pass
-    ``child_state_choices`` itself here, so each state is its own grid source. That
+    debug entry point ``calc_cont_grids_next_period`` below -- pass ``rows``
+    itself as the grid source, so each state is its own. That
     is a degenerate but well-defined use of the same contract, and matches the
     global-grid behavior exactly whenever grids are not state-choice-specific.
 
@@ -117,12 +151,12 @@ def calc_law_of_motion_for_state_choices(
     # "choice" key at all) are likewise fine, as long as their functions don't ask
     # for it -- which is exactly the condition _transition_funcs_depend_on_choice
     # checks before routing to calc_law_of_motion_for_child_states below.
-    state_vec = dict(child_state_choices)
+    state_vec = dict(rows)
 
     continuous_state_next_period = _get_continuous_state_next_period(
         has_additional_continuous_states=has_additional_continuous_states,
-        child_state_choices=child_state_choices,
-        representative_last_period_parent_states=representative_parent_state_choice_vec,
+        child_state_choices=rows,
+        representative_last_period_parent_states=grid_source_rows,
         additional_continuous_state_names=additional_continuous_state_names,
         params=params,
         model_funcs=model_funcs,
@@ -177,7 +211,7 @@ def calc_law_of_motion_for_state_choices(
     )(
         state_vec,
         continuous_state_next_period,
-        representative_parent_state_choice_vec,
+        grid_source_rows,
     )
 
     # Generate result dict
@@ -207,10 +241,10 @@ def calc_law_of_motion_for_child_states(
 ):
     """Law of motion once per unique child *state*, gathered out to state-choices.
 
-    Same computation as ``calc_law_of_motion_for_state_choices`` above -- it *is*
-    that function, called with deduplicated child states instead of child
-    state-choices, so there is exactly one implementation of the transition math
-    for both granularities. Only valid when the user's transition functions do not
+    Sibling of ``calc_law_of_motion_for_state_choices`` above: both call the same
+    core (``_calc_transitions_for_rows``), this one with deduplicated child states
+    rather than child state-choices, and then gather the per-state result back out.
+    Only valid when the user's transition functions do not
     depend on ``choice`` (checked once at model-build time, see
     ``transition_funcs_depend_on_choice`` in ``process_model_functions.py``): the
     transition into a child is a function of the child's own state, not of the
@@ -224,14 +258,14 @@ def calc_law_of_motion_for_child_states(
     already uses one stage later.
 
     """
-    law_of_motion_per_state = calc_law_of_motion_for_state_choices(
-        child_state_choices=child_states,
+    law_of_motion_per_state = _calc_transitions_for_rows(
+        rows=child_states,
+        grid_source_rows=representative_parent_state_choices,
         income_shocks_scaled=income_shocks_scaled,
         params=params,
         model_funcs=model_funcs,
         has_additional_continuous_states=has_additional_continuous_states,
         additional_continuous_state_names=additional_continuous_state_names,
-        representative_parent_state_choice_vec=representative_parent_state_choices,
     )
 
     return {
@@ -413,11 +447,12 @@ def compute_own_dj_wealth_grid(state_dict, continuous_grid_functions):
     """Evaluate one state-choice's own Druedahl-Jorgensen wealth grid on demand.
 
     The "m_grid" (``assets_begin_of_period``) with a zero-wealth point prepended -- the
-    fixed grid every state-choice's policy/value is stored/interpolated against under
-    Druedahl-Jorgensen (see ``check_model_config.py``'s ``dj_wealth_grid``, which this
-    replaces with an on-demand, possibly state-choice-specific evaluation). Intended to
-    be called via ``vmap`` over a batch of state-choices -- one call here is one state-
-    choice's own grid, not the whole state-choice space.
+    grid every state-choice's policy/value is stored/interpolated against under
+    Druedahl-Jorgensen. Evaluated here on demand, per state-choice (so it may be state-
+    choice-specific), rather than read from any single stored array; this is the only
+    place that grid is materialised. Intended to be called via ``vmap`` over a batch of
+    state-choices -- one call here is one state-choice's own grid, not the whole state-
+    choice space.
 
     """
     return jnp.concatenate(

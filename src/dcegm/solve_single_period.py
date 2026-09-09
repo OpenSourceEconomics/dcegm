@@ -23,7 +23,89 @@ def solve_single_period(
     skip_endog_grid_storage,
     debug_info,
 ):
-    """Solve a single period of the model using DCEGM."""
+    """Solve one batch of state-choices -- the body of the backward induction scan.
+
+    This is the ``f`` of the ``jax.lax.scan`` in ``backward_induction.py``. One
+    call solves every state-choice in one batch, reading the already-solved
+    children out of the carry and writing its own results back into it. Batches are
+    ordered so that a state-choice's children are always solved in an earlier
+    iteration (see ``pre_processing/batches/`` and the batching guide).
+
+    The three EGM steps run in order: interpolate the children's continuation
+    values (``interpolate_value_and_marg_util``), aggregate them over choices and
+    income shocks, then invert the Euler equation and refine with the upper
+    envelope (both in ``solve_for_interpolated_values``).
+
+    Args:
+        carry: The solution containers threaded through the scan, as
+            ``(value_solved, policy_solved, endog_grid_solved)``. Each is indexed
+            by *state-choice* and has shape ``(n_state_choices,
+            n_continuous_state_combinations, n_total_wealth_grid)``. They start out
+            filled by ``create_solution_container`` and are progressively filled
+            in, starting at the final period and working back to period 0.
+            ``endog_grid_solved`` is ``None`` when ``skip_endog_grid_storage`` is
+            True, because under Druedahl-Jorgensen every state-choice's
+            "endogenous" grid is by construction its own ``assets_begin_of_period``
+            grid and is recomputed on demand (``compute_own_dj_wealth_grid``)
+            instead of stored.
+        xs: The per-batch slice produced by the scan. An 11-tuple; all index arrays
+            are into the global state-choice space unless noted:
+
+            0. ``state_choices_idxs`` -- the state-choices this batch solves, i.e.
+               where its results are written.
+            1. ``child_state_choices_to_aggr_choice`` -- for each unique child
+               *state*, the positions of its choices in the deduplicated child
+               state-choice axis; used to aggregate over choices. Out-of-bounds
+               entries mark choices that state does not have.
+            2. ``child_states_to_integrate_stochastic`` -- for each (row of this
+               batch, stochastic realisation), the position of the resulting child
+               *state*; used to integrate over the stochastic transition.
+            3. ``child_state_choice_idxs_to_interp`` -- the deduplicated child
+               state-choices whose stored solution is read this iteration.
+            4. ``child_state_idxs`` -- for each of those, the state it belongs to
+               (its own state, dropping the choice).
+            5. ``state_choice_mat`` -- state-choice dict for this batch's own rows.
+            6. ``state_choice_mat_child`` -- state-choice dict for the children in
+               (3).
+            7. ``representative_parent_state_choice_idx`` -- for each child in (3),
+               one parent state-choice that transitions into it. Used *only* to
+               pick whose continuous grid feeds the law of motion; any parent works
+               because ``check_continuous_grid_consistency_across_shared_children``
+               guarantees they agree (see ``law_of_motion.py``).
+            8. ``unique_child_states`` -- the children of (3) deduplicated to bare
+               *states*, indices into the state space.
+            9. ``representative_parent_state_choice_idx_per_child_state`` -- as (7),
+               but one entry per unique child state.
+            10. ``state_row_for_state_choice`` -- for each child state-choice in
+                (3), its row in (8). The gather that expands a per-state result back
+                out to per-state-choice.
+
+            Entries (8)-(10) are read only when the law of motion is evaluated at
+            state granularity, i.e. when no transition function declares ``choice``
+            (see ``calc_law_of_motion``); (5)-(7) are read only otherwise. Both sets
+            are always supplied so the scan's ``xs`` structure is model-independent.
+        params: Model parameters.
+        continuous_grids_info: ``model_config["continuous_states_info"]``.
+        state_choice_space_dict: Full state-choice space, used to turn the index
+            arrays (7) and (9) into state-choice dicts.
+        state_space_dict: Full state space, used to turn (8) into a state dict.
+        income_shocks_scaled: Quadrature points for the income shock, already
+            scaled by its mean and standard deviation.
+        model_funcs: Processed model functions.
+        income_shock_weights: Quadrature weights matching ``income_shocks_scaled``.
+        upper_envelope_method: ``"fues"`` or ``"druedahl_jorgensen"``.
+        skip_endog_grid_storage: Whether the endogenous grid is stored at all; see
+            ``carry`` above.
+        debug_info: ``None`` in the normal solve. When given, the function returns
+            a dict rather than a scan-shaped ``(carry, ())`` pair, optionally
+            including the pre-upper-envelope candidates.
+
+    Returns:
+        ``(carry, ())`` with the updated solution containers -- the empty second
+        element because nothing is stacked per scan step. In debug mode a dict is
+        returned instead.
+
+    """
     value_solved, policy_solved, endog_grid_solved = carry
 
     (
@@ -166,7 +248,51 @@ def solve_for_interpolated_values(
     model_funcs,
     debug_info,
 ):
+    """EGM steps 2 and 3: aggregate continuation values, then invert the Euler eq.
 
+    Split out from ``solve_single_period`` because the last two periods reach it by
+    a different route: ``final_periods.py`` computes the final period analytically
+    (consumption equals wealth) and then calls this directly for the second-to-last
+    period, rather than going through the scan.
+
+    Takes the *interpolated* child continuation values -- one entry per child
+    state-choice, income shock and continuous-state combination -- and returns the
+    current period's solution:
+
+    1. ``aggregate_marg_utils_and_exp_values`` collapses the child-choice axis with
+       logit choice probabilities and the income-shock axis with quadrature
+       weights, giving one marginal utility and one expected value per child state.
+    2. ``calculate_candidate_solutions_from_euler_equation`` gathers those to this
+       period's state-choices and inverts the Euler equation, producing candidate
+       (endogenous grid, policy, value) triples.
+    3. ``run_upper_envelope`` discards the candidates that are not on the upper
+       envelope of the value correspondence -- the step that makes this DC-EGM
+       rather than plain EGM.
+
+    Args:
+        value_interpolated: Child values, shape
+            ``(n_child_state_choices, n_continuous_combinations, n_wealth,
+            n_income_shocks)``.
+        marginal_utility_interpolated: Child marginal utilities, same shape.
+        state_choice_mat: State-choice dict for the rows being solved.
+        child_state_idxs: For each (row, stochastic realisation), the position of
+            the child state -- the stochastic integration map.
+        states_to_choices_child_states: For each child state, the positions of its
+            choices -- the choice aggregation map.
+        params: Model parameters.
+        taste_shock_scale: Scalar, or one value per state-choice.
+        taste_shock_scale_is_scalar: Which of the two it is.
+        income_shock_weights: Quadrature weights for the income shock.
+        continuous_grids_info: ``model_config["continuous_states_info"]``.
+        model_funcs: Processed model functions.
+        debug_info: When given with ``return_candidates``, the pre-upper-envelope
+            candidates are added to the returned dict.
+
+    Returns:
+        dict with ``"endog_grid"``, ``"policy"`` and ``"value"`` for the rows in
+        ``state_choice_mat``, plus the candidate arrays in debug mode.
+
+    """
     # EGM step 2)
     # Aggregate the marginal utilities and expected values over all child state-choice
     # combinations and income shock draws

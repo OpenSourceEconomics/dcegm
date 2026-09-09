@@ -22,6 +22,29 @@ def backward_induction(
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Do backward induction and solve for optimal policy and value function.
 
+    Structure of the solve. Backward induction runs from the final period back to
+    period 0, so the final period is filled first and period 0 last:
+
+    1. ``create_solution_container`` allocates the three arrays that are threaded
+       through everything below as the scan *carry*:
+       ``(value_solved, policy_solved, endog_grid_solved)``, each indexed by
+       state-choice with shape ``(n_state_choices,
+       n_continuous_state_combinations, n_total_wealth_grid)``.
+       ``endog_grid_solved`` is ``None`` when ``skip_endog_grid_storage`` is True
+       (the third carry element is then an empty pytree slot).
+    2. ``solve_last_two_periods`` fills the final period (analytic -- everything is
+       consumed) and the second-to-last one, which is also special because policy and value
+       in child states are not interpolated and solved directly (last period - consume all).
+    3. The remaining periods run through one ``jax.lax.scan`` per *segment*, with
+       ``solve_single_period`` as the body. Its ``xs`` is the per-batch slice of
+       ``batch_info``; see that function's docstring for what each entry is. Every
+       iteration reads its children out of the carry and writes its own rows back
+       in, which is why batches must be ordered so a state-choice's children are
+       always solved earlier.
+
+    A segment whose batches do not evenly divide its state-choices has a leftover
+    batch, applied once after the scan (``batches_cover_all`` is False).
+
     Args:
         params (dict): Dictionary containing the model parameters.
         income_shock_draws_unscaled (np.ndarray): 1d array of shape (n_quad_points,)

@@ -3,6 +3,7 @@ from typing import Callable, Dict
 
 from dcegm.pre_processing.check_model_config import check_model_config_and_process
 from dcegm.pre_processing.model_functions.process_model_functions import (
+    _transition_funcs_depend_on_choice,
     process_second_continuous_update_function,
     process_state_space_functions,
 )
@@ -196,6 +197,16 @@ def process_alternative_sim_functions(
         "next_period_deterministic_state": next_period_deterministic_state,
         "compute_upper_envelope": compute_upper_envelope,
         "taste_shock_function": taste_shock_function_processed,
+        # The alternative budget equation has its own answer to "does the law of
+        # motion depend on the current choice?", and simulation reads it off these
+        # functions -- so it must be recomputed here rather than inherited.
+        "transition_funcs_depend_on_choice": _transition_funcs_depend_on_choice(
+            budget_constraint=budget_constraint,
+            state_space_functions=state_space_functions,
+            has_additional_continuous_states=continuous_states_info[
+                "has_additional_continuous_state"
+            ],
+        ),
     }
 
     return alt_model_funcs, taste_shock_scale_in_params

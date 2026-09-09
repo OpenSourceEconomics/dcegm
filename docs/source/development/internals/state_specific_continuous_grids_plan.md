@@ -204,12 +204,15 @@ only after state-structure construction for names declared as `None`.
    `compute_own_dj_wealth_grid` helper in `law_of_motion.py`, used wherever
    `dj_wealth_grid`/`broadcast_dj_wealth_grid` used to be read as a shared array:
    `upper_evelope_wrapper.py`'s DJ branch (solve), `interpolate_marginal_utility.py`'s
-   simple-1D-DJ interpolation branch (solve, reading a child's own stored solution),
-   and `interp_interfaces.py`'s three `interpolate_*_for_state_and_choice` functions
-   plus `sol_interface.py`'s raw-grid accessor (readers). `broadcast_dj_wealth_grid`
-   itself now returns a zero placeholder when `dj_wealth_grid` is `None` — safe
-   because every remaining caller of it is on the n-D-regular (shared-grid-only)
-   path, never actually read when state-specific.
+   1-D and n-D DJ interpolation branches (solve), `interp_interfaces.py`'s three
+   `interpolate_*_for_state_and_choice` functions, `simulation_interp.py`, and
+   `sol_interface.py`'s raw-grid accessor (readers). The shared array
+   (`continuous_states_info["dj_wealth_grid"]`) and the `broadcast_dj_wealth_grid`
+   helper have since been **removed entirely**: nothing reads a shared grid any more,
+   every reader recomputes each state-choice's own grid via
+   `compute_own_dj_wealth_grid`. Where the endogenous grid is not stored, callers
+   pass a shape-only placeholder (`None` in the solve carry, a zeros array of the
+   right shape in the readers) that is never read for its values.
 5. **Readers — done**, folded into phase 4 above (the two mechanisms turned out to
    share almost all their reader-side call sites, so weren't worth separating).
    `simulate()`'s `interpolate_policy_and_value_for_all_agents` computes its own

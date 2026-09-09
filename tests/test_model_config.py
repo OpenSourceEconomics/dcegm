@@ -141,32 +141,31 @@ def test_fues_rejects_assets_begin_of_period(valid_model_config):
         check_model_config_and_process(valid_model_config)
 
 
-def test_dj_wealth_grid_and_skip_flag(valid_model_config):
+def test_n_total_wealth_grid_and_skip_flag(valid_model_config):
+    # The Druedahl-Jorgensen wealth grid is a zero-wealth point plus the declared
+    # assets_begin_of_period, so its length is len + 1. No shared grid array is
+    # stored (each reader recomputes its own via compute_own_dj_wealth_grid); only
+    # the length, n_total_wealth_grid, is needed here -- to size the containers.
     valid_model_config["upper_envelope"] = {"method": "druedahl_jorgensen"}
     valid_model_config["continuous_states"]["assets_begin_of_period"] = np.linspace(
         0, 10, 11
     )
     options = check_model_config_and_process(valid_model_config)
 
-    dj_wealth_grid = options["continuous_states_info"]["dj_wealth_grid"]
-    expected = np.concatenate(
-        ([0.0], valid_model_config["continuous_states"]["assets_begin_of_period"])
-    )
-    assert_array_equal(np.asarray(dj_wealth_grid), expected)
-    assert dj_wealth_grid.shape[0] == options["n_total_wealth_grid"]
+    assert options["n_total_wealth_grid"] == 11 + 1
+    assert "dj_wealth_grid" not in options["continuous_states_info"]
     assert options["upper_envelope"]["skip_endog_grid_storage"] is True
 
 
-def test_none_assets_begin_of_period_defers_dj_wealth_grid(valid_model_config):
+def test_none_assets_begin_of_period_defers_n_total_wealth_grid(valid_model_config):
     # `None` means the grid is fully state-choice-specific -- no default array to
-    # read a length from, so dj_wealth_grid/n_total_wealth_grid are left unresolved
-    # (None) here, pinned later once a real state-choice can be evaluated against.
+    # read a length from, so n_total_wealth_grid is left unresolved (None) here,
+    # pinned later once a real state-choice can be evaluated against.
     valid_model_config["upper_envelope"] = {"method": "druedahl_jorgensen"}
     valid_model_config["continuous_states"]["assets_begin_of_period"] = None
     options = check_model_config_and_process(valid_model_config)
 
     assert options["continuous_states_info"]["assets_begin_of_period"] is None
-    assert options["continuous_states_info"]["dj_wealth_grid"] is None
     assert options["n_total_wealth_grid"] is None
     # skip_endog_grid_storage itself only depends on method/n_choices, not on
     # whether the grid is resolved yet, so it's still known immediately.

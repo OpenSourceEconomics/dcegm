@@ -240,7 +240,7 @@ def test_default_toy_models_take_the_state_level_fast_path():
         model = dcegm.setup_model(
             model_config=model_config, model_specs=model_specs, **model_funcs
         )
-        assert not model.model_funcs["transition_funcs_depend_on_choice"], name
+        assert not model.model_funcs["transition_funcs_depend_on_choice"]["any"], name
 
 
 def test_choice_in_budget_signature_selects_the_state_choice_path():
@@ -251,7 +251,7 @@ def test_choice_in_budget_signature_selects_the_state_choice_path():
     model = dcegm.setup_model(
         model_config=model_config, model_specs=model_specs, **model_funcs
     )
-    assert model.model_funcs["transition_funcs_depend_on_choice"]
+    assert model.model_funcs["transition_funcs_depend_on_choice"]["any"]
 
 
 def test_state_level_and_state_choice_level_paths_agree_bit_for_bit():
@@ -265,7 +265,7 @@ def test_state_level_and_state_choice_level_paths_agree_bit_for_bit():
     fast_path_model = dcegm.setup_model(
         model_config=model_config, model_specs=model_specs, **model_funcs
     )
-    assert not fast_path_model.model_funcs["transition_funcs_depend_on_choice"]
+    assert not fast_path_model.model_funcs["transition_funcs_depend_on_choice"]["any"]
     fast_path_solved = fast_path_model.solve(params)
 
     slow_path_funcs = dict(model_funcs)
@@ -273,7 +273,7 @@ def test_state_level_and_state_choice_level_paths_agree_bit_for_bit():
     slow_path_model = dcegm.setup_model(
         model_config=model_config, model_specs=model_specs, **slow_path_funcs
     )
-    assert slow_path_model.model_funcs["transition_funcs_depend_on_choice"]
+    assert slow_path_model.model_funcs["transition_funcs_depend_on_choice"]["any"]
     slow_path_solved = slow_path_model.solve(params)
 
     np.testing.assert_array_equal(

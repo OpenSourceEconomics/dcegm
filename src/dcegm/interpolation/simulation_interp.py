@@ -34,7 +34,6 @@ def interpolate_policy_and_value_for_all_agents(
     has_additional_continuous_state,
     discount_factor,
     skip_endog_grid_storage,
-    dj_wealth_grid,
 ):
 
     # 1D interpolation path is independent of upper-envelope method and only
@@ -83,7 +82,7 @@ def interpolate_policy_and_value_for_all_agents(
             vmap(
                 interp1d_policy_and_value_function,
                 in_axes=(
-                    None,
+                    0,
                     None,
                     endog_grid_in_axes,
                     0,
@@ -166,8 +165,8 @@ def interpolate_policy_and_value_for_all_agents(
             vmap(
                 interp2d_policy_and_value_function,
                 in_axes=(
-                    None,
-                    None,
+                    0,
+                    0,
                     None,
                     0,
                     0,
@@ -237,16 +236,11 @@ def interpolate_policy_and_value_for_all_agents(
             fill_value=jnp.nan,
         )
         if skip_endog_grid_storage:
-            # DJ-constant: broadcast only across the combo axis, never across
-            # agents/choices. dj_wealth_grid is None when assets_begin_of_period is
-            # state-choice-specific -- there is no shared array then, and
-            # interpnd_policy_and_value_function recomputes each state-choice's own
-            # grid anyway, so only the shape matters here.
-            endog_grid_agent = (
-                jnp.zeros(value_grid_agent.shape[2:])
-                if dj_wealth_grid is None
-                else jnp.broadcast_to(dj_wealth_grid, value_grid_agent.shape[2:])
-            )
+            # endog_grid isn't stored in this case; interpnd_policy_and_value_function
+            # recomputes each state-choice's own Druedahl-Jorgensen wealth grid on
+            # demand. Only the shape matters here, to keep in_axes=None so the wealth
+            # grid is never batched over agents/choices.
+            endog_grid_agent = jnp.zeros(value_grid_agent.shape[2:])
             endog_grid_in_axes = None
         else:
             endog_grid_agent = jnp.take(
@@ -266,8 +260,8 @@ def interpolate_policy_and_value_for_all_agents(
             vmap(
                 interpnd_policy_and_value_function,
                 in_axes=(
-                    None,
-                    None,
+                    0,
+                    0,
                     None,
                     endog_grid_in_axes,
                     0,

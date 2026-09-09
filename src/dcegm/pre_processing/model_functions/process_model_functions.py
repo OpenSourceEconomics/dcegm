@@ -211,32 +211,53 @@ def process_model_functions_and_extract_info(
     return model_funcs, model_config_processed
 
 
+def _declares_choice(func):
+    """Does this user function take ``choice`` as an argument?
+
+    Inspected on the *user's* function, before
+    ``determine_function_arguments_and_partial_model_specs`` wraps it (the
+    wrapper's ``**kwargs`` signature would hide the real parameter names).
+
+    """
+    return "choice" in set(inspect.signature(func).parameters)
+
+
 def _transition_funcs_depend_on_choice(
     budget_constraint,
     state_space_functions,
     has_additional_continuous_states,
 ):
-    """Does any law-of-motion function declare ``choice`` as an argument?
+    """Which law-of-motion functions declare ``choice``?
 
-    Decides, once at model-build time, which granularity the law of motion is
-    evaluated at during the solve (see ``law_of_motion.py``). ``False`` means every
-    state-choice sharing a child state would compute a bit-identical transition, so
-    the solve evaluates it once per unique child *state* and gathers the result out
-    to state-choices instead -- purely a cost optimization, not a behavior change.
-    ``True`` falls back to evaluating per state-choice.
+    Returns a dict with three keys:
 
-    Inspected on the *user's* functions, before
-    ``determine_function_arguments_and_partial_model_specs`` wraps them (the
-    wrapper's ``**kwargs`` signature would hide the real parameters).
+    ``budget``
+        The budget equation gives a different beginning-of-period wealth per
+        choice. Simulation handles this by evaluating the law of motion for every
+        choice at the start of a period, before the choice is drawn (see
+        ``simulation/sim_utils.py``).
+    ``continuous_state``
+        The additional-continuous-state transition depends on the choice. Solving
+        supports this; simulation does not yet (it would make the continuous state
+        itself choice-specific, which the simulation loop does not carry).
+    ``any``
+        Either of the above. This is what selects the *granularity* the law of
+        motion is evaluated at during the solve (see ``calc_law_of_motion`` in
+        ``law_of_motion.py``): ``False`` means every state-choice sharing a child
+        state would compute a bit-identical transition, so it is evaluated once per
+        unique child *state* and gathered out instead -- purely a cost
+        optimization, not a behavior change.
 
     """
-    funcs_to_check = [budget_constraint]
-    if has_additional_continuous_states:
-        funcs_to_check.append(state_space_functions["next_period_continuous_state"])
-
-    return any(
-        "choice" in set(inspect.signature(func).parameters) for func in funcs_to_check
+    budget_depends = _declares_choice(budget_constraint)
+    continuous_state_depends = has_additional_continuous_states and _declares_choice(
+        state_space_functions["next_period_continuous_state"]
     )
+    return {
+        "budget": budget_depends,
+        "continuous_state": continuous_state_depends,
+        "any": budget_depends or continuous_state_depends,
+    }
 
 
 def process_state_space_functions(

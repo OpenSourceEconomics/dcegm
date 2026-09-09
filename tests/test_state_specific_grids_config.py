@@ -241,7 +241,6 @@ def test_none_assets_begin_of_period_size_pinned_via_representative_state_choice
     config["upper_envelope"] = {"method": "druedahl_jorgensen"}
     processed_config = check_model_config_and_process(config)
     assert processed_config["n_total_wealth_grid"] is None
-    assert processed_config["continuous_states_info"]["dj_wealth_grid"] is None
 
     def assets_begin_of_period_grid_func(group):
         return np.linspace(0, 10, 6) * (group + 1)
@@ -283,11 +282,10 @@ def test_none_assets_begin_of_period_size_pinned_via_representative_state_choice
     )
 
     # Pinned to len(grid) + 1 (expected value at zero wealth prepended), the same
-    # formula check_model_config.py uses for a directly-declared grid.
+    # formula check_model_config.py uses for a directly-declared grid. No shared
+    # grid array is stored either way -- each reader recomputes its own via
+    # compute_own_dj_wealth_grid -- so only this length is resolved here.
     assert processed_config["n_total_wealth_grid"] == 7
-    # dj_wealth_grid itself stays None -- there is no single shared array once
-    # assets_begin_of_period is state-choice-specific (see Task #13).
-    assert processed_config["continuous_states_info"]["dj_wealth_grid"] is None
 
 
 def test_assets_begin_of_period_state_specific_with_single_choice_raises():

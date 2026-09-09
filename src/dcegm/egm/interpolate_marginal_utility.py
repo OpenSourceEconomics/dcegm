@@ -34,43 +34,68 @@ def interpolate_value_and_marg_util(
     representative_parent_state_choices_per_child_state: Dict[str, int],
     state_row_for_state_choice: jnp.ndarray,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
-    """Interpolate value and policy for all child states and compute marginal utility.
+    """EGM step 1: the children's continuation values, seen from this period.
+
+    Called once per batch from ``solve_single_period``. Does two things in order:
+
+    1. Applies the law of motion (``calc_law_of_motion``) to get, for every child
+       state-choice, the beginning-of-period wealth and additional continuous
+       states it would be reached at -- one value per end-of-period assets grid
+       point, continuous-state combination and income shock draw.
+    2. Interpolates each child's *stored* policy and value at those points, and
+       evaluates the marginal utility there.
+
+    Which interpolation routine runs depends on the model, not on any argument:
+
+    ==================================  ==========================================
+    additional continuous state?        routine
+    ==================================  ==========================================
+    no                                  1d on wealth alone
+    yes, ``upper_envelope="fues"``      2d, irregular in wealth (FUES output is
+                                        not on a common grid)
+    yes, Druedahl-Jorgensen             n-d regular, wealth axis shared per
+                                        state-choice
+    ==================================  ==========================================
 
     Args:
-        compute_marginal_utility (callable): User-defined function to compute the
-            agent's marginal utility of consumption.
-        compute_utility (callable): Function for calculating the utility of consumption.
-        child_state_choices (dict): Dictionary containing the state and choice of the agent
-            (the child, in the main solve path).
-        representative_parent_state_choice_vec (dict): State-choice dict of a
-            representative parent, used only to select which state-choice's own
-            continuous grid to feed the law of motion -- see the docstring of
-            calc_law_of_motion_for_state_choices for why this must be the parent,
-            not child_state_choices (the child).
-        assets_beginning_of_next_period (jnp.ndarray): 2d array of shape
-            (n_quad_stochastic, n_grid_wealth,) containing the agent's beginning of
-            period wealth.
-        endog_grid_child_state_choice (jnp.ndarray): 1d array containing the endogenous
-            wealth grid of the child state/choice pair. Shape (n_grid_wealth,).
-        policy_child_state_choice (jnp.ndarray): 1d array containing the
-            corresponding policy function values of the endogenous wealth grid of the
-            child state/choice pair. Shape (n_grid_wealth,).
-        value_child_state_choice (jnp.ndarray): 1d array containing the
-            corresponding value function values of the endogenous wealth grid of the
-            child state/choice pair. Shape (n_grid_wealth,).
-        has_second_continuous_state (bool): Boolean indicating whether the model
-            features a second continuous state variable. If False, the only
-            continuous state variable is consumption/savings.
-        params (dict): Dictionary containing the model parameters.
+        model_funcs: Processed model functions.
+        child_state_choices: State-choice dict for the (deduplicated) children
+            whose stored solution is being read. This is the *child's* own
+            identity -- the transition into it depends on it, e.g. through its
+            ``lagged_choice``.
+        continuous_grids_info: ``model_config["continuous_states_info"]``.
+        income_shocks_scaled: Quadrature points for the income shock, already
+            scaled.
+        endog_grid_child_state_choice: The children's stored endogenous wealth
+            grids, or ``None`` under ``skip_endog_grid_storage`` -- in which case
+            each child's grid is recomputed on demand from its own identity.
+        policy_child_state_choice: The children's stored policy.
+        value_child_state_choice: The children's stored value.
+        params: Model parameters.
+        upper_envelope_method: ``"fues"`` or ``"druedahl_jorgensen"``; selects the
+            interpolation routine together with the presence of a continuous state.
+        skip_endog_grid_storage: See ``endog_grid_child_state_choice``.
+        representative_parent_state_choice_vec: For each child, one *parent*
+            state-choice that transitions into it. Used only to pick whose
+            continuous grid feeds the law of motion -- not the child's own, since
+            the grid values must come from the state actually transitioning. See
+            ``calc_law_of_motion_for_state_choices``.
+        unique_child_states: The same children deduplicated to bare states.
+        representative_parent_state_choices_per_child_state: As above, one per
+            unique child state.
+        state_row_for_state_choice: Maps each child state-choice back to its row in
+            ``unique_child_states``.
+
+        The last three are read only when the law of motion is evaluated at state
+        granularity; ``representative_parent_state_choice_vec`` only otherwise.
+        ``calc_law_of_motion`` decides, from whether any transition function
+        declares ``choice``.
 
     Returns:
-        tuple:
-
-        - value_interp (jnp.ndarray): 2d array of shape (n_wealth_grid, n_income_shocks)
-            containing the interpolated value function.
-        - marg_util_interp (jnp.ndarray): 2d array of shape (n_wealth_grid, n_income_shocks)
-            containing the interpolated marginal utilities for each wealth level and
-            income shock.
+        tuple of ``(value_interp, marg_util_interp)``, both shaped
+        ``(n_child_state_choices, n_continuous_combinations, n_wealth,
+        n_income_shocks)`` -- ready for ``aggregate_marg_utils_and_exp_values`` to
+        collapse the choice and income-shock axes.
 
     """
     # Check if interpolation needs to be multidimensional and irregular
