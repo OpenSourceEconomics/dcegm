@@ -112,7 +112,7 @@ def add_last_two_period_information(
     found_mask = (
         unique_final_states[insert_pos] == parent_states_final_period
     ) & valid_mask[insert_pos]
-    representative_second_last_period_parent_idx_for_final_period = np.where(
+    rep_sec_last_period_parent_idx_per_final_state_choice = np.where(
         found_mask,
         representative_parent_state_choice_of_unique_final_state[insert_pos],
         idx_state_choice_final_period,
@@ -142,7 +142,7 @@ def add_last_two_period_information(
     # test_child_state_mapping), whose final-period values are never aggregated
     # back, so the choice of representative there is not observable.
     representative_second_last_period_parent_idx_per_final_state = (
-        representative_second_last_period_parent_idx_for_final_period[
+        rep_sec_last_period_parent_idx_per_final_state_choice[
             first_occurrence_of_final_state
         ]
     )
@@ -153,8 +153,8 @@ def add_last_two_period_information(
         "idxs_parent_states_final_period": parent_states_final_period,
         "state_to_choices_final_period": state_to_choices_final_period,
         "child_states_second_last_period": child_states_second_last_period,
-        "representative_second_last_period_parent_idx_for_final_period": (
-            representative_second_last_period_parent_idx_for_final_period
+        "rep_sec_last_period_parent_idx_per_final_state_choice": (
+            rep_sec_last_period_parent_idx_per_final_state_choice
         ),
         "unique_final_period_states": unique_final_period_states,
         "representative_second_last_period_parent_idx_per_final_state": (

@@ -207,7 +207,7 @@ def solve_final_period(
             "representative_second_last_period_parent_idx_per_final_state"
         ],
         rep_parent_state_choice_idx_per_child_state_choice=batch_info[
-            "representative_second_last_period_parent_idx_for_final_period"
+            "rep_sec_last_period_parent_idx_per_final_state_choice"
         ],
         state_choice_space_dict=model_structure["state_choice_space_dict"],
         unique_child_states=state_mat_unique_final_period,
