@@ -234,7 +234,6 @@ def partially_solve(
                 params=params,
                 continuous_grids_info=continuous_states_info,
                 state_choice_space_dict=model_structure["state_choice_space_dict"],
-                state_space_dict=model_structure["state_space_dict"],
                 income_shocks_scaled=income_shocks_scaled,
                 model_funcs=model_funcs,
                 income_shock_weights=income_shock_weights,

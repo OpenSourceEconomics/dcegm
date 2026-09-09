@@ -78,14 +78,11 @@ def solve_last_two_periods(
     )
 
     # Check if we have a scalar taste shock scale or state specific. Extract in each of the cases.
-    if model_funcs["taste_shock_function"]["taste_shock_scale_is_scalar"]:
-        taste_shock_scale = model_funcs["taste_shock_function"][
-            "read_out_taste_shock_scale"
-        ](params)
+    ts_function = model_funcs["taste_shock_function"]
+    if ts_function["taste_shock_scale_is_scalar"]:
+        taste_shock_scale = ts_function["read_out_taste_shock_scale"](params)
     else:
-        taste_shock_scale_per_state_func = model_funcs["taste_shock_function"][
-            "taste_shock_scale_per_state"
-        ]
+        taste_shock_scale_per_state_func = ts_function["taste_shock_scale_per_state"]
         taste_shock_scale = vmap(taste_shock_scale_per_state_func, in_axes=(0, None))(
             last_two_period_batch_info["state_choice_mat_final_period"], params
         )
@@ -101,9 +98,7 @@ def solve_last_two_periods(
             "state_to_choices_final_period"
         ],
         taste_shock_scale=taste_shock_scale,
-        taste_shock_scale_is_scalar=model_funcs["taste_shock_function"][
-            "taste_shock_scale_is_scalar"
-        ],
+        taste_shock_scale_is_scalar=ts_function["taste_shock_scale_is_scalar"],
         params=params,
         income_shock_weights=income_shock_weights,
         continuous_grids_info=continuous_states_info,
@@ -124,7 +119,7 @@ def solve_last_two_periods(
             out_dict_second_last["endog_grid"]
         )
 
-    # If we do not call the function in debug mode. Assign everything and return
+    # If we do not call the function in debug mode. Return arrays
     if debug_info is None:
         return (
             value_solved,
@@ -194,9 +189,7 @@ def solve_final_period(
     idx_state_choices_final_period = batch_info["idx_state_choices_final_period"]
     state_choice_mat_final_period = batch_info["state_choice_mat_final_period"]
 
-    # Same two objects at the deduplicated unique-final-*state* granularity, for
-    # the law-of-motion shortcut taken when no transition function depends on
-    # "choice". Mirrors what child_state_dedup.py does per batch.
+    # Read out the unique final period states.
     state_mat_unique_final_period = {
         key: var[batch_info["unique_final_period_states"]]
         for key, var in model_structure["state_space_dict"].items()

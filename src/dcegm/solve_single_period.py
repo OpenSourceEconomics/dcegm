@@ -15,7 +15,6 @@ def solve_single_period(
     params,
     continuous_grids_info,
     state_choice_space_dict,
-    state_space_dict,
     income_shocks_scaled,
     model_funcs,
     income_shock_weights,
@@ -150,17 +149,12 @@ def solve_single_period(
     )
 
     # Check if we have a scalar taste shock scale or state specific. Extract in each of the cases.
-    taste_shock_scale_is_scalar = model_funcs["taste_shock_function"][
-        "taste_shock_scale_is_scalar"
-    ]
+    ts_function = model_funcs["taste_shock_function"]
+    taste_shock_scale_is_scalar = ts_function["taste_shock_scale_is_scalar"]
     if taste_shock_scale_is_scalar:
-        taste_shock_scale = model_funcs["taste_shock_function"][
-            "read_out_taste_shock_scale"
-        ](params)
+        taste_shock_scale = ts_function["read_out_taste_shock_scale"](params)
     else:
-        taste_shock_scale_per_state_func = model_funcs["taste_shock_function"][
-            "taste_shock_scale_per_state"
-        ]
+        taste_shock_scale_per_state_func = ts_function["taste_shock_scale_per_state"]
         taste_shock_scale = vmap(taste_shock_scale_per_state_func, in_axes=(0, None))(
             state_choice_mat_child, params
         )
