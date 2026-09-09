@@ -74,7 +74,7 @@ def solve_single_period(
                guarantees they agree (see ``law_of_motion.py``).
             8. ``unique_child_states`` -- the children of (3) deduplicated to bare
                *states*, indices into the state space.
-            9. ``representative_parent_state_choice_idx_per_child_state`` -- as (7),
+            9. ``rep_parent_state_choice_idx_per_child_state`` -- as (7),
                but one entry per unique child state.
             10. ``state_row_for_state_choice`` -- for each child state-choice in
                 (3), its row in (8). The gather that expands a per-state result back
@@ -116,9 +116,9 @@ def solve_single_period(
         child_state_idxs,
         state_choice_mat,
         state_choice_mat_child,
-        representative_parent_state_choice_idx,
+        rep_parent_state_choice_idx_per_child_state_choice,
         unique_child_states,
-        representative_parent_state_choice_idx_per_child_state,
+        rep_parent_state_choice_idx_per_child_state,
         state_row_for_state_choice,
     ) = xs
 
@@ -129,27 +129,6 @@ def solve_single_period(
         if skip_endog_grid_storage
         else endog_grid_solved[child_state_choice_idxs_to_interp]
     )
-
-    # A representative parent's own state-choice, for each of this batch's
-    # deduplicated children -- used only to pick which state-choice's own
-    # continuous grid feeds the law of motion (see law_of_motion.py). Grids live on
-    # the state-choice space (that's where the solution itself lives), so this is a
-    # state-choice index, not a bare state. Any one parent works:
-    # check_continuous_grid_consistency_across_shared_children (run once at
-    # model-build time) guarantees every parent sharing a child agrees on its own
-    # grid.
-    representative_parent_state_choice_dict = {
-        key: var[representative_parent_state_choice_idx]
-        for key, var in state_choice_space_dict.items()
-    }
-
-    # Same, at the coarser unique-child-*state* granularity, for the law-of-motion
-    # fast path taken when the user's transition functions don't depend on "choice"
-    # (see interpolate_value_and_marg_util / law_of_motion.py).
-    representative_parent_state_choice_dict_per_child_state = {
-        key: var[representative_parent_state_choice_idx_per_child_state]
-        for key, var in state_choice_space_dict.items()
-    }
 
     # EGM step 1)
     value_interpolated, marginal_utility_interpolated = interpolate_value_and_marg_util(
@@ -163,11 +142,10 @@ def solve_single_period(
         params=params,
         upper_envelope_method=upper_envelope_method,
         skip_endog_grid_storage=skip_endog_grid_storage,
-        representative_parent_state_choice_vec=representative_parent_state_choice_dict,
         unique_child_states=unique_child_states,
-        representative_parent_state_choices_per_child_state=(
-            representative_parent_state_choice_dict_per_child_state
-        ),
+        rep_parent_state_choice_idx_per_child_state=rep_parent_state_choice_idx_per_child_state,
+        rep_parent_state_choice_idx_per_child_state_choice=rep_parent_state_choice_idx_per_child_state_choice,
+        state_choice_space_dict=state_choice_space_dict,
         state_row_for_state_choice=state_row_for_state_choice,
     )
 

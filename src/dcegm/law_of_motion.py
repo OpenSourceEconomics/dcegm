@@ -8,9 +8,10 @@ from dcegm.check_func_outputs import (
 
 def calc_law_of_motion(
     child_state_choices,
-    representative_parent_state_choice_vec,
+    rep_parent_state_choice_idx_per_child_state_choice,
+    rep_parent_state_choice_idx_per_child_state,
     unique_child_states,
-    representative_parent_state_choices_per_child_state,
+    state_choice_space_dict,
     state_row_for_state_choice,
     income_shocks_scaled,
     params,
@@ -39,9 +40,21 @@ def calc_law_of_motion(
 
     """
     if model_funcs["transition_funcs_depend_on_choice"]["any"]:
+        # A representative parent's own state-choice, for each of this batch's
+        # deduplicated children -- used only to pick which state-choice's own
+        # continuous grid feeds the law of motion (see law_of_motion.py). Grids live on
+        # the state-choice space (that's where the solution itself lives), so this is a
+        # state-choice index, not a bare state. Any one parent works:
+        # check_continuous_grid_consistency_across_shared_children (run once at
+        # model-build time) guarantees every parent sharing a child agrees on its own
+        # grid.
+        rep_parent_state_choice_per_state_choice = {
+            key: var[rep_parent_state_choice_idx_per_child_state_choice]
+            for key, var in state_choice_space_dict.items()
+        }
         return calc_law_of_motion_for_state_choices(
             child_state_choices=child_state_choices,
-            representative_parent_state_choice_vec=representative_parent_state_choice_vec,
+            representative_parent_state_choice_vec=rep_parent_state_choice_per_state_choice,
             income_shocks_scaled=income_shocks_scaled,
             params=params,
             model_funcs=model_funcs,
@@ -50,10 +63,17 @@ def calc_law_of_motion(
         )
 
     else:
+        # Same, at the coarser unique-child-*state* granularity, for the law-of-motion
+        # fast path taken when the user's transition functions don't depend on "choice"
+        # (see interpolate_value_and_marg_util / law_of_motion.py).
+        rep_parent_state_choices_per_child_state = {
+            key: var[rep_parent_state_choice_idx_per_child_state]
+            for key, var in state_choice_space_dict.items()
+        }
         return calc_law_of_motion_for_child_states(
             child_states=unique_child_states,
             representative_parent_state_choices=(
-                representative_parent_state_choices_per_child_state
+                rep_parent_state_choices_per_child_state
             ),
             state_row_for_state_choice=state_row_for_state_choice,
             income_shocks_scaled=income_shocks_scaled,

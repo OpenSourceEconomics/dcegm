@@ -57,34 +57,6 @@ def solve_last_two_periods(
     """
     batch_info = last_two_period_batch_info
 
-    # A representative second-to-last-period state-choice for each final-period
-    # state-choice, gathered into a state-choice dict -- used only to pick which
-    # state-choice's own continuous grid feeds the law of motion (see
-    # add_last_two_period_information / law_of_motion.py). Not the same as
-    # state_choice_mat_final_period (the final period's own identity, used for the
-    # law-of-motion function call itself).
-    representative_second_last_period_parent_state_choice_dict = {
-        key: var[
-            batch_info["representative_second_last_period_parent_idx_for_final_period"]
-        ]
-        for key, var in model_structure["state_choice_space_dict"].items()
-    }
-
-    # Same three objects at the deduplicated unique-final-*state* granularity, for
-    # the law-of-motion shortcut taken when no transition function depends on
-    # "choice" (see calc_law_of_motion in law_of_motion.py). Built in
-    # last_two_periods.py, mirroring what child_state_dedup.py does per batch.
-    state_mat_unique_final_period = {
-        key: var[batch_info["unique_final_period_states"]]
-        for key, var in model_structure["state_space_dict"].items()
-    }
-    representative_second_last_period_parent_state_choice_dict_per_final_state = {
-        key: var[
-            batch_info["representative_second_last_period_parent_idx_per_final_state"]
-        ]
-        for key, var in model_structure["state_choice_space_dict"].items()
-    }
-
     (
         value_solved,
         policy_solved,
@@ -92,16 +64,8 @@ def solve_last_two_periods(
         value_interp_final_period,
         marginal_utility_final_last_period,
     ) = solve_final_period(
-        idx_state_choices_final_period=batch_info["idx_state_choices_final_period"],
-        state_choice_mat_final_period=batch_info["state_choice_mat_final_period"],
-        representative_parent_state_choice_vec_final_period=representative_second_last_period_parent_state_choice_dict,
-        state_mat_unique_final_period=state_mat_unique_final_period,
-        representative_parent_state_choice_vec_per_final_period_state=(
-            representative_second_last_period_parent_state_choice_dict_per_final_state
-        ),
-        state_row_for_final_period_state_choice=batch_info[
-            "state_row_for_final_period_state_choice"
-        ],
+        batch_info=batch_info,
+        model_structure=model_structure,
         income_shocks_scaled=income_shocks_scaled,
         continuous_states_info=continuous_states_info,
         upper_envelope_method=upper_envelope_method,
@@ -189,8 +153,8 @@ def solve_last_two_periods(
 
 
 def solve_final_period(
-    idx_state_choices_final_period,
-    state_choice_mat_final_period,
+    batch_info,
+    model_structure,
     income_shocks_scaled: jnp.ndarray,
     continuous_states_info: Dict[str, Any],
     upper_envelope_method: str,
@@ -200,10 +164,6 @@ def solve_final_period(
     value_solved,
     policy_solved,
     endog_grid_solved,
-    representative_parent_state_choice_vec_final_period,
-    state_mat_unique_final_period,
-    representative_parent_state_choice_vec_per_final_period_state,
-    state_row_for_final_period_state_choice,
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Compute solution to final period for policy and value function.
 
@@ -231,14 +191,29 @@ def solve_final_period(
     compute_utility = model_funcs["compute_utility_final"]
     compute_marginal_utility = model_funcs["compute_marginal_utility_final"]
 
+    idx_state_choices_final_period = batch_info["idx_state_choices_final_period"]
+    state_choice_mat_final_period = batch_info["state_choice_mat_final_period"]
+
+    # Same two objects at the deduplicated unique-final-*state* granularity, for
+    # the law-of-motion shortcut taken when no transition function depends on
+    # "choice". Mirrors what child_state_dedup.py does per batch.
+    state_mat_unique_final_period = {
+        key: var[batch_info["unique_final_period_states"]]
+        for key, var in model_structure["state_space_dict"].items()
+    }
     law_of_motion_final_period = calc_law_of_motion(
         child_state_choices=state_choice_mat_final_period,
-        representative_parent_state_choice_vec=representative_parent_state_choice_vec_final_period,
+        rep_parent_state_choice_idx_per_child_state=batch_info[
+            "representative_second_last_period_parent_idx_per_final_state"
+        ],
+        rep_parent_state_choice_idx_per_child_state_choice=batch_info[
+            "representative_second_last_period_parent_idx_for_final_period"
+        ],
+        state_choice_space_dict=model_structure["state_choice_space_dict"],
         unique_child_states=state_mat_unique_final_period,
-        representative_parent_state_choices_per_child_state=(
-            representative_parent_state_choice_vec_per_final_period_state
-        ),
-        state_row_for_state_choice=state_row_for_final_period_state_choice,
+        state_row_for_state_choice=batch_info[
+            "state_row_for_final_period_state_choice"
+        ],
         income_shocks_scaled=income_shocks_scaled,
         params=params,
         model_funcs=model_funcs,

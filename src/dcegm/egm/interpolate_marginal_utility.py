@@ -29,9 +29,10 @@ def interpolate_value_and_marg_util(
     params: Dict[str, float],
     upper_envelope_method: str,
     skip_endog_grid_storage: bool,
-    representative_parent_state_choice_vec: Dict[str, int],
     unique_child_states: Dict[str, int],
-    representative_parent_state_choices_per_child_state: Dict[str, int],
+    rep_parent_state_choice_idx_per_child_state: jnp.ndarray,
+    rep_parent_state_choice_idx_per_child_state_choice: jnp.ndarray,
+    state_choice_space_dict: Dict[str, int],
     state_row_for_state_choice: jnp.ndarray,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """EGM step 1: the children's continuation values, seen from this period.
@@ -103,17 +104,14 @@ def interpolate_value_and_marg_util(
     irregular = upper_envelope_method == "fues"
 
     # Compute the child continuous-state/wealth transitions on demand for exactly
-    # this batch's children, instead of reading from a precomputed whole-state-space
-    # structure. The continuous grids come from last period, via a representative
-    # parent state-choice; calc_law_of_motion picks the evaluation granularity (see
-    # law_of_motion.py).
+    # this batch's children. The continuous grids come from last period, via a representative
+    # parent state-choice.
     law_of_motion = calc_law_of_motion(
         child_state_choices=child_state_choices,
-        representative_parent_state_choice_vec=representative_parent_state_choice_vec,
+        rep_parent_state_choice_idx_per_child_state_choice=rep_parent_state_choice_idx_per_child_state_choice,
+        rep_parent_state_choice_idx_per_child_state=rep_parent_state_choice_idx_per_child_state,
+        state_choice_space_dict=state_choice_space_dict,
         unique_child_states=unique_child_states,
-        representative_parent_state_choices_per_child_state=(
-            representative_parent_state_choices_per_child_state
-        ),
         state_row_for_state_choice=state_row_for_state_choice,
         income_shocks_scaled=income_shocks_scaled,
         params=params,

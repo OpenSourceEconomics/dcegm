@@ -279,14 +279,14 @@ def correct_for_uneven_last_batch(
             "child_state_choice_idxs_to_interp": last_child_state_idx_interp,
             "child_states_idxs": last_parent_state_idx_of_state_choice,
             "state_choices_childs": last_state_choices_childs,
-            "representative_parent_state_choice_idx": (
+            "rep_parent_state_choice_idx_per_child_state_choice": (
                 last_representative_parent_state_choice_for_child
             ),
             # State-level dedup (see child_state_dedup.py) for the cheap
             # budget/law-of-motion path when a user's transition function doesn't
             # depend on "choice".
             "state_choices_unique_child_states": last_state_choices_unique_child_states,
-            "representative_parent_state_choice_idx_per_child_state": (
+            "rep_parent_state_choice_idx_per_child_state": (
                 last_representative_parent_state_choice_per_child_state
             ),
             "state_row_for_state_choice": last_state_row_for_state_choice,
@@ -362,7 +362,7 @@ def prepare_and_align_batch_arrays(
         child_state_choices_to_aggr_choice,
         representative_parent_state_choice_idx,
         unique_child_states,
-        representative_parent_state_choice_idx_per_child_state,
+        rep_parent_state_choice_idx_per_child_state,
         state_row_for_state_choice,
     ) = extend_child_state_choices_to_aggregate_choices(
         idx_to_aggregate_choice=child_state_choices_to_aggr_choice_list,
@@ -406,15 +406,15 @@ def prepare_and_align_batch_arrays(
         # the underlying map_state_choice_to_parent_state array means "the state
         # this child state-choice belongs to" (its own state, dropping its
         # choice) -- an unrelated, pre-existing field.
-        "representative_parent_state_choice_idx": representative_parent_state_choice_idx,
+        "rep_parent_state_choice_idx_per_child_state_choice": representative_parent_state_choice_idx,
         # State-level dedup (see child_state_dedup.py): a law-of-motion/budget
         # function that doesn't depend on "choice" can be evaluated once per
         # unique child state here, then gathered out to state-choice granularity
         # via state_row_for_state_choice -- mirrors child_states_to_integrate_exog
         # one stage later.
         "state_choices_unique_child_states": state_choices_unique_child_states,
-        "representative_parent_state_choice_idx_per_child_state": (
-            representative_parent_state_choice_idx_per_child_state
+        "rep_parent_state_choice_idx_per_child_state": (
+            rep_parent_state_choice_idx_per_child_state
         ),
         "state_row_for_state_choice": state_row_for_state_choice,
     }
@@ -520,7 +520,7 @@ def extend_child_state_choices_to_aggregate_choices(
     dummy_parent_state_choice_for_state = (
         representative_parent_state_choice_per_child_state_list[0][0]
     )
-    representative_parent_state_choice_idx_per_child_state = np.full(
+    rep_parent_state_choice_idx_per_child_state = np.full(
         (n_batches, max_n_unique_child_states),
         fill_value=dummy_parent_state_choice_for_state,
         dtype=int,
@@ -528,7 +528,7 @@ def extend_child_state_choices_to_aggregate_choices(
     for id_batch in range(n_batches):
         n_unique = len(unique_child_states_list[id_batch])
         unique_child_states[id_batch, :n_unique] = unique_child_states_list[id_batch]
-        representative_parent_state_choice_idx_per_child_state[id_batch, :n_unique] = (
+        rep_parent_state_choice_idx_per_child_state[id_batch, :n_unique] = (
             representative_parent_state_choice_per_child_state_list[id_batch]
         )
 
@@ -550,6 +550,6 @@ def extend_child_state_choices_to_aggregate_choices(
         child_state_choices_to_aggr_choice,
         representative_parent_state_choice_idx,
         unique_child_states,
-        representative_parent_state_choice_idx_per_child_state,
+        rep_parent_state_choice_idx_per_child_state,
         state_row_for_state_choice,
     )

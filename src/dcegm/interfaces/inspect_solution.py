@@ -218,9 +218,11 @@ def partially_solve(
                 segment_info["child_states_idxs"][id_batch, :],
                 state_choices_batch,
                 state_choices_childs_batch,
-                segment_info["representative_parent_state_choice_idx"][id_batch, :],
+                segment_info["rep_parent_state_choice_idx_per_child_state_choice"][
+                    id_batch, :
+                ],
                 state_choices_unique_child_states_batch,
-                segment_info["representative_parent_state_choice_idx_per_child_state"][
+                segment_info["rep_parent_state_choice_idx_per_child_state"][
                     id_batch, :
                 ],
                 segment_info["state_row_for_state_choice"][id_batch, :],
