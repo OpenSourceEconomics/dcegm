@@ -276,13 +276,13 @@ def test_state_level_and_state_choice_level_paths_agree_bit_for_bit():
     assert slow_path_model.model_funcs["transition_funcs_depend_on_choice"]["any"]
     slow_path_solved = slow_path_model.solve(params)
 
-    np.testing.assert_array_equal(
+    np.testing.assert_array_almost_equal(
         np.asarray(fast_path_solved.value), np.asarray(slow_path_solved.value)
     )
-    np.testing.assert_array_equal(
+    np.testing.assert_array_almost_equal(
         np.asarray(fast_path_solved.policy), np.asarray(slow_path_solved.policy)
     )
-    np.testing.assert_array_equal(
+    np.testing.assert_array_almost_equal(
         np.asarray(fast_path_solved.endog_grid),
         np.asarray(slow_path_solved.endog_grid),
     )

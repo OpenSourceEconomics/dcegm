@@ -87,6 +87,13 @@ MODEL_SPECS = {"n_choices": 2, "wage": 5.0, "pension": 2.0, "work_cost": 0.4}
 # validated against.
 DEFAULT_ASSET_GRID = np.linspace(0.0, 20.0, N_ASSET_POINTS)
 
+# An additional continuous state, for test_state_specific_experience_grid_matches_closed_form
+# below. Deliberately absent from utility/budget: experience is a pure pass-through
+# combo axis here, so the closed-form Euler equation above stays exactly valid
+# regardless of its value -- what this exercises is the *threading* of a second,
+# independently state-specific grid, not a new closed-form derivation.
+EXPERIENCE_DEFAULT_GRID = np.linspace(0.2, 0.8, 3)
+
 
 # =====================================================================================
 # Model functions
@@ -178,6 +185,18 @@ def _assets_grid_by_group(group):
     return jnp.asarray(DEFAULT_ASSET_GRID) * (1.0 + 0.5 * group)
 
 
+def _experience_grid_by_group(group):
+    """A genuinely different experience grid per group, independent of the assets
+    one."""
+    return jnp.asarray(EXPERIENCE_DEFAULT_GRID) * (1.0 + 0.3 * group)
+
+
+def _next_experience(period, lagged_choice, experience, model_specs):
+    """Deterministic, choice-free experience transition -- not part of the closed
+    form."""
+    return {"experience": experience + 0.1 * (lagged_choice == 0)}
+
+
 # =====================================================================================
 # Closed form
 # =====================================================================================
@@ -266,6 +285,41 @@ def _solve(choices, budget_fn, continuous_grid_functions=None):
         utility_functions=UTILITY_FUNCTIONS,
         utility_functions_final_period=UTILITY_FUNCTIONS_FINAL,
         budget_constraint=budget_fn,
+        continuous_grid_functions=continuous_grid_functions,
+    )
+    return model, model.solve(CLOSED_FORM_PARAMS)
+
+
+def _solve_with_experience(choices, continuous_grid_functions):
+    """Same closed-form model as ``_solve``, plus an additional continuous state.
+
+    Separate from ``_solve`` (rather than adding an optional ``state_space_functions``
+    there) so the five existing tests using ``_solve`` keep the simplest possible model
+    and cannot be affected by this addition.
+
+    ``experience`` is declared as ``None`` -- required whenever a
+    ``continuous_grid_functions`` entry takes over for a name other than
+    ``assets_end_of_period`` (see ``process_continuous_grid_functions``); its length is
+    then pinned from the first state-choice's own grid evaluation.
+
+    """
+    model_config = {
+        "n_periods": 2,
+        "choices": choices,
+        "deterministic_states": {"group": [0, 1]},
+        "continuous_states": {
+            "assets_end_of_period": DEFAULT_ASSET_GRID,
+            "experience": None,
+        },
+        "n_quad_points": N_QUAD,
+    }
+    model = dcegm.setup_model(
+        model_config=model_config,
+        model_specs=MODEL_SPECS,
+        utility_functions=UTILITY_FUNCTIONS,
+        utility_functions_final_period=UTILITY_FUNCTIONS_FINAL,
+        budget_constraint=_budget,
+        state_space_functions={"next_period_continuous_state": _next_experience},
         continuous_grid_functions=continuous_grid_functions,
     )
     return model, model.solve(CLOSED_FORM_PARAMS)
@@ -469,6 +523,85 @@ def test_state_specific_grid_and_choice_dependent_budget_together():
     assert n_checked > 0
 
 
+def test_state_specific_experience_grid_matches_closed_form():
+    """A second, independently state-specific grid (an additional continuous state).
+
+    ``experience`` is a pure pass-through here (it enters neither utility nor the
+    budget), so the closed form from Part 1 is completely unaffected by its value --
+    what this actually exercises is that two state-specific grids threaded through the
+    same law-of-motion call (see ``calc_law_of_motion``) don't corrupt each other's
+    combo indexing. Checked at every one of ``experience``'s own combo points, not just
+    the first, since a combo-axis indexing bug would typically only show up away from
+    index 0.
+
+    """
+    choices = [0, 1]
+    model, solved = _solve_with_experience(
+        choices=choices,
+        continuous_grid_functions={
+            "assets_end_of_period": _assets_grid_by_group,
+            "experience": _experience_grid_by_group,
+        },
+    )
+    endog_grid = np.asarray(solved.endog_grid)
+    policy = np.asarray(solved.policy)
+
+    idxs, rows = _period_zero_state_choices(model)
+    n_checked = 0
+
+    for state_choice_idx, row in zip(idxs, rows):
+        own_asset_grid = np.asarray(_assets_grid_by_group(group=row["group"]))
+        own_experience_grid = np.asarray(_experience_grid_by_group(group=row["group"]))
+
+        for combo_idx in range(len(own_experience_grid)):
+            grid_row = endog_grid[
+                state_choice_idx, combo_idx, 1 : len(own_asset_grid) + 1
+            ]
+            policy_row = policy[
+                state_choice_idx, combo_idx, 1 : len(own_asset_grid) + 1
+            ]
+
+            # 1) Still solving on its own assets grid, for every experience combo --
+            #    not just leaking the right values at combo 0.
+            implied_savings = grid_row - policy_row
+            assert_allclose(implied_savings, own_asset_grid, atol=1e-6)
+
+            # 2) The economics are unaffected by experience: same closed form as
+            #    Part 1, evaluated at every combo point.
+            for savings, consumption in zip(own_asset_grid, policy_row):
+                if savings <= 1e-10:
+                    continue
+                expected = _closed_form_consumption(
+                    savings=savings,
+                    period_zero_choice=row["choice"],
+                    choices=choices,
+                    budget_fn=_budget_ignoring_choice,
+                )
+                assert_allclose(
+                    consumption,
+                    expected,
+                    rtol=1e-6,
+                    err_msg=f"{row} @ combo {combo_idx}, savings {savings}",
+                )
+                n_checked += 1
+
+    assert n_checked > 0
+
+
+def test_experience_grid_varying_by_group_is_actually_state_specific():
+    """Sensitivity anchor: confirm the experience grids really do differ by group.
+
+    Without this, ``test_state_specific_experience_grid_matches_closed_form`` would
+    still pass if ``_experience_grid_by_group`` happened to collapse to one shared
+    grid -- it would just be re-testing the default (non-state-specific) path.
+
+    """
+    grid_group_0 = np.asarray(_experience_grid_by_group(group=0))
+    grid_group_1 = np.asarray(_experience_grid_by_group(group=1))
+    assert not np.allclose(grid_group_0, grid_group_1)
+    assert not np.allclose(grid_group_1, EXPERIENCE_DEFAULT_GRID)
+
+
 # =====================================================================================
 # Part 2: hand-solved n-period reference (divorce model)
 # =====================================================================================
@@ -629,6 +762,98 @@ def test_grid_depending_on_stochastic_partner_state_is_rejected():
             a_grid=BASE_GRID,
             continuous_grid_functions={"assets_end_of_period": bad_grid},
         )
+
+
+# =====================================================================================
+# Part 2b: choice-dependent budget, hand-solved n-period reference
+#
+# The closed form (Part 1) covers this only for a 2-period model; every multi-period
+# check of a choice-dependent budget elsewhere (test_choice_dependent_budget_...
+# _simulates_... below) is dcegm-vs-dcegm, not against ground truth. This closes that
+# gap the same way Part 2 does for state-specific grids: an independent hand-rolled
+# EGM, here with reference.solve_reference's work_cost argument standing in for
+# dcegm_functions.budget_constraint_choice_dependent.
+# =====================================================================================
+
+
+WORK_COST = 5.0
+CHOICE_DEPENDENT_PARAMS = {**DIVORCE_PARAMS, "work_cost": WORK_COST}
+
+
+def _solve_both_choice_dependent():
+    model, solved = dm.build_and_solve(
+        CHOICE_DEPENDENT_PARAMS,
+        n_periods=N_PERIODS,
+        a_grid=BASE_GRID,
+        budget_fn=dm.budget_constraint_choice_dependent,
+    )
+    ref_solved = ref.solve_reference(
+        N_PERIODS, CHOICE_DEPENDENT_PARAMS, BASE_GRID, work_cost=WORK_COST
+    )
+    return model, solved, ref_solved
+
+
+@pytest.mark.parametrize("work0", [0, 1])
+@pytest.mark.parametrize("partner_state", [0, 1])
+def test_choice_dependent_budget_matches_hand_solved_reference(partner_state, work0):
+    """A choice-dependent budget, over the full n-period model, against ground truth.
+
+    Mirrors ``test_state_specific_grid_matches_hand_solved_reference``, but for the
+    *other* feature that routes through the per-state-choice law of motion
+    (``transition_funcs_depend_on_choice["budget"]``) instead of a state-specific
+    grid. A shared (non-state-specific) grid is used deliberately, to isolate this
+    feature rather than re-testing the grid-threading combination Part 2 already
+    covers.
+
+    """
+    model, solved, ref_solved = _solve_both_choice_dependent()
+    assert model.model_funcs["transition_funcs_depend_on_choice"]["budget"]
+    assert model.model_funcs["transition_funcs_depend_on_choice"]["any"]
+
+    endog_dcegm, policy_dcegm, value_dcegm = dcegm_raw_arrays(
+        model, solved, period=0, work0=work0, partner_state_0=partner_state
+    )
+    # Household- vs individual-units convention, same as
+    # test_state_specific_grid_matches_hand_solved_reference.
+    scale = 2.0 if partner_state == 1 else 1.0
+
+    # Interior points only -- see test_state_specific_grid_matches_hand_solved_
+    # reference for why extrapolation-edge points are excluded.
+    a0_end_dcegm = endog_dcegm - policy_dcegm
+    interior_max = BASE_GRID.max() / scale
+    keep = (a0_end_dcegm > 1.0) & (a0_end_dcegm < 0.8 * interior_max)
+    assert keep.sum() > 50
+
+    ref_period0 = ref_solved[0][(partner_state, work0)]
+
+    ref_policy = (
+        np.interp(scale * a0_end_dcegm[keep], BASE_GRID, ref_period0["policy"]) / scale
+    )
+    ref_value = np.interp(scale * a0_end_dcegm[keep], BASE_GRID, ref_period0["value"])
+
+    np.testing.assert_allclose(policy_dcegm[keep], ref_policy, rtol=1e-3)
+    np.testing.assert_allclose(value_dcegm[keep], ref_value, rtol=1e-3, atol=1e-3)
+
+
+def test_choice_dependent_budget_hand_solved_reference_differs_from_choice_free_one():
+    """Sensitivity anchor: confirm ``work_cost`` actually changes the reference.
+
+    Without this, the test above would still pass if ``work_cost`` were silently
+    ignored by ``resources_after_transition`` -- it would just be re-testing
+    ``test_state_specific_grid_matches_hand_solved_reference`` with extra, unused
+    plumbing.
+
+    """
+    with_cost = ref.solve_reference(
+        N_PERIODS, CHOICE_DEPENDENT_PARAMS, BASE_GRID, work_cost=WORK_COST
+    )
+    without_cost = ref.solve_reference(
+        N_PERIODS, CHOICE_DEPENDENT_PARAMS, BASE_GRID, work_cost=0.0
+    )
+
+    policy_with = with_cost[0][(0, 0)]["policy"]
+    policy_without = without_cost[0][(0, 0)]["policy"]
+    assert not np.allclose(policy_with, policy_without)
 
 
 def _load_with_cont_exp():

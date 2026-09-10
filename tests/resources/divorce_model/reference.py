@@ -32,7 +32,15 @@ def partner_transition_np(partner_state, params):
     return np.array([1 - prob_married_next, prob_married_next])
 
 
-def resources_after_transition(a, partner_state_0, partner_state_1, own_income, params):
+def resources_after_transition(
+    a,
+    partner_state_0,
+    partner_state_1,
+    own_income,
+    params,
+    choice_next=None,
+    work_cost=0.0,
+):
     """Plain resources, with the individual's asset stock rescaled once for
     the period-to-period partner transition: halved on divorce (lose the
     ex-partner's share), doubled on marriage (new partner matches wealth),
@@ -40,6 +48,13 @@ def resources_after_transition(a, partner_state_0, partner_state_1, own_income, 
     partnered, not on income, not in utility. Partner income is added
     whenever partnered next period (partner_state_1), unscaled, exactly
     like own_income.
+
+    ``choice_next``/``work_cost``: optional support for a choice-dependent
+    budget, mirroring dcegm's convention that a child's own choice may affect
+    its own beginning-of-period wealth (see
+    ``dcegm_functions.budget_constraint_choice_dependent``). Both default to a
+    no-op, so every existing caller is unaffected.
+
     """
     if partner_state_0 == 1 and partner_state_1 == 0:
         a = a / 2  # divorce
@@ -48,6 +63,8 @@ def resources_after_transition(a, partner_state_0, partner_state_1, own_income, 
 
     partner_income = params["y_partner"] if partner_state_1 == 1 else 0.0
     wealth = a * (1 + params["interest_rate"]) + own_income + partner_income
+    if choice_next is not None:
+        wealth = wealth - work_cost * (choice_next == 0)
     return max(wealth, params["consumption_floor"])
 
 
@@ -174,7 +191,7 @@ def grid_for(a_grid, period, choice):
     return np.asarray(a_grid)
 
 
-def solve_reference(n_periods, params, a_grid):
+def solve_reference(n_periods, params, a_grid, work_cost=0.0):
     """General n-period manual EGM backward induction, no upper envelope.
 
     Only the terminal period is analytic (consume everything). Every earlier
@@ -189,6 +206,12 @@ def solve_reference(n_periods, params, a_grid):
     stores its solution on whatever grid it was solved with, and the
     continuation lookup interpolates that stored grid by wealth value, no
     other part of this function needs to know which case it is in.
+
+    `work_cost`: when nonzero, a child's own choice to work (`choice_next ==
+    0`) costs this much, deducted from its own beginning-of-period wealth --
+    the reference counterpart of dcegm's
+    `dcegm_functions.budget_constraint_choice_dependent`. Defaults to 0.0
+    (no-op), matching every existing caller's economics exactly.
 
     Returns solved[period][(partner_state, choice)] = dict with parallel
     arrays "endog_grid", "policy", "value", for period in
@@ -281,17 +304,22 @@ def solve_reference(n_periods, params, a_grid):
                     for partner_state_next, prob_partner in enumerate(transition_probs):
                         if prob_partner == 0.0:
                             continue
-                        wealth_next = resources_after_transition(
-                            a_end,
-                            partner_state_now,
-                            partner_state_next,
-                            income_next,
-                            params,
-                        )
 
                         choice_values = np.empty(2)
                         choice_marg_utils = np.empty(2)
                         for choice_next in (0, 1):
+                            # A child's own choice may cost it its own
+                            # beginning-of-period wealth (work_cost), so this
+                            # is computed per choice_next, not once and shared.
+                            wealth_next = resources_after_transition(
+                                a_end,
+                                partner_state_now,
+                                partner_state_next,
+                                income_next,
+                                params,
+                                choice_next=choice_next,
+                                work_cost=work_cost,
+                            )
                             v, mu = continuation_value_and_marg_util(
                                 period + 1,
                                 wealth_next,
