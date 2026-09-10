@@ -520,7 +520,12 @@ def simulate_final_period(
         "taste_shocks": taste_shocks[np.newaxis, :, :],
         "assets_begin_of_period": assets_realized_final,
         "savings": jnp.zeros_like(utility_period),
-        "income_shock": income_shock_final_period,
+        # Matches main's convention: the final period has no "next period" to draw
+        # a shock for, so this column is a placeholder here, not the shock actually
+        # consumed to build this period's own wealth (that's income_shock_final_period,
+        # already used above where it's functionally needed -- see
+        # assets_begin_of_period_for_each_choice's income_shock argument).
+        "income_shock": jnp.zeros(n_agents),
         **budget_aux_final,
         **states_realized_final,
     }
