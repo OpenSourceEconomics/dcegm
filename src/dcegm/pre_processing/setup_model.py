@@ -93,6 +93,7 @@ def create_model_dict(
         **specs_params_info,
     }
 
+    print("Setting up model:")
     model_structure = create_model_structure(
         model_config=model_config_processed,
         model_funcs=model_funcs,
@@ -115,16 +116,14 @@ def create_model_dict(
         )
         n_sparse = model_structure["map_state_choice_to_child_states"].shape[1]
         print(
-            f"Stochastic transition mapping sparsified from {n_stochastic_original} to {n_sparse} "
+            f"  stochastic transitions to children: {n_sparse:,} per state-choice "
+            f"(sparsified from {n_stochastic_original:,})"
         )
 
     model_funcs["stochastic_state_mapping"] = create_stochastic_state_mapping(
         model_structure["stochastic_state_space"],
         model_structure["stochastic_states_names"],
     )
-
-    print("State, state-choice and child state mapping created.\n")
-    print("Start creating batches for the model.")
 
     batch_info = create_batches_and_information(
         model_structure=model_structure,
@@ -139,7 +138,7 @@ def create_model_dict(
         model_structure.pop("map_state_choice_to_index")
 
     batch_info = jax.tree.map(create_array_with_smallest_int_dtype, batch_info)
-    print("Model setup complete.\n")
+    print("Model setup complete.")
     return {
         "model_config": model_config_processed,
         "model_funcs": model_funcs,

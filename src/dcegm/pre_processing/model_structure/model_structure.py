@@ -26,14 +26,13 @@ def create_model_structure(
             - "transform_between_state_and_state_choice_vec" (callable)
 
     """
-    print("Starting state space creation")
     state_space_objects = create_state_space(
         model_config=model_config,
         sparsity_condition=model_funcs["sparsity_condition"],
         debugging=False,
     )
-    print("State space created.\n")
-    print("Starting state-choice space creation and child state mapping.")
+    n_states = state_space_objects["state_space"].shape[0]
+    print(f"  discrete state space: {n_states:,} states")
 
     state_choice_and_child_state_objects = (
         create_state_choice_space_and_child_state_mapping(
@@ -49,6 +48,11 @@ def create_model_structure(
             ],
         )
     )
+    n_state_choices = state_choice_and_child_state_objects["state_choice_space"].shape[
+        0
+    ]
+    print(f"  discrete state-choice space: {n_state_choices:,} state-choices")
+
     state_space_objects.pop("map_state_to_index_with_proxy")
     state_space_objects.pop("state_space_incl_proxies")
 

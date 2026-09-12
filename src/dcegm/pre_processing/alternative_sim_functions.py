@@ -75,7 +75,7 @@ def generate_alternative_sim_functions(
         stochastic_state_names,
     )
 
-    print("Model setup complete.\n")
+    print("Alternative simulation functions ready.")
     return model_funcs
 
 
