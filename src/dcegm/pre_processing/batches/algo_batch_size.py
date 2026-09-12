@@ -114,6 +114,7 @@ def determine_optimal_batch_size(
             batch_not_found = False
 
     return (
+        size_last_period,
         batches_to_check,
         child_state_choice_idxs_to_interpolate,
         child_state_choices_to_aggr_choice,

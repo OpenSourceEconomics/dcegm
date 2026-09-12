@@ -29,8 +29,12 @@ def create_single_segment_of_batches(
     ]
     map_state_choice_to_index = model_structure["map_state_choice_to_index_with_proxy"]
 
+    # search_start_size is the seed the largest_block search shrinks from
+    # (size of the segment's last period); None for period_max, which does not search.
+    search_start_size = None
     if batch_mode == "largest_block":
         (
+            search_start_size,
             batches_list,
             child_state_choice_idxs_to_interp_list,
             child_state_choices_to_aggr_choice_list,
@@ -110,6 +114,7 @@ def create_single_segment_of_batches(
         discrete_states_names,
     )
     single_batch_segment_info["batches_cover_all"] = batches_cover_all
+    single_batch_segment_info["search_start_size"] = search_start_size
     if not batches_cover_all:
         single_batch_segment_info["last_batch_info"] = last_batch_info
 

@@ -23,6 +23,12 @@ def _log_segment(id_segment, mode, bool_segment, segment_info, state_choice_spac
         f"    segment {id_segment}: {period_str} [{mode}] -> "
         f"{n_batches} {batch_word} x {width} state-choices{pad}{leftover}"
     )
+    # largest_block shrinks the batch size from the segment's last-period size (the
+    # search seed) down to the final width; period_max does not search (start is None).
+    start = segment_info.get("search_start_size")
+    if start is not None:
+        print(f"      start search: {start}")
+        print(f"      end search:   {width}")
 
 
 def _log_total(segment_infos):
