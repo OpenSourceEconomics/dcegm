@@ -121,9 +121,9 @@ def compute_child_dedup_for_batch(
     # solved slot (e.g. death at different ages, all proxied to one last-period
     # slot) stay separate rows here, because the transition *into* them differs;
     # only the value/policy lookup collapses, via the repeated ``value_slot`` below.
-    # Sorting the admitted cells by their proxy solved index reproduces the previous
-    # ``np.unique`` ordering bit-for-bit whenever no proxy actually collapses two
-    # children (proxy == actual) -- i.e. every model without a cross-period proxy.
+    # Ordering the admitted cells by their proxy solved index keeps rows that share
+    # a proxy adjacent; when no proxy collapses two children (proxy == actual) each
+    # cell simply keeps its own row in solved-index order.
     flat_proxy_idx = proxy_state_choice_idxs_childs.ravel()
     admitted_cell = flat_proxy_idx != invalid_state_idx
     ordered_cells = np.where(admitted_cell)[0][
