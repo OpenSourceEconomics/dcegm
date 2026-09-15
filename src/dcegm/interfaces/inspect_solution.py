@@ -1,5 +1,6 @@
 import copy
 
+import jax
 import jax.lax
 import jax.numpy as jnp
 import numpy as np
@@ -18,7 +19,7 @@ def partially_solve(
     model_structure,
     params,
     n_periods,
-    return_candidates=False,
+    return_candidates,
 ):
     """Partially solve the model for the last n_periods.
 
@@ -56,9 +57,9 @@ def partially_solve(
         relevant_state_choices_mask
     ]
 
-    n_continuous_state_combinations = model_structure["continuous_state_space"][
-        next(iter(model_structure["continuous_state_space"]))
-    ].shape[0]
+    n_continuous_state_combinations = continuous_states_info[
+        "n_continuous_state_combinations"
+    ]
     (
         value_solved,
         policy_solved,
@@ -80,6 +81,7 @@ def partially_solve(
                 n_total_wealth_grid=n_assets_end_of_period,
                 n_state_choices=relevant_state_choice_space.shape[0],
                 n_continuous_state_combinations=n_continuous_state_combinations,
+                store_endog_grid=True,
             )
         )
 
@@ -204,6 +206,10 @@ def partially_solve(
                 - rescale_idx
             )
 
+            law_of_motion_arrays_batch = jax.tree.map(
+                lambda leaf: leaf[id_batch], segment_info["law_of_motion_arrays"]
+            )
+
             xs = (
                 idx_to_solve,
                 segment_info["child_state_choices_to_aggr_choice"][id_batch, :, :],
@@ -212,6 +218,7 @@ def partially_solve(
                 segment_info["child_states_idxs"][id_batch, :],
                 state_choices_batch,
                 state_choices_childs_batch,
+                law_of_motion_arrays_batch,
             )
             carry = (value_solved, policy_solved, endog_grid_solved)
             single_period_out_dict = solve_single_period(
@@ -219,7 +226,7 @@ def partially_solve(
                 xs=xs,
                 params=params,
                 continuous_grids_info=continuous_states_info,
-                continuous_state_space=model_structure["continuous_state_space"],
+                state_choice_space_dict=model_structure["state_choice_space_dict"],
                 income_shocks_scaled=income_shocks_scaled,
                 model_funcs=model_funcs,
                 income_shock_weights=income_shock_weights,

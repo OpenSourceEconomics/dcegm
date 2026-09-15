@@ -46,6 +46,7 @@ Check out our :ref:`guides<guides/index.rst>` to find information on getting sta
    background/interface_plots.ipynb
    background/specify_exogenous_processes.md
    background/sparsity_conditions
+   background/choice_dependent_sparsity
    background/batching
 
 .. toctree::
@@ -57,6 +58,7 @@ Check out our :ref:`guides<guides/index.rst>` to find information on getting sta
    development/changes
    development/roadmap
    development/internals/batching
+   development/internals/law_of_motion
 
 
 .. toctree::

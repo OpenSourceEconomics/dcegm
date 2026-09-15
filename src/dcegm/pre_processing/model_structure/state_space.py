@@ -13,7 +13,7 @@ from dcegm.pre_processing.model_structure.stochastic_states import (
 from dcegm.pre_processing.shared import create_array_with_smallest_int_dtype
 
 
-def create_state_space(model_config, sparsity_condition, debugging=False):
+def create_state_space(model_config, sparsity_condition, debugging):
     """Create state space object and indexer.
 
     We need to add the convention for the state space objects.
@@ -184,6 +184,16 @@ def create_state_space(model_config, sparsity_condition, debugging=False):
     else:
         map_state_to_index_with_proxy = map_state_to_index
 
+    # Indexer into ``state_space_incl_proxies`` (valid + proxied states), giving each
+    # actual child state a distinct index -- unlike ``map_state_to_index_with_proxy``,
+    # which collapses proxied states onto their proxy target. Used only for the
+    # grid-consistency check, so parents that transition to genuinely different child
+    # states (e.g. death at different ages, all proxied to one last-period state) are
+    # not forced to share a grid. The solve keeps using the proxy indexer.
+    map_state_to_index_incl_proxies, _ = create_indexer_for_space(
+        state_space_incl_proxies, max_var_values=max_values_unrestricted
+    )
+
     state_space_dict = {
         key: create_array_with_smallest_int_dtype(state_space[:, i])
         for i, key in enumerate(discrete_states_names)
@@ -199,6 +209,7 @@ def create_state_space(model_config, sparsity_condition, debugging=False):
         "state_space_dict": state_space_dict,
         "map_state_to_index": map_state_to_index,
         "map_state_to_index_with_proxy": map_state_to_index_with_proxy,
+        "map_state_to_index_incl_proxies": map_state_to_index_incl_proxies,
         "stochastic_state_space": stochastic_state_space,
         "stochastic_states_names": stochastic_state_names,
         "state_names_without_stochastic": state_names_without_stochastic,
@@ -218,7 +229,9 @@ def create_state_space(model_config, sparsity_condition, debugging=False):
                 array_of_states_proxied_to[:, i]
                 for i in range(array_of_states_proxied_to.shape[1])
             )
-            full_indexer, _ = create_indexer_for_space(state_space_full)
+            full_indexer, _ = create_indexer_for_space(
+                state_space_full, max_var_values=max_values_unrestricted
+            )
             idxs_proxied_to = full_indexer[tuple_of_states_proxied_from]
             debug_df["idxs_proxied_to"] = -9999
             debug_df.loc[debug_df["is_proxied"], "idxs_proxied_to"] = idxs_proxied_to

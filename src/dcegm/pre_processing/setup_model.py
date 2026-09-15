@@ -4,7 +4,10 @@ from typing import Callable, Dict
 import jax
 import jax.numpy as jnp
 
-from dcegm.pre_processing.batches.batch_creation import create_batches_and_information
+from dcegm.pre_processing.batches.batch_creation import (
+    bundle_law_of_motion_arrays,
+    create_batches_and_information,
+)
 from dcegm.pre_processing.check_model_config import check_model_config_and_process
 from dcegm.pre_processing.check_model_specs import extract_model_specs_info
 from dcegm.pre_processing.model_functions.process_model_functions import (
@@ -32,6 +35,7 @@ def create_model_dict(
     state_space_functions: Dict[str, Callable] = None,
     stochastic_states_transitions: Dict[str, Callable] = None,
     shock_functions: Dict[str, Callable] = None,
+    continuous_grid_functions: Dict[str, Callable] = None,
     debug_info: str = None,
     use_stochastic_sparsity=False,
 ):
@@ -81,6 +85,7 @@ def create_model_dict(
         budget_constraint=budget_constraint,
         stochastic_states_transitions=stochastic_states_transitions,
         shock_functions=shock_functions,
+        continuous_grid_functions=continuous_grid_functions,
     )
 
     specs_read_funcs, specs_params_info = extract_model_specs_info(model_specs)
@@ -91,6 +96,7 @@ def create_model_dict(
         **specs_params_info,
     }
 
+    print("Setting up model:")
     model_structure = create_model_structure(
         model_config=model_config_processed,
         model_funcs=model_funcs,
@@ -102,6 +108,7 @@ def create_model_dict(
         ].shape[1]
         (
             model_structure["map_state_choice_to_child_states"],
+            model_structure["map_state_choice_to_child_states_actual"],
             model_structure["state_choice_space_dict"],
             model_funcs["compute_stochastic_transition_vec"],
             model_funcs["sparse_processed_stochastic_funcs"],
@@ -113,7 +120,8 @@ def create_model_dict(
         )
         n_sparse = model_structure["map_state_choice_to_child_states"].shape[1]
         print(
-            f"Stochastic transition mapping sparsified from {n_stochastic_original} to {n_sparse} "
+            f"  stochastic transitions to children: {n_sparse:,} per state-choice "
+            f"(sparsified from {n_stochastic_original:,})"
         )
 
     model_funcs["stochastic_state_mapping"] = create_stochastic_state_mapping(
@@ -121,23 +129,32 @@ def create_model_dict(
         model_structure["stochastic_states_names"],
     )
 
-    print("State, state-choice and child state mapping created.\n")
-    print("Start creating batches for the model.")
-
     batch_info = create_batches_and_information(
         model_structure=model_structure,
         n_periods=model_config_processed["n_periods"],
         min_period_batch_segments=model_config_processed["min_period_batch_segments"],
         batch_mode=model_config_processed["batch_mode"],
     )
+    # Fold each batch's per-branch law-of-motion index arrays into the single
+    # dict calc_law_of_motion reads, keeping only the branch this model takes.
+    # Model-static, so it is decided here at setup rather than per batch/period.
+    batch_info = bundle_law_of_motion_arrays(
+        batch_info,
+        transition_depends_on_choice=model_funcs["transition_funcs_depend_on_choice"][
+            "any"
+        ],
+        state_space_dict=model_structure["state_space_dict"],
+    )
     if not debug_info == "all":
         # Delete large arrays which is not needed. Not if all is requested
         # by the debug string.
         model_structure.pop("map_state_choice_to_child_states")
         model_structure.pop("map_state_choice_to_index")
+        model_structure.pop("map_state_choice_to_child_states_actual")
+        model_structure.pop("state_space_incl_proxies")
 
     batch_info = jax.tree.map(create_array_with_smallest_int_dtype, batch_info)
-    print("Model setup complete.\n")
+    print("Model setup complete.")
     return {
         "model_config": model_config_processed,
         "model_funcs": model_funcs,
@@ -156,6 +173,7 @@ def create_model_dict_and_save(
     state_space_functions: Dict[str, Callable] = None,
     stochastic_states_transitions: Dict[str, Callable] = None,
     shock_functions: Dict[str, Callable] = None,
+    continuous_grid_functions: Dict[str, Callable] = None,
     path: str = "model.pkl",
     debug_info=None,
     use_stochastic_sparsity=False,
@@ -176,6 +194,7 @@ def create_model_dict_and_save(
         state_space_functions=state_space_functions,
         stochastic_states_transitions=stochastic_states_transitions,
         shock_functions=shock_functions,
+        continuous_grid_functions=continuous_grid_functions,
         debug_info=debug_info,
         use_stochastic_sparsity=use_stochastic_sparsity,
     )
@@ -198,6 +217,7 @@ def load_model_dict(
     state_space_functions: Dict[str, Callable] = None,
     stochastic_states_transitions: Dict[str, Callable] = None,
     shock_functions: Dict[str, Callable] = None,
+    continuous_grid_functions: Dict[str, Callable] = None,
     path: str = "model.pkl",
     use_stochastic_sparsity=False,
 ):
@@ -216,6 +236,7 @@ def load_model_dict(
             budget_constraint=budget_constraint,
             stochastic_states_transitions=stochastic_states_transitions,
             shock_functions=shock_functions,
+            continuous_grid_functions=continuous_grid_functions,
         )
     )
 

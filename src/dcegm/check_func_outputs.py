@@ -1,7 +1,7 @@
 from jax import numpy as jnp
 
 
-def check_budget_equation_and_return_wealth_plus_optional_aux(out, optional_aux=False):
+def check_budget_equation_and_return_wealth_plus_optional_aux(out, optional_aux):
     if isinstance(out, tuple):
         if len(out) == 2:
             # Check validity of first element

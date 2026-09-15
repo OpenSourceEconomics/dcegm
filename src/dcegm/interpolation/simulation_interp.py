@@ -10,6 +10,11 @@ from dcegm.interpolation.interp2d_irregular import (
 from dcegm.interpolation.interpnd_regular import (
     interpnd_policy_and_value_for_child_states_on_regular_grids,
 )
+from dcegm.law_of_motion import (
+    compute_own_continuous_grid_combos,
+    compute_own_continuous_grids_raw,
+    compute_own_dj_wealth_grid,
+)
 
 
 def interpolate_policy_and_value_for_all_agents(
@@ -24,13 +29,11 @@ def interpolate_policy_and_value_for_all_agents(
     params,
     discrete_states_names,
     compute_utility,
-    continuous_state_space,
-    additional_continuous_state_grids,
+    continuous_grid_functions,
     upper_envelope_method,
     has_additional_continuous_state,
     discount_factor,
-    skip_endog_grid_storage=False,
-    dj_wealth_grid=None,
+    skip_endog_grid_storage,
 ):
 
     # 1D interpolation path is independent of upper-envelope method and only
@@ -57,10 +60,13 @@ def interpolate_policy_and_value_for_all_agents(
             fill_value=jnp.nan,
         )[:, :, 0, :]
         if skip_endog_grid_storage:
-            # DJ-constant: never batch the wealth grid over agents/choices. Already
-            # matches the shape a single agent-choice item needs, so no broadcast at
-            # all is needed here.
-            endog_grid_agent = dj_wealth_grid
+            # DJ-constant: endog_grid isn't stored at all in this case (every
+            # state-choice's "endogenous" grid is by construction the fixed
+            # assets_begin_of_period grid), so this is just a placeholder -- the
+            # real (possibly state-choice-specific) wealth grid is computed on
+            # demand per agent-choice inside interp1d_policy_and_value_function
+            # instead, self-referential via that row's own identity.
+            endog_grid_agent = jnp.zeros(1)
             endog_grid_in_axes = None
         else:
             endog_grid_agent = jnp.take(
@@ -76,7 +82,7 @@ def interpolate_policy_and_value_for_all_agents(
             vmap(
                 interp1d_policy_and_value_function,
                 in_axes=(
-                    None,
+                    0,
                     None,
                     endog_grid_in_axes,
                     0,
@@ -86,9 +92,24 @@ def interpolate_policy_and_value_for_all_agents(
                     None,
                     None,
                     None,
+                    None,
+                    None,
                 ),
             ),
-            in_axes=(0, 0, endog_grid_in_axes, 0, 0, None, None, None, None, None),
+            in_axes=(
+                0,
+                0,
+                endog_grid_in_axes,
+                0,
+                0,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ),
         )
 
         policy_agent, value_agent = vectorized_interp(
@@ -102,6 +123,8 @@ def interpolate_policy_and_value_for_all_agents(
             compute_utility,
             discount_factor,
             upper_envelope_method == "druedahl_jorgensen",
+            skip_endog_grid_storage,
+            continuous_grid_functions,
         )
 
         return policy_agent, value_agent
@@ -142,8 +165,8 @@ def interpolate_policy_and_value_for_all_agents(
             vmap(
                 interp2d_policy_and_value_function,
                 in_axes=(
-                    None,
-                    None,
+                    0,
+                    0,
                     None,
                     0,
                     0,
@@ -182,7 +205,7 @@ def interpolate_policy_and_value_for_all_agents(
             value_grid_agent,
             policy_grid_agent,
             choice_range,
-            continuous_state_space,
+            continuous_grid_functions,
             continuous_state_name,
             params,
             compute_utility,
@@ -213,11 +236,11 @@ def interpolate_policy_and_value_for_all_agents(
             fill_value=jnp.nan,
         )
         if skip_endog_grid_storage:
-            # DJ-constant: broadcast only across the combo axis, never across
-            # agents/choices.
-            endog_grid_agent = jnp.broadcast_to(
-                dj_wealth_grid, value_grid_agent.shape[2:]
-            )
+            # endog_grid isn't stored in this case; interpnd_policy_and_value_function
+            # recomputes each state-choice's own Druedahl-Jorgensen wealth grid on
+            # demand. Only the shape matters here, to keep in_axes=None so the wealth
+            # grid is never batched over agents/choices.
+            endog_grid_agent = jnp.zeros(value_grid_agent.shape[2:])
             endog_grid_in_axes = None
         else:
             endog_grid_agent = jnp.take(
@@ -229,14 +252,16 @@ def interpolate_policy_and_value_for_all_agents(
             )
             endog_grid_in_axes = 0
 
-        additional_continuous_state_names = list(continuous_state_space.keys())
+        additional_continuous_state_names = list(
+            continuous_state_beginning_of_period.keys()
+        )
 
         vectorized_interp = vmap(
             vmap(
                 interpnd_policy_and_value_function,
                 in_axes=(
-                    None,
-                    None,
+                    0,
+                    0,
                     None,
                     endog_grid_in_axes,
                     0,
@@ -275,12 +300,12 @@ def interpolate_policy_and_value_for_all_agents(
             value_grid_agent,
             policy_grid_agent,
             choice_range,
-            continuous_state_space,
-            additional_continuous_state_grids,
+            continuous_grid_functions,
             additional_continuous_state_names,
             params,
             compute_utility,
             discount_factor,
+            skip_endog_grid_storage,
         )
 
         return policy_agent, value_agent
@@ -301,13 +326,23 @@ def interp1d_policy_and_value_function(
     compute_utility,
     discount_factor,
     use_dj_interpolation,
+    skip_endog_grid_storage,
+    continuous_grid_functions,
 ):
     state_choice_vec = {**state, "choice": choice}
 
     if use_dj_interpolation:
+        # This agent's own Druedahl-Jorgensen wealth grid, evaluated on demand when
+        # endog_grid isn't stored at all -- self-referential, this is exactly the
+        # state-choice whose own stored solution is being read.
+        wealth_grid = (
+            compute_own_dj_wealth_grid(state_choice_vec, continuous_grid_functions)
+            if skip_endog_grid_storage
+            else endog_grid_agent
+        )
         policy_interp, value_interp = interp1d_policy_and_value_on_wealth_dj(
             wealth=wealth_beginning_of_period,
-            wealth_grid=endog_grid_agent,
+            wealth_grid=wealth_grid,
             policy_grid=policy_agent,
             value_grid=value_agent,
             compute_utility=compute_utility,
@@ -338,7 +373,7 @@ def interp2d_policy_and_value_function(
     value_agent,
     policy_agent,
     choice,
-    continuous_state_space,
+    continuous_grid_functions,
     continuous_state_name,
     params,
     compute_utility,
@@ -346,8 +381,16 @@ def interp2d_policy_and_value_function(
 ):
     state_choice_vec = {**state, "choice": choice}
 
+    # Self-referential: the stored solution for this state-choice was solved on
+    # its own grid, so evaluating the grid function on itself reproduces it.
+    own_continuous_state_space = {
+        continuous_state_name: continuous_grid_functions[continuous_state_name](
+            **state_choice_vec
+        )
+    }
+
     policy_interp, value_interp = interp2d_policy_and_value_on_wealth_and_regular_grid(
-        continuous_state_space=continuous_state_space,
+        continuous_state_space=own_continuous_state_space,
         wealth_grid=endog_grid_agent,
         policy_grid=policy_agent,
         value_grid=value_agent,
@@ -372,14 +415,37 @@ def interpnd_policy_and_value_function(
     value_agent,
     policy_agent,
     choice,
-    continuous_state_space,
-    additional_continuous_state_grids,
+    continuous_grid_functions,
     additional_continuous_state_names,
     params,
     compute_utility,
     discount_factor,
+    skip_endog_grid_storage,
 ):
     state_choice_vec = {**state, "choice": choice}
+
+    # Under skip_endog_grid_storage the endogenous grid is not stored, so
+    # endog_grid_agent carries no usable values (the caller passes a placeholder of
+    # the right shape); this state-choice's own Druedahl-Jorgensen wealth grid is
+    # computed here instead, same as interp1d_policy_and_value_function does for the
+    # simple 1d case. One array serves both lookups below: the fixed common wealth
+    # grid is by definition the same for every continuous-state combo.
+    if skip_endog_grid_storage:
+        own_wealth_grid = compute_own_dj_wealth_grid(
+            state_choice_vec, continuous_grid_functions
+        )
+        wealth_grid_first = own_wealth_grid
+    else:
+        wealth_grid_first = endog_grid_agent[0]
+
+    # Self-referential: the stored solution for this state-choice was solved on
+    # its own grid, so evaluating the grid function on itself reproduces it.
+    own_continuous_state_grids = compute_own_continuous_grids_raw(
+        state_choice_vec, continuous_grid_functions, additional_continuous_state_names
+    )
+    own_continuous_state_space = compute_own_continuous_grid_combos(
+        state_choice_vec, continuous_grid_functions, additional_continuous_state_names
+    )
 
     continuous_state_child_states = {
         name: continuous_state_beginning_of_period[name][None, None]
@@ -391,8 +457,8 @@ def interpnd_policy_and_value_function(
 
     policy_interp, value_interp = (
         interpnd_policy_and_value_for_child_states_on_regular_grids(
-            additional_continuous_state_grids=additional_continuous_state_grids,
-            wealth_grid=endog_grid_agent[0],
+            additional_continuous_state_grids=own_continuous_state_grids,
+            wealth_grid=wealth_grid_first,
             policy_grid_child_states=policy_agent[None, ...],
             value_grid_child_states=value_agent[None, ...],
             continuous_state_child_states=continuous_state_child_states,
@@ -404,17 +470,22 @@ def interpnd_policy_and_value_function(
         )
     )
 
-    exact_mask = jnp.ones_like(next(iter(continuous_state_space.values())), dtype=bool)
+    exact_mask = jnp.ones_like(
+        next(iter(own_continuous_state_space.values())), dtype=bool
+    )
     for name in additional_continuous_state_names:
         exact_mask = exact_mask & jnp.isclose(
-            continuous_state_space[name], continuous_state_beginning_of_period[name]
+            own_continuous_state_space[name],
+            continuous_state_beginning_of_period[name],
         )
     has_exact_combo = jnp.any(exact_mask)
     combo_idx = jnp.argmax(exact_mask)
 
     policy_exact, value_exact = interp1d_policy_and_value_on_wealth_dj(
         wealth=wealth_beginning_of_period,
-        wealth_grid=endog_grid_agent[combo_idx],
+        wealth_grid=(
+            own_wealth_grid if skip_endog_grid_storage else endog_grid_agent[combo_idx]
+        ),
         policy_grid=policy_agent[combo_idx],
         value_grid=value_agent[combo_idx],
         compute_utility=compute_utility,

@@ -9,12 +9,9 @@ from jax import numpy as jnp
 def determine_function_arguments_and_partial_model_specs(
     func,
     model_specs,
-    not_allowed_state_choices=None,
+    not_allowed_state_choices,
 ):
     signature = set(inspect.signature(func).parameters)
-    not_allowed_state_choices = (
-        [] if not_allowed_state_choices is None else not_allowed_state_choices
-    )
 
     partialed_func, signature = partial_model_specs_and_update_signature(
         func=func,

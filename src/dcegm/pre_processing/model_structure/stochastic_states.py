@@ -61,6 +61,7 @@ def process_stochastic_transitions(
             processed_exog_func = determine_function_arguments_and_partial_model_specs(
                 func=func,
                 model_specs=model_specs,
+                not_allowed_state_choices=[],
             )
             func_list += [processed_exog_func]
             func_dict[name] = processed_exog_func
@@ -119,7 +120,7 @@ def process_stochastic_model_specifications(model_config):
 
 
 def create_sparse_stochastic_trans_map(
-    model_structure, model_funcs, model_config_processed, from_saved=False
+    model_structure, model_funcs, model_config_processed, from_saved
 ):
     """Create sparse mapping from state-choice to stochastic states."""
     state_choice_dict = model_structure["state_choice_space_dict"]
@@ -233,12 +234,16 @@ def create_sparse_stochastic_trans_map(
     sparse_child_states_mapping = model_structure["map_state_choice_to_child_states"][
         keep_mask
     ].reshape(keep_mask.shape[0], -1)
+    sparse_child_states_mapping_actual = model_structure[
+        "map_state_choice_to_child_states_actual"
+    ][keep_mask].reshape(keep_mask.shape[0], -1)
     state_choice_dict_with_idx = {
         **state_choice_dict,
         "index": jnp.arange(n_state_choices),
     }
     return (
         sparse_child_states_mapping,
+        sparse_child_states_mapping_actual,
         state_choice_dict_with_idx,
         compute_stochastic_transition_vec,
         trans_func_dict,

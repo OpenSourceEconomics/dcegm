@@ -253,15 +253,18 @@ def _check_subset_matches_full(model, params):
     )
 
     subset_result = calc_law_of_motion_for_state_choices(
-        state_choice_vec=state_choice_subset,
-        continuous_state_space=model_structure["continuous_state_space"],
-        assets_grid_end_of_period=continuous_states_info["assets_grid_end_of_period"],
+        child_state_choices=state_choice_subset,
         income_shocks_scaled=income_shocks_scaled,
         params=params,
         model_funcs=model_funcs,
         has_additional_continuous_states=continuous_states_info[
             "has_additional_continuous_state"
         ],
+        additional_continuous_state_names=continuous_states_info[
+            "additional_continuous_state_names"
+        ],
+        # No parent/child distinction being tested here.
+        representative_parent_state_choice_vec=state_choice_subset,
     )
 
     expected_parent_states = map_state_choice_to_parent_state[test_idx]

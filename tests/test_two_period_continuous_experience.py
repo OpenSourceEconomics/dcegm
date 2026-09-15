@@ -281,15 +281,10 @@ def create_test_inputs():
         value_interp_final_period,
         marginal_utility_final_last_period,
     ) = solve_final_period(
-        idx_state_choices_final_period=last_two_period_batch_info_cont[
-            "idx_state_choices_final_period"
-        ],
-        state_choice_mat_final_period=last_two_period_batch_info_cont[
-            "state_choice_mat_final_period"
-        ],
+        batch_info=last_two_period_batch_info_cont,
+        model_structure=model.model_structure,
         income_shocks_scaled=income_shocks_scaled,
         continuous_states_info=model_config["continuous_states_info"],
-        model_structure=model.model_structure,
         params=params,
         upper_envelope_method=model_config["upper_envelope"]["method"],
         skip_endog_grid_storage=model_config["upper_envelope"][
@@ -318,7 +313,6 @@ def create_test_inputs():
         taste_shock_scale_is_scalar=True,
         income_shock_weights=income_shock_weights,
         continuous_grids_info=model_config["continuous_states_info"],
-        continuous_state_space=model.model_structure["continuous_state_space"],
         model_funcs=model_funcs_cont,
         debug_info=None,
     )
@@ -457,9 +451,9 @@ def _get_solve_last_two_periods_args(model, params, has_second_continuous_state)
         income_shock_draws_unscaled * income_shock_std + income_shock_mean
     )
 
-    n_continuous_state_combinations = model_structure["continuous_state_space"][
-        next(iter(model_structure["continuous_state_space"]))
-    ].shape[0]
+    n_continuous_state_combinations = model_config["continuous_states_info"][
+        "n_continuous_state_combinations"
+    ]
     (
         value_solved,
         policy_solved,
@@ -469,6 +463,7 @@ def _get_solve_last_two_periods_args(model, params, has_second_continuous_state)
         # Read out grid size
         n_total_wealth_grid=model_config["n_total_wealth_grid"],
         n_state_choices=model_structure["state_choice_space"].shape[0],
+        store_endog_grid=True,
     )
 
     return (

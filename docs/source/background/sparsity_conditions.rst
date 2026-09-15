@@ -82,4 +82,14 @@ Best Practices
 
 Failing to correctly define sparsity conditions will result in `ValueError` exceptions and warnings during model setup, as *dcegm* verifies that every `(state, choice)` pair leads to a valid next state.
 
-To help you setup the correct sparsity conditions for your model, ``setup_model()`` provides a debug mode which can be triggered by passing the argument ``debug=state_space_df``.
+If your restriction depends on a *choice* -- either the one made last period or which choices a state offers at all -- see :ref:`choice_dependent_sparsity`, which covers how the two mechanisms (``sparsity_condition`` and ``state_specific_choice_set``) divide that work between them.
+
+To help you setup the correct sparsity conditions for your model, a debug mode is available which returns a ``pandas.DataFrame`` over the unfiltered state space, showing ``is_valid``/``is_proxied`` per candidate state:
+
+.. code-block:: python
+
+    from dcegm.pre_processing.setup_model import create_model_dict
+
+    state_space_df = create_model_dict(..., debug_info="state_space_df")
+
+Note this must be called on ``create_model_dict``, not on ``setup_model``: the latter is a class that immediately indexes ``model_dict["model_config"]``, so the debug path (which returns a DataFrame) raises ``KeyError: 'model_config'`` there.
