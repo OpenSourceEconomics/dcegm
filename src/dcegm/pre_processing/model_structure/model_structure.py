@@ -54,7 +54,7 @@ def create_model_structure(
     print(f"  discrete state-choice space: {n_state_choices:,} state-choices")
 
     state_space_objects.pop("map_state_to_index_with_proxy")
-    state_space_objects.pop("state_space_incl_proxies")
+    state_space_objects.pop("map_state_to_index_incl_proxies")
 
     model_structure = {
         **state_space_objects,

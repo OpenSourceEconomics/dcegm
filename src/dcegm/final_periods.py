@@ -250,21 +250,6 @@ def solve_final_period(
     idx_state_choices_final_period = batch_info["idx_state_choices_final_period"]
     state_choice_mat_final_period = batch_info["state_choice_mat_final_period"]
 
-    # Read out the unique final period states.
-    state_mat_unique_final_period = {
-        key: var[batch_info["unique_final_period_states"]]
-        for key, var in model_structure["state_space_dict"].items()
-    }
-
-    # The representative parent indexes per final state or final state choice.
-    rep_parent_idx_per_state = batch_info[
-        "representative_second_last_period_parent_idx_per_final_state"
-    ]
-    rep_parent_idx_per_state_choice = batch_info[
-        "rep_sec_last_period_parent_idx_per_final_state_choice"
-    ]
-    # Now the state choices in the final period
-    state_row_for_state_choice = batch_info["state_row_for_final_period_state_choice"]
     has_additional_continuous_states = continuous_states_info[
         "has_additional_continuous_state"
     ]
@@ -272,14 +257,13 @@ def solve_final_period(
         "additional_continuous_state_names"
     ]
 
-    # Then call the law of motion to get the continuous states and wealth at the final period.
+    # Then call the law of motion to get the continuous states and wealth at the
+    # final period. law_of_motion_arrays was assembled once at model setup, keeping
+    # only the branch this model takes (see bundle_law_of_motion_arrays in
+    # batch_creation.py); the final period's own state-choices are the children.
     final_period_cont_states = calc_law_of_motion(
-        child_state_choices=state_choice_mat_final_period,
-        rep_parent_state_choice_idx_per_child_state=rep_parent_idx_per_state,
-        rep_parent_state_choice_idx_per_child_state_choice=rep_parent_idx_per_state_choice,
+        law_of_motion_arrays=batch_info["law_of_motion_arrays"],
         state_choice_space_dict=model_structure["state_choice_space_dict"],
-        unique_child_states=state_mat_unique_final_period,
-        state_row_for_state_choice=state_row_for_state_choice,
         income_shocks_scaled=income_shocks_scaled,
         params=params,
         model_funcs=model_funcs,

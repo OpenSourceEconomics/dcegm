@@ -34,17 +34,21 @@ def compute_child_dedup_for_batch(
     state-choice space (that's where the solution itself lives), so ``batch``
     already gives us exactly the identity we need, with no extra lookup required.
 
-    Also exposes the *state*-level dedup that was already being computed internally
-    here (as an intermediate step, before broadcasting out to state-choices) but
-    previously discarded: ``unique_child_states``,
+    The proxy (``map_state_choice_to_index`` here is the *with-proxy* indexer) is a
+    pure value-reuse pointer, kept out of the transition granularity: the rows are
+    the *non-proxy* child state-choices, so distinct children that reuse one solved
+    slot (death at different ages -> one last-period slot) stay separate for the law
+    of motion, and only the value/policy lookup follows the proxy (``value_slot``,
+    which then repeats across those rows).
+
+    Also exposes the *state*-level dedup: ``unique_child_states``,
     ``representative_parent_state_choice_per_child_state``, and
     ``state_row_for_state_choice``. These let a caller evaluate something once per
     unique child *state* (e.g. a law-of-motion function that doesn't depend on the
     child's own choice) and then ``np.take``/``jnp.take`` the result out to the
-    state-choice granularity ``unique_child_state_choice_idxs`` already needs for
-    reading stored policy/value -- mirrors the existing
-    ``child_states_to_integrate_exog`` gather used one stage later, in
-    ``calculate_candidate_solutions_from_euler_equation``.
+    state-choice granularity ``value_slot`` needs for reading stored policy/value --
+    mirrors the existing ``child_states_to_integrate_exog`` gather used one stage
+    later, in ``calculate_candidate_solutions_from_euler_equation``.
 
     Returns:
         tuple:
@@ -53,14 +57,14 @@ def compute_child_dedup_for_batch(
             maps each (parent row, stochastic draw) to a position in the unique
             child *state* space.
         - child_state_choices_to_aggr_choice (np.ndarray): shape (n_unique_child_states,
-            n_choices), maps each (child state, choice) to a position in the unique
-            child *state-choice* space (or an out-of-bounds sentinel).
-        - unique_child_state_choice_idxs (np.ndarray): the deduplicated child
-            state-choice indices themselves.
+            n_choices), maps each (child state, choice) to its row in the non-proxy
+            child *state-choice* axis (or an out-of-bounds sentinel).
+        - value_slot (np.ndarray): one entry per non-proxy child state-choice; the
+            solved (proxy) state-choice index whose value/policy/endog that row
+            reads. Repeats across rows whose children share a proxy slot.
         - representative_parent_state_choice_for_child (np.ndarray): same length as
-            unique_child_state_choice_idxs; for each unique child state-choice, the
-            state-choice index of one parent (from this batch) that transitions to
-            it.
+            value_slot; for each row, the state-choice index of one parent (from
+            this batch) that transitions to it.
         - unique_child_states (np.ndarray): the deduplicated child *state* indices
             (into ``state_space``) -- one entry per unique child state, collapsing
             across that state's own choices.
@@ -69,10 +73,10 @@ def compute_child_dedup_for_batch(
             state-choice index of one parent that transitions to it (same value
             used across all of that state's own choices in
             representative_parent_state_choice_for_child).
-        - state_row_for_state_choice (np.ndarray): same length as
-            unique_child_state_choice_idxs; for each unique child state-choice, its
-            row position in unique_child_states -- the gather index needed to
-            expand a per-state result out to per-state-choice granularity.
+        - state_row_for_state_choice (np.ndarray): same length as value_slot; for
+            each non-proxy child state-choice, its row position in
+            unique_child_states -- the gather index needed to expand a per-state
+            result out to per-state-choice granularity.
 
     """
     child_states_idxs = map_state_choice_to_child_states[batch]
@@ -82,6 +86,7 @@ def compute_child_dedup_for_batch(
         child_states_idxs, return_index=True, return_inverse=True
     )
     child_states_to_integrate_exog = inverse_ids.reshape(child_states_idxs.shape)
+    n_unique_child_states = unique_child_states.shape[0]
 
     # A representative parent state-choice (by local row within `batch`) for each
     # unique child state -- the batch row/stochastic-draw where that child state
@@ -93,65 +98,64 @@ def compute_child_dedup_for_batch(
 
     child_states_batch = np.take(state_space, unique_child_states, axis=0)
     child_states_tuple = tuple(child_states_batch[:, i] for i in range(n_state_vars))
-    unique_state_choice_idxs_childs = map_state_choice_to_index[child_states_tuple]
+    # Proxy solved state-choice index for each (unique child state, choice) cell.
+    # `map_state_choice_to_index` is the *with-proxy* indexer, so a child whose own
+    # solution is reused points at the reused (proxy) slot; cells the child does not
+    # admit map to `invalid_state_idx`.
+    proxy_state_choice_idxs_childs = map_state_choice_to_index[child_states_tuple]
 
     # The representative parent is a property of the child *state*, not of which of
     # its choices we're looking at, so it is the same across all n_choices columns
     # for a given child-state row.
-    representative_parent_state_choice_per_child_choice = np.broadcast_to(
+    representative_parent_per_cell = np.broadcast_to(
         representative_parent_state_choice_per_child_state[:, None],
-        unique_state_choice_idxs_childs.shape,
+        proxy_state_choice_idxs_childs.shape,
+    )
+    state_row_per_cell = np.broadcast_to(
+        np.arange(n_unique_child_states)[:, None],
+        proxy_state_choice_idxs_childs.shape,
     )
 
-    (
-        unique_child_state_choice_idxs,
-        first_occurrence_state_choice,
-        inverse_child_state_choice_ids,
-    ) = np.unique(
-        unique_state_choice_idxs_childs, return_index=True, return_inverse=True
-    )
+    # One row per (child state, choice) the child admits -- the *non-proxy*
+    # granularity the law of motion needs. Distinct children that reuse the same
+    # solved slot (e.g. death at different ages, all proxied to one last-period
+    # slot) stay separate rows here, because the transition *into* them differs;
+    # only the value/policy lookup collapses, via the repeated ``value_slot`` below.
+    # Sorting the admitted cells by their proxy solved index reproduces the previous
+    # ``np.unique`` ordering bit-for-bit whenever no proxy actually collapses two
+    # children (proxy == actual) -- i.e. every model without a cross-period proxy.
+    flat_proxy_idx = proxy_state_choice_idxs_childs.ravel()
+    admitted_cell = flat_proxy_idx != invalid_state_idx
+    ordered_cells = np.where(admitted_cell)[0][
+        np.argsort(flat_proxy_idx[admitted_cell], kind="stable")
+    ]
+
+    # value_slot: the solved (proxy) state-choice whose value/policy/endog this row
+    # reads -- repeated across rows that share a proxy. state_row_for_state_choice:
+    # the row's own (non-proxy) child *state* row, for expanding a per-state law of
+    # motion back out to per-state-choice granularity.
+    value_slot = flat_proxy_idx[ordered_cells]
+    state_row_for_state_choice = state_row_per_cell.ravel()[ordered_cells]
     representative_parent_state_choice_for_child = (
-        representative_parent_state_choice_per_child_choice.ravel()[
-            first_occurrence_state_choice
-        ]
+        representative_parent_per_cell.ravel()[ordered_cells]
     )
 
-    if (
-        len(unique_child_state_choice_idxs) > 0
-        and unique_child_state_choice_idxs[-1] == invalid_state_idx
-    ):
-        unique_child_state_choice_idxs = unique_child_state_choice_idxs[:-1]
-        representative_parent_state_choice_for_child = (
-            representative_parent_state_choice_for_child[:-1]
-        )
-        inverse_child_state_choice_ids[
-            inverse_child_state_choice_ids >= np.max(inverse_child_state_choice_ids)
-        ] = out_of_bounds_state_choice_idx
-
-    child_state_choices_to_aggr_choice = inverse_child_state_choice_ids.reshape(
-        unique_state_choice_idxs_childs.shape
+    # For each (child state, choice) cell, its row position, or an out-of-bounds
+    # sentinel for choices the child does not admit -- the choice-aggregation map.
+    flat_aggr = np.full(
+        flat_proxy_idx.shape[0],
+        fill_value=out_of_bounds_state_choice_idx,
+        dtype=int,
     )
-
-    # For each unique child state-choice, which row of unique_child_states it came
-    # from -- the gather index for expanding a per-state result out to
-    # per-state-choice granularity. Every valid (state, choice) entry maps to
-    # exactly one position in unique_child_state_choice_idxs (by construction of
-    # the np.unique call above), so this scatter has no collisions.
-    n_unique_child_states = unique_child_states.shape[0]
-    state_row_repeated = np.repeat(
-        np.arange(n_unique_child_states), unique_state_choice_idxs_childs.shape[1]
+    flat_aggr[ordered_cells] = np.arange(ordered_cells.shape[0])
+    child_state_choices_to_aggr_choice = flat_aggr.reshape(
+        proxy_state_choice_idxs_childs.shape
     )
-    flat_state_choice_pos = child_state_choices_to_aggr_choice.ravel()
-    valid = flat_state_choice_pos < len(unique_child_state_choice_idxs)
-    state_row_for_state_choice = np.empty(
-        len(unique_child_state_choice_idxs), dtype=state_row_repeated.dtype
-    )
-    state_row_for_state_choice[flat_state_choice_pos[valid]] = state_row_repeated[valid]
 
     return (
         child_states_to_integrate_exog,
         child_state_choices_to_aggr_choice,
-        unique_child_state_choice_idxs,
+        value_slot,
         representative_parent_state_choice_for_child,
         unique_child_states,
         representative_parent_state_choice_per_child_state,

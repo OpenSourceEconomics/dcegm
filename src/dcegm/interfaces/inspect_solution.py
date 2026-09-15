@@ -1,5 +1,6 @@
 import copy
 
+import jax
 import jax.lax
 import jax.numpy as jnp
 import numpy as np
@@ -205,10 +206,9 @@ def partially_solve(
                 - rescale_idx
             )
 
-            state_choices_unique_child_states_batch = {
-                key: segment_info["state_choices_unique_child_states"][key][id_batch, :]
-                for key in segment_info["state_choices_unique_child_states"].keys()
-            }
+            law_of_motion_arrays_batch = jax.tree.map(
+                lambda leaf: leaf[id_batch], segment_info["law_of_motion_arrays"]
+            )
 
             xs = (
                 idx_to_solve,
@@ -218,14 +218,7 @@ def partially_solve(
                 segment_info["child_states_idxs"][id_batch, :],
                 state_choices_batch,
                 state_choices_childs_batch,
-                segment_info["rep_parent_state_choice_idx_per_child_state_choice"][
-                    id_batch, :
-                ],
-                state_choices_unique_child_states_batch,
-                segment_info["rep_parent_state_choice_idx_per_child_state"][
-                    id_batch, :
-                ],
-                segment_info["state_row_for_state_choice"][id_batch, :],
+                law_of_motion_arrays_batch,
             )
             carry = (value_solved, policy_solved, endog_grid_solved)
             single_period_out_dict = solve_single_period(

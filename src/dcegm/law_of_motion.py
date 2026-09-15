@@ -9,12 +9,8 @@ from dcegm.check_func_outputs import (
 
 
 def calc_law_of_motion(
-    child_state_choices: Dict[str, jnp.ndarray],
-    rep_parent_state_choice_idx_per_child_state_choice: jnp.ndarray,
-    rep_parent_state_choice_idx_per_child_state: jnp.ndarray,
-    unique_child_states: Dict[str, jnp.ndarray],
+    law_of_motion_arrays: Dict[str, jnp.ndarray],
     state_choice_space_dict: Dict[str, jnp.ndarray],
-    state_row_for_state_choice: jnp.ndarray,
     income_shocks_scaled: jnp.ndarray,
     params: Dict[str, float],
     model_funcs: Dict[str, Any],
@@ -40,30 +36,22 @@ def calc_law_of_motion(
     The two branches are alternatives, not nested: each calls the shared core
     ``_calc_transitions_for_rows`` with different rows -- state-choices in one
     case, deduplicated child states in the other -- so there is exactly one
-    implementation of the transition math. Callers supply both sets of index
-    arrays; which set is read depends on the flag.
+    implementation of the transition math.
 
     Args:
-        child_state_choices: State-choice dict for the children whose
-            beginning-of-period continuous state/wealth is being computed.
-            Read directly when transitions depend on ``choice``; only used to
-            infer the batch size in the deduplicated branch (the actual rows
-            evaluated there are ``unique_child_states``).
-        rep_parent_state_choice_idx_per_child_state_choice: For each child
-            state-choice, the index (into ``state_choice_space_dict``) of one
-            parent state-choice that transitions into it. Read only when
-            transitions depend on ``choice``.
-        rep_parent_state_choice_idx_per_child_state: As above, but one index
-            per unique child *state*. Read only when transitions do not
-            depend on ``choice``.
-        unique_child_states: The children deduplicated to bare states, already
-            gathered into a state dict. Read only when transitions do not
-            depend on ``choice``.
+        law_of_motion_arrays: The child arrays for the branch actually taken.
+            Assembled once at model setup (see ``bundle_law_of_motion_arrays`` in
+            ``pre_processing/batches/batch_creation.py``) and threaded through the
+            backward induction, so only the branch's arrays are carried. When
+            transitions depend on ``choice``: ``child_state_choices`` (the child's
+            own, *non-proxy* state-choice dict -- the transition into it uses its
+            real state, not the proxy value-reuse slot) and
+            ``rep_parent_state_choice_idx_per_child_state_choice``. Otherwise:
+            ``unique_child_states``, ``rep_parent_state_choice_idx_per_child_state``
+            and ``state_row_for_state_choice``. Each representative-parent index
+            points into ``state_choice_space_dict``.
         state_choice_space_dict: Full state-choice space; the representative-
-            parent index arrays above are gathered out of this.
-        state_row_for_state_choice: Maps each child state-choice back to its
-            row in ``unique_child_states``. Read only when transitions do not
-            depend on ``choice``.
+            parent index arrays are gathered out of this.
         income_shocks_scaled: Quadrature points for the income shock, already
             scaled by its mean and standard deviation.
         params: Model parameters.
@@ -92,11 +80,15 @@ def calc_law_of_motion(
         # model-build time) guarantees every parent sharing a child agrees on its own
         # grid.
         rep_parent_state_choice_per_state_choice = {
-            key: var[rep_parent_state_choice_idx_per_child_state_choice]
+            key: var[
+                law_of_motion_arrays[
+                    "rep_parent_state_choice_idx_per_child_state_choice"
+                ]
+            ]
             for key, var in state_choice_space_dict.items()
         }
         return calc_law_of_motion_for_state_choices(
-            child_state_choices=child_state_choices,
+            child_state_choices=law_of_motion_arrays["child_state_choices"],
             representative_parent_state_choice_vec=rep_parent_state_choice_per_state_choice,
             income_shocks_scaled=income_shocks_scaled,
             params=params,
@@ -110,15 +102,19 @@ def calc_law_of_motion(
         # fast path taken when the user's transition functions don't depend on "choice"
         # (see interpolate_value_and_marg_util / law_of_motion.py).
         rep_parent_state_choices_per_child_state = {
-            key: var[rep_parent_state_choice_idx_per_child_state]
+            key: var[
+                law_of_motion_arrays["rep_parent_state_choice_idx_per_child_state"]
+            ]
             for key, var in state_choice_space_dict.items()
         }
         return calc_law_of_motion_for_child_states(
-            child_states=unique_child_states,
+            child_states=law_of_motion_arrays["unique_child_states"],
             representative_parent_state_choices=(
                 rep_parent_state_choices_per_child_state
             ),
-            state_row_for_state_choice=state_row_for_state_choice,
+            state_row_for_state_choice=law_of_motion_arrays[
+                "state_row_for_state_choice"
+            ],
             income_shocks_scaled=income_shocks_scaled,
             params=params,
             model_funcs=model_funcs,

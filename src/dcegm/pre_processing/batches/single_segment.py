@@ -4,6 +4,32 @@ from dcegm.pre_processing.batches.algo_batch_size import determine_optimal_batch
 from dcegm.pre_processing.batches.child_state_dedup import compute_child_dedup_for_batch
 
 
+def build_no_proxy_child_state_choices(
+    state_space_dict,
+    unique_child_states,
+    state_row_for_state_choice,
+    proxy_child_state_choices,
+):
+    """Reconstruct the *non-proxy* child state-choice dict for the law of motion.
+
+    The proxy (value-reuse) child in ``proxy_child_state_choices`` may point at a
+    different discrete state than the real child (e.g. death at a different age all
+    reusing one last-period slot), so the transition *into* the child must use the
+    child's own state -- recovered from ``unique_child_states`` via
+    ``state_row_for_state_choice``. The choice is unaffected by the sparsity proxy (it
+    maps the state, keeping the choice axis), so it is taken straight from the proxy
+    child. Works for both the aligned per-segment arrays (2d, batch axis) and a single
+    leftover batch (1d).
+
+    """
+    child_state_index = np.take_along_axis(
+        unique_child_states, state_row_for_state_choice, axis=-1
+    )
+    no_proxy = {key: var[child_state_index] for key, var in state_space_dict.items()}
+    no_proxy["choice"] = proxy_child_state_choices["choice"]
+    return no_proxy
+
+
 def create_single_segment_of_batches(
     bool_state_choices_to_batch,
     model_structure,
@@ -17,15 +43,17 @@ def create_single_segment_of_batches(
     state_choice_space = model_structure["state_choice_space"]
     state_choice_space_dict = model_structure["state_choice_space_dict"]
 
-    state_space = model_structure["state_space"]
-    state_space_dict = model_structure["state_space_dict"]
     discrete_states_names = model_structure["discrete_states_names"]
+    state_space = model_structure["state_space_incl_proxies"]
+    state_space_dict = {
+        name: state_space[:, i] for i, name in enumerate(discrete_states_names)
+    }
 
     map_state_choice_to_parent_state = model_structure[
         "map_state_choice_to_parent_state"
     ]
     map_state_choice_to_child_states = model_structure[
-        "map_state_choice_to_child_states"
+        "map_state_choice_to_child_states_actual"
     ]
     map_state_choice_to_index = model_structure["map_state_choice_to_index_with_proxy"]
 
@@ -274,6 +302,12 @@ def correct_for_uneven_last_batch(
         last_state_choices_unique_child_states = {
             key: var[last_unique_child_states] for key, var in state_space_dict.items()
         }
+        last_state_choices_childs_no_proxy = build_no_proxy_child_state_choices(
+            state_space_dict=state_space_dict,
+            unique_child_states=last_unique_child_states,
+            state_row_for_state_choice=last_state_row_for_state_choice,
+            proxy_child_state_choices=last_state_choices_childs,
+        )
 
         last_batch_info = {
             "state_choice_idx": last_batch,
@@ -284,6 +318,7 @@ def correct_for_uneven_last_batch(
             "child_state_choice_idxs_to_interp": last_child_state_idx_interp,
             "child_states_idxs": last_parent_state_idx_of_state_choice,
             "state_choices_childs": last_state_choices_childs,
+            "state_choices_childs_no_proxy": last_state_choices_childs_no_proxy,
             "rep_parent_state_choice_idx_per_child_state_choice": (
                 last_representative_parent_state_choice_for_child
             ),
@@ -393,6 +428,12 @@ def prepare_and_align_batch_arrays(
     state_choices_unique_child_states = {
         key: var[unique_child_states] for key, var in state_space_dict.items()
     }
+    state_choices_childs_no_proxy = build_no_proxy_child_state_choices(
+        state_space_dict=state_space_dict,
+        unique_child_states=unique_child_states,
+        state_row_for_state_choice=state_row_for_state_choice,
+        proxy_child_state_choices=state_choices_childs,
+    )
 
     batch_info = {
         # Now the batch array information. First the batch itself
@@ -404,6 +445,11 @@ def prepare_and_align_batch_arrays(
         "child_state_choice_idxs_to_interp": child_state_choice_idxs_to_interp,
         "child_states_idxs": parent_state_idx_of_state_choice,
         "state_choices_childs": state_choices_childs,
+        # The non-proxy children, at the same per-row granularity as
+        # state_choices_childs: their real state (death at its actual age), for the
+        # law-of-motion transition. state_choices_childs above keeps the proxy
+        # identity, since that is where the reused value/policy is stored.
+        "state_choices_childs_no_proxy": state_choices_childs_no_proxy,
         # State-choice index of a representative parent for each unique child --
         # used only to pick which state-choice's own continuous grid to feed the
         # law of motion (see law_of_motion.py). Not to be confused with

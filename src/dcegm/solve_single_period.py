@@ -54,7 +54,7 @@ def solve_single_period(
             "endogenous" grid is by construction its own ``assets_begin_of_period``
             grid and is recomputed on demand (``compute_own_dj_wealth_grid``)
             instead of stored.
-        xs: The per-batch slice produced by the scan. An 11-tuple; all index arrays
+        xs: The per-batch slice produced by the scan. An 8-tuple; all index arrays
             are into the global state-choice space unless noted:
 
             0. ``state_choices_idxs`` -- the state-choices this batch solves, i.e.
@@ -73,31 +73,20 @@ def solve_single_period(
             5. ``state_choice_mat`` -- state-choice dict for this batch's own rows.
             6. ``state_choice_mat_child`` -- state-choice dict for the children in
                (3).
-            7. ``rep_parent_state_choice_idx_per_child_state_choice`` -- for each
-               child in (3), the index of one parent state-choice that transitions
-               into it. Used *only* to pick whose continuous grid feeds the law of
-               motion; any parent works because
-               ``check_continuous_grid_consistency_across_shared_children``
-               guarantees they agree (see ``law_of_motion.py``).
-            8. ``unique_child_states`` -- the children of (3) deduplicated to bare
-               *states*, already gathered into a state dict (see
-               ``child_state_dedup.py``).
-            9. ``rep_parent_state_choice_idx_per_child_state`` -- as (7), but one
-               index per unique child state rather than per child state-choice.
-            10. ``state_row_for_state_choice`` -- for each child state-choice in
-                (3), its row in (8). The gather that expands a per-state result back
-                out to per-state-choice.
-
-            Entries (8)-(10) are read only when the law of motion is evaluated at
-            state granularity, i.e. when no transition function declares ``choice``
-            (see ``calc_law_of_motion``); (7) is read only otherwise -- but which
-            branch runs is decided once inside ``calc_law_of_motion``, not here, so
-            both sets are always supplied to keep the scan's ``xs`` structure
-            model-independent.
+            7. ``law_of_motion_arrays`` -- the child index/dedup arrays
+               ``calc_law_of_motion`` reads, carrying only the branch this model
+               takes. Assembled once at model setup and threaded through unchanged
+               (see ``bundle_law_of_motion_arrays`` in ``batch_creation.py``): a
+               ``rep_parent_state_choice_idx_per_child_state_choice`` when any
+               transition declares ``choice``, otherwise the per-unique-child-state
+               dedup arrays (``unique_child_states``,
+               ``rep_parent_state_choice_idx_per_child_state``,
+               ``state_row_for_state_choice``). The child state-choice dict itself
+               (6) is passed to ``calc_law_of_motion`` directly.
         params: Model parameters.
         continuous_grids_info: ``model_config["continuous_states_info"]``.
         state_choice_space_dict: Full state-choice space; ``calc_law_of_motion``
-            gathers the representative-parent index arrays (7) and (9) out of this.
+            gathers the representative-parent index array in (7) out of this.
         income_shocks_scaled: Quadrature points for the income shock, already
             scaled by its mean and standard deviation.
         model_funcs: Processed model functions.
@@ -125,10 +114,7 @@ def solve_single_period(
         child_state_idxs,
         state_choice_mat,
         state_choice_mat_child,
-        rep_parent_state_choice_idx_per_child_state_choice,
-        unique_child_states,
-        rep_parent_state_choice_idx_per_child_state,
-        state_row_for_state_choice,
+        law_of_motion_arrays,
     ) = xs
 
     value_child_state_choice = value_solved[child_state_choice_idxs_to_interp]
@@ -142,7 +128,7 @@ def solve_single_period(
     # EGM step 1)
     value_interpolated, marginal_utility_interpolated = interpolate_value_and_marg_util(
         model_funcs=model_funcs,
-        child_state_choices=state_choice_mat_child,
+        child_state_choices_with_proxy=state_choice_mat_child,
         continuous_grids_info=continuous_grids_info,
         income_shocks_scaled=income_shocks_scaled,
         endog_grid_child_state_choice=endog_grid_child_state_choice,
@@ -151,11 +137,8 @@ def solve_single_period(
         params=params,
         upper_envelope_method=upper_envelope_method,
         skip_endog_grid_storage=skip_endog_grid_storage,
-        unique_child_states=unique_child_states,
-        rep_parent_state_choice_idx_per_child_state=rep_parent_state_choice_idx_per_child_state,
-        rep_parent_state_choice_idx_per_child_state_choice=rep_parent_state_choice_idx_per_child_state_choice,
+        law_of_motion_arrays=law_of_motion_arrays,
         state_choice_space_dict=state_choice_space_dict,
-        state_row_for_state_choice=state_row_for_state_choice,
     )
 
     # Check if we have a scalar taste shock scale or state specific. Extract in each of the cases.

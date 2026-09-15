@@ -234,12 +234,16 @@ def create_sparse_stochastic_trans_map(
     sparse_child_states_mapping = model_structure["map_state_choice_to_child_states"][
         keep_mask
     ].reshape(keep_mask.shape[0], -1)
+    sparse_child_states_mapping_actual = model_structure[
+        "map_state_choice_to_child_states_actual"
+    ][keep_mask].reshape(keep_mask.shape[0], -1)
     state_choice_dict_with_idx = {
         **state_choice_dict,
         "index": jnp.arange(n_state_choices),
     }
     return (
         sparse_child_states_mapping,
+        sparse_child_states_mapping_actual,
         state_choice_dict_with_idx,
         compute_stochastic_transition_vec,
         trans_func_dict,

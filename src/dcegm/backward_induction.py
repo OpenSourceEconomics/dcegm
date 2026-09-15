@@ -161,10 +161,7 @@ def backward_induction(
                 segment_info["child_states_idxs"],
                 segment_info["state_choices"],
                 segment_info["state_choices_childs"],
-                segment_info["rep_parent_state_choice_idx_per_child_state_choice"],
-                segment_info["state_choices_unique_child_states"],
-                segment_info["rep_parent_state_choice_idx_per_child_state"],
-                segment_info["state_row_for_state_choice"],
+                segment_info["law_of_motion_arrays"],
             ),
         )
 
@@ -180,12 +177,7 @@ def backward_induction(
                     last_batch_info["child_states_idxs"],
                     last_batch_info["state_choices"],
                     last_batch_info["state_choices_childs"],
-                    last_batch_info[
-                        "rep_parent_state_choice_idx_per_child_state_choice"
-                    ],
-                    last_batch_info["state_choices_unique_child_states"],
-                    last_batch_info["rep_parent_state_choice_idx_per_child_state"],
-                    last_batch_info["state_row_for_state_choice"],
+                    last_batch_info["law_of_motion_arrays"],
                 ),
             )
 

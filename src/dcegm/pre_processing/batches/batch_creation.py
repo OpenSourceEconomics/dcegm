@@ -42,6 +42,140 @@ def _log_total(segment_infos):
     print(f"    {n_seg} segment(s), {total} scan steps total")
 
 
+def _select_law_of_motion_arrays(
+    transition_depends_on_choice,
+    child_state_choices_no_proxy,
+    rep_parent_state_choice_idx_per_child_state_choice,
+    unique_child_states_state_dict,
+    rep_parent_state_choice_idx_per_child_state,
+    state_row_for_state_choice,
+):
+    """Keep only the child arrays the taken law-of-motion branch reads.
+
+    Choice-dependent transitions evaluate the law of motion once per child *state-
+    choice*, so they need the child's own (non-proxy) state-choice dict plus the per-
+    state-choice representative parent; otherwise the coarser per-unique-child-*state*
+    dedup suffices (see ``calc_law_of_motion`` in ``law_of_motion.py``). Whichever
+    branch is taken is a model-static property
+    (``transition_funcs_depend_on_choice["any"]``), so the selection is made once here
+    at setup and the unused branch's arrays are never threaded through the backward
+    induction.
+
+    ``child_state_choices_no_proxy`` is the transition child (its real state), not the
+    proxy value-reuse slot -- the proxy identity stays on the separate
+    ``state_choice_mat_child`` entry used to read the stored value/policy.
+
+    """
+    if transition_depends_on_choice:
+        return {
+            "child_state_choices": child_state_choices_no_proxy,
+            "rep_parent_state_choice_idx_per_child_state_choice": (
+                rep_parent_state_choice_idx_per_child_state_choice
+            ),
+        }
+    return {
+        "unique_child_states": unique_child_states_state_dict,
+        "rep_parent_state_choice_idx_per_child_state": (
+            rep_parent_state_choice_idx_per_child_state
+        ),
+        "state_row_for_state_choice": state_row_for_state_choice,
+    }
+
+
+def _bundle_segment_law_of_motion_arrays(segment_info, transition_depends_on_choice):
+    """Fold a scan segment's per-branch law-of-motion arrays into one dict.
+
+    Pops the four alternatives out of ``segment_info`` (and its leftover
+    ``last_batch_info``, if any) and replaces them with a single
+    ``law_of_motion_arrays`` entry carrying only the taken branch -- the dict
+    ``calc_law_of_motion`` reads, threaded through the backward-induction scan.
+
+    """
+    for info in (segment_info, segment_info.get("last_batch_info")):
+        if info is None:
+            continue
+        info["law_of_motion_arrays"] = _select_law_of_motion_arrays(
+            transition_depends_on_choice=transition_depends_on_choice,
+            child_state_choices_no_proxy=info.pop("state_choices_childs_no_proxy"),
+            rep_parent_state_choice_idx_per_child_state_choice=info.pop(
+                "rep_parent_state_choice_idx_per_child_state_choice"
+            ),
+            unique_child_states_state_dict=info.pop(
+                "state_choices_unique_child_states"
+            ),
+            rep_parent_state_choice_idx_per_child_state=info.pop(
+                "rep_parent_state_choice_idx_per_child_state"
+            ),
+            state_row_for_state_choice=info.pop("state_row_for_state_choice"),
+        )
+
+
+def _bundle_final_period_law_of_motion_arrays(
+    last_two_period_info, transition_depends_on_choice, state_space_dict
+):
+    """Fold the final period's per-branch law-of-motion arrays into one dict.
+
+    The final period reaches ``calc_law_of_motion`` outside the scan (see
+    ``final_periods.solve_final_period``), so it gets the same ``law_of_motion_arrays``
+    bundle, just from the final-period-specific source keys. On the state-dedup branch
+    the unique child *states* are gathered into a state dict here (mirroring the per-
+    batch gather in ``single_segment.py``) rather than in the solve.
+
+    """
+    unique_final_period_states = last_two_period_info.pop("unique_final_period_states")
+    rep_parent_idx_per_state_choice = last_two_period_info.pop(
+        "rep_sec_last_period_parent_idx_per_final_state_choice"
+    )
+    rep_parent_idx_per_state = last_two_period_info.pop(
+        "representative_second_last_period_parent_idx_per_final_state"
+    )
+    state_row_for_state_choice = last_two_period_info.pop(
+        "state_row_for_final_period_state_choice"
+    )
+    unique_child_states_state_dict = {
+        key: var[unique_final_period_states] for key, var in state_space_dict.items()
+    }
+    # The final period's children are its own (solved, real) state-choices, so the
+    # transition child is simply state_choice_mat_final_period -- no proxy is
+    # involved here (death proxies target the last period, which is solved).
+    last_two_period_info["law_of_motion_arrays"] = _select_law_of_motion_arrays(
+        transition_depends_on_choice=transition_depends_on_choice,
+        child_state_choices_no_proxy=last_two_period_info[
+            "state_choice_mat_final_period"
+        ],
+        rep_parent_state_choice_idx_per_child_state_choice=rep_parent_idx_per_state_choice,
+        unique_child_states_state_dict=unique_child_states_state_dict,
+        rep_parent_state_choice_idx_per_child_state=rep_parent_idx_per_state,
+        state_row_for_state_choice=state_row_for_state_choice,
+    )
+
+
+def bundle_law_of_motion_arrays(
+    batch_info, transition_depends_on_choice, state_space_dict
+):
+    """Assemble every ``law_of_motion_arrays`` bundle in a finished ``batch_info``.
+
+    Run once at model setup: walks the final-period info and each scan segment
+    (including any leftover batch) and replaces the per-branch law-of-motion index
+    arrays with the single dict ``calc_law_of_motion`` reads, dropping the branch
+    that this model never takes.
+
+    """
+    _bundle_final_period_law_of_motion_arrays(
+        batch_info["last_two_period_info"],
+        transition_depends_on_choice=transition_depends_on_choice,
+        state_space_dict=state_space_dict,
+    )
+    if batch_info["two_period_model"]:
+        return batch_info
+    for id_segment in range(batch_info["n_segments"]):
+        _bundle_segment_law_of_motion_arrays(
+            batch_info[f"batches_info_segment_{id_segment}"],
+            transition_depends_on_choice=transition_depends_on_choice,
+        )
+    return batch_info
+
+
 def create_batches_and_information(
     model_structure,
     n_periods,

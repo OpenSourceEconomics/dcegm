@@ -20,7 +20,7 @@ from dcegm.law_of_motion import (
 
 def interpolate_value_and_marg_util(
     model_funcs: Dict[str, Any],
-    child_state_choices: Dict[str, int],
+    child_state_choices_with_proxy: Dict[str, int],
     continuous_grids_info: Dict[str, Any],
     income_shocks_scaled: jnp.ndarray,
     endog_grid_child_state_choice: jnp.ndarray,
@@ -29,11 +29,8 @@ def interpolate_value_and_marg_util(
     params: Dict[str, float],
     upper_envelope_method: str,
     skip_endog_grid_storage: bool,
-    unique_child_states: Dict[str, int],
-    rep_parent_state_choice_idx_per_child_state: jnp.ndarray,
-    rep_parent_state_choice_idx_per_child_state_choice: jnp.ndarray,
+    law_of_motion_arrays: Dict[str, Any],
     state_choice_space_dict: Dict[str, int],
-    state_row_for_state_choice: jnp.ndarray,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """EGM step 1: the children's continuation values, seen from this period.
 
@@ -60,10 +57,10 @@ def interpolate_value_and_marg_util(
 
     Args:
         model_funcs: Processed model functions.
-        child_state_choices: State-choice dict for the (deduplicated) children
-            whose stored solution is being read. This is the *child's* own
-            identity -- the transition into it depends on it, e.g. through its
-            ``lagged_choice``.
+        child_state_choices_with_proxy: State-choice dict for the (deduplicated)
+            children whose stored solution is being read. Carries proxy states
+            for children reused from another slot; the value/policy are stored on
+            the proxy's own grid, so its identity is the right one to read them.
         continuous_grids_info: ``model_config["continuous_states_info"]``.
         income_shocks_scaled: Quadrature points for the income shock, already
             scaled.
@@ -76,29 +73,18 @@ def interpolate_value_and_marg_util(
         upper_envelope_method: ``"fues"`` or ``"druedahl_jorgensen"``; selects the
             interpolation routine together with the presence of a continuous state.
         skip_endog_grid_storage: See ``endog_grid_child_state_choice``.
-        unique_child_states: The same children deduplicated to bare states,
-            already gathered into a state dict (see ``child_state_dedup.py``).
-        rep_parent_state_choice_idx_per_child_state: For each unique child
-            state, the index of one *parent* state-choice that transitions
-            into it. Used only to pick whose continuous grid feeds the law of
-            motion -- not the child's own, since the grid values must come
-            from the state actually transitioning. See
-            ``calc_law_of_motion_for_child_states``.
-        rep_parent_state_choice_idx_per_child_state_choice: As above, but one
-            index per child *state-choice* rather than per unique child state.
-            See ``calc_law_of_motion_for_state_choices``.
+        law_of_motion_arrays: The child index/dedup arrays ``calc_law_of_motion``
+            reads, carrying only the branch this model takes -- assembled once at
+            model setup and threaded through the scan (see
+            ``bundle_law_of_motion_arrays`` in ``batch_creation.py``). Either a
+            per-child-state-choice representative parent, or the
+            per-unique-child-state dedup arrays; ``calc_law_of_motion`` decides
+            which from whether any transition function declares ``choice``. The
+            child state-choice dict itself is
+            ``child_state_choices_with_proxy`` above, passed on directly.
         state_choice_space_dict: Full state-choice space; ``calc_law_of_motion``
-            gathers the representative-parent indices above out of this.
-        state_row_for_state_choice: Maps each child state-choice back to its
-            row in ``unique_child_states``.
-
-        The state-granularity arguments
-        (``unique_child_states``/``rep_parent_state_choice_idx_per_child_state``/
-        ``state_row_for_state_choice``) are read only when the law of motion is
-        evaluated at state granularity;
-        ``rep_parent_state_choice_idx_per_child_state_choice`` only otherwise.
-        ``calc_law_of_motion`` decides, from whether any transition function
-        declares ``choice``.
+            gathers the representative-parent indices in ``law_of_motion_arrays``
+            out of this.
 
     Returns:
         tuple of ``(value_interp, marg_util_interp)``, both shaped
@@ -112,15 +98,12 @@ def interpolate_value_and_marg_util(
     irregular = upper_envelope_method == "fues"
 
     # Compute the child continuous-state/wealth transitions on demand for exactly
-    # this batch's children. The continuous grids come from last period, via a representative
-    # parent state-choice.
+    # this batch's children. The continuous grids come from last period, via a
+    # representative parent state-choice. law_of_motion_arrays was assembled once at
+    # model setup and threaded in through the scan (see batch_creation.py).
     law_of_motion = calc_law_of_motion(
-        child_state_choices=child_state_choices,
-        rep_parent_state_choice_idx_per_child_state_choice=rep_parent_state_choice_idx_per_child_state_choice,
-        rep_parent_state_choice_idx_per_child_state=rep_parent_state_choice_idx_per_child_state,
+        law_of_motion_arrays=law_of_motion_arrays,
         state_choice_space_dict=state_choice_space_dict,
-        unique_child_states=unique_child_states,
-        state_row_for_state_choice=state_row_for_state_choice,
         income_shocks_scaled=income_shocks_scaled,
         params=params,
         model_funcs=model_funcs,
@@ -140,7 +123,7 @@ def interpolate_value_and_marg_util(
         return _interpolate_value_and_marg_util_2d_irregular(
             compute_marginal_utility=compute_marginal_utility,
             compute_utility=compute_utility,
-            state_choice_vec=child_state_choices,
+            state_choice_vec=child_state_choices_with_proxy,
             continuous_grids_info=continuous_grids_info,
             continuous_states_next=continuous_states_next,
             wealth_child_states=wealth_child_states,
@@ -156,7 +139,7 @@ def interpolate_value_and_marg_util(
         return _interpolate_value_and_marg_util_nd_regular(
             compute_marginal_utility=compute_marginal_utility,
             compute_utility=compute_utility,
-            state_choice_vec=child_state_choices,
+            state_choice_vec=child_state_choices_with_proxy,
             continuous_grids_info=continuous_grids_info,
             continuous_states_next=continuous_states_next,
             wealth_child_states=wealth_child_states,
@@ -204,7 +187,7 @@ def interpolate_value_and_marg_util(
         return interp_for_single_state_choice(
             compute_marginal_utility,
             compute_utility,
-            child_state_choices,
+            child_state_choices_with_proxy,
             wealth_child_states,
             endog_grid_arg,
             policy_child_state_choice,
@@ -319,8 +302,6 @@ def interp1d_value_and_marg_util_for_state_choice(
     value_interp, marg_util_interp = interp_over_single_wealth_and_income_shock_draw(
         assets_points
     )
-    value_interp = jnp.asarray(value_interp)
-    marg_util_interp = jnp.asarray(marg_util_interp)
 
     # Add it back in the beginning
     return value_interp[None, :, :], marg_util_interp[None, :, :]

@@ -72,6 +72,9 @@ def create_state_choice_space_and_child_state_mapping(
     stochastic_state_space = state_space_arrays["stochastic_state_space"]
     map_state_to_index_with_proxy = state_space_arrays["map_state_to_index_with_proxy"]
     map_state_to_index = state_space_arrays["map_state_to_index"]
+    map_state_to_index_incl_proxies = state_space_arrays[
+        "map_state_to_index_incl_proxies"
+    ]
     state_space = state_space_arrays["state_space"]
 
     n_states, n_state_and_stochastic_variables = state_space.shape
@@ -108,6 +111,16 @@ def create_state_choice_space_and_child_state_mapping(
         (n_states * n_choices, n_stochastic_states),
         fill_value=invalid_indexer_idx,
         dtype=state_space_indexer_dtype,
+    )
+
+    # Parallel to the (proxied) child map above, but with each actual child's own
+    # distinct index (into state_space_incl_proxies). Used only for the
+    # grid-consistency check below, then discarded -- it is not returned or threaded
+    # into solving, so it adds no persistent memory. See map_state_to_index_incl_proxies.
+    map_state_choice_to_child_states_actual = np.full(
+        (n_states * n_choices, n_stochastic_states),
+        fill_value=np.iinfo(map_state_to_index_incl_proxies.dtype).max,
+        dtype=map_state_to_index_incl_proxies.dtype,
     )
 
     stochastic_states_tuple = tuple(
@@ -194,6 +207,9 @@ def create_state_choice_space_and_child_state_mapping(
                     )
 
                 map_state_choice_to_child_states[idx, :] = child_idxs
+                map_state_choice_to_child_states_actual[idx, :] = (
+                    map_state_to_index_incl_proxies[states_next_tuple]
+                )
 
             idx += 1
 
@@ -201,6 +217,9 @@ def create_state_choice_space_and_child_state_mapping(
     state_choice_space = state_choice_space_raw[:idx]
     map_state_choice_to_parent_state = map_state_choice_to_parent_state[:idx]
     map_state_choice_to_child_states = map_state_choice_to_child_states[:idx, :]
+    map_state_choice_to_child_states_actual = map_state_choice_to_child_states_actual[
+        :idx, :
+    ]
 
     map_state_choice_to_index, _ = create_indexer_for_space(
         state_choice_space, max_var_values=np.max(state_choice_space, axis=0)
@@ -249,10 +268,18 @@ def create_state_choice_space_and_child_state_mapping(
         resolved_state_specific_lengths=resolved_state_specific_lengths,
     )
 
+    # Run the grid-consistency check against the *actual* child indices (each child
+    # its own, proxies not collapsed), not the proxied map used for solving. The
+    # proxy is a solution-reuse pointer: parents that transition to genuinely
+    # different children (e.g. death at different ages, all proxied to one
+    # last-period slot) must not be forced to share a grid. The proxied child's
+    # value is independent of the second continuous state (e.g. bequest depends on
+    # wealth, not experience), so reusing one representative parent's grid for it in
+    # the solve stays correct; see continuous_state_grids.py.
     check_continuous_grid_consistency_across_shared_children(
         state_choice_space=state_choice_space,
         discrete_states_names=discrete_states_names,
-        map_state_choice_to_child_states=map_state_choice_to_child_states,
+        map_state_choice_to_child_states=map_state_choice_to_child_states_actual,
         grids_per_state_choice=grids_per_state_choice,
     )
 
@@ -271,6 +298,9 @@ def create_state_choice_space_and_child_state_mapping(
         "map_state_choice_to_index_with_proxy": map_state_choice_to_index_with_proxy,
         "map_state_choice_to_parent_state": map_state_choice_to_parent_state,
         "map_state_choice_to_child_states": map_state_choice_to_child_states,
+        "map_state_choice_to_child_states_actual": (
+            map_state_choice_to_child_states_actual
+        ),
     }
 
     return dict_of_state_choice_space_objects

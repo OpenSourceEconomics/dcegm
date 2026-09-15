@@ -4,7 +4,10 @@ from typing import Callable, Dict
 import jax
 import jax.numpy as jnp
 
-from dcegm.pre_processing.batches.batch_creation import create_batches_and_information
+from dcegm.pre_processing.batches.batch_creation import (
+    bundle_law_of_motion_arrays,
+    create_batches_and_information,
+)
 from dcegm.pre_processing.check_model_config import check_model_config_and_process
 from dcegm.pre_processing.check_model_specs import extract_model_specs_info
 from dcegm.pre_processing.model_functions.process_model_functions import (
@@ -105,6 +108,7 @@ def create_model_dict(
         ].shape[1]
         (
             model_structure["map_state_choice_to_child_states"],
+            model_structure["map_state_choice_to_child_states_actual"],
             model_structure["state_choice_space_dict"],
             model_funcs["compute_stochastic_transition_vec"],
             model_funcs["sparse_processed_stochastic_funcs"],
@@ -131,11 +135,23 @@ def create_model_dict(
         min_period_batch_segments=model_config_processed["min_period_batch_segments"],
         batch_mode=model_config_processed["batch_mode"],
     )
+    # Fold each batch's per-branch law-of-motion index arrays into the single
+    # dict calc_law_of_motion reads, keeping only the branch this model takes.
+    # Model-static, so it is decided here at setup rather than per batch/period.
+    batch_info = bundle_law_of_motion_arrays(
+        batch_info,
+        transition_depends_on_choice=model_funcs["transition_funcs_depend_on_choice"][
+            "any"
+        ],
+        state_space_dict=model_structure["state_space_dict"],
+    )
     if not debug_info == "all":
         # Delete large arrays which is not needed. Not if all is requested
         # by the debug string.
         model_structure.pop("map_state_choice_to_child_states")
         model_structure.pop("map_state_choice_to_index")
+        model_structure.pop("map_state_choice_to_child_states_actual")
+        model_structure.pop("state_space_incl_proxies")
 
     batch_info = jax.tree.map(create_array_with_smallest_int_dtype, batch_info)
     print("Model setup complete.")
