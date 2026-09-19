@@ -2,17 +2,19 @@
 
 from typing import Any, Dict, Optional, Tuple
 
+import jax
 import jax.numpy as jnp
 from jax import vmap
 
 from dcegm.check_func_outputs import (
     check_budget_equation_and_return_wealth_plus_optional_aux,
 )
+from dcegm.egm.aggregate_marginal_utility import aggregate_marg_utils_and_exp_values
 from dcegm.law_of_motion import (
     calc_law_of_motion,
     compute_own_continuous_grid_combos,
 )
-from dcegm.solve_single_period import solve_for_interpolated_values
+from dcegm.solve_single_period import solve_from_marg_util_and_emax
 
 
 def solve_last_two_periods(
@@ -29,6 +31,8 @@ def solve_last_two_periods(
     policy_solved: jnp.ndarray,
     endog_grid_solved: Optional[jnp.ndarray],
     debug_info: Optional[Dict[str, bool]],
+    income_shock_batch_size: int,
+    n_income_shock_blocks: int,
 ) -> Tuple[jnp.ndarray, ...]:
     """Solve the final period and the second-to-last period.
 
@@ -38,11 +42,13 @@ def solve_last_two_periods(
     1. The final period is solved analytically via ``solve_final_period`` --
        everything is consumed, so there is no continuation value to
        interpolate or Euler equation to invert.
-    2. The second-to-last period reaches its own solution the normal EGM way
-       (``solve_for_interpolated_values``), but its children (the final
-       period) are the ``value``/``marginal_utility`` just computed in step 1
-       directly, rather than the *stored*, then re-interpolated, solution
-       ``interpolate_value_and_marg_util`` reads for every other period.
+    2. The second-to-last period reaches its own solution the normal EGM way,
+       but its children (the final period) are evaluated on the spot by
+       ``calc_final_period_for_shock_block``, rather than read from the
+       *stored*, then re-interpolated, solution
+       ``interpolate_value_and_marg_util`` uses for every other period. That
+       evaluation runs per block of income-shock draws, the same memory switch
+       the scan periods use.
 
     Args:
         params: Model parameters.
@@ -73,6 +79,11 @@ def solve_last_two_periods(
         debug_info: ``None`` in the normal solve. When given (with
             ``"return_candidates"``), the pre-upper-envelope candidate
             solutions for the second-to-last period are also returned.
+        income_shock_batch_size: How many income-shock draws the second-to-last
+            period evaluates the final period at once; see
+            ``solve_single_period``.
+        n_income_shock_blocks: ``n_quad_points // income_shock_batch_size``,
+            worked out in ``check_model_config.py``.
 
     Returns:
         ``(value_solved, policy_solved, endog_grid_solved)`` with the final
@@ -86,8 +97,6 @@ def solve_last_two_periods(
         value_solved,
         policy_solved,
         endog_grid_solved,
-        value_interp_final_period,
-        marginal_utility_final_last_period,
     ) = solve_final_period(
         batch_info=batch_info,
         model_structure=model_structure,
@@ -112,20 +121,72 @@ def solve_last_two_periods(
             last_two_period_batch_info["state_choice_mat_final_period"], params
         )
 
-    out_dict_second_last = solve_for_interpolated_values(
-        value_interpolated=value_interp_final_period,
-        marginal_utility_interpolated=marginal_utility_final_last_period,
+    def marg_util_and_emax_for_shock_block(income_shocks_block, weights_block):
+        """EGM steps 1) and 2) for one block of income-shock draws.
+
+        The block's own contribution to the quadrature sum: evaluate the final period at
+        these draws, then aggregate over choices and weight by these draws' own
+        quadrature weights.
+
+        """
+        _, value_final_period, marg_util_final_period = (
+            calc_final_period_for_shock_block(
+                income_shocks_block=income_shocks_block,
+                batch_info=batch_info,
+                model_structure=model_structure,
+                continuous_states_info=continuous_states_info,
+                params=params,
+                model_funcs=model_funcs,
+            )
+        )
+        return aggregate_marg_utils_and_exp_values(
+            value_state_choice_specific=value_final_period,
+            marg_util_state_choice_specific=marg_util_final_period,
+            reshape_state_choice_vec_to_mat=last_two_period_batch_info[
+                "state_to_choices_final_period"
+            ],
+            taste_shock_scale=taste_shock_scale,
+            taste_shock_scale_is_scalar=ts_function["taste_shock_scale_is_scalar"],
+            income_shock_weights=weights_block,
+        )
+
+    # Reshape the income shocks and weights into the blocks we will loop over. If
+    # n_income_shock_blocks = 1 then we just calculate for all income shocks at once.
+    shocks_blocked = income_shocks_scaled.reshape(
+        n_income_shock_blocks, income_shock_batch_size
+    )
+    weights_blocked = income_shock_weights.reshape(
+        n_income_shock_blocks, income_shock_batch_size
+    )
+
+    # Do it once to intialize final arrays
+    marg_util, emax = marg_util_and_emax_for_shock_block(
+        shocks_blocked[0], weights_blocked[0]
+    )
+
+    # If more blocks are requested then loop over them and add weighted results.
+    if n_income_shock_blocks > 1:
+
+        def add_shock_block(id_block, carry):
+            marg_util_so_far, emax_so_far = carry
+            marg_util_block, emax_block = marg_util_and_emax_for_shock_block(
+                shocks_blocked[id_block], weights_blocked[id_block]
+            )
+            return marg_util_so_far + marg_util_block, emax_so_far + emax_block
+
+        marg_util, emax = jax.lax.fori_loop(
+            1, n_income_shock_blocks, add_shock_block, (marg_util, emax)
+        )
+
+    # EGM step 3)
+    out_dict_second_last = solve_from_marg_util_and_emax(
+        marg_util=marg_util,
+        emax=emax,
         state_choice_mat=last_two_period_batch_info[
             "state_choice_mat_second_last_period"
         ],
         child_state_idxs=last_two_period_batch_info["child_states_second_last_period"],
-        states_to_choices_child_states=last_two_period_batch_info[
-            "state_to_choices_final_period"
-        ],
-        taste_shock_scale=taste_shock_scale,
-        taste_shock_scale_is_scalar=ts_function["taste_shock_scale_is_scalar"],
         params=params,
-        income_shock_weights=income_shock_weights,
         continuous_grids_info=continuous_states_info,
         model_funcs=model_funcs,
         debug_info=debug_info,
@@ -235,64 +296,13 @@ def solve_final_period(
         - policy_solved: Likewise for policy.
         - endog_grid_solved: Likewise for the endogenous grid (unchanged when
           ``skip_endog_grid_storage``).
-        - value: The final period's own value, shape
-          ``(n_final_state_choices, n_continuous_combinations, n_exog_savings,
-          n_income_shocks)`` -- fed directly into
-          ``solve_for_interpolated_values`` for the second-to-last period,
-          bypassing the usual store-then-reinterpolate path.
-        - marg_util: The final period's own marginal utility, same shape.
 
     """
 
     compute_utility = model_funcs["compute_utility_final"]
-    compute_marginal_utility = model_funcs["compute_marginal_utility_final"]
 
     idx_state_choices_final_period = batch_info["idx_state_choices_final_period"]
     state_choice_mat_final_period = batch_info["state_choice_mat_final_period"]
-
-    has_additional_continuous_states = continuous_states_info[
-        "has_additional_continuous_state"
-    ]
-    additional_continuous_state_names = continuous_states_info[
-        "additional_continuous_state_names"
-    ]
-
-    # Then call the law of motion to get the continuous states and wealth at the
-    # final period. law_of_motion_arrays was assembled once at model setup, keeping
-    # only the branch this model takes (see bundle_law_of_motion_arrays in
-    # batch_creation.py); the final period's own state-choices are the children.
-    final_period_cont_states = calc_law_of_motion(
-        law_of_motion_arrays=batch_info["law_of_motion_arrays"],
-        state_choice_space_dict=model_structure["state_choice_space_dict"],
-        income_shocks_scaled=income_shocks_scaled,
-        params=params,
-        model_funcs=model_funcs,
-        has_additional_continuous_states=has_additional_continuous_states,
-        additional_continuous_state_names=additional_continuous_state_names,
-    )
-    wealth_final_period = final_period_cont_states["assets_begin_of_period"]
-    continuous_state_final = final_period_cont_states["continuous_states"]
-
-    value, marg_util = vmap(
-        vmap(
-            vmap(
-                vmap(
-                    calc_value_and_marg_util_for_each_gridpoint,
-                    in_axes=(None, None, 0, None, None, None),
-                ),
-                in_axes=(None, None, 0, None, None, None),
-            ),
-            in_axes=(None, 0, 0, None, None, None),
-        ),
-        in_axes=(0, 0, 0, None, None, None),
-    )(
-        state_choice_mat_final_period,
-        continuous_state_final,
-        wealth_final_period,
-        params,
-        compute_utility,
-        compute_marginal_utility,
-    )
 
     if (
         continuous_states_info["has_additional_continuous_state"]
@@ -323,10 +333,22 @@ def solve_final_period(
         wealth_sorted = jnp.take_along_axis(wealth_at_regular, sort_idx, axis=2)
         values_sorted = jnp.take_along_axis(values_regular, sort_idx, axis=2)
     else:
-        middle_of_draws = int((value.shape[3] - 1) / 2)
-        value_final = value[:, :, :, middle_of_draws]
+        # Without a regular storage grid the final period is stored on the wealth it is
+        # reached at under the middle quadrature draw. Only that draw is computed here.
+        middle_of_draws = int((income_shocks_scaled.shape[0] - 1) / 2)
+        wealth_middle_draw, value_middle_draw, _ = calc_final_period_for_shock_block(
+            income_shocks_block=income_shocks_scaled[
+                middle_of_draws : middle_of_draws + 1
+            ],
+            batch_info=batch_info,
+            model_structure=model_structure,
+            continuous_states_info=continuous_states_info,
+            params=params,
+            model_funcs=model_funcs,
+        )
+        value_final = value_middle_draw[:, :, :, 0]
 
-        wealth_to_save = wealth_final_period[:, :, :, middle_of_draws]
+        wealth_to_save = wealth_middle_draw[:, :, :, 0]
         sort_idx = jnp.argsort(wealth_to_save, axis=2)
         wealth_sorted = jnp.take_along_axis(wealth_to_save, sort_idx, axis=2)
         values_sorted = jnp.take_along_axis(value_final, sort_idx, axis=2)
@@ -361,9 +383,80 @@ def solve_final_period(
         value_solved,
         policy_solved,
         endog_grid_solved,
-        value,
-        marg_util,
     )
+
+
+def calc_final_period_for_shock_block(
+    income_shocks_block: jnp.ndarray,
+    batch_info: Dict[str, Any],
+    model_structure: Dict[str, Any],
+    continuous_states_info: Dict[str, Any],
+    params: Dict[str, float],
+    model_funcs: Dict[str, Any],
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+    """The final period's wealth, value and marginal utility at one block of draws.
+
+    The law of motion puts each final-period state-choice at a beginning-of-period
+    wealth for every end-of-period assets grid point, continuous-state combination and
+    income-shock draw in the block; the terminal utility is evaluated there. Nothing is
+    saved in the final period, so that wealth is both the "child" wealth of the
+    transition and the final period's own grid.
+
+    law_of_motion_arrays was assembled once at model setup, keeping only the branch
+    this model takes (see bundle_law_of_motion_arrays in batch_creation.py); the final
+    period's own state-choices are the children.
+
+    Args:
+        income_shocks_block: The block of scaled quadrature points to evaluate at.
+        batch_info: Final-period batch information; see ``solve_final_period``.
+        model_structure: Model structure, read via ``batch_info``'s index arrays.
+        continuous_states_info: ``model_config["continuous_states_info"]``.
+        params: Model parameters.
+        model_funcs: Processed model functions; the final-period-specific
+            ``compute_utility_final``/``compute_marginal_utility_final`` are used.
+
+    Returns:
+        tuple ``(wealth, value, marg_util)``, each shaped ``(n_final_state_choices,
+        n_continuous_combinations, n_exog_savings, n_draws_in_block)``.
+
+    """
+    final_period_cont_states = calc_law_of_motion(
+        law_of_motion_arrays=batch_info["law_of_motion_arrays"],
+        state_choice_space_dict=model_structure["state_choice_space_dict"],
+        income_shocks_scaled=income_shocks_block,
+        params=params,
+        model_funcs=model_funcs,
+        has_additional_continuous_states=continuous_states_info[
+            "has_additional_continuous_state"
+        ],
+        additional_continuous_state_names=continuous_states_info[
+            "additional_continuous_state_names"
+        ],
+    )
+    wealth_final_period = final_period_cont_states["assets_begin_of_period"]
+
+    value, marg_util = vmap(
+        vmap(
+            vmap(
+                vmap(
+                    calc_value_and_marg_util_for_each_gridpoint,
+                    in_axes=(None, None, 0, None, None, None),
+                ),
+                in_axes=(None, None, 0, None, None, None),
+            ),
+            in_axes=(None, 0, 0, None, None, None),
+        ),
+        in_axes=(0, 0, 0, None, None, None),
+    )(
+        batch_info["state_choice_mat_final_period"],
+        final_period_cont_states["continuous_states"],
+        wealth_final_period,
+        params,
+        model_funcs["compute_utility_final"],
+        model_funcs["compute_marginal_utility_final"],
+    )
+
+    return wealth_final_period, value, marg_util
 
 
 def calc_value_and_marg_util_for_each_gridpoint(

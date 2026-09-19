@@ -17,9 +17,9 @@ def aggregate_marg_utils_and_exp_values(
     probabilities and then over the income-shock axis with quadrature weights:
     one on ``value`` (giving the expected value, i.e. the logsum), one on
     ``marg_util`` (giving the aggregate marginal utility). Called once per
-    batch from ``solve_for_interpolated_values``, on the *interpolated* child
-    continuation values ``interpolate_value_and_marg_util`` (EGM step 1) just
-    computed.
+    block of income-shock draws from ``solve_single_period``, on the *interpolated*
+    child continuation values ``interpolate_value_and_marg_util`` (EGM step 1) just
+    computed for that block.
 
     Args:
         value_state_choice_specific (jnp.ndarray): 3d array of shape

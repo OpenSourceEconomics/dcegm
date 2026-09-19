@@ -114,6 +114,8 @@ def partially_solve(
         policy_solved=policy_solved,
         endog_grid_solved=endog_grid_solved,
         debug_info=debug_info,
+        income_shock_batch_size=model_config["income_shock_batch_size"],
+        n_income_shock_blocks=model_config["n_income_shock_blocks"],
     )
     if return_candidates:
         (
@@ -233,6 +235,8 @@ def partially_solve(
                 upper_envelope_method=model_config["upper_envelope"]["method"],
                 skip_endog_grid_storage=skip_endog_grid_storage,
                 debug_info=debug_info,
+                income_shock_batch_size=model_config["income_shock_batch_size"],
+                n_income_shock_blocks=model_config["n_income_shock_blocks"],
             )
 
             value_solved = single_period_out_dict["value"]

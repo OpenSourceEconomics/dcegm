@@ -29,6 +29,28 @@ def check_model_config_and_process(model_config):
     processed_model_config["n_periods"] = model_config["n_periods"]
     processed_model_config["n_quad_points"] = model_config["n_quad_points"]
 
+    # How many income-shock draws the backward induction interpolates at once (see
+    # solve_single_period.py). Not given means all of them in one block, which is the
+    # single-pass solve; a smaller block size lowers the peak memory of that step.
+    n_quad_points = model_config["n_quad_points"]
+    income_shock_batch_size = model_config.get("income_shock_batch_size", None)
+    if income_shock_batch_size is None:
+        income_shock_batch_size = n_quad_points
+    elif (
+        not isinstance(income_shock_batch_size, int)
+        or isinstance(income_shock_batch_size, bool)
+        or not 1 <= income_shock_batch_size <= n_quad_points
+        or n_quad_points % income_shock_batch_size != 0
+    ):
+        raise ValueError(
+            "income_shock_batch_size must be None or an integer that divides "
+            f"n_quad_points ({n_quad_points}), got {income_shock_batch_size!r}."
+        )
+    processed_model_config["income_shock_batch_size"] = income_shock_batch_size
+    processed_model_config["n_income_shock_blocks"] = (
+        n_quad_points // income_shock_batch_size
+    )
+
     # This checks if choices is a list or an integer
     if "choices" in model_config:
         if isinstance(model_config["choices"], list):

@@ -106,6 +106,8 @@ def backward_induction(
             policy_solved=pol_solved,
             endog_grid_solved=endog_solved,
             debug_info=None,
+            income_shock_batch_size=model_config["income_shock_batch_size"],
+            n_income_shock_blocks=model_config["n_income_shock_blocks"],
         )
     )
 
@@ -139,6 +141,8 @@ def backward_induction(
         upper_envelope_method=model_config["upper_envelope"]["method"],
         skip_endog_grid_storage=skip_endog_grid_storage,
         debug_info=None,
+        income_shock_batch_size=model_config["income_shock_batch_size"],
+        n_income_shock_blocks=model_config["n_income_shock_blocks"],
     )
 
     for id_segment in range(batch_info["n_segments"]):

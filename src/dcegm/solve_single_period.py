@@ -1,5 +1,6 @@
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
+import jax
 import jax.numpy as jnp
 from jax import vmap
 
@@ -28,6 +29,8 @@ def solve_single_period(
     upper_envelope_method: str,
     skip_endog_grid_storage: bool,
     debug_info: Optional[Dict[str, bool]],
+    income_shock_batch_size: int,
+    n_income_shock_blocks: int,
 ) -> Union[Tuple[SolutionCarry, Tuple[()]], Dict[str, jnp.ndarray]]:
     """Solve one batch of state-choices -- the body of the backward induction scan.
 
@@ -38,9 +41,11 @@ def solve_single_period(
     iteration (see ``pre_processing/batches/`` and the batching guide).
 
     The three EGM steps run in order: interpolate the children's continuation
-    values (``interpolate_value_and_marg_util``), aggregate them over choices and
-    income shocks, then invert the Euler equation and refine with the upper
-    envelope (both in ``solve_for_interpolated_values``).
+    values (``interpolate_value_and_marg_util``) and aggregate them over choices and
+    income shocks (``aggregate_marg_utils_and_exp_values``), then invert the Euler
+    equation and refine with the upper envelope (``solve_from_marg_util_and_emax``).
+    The first two run per block of income-shock draws, see
+    ``income_shock_batch_size``.
 
     Args:
         carry: The solution containers threaded through the scan, as
@@ -97,6 +102,17 @@ def solve_single_period(
         debug_info: ``None`` in the normal solve. When given, the function returns
             a dict rather than a scan-shaped ``(carry, ())`` pair, optionally
             including the pre-upper-envelope candidates.
+        income_shock_batch_size: How many income-shock draws to interpolate at once.
+            ``model_config["n_quad_points"]`` -- the default -- means one block
+            holding every draw, i.e. the single-pass solve. A smaller ``k`` trades
+            parallelism for a peak on the interpolated child arrays smaller by a
+            factor of ``n_quad_points / k``; ``k = 1`` is the minimum-memory
+            extreme. The result does not depend on it beyond float associativity.
+            Blocking also repeats the setup that does not depend on the draw --
+            ``continuous_states_next`` in the law of motion, the per-state own-grid
+            construction -- once per block, which is cheap while the blocks are few.
+        n_income_shock_blocks: ``n_quad_points // income_shock_batch_size``, worked
+            out in ``check_model_config.py``.
 
     Returns:
         ``(carry, ())`` with the updated solution containers -- the empty second
@@ -125,22 +141,6 @@ def solve_single_period(
         else endog_grid_solved[child_state_choice_idxs_to_interp]
     )
 
-    # EGM step 1)
-    value_interpolated, marginal_utility_interpolated = interpolate_value_and_marg_util(
-        model_funcs=model_funcs,
-        child_state_choices_with_proxy=state_choice_mat_child,
-        continuous_grids_info=continuous_grids_info,
-        income_shocks_scaled=income_shocks_scaled,
-        endog_grid_child_state_choice=endog_grid_child_state_choice,
-        policy_child_state_choice=policy_child_state_choice,
-        value_child_state_choice=value_child_state_choice,
-        params=params,
-        upper_envelope_method=upper_envelope_method,
-        skip_endog_grid_storage=skip_endog_grid_storage,
-        law_of_motion_arrays=law_of_motion_arrays,
-        state_choice_space_dict=state_choice_space_dict,
-    )
-
     # Check if we have a scalar taste shock scale or state specific. Extract in each of the cases.
     ts_function = model_funcs["taste_shock_function"]
     taste_shock_scale_is_scalar = ts_function["taste_shock_scale_is_scalar"]
@@ -152,16 +152,74 @@ def solve_single_period(
             state_choice_mat_child, params
         )
 
-    out_dict_period = solve_for_interpolated_values(
-        value_interpolated=value_interpolated,
-        marginal_utility_interpolated=marginal_utility_interpolated,
+    def marg_util_and_emax_for_shock_block(income_shocks_block, weights_block):
+        """EGM steps 1) and 2) for one block of income-shock draws.
+
+        The block's own contribution to the quadrature sum: interpolate the children at
+        these draws, then aggregate over choices and weight by these draws' own
+        quadrature weights.
+
+        """
+        value_interpolated, marginal_utility_interpolated = (
+            interpolate_value_and_marg_util(
+                model_funcs=model_funcs,
+                child_state_choices_with_proxy=state_choice_mat_child,
+                continuous_grids_info=continuous_grids_info,
+                income_shocks_scaled=income_shocks_block,
+                endog_grid_child_state_choice=endog_grid_child_state_choice,
+                policy_child_state_choice=policy_child_state_choice,
+                value_child_state_choice=value_child_state_choice,
+                params=params,
+                upper_envelope_method=upper_envelope_method,
+                skip_endog_grid_storage=skip_endog_grid_storage,
+                law_of_motion_arrays=law_of_motion_arrays,
+                state_choice_space_dict=state_choice_space_dict,
+            )
+        )
+        return aggregate_marg_utils_and_exp_values(
+            value_state_choice_specific=value_interpolated,
+            marg_util_state_choice_specific=marginal_utility_interpolated,
+            reshape_state_choice_vec_to_mat=child_state_choices_to_aggr_choice,
+            taste_shock_scale=taste_shock_scale,
+            taste_shock_scale_is_scalar=taste_shock_scale_is_scalar,
+            income_shock_weights=weights_block,
+        )
+
+    # Reshape the income shocks and weights into the blocks we will loop over. If
+    # n_income_shock_blocks = 1 then we just calculate for all income shocks at once.
+    shocks_blocked = income_shocks_scaled.reshape(
+        n_income_shock_blocks, income_shock_batch_size
+    )
+    weights_blocked = income_shock_weights.reshape(
+        n_income_shock_blocks, income_shock_batch_size
+    )
+
+    # Do it once to intialize final arrays
+    marg_util, emax = marg_util_and_emax_for_shock_block(
+        shocks_blocked[0], weights_blocked[0]
+    )
+
+    # If more blocks are requested then loop over them and add weighted results.
+    if n_income_shock_blocks > 1:
+
+        def add_shock_block(id_block, carry):
+            marg_util_so_far, emax_so_far = carry
+            marg_util_block, emax_block = marg_util_and_emax_for_shock_block(
+                shocks_blocked[id_block], weights_blocked[id_block]
+            )
+            return marg_util_so_far + marg_util_block, emax_so_far + emax_block
+
+        marg_util, emax = jax.lax.fori_loop(
+            1, n_income_shock_blocks, add_shock_block, (marg_util, emax)
+        )
+
+    # EGM step 3)
+    out_dict_period = solve_from_marg_util_and_emax(
+        marg_util=marg_util,
+        emax=emax,
         state_choice_mat=state_choice_mat,
         child_state_idxs=child_states_to_integrate_stochastic,
-        states_to_choices_child_states=child_state_choices_to_aggr_choice,
         params=params,
-        taste_shock_scale=taste_shock_scale,
-        taste_shock_scale_is_scalar=taste_shock_scale_is_scalar,
-        income_shock_weights=income_shock_weights,
         continuous_grids_info=continuous_grids_info,
         model_funcs=model_funcs,
         debug_info=debug_info,
@@ -199,55 +257,32 @@ def solve_single_period(
         return out_dict
 
 
-def solve_for_interpolated_values(
-    value_interpolated: jnp.ndarray,
-    marginal_utility_interpolated: jnp.ndarray,
+def solve_from_marg_util_and_emax(
+    marg_util: jnp.ndarray,
+    emax: jnp.ndarray,
     state_choice_mat: Dict[str, jnp.ndarray],
     child_state_idxs: jnp.ndarray,
-    states_to_choices_child_states: jnp.ndarray,
     params: Dict[str, float],
-    taste_shock_scale: Union[float, jnp.ndarray],
-    taste_shock_scale_is_scalar: bool,
-    income_shock_weights: jnp.ndarray,
     continuous_grids_info: Dict[str, Any],
     model_funcs: Dict[str, Any],
     debug_info: Optional[Dict[str, bool]],
 ) -> Dict[str, jnp.ndarray]:
-    """EGM steps 2 and 3: aggregate continuation values, then invert the Euler eq.
+    """EGM step 3: invert the Euler equation and refine with the upper envelope.
 
-    Split out from ``solve_single_period`` because the last two periods reach it by
-    a different route: ``final_periods.py`` computes the final period analytically
-    (consumption equals wealth) and then calls this directly for the second-to-last
-    period, rather than going through the scan.
-
-    Takes the *interpolated* child continuation values -- one entry per child
-    state-choice, income shock and continuous-state combination -- and returns the
-    current period's solution:
-
-    1. ``aggregate_marg_utils_and_exp_values`` collapses the child-choice axis with
-       logit choice probabilities and the income-shock axis with quadrature
-       weights, giving one marginal utility and one expected value per child state.
-    2. ``calculate_candidate_solutions_from_euler_equation`` gathers those to this
-       period's state-choices and inverts the Euler equation, producing candidate
-       (endogenous grid, policy, value) triples.
-    3. ``run_upper_envelope`` discards the candidates that are not on the upper
-       envelope of the value correspondence -- the step that makes this DC-EGM
-       rather than plain EGM.
+    The shock- and choice-free tail of the solve, taking the aggregate marginal
+    utility and expected value per child state -- both axes already reduced away --
+    and producing this period's refined solution. Its own function because both
+    callers, ``solve_single_period`` and ``solve_last_two_periods``, reach it with
+    those two arrays accumulated block by block over the income shocks.
 
     Args:
-        value_interpolated: Child values, shape
-            ``(n_child_state_choices, n_continuous_combinations, n_wealth,
-            n_income_shocks)``.
-        marginal_utility_interpolated: Child marginal utilities, same shape.
+        marg_util: Aggregate marginal utility per child state, shape ``(n_states,
+            n_continuous_combinations, n_wealth)``.
+        emax: Aggregate expected value (logsum) per child state, same shape.
         state_choice_mat: State-choice dict for the rows being solved.
-        child_state_idxs: For each (row, stochastic realisation), the position of
-            the child state -- the stochastic integration map.
-        states_to_choices_child_states: For each child state, the positions of its
-            choices -- the choice aggregation map.
+        child_state_idxs: For each (row, stochastic realisation), the position of the
+            child state -- the stochastic integration map.
         params: Model parameters.
-        taste_shock_scale: Scalar, or one value per state-choice.
-        taste_shock_scale_is_scalar: Which of the two it is.
-        income_shock_weights: Quadrature weights for the income shock.
         continuous_grids_info: ``model_config["continuous_states_info"]``.
         model_funcs: Processed model functions.
         debug_info: When given with ``return_candidates``, the pre-upper-envelope
@@ -258,19 +293,6 @@ def solve_for_interpolated_values(
         ``state_choice_mat``, plus the candidate arrays in debug mode.
 
     """
-    # EGM step 2)
-    # Aggregate the marginal utilities and expected values over all child state-choice
-    # combinations and income shock draws
-    marg_util, emax = aggregate_marg_utils_and_exp_values(
-        value_state_choice_specific=value_interpolated,
-        marg_util_state_choice_specific=marginal_utility_interpolated,
-        reshape_state_choice_vec_to_mat=states_to_choices_child_states,
-        taste_shock_scale=taste_shock_scale,
-        taste_shock_scale_is_scalar=taste_shock_scale_is_scalar,
-        income_shock_weights=income_shock_weights,
-    )
-
-    # EGM step 3)
     (
         endog_grid_candidate,
         value_candidate,
@@ -338,7 +360,7 @@ def run_upper_envelope(
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """DC-EGM's refinement step: discard candidates not on the upper envelope.
 
-    The last of the three EGM steps (see ``solve_for_interpolated_values``):
+    The last of the three EGM steps (see ``solve_single_period``):
     ``calculate_candidate_solutions_from_euler_equation`` (EGM step 3) can
     produce a non-monotonic, self-intersecting candidate (endogenous grid,
     policy, value) correspondence whenever the discrete choice set makes the

@@ -24,7 +24,7 @@ def calculate_candidate_solutions_from_euler_equation(
     opposed to interpolating someone else's child, where the parent/child distinction in
     law_of_motion.py matters) -- so the combo grid used here is just each row's own
     grid, no representative-parent selection needed. Called once per batch from
-    ``solve_for_interpolated_values``, on the aggregate marginal utility/expected
+    ``solve_from_marg_util_and_emax``, on the aggregate marginal utility/expected
     value ``aggregate_marg_utils_and_exp_values`` (EGM step 2) just computed for
     every *child* state. "Candidates" because these are not yet the final
     solution: ``run_upper_envelope`` still has to discard the ones that are

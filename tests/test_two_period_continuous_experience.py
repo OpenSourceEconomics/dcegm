@@ -9,10 +9,14 @@ from numpy.testing import assert_array_almost_equal as aaae
 
 import dcegm
 import dcegm.toy_models as toy_models
-from dcegm.final_periods import solve_final_period
+from dcegm.egm.aggregate_marginal_utility import aggregate_marg_utils_and_exp_values
+from dcegm.final_periods import (
+    calc_final_period_for_shock_block,
+    solve_final_period,
+)
 from dcegm.numerical_integration import quadrature_legendre
 from dcegm.pre_processing.sol_container import create_solution_container
-from dcegm.solve_single_period import solve_for_interpolated_values
+from dcegm.solve_single_period import solve_from_marg_util_and_emax
 
 MAX_WEALTH = 50
 WEALTH_GRID_POINTS = 100
@@ -278,8 +282,6 @@ def create_test_inputs():
         value_solved,
         policy_solved,
         endog_grid_solved,
-        value_interp_final_period,
-        marginal_utility_final_last_period,
     ) = solve_final_period(
         batch_info=last_two_period_batch_info_cont,
         model_structure=model.model_structure,
@@ -296,22 +298,36 @@ def create_test_inputs():
         endog_grid_solved=endog_grid_solved,
     )
 
-    out_dict_second_last = solve_for_interpolated_values(
-        value_interpolated=value_interp_final_period,
-        marginal_utility_interpolated=marginal_utility_final_last_period,
+    _, value_final_period, marg_util_final_period = calc_final_period_for_shock_block(
+        income_shocks_block=income_shocks_scaled,
+        batch_info=last_two_period_batch_info_cont,
+        model_structure=model.model_structure,
+        continuous_states_info=model_config["continuous_states_info"],
+        params=params,
+        model_funcs=model_funcs_cont,
+    )
+
+    marg_util, emax = aggregate_marg_utils_and_exp_values(
+        value_state_choice_specific=value_final_period,
+        marg_util_state_choice_specific=marg_util_final_period,
+        reshape_state_choice_vec_to_mat=last_two_period_batch_info_cont[
+            "state_to_choices_final_period"
+        ],
+        taste_shock_scale=jnp.array([taste_shock_scale]),
+        taste_shock_scale_is_scalar=True,
+        income_shock_weights=income_shock_weights,
+    )
+
+    out_dict_second_last = solve_from_marg_util_and_emax(
+        marg_util=marg_util,
+        emax=emax,
         state_choice_mat=last_two_period_batch_info_cont[
             "state_choice_mat_second_last_period"
         ],
         child_state_idxs=last_two_period_batch_info_cont[
             "child_states_second_last_period"
         ],
-        states_to_choices_child_states=last_two_period_batch_info_cont[
-            "state_to_choices_final_period"
-        ],
         params=params,
-        taste_shock_scale=jnp.array([taste_shock_scale]),
-        taste_shock_scale_is_scalar=True,
-        income_shock_weights=income_shock_weights,
         continuous_grids_info=model_config["continuous_states_info"],
         model_funcs=model_funcs_cont,
         debug_info=None,
