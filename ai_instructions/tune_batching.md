@@ -127,18 +127,33 @@ for separators, mode in CANDIDATES:
             min_period_batch_segments=separators,
             batch_mode=mode,
         )
-    steps = slots = 0
+    steps = slots = widest = 0
     for segment in range(info["n_segments"]):
         segment_info = info[f"batches_info_segment_{segment}"]
         n_batches, width = np.asarray(segment_info["batches_state_choice_idx"]).shape
         steps += n_batches + (0 if segment_info["batches_cover_all"] else 1)
         slots += n_batches * width
+        widest = max(widest, width)
         print(f"    segment {segment}: {n_batches:4d} x {width:6,d}")
-    print(f"### {separators} {mode} -> {steps} scan steps, {slots:,} slots")
+    print(f"### {separators} {mode} -> {steps} scan steps, {slots:,} slots, "
+          f"widest batch {widest:,}")
 ```
 
-`slots` (batches x width, summed) is the padded work: compare it against the model's
-total state-choice count in the scan range to read off the padding overhead.
+Three numbers come out of this, and they are the three axes of the decision:
+
+`steps`
+    Wall time, as long as the solve is dispatch-bound -- which it is whenever the
+    batch width is small.
+`slots`
+    Batches x width, summed: the padded work. Compare against the model's total
+    state-choice count in the scan range to read off the padding overhead.
+`widest`
+    The largest batch width anywhere in the configuration. **This is what peak memory
+    tracks**: the interpolated child arrays inside one scan step are
+    ``width x n_continuous_combinations x n_wealth x n_income_shocks``, so the widest
+    batch sets the high-water mark for the whole solve. Absolute bytes need the
+    device; the ratio between candidates does not, and the ratio is what decides
+    whether a configuration still fits.
 
 ### 5. Choose
 
@@ -153,6 +168,13 @@ total state-choice count in the scan range to read off the padding overhead.
   the same size *and* whose last period is one of them: it reaches the same width
   with no padding machinery. It is the wrong mode whenever a segment ends on a small
   period.
+- **Then memory.** Reaching the step floor forces the widest batch up to the model's
+  largest period, because that period has to be solved in one go. If that does not
+  fit, the two ways down are a `largest_block` configuration a few steps above the
+  floor (a smaller uniform width, at the cost of steps) or
+  `model_config["income_shock_batch_size"]`, which divides the income-shock factor of
+  the same product and costs no steps at all. Prefer the latter: steps are wall time,
+  and the income-shock axis is the cheaper one to give up.
 
 ### 6. Verify on the device
 
@@ -210,15 +232,23 @@ segment 1: periods  0-43 -> 747 batches x 2112  (start search: 2112, end search:
 43's size, and one 2,112-wide period was setting the width for 44 periods of
 33,084-54,312. Step floor here is `71 - 2 = 69`. The sweep:
 
-| separators, mode | steps | slots |
-| --- | --- | --- |
-| `[44]`, `largest_block` (before) | 773 | 1,578,264 |
-| `[29, 35, 42, 44]`, `largest_block` | 84 | 1,541,014 |
-| `[44]`, `[largest_block, period_max]` | 69 | 2,390,328 |
-| `[29, 33, 44]`, `period_max` | 69 | 1,724,604 |
-| `[29, 33, 42, 44]`, `period_max` | **69** | **1,657,788** |
-| `[29, 33, 35, 42, 44]`, `period_max` | 69 | 1,653,252 |
+| separators, mode | steps | slots | widest batch | vs. before |
+| --- | --- | --- | --- | --- |
+| `[44]`, `largest_block` (before) | 773 | 1,578,264 | 2,112 | 1.0x |
+| `[29, 35, 42, 44]`, `largest_block` | 84 | 1,541,014 | 33,084 | 15.7x |
+| `[44]`, `[largest_block, period_max]` | 69 | 2,390,328 | 54,312 | 25.7x |
+| `[29, 33, 44]`, `period_max` | 69 | 1,724,604 | 54,312 | 25.7x |
+| `[29, 33, 42, 44]`, `period_max` | **69** | **1,657,788** | **54,312** | **25.7x** |
+| `[29, 33, 35, 42, 44]`, `period_max` | 69 | 1,653,252 | 54,312 | 25.7x |
 
 `[29, 33, 42, 44]` with `period_max` was chosen: the floor, at 5% padded work, from
 11x as many steps. Splitting the declining run as well (adding 35) saved a further
 0.3% and was not worth a sixth segment.
+
+Read the last column before committing to a candidate. Every configuration that
+reaches the floor carries the same 54,312-wide batch, because periods 33-34 are that
+size and a period cannot be split across steps -- so 25.7x the old per-step arrays is
+the price of 69 steps, not a property of the particular separators. The one genuinely
+cheaper row is `[29, 35, 42, 44]` with `largest_block`: 15.7x the width for 84 steps
+instead of 69. On this model the wide version was kept and the memory taken back on
+the income-shock axis instead.

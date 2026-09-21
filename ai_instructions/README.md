@@ -18,6 +18,9 @@ measure it, how to decide, and what to check before believing the result.
   it is not finished.
 - **State the floor.** Say what the best achievable result is and why, so the reader
   knows when to stop optimising.
+- **Report memory as a ratio.** Absolute bytes need the target device and do not
+  transfer; the ratio between the candidates does, and it is what decides whether a
+  configuration fits. Name the quantity the ratio is taken over.
 - **Carry the pitfalls.** The gotchas that cost an hour the first time (a stripped model
   pickle, a numpy/jax dispatch error) belong in the file, not in a commit message.
 - **Separate the library-general part from the worked example.** The procedure must
