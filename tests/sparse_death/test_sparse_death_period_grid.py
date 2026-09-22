@@ -114,7 +114,7 @@ def test_period_specific_grid_builds_and_solves():
 
 def test_constant_grid_function_matches_declared_array():
     # Sanity/no-regression: a period-*independent* grid supplied via
-    # continuous_grid_functions must reproduce the declared-array solve exactly.
+    # continuous_grid_functions must reproduce the declared-array solve.
     baseline = _setup(_base_config()).solve(params=_PARAMS)
 
     config = _base_config()
@@ -125,7 +125,8 @@ def test_constant_grid_function_matches_declared_array():
         a = np.asarray(getattr(baseline, name))
         b = np.asarray(getattr(via_func, name))
         m = np.isfinite(a) & np.isfinite(b)
-        assert np.allclose(a[m], b[m], atol=1e-10, rtol=0), name
+        # Relative: ``value`` differs up to ~1e7 across machines, where it hits ~1e22.
+        assert np.allclose(a[m], b[m], rtol=1e-10, atol=1e-10), name
 
 
 def _bequest_utility_dict(bequest_slope):
