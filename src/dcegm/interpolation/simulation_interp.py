@@ -380,6 +380,15 @@ def interpnd_policy_and_value_function(
     discount_factor,
 ):
     state_choice_vec = {**state, "choice": choice}
+    # The 1d interpolation below evaluates the utility function directly, so it needs
+    # the continuous states, which the nd interpolation receives as its own argument.
+    state_choice_vec_with_cont = {
+        **state_choice_vec,
+        **{
+            name: continuous_state_beginning_of_period[name]
+            for name in additional_continuous_state_names
+        },
+    }
 
     continuous_state_child_states = {
         name: continuous_state_beginning_of_period[name][None, None]
@@ -418,7 +427,7 @@ def interpnd_policy_and_value_function(
         policy_grid=policy_agent[combo_idx],
         value_grid=value_agent[combo_idx],
         compute_utility=compute_utility,
-        state_choice_vec=state_choice_vec,
+        state_choice_vec=state_choice_vec_with_cont,
         params=params,
         discount_factor=discount_factor,
     )
