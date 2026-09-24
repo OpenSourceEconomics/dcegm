@@ -137,3 +137,105 @@ def test_load_and_save_solution(
     import os
 
     os.remove("sol.pkl")
+
+
+# =====================================================================================
+# Continuous grids declared as None in model_config
+#
+# Their size is only knowable once a real state-choice exists to evaluate the grid
+# function against, so check_model_config.py leaves it unresolved. On the load path
+# model_config is rebuilt from the raw user config while the state-choice space comes
+# back from the pickle, so the size has to be pinned again there.
+# =====================================================================================
+
+
+def _state_specific_experience_model():
+    """``experience`` -- an additional continuous state -- supplied per state-choice."""
+    model_funcs = toy_models.load_example_model_functions("with_cont_exp")
+    params, model_specs, model_config = (
+        toy_models.load_example_params_model_specs_and_config("with_cont_exp")
+    )
+    model_config = dict(model_config)
+    model_config["continuous_states"] = dict(model_config["continuous_states"])
+    grid = jnp.asarray(model_config["continuous_states"]["experience"])
+    model_config["continuous_states"]["experience"] = None
+
+    def experience_grid(period):
+        return grid
+
+    return (
+        model_funcs,
+        params,
+        model_specs,
+        model_config,
+        {"experience": experience_grid},
+    )
+
+
+def _state_specific_wealth_grid_model():
+    """``assets_begin_of_period`` -- the Druedahl-Jorgensen wealth grid."""
+    model_funcs = toy_models.load_example_model_functions("with_exp")
+    params, model_specs, model_config = (
+        toy_models.load_example_params_model_specs_and_config("with_exp")
+    )
+    model_config = dict(model_config)
+    model_config["continuous_states"] = dict(model_config["continuous_states"])
+    model_config["continuous_states"]["assets_begin_of_period"] = None
+    model_config["upper_envelope"] = {"method": "druedahl_jorgensen"}
+    grid = jnp.linspace(0, 50, 50)
+
+    def wealth_grid(period):
+        return grid
+
+    return (
+        model_funcs,
+        params,
+        model_specs,
+        model_config,
+        {"assets_begin_of_period": wealth_grid},
+    )
+
+
+@pytest.mark.parametrize(
+    "model_loader",
+    [_state_specific_experience_model, _state_specific_wealth_grid_model],
+)
+def test_loaded_model_pins_deferred_continuous_grid_sizes(model_loader, tmp_path):
+    model_funcs, params, model_specs, model_config, continuous_grid_functions = (
+        model_loader()
+    )
+    path = str(tmp_path / "model.pkl")
+
+    model_saved = dcegm.setup_model(
+        model_config=model_config,
+        model_specs=model_specs,
+        continuous_grid_functions=continuous_grid_functions,
+        model_save_path=path,
+        **model_funcs,
+    )
+    model_loaded = dcegm.setup_model(
+        model_config=model_config,
+        model_specs=model_specs,
+        continuous_grid_functions=continuous_grid_functions,
+        model_load_path=path,
+        **model_funcs,
+    )
+
+    for key in ["n_total_wealth_grid"]:
+        assert model_loaded.model_config[key] == model_saved.model_config[key]
+        assert model_loaded.model_config[key] is not None
+
+    combinations_key = "n_continuous_state_combinations"
+    assert (
+        model_loaded.model_config["continuous_states_info"][combinations_key]
+        == model_saved.model_config["continuous_states_info"][combinations_key]
+    )
+    assert (
+        model_loaded.model_config["continuous_states_info"][combinations_key]
+        is not None
+    )
+
+    np.testing.assert_array_equal(
+        np.asarray(model_loaded.solve(params).value),
+        np.asarray(model_saved.solve(params).value),
+    )

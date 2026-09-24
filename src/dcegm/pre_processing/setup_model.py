@@ -14,6 +14,10 @@ from dcegm.pre_processing.model_functions.process_model_functions import (
     process_model_functions_and_extract_info,
     process_sparsity_condition,
 )
+from dcegm.pre_processing.model_structure.continuous_state_grids import (
+    merge_resolved_state_specific_lengths,
+    pin_state_specific_lengths_from_first_state_choice,
+)
 from dcegm.pre_processing.model_structure.model_structure import create_model_structure
 from dcegm.pre_processing.model_structure.state_space import create_state_space
 from dcegm.pre_processing.model_structure.stochastic_states import (
@@ -238,6 +242,29 @@ def load_model_dict(
             shock_functions=shock_functions,
             continuous_grid_functions=continuous_grid_functions,
         )
+    )
+
+    # model_config is rebuilt from the raw user config above, so the sizes of
+    # continuous states declared as None are unresolved again -- and the state-choice
+    # space that pins them comes from the pickle instead of being rebuilt, so nothing
+    # on this path would otherwise fill them in.
+    merge_resolved_state_specific_lengths(
+        model_config=model["model_config"],
+        resolved_state_specific_lengths=(
+            pin_state_specific_lengths_from_first_state_choice(
+                state_choice_space=model["model_structure"]["state_choice_space"],
+                discrete_state_choice_names=(
+                    list(model["model_structure"]["discrete_states_names"]) + ["choice"]
+                ),
+                continuous_grid_functions=model["model_funcs"][
+                    "continuous_grid_functions"
+                ],
+                state_specific_names=model["model_funcs"][
+                    "state_specific_continuous_grid_names"
+                ],
+                continuous_states_info=model["model_config"]["continuous_states_info"],
+            )
+        ),
     )
 
     specs_read_funcs, specs_params_info = extract_model_specs_info(model_specs)
