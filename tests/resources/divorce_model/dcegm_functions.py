@@ -79,6 +79,39 @@ def budget_constraint(
     return jnp.maximum(wealth, params["consumption_floor"]) / multiplier
 
 
+def budget_constraint_choice_dependent(
+    period,
+    lagged_choice,
+    choice,
+    partner_state,
+    asset_end_of_previous_period,
+    income_shock_previous_period,
+    params,
+    model_specs,
+):
+    """Same as ``budget_constraint``, plus a cost paid when *this* period's own choice
+    is to work.
+
+    Declaring ``choice`` is what routes the solve down the per-state-choice law of
+    motion (``transition_funcs_depend_on_choice["budget"]``); the subtracted cost is
+    what makes that routing observable in the solution -- mirrors ``reference.py``'s
+    ``resources_after_transition(..., choice_next=..., work_cost=...)``, which every
+    caller of ``budget_constraint`` here must be compared against instead of
+    ``resources_after_transition`` without those two arguments.
+
+    """
+    multiplier = jnp.where(partner_state == 1, 2.0, 1.0)
+    own_income = params["y_work"] * (lagged_choice == 0)
+    partner_income = params["y_partner"] * (partner_state == 1)
+    wealth = (
+        multiplier * asset_end_of_previous_period * (1 + params["interest_rate"])
+        + own_income
+        + partner_income
+        - params["work_cost"] * (choice == 0)
+    )
+    return jnp.maximum(wealth, params["consumption_floor"]) / multiplier
+
+
 def feasible_choice_set(lagged_choice, model_specs):
     return np.arange(model_specs["n_choices"])
 
@@ -91,7 +124,19 @@ def partner_transition(partner_state, params):
     return jnp.array([1 - prob_married_next, prob_married_next])
 
 
-def build_and_solve(params, n_periods, a_grid):
+def build_and_solve(
+    params, n_periods, a_grid, continuous_grid_functions=None, budget_fn=None
+):
+    """Build and solve the divorce model.
+
+    ``budget_fn`` defaults to the choice-independent ``budget_constraint``; pass
+    ``budget_constraint_choice_dependent`` (with ``params["work_cost"]`` set) to route
+    the solve down the per-state-choice law of motion instead -- see
+    ``reference.solve_reference``'s ``work_cost`` argument for the independent ground
+    truth this is checked against.
+
+    """
+    budget_fn = budget_constraint if budget_fn is None else budget_fn
     model_specs = {"n_periods": n_periods, "n_choices": 2}
     model_config = {
         "n_periods": n_periods,
@@ -114,6 +159,7 @@ def build_and_solve(params, n_periods, a_grid):
             "utility": utility_final,
             "marginal_utility": marginal_utility_final,
         },
-        budget_constraint=budget_constraint,
+        budget_constraint=budget_fn,
+        continuous_grid_functions=continuous_grid_functions,
     )
     return model, model.solve(params)

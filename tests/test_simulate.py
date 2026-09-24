@@ -146,6 +146,7 @@ def test_simulate_second_continuous_choice(model_setup):
         model_funcs=model_cont.model_funcs,
         model_config=model_cont.model_config,
         model_structure=model_cont.model_structure,
+        alt_model_funcs_sim=None,
     )
 
     df = create_simulation_df(result)

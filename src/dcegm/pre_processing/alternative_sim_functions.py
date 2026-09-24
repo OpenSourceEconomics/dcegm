@@ -3,6 +3,7 @@ from typing import Callable, Dict
 
 from dcegm.pre_processing.check_model_config import check_model_config_and_process
 from dcegm.pre_processing.model_functions.process_model_functions import (
+    _transition_funcs_depend_on_choice,
     process_second_continuous_update_function,
     process_state_space_functions,
 )
@@ -74,7 +75,7 @@ def generate_alternative_sim_functions(
         stochastic_state_names,
     )
 
-    print("Model setup complete.\n")
+    print("Alternative simulation functions ready.")
     return model_funcs
 
 
@@ -85,7 +86,7 @@ def process_alternative_sim_functions(
     stochastic_states_transition,
     state_space_functions: Dict[str, Callable],
     budget_constraint: Callable,
-    shock_functions: Dict[str, Callable] = None,
+    shock_functions: Dict[str, Callable],
 ):
     """Create wrapped functions from user supplied functions.
 
@@ -143,6 +144,9 @@ def process_alternative_sim_functions(
             state_space_functions,
             model_config=model_config,
             model_specs=model_specs,
+            additional_continuous_state_names=continuous_states_info[
+                "additional_continuous_state_names"
+            ],
         )
     )
 
@@ -159,12 +163,17 @@ def process_alternative_sim_functions(
         determine_function_arguments_and_partial_model_specs(
             func=budget_constraint,
             model_specs=model_specs_jax,
+            not_allowed_state_choices=[],
         )
     )
 
-    # Upper envelope function
+    # Upper envelope function. alt_model_funcs is simulation-only (behavioral
+    # counterfactuals for simulate(), never re-solving), and compute_upper_envelope
+    # is a solve-time-only construct that this path never actually calls -- no
+    # continuous_grid_functions is processed here to pass through.
     compute_upper_envelope = create_upper_envelope_function(
         model_config=model_config,
+        continuous_grid_functions={},
     )
 
     taste_shock_function_processed, taste_shock_scale_in_params = (
@@ -188,6 +197,16 @@ def process_alternative_sim_functions(
         "next_period_deterministic_state": next_period_deterministic_state,
         "compute_upper_envelope": compute_upper_envelope,
         "taste_shock_function": taste_shock_function_processed,
+        # The alternative budget equation has its own answer to "does the law of
+        # motion depend on the current choice?", and simulation reads it off these
+        # functions -- so it must be recomputed here rather than inherited.
+        "transition_funcs_depend_on_choice": _transition_funcs_depend_on_choice(
+            budget_constraint=budget_constraint,
+            state_space_functions=state_space_functions,
+            has_additional_continuous_states=continuous_states_info[
+                "has_additional_continuous_state"
+            ],
+        ),
     }
 
     return alt_model_funcs, taste_shock_scale_in_params
