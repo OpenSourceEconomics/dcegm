@@ -202,9 +202,15 @@ shock, feeds it to your budget constraint, and reports it in that period's own
 `income_shock` column. So for any period, applying your budget constraint to the
 previous period's `savings` and this period's `income_shock` reproduces this period's
 `assets_begin_of_period` -- with the assets you supplied standing in for `savings` in
-the first period. (Note that your budget constraint receives that shock under the
-argument name `income_shock_previous_period`, which reflects the timing convention
-that income is earned in one period and paid into the next period's wealth.)
+the first period.
+
+The shock is realized in the period whose wealth your budget constraint computes, and
+your budget constraint receives it under the name `income_shock`. Whether the *income*
+it perturbs was earned earlier is a modelling decision that is entirely yours: the
+example models shipped with `dcegm` make income depend on `lagged_choice`, so that a
+retiring agent still collects the wage for the work done in the previous period, but
+nothing in the framework requires that. You are free to make income depend on this
+period's state alone.
 
 Apart from that key, `dcegm` currently does not perform checks on initial conditions. Badly specified initial conditions may result in errors in the simulation. For instance, the user should make sure that initial conditions do not violate the sparsity conditions (for example by providing more initial experience than the sparsity condition allows for an agent to have in a given period).
 
@@ -244,7 +250,7 @@ for instance an entry cost paid on switching occupation:
 
     def budget_constraint(
         period, lagged_choice, choice, asset_end_of_previous_period,
-        income_shock_previous_period, params, model_specs,
+        income_shock, params, model_specs,
     ):
         wealth = ...  # usual computation
         return wealth - model_specs["entry_cost"] * (choice == 1)

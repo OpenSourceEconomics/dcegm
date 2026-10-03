@@ -70,7 +70,7 @@ def marginal_utility_weighted(
         lagged_consumption=lagged_consumption,
         lagged_choice=lagged_choice,
         experience=exp_new,
-        income_shock_previous_period=income_shock,
+        income_shock=income_shock,
         params=params,
     )
     model_functions = toy_models.load_example_model_functions("dcegm_paper")
@@ -115,7 +115,7 @@ def budget_constraint_continuous(
     lagged_consumption: float,
     lagged_choice: int,
     experience: float,
-    income_shock_previous_period: float,
+    income_shock: float,
     params: Dict[str, float],
 ) -> float:
 
@@ -125,7 +125,7 @@ def budget_constraint_continuous(
 
     income_from_previous_period = calc_stochastic_income(
         experience=experience_years,
-        wage_shock=income_shock_previous_period,
+        wage_shock=income_shock,
         params=params,
     )
 
@@ -143,7 +143,7 @@ def budget_constraint_continuous_dcegm(
     asset_end_of_previous_period: float,
     lagged_choice: int,
     experience: float,
-    income_shock_previous_period: float,
+    income_shock: float,
     params: Dict[str, float],
 ) -> float:
 
@@ -153,7 +153,7 @@ def budget_constraint_continuous_dcegm(
 
     income_from_previous_period = calc_stochastic_income(
         experience=experience_years,
-        wage_shock=income_shock_previous_period,
+        wage_shock=income_shock,
         params=params,
     )
 

@@ -206,7 +206,7 @@ def _budget_constraint_with_unused_choice(
     choice,
     experience,
     asset_end_of_previous_period,
-    income_shock_previous_period,
+    income_shock,
     params,
     model_specs,
 ):
@@ -222,7 +222,7 @@ def _budget_constraint_with_unused_choice(
         lagged_choice=lagged_choice,
         experience=experience,
         asset_end_of_previous_period=asset_end_of_previous_period,
-        income_shock_previous_period=income_shock_previous_period,
+        income_shock=income_shock,
         params=params,
         model_specs=model_specs,
     )
@@ -301,7 +301,7 @@ def test_genuinely_choice_dependent_budget_differs_from_choice_free_one():
         choice,
         experience,
         asset_end_of_previous_period,
-        income_shock_previous_period,
+        income_shock,
         params,
         model_specs,
     ):
@@ -310,7 +310,7 @@ def test_genuinely_choice_dependent_budget_differs_from_choice_free_one():
             lagged_choice=lagged_choice,
             experience=experience,
             asset_end_of_previous_period=asset_end_of_previous_period,
-            income_shock_previous_period=income_shock_previous_period,
+            income_shock=income_shock,
             params=params,
             model_specs=model_specs,
         )

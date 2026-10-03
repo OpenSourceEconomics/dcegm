@@ -68,11 +68,11 @@ def sparsity_condition(period, lagged_choice, type):
 def budget_constraint(
     lagged_choice,
     asset_end_of_previous_period,
-    income_shock_previous_period,
+    income_shock,
     params,
 ):
     interest_factor = 1 + params["interest_rate"]
-    wage = params["wage_constant"] + income_shock_previous_period
+    wage = params["wage_constant"] + income_shock
     resource = interest_factor * asset_end_of_previous_period + wage * (
         lagged_choice == 0
     )

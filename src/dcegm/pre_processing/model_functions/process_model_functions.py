@@ -158,6 +158,7 @@ def process_model_functions_and_extract_info(
     )
 
     # Budget equation
+    _check_budget_does_not_declare_renamed_income_shock(budget_constraint)
     compute_assets_begin_of_period = (
         determine_function_arguments_and_partial_model_specs(
             func=budget_constraint,
@@ -216,6 +217,29 @@ def _declares_choice(func):
 
     """
     return "choice" in set(inspect.signature(func).parameters)
+
+
+def _check_budget_does_not_declare_renamed_income_shock(budget_constraint):
+    """Reject the old ``income_shock_previous_period`` argument name.
+
+    The shock is realised in the period whose wealth the budget equation computes,
+    not in the one before it. The old name described how the shipped example models
+    happen to be written -- income depending on ``lagged_choice`` -- rather than
+    anything the framework requires, so it is now passed as ``income_shock``.
+    Without this check the rename would surface as a bare ``KeyError`` from the
+    signature filter in ``determine_function_arguments_and_partial_model_specs``.
+
+    """
+    if "income_shock_previous_period" in set(
+        inspect.signature(budget_constraint).parameters
+    ):
+        raise ValueError(
+            f"{budget_constraint.__name__}() declares "
+            "'income_shock_previous_period', which has been renamed to "
+            "'income_shock'. The shock is realised in the period whose "
+            "beginning-of-period wealth the budget equation computes, not in the "
+            "previous one; rename the argument to 'income_shock'."
+        )
 
 
 def _check_choice_not_declared(func, name):

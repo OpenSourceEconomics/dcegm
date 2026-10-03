@@ -80,9 +80,7 @@ def _marginal_utility_final(wealth, survival, experience, params):
     return jnp.where(survival == 0, dead, 1 / wealth)
 
 
-def _budget(
-    period, asset_end_of_previous_period, income_shock_previous_period, choice, params
-):
+def _budget(period, asset_end_of_previous_period, income_shock, choice, params):
     # Declares ``choice`` (numerically a no-op with a single choice) so the model
     # takes the choice-dependent law-of-motion branch -- i.e. so the death child is
     # read out of ``law_of_motion_arrays["child_state_choices"]`` rather than the
@@ -91,7 +89,7 @@ def _budget(
     # child at its real age (period 1) versus the proxy's period (the last period)
     # would change the transition and break the Euler equation below.
     wage = params["wage"] * (1 + params["wage_growth"] * period)
-    income = jnp.exp(income_shock_previous_period) * wage + 0.0 * choice
+    income = jnp.exp(income_shock) * wage + 0.0 * choice
     wealth = (1 + params["interest_rate"]) * asset_end_of_previous_period + income
     return jnp.maximum(wealth, params["consumption_floor"])
 

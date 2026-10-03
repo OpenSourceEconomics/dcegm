@@ -63,7 +63,7 @@ def test_first_period_wealth_is_the_budget_equation_applied_to_the_given_assets(
                 period=0,
                 lagged_choice=0,
                 asset_end_of_previous_period=assets_end_of_previous_period[i],
-                income_shock_previous_period=income_shock[i],
+                income_shock=income_shock[i],
                 model_specs=model_specs,
                 params=params,
             )
@@ -155,7 +155,7 @@ def test_each_period_reports_the_income_shock_that_built_its_own_wealth(
                     period=period,
                     lagged_choice=int(this["lagged_choice"].to_numpy()[i]),
                     asset_end_of_previous_period=carried_in[i],
-                    income_shock_previous_period=this["income_shock"].to_numpy()[i],
+                    income_shock=this["income_shock"].to_numpy()[i],
                     model_specs=model_specs,
                     params=params,
                 )

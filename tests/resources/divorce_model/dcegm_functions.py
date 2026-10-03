@@ -61,7 +61,7 @@ def budget_constraint(
     lagged_choice,
     partner_state,
     asset_end_of_previous_period,
-    income_shock_previous_period,
+    income_shock,
     params,
     model_specs,
 ):
@@ -85,7 +85,7 @@ def budget_constraint_choice_dependent(
     choice,
     partner_state,
     asset_end_of_previous_period,
-    income_shock_previous_period,
+    income_shock,
     params,
     model_specs,
 ):

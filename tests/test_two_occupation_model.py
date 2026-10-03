@@ -87,7 +87,7 @@ def budget_constraint_cont_exp(
     exp_green,
     exp_red,
     asset_end_of_previous_period,
-    income_shock_previous_period,
+    income_shock,
     params,
 ):
     interest_factor = 1 + params["interest_rate"]
@@ -98,8 +98,8 @@ def budget_constraint_cont_exp(
     )
     resource = (
         interest_factor * asset_end_of_previous_period
-        + (wage + income_shock_previous_period) * (lagged_choice != 2)
-        + (wage + income_shock_previous_period) * 0.5 * (lagged_choice == 2)
+        + (wage + income_shock) * (lagged_choice != 2)
+        + (wage + income_shock) * 0.5 * (lagged_choice == 2)
     )
     return jnp.maximum(resource, 0.5)
 
@@ -153,7 +153,7 @@ def budget_constraint_discrete_exp(
     exp_green,
     exp_red,
     asset_end_of_previous_period,
-    income_shock_previous_period,
+    income_shock,
     params,
 ):
     interest_factor = 1 + params["interest_rate"]
@@ -164,8 +164,8 @@ def budget_constraint_discrete_exp(
     )
     resource = (
         interest_factor * asset_end_of_previous_period
-        + (wage + income_shock_previous_period) * (lagged_choice != 2)
-        + (wage + income_shock_previous_period) * 0.5 * (lagged_choice == 2)
+        + (wage + income_shock) * (lagged_choice != 2)
+        + (wage + income_shock) * 0.5 * (lagged_choice == 2)
     )
     return jnp.maximum(resource, 0.5)
 

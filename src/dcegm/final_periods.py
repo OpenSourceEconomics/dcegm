@@ -481,7 +481,7 @@ def calc_value_and_budget_for_each_gridpoint(
             **state_choice_vec,
             **continuous_state_vec,
             asset_end_of_previous_period=asset_grid_point_end_of_previous_period,
-            income_shock_previous_period=jnp.array(0.0),
+            income_shock=jnp.array(0.0),
             params=params,
         )
         wealth_final_period = check_budget_equation_and_return_wealth_plus_optional_aux(

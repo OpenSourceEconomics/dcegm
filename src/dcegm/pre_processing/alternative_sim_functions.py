@@ -3,6 +3,7 @@ from typing import Callable, Dict
 
 from dcegm.pre_processing.check_model_config import check_model_config_and_process
 from dcegm.pre_processing.model_functions.process_model_functions import (
+    _check_budget_does_not_declare_renamed_income_shock,
     _declares_choice,
     process_second_continuous_update_function,
     process_state_space_functions,
@@ -159,6 +160,7 @@ def process_alternative_sim_functions(
     )
 
     # Budget equation
+    _check_budget_does_not_declare_renamed_income_shock(budget_constraint)
     compute_assets_begin_of_period = (
         determine_function_arguments_and_partial_model_specs(
             func=budget_constraint,

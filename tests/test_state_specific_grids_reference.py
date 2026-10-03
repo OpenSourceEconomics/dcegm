@@ -138,7 +138,7 @@ UTILITY_FUNCTIONS_FINAL = {
 def _budget(
     lagged_choice,
     asset_end_of_previous_period,
-    income_shock_previous_period,
+    income_shock,
     params,
     model_specs,
 ):
@@ -151,7 +151,7 @@ def _budget(
     return (
         (1 + params["interest_rate"]) * asset_end_of_previous_period
         + income
-        + income_shock_previous_period
+        + income_shock
     )
 
 
@@ -159,7 +159,7 @@ def _budget_choice_dependent(
     lagged_choice,
     choice,
     asset_end_of_previous_period,
-    income_shock_previous_period,
+    income_shock,
     params,
     model_specs,
 ):
@@ -173,7 +173,7 @@ def _budget_choice_dependent(
     base = _budget(
         lagged_choice=lagged_choice,
         asset_end_of_previous_period=asset_end_of_previous_period,
-        income_shock_previous_period=income_shock_previous_period,
+        income_shock=income_shock,
         params=params,
         model_specs=model_specs,
     )
@@ -229,7 +229,7 @@ def _closed_form_consumption(savings, period_zero_choice, choices, budget_fn):
                 lagged_choice=period_zero_choice,
                 choice=choice_next,
                 asset_end_of_previous_period=savings,
-                income_shock_previous_period=quad_draws,
+                income_shock=quad_draws,
                 params=CLOSED_FORM_PARAMS,
                 model_specs=MODEL_SPECS,
             )
@@ -871,7 +871,7 @@ def _budget_with_unused_choice(
     choice,
     experience,
     asset_end_of_previous_period,
-    income_shock_previous_period,
+    income_shock,
     params,
     model_specs,
 ):
@@ -890,7 +890,7 @@ def _budget_with_unused_choice(
         lagged_choice=lagged_choice,
         experience=experience,
         asset_end_of_previous_period=asset_end_of_previous_period,
-        income_shock_previous_period=income_shock_previous_period,
+        income_shock=income_shock,
         params=params,
         model_specs=model_specs,
     )
@@ -1017,4 +1017,40 @@ def test_continuous_state_transition_declaring_choice_is_rejected():
             **_with_continuous_state_transition(
                 model_funcs, _next_experience_declaring_choice
             ),
+        )
+
+
+def test_budget_declaring_the_old_income_shock_name_is_rejected():
+    """``income_shock_previous_period`` was renamed to ``income_shock``.
+
+    The shock is realized in the period whose beginning-of-period wealth the budget
+    equation computes. The old name generalised a property of the shipped example
+    models -- income earned against ``lagged_choice`` -- into the framework, where it
+    does not hold. Left unchecked the rename would surface as a bare ``KeyError`` out
+    of the signature filter, so it has to fail with something that says what to do.
+
+    """
+    model_funcs, _params, model_specs, model_config = _load_with_cont_exp()
+
+    def budget_with_old_name(
+        lagged_choice,
+        asset_end_of_previous_period,
+        income_shock_previous_period,
+        params,
+        model_specs,
+    ):
+        return _budget(
+            lagged_choice=lagged_choice,
+            asset_end_of_previous_period=asset_end_of_previous_period,
+            income_shock=income_shock_previous_period,
+            params=params,
+            model_specs=model_specs,
+        )
+
+    model_funcs = dict(model_funcs)
+    model_funcs["budget_constraint"] = budget_with_old_name
+
+    with pytest.raises(ValueError, match="renamed to 'income_shock'"):
+        dcegm.setup_model(
+            model_config=model_config, model_specs=model_specs, **model_funcs
         )

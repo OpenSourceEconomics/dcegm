@@ -545,7 +545,7 @@ def calc_beginning_of_period_assets_for_single_state(
     out_budget = compute_assets_begin_of_period(
         **state_vec,
         asset_end_of_previous_period=asset_end_of_previous_period,
-        income_shock_previous_period=income_shock_draw,
+        income_shock=income_shock_draw,
         params=params,
     )
     checked_out = check_budget_equation_and_return_wealth_plus_optional_aux(

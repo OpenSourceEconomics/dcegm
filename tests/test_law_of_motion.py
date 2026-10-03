@@ -31,7 +31,7 @@ def budget_constraint_based_on_experience(
     lagged_choice: int,
     continuous_state_beginning_of_period: float,
     asset_end_of_previous_period: float,
-    income_shock_previous_period: float,
+    income_shock: float,
     params: Dict[str, float],
 ) -> float:
 
@@ -40,7 +40,7 @@ def budget_constraint_based_on_experience(
     wage = _calc_stochastic_income_for_experience(
         experience=experience_years,
         lagged_choice=lagged_choice,
-        wage_shock=income_shock_previous_period,
+        wage_shock=income_shock,
         params=params,
     )
     working_hours = _transform_lagged_choice_to_working_hours(lagged_choice)
@@ -137,7 +137,7 @@ def test_get_beginning_of_period_wealth(
     wealth_beginning_of_period = budget_constraint(
         **child_state_dict,
         asset_end_of_previous_period=savings_grid[random_saving_scalar],
-        income_shock_previous_period=quad_points[random_shock_scalar],
+        income_shock=quad_points[random_shock_scalar],
         model_specs=model_specs,
         params=params,
     )

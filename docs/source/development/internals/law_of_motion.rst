@@ -16,11 +16,20 @@ What "the law of motion" means here
 Two user-supplied functions describe how a state transitions into the next period:
 
 - ``budget_constraint`` -- processed into
-  ``model_funcs["compute_assets_begin_of_period"]``. Maps end-of-period assets,
-  an income shock, and the discrete state to beginning-of-period wealth. This is
-  the *only* law of motion that may declare ``choice``, and it means the choice
-  made in the period whose wealth is being computed -- see
-  :ref:`choice_dependent_budget` below.
+  ``model_funcs["compute_assets_begin_of_period"]``. Maps the previous period's
+  end-of-period assets, this period's income shock, and the discrete state to
+  beginning-of-period wealth. This is the *only* law of motion that may declare
+  ``choice``, and it means the choice made in the period whose wealth is being
+  computed -- see :ref:`choice_dependent_budget` below.
+
+  Its two non-state arguments are deliberately asymmetric in timing, and the names
+  say so: ``asset_end_of_previous_period`` really is carried over from ``t-1``,
+  while ``income_shock`` is realized in ``t``, the period whose wealth is being
+  computed. (It was called ``income_shock_previous_period`` until the shipped
+  example models' habit of earning income against ``lagged_choice`` was mistaken
+  for a framework property; ``_check_budget_does_not_declare_renamed_income_shock``
+  in ``process_model_functions.py`` rejects the old name rather than letting the
+  signature filter raise a bare ``KeyError``.)
 - ``next_period_continuous_state`` -- optional, only when the model has additional
   continuous states (e.g. continuous experience). Maps this period's continuous
   state to next period's. It may **not** declare ``choice``; doing so raises at
@@ -196,7 +205,7 @@ Declare ``choice`` as an argument and it will be passed through:
 
     def budget_constraint(
         period, lagged_choice, choice, asset_end_of_previous_period,
-        income_shock_previous_period, params, model_specs,
+        income_shock, params, model_specs,
     ):
         wealth = ...  # usual computation
         # e.g. a choice-specific fixed cost deducted at the start of the period

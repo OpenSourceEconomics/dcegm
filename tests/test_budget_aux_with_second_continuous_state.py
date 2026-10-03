@@ -38,7 +38,7 @@ def _wealth_beginning_of_period(
     asset_end_of_previous_period,
     lagged_choice,
     experience,
-    income_shock_previous_period,
+    income_shock,
     params,
 ):
     working = lagged_choice == 0
@@ -49,7 +49,7 @@ def _wealth_beginning_of_period(
         + params["exp"] * experience_years
         + params["exp_squared"] * experience_years**2
     )
-    income_from_previous_period = jnp.exp(labor_income + income_shock_previous_period)
+    income_from_previous_period = jnp.exp(labor_income + income_shock)
 
     wealth_beginning_of_period = (
         income_from_previous_period * working
@@ -63,7 +63,7 @@ def budget_constraint_without_aux(
     asset_end_of_previous_period,
     lagged_choice,
     experience,
-    income_shock_previous_period,
+    income_shock,
     params,
 ):
     return _wealth_beginning_of_period(
@@ -71,7 +71,7 @@ def budget_constraint_without_aux(
         asset_end_of_previous_period,
         lagged_choice,
         experience,
-        income_shock_previous_period,
+        income_shock,
         params,
     )
 
@@ -81,7 +81,7 @@ def budget_constraint_with_aux(
     asset_end_of_previous_period,
     lagged_choice,
     experience,
-    income_shock_previous_period,
+    income_shock,
     params,
 ):
     wealth = _wealth_beginning_of_period(
@@ -89,10 +89,10 @@ def budget_constraint_with_aux(
         asset_end_of_previous_period,
         lagged_choice,
         experience,
-        income_shock_previous_period,
+        income_shock,
         params,
     )
-    aux_dict = {"income_shock": income_shock_previous_period}
+    aux_dict = {"income_shock": income_shock}
     return wealth, aux_dict
 
 
