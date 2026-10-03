@@ -114,7 +114,7 @@ def test_load_and_save_solution(
     states_initial = {
         "period": jnp.zeros(n_agents, dtype=int),
         "lagged_choice": jnp.zeros(n_agents, dtype=int),
-        "assets_begin_of_period": jnp.ones(n_agents, dtype=float) * 10,
+        "assets_end_of_previous_period": jnp.ones(n_agents, dtype=float) * 10,
     }
     seed = 132
 

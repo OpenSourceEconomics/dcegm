@@ -152,7 +152,7 @@ def _initial_states(exp_kind, n):
         "period": np.zeros(n, dtype=int),
         "lagged_choice": np.zeros(n, dtype=int),
         "experience": experience,
-        "assets_begin_of_period": np.ones(n) * 10,
+        "assets_end_of_previous_period": np.ones(n) * 10,
     }
 
 

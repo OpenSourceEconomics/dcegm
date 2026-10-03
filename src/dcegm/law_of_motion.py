@@ -26,12 +26,12 @@ def calc_law_of_motion(
     ``state_choice_space_dict`` -- rather than pre-gathered representative-parent
     dicts, so only the branch actually taken pays for the gather.
 
-    The transition into a child does not depend on the child's own *future* choice.
-    So unless a user transition function declares ``choice`` -- decided once at
-    model-build time by ``_transition_funcs_depend_on_choice`` in
-    ``process_model_functions.py`` -- every state-choice sharing a child state would
-    compute a bit-identical transition, and it is evaluated once per unique child
-    *state* and gathered out instead.
+    The budget equation is the only law of motion that may declare ``choice`` (the
+    child's own; every other state is fixed before the choice is made, see
+    ``_check_choice_not_declared`` in ``process_model_functions.py``). Unless it
+    does -- decided once at model-build time -- every state-choice sharing a child
+    state would compute a bit-identical transition, and the whole transition is
+    evaluated once per unique child *state* and gathered out instead.
 
     The two branches are alternatives, not nested: each calls the shared core
     ``_calc_transitions_for_rows`` with different rows -- state-choices in one
@@ -42,8 +42,8 @@ def calc_law_of_motion(
         law_of_motion_arrays: The child arrays for the branch actually taken.
             Assembled once at model setup (see ``bundle_law_of_motion_arrays`` in
             ``pre_processing/batches/batch_creation.py``) and threaded through the
-            backward induction, so only the branch's arrays are carried. When
-            transitions depend on ``choice``: ``child_state_choices`` (the child's
+            backward induction, so only the branch's arrays are carried. When the
+            budget depends on ``choice``: ``child_state_choices`` (the child's
             own, *non-proxy* state-choice dict -- the transition into it uses its
             real state, not the proxy value-reuse slot) and
             ``rep_parent_state_choice_idx_per_child_state_choice``. Otherwise:
@@ -56,7 +56,7 @@ def calc_law_of_motion(
             scaled by its mean and standard deviation.
         params: Model parameters.
         model_funcs: Processed model functions; in particular
-            ``transition_funcs_depend_on_choice["any"]`` selects the branch.
+            ``budget_depends_on_choice`` selects the branch.
         has_additional_continuous_states: Whether the model has an additional
             continuous state besides wealth.
         additional_continuous_state_names: Names of those additional
@@ -70,7 +70,7 @@ def calc_law_of_motion(
         there is none).
 
     """
-    if model_funcs["transition_funcs_depend_on_choice"]["any"]:
+    if model_funcs["budget_depends_on_choice"]:
         # A representative parent's own state-choice, for each of this batch's
         # deduplicated children -- used only to pick which state-choice's own
         # continuous grid feeds the law of motion (see law_of_motion.py). Grids live on
@@ -134,9 +134,9 @@ def calc_law_of_motion_for_state_choices(
 ):
     """Transitions for a set of child *state-choices*, one row each.
 
-    Used when a transition function declares ``choice``, so each of a state's choices
-    genuinely needs its own evaluation. See ``calc_law_of_motion`` for how this is
-    chosen, and ``_calc_transitions_for_rows`` for the shared math.
+    Used when the budget equation declares ``choice``, so each of a state's choices
+    genuinely needs its own wealth. See ``calc_law_of_motion`` for how this is chosen,
+    and ``_calc_transitions_for_rows`` for the shared math.
 
     """
     return _calc_transitions_for_rows(
@@ -201,15 +201,13 @@ def _calc_transitions_for_rows(
     global-grid behavior exactly whenever grids are not state-choice-specific.
 
     """
-    # "choice" (the child's own) is passed straight through when present, so a
-    # budget equation or continuous-state transition may declare it and get a
-    # different transition per choice -- e.g. a choice-specific cost deducted from
-    # beginning-of-period wealth. Functions that don't declare it are unaffected:
-    # determine_function_arguments_and_partial_model_specs filters kwargs down to
-    # each function's own signature. Callers passing a bare state space (no
-    # "choice" key at all) are likewise fine, as long as their functions don't ask
-    # for it -- which is exactly the condition _transition_funcs_depend_on_choice
-    # checks before routing to calc_law_of_motion_for_child_states below.
+    # "choice" (the child's own) is passed straight through when present, so the
+    # budget equation may declare it and get a different wealth per choice -- e.g. a
+    # choice-specific cost deducted from beginning-of-period wealth. Functions that
+    # don't declare it are unaffected: determine_function_arguments_and_partial_model_specs
+    # filters kwargs down to each function's own signature. Callers passing a bare
+    # state space (no "choice" key at all) are likewise fine -- that is exactly the
+    # branch calc_law_of_motion routes to when the budget is choice-free.
     state_vec = dict(rows)
 
     continuous_state_next_period = _get_continuous_state_next_period(
@@ -303,12 +301,12 @@ def calc_law_of_motion_for_child_states(
     Sibling of ``calc_law_of_motion_for_state_choices`` above: both call the same
     core (``_calc_transitions_for_rows``), this one with deduplicated child states
     rather than child state-choices, and then gather the per-state result back out.
-    Only valid when the user's transition functions do not
-    depend on ``choice`` (checked once at model-build time, see
-    ``transition_funcs_depend_on_choice`` in ``process_model_functions.py``): the
-    transition into a child is a function of the child's own state, not of the
-    choice it goes on to make, so every state-choice sharing a child state would
-    otherwise recompute a bit-identical result ``n_choices`` times.
+    Only valid when the budget equation does not depend on ``choice`` (decided once
+    at model-build time, see ``budget_depends_on_choice`` in
+    ``process_model_functions.py``): the transition into a child is then a function
+    of the child's own state, not of the choice it goes on to make, so every
+    state-choice sharing a child state would otherwise recompute a bit-identical
+    result ``n_choices`` times.
 
     ``state_row_for_state_choice`` (built in ``child_state_dedup.py``) maps each
     child state-choice back to its row in ``child_states``, so the per-state result

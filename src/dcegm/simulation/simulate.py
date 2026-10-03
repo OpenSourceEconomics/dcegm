@@ -15,11 +15,38 @@ from dcegm.simulation.random_keys import draw_random_keys_for_seed
 from dcegm.simulation.sim_utils import (
     assets_begin_of_period_for_each_choice,
     compute_final_utility_for_each_choice,
-    continuous_state_begin_of_period_for_each_choice,
+    draw_income_shocks_for_period,
     transition_to_next_period,
     vectorized_utility,
 )
 from dcegm.simulation.taste_shocks import draw_taste_shocks
+
+
+def _check_initial_assets(states_initial):
+    """Reject the pre-``assets_end_of_previous_period`` initial-state contract.
+
+    Passing ``assets_begin_of_period`` used to mean "period 0's wealth, take it as
+    given", which made period 0 the one period whose budget equation never ran. Now
+    every period builds its own wealth, so what the first period needs is what it
+    inherits, not what it ends up with -- and silently reading the old key would quietly
+    reinterpret its value.
+
+    """
+    if "assets_end_of_previous_period" in states_initial:
+        return
+    if "assets_begin_of_period" in states_initial:
+        raise ValueError(
+            "states_initial must contain 'assets_end_of_previous_period', not "
+            "'assets_begin_of_period'. Every period, the first included, computes "
+            "its beginning-of-period wealth from the budget equation, so supply "
+            "the assets agents carry into the first period; its wealth then "
+            "follows from the budget equation as in every other period."
+        )
+    raise ValueError(
+        "states_initial must contain 'assets_end_of_previous_period': the assets "
+        "agents carry into the first period, from which the budget equation builds "
+        "that period's wealth."
+    )
 
 
 def simulate_all_periods(
@@ -47,22 +74,16 @@ def simulate_all_periods(
         for key, value in states_initial.items()
         if key in discrete_state_space
     }
-    # Assets are given by the user only for the first period. Every later period
-    # applies the law of motion at its own beginning (see simulate_single_period),
-    # so the carry holds what that needs -- last period's end-of-period assets and
-    # this period's income shock -- rather than a ready-made wealth level. The
-    # seeds below are only ever read through the first-period override, so their
-    # values do not matter beyond being finite.
-    states_initial_dtype["assets_given_first_period"] = states_initial[
-        "assets_begin_of_period"
+    # Every period, the first included, builds its own beginning-of-period wealth
+    # from the budget equation (see simulate_single_period), so the carry holds what
+    # that needs -- last period's end-of-period assets -- rather than a ready-made
+    # wealth level. That is why the user supplies assets_end_of_previous_period:
+    # agents enter period 0 out of a notional period -1 whose savings they carry, and
+    # period 0's wealth follows from the budget equation like any other period's.
+    _check_initial_assets(states_initial)
+    states_initial_dtype["assets_end_of_previous_period"] = states_initial[
+        "assets_end_of_previous_period"
     ]
-    states_initial_dtype["assets_end_of_previous_period"] = jnp.zeros_like(
-        states_initial["assets_begin_of_period"]
-    )
-    states_initial_dtype["income_shock"] = jnp.zeros_like(
-        states_initial["assets_begin_of_period"]
-    )
-    states_initial_dtype["is_first_period"] = jnp.array(True)
 
     if "dummy_stochastic" in model_structure["stochastic_states_names"]:
         states_initial_dtype["dummy_stochastic"] = jnp.zeros_like(
@@ -79,11 +100,10 @@ def simulate_all_periods(
 
     if has_additional_continuous_state:
         for name in additional_continuous_state_names:
-            # Carried as *last* period's realised value: this period's is computed
-            # at its own beginning, per choice (see simulate_single_period). The
-            # seed is only read through the first-period override below.
-            states_initial_dtype[f"{name}_of_previous_period"] = states_initial[name]
-            states_initial_dtype[f"{name}_given_first_period"] = states_initial[name]
+            # Carried as this period's realised value: unlike wealth, it is settled
+            # at the end of the previous period, so the user's array is simply the
+            # first period's own state.
+            states_initial_dtype[name] = states_initial[name]
 
     n_agents = len(states_initial["period"])
 
@@ -96,6 +116,7 @@ def simulate_all_periods(
         ],
         seed=seed,
     )
+    read_funcs = model_funcs["read_funcs"]
 
     simulate_body = partial(
         simulate_single_period,
@@ -106,7 +127,7 @@ def simulate_all_periods(
         model_structure_sol=model_structure,
         model_funcs_sim=alt_model_funcs_sim,
         compute_utility=model_funcs["compute_utility"],
-        read_funcs=model_funcs["read_funcs"],
+        read_funcs=read_funcs,
         continuous_grid_functions=model_funcs["continuous_grid_functions"],
         model_config=model_config,
     )
@@ -133,13 +154,8 @@ def simulate_all_periods(
         compute_assets_begin_of_period=alt_model_funcs_sim[
             "compute_assets_begin_of_period"
         ],
-        budget_depends_on_choice=alt_model_funcs_sim[
-            "transition_funcs_depend_on_choice"
-        ]["budget"],
-        compute_continuous_state=alt_model_funcs_sim["next_period_continuous_state"],
-        continuous_state_depends_on_choice=alt_model_funcs_sim[
-            "transition_funcs_depend_on_choice"
-        ]["continuous_state"],
+        budget_depends_on_choice=alt_model_funcs_sim["budget_depends_on_choice"],
+        read_funcs=read_funcs,
     )
 
     # Standard simulation output
@@ -190,72 +206,54 @@ def simulate_single_period(
         if key in model_structure_sol["discrete_states_names"]
     }
     choice_range = model_structure_sol["choice_range"]
-    is_first_period = states_beginning_of_period["is_first_period"]
+    n_agents = states_beginning_of_period["assets_end_of_previous_period"].shape[0]
+
+    # This period's own income shock, drawn here rather than inherited from last
+    # period's transition, so the shock, the wealth it builds and the row it is
+    # reported on all belong to the same period.
+    income_shock = draw_income_shocks_for_period(
+        n_agents=n_agents,
+        params=params,
+        read_funcs=read_funcs,
+        income_shock_keys=sim_keys["income_shock_keys"],
+    )
 
     if has_additional_continuous_state:
-        # Same rule as wealth: this period's continuous state is produced by the
-        # law of motion at the period's own beginning, for every choice, because
-        # next_period_continuous_state may declare "choice".
-        continuous_state_per_choice = continuous_state_begin_of_period_for_each_choice(
-            discrete_states_beginning_of_period=discrete_states_beginning_of_period,
-            continuous_state_of_previous_period={
-                name: states_beginning_of_period[f"{name}_of_previous_period"]
-                for name in additional_continuous_state_names
-            },
-            choice_range=choice_range,
-            params=params,
-            compute_continuous_state=model_funcs_sim["next_period_continuous_state"],
-            continuous_state_depends_on_choice=model_funcs_sim[
-                "transition_funcs_depend_on_choice"
-            ]["continuous_state"],
-        )
-        continuous_state_per_choice = {
-            name: jnp.where(
-                is_first_period,
-                states_beginning_of_period[f"{name}_given_first_period"][:, None],
-                val,
-            )
-            for name, val in continuous_state_per_choice.items()
+        # Already settled at the end of last period, unlike wealth: the continuous
+        # state may not depend on the choice about to be made (see
+        # _check_choice_not_declared in process_model_functions.py), so there is
+        # nothing left to resolve here.
+        continuous_state_beginning_of_period = {
+            name: states_beginning_of_period[name]
+            for name in additional_continuous_state_names
         }
     else:
-        continuous_state_per_choice = None
+        continuous_state_beginning_of_period = None
 
     # Law of motion at the *beginning* of the period, before any choice is made,
     # and evaluated for every choice: a budget equation may declare "choice" and
     # then hand the agent a different wealth per choice, which is exactly what the
     # solved solution is indexed by. Shape (n_agents, n_choices).
-    assets_per_choice, budget_aux = assets_begin_of_period_for_each_choice(
+    assets_begin_of_period, budget_aux = assets_begin_of_period_for_each_choice(
         states_beginning_of_period=discrete_states_beginning_of_period,
-        continuous_state_per_choice=continuous_state_per_choice,
+        continuous_state_beginning_of_period=continuous_state_beginning_of_period,
         assets_end_of_previous_period=states_beginning_of_period[
             "assets_end_of_previous_period"
         ],
-        income_shock=states_beginning_of_period["income_shock"],
+        income_shock=income_shock,
         choice_range=choice_range,
         params=params,
         compute_assets_begin_of_period=model_funcs_sim[
             "compute_assets_begin_of_period"
         ],
-        budget_depends_on_choice=model_funcs_sim["transition_funcs_depend_on_choice"][
-            "budget"
-        ],
+        budget_depends_on_choice=model_funcs_sim["budget_depends_on_choice"],
     )
-    # In the first period the user supplies assets directly; no law of motion has
-    # run yet, so the same wealth applies to every choice.
-    assets_begin_of_period = jnp.where(
-        is_first_period,
-        states_beginning_of_period["assets_given_first_period"][:, None],
-        assets_per_choice,
-    )
-    budget_aux = {
-        key: jnp.where(is_first_period, jnp.nan, val) for key, val in budget_aux.items()
-    }
 
     discount_factor = read_funcs["discount_factor"](params)
     # Interpolate policy and value function for all agents.
     policy, values_pre_taste_shock = interpolate_policy_and_value_for_all_agents(
         discrete_states_beginning_of_period=discrete_states_beginning_of_period,
-        continuous_state_beginning_of_period=continuous_state_per_choice,
+        continuous_state_beginning_of_period=continuous_state_beginning_of_period,
         assets_begin_of_period=assets_begin_of_period,
         value_solved=value_solved,
         policy_solved=policy_solved,
@@ -304,60 +302,44 @@ def simulate_single_period(
         key: jnp.take_along_axis(val, choice_index[:, None], axis=1)[:, 0]
         for key, val in budget_aux.items()
     }
-    # Likewise the continuous state: the agent ends up in the one belonging to the
-    # choice it made, and that is what is carried forward and reported.
     if has_additional_continuous_state:
-        continuous_state_realized = {
-            name: jnp.take_along_axis(val, choice_index[:, None], axis=1)[:, 0]
-            for name, val in continuous_state_per_choice.items()
-        }
-        states_realized = {
+        states_of_period = {
             **discrete_states_beginning_of_period,
-            **continuous_state_realized,
+            **continuous_state_beginning_of_period,
         }
     else:
-        continuous_state_realized = None
-        states_realized = discrete_states_beginning_of_period
+        states_of_period = discrete_states_beginning_of_period
 
     utility_period = vmap(vectorized_utility, in_axes=(0, 0, 0, None, None))(
         consumption,
-        states_realized,
+        states_of_period,
         choice,
         params,
         compute_utility,
     )
     savings_current_period = assets_realized - consumption
 
-    discrete_states_next_period, income_shocks_next_period = transition_to_next_period(
-        discrete_states_beginning_of_period=discrete_states_beginning_of_period,
-        continuous_state_beginning_of_period=continuous_state_realized,
-        assets_end_of_period=savings_current_period,
-        choice=choice,
-        params=params,
-        model_funcs_sim=model_funcs_sim,
-        read_funcs=read_funcs,
-        sim_keys=sim_keys,
+    discrete_states_next_period, continuous_state_next_period = (
+        transition_to_next_period(
+            discrete_states_beginning_of_period=discrete_states_beginning_of_period,
+            continuous_state_beginning_of_period=continuous_state_beginning_of_period,
+            assets_end_of_period=savings_current_period,
+            choice=choice,
+            params=params,
+            model_funcs_sim=model_funcs_sim,
+            sim_keys=sim_keys,
+        )
     )
 
     states_next_period = discrete_states_next_period
 
-    # Carry what next period needs to run its own law of motion at its beginning:
-    # this period's realised continuous state and end-of-period assets, plus the
-    # income shock drawn for next period.
+    # Carry what next period needs to run the budget equation at its beginning --
+    # this period's end-of-period assets; it draws its own income shock -- alongside
+    # next period's already-settled continuous state.
     if has_additional_continuous_state:
         for name in additional_continuous_state_names:
-            states_next_period[f"{name}_of_previous_period"] = (
-                continuous_state_realized[name]
-            )
-            states_next_period[f"{name}_given_first_period"] = (
-                states_beginning_of_period[f"{name}_given_first_period"]
-            )
+            states_next_period[name] = continuous_state_next_period[name]
     states_next_period["assets_end_of_previous_period"] = savings_current_period
-    states_next_period["income_shock"] = income_shocks_next_period
-    states_next_period["assets_given_first_period"] = states_beginning_of_period[
-        "assets_given_first_period"
-    ]
-    states_next_period["is_first_period"] = jnp.array(False)
 
     result = {
         "choice": choice,
@@ -368,12 +350,11 @@ def simulate_single_period(
         "value_choice": values_across_choices,
         "assets_begin_of_period": assets_realized,
         "savings": savings_current_period,
-        "income_shock": income_shocks_next_period,
+        "income_shock": income_shock,
         **budget_aux,
-        # Only the model's own states -- the carry additionally holds bookkeeping
-        # entries (last period's continuous state and assets, the income shock, the
-        # first-period gifts and flag) that are not simulation output.
-        **states_realized,
+        # Only the model's own states -- the carry additionally holds a bookkeeping
+        # entry (last period's end-of-period assets) that is not simulation output.
+        **states_of_period,
     }
 
     return states_next_period, result
@@ -392,8 +373,7 @@ def simulate_final_period(
     model_structure_sol,
     compute_assets_begin_of_period,
     budget_depends_on_choice,
-    compute_continuous_state,
-    continuous_state_depends_on_choice,
+    read_funcs,
 ):
     invalid_number = np.array(
         np.iinfo(map_state_choice_to_index.dtype).max,
@@ -406,33 +386,30 @@ def simulate_final_period(
         for key, value in states_begin_of_final_period.items()
         if key in model_structure_sol["discrete_states_names"]
     }
-    income_shock_final_period = states_begin_of_final_period["income_shock"]
+    # Drawn here, like every other period's (see simulate_single_period).
+    income_shock_final_period = draw_income_shocks_for_period(
+        n_agents=n_agents,
+        params=params,
+        read_funcs=read_funcs,
+        income_shock_keys=sim_keys["income_shock_keys"],
+    )
 
-    # The final period applies both laws of motion at its own beginning too, per
-    # choice, exactly like every other period (see simulate_single_period). It is
-    # never the first period, so no override is needed here.
+    # The final period applies the budget equation at its own beginning too, per
+    # choice, exactly like every other period (see simulate_single_period). Its
+    # continuous state arrives already settled from the previous period's
+    # transition.
     if continuous_states_info["has_additional_continuous_state"]:
-        additional_continuous_state_names = continuous_states_info[
-            "additional_continuous_state_names"
-        ]
-        continuous_state_per_choice = continuous_state_begin_of_period_for_each_choice(
-            discrete_states_beginning_of_period=discrete_states_begin_last_period,
-            continuous_state_of_previous_period={
-                name: states_begin_of_final_period[f"{name}_of_previous_period"]
-                for name in additional_continuous_state_names
-            },
-            choice_range=choice_range,
-            params=params,
-            compute_continuous_state=compute_continuous_state,
-            continuous_state_depends_on_choice=continuous_state_depends_on_choice,
-        )
+        continuous_state_begin_of_final_period = {
+            name: states_begin_of_final_period[name]
+            for name in continuous_states_info["additional_continuous_state_names"]
+        }
     else:
-        continuous_state_per_choice = None
+        continuous_state_begin_of_final_period = None
 
     assets_begin_of_final_period, budget_aux_final = (
         assets_begin_of_period_for_each_choice(
             states_beginning_of_period=discrete_states_begin_last_period,
-            continuous_state_per_choice=continuous_state_per_choice,
+            continuous_state_beginning_of_period=continuous_state_begin_of_final_period,
             assets_end_of_previous_period=states_begin_of_final_period[
                 "assets_end_of_previous_period"
             ],
@@ -444,16 +421,17 @@ def simulate_final_period(
         )
     )
 
-    # Utility is evaluated per choice, at that choice's own wealth *and* its own
-    # continuous state, so the state dict handed to it is per choice too. Discrete
-    # states are choice-invariant and simply repeated across that axis.
+    # Utility is evaluated per choice, at that choice's own wealth, so the state
+    # dict handed to it is repeated across the choice axis. Every state in it is
+    # choice-invariant -- only wealth differs by choice.
     n_choices = len(choice_range)
+    states_begin_last_period = dict(discrete_states_begin_last_period)
+    if continuous_state_begin_of_final_period is not None:
+        states_begin_last_period.update(continuous_state_begin_of_final_period)
     states_per_choice = {
         key: jnp.repeat(val[:, None], n_choices, axis=1)
-        for key, val in discrete_states_begin_last_period.items()
+        for key, val in states_begin_last_period.items()
     }
-    if continuous_state_per_choice is not None:
-        states_per_choice = {**states_per_choice, **continuous_state_per_choice}
 
     utilities_pre_taste_shock = vmap(
         vmap(
@@ -506,10 +484,6 @@ def simulate_final_period(
         key: jnp.take_along_axis(val, choice_index[:, None], axis=1)[:, 0]
         for key, val in budget_aux_final.items()
     }
-    states_realized_final = {
-        key: jnp.take_along_axis(val, choice_index[:, None], axis=1)[:, 0]
-        for key, val in states_per_choice.items()
-    }
 
     result = {
         "choice": choice,
@@ -520,14 +494,9 @@ def simulate_final_period(
         "taste_shocks": taste_shocks[np.newaxis, :, :],
         "assets_begin_of_period": assets_realized_final,
         "savings": jnp.zeros_like(utility_period),
-        # Matches main's convention: the final period has no "next period" to draw
-        # a shock for, so this column is a placeholder here, not the shock actually
-        # consumed to build this period's own wealth (that's income_shock_final_period,
-        # already used above where it's functionally needed -- see
-        # assets_begin_of_period_for_each_choice's income_shock argument).
-        "income_shock": jnp.zeros(n_agents),
+        "income_shock": income_shock_final_period,
         **budget_aux_final,
-        **states_realized_final,
+        **states_begin_last_period,
     }
 
     return result

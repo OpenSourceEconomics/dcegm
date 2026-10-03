@@ -93,8 +93,8 @@ def budget_constraint_choice_dependent(
     is to work.
 
     Declaring ``choice`` is what routes the solve down the per-state-choice law of
-    motion (``transition_funcs_depend_on_choice["budget"]``); the subtracted cost is
-    what makes that routing observable in the solution -- mirrors ``reference.py``'s
+    motion (``budget_depends_on_choice``); the subtracted cost is what makes that
+    routing observable in the solution -- mirrors ``reference.py``'s
     ``resources_after_transition(..., choice_next=..., work_cost=...)``, which every
     caller of ``budget_constraint`` here must be compared against instead of
     ``resources_after_transition`` without those two arguments.

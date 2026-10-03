@@ -166,7 +166,8 @@ def interpolate_policy_and_value_for_all_agents(
                 interp2d_policy_and_value_function,
                 in_axes=(
                     0,
-                    0,
+                    # Wealth may differ by choice; the continuous state may not.
+                    None,
                     None,
                     0,
                     0,
@@ -261,7 +262,8 @@ def interpolate_policy_and_value_for_all_agents(
                 interpnd_policy_and_value_function,
                 in_axes=(
                     0,
-                    0,
+                    # Wealth may differ by choice; the continuous state may not.
+                    None,
                     None,
                     endog_grid_in_axes,
                     0,

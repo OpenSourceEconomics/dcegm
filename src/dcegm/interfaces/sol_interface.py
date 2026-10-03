@@ -72,7 +72,20 @@ class model_solved:
         self.alternative_sim_funcs = alternative_sim_funcs
 
     def simulate(self, states_initial, seed):
+        """Simulate a panel of agents forward through the solved model.
 
+        Args:
+            states_initial: Initial states for the simulated agents, one array per state name, each of shape
+                ``(n_agents,)``. Must include ``assets_end_of_previous_period``:
+                the assets agents carry *into* the first period, not the wealth
+                they have to spend in it. The first period applies the budget
+                equation to it like every other period.
+            seed: Random seed for the simulation's taste shocks and income draws.
+
+        Returns:
+            A long-format panel with a ``(period, agent)`` MultiIndex.
+
+        """
         sim_dict = simulate_all_periods(
             states_initial=states_initial,
             n_periods=self.model_config["n_periods"],

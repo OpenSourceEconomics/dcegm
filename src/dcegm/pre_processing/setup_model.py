@@ -144,9 +144,7 @@ def create_model_dict(
     # Model-static, so it is decided here at setup rather than per batch/period.
     batch_info = bundle_law_of_motion_arrays(
         batch_info,
-        transition_depends_on_choice=model_funcs["transition_funcs_depend_on_choice"][
-            "any"
-        ],
+        transition_depends_on_choice=model_funcs["budget_depends_on_choice"],
         state_space_dict=model_structure["state_space_dict"],
     )
     if not debug_info == "all":

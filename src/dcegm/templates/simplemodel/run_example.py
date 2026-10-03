@@ -72,7 +72,7 @@ states_initial = {
     "period": jnp.zeros(n_agents),
     "lagged_choice": jnp.zeros(n_agents),  # all agents start as workers
     "experience": jnp.ones(n_agents),
-    "assets_begin_of_period": jnp.ones(n_agents) * 10,
+    "assets_end_of_previous_period": jnp.ones(n_agents) * 10,
 }
 
 sim_df = model_solved.simulate(states_initial=states_initial, seed=42)

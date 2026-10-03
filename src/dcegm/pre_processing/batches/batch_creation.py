@@ -52,14 +52,13 @@ def _select_law_of_motion_arrays(
 ):
     """Keep only the child arrays the taken law-of-motion branch reads.
 
-    Choice-dependent transitions evaluate the law of motion once per child *state-
-    choice*, so they need the child's own (non-proxy) state-choice dict plus the per-
-    state-choice representative parent; otherwise the coarser per-unique-child-*state*
-    dedup suffices (see ``calc_law_of_motion`` in ``law_of_motion.py``). Whichever
-    branch is taken is a model-static property
-    (``transition_funcs_depend_on_choice["any"]``), so the selection is made once here
-    at setup and the unused branch's arrays are never threaded through the backward
-    induction.
+    A choice-dependent budget equation evaluates the law of motion once per child
+    *state-choice*, so it needs the child's own (non-proxy) state-choice dict plus the
+    per-state-choice representative parent; otherwise the coarser per-unique-
+    child-*state* dedup suffices (see ``calc_law_of_motion`` in ``law_of_motion.py``).
+    Whichever branch is taken is a model-static property (``budget_depends_on_choice``),
+    so the selection is made once here at setup and the unused branch's arrays are never
+    threaded through the backward induction.
 
     ``child_state_choices_no_proxy`` is the transition child (its real state), not the
     proxy value-reuse slot -- the proxy identity stays on the separate

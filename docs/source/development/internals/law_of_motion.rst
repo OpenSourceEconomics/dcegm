@@ -17,10 +17,16 @@ Two user-supplied functions describe how a state transitions into the next perio
 
 - ``budget_constraint`` -- processed into
   ``model_funcs["compute_assets_begin_of_period"]``. Maps end-of-period assets,
-  an income shock, and the discrete state to beginning-of-period wealth.
+  an income shock, and the discrete state to beginning-of-period wealth. This is
+  the *only* law of motion that may declare ``choice``, and it means the choice
+  made in the period whose wealth is being computed -- see
+  :ref:`choice_dependent_budget` below.
 - ``next_period_continuous_state`` -- optional, only when the model has additional
   continuous states (e.g. continuous experience). Maps this period's continuous
-  state to next period's.
+  state to next period's. It may **not** declare ``choice``; doing so raises at
+  model build (``_check_choice_not_declared`` in ``process_model_functions.py``).
+  The previous period's choice, which is what accumulation processes actually
+  need, is the ordinary state variable ``lagged_choice``.
 
 Both are evaluated in
 :func:`dcegm.law_of_motion.calc_law_of_motion_for_state_choices`, called from
@@ -74,11 +80,11 @@ own grid. The representative is picked in
 Two evaluation granularities
 -----------------------------
 
-The transition into a child does not depend on the child's own *future* choice --
-the choice is made after wealth is determined. So whenever the user's transition
-functions don't declare ``choice`` either, every state-choice sharing a child
-state would compute a bit-identical transition, and evaluating per state-choice
-does redundant work proportional to the number of choices.
+The transition into a child normally does not depend on the child's own choice,
+only on its state. So unless the budget equation declares ``choice``, every
+state-choice sharing a child state would compute a bit-identical transition, and
+evaluating per state-choice does redundant work proportional to the number of
+choices.
 
 ``dcegm`` therefore has two implementations, dispatched between by
 ``calc_law_of_motion`` -- the single entry point every caller uses, so the
@@ -93,10 +99,21 @@ granularity decision lives in one place rather than being repeated per call site
      - Used when
    * - ``calc_law_of_motion_for_state_choices``
      - child **state-choice**
-     - a transition function declares ``choice``
+     - the budget equation declares ``choice``
    * - ``calc_law_of_motion_for_child_states``
      - unique child **state**
      - it does not (the common case)
+
+.. note::
+
+   The granularity is chosen for both transitions at once, on the budget equation
+   alone. Since ``next_period_continuous_state`` can never declare ``choice``, a
+   model with a choice-dependent budget recomputes a bit-identical continuous
+   state for each of a child's choices. Splitting the two apart would mean
+   carrying both sets of dedup arrays and a gather in between, for a quantity of
+   shape ``(n_rows, n_combos)`` against wealth's
+   ``(n_rows, n_combos, n_savings, n_shocks)`` -- a small fraction of the work, so
+   the two are kept in one pass.
 
 Both call sites -- ``interpolate_value_and_marg_util`` for the main backward
 induction, and ``solve_final_period`` for the terminal period -- go through
@@ -148,40 +165,27 @@ By signature inspection, once at model-build time -- the same approach
 .. code-block:: python
 
     # process_model_functions.py
-    def _transition_funcs_depend_on_choice(
-        budget_constraint, state_space_functions, has_additional_continuous_states
-    ):
-        funcs_to_check = [budget_constraint]
-        if has_additional_continuous_states:
-            funcs_to_check.append(state_space_functions["next_period_continuous_state"])
+    def _declares_choice(func):
+        return "choice" in set(inspect.signature(func).parameters)
 
-        return any(
-            "choice" in set(inspect.signature(func).parameters)
-            for func in funcs_to_check
-        )
+    budget_depends_on_choice = _declares_choice(budget_constraint)
 
-The result is stored as ``model_funcs["transition_funcs_depend_on_choice"]``.
-Inspection happens on the *user's* function, before
+The result is stored as ``model_funcs["budget_depends_on_choice"]``. Inspection
+happens on the *user's* function, before
 ``determine_function_arguments_and_partial_model_specs`` wraps it -- the wrapper's
 ``**kwargs`` signature would hide the real parameter names.
 
-.. note::
-
-   The flag is deliberately coarse: ``any(...)`` over both functions, so if
-   *either* the budget equation or ``next_period_continuous_state`` declares
-   ``choice``, both fall back to per-state-choice evaluation. A finer split is
-   possible but not free -- the two are computed in one pass, with
-   ``_get_continuous_state_next_period``'s output feeding the budget equation, so
-   mixed granularities would need a gather in between. In practice the common
-   trigger is a choice-dependent budget; a choice-dependent continuous-state
-   transition is rare, since experience accumulation and the like depend on
-   ``lagged_choice``, which is an ordinary state variable requiring no ``choice``
-   argument at all.
+The same inspection is used in the opposite direction for
+``next_period_continuous_state``: ``_check_choice_not_declared`` raises a
+``ValueError`` if it declares ``choice``, so the only function that can put the
+solve on the per-state-choice path is the budget equation.
 
 All shipped toy models (``with_cont_exp``, ``with_exp``, ``dcegm_paper``) report
 ``False``, so the deduplicated path is what the test suite actually exercises;
 ``test_default_toy_models_take_the_state_level_fast_path`` asserts this so it
 cannot silently regress.
+
+.. _choice_dependent_budget:
 
 Writing a choice-dependent budget equation
 --------------------------------------------
@@ -202,6 +206,27 @@ Functions that do not declare ``choice`` are unaffected:
 ``determine_function_arguments_and_partial_model_specs`` filters kwargs down to
 each function's own signature, so the extra key is simply ignored.
 
+.. important::
+
+   **A choice-dependent budget equation must return pre-consumption wealth.**
+
+   The ``choice`` seen here is the agent's own choice in the period whose wealth
+   is being computed, so the timing is unusual: wealth is resolved *after* the
+   discrete choice but *before* the continuous consumption choice. ``dcegm``
+   builds the agent's decision on exactly that reading -- it evaluates the budget
+   equation once per choice, and the agent then compares each choice's value at
+   that choice's own wealth, consuming out of it. Anything the budget equation
+   subtracts is therefore money the agent never gets to consume; anything it adds
+   is consumable in the same period.
+
+   This is why only wealth works this way. A choice-specific cost or transfer is
+   naturally levied at the moment of choosing, and consumption adjusts to it
+   within the period. Every other state variable is fixed at the start of the
+   period, before the choice, so ``next_period_continuous_state`` is evaluated at
+   the *end* of the previous period and is not offered ``choice`` at all. The
+   parent's choice is available separately, and always has been, as the child's
+   ``lagged_choice``.
+
 .. note::
 
    This did not work before the granularity split. Two places stripped ``choice``
@@ -210,12 +235,12 @@ each function's own signature, so the extra key is simply ignored.
    so a budget equation declaring ``choice`` raised ``KeyError: 'choice'``. Both
    pops were removable: the signature filter already does that job.
 
-The semantics are worth being explicit about, since the timing is unusual: the
-``choice`` seen here is the *child's own* choice, made in the period whose
-beginning-of-period wealth is being computed. That is after wealth would normally
-be determined, so it only makes sense for choice-specific costs or transfers
-applied at the moment of choosing. The parent's choice is already available
-separately, and always has been, as the child's ``lagged_choice``.
+Simulation follows the same split. ``assets_begin_of_period_for_each_choice``
+(``simulation/sim_utils.py``) evaluates the budget equation for every choice at
+the start of a period, before the choice is drawn, and the realized wealth is the
+column belonging to the choice actually made. The additional continuous states are
+settled one step earlier, in ``transition_to_next_period`` at the end of the
+previous period, and so carry no choice axis at all.
 
 Cost
 -----
@@ -242,15 +267,16 @@ before dedup beats the gather -- is unknown. Confirming it would need
 ``jax.block_until_ready()`` timing or the XLA profiler, comparing a model with a
 genuinely heavy budget equation and a realistic choice count under both paths
 (forceable by adding an unused ``choice`` argument, as
-``test_law_of_motion_state_level_dedup.py`` does). The same caveat the
+``test_state_specific_grids_law_of_motion.py`` does). The same caveat the
 :ref:`batching_internals` page applies to its own performance claims applies here.
 
 Correctness testing
 --------------------
 
-The central guarantee is that the two granularities agree. ``tests/
-test_law_of_motion_state_level_dedup.py`` establishes this by solving the same
-economics twice -- once normally, once with a budget equation that declares an
+The central guarantee is that the two granularities agree.
+``tests/test_state_specific_grids_law_of_motion.py`` establishes this
+(``test_state_level_and_state_choice_level_paths_agree_bit_for_bit``) by solving
+the same economics twice -- once normally, once with a budget equation that declares an
 otherwise-unused ``choice`` to force the per-state-choice path -- and requiring
 bit-for-bit identical ``value``, ``policy`` and ``endog_grid``. A wrong
 ``state_row_for_state_choice`` mapping would surface there immediately, as
@@ -261,3 +287,8 @@ That test is paired with a sensitivity check
 equation that actually *uses* ``choice`` must produce a different solution. Without
 it, the equivalence test would still pass if ``choice`` were being silently
 dropped again -- the exact regression it is there to catch.
+
+The restriction on ``next_period_continuous_state`` has its own test,
+``test_continuous_state_transition_declaring_choice_is_rejected`` in
+``tests/test_state_specific_grids_reference.py``: a transition declaring
+``choice`` must raise at model build, not be silently ignored.

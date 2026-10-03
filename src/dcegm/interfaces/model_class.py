@@ -255,8 +255,11 @@ class setup_model:
         Args:
             params: Model parameters, in any form ``process_params`` accepts.
             states_initial: Initial discrete (and, if applicable, continuous)
-                states for the simulated agents, one array per state name,
-                each of shape ``(n_agents,)``.
+                states for the simulated agents, one array per state name, each of shape
+                ``(n_agents,)``. Must include ``assets_end_of_previous_period``:
+                the assets agents carry *into* the first period, not the wealth
+                they have to spend in it. The first period applies the budget
+                equation to it like every other period.
             seed: Random seed for the simulation's taste shocks and income
                 draws.
             load_sol_path: Optional path to a pickled solution dict to load
@@ -388,8 +391,13 @@ class setup_model:
         in a single compiled call.
 
         Args:
-            states_initial: Initial states for the simulated agents; fixed for
-                every call of the returned function (only ``params`` varies).
+            states_initial: Initial states for the simulated agents, one array per state name, each of shape
+                ``(n_agents,)``. Must include ``assets_end_of_previous_period``:
+                the assets agents carry *into* the first period, not the wealth
+                they have to spend in it. The first period applies the budget
+                equation to it like every other period.
+                Fixed for every call of the returned function (only ``params``
+                varies).
             seed: Random seed for the simulation; likewise fixed.
             slow_version: If True, skip ``jax.jit`` on the combined
                 solve-and-simulate step (useful for debugging with Python-

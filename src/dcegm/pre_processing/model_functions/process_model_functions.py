@@ -185,11 +185,7 @@ def process_model_functions_and_extract_info(
         "taste_shock_scale_in_params": taste_shock_scale_in_params
     }
 
-    transition_funcs_depend_on_choice = _transition_funcs_depend_on_choice(
-        budget_constraint=budget_constraint,
-        state_space_functions=state_space_functions,
-        has_additional_continuous_states=has_additional_continuous_states,
-    )
+    budget_depends_on_choice = _declares_choice(budget_constraint)
 
     model_funcs = {
         **utility_functions_processed,
@@ -205,7 +201,7 @@ def process_model_functions_and_extract_info(
         "taste_shock_function": taste_shock_function_processed,
         "continuous_grid_functions": continuous_grid_functions_processed,
         "state_specific_continuous_grid_names": state_specific_continuous_grid_names,
-        "transition_funcs_depend_on_choice": transition_funcs_depend_on_choice,
+        "budget_depends_on_choice": budget_depends_on_choice,
     }
 
     return model_funcs, model_config_processed
@@ -222,42 +218,26 @@ def _declares_choice(func):
     return "choice" in set(inspect.signature(func).parameters)
 
 
-def _transition_funcs_depend_on_choice(
-    budget_constraint,
-    state_space_functions,
-    has_additional_continuous_states,
-):
-    """Which law-of-motion functions declare ``choice``?
+def _check_choice_not_declared(func, name):
+    """Reject ``choice`` in a law-of-motion function other than the budget equation.
 
-    Returns a dict with three keys:
-
-    ``budget``
-        The budget equation gives a different beginning-of-period wealth per
-        choice. Simulation handles this by evaluating the law of motion for every
-        choice at the start of a period, before the choice is drawn (see
-        ``simulation/sim_utils.py``).
-    ``continuous_state``
-        The additional-continuous-state transition depends on the choice. Solving
-        supports this; simulation does not yet (it would make the continuous state
-        itself choice-specific, which the simulation loop does not carry).
-    ``any``
-        Either of the above. This is what selects the *granularity* the law of
-        motion is evaluated at during the solve (see ``calc_law_of_motion`` in
-        ``law_of_motion.py``): ``False`` means every state-choice sharing a child
-        state would compute a bit-identical transition, so it is evaluated once per
-        unique child *state* and gathered out instead -- purely a cost
-        optimization, not a behavior change.
+    ``choice`` in a law of motion means the choice made in the period whose state
+    is being computed -- i.e. the state is resolved *after* the discrete choice.
+    Only wealth is modelled that way (see ``_declares_choice``'s callers and the
+    "pre-consumption wealth" contract in
+    ``docs/source/development/internals/law_of_motion.rst``); every other state is
+    fixed at the start of the period, before the choice. The previous period's
+    choice, which is what accumulation processes like experience actually need, is
+    available as the ordinary state variable ``lagged_choice``.
 
     """
-    budget_depends = _declares_choice(budget_constraint)
-    continuous_state_depends = has_additional_continuous_states and _declares_choice(
-        state_space_functions["next_period_continuous_state"]
-    )
-    return {
-        "budget": budget_depends,
-        "continuous_state": continuous_state_depends,
-        "any": budget_depends or continuous_state_depends,
-    }
+    if _declares_choice(func):
+        raise ValueError(
+            f"{name}() declares 'choice', which is not supported. Only the budget "
+            "equation may depend on the current period's choice; every other state "
+            "is determined before the choice is made. Use 'lagged_choice' if you "
+            "need the choice made in the previous period."
+        )
 
 
 def process_state_space_functions(
@@ -353,6 +333,10 @@ def process_second_continuous_update_function(
                 "If additional continuous states are defined, provide "
                 "'next_period_continuous_state' in state_space_functions."
             )
+        _check_choice_not_declared(
+            state_space_functions["next_period_continuous_state"],
+            "next_period_continuous_state",
+        )
         next_period_continuous_state = (
             determine_function_arguments_and_partial_model_specs(
                 func=state_space_functions["next_period_continuous_state"],

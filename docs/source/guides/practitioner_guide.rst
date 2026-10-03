@@ -195,7 +195,18 @@ Thanks to it's efficient JAX implementation, `dcegm` is capable of solving and s
 
 **Initial Conditions**
 
-Model simulation requires user provided *initial_conditions*. In contrast to the sparsity conditions, `dcegm` currently does not perform checks on initial conditions. Badly specified initial conditions may result in errors in the simulation. For instance, the user should make sure that `assets_begin_of_period` is not set to zero in the first period and that initial conditions do not violate the sparsity conditions (for example by providing more initial experience that the sparsity conditions allows for an agent to have in a given period).
+Model simulation requires user provided *initial_conditions*. Among them, `dcegm` requires `assets_end_of_previous_period`: the assets agents **carry into** the first period, not the wealth they have available to spend in it. Every period, the first included, builds its beginning-of-period wealth by applying your budget constraint to the assets carried in plus that period's income shock, so the first period is not a special case. (This is also why supplying `assets_begin_of_period` raises a `ValueError` -- it named a different quantity.)
+
+The simulated panel is self-consistent row by row: each period draws its own income
+shock, feeds it to your budget constraint, and reports it in that period's own
+`income_shock` column. So for any period, applying your budget constraint to the
+previous period's `savings` and this period's `income_shock` reproduces this period's
+`assets_begin_of_period` -- with the assets you supplied standing in for `savings` in
+the first period. (Note that your budget constraint receives that shock under the
+argument name `income_shock_previous_period`, which reflects the timing convention
+that income is earned in one period and paid into the next period's wealth.)
+
+Apart from that key, `dcegm` currently does not perform checks on initial conditions. Badly specified initial conditions may result in errors in the simulation. For instance, the user should make sure that initial conditions do not violate the sparsity conditions (for example by providing more initial experience than the sparsity condition allows for an agent to have in a given period).
 
 
 **Model Timing**
@@ -219,3 +230,40 @@ This implementation currently supports the following timing of events where each
 
 5. State transitions that affect next-period states realize
    (e.g. health shocks and income shocks), determining :math:`s_{t+1}`.
+
+**Choice-dependent budget equations**
+
+By default every state variable, wealth included, is fixed at step 1 above --
+before the discrete choice. Wealth is the one exception `dcegm` allows: if your
+`budget_constraint` declares `choice` in its signature, it is evaluated once per
+choice, between steps 2 and 3, and the agent compares each choice's value at that
+choice's own wealth. This is how you model a choice-specific cost or transfer,
+for instance an entry cost paid on switching occupation:
+
+.. code-block:: python
+
+    def budget_constraint(
+        period, lagged_choice, choice, asset_end_of_previous_period,
+        income_shock_previous_period, params, model_specs,
+    ):
+        wealth = ...  # usual computation
+        return wealth - model_specs["entry_cost"] * (choice == 1)
+
+.. important::
+
+   When `choice` is used, `dcegm` expects the budget equation to return
+   **pre-consumption wealth** -- the resources the agent then consumes out of in
+   the same period, at step 3. Whatever the budget equation subtracts is money
+   the agent never gets to consume, and whatever it adds is consumable
+   immediately. If you instead mean a cost that is *not* available for
+   consumption in that period at all, subtract it from end-of-period assets in
+   the following period's budget rather than here.
+
+No other user function may declare `choice`. In particular
+`next_period_continuous_state` may not: additional continuous states (e.g.
+experience) are settled at step 5, at the end of the previous period, so the
+choice about to be made in the current period does not exist yet when they are
+computed. `dcegm` raises a `ValueError` at model setup if you declare it there.
+Use `lagged_choice` -- an ordinary state variable -- when you need the choice
+made in the *previous* period, which is what accumulation processes such as
+experience actually depend on.

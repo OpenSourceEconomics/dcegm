@@ -149,7 +149,7 @@ def test_sim_and_sol_model(model_config):
     states_initial = {
         "period": jnp.zeros(n_agents, dtype=int),
         "lagged_choice": jnp.zeros(n_agents, dtype=int),
-        "assets_begin_of_period": jnp.ones(n_agents, dtype=float) * 10,
+        "assets_end_of_previous_period": jnp.ones(n_agents, dtype=float) * 10,
     }
     n_periods = model_config["n_periods"]
     seed = 132
