@@ -9,6 +9,17 @@ import dcegm
 import dcegm.toy_models as toy_models
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
+from tests.test_utility_second_continuous import (
+    N_DISCRETE_CHOICES,
+)
+from tests.test_utility_second_continuous import PARAMS as PARAMS_EXP_UTILITY
+from tests.test_utility_second_continuous import (
+    inverse_marginal_utility_cont_exp,
+    marginal_utility_cont_exp,
+    marginal_utility_final_consume_all_with_cont_exp,
+    utility_cont_exp,
+    utility_final_consume_all_with_cont_exp,
+)
 
 
 @pytest.fixture(scope="module")
@@ -108,3 +119,69 @@ def test_simulate_discrete_versus_continuous_experience(test_setup):
     # Check if savings and consumption are reasonable close
     aaae(df_disc["savings"], df_cont["savings"], decimal=5)
     aaae(df_disc["consumption"], df_cont["consumption"], decimal=5)
+
+
+@pytest.fixture(scope="module")
+def model_solved_dj_exp_utility():
+    """Druedahl-Jorgensen model whose utility depends on the continuous state."""
+    model_funcs = toy_models.load_example_model_functions("with_cont_exp")
+    _, model_specs, model_config = (
+        toy_models.load_example_params_model_specs_and_config("with_cont_exp")
+    )
+
+    model_config["continuous_states"]["assets_begin_of_period"] = jnp.linspace(
+        0, 50, 100
+    )
+    model_config["upper_envelope"] = {"method": "druedahl_jorgensen"}
+
+    model_funcs["utility_functions"] = {
+        "utility": utility_cont_exp,
+        "marginal_utility": marginal_utility_cont_exp,
+        "inverse_marginal_utility": inverse_marginal_utility_cont_exp,
+    }
+    model_funcs["utility_functions_final_period"] = {
+        "utility": utility_final_consume_all_with_cont_exp,
+        "marginal_utility": marginal_utility_final_consume_all_with_cont_exp,
+    }
+
+    model = dcegm.setup_model(
+        model_config=model_config,
+        model_specs=model_specs,
+        **model_funcs,
+    )
+    return model.solve(PARAMS_EXP_UTILITY)
+
+
+def test_simulation_passes_continuous_state_to_utility(model_solved_dj_exp_utility):
+    """Simulated values match the interface values for experience-dependent utility.
+
+    The experience grid is ``jnp.linspace(0, 1, 5)``, so the on-grid agents take the
+    exact-combination branch of the nd interpolation, which evaluates the utility
+    function on a single continuous-state combination.
+
+    """
+    experience_initial = np.array([0.5, 0.5, 0.4, 0.4])  # on-grid, then off-grid
+    n_agents = len(experience_initial)
+
+    states_initial = {
+        "period": np.zeros(n_agents, dtype=int),
+        "lagged_choice": np.zeros(n_agents, dtype=int),
+        "experience": experience_initial,
+        "assets_begin_of_period": np.array([10.0, 25.0, 10.0, 25.0]),
+    }
+
+    df = model_solved_dj_exp_utility.simulate(states_initial=states_initial, seed=111)
+    df_first_period = df.xs(0, level="period")
+
+    for choice in range(N_DISCRETE_CHOICES):
+        _policy, value = (
+            model_solved_dj_exp_utility.policy_and_value_for_states_and_choices(
+                states=states_initial,
+                choices=np.full(n_agents, choice),
+            )
+        )
+        value_simulated = (
+            df_first_period[f"value_choice_{choice}"]
+            - df_first_period[f"taste_shocks_{choice}"]
+        )
+        aaae(value_simulated, value, decimal=8)
