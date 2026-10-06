@@ -14,6 +14,9 @@ from dcegm.pre_processing.model_functions.process_model_functions import (
     process_model_functions_and_extract_info,
     process_sparsity_condition,
 )
+from dcegm.pre_processing.model_functions.upper_evelope_wrapper import (
+    create_upper_envelope_function,
+)
 from dcegm.pre_processing.model_structure.continuous_state_grids import (
     merge_resolved_state_specific_lengths,
     pin_state_specific_lengths_from_first_state_choice,
@@ -104,6 +107,16 @@ def create_model_dict(
     model_structure = create_model_structure(
         model_config=model_config_processed,
         model_funcs=model_funcs,
+    )
+
+    # Only now are the continuous grids' sizes known: a grid declared as `None` is
+    # pinned by evaluating its grid function against a real state-choice, which
+    # create_model_structure above is the first thing to have. The upper envelope
+    # reads those sizes, so it is built here rather than alongside the other model
+    # functions.
+    model_funcs["compute_upper_envelope"] = create_upper_envelope_function(
+        model_config=model_config_processed,
+        continuous_grid_functions=model_funcs["continuous_grid_functions"],
     )
 
     if use_stochastic_sparsity:
@@ -263,6 +276,11 @@ def load_model_dict(
                 continuous_states_info=model["model_config"]["continuous_states_info"],
             )
         ),
+    )
+
+    model["model_funcs"]["compute_upper_envelope"] = create_upper_envelope_function(
+        model_config=model["model_config"],
+        continuous_grid_functions=model["model_funcs"]["continuous_grid_functions"],
     )
 
     specs_read_funcs, specs_params_info = extract_model_specs_info(model_specs)

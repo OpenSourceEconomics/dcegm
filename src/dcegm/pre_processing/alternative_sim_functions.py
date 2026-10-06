@@ -11,9 +11,6 @@ from dcegm.pre_processing.model_functions.process_model_functions import (
 from dcegm.pre_processing.model_functions.taste_shock_function import (
     process_shock_functions,
 )
-from dcegm.pre_processing.model_functions.upper_evelope_wrapper import (
-    create_upper_envelope_function,
-)
 from dcegm.pre_processing.model_structure.stochastic_states import (
     create_stochastic_state_mapping,
     create_stochastic_transition_function,
@@ -120,10 +117,6 @@ def process_alternative_sim_functions(
             agent's wealth matrices of the next period (t + 1). The inputs
             ```savings_grid```, ```income_shocks```, ```params``` and ```options```
             are already partialled in.
-        - compute_upper_envelope (Callable): Function for calculating the upper envelope
-            of the policy and value function. If the number of discrete choices is 1,
-            this function is a dummy function that returns the policy and value
-            function as is, without performing a fast upper envelope scan.
         - transition_function (Callable): Partialled transition function that returns
             transition probabilities for each state.
 
@@ -169,15 +162,6 @@ def process_alternative_sim_functions(
         )
     )
 
-    # Upper envelope function. alt_model_funcs is simulation-only (behavioral
-    # counterfactuals for simulate(), never re-solving), and compute_upper_envelope
-    # is a solve-time-only construct that this path never actually calls -- no
-    # continuous_grid_functions is processed here to pass through.
-    compute_upper_envelope = create_upper_envelope_function(
-        model_config=model_config,
-        continuous_grid_functions={},
-    )
-
     taste_shock_function_processed, taste_shock_scale_in_params = (
         process_shock_functions(
             shock_functions=shock_functions,
@@ -197,7 +181,6 @@ def process_alternative_sim_functions(
         "processed_stochastic_funcs": processed_stochastic_funcs_dict,
         "state_specific_choice_set": state_specific_choice_set,
         "next_period_deterministic_state": next_period_deterministic_state,
-        "compute_upper_envelope": compute_upper_envelope,
         "taste_shock_function": taste_shock_function_processed,
         # The alternative budget equation has its own answer to "does wealth depend
         # on the current choice?", and simulation reads it off these functions -- so

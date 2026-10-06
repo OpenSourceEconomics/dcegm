@@ -169,6 +169,113 @@ def test_none_grid_paired_with_grid_function_is_accepted():
     )
 
 
+def _build_state_choice_space_pinning_grids(config, grid_functions):
+    """Process ``config`` and build the state-choice space, pinning deferred lengths.
+
+    Returns the processed config, whose deferred sizes are filled in as a side effect of
+    building the state-choice space -- the only point at which a real state-choice
+    exists to evaluate a grid function against.
+
+    """
+    processed_config = check_model_config_and_process(config)
+    continuous_grid_functions, state_specific_names = process_continuous_grid_functions(
+        continuous_grid_functions=grid_functions,
+        model_config=processed_config,
+        model_specs={},
+    )
+    state_space_objects = create_state_space(
+        model_config=processed_config,
+        sparsity_condition=process_sparsity_condition(
+            state_space_functions={}, model_specs={}
+        ),
+        debugging=False,
+    )
+
+    def next_period_deterministic_state(**kwargs):
+        return {
+            "period": kwargs["period"] + 1,
+            "lagged_choice": kwargs["choice"],
+            "group": kwargs["group"],
+        }
+
+    create_state_choice_space_and_child_state_mapping(
+        model_config=processed_config,
+        state_specific_choice_set=lambda **kwargs: np.array([0, 1]),
+        next_period_deterministic_state=next_period_deterministic_state,
+        state_space_arrays=state_space_objects,
+        continuous_grid_functions=continuous_grid_functions,
+        state_specific_continuous_grid_names=state_specific_names,
+    )
+    return processed_config
+
+
+def test_assets_end_of_period_follows_the_same_none_convention():
+    """``assets_end_of_period`` is not exempt from the pairing rule.
+
+    It used to be: ``check_model_config.py`` reads its length eagerly, for every
+    upper_envelope method, to size the fues tuning params, and that happens before
+    ``continuous_grid_functions`` is known. Those tuning params are now deferred
+    instead (see ``resolve_tuning_params_from_assets_end_of_period``), so the name
+    obeys the same convention as every other.
+
+    """
+    config = _base_model_config()
+    config["continuous_states"]["assets_end_of_period"] = None
+    processed = check_model_config_and_process(config)
+
+    # Nothing to read a length from yet, so neither the grid nor anything derived
+    # from its length is resolved at this point.
+    assert processed["continuous_states_info"]["assets_grid_end_of_period"] is None
+    assert processed["continuous_states_info"]["n_assets_end_of_period"] is None
+    assert processed["n_total_wealth_grid"] is None
+    assert "n_total_wealth_grid" not in processed["upper_envelope"]["tuning_params"]
+
+    with pytest.raises(ValueError, match="no matching continuous_grid_functions"):
+        process_continuous_grid_functions(
+            continuous_grid_functions=None, model_config=processed, model_specs={}
+        )
+
+
+def test_array_declared_assets_end_of_period_with_grid_function_raises():
+    processed = check_model_config_and_process(_base_model_config())
+    with pytest.raises(ValueError, match="is not None"):
+        process_continuous_grid_functions(
+            continuous_grid_functions={
+                "assets_end_of_period": lambda group: np.linspace(0, 1, 10)
+            },
+            model_config=processed,
+            model_specs={},
+        )
+
+
+def test_state_specific_assets_end_of_period_resolves_fues_tuning_params():
+    """The deferred fues sizes must come out exactly as the declared array's would.
+
+    ``n_constrained_points_to_add`` and ``n_total_wealth_grid`` scale with the end-of-
+    period grid's length, so declaring the name ``None`` only works if they are filled
+    in once that length is pinned -- and the upper envelope closes over the tuning-
+    params dict before then, which is why they are mutated in place rather than
+    recomputed into a fresh dict.
+
+    """
+    declared = check_model_config_and_process(_base_model_config())
+
+    config = _base_model_config()
+    config["continuous_states"]["assets_end_of_period"] = None
+    resolved = _build_state_choice_space_pinning_grids(
+        config,
+        {"assets_end_of_period": lambda group: np.linspace(0, 1, 10)},
+    )
+
+    assert resolved["continuous_states_info"]["n_assets_end_of_period"] == 10
+    assert resolved["n_total_wealth_grid"] == declared["n_total_wealth_grid"]
+    for name in ("n_constrained_points_to_add", "n_total_wealth_grid"):
+        assert (
+            resolved["upper_envelope"]["tuning_params"][name]
+            == declared["upper_envelope"]["tuning_params"][name]
+        )
+
+
 def test_none_grid_size_pinned_via_representative_state_choice():
     # No default array for "experience" at all -- n_continuous_state_combinations
     # can't be known until create_state_choice_space_and_child_state_mapping

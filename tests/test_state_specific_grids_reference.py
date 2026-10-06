@@ -80,11 +80,10 @@ CLOSED_FORM_PARAMS = {
 
 MODEL_SPECS = {"n_choices": 2, "wage": 5.0, "pension": 2.0, "work_cost": 0.4}
 
-# Declared default grid. Its *values* are unused once a continuous_grid_functions
-# entry is given, but assets_end_of_period must still declare a real array (it is
-# the one name exempt from the None convention, see process_continuous_grid_functions)
-# and that array fixes the expected length every state-choice's own grid is
-# validated against.
+# Declared default grid, used by the solves that leave assets_end_of_period at its
+# global default. A solve that supplies a continuous_grid_functions entry for the name
+# must declare it as None instead (see process_continuous_grid_functions), which is
+# what _assets_config below builds.
 DEFAULT_ASSET_GRID = np.linspace(0.0, 20.0, N_ASSET_POINTS)
 
 # An additional continuous state, for test_state_specific_experience_grid_matches_closed_form
@@ -271,12 +270,25 @@ def _budget_ignoring_choice(**kwargs):
 # =====================================================================================
 
 
+def _assets_config(continuous_grid_functions):
+    """``None`` once a grid function takes the name over, the default array otherwise.
+
+    The pairing is strict in both directions, so this has to follow whatever
+    ``continuous_grid_functions`` the caller passes.
+
+    """
+    grid_funcs = continuous_grid_functions or {}
+    return None if "assets_end_of_period" in grid_funcs else DEFAULT_ASSET_GRID
+
+
 def _solve(choices, budget_fn, continuous_grid_functions=None):
     model_config = {
         "n_periods": 2,
         "choices": choices,
         "deterministic_states": {"group": [0, 1]},
-        "continuous_states": {"assets_end_of_period": DEFAULT_ASSET_GRID},
+        "continuous_states": {
+            "assets_end_of_period": _assets_config(continuous_grid_functions)
+        },
         "n_quad_points": N_QUAD,
     }
     model = dcegm.setup_model(
@@ -298,9 +310,9 @@ def _solve_with_experience(choices, continuous_grid_functions):
     and cannot be affected by this addition.
 
     ``experience`` is declared as ``None`` -- required whenever a
-    ``continuous_grid_functions`` entry takes over for a name other than
-    ``assets_end_of_period`` (see ``process_continuous_grid_functions``); its length is
-    then pinned from the first state-choice's own grid evaluation.
+    ``continuous_grid_functions`` entry takes over a name (see
+    ``process_continuous_grid_functions``); its length is then pinned from the first
+    state-choice's own grid evaluation.
 
     """
     model_config = {
@@ -308,7 +320,7 @@ def _solve_with_experience(choices, continuous_grid_functions):
         "choices": choices,
         "deterministic_states": {"group": [0, 1]},
         "continuous_states": {
-            "assets_end_of_period": DEFAULT_ASSET_GRID,
+            "assets_end_of_period": _assets_config(continuous_grid_functions),
             "experience": None,
         },
         "n_quad_points": N_QUAD,

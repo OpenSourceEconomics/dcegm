@@ -142,7 +142,15 @@ def build_and_solve(
         "n_periods": n_periods,
         "choices": np.arange(2),
         "stochastic_states": {"partner_state": np.arange(2)},
-        "continuous_states": {"assets_end_of_period": a_grid},
+        # `None` once a grid function takes the name over; the pairing is strict in
+        # both directions (see process_continuous_grid_functions).
+        "continuous_states": {
+            "assets_end_of_period": (
+                None
+                if "assets_end_of_period" in (continuous_grid_functions or {})
+                else a_grid
+            )
+        },
         "n_quad_points": 5,
     }
     model = dcegm.setup_model(

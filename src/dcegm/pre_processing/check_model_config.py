@@ -59,19 +59,23 @@ def check_model_config_and_process(model_config):
         raise ValueError(
             "model_config['assets_end_of_period'] must contain wealth as key."
         )
-    # Check if it is an array
+    # Check if it is an array, or `None` -- see the note on `None` grids below.
     asset_grid = continuous_states_grids["assets_end_of_period"]
-    if not isinstance(asset_grid, (list, np.ndarray, jnp.ndarray)):
+    if asset_grid is not None and not isinstance(
+        asset_grid, (list, np.ndarray, jnp.ndarray)
+    ):
         raise ValueError(
-            "model_config['continuous_states']['assets_end_of_period'] must be a list or an array."
+            "model_config['continuous_states']['assets_end_of_period'] must be a list, "
+            "an array, or None (paired with a continuous_grid_functions entry)."
         )
 
     # ToDo: Check if it is monotonic increasing
 
     continuous_states_info = {}
-    n_assets_end_of_period = len(asset_grid)
-    continuous_states_info["assets_grid_end_of_period"] = jnp.asarray(
-        continuous_states_grids["assets_end_of_period"], dtype=float
+    n_assets_end_of_period = None if asset_grid is None else len(asset_grid)
+    continuous_states_info["n_assets_end_of_period"] = n_assets_end_of_period
+    continuous_states_info["assets_grid_end_of_period"] = (
+        None if asset_grid is None else jnp.asarray(asset_grid, dtype=float)
     )
 
     additional_continuous_states = {
@@ -167,25 +171,13 @@ def check_model_config_and_process(model_config):
         if "extra_wealth_grid_factor" in tuning_params
         else 0.2
     )
-    tuning_params["n_constrained_points_to_add"] = (
-        tuning_params["n_constrained_points_to_add"]
-        if "n_constrained_points_to_add" in tuning_params
-        else n_assets_end_of_period // 10
-    )
-
-    if (
-        n_assets_end_of_period * (1 + tuning_params["extra_wealth_grid_factor"])
-        < n_assets_end_of_period + tuning_params["n_constrained_points_to_add"]
-    ):
-        raise ValueError(f"""\n\n
-            When preparing the tuning parameters for the upper
-            envelope, we found the following contradicting parameters: \n
-            The extra wealth grid factor of {tuning_params["extra_wealth_grid_factor"]} is too small
-            to cover the {tuning_params["n_constrained_points_to_add"]} wealth points which are added in
-            the credit constrained part of the wealth grid. \n\n""")
-    tuning_params["n_total_wealth_grid"] = int(
-        n_assets_end_of_period * (1 + tuning_params["extra_wealth_grid_factor"])
-    )
+    # Left unresolved when assets_end_of_period is declared as `None`; filled in by
+    # resolve_tuning_params_from_assets_end_of_period once the grid length is pinned.
+    if n_assets_end_of_period is not None:
+        resolve_tuning_params_from_assets_end_of_period(
+            tuning_params=tuning_params,
+            n_assets_end_of_period=n_assets_end_of_period,
+        )
 
     # Set jump threshold to default 2 if it is not given
     tuning_params["fues_jump_thresh"] = int(
@@ -250,9 +242,11 @@ def check_model_config_and_process(model_config):
                 "either remove it or switch to "
                 "upper_envelope['method'] = 'druedahl_jorgensen'."
             )
-        processed_model_config["n_total_wealth_grid"] = tuning_params[
+        # None while assets_end_of_period's length is still deferred; resolved
+        # alongside the tuning params it is derived from.
+        processed_model_config["n_total_wealth_grid"] = tuning_params.get(
             "n_total_wealth_grid"
-        ]
+        )
     elif upper_envelope["method"] == "druedahl_jorgensen":
         # Expected value at 0, so add 1. None when assets_begin_of_period is
         # state-specific (declared as `None`) -- resolved later, once its size can
@@ -339,3 +333,32 @@ def check_model_config_and_process(model_config):
     processed_model_config["params_check_info"] = {}
 
     return processed_model_config
+
+
+def resolve_tuning_params_from_assets_end_of_period(
+    tuning_params, n_assets_end_of_period
+):
+    """Fill in the fues tuning params that scale with the end-of-period assets grid.
+
+    Called eagerly from ``check_model_config_and_process`` for a declared array, and
+    from ``merge_resolved_state_specific_lengths`` when ``assets_end_of_period`` is
+    declared as ``None`` and its length is only pinned once a state-choice exists.
+
+    """
+    if "n_constrained_points_to_add" not in tuning_params:
+        tuning_params["n_constrained_points_to_add"] = n_assets_end_of_period // 10
+
+    if (
+        n_assets_end_of_period * (1 + tuning_params["extra_wealth_grid_factor"])
+        < n_assets_end_of_period + tuning_params["n_constrained_points_to_add"]
+    ):
+        raise ValueError(f"""\n\n
+            When preparing the tuning parameters for the upper
+            envelope, we found the following contradicting parameters: \n
+            The extra wealth grid factor of {tuning_params["extra_wealth_grid_factor"]} is too small
+            to cover the {tuning_params["n_constrained_points_to_add"]} wealth points which are added in
+            the credit constrained part of the wealth grid. \n\n""")
+
+    tuning_params["n_total_wealth_grid"] = int(
+        n_assets_end_of_period * (1 + tuning_params["extra_wealth_grid_factor"])
+    )

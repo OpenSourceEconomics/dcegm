@@ -128,14 +128,10 @@ def _config_for_grid_function(model_config, name):
     """Config to pair with a ``continuous_grid_functions`` entry for ``name``.
 
     A declared array is unused once a grid function takes over and must be set to
-    ``None`` to say so -- except for ``assets_end_of_period``, which is required to
-    keep a real array regardless (``check_model_config.py`` reads its length before
-    ``continuous_grid_functions`` is even known). See
+    ``None`` to say so, for every name alike. See
     ``process_continuous_grid_functions``.
 
     """
-    if name == "assets_end_of_period":
-        return model_config
     return _with_declared_grid(model_config, name, None)
 
 

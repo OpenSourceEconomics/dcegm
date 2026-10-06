@@ -9,6 +9,10 @@ depend on the discrete state *and* on ``choice``.
 
 import numpy as np
 
+from dcegm.pre_processing.check_model_config import (
+    resolve_tuning_params_from_assets_end_of_period,
+)
+
 
 def evaluate_state_specific_continuous_grids(
     state_choice_space,
@@ -104,9 +108,10 @@ def _expected_grid_lengths(continuous_states_info):
         ].items()
         if grid is not None
     }
-    expected_lengths["assets_end_of_period"] = len(
-        continuous_states_info["assets_grid_end_of_period"]
-    )
+    if continuous_states_info["assets_grid_end_of_period"] is not None:
+        expected_lengths["assets_end_of_period"] = len(
+            continuous_states_info["assets_grid_end_of_period"]
+        )
     if continuous_states_info.get("assets_begin_of_period") is not None:
         expected_lengths["assets_begin_of_period"] = len(
             continuous_states_info["assets_begin_of_period"]
@@ -181,13 +186,30 @@ def merge_resolved_state_specific_lengths(
             np.prod(lengths)
         )
 
-    if (
-        model_config["n_total_wealth_grid"] is None
-        and "assets_begin_of_period" in resolved_state_specific_lengths
-    ):
-        model_config["n_total_wealth_grid"] = (
-            resolved_state_specific_lengths["assets_begin_of_period"] + 1
+    if "assets_end_of_period" in resolved_state_specific_lengths:
+        continuous_states_info["n_assets_end_of_period"] = (
+            resolved_state_specific_lengths["assets_end_of_period"]
         )
+        # The fues tuning params scale with this length, so they could not be
+        # resolved in check_model_config.py either.
+        resolve_tuning_params_from_assets_end_of_period(
+            tuning_params=model_config["upper_envelope"]["tuning_params"],
+            n_assets_end_of_period=resolved_state_specific_lengths[
+                "assets_end_of_period"
+            ],
+        )
+
+    if model_config["n_total_wealth_grid"] is None:
+        if "assets_begin_of_period" in resolved_state_specific_lengths:
+            # Druedahl-Jorgensen stores on the begin-of-period assets grid, plus the
+            # expected value at zero assets.
+            model_config["n_total_wealth_grid"] = (
+                resolved_state_specific_lengths["assets_begin_of_period"] + 1
+            )
+        elif model_config["upper_envelope"]["method"] == "fues":
+            model_config["n_total_wealth_grid"] = model_config["upper_envelope"][
+                "tuning_params"
+            ]["n_total_wealth_grid"]
 
 
 def check_continuous_grid_consistency_across_shared_children(

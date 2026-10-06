@@ -74,8 +74,8 @@ def partially_solve(
 
     if return_candidates:
         n_assets_end_of_period = model_config["continuous_states_info"][
-            "assets_grid_end_of_period"
-        ].shape[0]
+            "n_assets_end_of_period"
+        ]
         value_candidates, policy_candidates, endog_grid_candidates = (
             create_solution_container(
                 n_total_wealth_grid=n_assets_end_of_period,

@@ -278,10 +278,18 @@ def _check_small_models_consistency(big_model, small_models):
                 f"{prefix} n_continuous_state_combinations differs from the big model."
             )
 
-        if not np.allclose(
-            np.asarray(continuous["assets_grid_end_of_period"]),
-            np.asarray(big_continuous["assets_grid_end_of_period"]),
-        ):
+        # `None` on both sides when the grid is state-choice-specific: there is no
+        # shared array to compare, and the per-state-choice grids come from the same
+        # continuous_grid_functions entry, already required to be the same object.
+        grid = continuous["assets_grid_end_of_period"]
+        big_grid = big_continuous["assets_grid_end_of_period"]
+        if (grid is None) != (big_grid is None):
+            raise ValueError(
+                f"{prefix} declares assets_end_of_period "
+                f"{'state-specifically' if grid is None else 'as an array'} while the "
+                "big model does not."
+            )
+        if grid is not None and not np.allclose(np.asarray(grid), np.asarray(big_grid)):
             raise ValueError(
                 f"{prefix} assets_end_of_period grid differs from the big model."
             )

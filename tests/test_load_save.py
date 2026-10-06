@@ -196,9 +196,41 @@ def _state_specific_wealth_grid_model():
     )
 
 
+def _state_specific_assets_end_of_period_model():
+    """``assets_end_of_period`` -- the one name whose deferral also moves tuning params.
+
+    Its length sizes the fues tuning params, which the upper envelope closes over
+    before the load path pins anything, so this covers more than the other two.
+
+    """
+    model_funcs = toy_models.load_example_model_functions("dcegm_paper")
+    params, model_specs, model_config = (
+        toy_models.load_example_params_model_specs_and_config("dcegm_paper")
+    )
+    model_config = dict(model_config)
+    model_config["continuous_states"] = dict(model_config["continuous_states"])
+    grid = jnp.asarray(model_config["continuous_states"]["assets_end_of_period"])
+    model_config["continuous_states"]["assets_end_of_period"] = None
+
+    def assets_grid(period):
+        return grid
+
+    return (
+        model_funcs,
+        params,
+        model_specs,
+        model_config,
+        {"assets_end_of_period": assets_grid},
+    )
+
+
 @pytest.mark.parametrize(
     "model_loader",
-    [_state_specific_experience_model, _state_specific_wealth_grid_model],
+    [
+        _state_specific_experience_model,
+        _state_specific_wealth_grid_model,
+        _state_specific_assets_end_of_period_model,
+    ],
 )
 def test_loaded_model_pins_deferred_continuous_grid_sizes(model_loader, tmp_path):
     model_funcs, params, model_specs, model_config, continuous_grid_functions = (

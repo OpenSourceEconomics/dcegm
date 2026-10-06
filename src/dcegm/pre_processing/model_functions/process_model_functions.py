@@ -7,9 +7,6 @@ import jax.numpy as jnp
 from dcegm.pre_processing.model_functions.taste_shock_function import (
     process_shock_functions,
 )
-from dcegm.pre_processing.model_functions.upper_evelope_wrapper import (
-    create_upper_envelope_function,
-)
 from dcegm.pre_processing.model_structure.stochastic_states import (
     create_stochastic_transition_function,
 )
@@ -61,10 +58,6 @@ def process_model_functions_and_extract_info(
             agent's wealth matrices of the next period (t + 1). The inputs
             ```savings_grid```, ```income_shocks```, ```params``` and ```options```
             are already partialled in.
-        - compute_upper_envelope (Callable): Function for calculating the upper envelope
-            of the policy and value function. If the number of discrete choices is 1,
-            this function is a dummy function that returns the policy and value
-            function as is, without performing a fast upper envelope scan.
         - transition_function (Callable): Partialled transition function that returns
             transition probabilities for each state.
 
@@ -167,12 +160,6 @@ def process_model_functions_and_extract_info(
         )
     )
 
-    # Upper envelope function
-    compute_upper_envelope = create_upper_envelope_function(
-        model_config=model_config,
-        continuous_grid_functions=continuous_grid_functions_processed,
-    )
-
     taste_shock_function_processed, taste_shock_scale_in_params = (
         process_shock_functions(
             shock_functions=shock_functions,
@@ -198,7 +185,6 @@ def process_model_functions_and_extract_info(
         "processed_stochastic_funcs": stochastic_transitions_dict,
         "state_specific_choice_set": state_specific_choice_set,
         "next_period_deterministic_state": next_period_deterministic_state,
-        "compute_upper_envelope": compute_upper_envelope,
         "taste_shock_function": taste_shock_function_processed,
         "continuous_grid_functions": continuous_grid_functions_processed,
         "state_specific_continuous_grid_names": state_specific_continuous_grid_names,
@@ -435,17 +421,13 @@ def process_continuous_grid_functions(
                 f"continuous_grid_functions['{name}'] must be a callable of the "
                 "form (**discrete_state) -> 1d array."
             )
-        if name != "assets_end_of_period" and default_grids[name] is not None:
+        if default_grids[name] is not None:
             raise ValueError(
                 f"continuous_grid_functions['{name}'] is given, but "
                 f"model_config['continuous_states']['{name}'] is not None. A "
                 f"declared array is unused once a continuous_grid_functions entry "
                 f"takes over -- set model_config['continuous_states']['{name}'] to "
-                "None to make that explicit. ('assets_end_of_period' is the one "
-                "exception: check_model_config.py reads its length eagerly, for "
-                "every upper_envelope method, before continuous_grid_functions is "
-                "processed and before any state-choice exists to pin a deferred "
-                "size against -- so it must always be a real array.)"
+                "None to make that explicit."
             )
 
     if (

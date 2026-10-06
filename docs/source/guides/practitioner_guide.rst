@@ -82,7 +82,7 @@ This guide explains how to specify, solve, simulate and potentially estimate str
     - `n_periods`: Number of period. Needs to be an integer larger than 1.
     - `choices`: Discrete choices of the model. Consecutive integers starting from 0. Either provided as a list or as a integer, which then is converted to a list with consecutive integers starting from 0 and to the integer minus 1.
     - `continuous_states`: Dictionary containing the grids for continuous variable. The dictionary requires
-        - `assets_end_of_period`: The grid for the end of period assets, which is required for the egm step. It is expected as a numpy array and with monotonic increasing values.
+        - `assets_end_of_period`: The grid for the end of period assets, which is required for the egm step. It is expected as a numpy array and with monotonic increasing values, or as `None` when the grid is supplied per state-choice through `continuous_grid_functions` instead.
     - `n_quad_points`: Number of quadrature points used for the integration over the income shock distribution. The quadrature points are used to approximate the integral of the value function over the income shock distribution. The number of quadrature points should be a positive integer.
 
     An example for a model configuration with the mandatory keys is:
