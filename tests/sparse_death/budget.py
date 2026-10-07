@@ -6,7 +6,7 @@ def budget_constraint_exp(
     experience,
     already_retired,
     asset_end_of_previous_period,
-    income_shock_previous_period,
+    income_shock,
     params,
     model_specs,
 ):
@@ -24,7 +24,7 @@ def budget_constraint_exp(
 
     income_from_previous_period = _calc_stochastic_income(
         experience=exp_years,
-        wage_shock=income_shock_previous_period,
+        wage_shock=income_shock,
         params=params,
     )
 

@@ -38,7 +38,7 @@ def _budget_constraint_two_cont(
     cont_a,
     cont_b,
     asset_end_of_previous_period,
-    income_shock_previous_period,
+    income_shock,
     params,
 ):
     interest_factor = 1 + params["interest_rate"]
@@ -46,7 +46,7 @@ def _budget_constraint_two_cont(
         params["wage_constant"] + params["wage_a"] * cont_a + params["wage_b"] * cont_b
     )
     resource = interest_factor * asset_end_of_previous_period + (
-        wage + income_shock_previous_period
+        wage + income_shock
     ) * (lagged_choice != 0)
     return jnp.maximum(resource, 0.5)
 

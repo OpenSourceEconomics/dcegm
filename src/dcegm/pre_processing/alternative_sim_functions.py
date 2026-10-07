@@ -3,14 +3,13 @@ from typing import Callable, Dict
 
 from dcegm.pre_processing.check_model_config import check_model_config_and_process
 from dcegm.pre_processing.model_functions.process_model_functions import (
+    _check_budget_does_not_declare_renamed_income_shock,
+    _declares_choice,
     process_second_continuous_update_function,
     process_state_space_functions,
 )
 from dcegm.pre_processing.model_functions.taste_shock_function import (
     process_shock_functions,
-)
-from dcegm.pre_processing.model_functions.upper_evelope_wrapper import (
-    create_upper_envelope_function,
 )
 from dcegm.pre_processing.model_structure.stochastic_states import (
     create_stochastic_state_mapping,
@@ -74,7 +73,7 @@ def generate_alternative_sim_functions(
         stochastic_state_names,
     )
 
-    print("Model setup complete.\n")
+    print("Alternative simulation functions ready.")
     return model_funcs
 
 
@@ -85,7 +84,7 @@ def process_alternative_sim_functions(
     stochastic_states_transition,
     state_space_functions: Dict[str, Callable],
     budget_constraint: Callable,
-    shock_functions: Dict[str, Callable] = None,
+    shock_functions: Dict[str, Callable],
 ):
     """Create wrapped functions from user supplied functions.
 
@@ -118,10 +117,6 @@ def process_alternative_sim_functions(
             agent's wealth matrices of the next period (t + 1). The inputs
             ```savings_grid```, ```income_shocks```, ```params``` and ```options```
             are already partialled in.
-        - compute_upper_envelope (Callable): Function for calculating the upper envelope
-            of the policy and value function. If the number of discrete choices is 1,
-            this function is a dummy function that returns the policy and value
-            function as is, without performing a fast upper envelope scan.
         - transition_function (Callable): Partialled transition function that returns
             transition probabilities for each state.
 
@@ -143,6 +138,9 @@ def process_alternative_sim_functions(
             state_space_functions,
             model_config=model_config,
             model_specs=model_specs,
+            additional_continuous_state_names=continuous_states_info[
+                "additional_continuous_state_names"
+            ],
         )
     )
 
@@ -155,16 +153,13 @@ def process_alternative_sim_functions(
     )
 
     # Budget equation
+    _check_budget_does_not_declare_renamed_income_shock(budget_constraint)
     compute_assets_begin_of_period = (
         determine_function_arguments_and_partial_model_specs(
             func=budget_constraint,
             model_specs=model_specs_jax,
+            not_allowed_state_choices=[],
         )
-    )
-
-    # Upper envelope function
-    compute_upper_envelope = create_upper_envelope_function(
-        model_config=model_config,
     )
 
     taste_shock_function_processed, taste_shock_scale_in_params = (
@@ -186,8 +181,11 @@ def process_alternative_sim_functions(
         "processed_stochastic_funcs": processed_stochastic_funcs_dict,
         "state_specific_choice_set": state_specific_choice_set,
         "next_period_deterministic_state": next_period_deterministic_state,
-        "compute_upper_envelope": compute_upper_envelope,
         "taste_shock_function": taste_shock_function_processed,
+        # The alternative budget equation has its own answer to "does wealth depend
+        # on the current choice?", and simulation reads it off these functions -- so
+        # it must be recomputed here rather than inherited.
+        "budget_depends_on_choice": _declares_choice(budget_constraint),
     }
 
     return alt_model_funcs, taste_shock_scale_in_params

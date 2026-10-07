@@ -87,7 +87,7 @@ def test_simulate_discrete_versus_continuous_experience(test_setup):
         "period": np.zeros(n_agents),
         "lagged_choice": np.zeros(n_agents),  # all agents start as workers
         "experience": np.ones(n_agents),
-        "assets_begin_of_period": np.ones(n_agents) * 10,
+        "assets_end_of_previous_period": np.ones(n_agents) * 10,
     }
 
     df_disc = test_setup["model_solved_disc"].simulate(

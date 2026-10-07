@@ -4,6 +4,7 @@ from upper_envelope.jax import drued_jorg_jax, fues_jax
 
 def create_upper_envelope_function(
     model_config,
+    continuous_grid_functions,
 ):
     if len(model_config["choices"]) < 2:
         return no_upper_envelope_dummy_function
@@ -63,6 +64,13 @@ def create_upper_envelope_function(
             )
 
         elif method == "druedahl_jorgensen":
+            # This state-choice's own assets_begin_of_period grid, evaluated on
+            # demand -- self-referential, this state-choice is solving/storing
+            # against its own common wealth grid (no parent/child ambiguity, unlike
+            # law_of_motion.py's grid selection for a transition *into* a state).
+            m_grid = continuous_grid_functions["assets_begin_of_period"](
+                **state_choice_dict
+            )
             return drued_jorg_jax(
                 endog_grid=endog_grid,
                 policy=policy,
@@ -70,7 +78,7 @@ def create_upper_envelope_function(
                 expected_value_zero_savings=expected_value_zero_assets,
                 value_function=value_function,
                 value_function_kwargs=value_kwargs,
-                m_grid=model_config["continuous_states_info"]["assets_begin_of_period"],
+                m_grid=m_grid,
             )
 
         else:

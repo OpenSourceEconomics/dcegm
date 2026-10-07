@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Union
 
 import jax.numpy as jnp
 
@@ -7,11 +7,19 @@ def aggregate_marg_utils_and_exp_values(
     value_state_choice_specific: jnp.ndarray,
     marg_util_state_choice_specific: jnp.ndarray,
     reshape_state_choice_vec_to_mat: jnp.ndarray,
-    taste_shock_scale,
-    taste_shock_scale_is_scalar,
+    taste_shock_scale: Union[float, jnp.ndarray],
+    taste_shock_scale_is_scalar: bool,
     income_shock_weights: jnp.ndarray,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
-    """Compute the aggregate marginal utilities and expected values.
+    """EGM step 2: collapse children's values/marginal utilities to one per state.
+
+    Two reductions, both taken over the child-choice axis with logit choice
+    probabilities and then over the income-shock axis with quadrature weights:
+    one on ``value`` (giving the expected value, i.e. the logsum), one on
+    ``marg_util`` (giving the aggregate marginal utility). Called once per
+    batch from ``solve_for_interpolated_values``, on the *interpolated* child
+    continuation values ``interpolate_value_and_marg_util`` (EGM step 1) just
+    computed.
 
     Args:
         value_state_choice_specific (jnp.ndarray): 3d array of shape
@@ -25,7 +33,11 @@ def aggregate_marg_utils_and_exp_values(
             (n_states_current, n_choices_current) that reshapes the current period
             vector of feasible state-choice combinations to a matrix of shape
             (n_choices, n_choices).
-        taste_shock_scale (float): The taste shock scale.
+        taste_shock_scale: The taste shock scale -- a scalar, or one value per
+            state-choice; which of the two is given by
+            ``taste_shock_scale_is_scalar``.
+        taste_shock_scale_is_scalar: Whether ``taste_shock_scale`` is a single
+            scalar shared across all states, or one value per state-choice.
         income_shock_weights (jnp.ndarray): 1d array of shape
             (n_stochastic_quad_points,) containing the weights of the income shock
             quadrature.
@@ -36,7 +48,7 @@ def aggregate_marg_utils_and_exp_values(
         - marg_util (np.ndarray): 2d array of shape (n_states, n_exog_savings)
             of the state-specific aggregate marginal utilities.
         - expected_value (np.ndarray): 2d array of shape (n_states, n_exog_savings)
-            of the state-specific aggregate expected values.
+            of the state-specific aggregate expected values (the logsum).
 
     """
     choice_values_per_state = jnp.take(

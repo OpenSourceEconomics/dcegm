@@ -5,7 +5,7 @@ def budget_constraint_exp(
     lagged_choice,
     experience,
     asset_end_of_previous_period,
-    income_shock_previous_period,
+    income_shock,
     params,
 ):
 
@@ -13,7 +13,7 @@ def budget_constraint_exp(
 
     income_from_previous_period = _calc_stochastic_income(
         experience=experience,
-        wage_shock=income_shock_previous_period,
+        wage_shock=income_shock,
         params=params,
     )
 

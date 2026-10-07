@@ -40,7 +40,7 @@ partner-status multiplier in `budget_constraint`, keyed off the *current*
 
 ```python
 def budget_constraint(period, lagged_choice, partner_state,
-                       asset_end_of_previous_period, income_shock_previous_period,
+                       asset_end_of_previous_period, income_shock,
                        params, model_specs):
     multiplier = 2.0 if partner_state == 1 else 1.0
     return multiplier * asset_end_of_previous_period * (1 + params["interest_rate"]) + income
@@ -70,7 +70,7 @@ independent solve — the model still runs, converges, produces a
 
 ```python
 def budget_constraint(period, lagged_choice, partner_state,
-                       asset_end_of_previous_period, income_shock_previous_period,
+                       asset_end_of_previous_period, income_shock,
                        params, model_specs):
     multiplier = jnp.where(partner_state == 1, 2.0, 1.0)
     own_income = params["y_work"] * (lagged_choice == 0)

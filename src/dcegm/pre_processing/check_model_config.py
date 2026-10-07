@@ -59,19 +59,23 @@ def check_model_config_and_process(model_config):
         raise ValueError(
             "model_config['assets_end_of_period'] must contain wealth as key."
         )
-    # Check if it is an array
+    # Check if it is an array, or `None` -- see the note on `None` grids below.
     asset_grid = continuous_states_grids["assets_end_of_period"]
-    if not isinstance(asset_grid, (list, np.ndarray, jnp.ndarray)):
+    if asset_grid is not None and not isinstance(
+        asset_grid, (list, np.ndarray, jnp.ndarray)
+    ):
         raise ValueError(
-            "model_config['continuous_states']['assets_end_of_period'] must be a list or an array."
+            "model_config['continuous_states']['assets_end_of_period'] must be a list, "
+            "an array, or None (paired with a continuous_grid_functions entry)."
         )
 
     # ToDo: Check if it is monotonic increasing
 
     continuous_states_info = {}
-    n_assets_end_of_period = len(asset_grid)
-    continuous_states_info["assets_grid_end_of_period"] = jnp.asarray(
-        continuous_states_grids["assets_end_of_period"], dtype=float
+    n_assets_end_of_period = None if asset_grid is None else len(asset_grid)
+    continuous_states_info["n_assets_end_of_period"] = n_assets_end_of_period
+    continuous_states_info["assets_grid_end_of_period"] = (
+        None if asset_grid is None else jnp.asarray(asset_grid, dtype=float)
     )
 
     additional_continuous_states = {
@@ -83,8 +87,13 @@ def check_model_config_and_process(model_config):
     continuous_states_info["additional_continuous_state_names"] = list(
         additional_continuous_states.keys()
     )
+    # A name left as `None` here has no default grid at all -- it must be paired
+    # with a continuous_grid_functions entry (validated in
+    # process_continuous_grid_functions, which is the first place both are known
+    # together) and is fully state-choice-specific, with no global fallback array.
     continuous_states_info["additional_continuous_state_grids"] = {
-        key: jnp.asarray(value) for key, value in additional_continuous_states.items()
+        key: (None if value is None else jnp.asarray(value))
+        for key, value in additional_continuous_states.items()
     }
     continuous_states_info["n_additional_continuous_states"] = len(
         additional_continuous_states
@@ -92,6 +101,39 @@ def check_model_config_and_process(model_config):
     continuous_states_info["has_additional_continuous_state"] = (
         continuous_states_info["n_additional_continuous_states"] > 0
     )
+    # Names declared as `None` -- their size can only be pinned once a real
+    # state-choice exists to evaluate the grid function against (see
+    # continuous_state_grids.py's evaluate_state_specific_continuous_grids, run once
+    # the state-choice space is built), so n_continuous_state_combinations is left
+    # unresolved (None) here whenever any of these are present; resolved later and
+    # merged back into this dict.
+    continuous_states_info["state_specific_size_names"] = [
+        key
+        for key, value in continuous_states_info[
+            "additional_continuous_state_grids"
+        ].items()
+        if value is None
+    ]
+    if continuous_states_info["state_specific_size_names"]:
+        # Number of combo points spanned by the additional continuous states' grids
+        # can't be known yet -- at least one dimension's length is pending.
+        continuous_states_info["n_continuous_state_combinations"] = None
+    else:
+        # Number of combo points spanned by the additional continuous states' default
+        # grids (1 -- the dummy placeholder -- when there are none). Only the *count*
+        # is needed here, for sizing solution containers: every state-choice's own
+        # grid for a given name has this same length by construction (state-specific
+        # grids may vary in value, not size), regardless of which values it holds.
+        continuous_states_info["n_continuous_state_combinations"] = int(
+            np.prod(
+                [
+                    len(grid)
+                    for grid in continuous_states_info[
+                        "additional_continuous_state_grids"
+                    ].values()
+                ]
+            )
+        )
 
     processed_model_config["continuous_states_info"] = continuous_states_info
 
@@ -129,25 +171,13 @@ def check_model_config_and_process(model_config):
         if "extra_wealth_grid_factor" in tuning_params
         else 0.2
     )
-    tuning_params["n_constrained_points_to_add"] = (
-        tuning_params["n_constrained_points_to_add"]
-        if "n_constrained_points_to_add" in tuning_params
-        else n_assets_end_of_period // 10
-    )
-
-    if (
-        n_assets_end_of_period * (1 + tuning_params["extra_wealth_grid_factor"])
-        < n_assets_end_of_period + tuning_params["n_constrained_points_to_add"]
-    ):
-        raise ValueError(f"""\n\n
-            When preparing the tuning parameters for the upper
-            envelope, we found the following contradicting parameters: \n
-            The extra wealth grid factor of {tuning_params["extra_wealth_grid_factor"]} is too small
-            to cover the {tuning_params["n_constrained_points_to_add"]} wealth points which are added in
-            the credit constrained part of the wealth grid. \n\n""")
-    tuning_params["n_total_wealth_grid"] = int(
-        n_assets_end_of_period * (1 + tuning_params["extra_wealth_grid_factor"])
-    )
+    # Left unresolved when assets_end_of_period is declared as `None`; filled in by
+    # resolve_tuning_params_from_assets_end_of_period once the grid length is pinned.
+    if n_assets_end_of_period is not None:
+        resolve_tuning_params_from_assets_end_of_period(
+            tuning_params=tuning_params,
+            n_assets_end_of_period=n_assets_end_of_period,
+        )
 
     # Set jump threshold to default 2 if it is not given
     tuning_params["fues_jump_thresh"] = int(
@@ -183,32 +213,51 @@ def check_model_config_and_process(model_config):
                 "Specify 'assets_begin_of_period' in model_config['continuous_states'] when using "
                 "the 'druedahl_jorgensen' upper envelope method."
             )
+        assets_begin_of_period_grid = model_config["continuous_states"][
+            "assets_begin_of_period"
+        ]
+        # `None` when the grid is fully state-choice-specific (paired with a
+        # continuous_grid_functions entry, validated in
+        # process_continuous_grid_functions); its length is then pinned later, once
+        # a real state-choice can be evaluated against. Otherwise store the declared
+        # array, used to pin the wealth-grid length (see continuous_state_grids.py).
+        # Either way, the actual per-state-choice wealth grid the Druedahl-Jorgensen
+        # upper envelope evaluates on -- and that every reader interpolates against
+        # -- is recomputed on demand from
+        # continuous_grid_functions["assets_begin_of_period"] (see
+        # compute_own_dj_wealth_grid), so no shared grid is stored here.
         processed_model_config["continuous_states_info"]["assets_begin_of_period"] = (
-            jnp.asarray(model_config["continuous_states"]["assets_begin_of_period"])
-        )
-        # The Druedahl-Jorgensen upper envelope always evaluates on this fixed grid
-        # (see upper_envelope.jax.drued_jorg_jax), so the resulting "endogenous" grid
-        # is not actually endogenous. We precompute it once here so callers can reuse
-        # it instead of reading a stored (and redundant) endog_grid array.
-        processed_model_config["continuous_states_info"]["dj_wealth_grid"] = (
-            jnp.concatenate(
-                (
-                    jnp.zeros(1),
-                    processed_model_config["continuous_states_info"][
-                        "assets_begin_of_period"
-                    ],
-                )
-            )
+            None
+            if assets_begin_of_period_grid is None
+            else jnp.asarray(assets_begin_of_period_grid)
         )
 
     if upper_envelope["method"] == "fues":
-        processed_model_config["n_total_wealth_grid"] = tuning_params[
+        if "assets_begin_of_period" in model_config["continuous_states"]:
+            raise ValueError(
+                "'assets_begin_of_period' is only used by the 'druedahl_jorgensen' "
+                "upper envelope method. It was found in "
+                "model_config['continuous_states'] together with "
+                "upper_envelope['method'] == 'fues', where it has no effect -- "
+                "either remove it or switch to "
+                "upper_envelope['method'] = 'druedahl_jorgensen'."
+            )
+        # None while assets_end_of_period's length is still deferred; resolved
+        # alongside the tuning params it is derived from.
+        processed_model_config["n_total_wealth_grid"] = tuning_params.get(
             "n_total_wealth_grid"
-        ]
+        )
     elif upper_envelope["method"] == "druedahl_jorgensen":
-        # Expected value at 0, so add 1
+        # Expected value at 0, so add 1. None when assets_begin_of_period is
+        # state-specific (declared as `None`) -- resolved later, once its size can
+        # be pinned by evaluating the grid function against a real state-choice.
+        assets_begin_of_period_grid = model_config["continuous_states"][
+            "assets_begin_of_period"
+        ]
         processed_model_config["n_total_wealth_grid"] = (
-            len(model_config["continuous_states"]["assets_begin_of_period"]) + 1
+            None
+            if assets_begin_of_period_grid is None
+            else len(assets_begin_of_period_grid) + 1
         )
     else:
         raise ValueError("Something wrong internally")
@@ -220,11 +269,6 @@ def check_model_config_and_process(model_config):
         upper_envelope["method"] == "druedahl_jorgensen"
         and len(processed_model_config["choices"]) >= 2
     )
-    if upper_envelope["skip_endog_grid_storage"]:
-        assert (
-            processed_model_config["continuous_states_info"]["dj_wealth_grid"].shape[0]
-            == processed_model_config["n_total_wealth_grid"]
-        )
 
     if "min_period_batch_segments" in model_config.keys():
         processed_model_config["min_period_batch_segments"] = model_config[
@@ -289,3 +333,32 @@ def check_model_config_and_process(model_config):
     processed_model_config["params_check_info"] = {}
 
     return processed_model_config
+
+
+def resolve_tuning_params_from_assets_end_of_period(
+    tuning_params, n_assets_end_of_period
+):
+    """Fill in the fues tuning params that scale with the end-of-period assets grid.
+
+    Called eagerly from ``check_model_config_and_process`` for a declared array, and
+    from ``merge_resolved_state_specific_lengths`` when ``assets_end_of_period`` is
+    declared as ``None`` and its length is only pinned once a state-choice exists.
+
+    """
+    if "n_constrained_points_to_add" not in tuning_params:
+        tuning_params["n_constrained_points_to_add"] = n_assets_end_of_period // 10
+
+    if (
+        n_assets_end_of_period * (1 + tuning_params["extra_wealth_grid_factor"])
+        < n_assets_end_of_period + tuning_params["n_constrained_points_to_add"]
+    ):
+        raise ValueError(f"""\n\n
+            When preparing the tuning parameters for the upper
+            envelope, we found the following contradicting parameters: \n
+            The extra wealth grid factor of {tuning_params["extra_wealth_grid_factor"]} is too small
+            to cover the {tuning_params["n_constrained_points_to_add"]} wealth points which are added in
+            the credit constrained part of the wealth grid. \n\n""")
+
+    tuning_params["n_total_wealth_grid"] = int(
+        n_assets_end_of_period * (1 + tuning_params["extra_wealth_grid_factor"])
+    )

@@ -26,36 +26,13 @@ def create_model_structure(
             - "transform_between_state_and_state_choice_vec" (callable)
 
     """
-    # Create continuous state space
-    continuous_states_info = model_config["continuous_states_info"]
-    additional_continuous_state_grids = continuous_states_info.get(
-        "additional_continuous_state_grids", {}
-    )
-
-    if continuous_states_info["has_additional_continuous_state"]:
-        continuous_state_names = continuous_states_info[
-            "additional_continuous_state_names"
-        ]
-        continuous_grids = [
-            additional_continuous_state_grids[name] for name in continuous_state_names
-        ]
-
-        continuous_state_mesh = jnp.meshgrid(*continuous_grids, indexing="ij")
-        continuous_state_space = {
-            name: grid.ravel()
-            for name, grid in zip(continuous_state_names, continuous_state_mesh)
-        }
-    else:
-        continuous_state_space = {"dummy_cont": jnp.zeros(1)}
-
-    print("Starting state space creation")
     state_space_objects = create_state_space(
         model_config=model_config,
         sparsity_condition=model_funcs["sparsity_condition"],
         debugging=False,
     )
-    print("State space created.\n")
-    print("Starting state-choice space creation and child state mapping.")
+    n_states = state_space_objects["state_space"].shape[0]
+    print(f"  discrete state space: {n_states:,} states")
 
     state_choice_and_child_state_objects = (
         create_state_choice_space_and_child_state_mapping(
@@ -65,15 +42,23 @@ def create_model_structure(
                 "next_period_deterministic_state"
             ],
             state_space_arrays=state_space_objects,
+            continuous_grid_functions=model_funcs["continuous_grid_functions"],
+            state_specific_continuous_grid_names=model_funcs[
+                "state_specific_continuous_grid_names"
+            ],
         )
     )
+    n_state_choices = state_choice_and_child_state_objects["state_choice_space"].shape[
+        0
+    ]
+    print(f"  discrete state-choice space: {n_state_choices:,} state-choices")
+
     state_space_objects.pop("map_state_to_index_with_proxy")
-    state_space_objects.pop("state_space_incl_proxies")
+    state_space_objects.pop("map_state_to_index_incl_proxies")
 
     model_structure = {
         **state_space_objects,
         **state_choice_and_child_state_objects,
         "choice_range": jnp.asarray(model_config["choices"]),
-        "continuous_state_space": continuous_state_space,
     }
     return jax.tree.map(create_array_with_smallest_int_dtype, model_structure)

@@ -31,7 +31,7 @@ def budget_constraint_based_on_experience(
     lagged_choice: int,
     continuous_state_beginning_of_period: float,
     asset_end_of_previous_period: float,
-    income_shock_previous_period: float,
+    income_shock: float,
     params: Dict[str, float],
 ) -> float:
 
@@ -40,7 +40,7 @@ def budget_constraint_based_on_experience(
     wage = _calc_stochastic_income_for_experience(
         experience=experience_years,
         lagged_choice=lagged_choice,
-        wage_shock=income_shock_previous_period,
+        wage_shock=income_shock,
         params=params,
     )
     working_hours = _transform_lagged_choice_to_working_hours(lagged_choice)
@@ -137,7 +137,7 @@ def test_get_beginning_of_period_wealth(
     wealth_beginning_of_period = budget_constraint(
         **child_state_dict,
         asset_end_of_previous_period=savings_grid[random_saving_scalar],
-        income_shock_previous_period=quad_points[random_shock_scalar],
+        income_shock=quad_points[random_shock_scalar],
         model_specs=model_specs,
         params=params,
     )
@@ -253,15 +253,18 @@ def _check_subset_matches_full(model, params):
     )
 
     subset_result = calc_law_of_motion_for_state_choices(
-        state_choice_vec=state_choice_subset,
-        continuous_state_space=model_structure["continuous_state_space"],
-        assets_grid_end_of_period=continuous_states_info["assets_grid_end_of_period"],
+        child_state_choices=state_choice_subset,
         income_shocks_scaled=income_shocks_scaled,
         params=params,
         model_funcs=model_funcs,
         has_additional_continuous_states=continuous_states_info[
             "has_additional_continuous_state"
         ],
+        additional_continuous_state_names=continuous_states_info[
+            "additional_continuous_state_names"
+        ],
+        # No parent/child distinction being tested here.
+        representative_parent_state_choice_vec=state_choice_subset,
     )
 
     expected_parent_states = map_state_choice_to_parent_state[test_idx]

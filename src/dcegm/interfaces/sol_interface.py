@@ -12,6 +12,7 @@ from dcegm.interfaces.interface import (
     value_for_state_and_choice,
 )
 from dcegm.interfaces.interface_checks import check_states_and_choices
+from dcegm.law_of_motion import compute_own_dj_wealth_grid
 from dcegm.likelihood import (
     calc_choice_probs_for_states,
     get_state_choice_index_per_discrete_states,
@@ -20,7 +21,6 @@ from dcegm.pre_processing.alternative_sim_functions import (
     generate_alternative_sim_functions,
 )
 from dcegm.pre_processing.shared import try_jax_array
-from dcegm.pre_processing.sol_container import broadcast_dj_wealth_grid
 from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
 
@@ -72,7 +72,20 @@ class model_solved:
         self.alternative_sim_funcs = alternative_sim_funcs
 
     def simulate(self, states_initial, seed):
+        """Simulate a panel of agents forward through the solved model.
 
+        Args:
+            states_initial: Initial states for the simulated agents, one array per state name, each of shape
+                ``(n_agents,)``. Must include ``assets_end_of_previous_period``:
+                the assets agents carry *into* the first period, not the wealth
+                they have to spend in it. The first period applies the budget
+                equation to it like every other period.
+            seed: Random seed for the simulation's taste shocks and income draws.
+
+        Returns:
+            A long-format panel with a ``(period, agent)`` MultiIndex.
+
+        """
         sim_dict = simulate_all_periods(
             states_initial=states_initial,
             n_periods=self.model_config["n_periods"],
@@ -196,8 +209,19 @@ class model_solved:
             fill_value=jnp.nan,
         )
         if self.model_config["upper_envelope"]["skip_endog_grid_storage"]:
-            endog_grid = broadcast_dj_wealth_grid(
-                self.model_config["continuous_states_info"], value_grid.shape
+            # Each state-choice's own Druedahl-Jorgensen wealth grid, evaluated on
+            # demand -- self-referential, this is exactly the state-choice whose
+            # own stored solution is being read.
+            own_dj_wealth_grid = jax.vmap(
+                compute_own_dj_wealth_grid, in_axes=(0, None)
+            )(state_choices, self.model_funcs["continuous_grid_functions"])
+            endog_grid = jnp.broadcast_to(
+                own_dj_wealth_grid[:, None, :],
+                (
+                    own_dj_wealth_grid.shape[0],
+                    value_grid.shape[1],
+                    own_dj_wealth_grid.shape[1],
+                ),
             )
         else:
             endog_grid = jnp.take(
