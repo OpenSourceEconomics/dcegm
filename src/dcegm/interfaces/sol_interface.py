@@ -262,6 +262,7 @@ class model_solved:
             states=states,
             model_config=self.model_config,
             model_funcs=self.model_funcs,
+            model_structure=self.model_structure,
         )
 
     def choice_values_for_states(self, states):
