@@ -167,16 +167,25 @@ def test_simulation_passes_continuous_state_to_utility(model_solved_dj_exp_utili
         "period": np.zeros(n_agents, dtype=int),
         "lagged_choice": np.zeros(n_agents, dtype=int),
         "experience": experience_initial,
-        "assets_begin_of_period": np.array([10.0, 25.0, 10.0, 25.0]),
+        "assets_end_of_previous_period": np.array([10.0, 25.0, 10.0, 25.0]),
     }
 
     df = model_solved_dj_exp_utility.simulate(states_initial=states_initial, seed=111)
     df_first_period = df.xs(0, level="period")
 
+    # The first period's wealth comes out of its budget equation, so the interface is
+    # queried at the simulated states rather than at the assets carried in.
+    states_simulated = {
+        "period": np.zeros(n_agents, dtype=int),
+        "lagged_choice": np.zeros(n_agents, dtype=int),
+        "experience": df_first_period["experience"].to_numpy(),
+        "assets_begin_of_period": df_first_period["assets_begin_of_period"].to_numpy(),
+    }
+
     for choice in range(N_DISCRETE_CHOICES):
         _policy, value = (
             model_solved_dj_exp_utility.policy_and_value_for_states_and_choices(
-                states=states_initial,
+                states=states_simulated,
                 choices=np.full(n_agents, choice),
             )
         )
