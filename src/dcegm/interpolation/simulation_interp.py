@@ -425,6 +425,15 @@ def interpnd_policy_and_value_function(
     skip_endog_grid_storage,
 ):
     state_choice_vec = {**state, "choice": choice}
+    # The 1d interpolation below evaluates the utility function directly, so it needs
+    # the continuous states, which the nd interpolation receives as its own argument.
+    state_choice_vec_with_cont = {
+        **state_choice_vec,
+        **{
+            name: continuous_state_beginning_of_period[name]
+            for name in additional_continuous_state_names
+        },
+    }
 
     # Under skip_endog_grid_storage the endogenous grid is not stored, so
     # endog_grid_agent carries no usable values (the caller passes a placeholder of
@@ -491,7 +500,7 @@ def interpnd_policy_and_value_function(
         policy_grid=policy_agent[combo_idx],
         value_grid=value_agent[combo_idx],
         compute_utility=compute_utility,
-        state_choice_vec=state_choice_vec,
+        state_choice_vec=state_choice_vec_with_cont,
         params=params,
         discount_factor=discount_factor,
     )
