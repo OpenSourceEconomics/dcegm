@@ -10,7 +10,7 @@ def budget_with_aux(
     period,
     lagged_choice,
     asset_end_of_previous_period,
-    income_shock_previous_period,
+    income_shock,
     model_specs,
     params,
 ):
@@ -18,7 +18,7 @@ def budget_with_aux(
         period,
         lagged_choice,
         asset_end_of_previous_period,
-        income_shock_previous_period,
+        income_shock,
         model_specs,
         params,
     )
@@ -32,7 +32,7 @@ def budget_without_aux(
     period,
     lagged_choice,
     asset_end_of_previous_period,
-    income_shock_previous_period,
+    income_shock,
     model_specs,
     params,
 ):
@@ -40,7 +40,7 @@ def budget_without_aux(
         period,
         lagged_choice,
         asset_end_of_previous_period,
-        income_shock_previous_period,
+        income_shock,
         model_specs,
         params,
     )
@@ -51,7 +51,7 @@ def budget_constraint_raw(
     period,
     lagged_choice,
     asset_end_of_previous_period,
-    income_shock_previous_period,
+    income_shock,
     model_specs,
     params,
 ):
@@ -59,7 +59,7 @@ def budget_constraint_raw(
     income_from_previous_period = _calc_stochastic_income(
         period=period,
         lagged_choice=lagged_choice,
-        wage_shock=income_shock_previous_period,
+        wage_shock=income_shock,
         min_age=model_specs["min_age"],
         constant=params["constant"],
         exp=params["exp"],
@@ -79,7 +79,7 @@ def budget_constraint_raw(
 
     return (
         wealth_beginning_of_period,
-        income_shock_previous_period,
+        income_shock,
         income_from_previous_period,
     )
 
@@ -149,7 +149,7 @@ def test_sim_and_sol_model(model_config):
     states_initial = {
         "period": jnp.zeros(n_agents, dtype=int),
         "lagged_choice": jnp.zeros(n_agents, dtype=int),
-        "assets_begin_of_period": jnp.ones(n_agents, dtype=float) * 10,
+        "assets_end_of_previous_period": jnp.ones(n_agents, dtype=float) * 10,
     }
     n_periods = model_config["n_periods"]
     seed = 132

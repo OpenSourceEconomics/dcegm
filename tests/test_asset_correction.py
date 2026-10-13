@@ -46,7 +46,7 @@ def test_adjust_observed_assets_wealth_only():
                 period=period,
                 lagged_choice=lagged_choice,
                 asset_end_of_previous_period=asset_end,
-                income_shock_previous_period=0.0,
+                income_shock=0.0,
                 model_specs=model_specs,
                 params=params,
             )
@@ -97,7 +97,7 @@ def test_adjust_observed_assets_second_continuous_state():
                 lagged_choice=lagged_choice,
                 experience=experience,
                 asset_end_of_previous_period=asset_end,
-                income_shock_previous_period=0.0,
+                income_shock=0.0,
                 params=params,
                 model_specs=model_specs,
             )

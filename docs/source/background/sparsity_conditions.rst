@@ -73,13 +73,52 @@ Explanation of Logic:
 - **c4/c5**: Forces retirement if agent is above maximum retirement age.
 - **Adjustments**: If the agent is *dead* (`survival == 0`), the job offer is set to 0, and the period is fixed at the final period to make the state absorbing.
 
+Utility Functions at Proxied Terminal States
+--------------------------------------------
+
+Proxying an absorbing terminal state has a consequence for your **utility functions** that is easy to miss. In the example above, every dead state (``survival == 0``) is redirected to a single slot in the final period, where its value is stored once and reused. But that stored value is not the whole story: during the EGM step, whenever a *living* parent integrates over its (possibly dead) children, *dcegm* re-evaluates your periodic ``utility`` and ``marginal_utility`` at the child's own identity -- and for a dead child that identity still carries ``survival == 0``.
+
+So your periodic utility functions must branch on the terminal state and return the terminal (e.g. consume-all / bequest) value there, not the ordinary living value:
+
+.. code-block:: python
+
+    def utility(consumption, survival, ..., params):
+        alive = utility_alive(consumption, ..., params)
+        dead = utility_final_consume_all(wealth=consumption, ..., params)
+        return jnp.where(survival == 0, dead, alive)
+
+Two things matter:
+
+- **It must match** ``utility_functions_final_period``. The dead child's value was stored with the final-period utility; the branch above is what the parent re-evaluates for that same child during EGM. If the two disagree, the two representations of the same terminal state are inconsistent and the Euler equation of every parent with a dead child is wrong.
+- **The same applies to** ``marginal_utility``, and more strongly: the child's marginal utility is *always* recomputed at the proxied identity in the EGM step (it is never read back from storage), so a missing terminal branch there breaks the bequest term directly.
+
+When this branch is exercised
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The terminal branch of the *periodic* functions fires for every period solved by the main backward-induction scan -- that is, all periods **except the last two**:
+
+- the **last period** is solved entirely with ``utility_functions_final_period`` and never calls the periodic ``utility``;
+- the **second-to-last period** is handed the final period's values and marginal utilities directly, so it too bypasses the periodic terminal branch;
+- **every earlier period** reads its terminal children through the proxy and re-evaluates the periodic ``utility`` / ``marginal_utility`` at the ``survival == 0`` identity.
+
 Best Practices
 --------------
 
 - Make sparsity conditions **strict**: only allow logically valid state combinations.
 - Handle **absorbing states** like death or permanent retirement carefully.
+- When a sparsity condition proxies an absorbing terminal state, make sure your periodic ``utility`` and ``marginal_utility`` branch on that state and agree with ``utility_functions_final_period`` (see `Utility Functions at Proxied Terminal States`_ above).
 - Ensure that any state created in the deterministic transition function also satisfies the sparsity condition.
 
 Failing to correctly define sparsity conditions will result in `ValueError` exceptions and warnings during model setup, as *dcegm* verifies that every `(state, choice)` pair leads to a valid next state.
 
-To help you setup the correct sparsity conditions for your model, ``setup_model()`` provides a debug mode which can be triggered by passing the argument ``debug=state_space_df``.
+If your restriction depends on a *choice* -- either the one made last period or which choices a state offers at all -- see :ref:`choice_dependent_sparsity`, which covers how the two mechanisms (``sparsity_condition`` and ``state_specific_choice_set``) divide that work between them.
+
+To help you setup the correct sparsity conditions for your model, a debug mode is available which returns a ``pandas.DataFrame`` over the unfiltered state space, showing ``is_valid``/``is_proxied`` per candidate state:
+
+.. code-block:: python
+
+    from dcegm.pre_processing.setup_model import create_model_dict
+
+    state_space_df = create_model_dict(..., debug_info="state_space_df")
+
+Note this must be called on ``create_model_dict``, not on ``setup_model``: the latter is a class that immediately indexes ``model_dict["model_config"]``, so the debug path (which returns a DataFrame) raises ``KeyError: 'model_config'`` there.

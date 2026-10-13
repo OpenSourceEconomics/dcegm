@@ -1,1 +1,2 @@
+from dcegm.interfaces.combined_solve import get_solve_from_small_models
 from dcegm.interfaces.model_class import setup_model

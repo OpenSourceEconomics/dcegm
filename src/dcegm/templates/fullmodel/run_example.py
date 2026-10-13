@@ -87,7 +87,7 @@ states_initial = {
     "job_offer": jnp.ones(n_agents),
     "survival": jnp.ones(n_agents),
     "experience": jnp.ones(n_agents),
-    "assets_begin_of_period": jnp.ones(n_agents) * 10,
+    "assets_end_of_previous_period": jnp.ones(n_agents) * 10,
 }
 
 model_solved.simulate(states_initial=states_initial, seed=42)

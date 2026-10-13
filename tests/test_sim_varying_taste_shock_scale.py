@@ -50,7 +50,7 @@ def model_setup():
         "lagged_choice": np.zeros(n_agents),  # all agents start as workers
         "married": np.zeros(n_agents),
         "ltc": np.zeros(n_agents),
-        "assets_begin_of_period": np.ones(n_agents) * 10,
+        "assets_end_of_previous_period": np.ones(n_agents) * 10,
     }
 
     df = model.get_solve_and_simulate_func(states_initial=initial_states, seed=seed)(

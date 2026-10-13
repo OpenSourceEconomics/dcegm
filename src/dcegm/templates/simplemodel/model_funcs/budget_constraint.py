@@ -8,7 +8,7 @@ def budget_constraint(
     period: int,
     lagged_choice: int,
     asset_end_of_previous_period: float,
-    income_shock_previous_period: float,
+    income_shock: float,
     model_specs: Dict[str, Any],
     params: Dict[str, float],
 ) -> float:
@@ -22,10 +22,9 @@ def budget_constraint(
             denoting the current child state.
         savings_end_of_previous_period (float): One point on the exogenous savings grid
             carried over from the previous period.
-        income_shock_pervious_period (float): Stochastic shock on labor income;
-            may or may not be normally distributed. This float represents one
-            particular realization of the income_shock_draws carried over from the
-            previous period.
+        income_shock (float): Stochastic shock on labor income, realized in this
+            period; may or may not be normally distributed. This float represents
+            one particular realization of the income_shock_draws.
         params (dict): Dictionary containing model parameters.
         model_specs (dict): model_specs dictionary.
 
@@ -37,7 +36,7 @@ def budget_constraint(
     income_from_previous_period = _calc_stochastic_income(
         period=period,
         lagged_choice=lagged_choice,
-        wage_shock=income_shock_previous_period,
+        wage_shock=income_shock,
         min_age=model_specs["min_age"],
         constant=params["constant"],
         exp=params["exp"],
@@ -83,10 +82,9 @@ def _calc_stochastic_income(
     Args:
         state (jnp.ndarray): 1d array of shape (n_state_variables,) denoting
             the current child state.
-        wage_shock (float): Stochastic shock on labor income;
-            may or may not be normally distributed. This float represents one
-            particular realization of the income_shock_draws carried over from
-            the previous period.
+        wage_shock (float): Stochastic shock on labor income, realized in this
+            period; may or may not be normally distributed. This float represents
+            one particular realization of the income_shock_draws.
         params (dict): Dictionary containing model parameters.
             Relevant here are the coefficients of the wage equation.
         model_specs (dict): model_specs dictionary.

@@ -147,7 +147,7 @@ def test_budget_constraint_doubles_then_divides_so_the_asset_return_is_plain():
             lagged_choice=lagged_choice,
             partner_state=partner_state,
             asset_end_of_previous_period=asset,
-            income_shock_previous_period=0.0,
+            income_shock=0.0,
             params=PARAMS,
         )
 

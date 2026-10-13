@@ -3,7 +3,13 @@ import jax.numpy as jnp
 
 
 def draw_random_keys_for_seed(n_agents, n_periods, taste_shock_scale_is_scalar, seed):
-    """Draw the random keys jax uses for a given seed."""
+    """Draw the random keys jax uses for a given seed.
+
+    Every key row belongs to the period that uses it: period ``t`` draws its own
+    income and taste shocks from row ``t``, and the stochastic-state key in row ``t``
+    is the one it uses to transition into ``t+1``.
+
+    """
     # We start by determining the number of keys per period  for the three stochastic components
     # of the model. We will draw all keys together and assign them then based on index.
     # First: The transition of the exogenous processes. This happens vectorized over all
@@ -48,8 +54,10 @@ def draw_random_keys_for_seed(n_agents, n_periods, taste_shock_scale_is_scalar, 
         "taste_shock_keys": sim_keys_draw[:-1, idx_3, :],
     }
 
-    # In the last period we only need the taste shock.
+    # The last period draws its own income and taste shocks like any other; it just
+    # never transitions onwards, so it needs no stochastic-state key.
     last_period_sim_keys = {
+        "income_shock_keys": sim_keys_draw[-1, idx_2, :],
         "taste_shock_keys": sim_keys_draw[-1, idx_3, :],
     }
     return sim_keys, last_period_sim_keys

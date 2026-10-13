@@ -10,8 +10,7 @@ def process_params(params, params_check_info) -> Dict[str, float]:
     and discount factor.
 
     Args:
-        params (dict or tuple or pandas.Series or pandas.DataFrame): Model parameters
-            Support tuple and list as well?
+        params dict: Model parameters
 
     Returns:
         dict: Dictionary of model parameters.

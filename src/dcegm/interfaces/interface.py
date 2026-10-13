@@ -14,7 +14,6 @@ from dcegm.interpolation.interp_interfaces import (
     interpolate_policy_for_state_and_choice,
     interpolate_value_for_state_and_choice,
 )
-from dcegm.pre_processing.sol_container import broadcast_dj_wealth_grid
 
 
 def get_n_state_choice_period(model_structure):
@@ -34,6 +33,24 @@ def get_n_state_choice_period(model_structure):
         .value_counts()
         .sort_index()
     )
+
+
+def _endog_grid_placeholder(shape):
+    """A stand-in for the endogenous grid when it is not stored.
+
+    Under ``skip_endog_grid_storage`` the endogenous grid is never written: every
+    state-choice's "endogenous" grid is by construction its fixed
+    Druedahl-Jorgensen wealth grid, which each reader recomputes from that
+    state-choice's own identity (``_dj_wealth_grid_for_state_choice`` and
+    ``_interp_policy_and_value_multidim_dj_for_state_choice`` in
+    ``interpolation/interp_interfaces.py``).
+
+    So nothing downstream reads these values -- only the shape matters, to keep the
+    ``in_axes=None`` contract of the vmaps below, which must not batch the wealth
+    grid over the (possibly large) query dimension.
+
+    """
+    return jnp.zeros(shape)
 
 
 def policy_and_value_for_states_and_choices(
@@ -93,10 +110,8 @@ def policy_and_value_for_states_and_choices(
         # DJ-constant: never batch the wealth grid over the (possibly large) query
         # dimension. Broadcast only across the (small) continuous combo axis and let
         # vmap treat it as invariant via in_axes=None.
-        endog_grid_state_choice = broadcast_dj_wealth_grid(
-            model_config["continuous_states_info"],
-            (value_grid_state_choice.shape[1],)
-            + model_config["continuous_states_info"]["dj_wealth_grid"].shape,
+        endog_grid_state_choice = _endog_grid_placeholder(
+            value_grid_state_choice.shape[1:]
         )
         endog_grid_in_axes = None
     else:
@@ -170,10 +185,8 @@ def value_for_state_and_choice(
         fill_value=jnp.nan,
     )
     if model_config["upper_envelope"]["skip_endog_grid_storage"]:
-        endog_grid_state_choice = broadcast_dj_wealth_grid(
-            model_config["continuous_states_info"],
-            (value_grid_state_choice.shape[1],)
-            + model_config["continuous_states_info"]["dj_wealth_grid"].shape,
+        endog_grid_state_choice = _endog_grid_placeholder(
+            value_grid_state_choice.shape[1:]
         )
         endog_grid_in_axes = None
     else:
@@ -250,10 +263,8 @@ def policy_for_state_choice_vec(
         fill_value=jnp.nan,
     )
     if model_config["upper_envelope"]["skip_endog_grid_storage"]:
-        endog_grid_state_choice = broadcast_dj_wealth_grid(
-            model_config["continuous_states_info"],
-            (value_grid_state_choice.shape[1],)
-            + model_config["continuous_states_info"]["dj_wealth_grid"].shape,
+        endog_grid_state_choice = _endog_grid_placeholder(
+            value_grid_state_choice.shape[1:]
         )
         endog_grid_in_axes = None
     else:
@@ -401,9 +412,7 @@ def choice_values_for_states(
     if model_config["upper_envelope"]["skip_endog_grid_storage"]:
         # Broadcast only across the combo axis, never across the (states, choices)
         # batch axes that the double vmap below maps over.
-        endog_grid_states = broadcast_dj_wealth_grid(
-            model_config["continuous_states_info"], value_grid_states.shape[2:]
-        )
+        endog_grid_states = _endog_grid_placeholder(value_grid_states.shape[2:])
         endog_grid_in_axes = None
     else:
         endog_grid_states = jnp.take(
@@ -477,9 +486,7 @@ def choice_policies_for_states(
         fill_value=jnp.nan,
     )
     if model_config["upper_envelope"]["skip_endog_grid_storage"]:
-        endog_grid_states = broadcast_dj_wealth_grid(
-            model_config["continuous_states_info"], value_grid_states.shape[2:]
-        )
+        endog_grid_states = _endog_grid_placeholder(value_grid_states.shape[2:])
         endog_grid_in_axes = None
     else:
         endog_grid_states = jnp.take(

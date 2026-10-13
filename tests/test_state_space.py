@@ -238,6 +238,7 @@ def test_state_space():
     dict_of_state_space_objects = create_state_space(
         model_config=model_config_sparse,
         sparsity_condition=processed_sparsity_condition,
+        debugging=False,
     )
 
     state_space = dict_of_state_space_objects["state_space"]
