@@ -609,6 +609,9 @@ def test_grid_depending_on_time_invariant_state_passes():
     )
 
 
+# group_resets_on_choice pins the child's "group" to the choice made, so every state
+# whose "group" disagrees with its "lagged_choice" is unreachable here by construction.
+@pytest.mark.filterwarnings("ignore:(?s).*are not child states")
 def test_grid_depending_on_choice_always_passes():
     # "choice" always passes through 1:1 into the child (it becomes the child's
     # own "lagged_choice") -- so two parents sharing a child are guaranteed to
