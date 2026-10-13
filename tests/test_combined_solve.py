@@ -162,6 +162,9 @@ def test_assembled_solve_matches_pooled(params, big_config, small_models):
     assert_allclose(np.asarray(assembled.endog_grid), np.asarray(pooled.endog_grid))
 
 
+# The memory warning fires whenever there are fewer devices than sub-models, which is
+# the normal single-device case here; what is under test is the assembled result.
+@pytest.mark.filterwarnings("ignore:parallel=True dispatches")
 def test_parallel_matches_pooled(params, big_config, small_models):
     big_model = dcegm.setup_model(model_config=big_config, **BUILD_KWARGS)
     pooled = big_model.solve(params)
