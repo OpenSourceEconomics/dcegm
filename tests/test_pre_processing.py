@@ -78,6 +78,7 @@ def test_wrap_function():
     util_processed = determine_function_arguments_and_partial_model_specs(
         utility_crra,
         options,
+        not_allowed_state_choices=[],
     )
 
     calc_util = vmap(util_wrap, in_axes=(0, None, None))(
@@ -212,6 +213,9 @@ def test_second_continuous_state(period, lagged_choice, continuous_state):
         utility_functions=create_utility_function_dict(),
         utility_functions_final_period=create_final_period_utility_function_dict(),
         budget_constraint=budget_constraint,
+        stochastic_states_transitions=None,
+        shock_functions=None,
+        continuous_grid_functions=None,
     )
 
     next_period_continuous_state = model_funcs["next_period_continuous_state"]

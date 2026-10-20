@@ -371,6 +371,7 @@ def create_partial_choice_prob_calculation(
             state_choice_indexes=data_from_observed[2],
             model_config=model_config,
             model_funcs=model_funcs,
+            model_structure=model_structure,
         )
 
     return partial_choice_prob_func, data_from_observed_wrapped
@@ -385,6 +386,7 @@ def calc_choice_prob_for_state_choices(
     state_choice_indexes,
     model_config,
     model_funcs,
+    model_structure,
 ):
     """This function interpolates the policy and value function for all agents.
 
@@ -400,6 +402,7 @@ def calc_choice_prob_for_state_choices(
         states=states,
         model_config=model_config,
         model_funcs=model_funcs,
+        model_structure=model_structure,
     )
     choice_probs = jnp.take_along_axis(
         choice_prob_across_choices, choices[:, None], axis=1
@@ -415,6 +418,7 @@ def calc_choice_probs_for_states(
     states,
     model_config,
     model_funcs,
+    model_structure,
 ):
     choice_values_per_state = choice_values_for_states(
         value_solved=value_solved,
@@ -424,6 +428,7 @@ def calc_choice_probs_for_states(
         states=states,
         model_config=model_config,
         model_funcs=model_funcs,
+        model_structure=model_structure,
     )
 
     if model_funcs["taste_shock_function"]["taste_shock_scale_is_scalar"]:

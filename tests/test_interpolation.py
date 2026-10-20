@@ -157,6 +157,7 @@ def test_cases():
         compute_utility = determine_function_arguments_and_partial_model_specs(
             utility_crra,
             model_specs={},
+            not_allowed_state_choices=[],
         )
 
         test_cases[test_id]["test_points"] = test_points
@@ -267,6 +268,7 @@ def test_interp2d_against_custom(test_cases, test_id):
             state_choice_vec={"choice": 0},
             params=PARAMS,
             discount_factor=PARAMS["discount_factor"],
+            cont_state_name="continuous_state",
         )
     )
 
