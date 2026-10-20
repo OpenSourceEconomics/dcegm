@@ -223,12 +223,20 @@ def create_sparse_stochastic_trans_map(
             trans_vector = jnp.kron(trans_vector, func(idx))
         return trans_vector
 
-    all_transitions = jax.vmap(kronecker_with_index)(
-        jnp.arange(n_state_choices),
+    # Only the NaN pattern is used below, so evaluate in blocks and keep booleans.
+    block_size = 10_000
+    keep_mask = np.concatenate(
+        [
+            ~np.isnan(
+                np.asarray(
+                    jax.vmap(kronecker_with_index)(
+                        jnp.arange(start, min(start + block_size, n_state_choices))
+                    )
+                )
+            )
+            for start in range(0, n_state_choices, block_size)
+        ]
     )
-
-    # Find non-NaN positions (states to keep)
-    keep_mask = ~np.isnan(all_transitions)
 
     # Select non-NaN child states directly
     sparse_child_states_mapping = model_structure["map_state_choice_to_child_states"][
