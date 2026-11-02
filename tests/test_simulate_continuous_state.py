@@ -11,15 +11,13 @@ from dcegm.simulation.sim_utils import create_simulation_df
 from dcegm.simulation.simulate import simulate_all_periods
 from tests.test_utility_second_continuous import (
     N_DISCRETE_CHOICES,
-)
-from tests.test_utility_second_continuous import PARAMS as PARAMS_EXP_UTILITY
-from tests.test_utility_second_continuous import (
     inverse_marginal_utility_cont_exp,
     marginal_utility_cont_exp,
     marginal_utility_final_consume_all_with_cont_exp,
     utility_cont_exp,
     utility_final_consume_all_with_cont_exp,
 )
+from tests.test_utility_second_continuous import PARAMS as PARAMS_EXP_UTILITY
 
 
 @pytest.fixture(scope="module")
