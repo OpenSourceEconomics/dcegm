@@ -34,21 +34,25 @@ def utility_func(consumption, choice, partner_state, params):
 
 
 def marginal_utility_func(consumption, partner_state, params):
+    # Plain chain rule of utility_func: an individual dollar buys `scale` dollars of
+    # joint consumption, so its marginal utility is scale * felicity'(scale * c).
     scale = jnp.where(partner_state == 1, 2.0, 1.0)
     x = scale * consumption
     du_dx = jax.lax.select(jnp.allclose(params["rho"], 1), 1 / x, x ** (-params["rho"]))
-    return du_dx
+    return scale * du_dx
 
 
 def inverse_marginal_utility_func(marginal_utility, partner_state, params):
-    # Inverts marginal_utility_func(c) = (scale*c)**(-rho): c = m**(-1/rho) / scale.
+    # Inverts marginal_utility_func(c) = scale * (scale*c)**(-rho):
+    # c = (m / scale)**(-1/rho) / scale.
     scale = jnp.where(partner_state == 1, 2.0, 1.0)
-    c_rho1 = (1 / scale) * (1 / marginal_utility)  # log case: scale cancels, as always
-    c_general = marginal_utility ** (-1 / params["rho"]) / scale
+    c_rho1 = 1 / marginal_utility  # log case: m = 1 / c
+    c_general = (marginal_utility / scale) ** (-1 / params["rho"]) / scale
     return jax.lax.select(jnp.allclose(params["rho"], 1), c_rho1, c_general)
 
 
 def utility_final(wealth, choice, partner_state, params):
+    # Consume everything; marginal_utility_final is its derivative in wealth.
     return utility_func(wealth, choice, partner_state, params)
 
 

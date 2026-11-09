@@ -32,6 +32,28 @@ def partner_transition_np(partner_state, params):
     return np.array([1 - prob_married_next, prob_married_next])
 
 
+def asset_rescaling(partner_state_0, partner_state_1):
+    """Share of the saved assets the agent keeps across the partner transition."""
+    if partner_state_0 == 1 and partner_state_1 == 0:
+        return 0.5  # divorce: keep half
+    if partner_state_0 == 0 and partner_state_1 == 1:
+        return 2.0  # marriage: new partner matches wealth
+    return 1.0
+
+
+def d_resources_d_assets(partner_state_0, partner_state_1, params):
+    """Derivative of ``resources_after_transition`` with respect to ``a``.
+
+    Resources are linear in ``a``: rescaled assets times ``1 + r`` plus income. This is
+    the return on saving that enters the Euler equation -- ``1 + r`` only if the partner
+    state does not change.
+
+    """
+    return asset_rescaling(partner_state_0, partner_state_1) * (
+        1 + params["interest_rate"]
+    )
+
+
 def resources_after_transition(
     a,
     partner_state_0,
@@ -56,10 +78,7 @@ def resources_after_transition(
     no-op, so every existing caller is unaffected.
 
     """
-    if partner_state_0 == 1 and partner_state_1 == 0:
-        a = a / 2  # divorce
-    elif partner_state_0 == 0 and partner_state_1 == 1:
-        a = a * 2  # marriage
+    a = asset_rescaling(partner_state_0, partner_state_1) * a
 
     partner_income = params["y_partner"] if partner_state_1 == 1 else 0.0
     wealth = a * (1 + params["interest_rate"]) + own_income + partner_income
@@ -98,7 +117,7 @@ def solve_reference_at_point(a0_end, partner_state_0, work0, params):
     analytically.
 
     """
-    beta, r = params["discount_factor"], params["interest_rate"]
+    beta = params["discount_factor"]
     taste_shock_scale = params["taste_shock_scale"]
     transition_probs = partner_transition_np(partner_state_0, params)
 
@@ -129,10 +148,14 @@ def solve_reference_at_point(a0_end, partner_state_0, work0, params):
         choice_probs = weights / weights.sum()
         ev_choice = max_v + taste_shock_scale * np.log(weights.sum())
 
-        expected_marg_util += prob_partner * np.sum(choice_probs * choice_marg_utils)
+        expected_marg_util += (
+            prob_partner
+            * d_resources_d_assets(partner_state_0, partner_state_1, params)
+            * np.sum(choice_probs * choice_marg_utils)
+        )
         expected_value += prob_partner * ev_choice
 
-    rhs_euler = beta * (1 + r) * expected_marg_util
+    rhs_euler = beta * expected_marg_util
     c0 = inverse_marginal_utility_np(rhs_euler, params)
 
     return {
@@ -219,7 +242,7 @@ def solve_reference(n_periods, params, a_grid, work_cost=0.0):
     -- it's cheaper and exact to just evaluate `consumption_utility` /
     `marginal_utility_np` directly on any wealth level.
     """
-    beta, r = params["discount_factor"], params["interest_rate"]
+    beta = params["discount_factor"]
     taste_shock_scale = params["taste_shock_scale"]
     last_period = n_periods - 1
     solved = {}
@@ -334,12 +357,16 @@ def solve_reference(n_periods, params, a_grid, work_cost=0.0):
                         choice_probs = weights / weights.sum()
                         ev_choice = max_v + taste_shock_scale * np.log(weights.sum())
 
-                        expected_marg_util += prob_partner * np.sum(
-                            choice_probs * choice_marg_utils
+                        expected_marg_util += (
+                            prob_partner
+                            * d_resources_d_assets(
+                                partner_state_now, partner_state_next, params
+                            )
+                            * np.sum(choice_probs * choice_marg_utils)
                         )
                         expected_value += prob_partner * ev_choice
 
-                    rhs_euler = beta * (1 + r) * expected_marg_util
+                    rhs_euler = beta * expected_marg_util
                     c = inverse_marginal_utility_np(rhs_euler, params)
 
                     endog_grid[i] = c + a_end

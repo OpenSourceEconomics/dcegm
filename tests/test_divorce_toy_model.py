@@ -6,7 +6,9 @@ none of it is hardcoded there. This file owns the actual numbers:
   - `reference.py` -- independent hand-rolled backward-induction EGM solver
     (no dcegm, no upper envelope). Transition-based wealth rescaling: halve
     on divorce, double on marriage, unchanged otherwise; no multiplier in
-    utility.
+    utility. Its Euler equation uses the derivative of that law of motion with
+    respect to saved assets, `d_resources_d_assets`: (1+r) times 1/2 on
+    divorce, 2 on marriage, 1 otherwise.
   - `dcegm_functions.py` -- the dcegm-facing model (utility, budget
     constraint, model setup). Per-period wealth/utility rescaling keyed off
     the *current* period's own partner_state only.
@@ -33,6 +35,7 @@ expression by the same multiplier again*. For the asset term this is just
 assumes.
 """
 
+import jax
 import numpy as np
 import pytest
 
@@ -44,7 +47,7 @@ from .resources.divorce_model import reference as ref
 # call. Nothing in tests/resources/divorce_model/ hardcodes any of this.
 # ---------------------------------------------------------------------------
 
-RHO = 0.8  # estimated mu_low = mu_high in est_params_alg1_sparse.pkl
+RHO = 0.8
 DELTA = 0.5  # disutility of work
 BETA = 0.96
 R = 0.02
@@ -129,6 +132,23 @@ def test_dcegm_final_period_matches_analytic_formula(partner_state, choice):
     )
 
 
+@pytest.mark.parametrize("partner_state", [0, 1])
+def test_marginal_utility_is_derivative_of_utility(partner_state):
+    """Dcegm needs nothing but the plain derivative of `utility_func` in consumption,
+    including the outer `scale` from the chain rule, and its inverse."""
+    consumption = np.linspace(0.5, 100.0, 50)
+    derivative = jax.vmap(
+        jax.grad(lambda c: dm.utility_func(c, 1, partner_state, PARAMS))
+    )(consumption)
+    marginal_utility = dm.marginal_utility_func(consumption, partner_state, PARAMS)
+    np.testing.assert_allclose(marginal_utility, derivative, rtol=1e-12)
+    np.testing.assert_allclose(
+        dm.inverse_marginal_utility_func(marginal_utility, partner_state, PARAMS),
+        consumption,
+        rtol=1e-12,
+    )
+
+
 def test_budget_constraint_doubles_then_divides_so_the_asset_return_is_plain():
     """Assets get doubled (partner brings equal wealth), earn interest, then get divided
     by the same multiplier again -- so the *asset* contribution to wealth is exactly
@@ -199,6 +219,13 @@ def test_dcegm_policy_matches_hand_solved_reference(partner_state, work0):
     individual-scale `policy`; `value` needs no such correction. Verified to
     match to floating-point precision (~1e-13) for all four
     (work0, partner_state) combinations.
+
+    The two solutions get the return on saving from different places. The
+    reference differentiates its law of motion (`d_resources_d_assets`), so a
+    saved unit returns 2(1+r) on marriage and (1+r)/2 on divorce. dcegm always
+    uses (1+r), since its budget divides the doubled assets back out; there the
+    same factor scale_1/scale_0 comes from the `scale` in front of
+    `marginal_utility_func`. Without it, this test fails by ~20%.
     """
     model, solved = dm.build_and_solve(PARAMS, n_periods=2, a_grid=A_GRID)
     endog_dcegm, policy_dcegm, value_dcegm = dcegm_raw_arrays(
@@ -267,7 +294,7 @@ def test_dcegm_policy_matches_hand_solved_reference_n_periods(partner_state, wor
     `continuation_value_and_marg_util` for both. With those handled, this
     is no longer an exact floating-point match (periods before the terminal
     one are genuinely interpolated, on both sides, same as dcegm), but it's
-    close: max relative error ~4e-4. See
+    close: max relative error ~2e-3, median ~5e-6. See
     `test_dcegm_policy_matches_hand_solved_reference` above for the
     interpolation-free two-period version.
 
@@ -299,8 +326,7 @@ def test_dcegm_policy_matches_hand_solved_reference_n_periods(partner_state, wor
     )
     ref_value = np.interp(scale * a0_end_dcegm[keep], wide_a_grid, ref_period0["value"])
 
-    # Actual max relative error is ~4e-4 (median ~3e-6) with the borrowing
-    # constraint and top-of-grid extrapolation both handled explicitly in
-    # `solve_reference` -- this tolerance has headroom, not a fudge factor.
-    np.testing.assert_allclose(policy_dcegm[keep], ref_policy, rtol=1e-3)
+    # Isolated points next to work-choice kinks reach ~2e-3 on this grid (median
+    # ~5e-6); on a 4x finer dcegm grid they drop ~10x, so this is discretization.
+    np.testing.assert_allclose(policy_dcegm[keep], ref_policy, rtol=3e-3)
     np.testing.assert_allclose(value_dcegm[keep], ref_value, rtol=1e-3, atol=1e-3)
