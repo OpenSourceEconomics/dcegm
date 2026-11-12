@@ -22,6 +22,29 @@ def backward_induction(
 ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Do backward induction and solve for optimal policy and value function.
 
+    Structure of the solve. Backward induction runs from the final period back to
+    period 0, so the final period is filled first and period 0 last:
+
+    1. ``create_solution_container`` allocates the three arrays that are threaded
+       through everything below as the scan *carry*:
+       ``(value_solved, policy_solved, endog_grid_solved)``, each indexed by
+       state-choice with shape ``(n_state_choices,
+       n_continuous_state_combinations, n_total_wealth_grid)``.
+       ``endog_grid_solved`` is ``None`` when ``skip_endog_grid_storage`` is True
+       (the third carry element is then an empty pytree slot).
+    2. ``solve_last_two_periods`` fills the final period (analytic -- everything is
+       consumed) and the second-to-last one, which is also special because policy and value
+       in child states are not interpolated and solved directly (last period - consume all).
+    3. The remaining periods run through one ``jax.lax.scan`` per *segment*, with
+       ``solve_single_period`` as the body. Its ``xs`` is the per-batch slice of
+       ``batch_info``; see that function's docstring for what each entry is. Every
+       iteration reads its children out of the carry and writes its own rows back
+       in, which is why batches must be ordered so a state-choice's children are
+       always solved earlier.
+
+    A segment whose batches do not evenly divide its state-choices has a leftover
+    batch, applied once after the scan (``batches_cover_all`` is False).
+
     Args:
         params (dict): Dictionary containing the model parameters.
         income_shock_draws_unscaled (np.ndarray): 1d array of shape (n_quad_points,)
@@ -51,10 +74,9 @@ def backward_induction(
         income_shock_draws_unscaled * income_shock_std + income_shock_mean
     )
 
-    # Infer n_continuous_state_combinations from model structure
-    n_continuous_state_combinations = model_structure["continuous_state_space"][
-        next(iter(model_structure["continuous_state_space"]))
-    ].shape[0]
+    n_continuous_state_combinations = continuous_states_info[
+        "n_continuous_state_combinations"
+    ]
 
     (
         value_solved,
@@ -110,7 +132,7 @@ def backward_induction(
         xs=xs,
         params=params,
         continuous_grids_info=continuous_states_info,
-        continuous_state_space=model_structure["continuous_state_space"],
+        state_choice_space_dict=model_structure["state_choice_space_dict"],
         income_shocks_scaled=income_shocks_scaled,
         model_funcs=model_funcs,
         income_shock_weights=income_shock_weights,
@@ -139,6 +161,7 @@ def backward_induction(
                 segment_info["child_states_idxs"],
                 segment_info["state_choices"],
                 segment_info["state_choices_childs"],
+                segment_info["law_of_motion_arrays"],
             ),
         )
 
@@ -154,6 +177,7 @@ def backward_induction(
                     last_batch_info["child_states_idxs"],
                     last_batch_info["state_choices"],
                     last_batch_info["state_choices_childs"],
+                    last_batch_info["law_of_motion_arrays"],
                 ),
             )
 

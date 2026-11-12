@@ -37,7 +37,7 @@ def draw_taste_shock_per_agent(
         state_dict_vec=agent_state, params=params
     )
 
-    taste_shocks = jax.random.gumbel(key=agent_key, shape=n_choices)
+    taste_shocks = jax.random.gumbel(key=agent_key, shape=(n_choices,))
 
     taste_shocks = taste_shock_scale_agent * (taste_shocks - jnp.euler_gamma)
     return taste_shocks
